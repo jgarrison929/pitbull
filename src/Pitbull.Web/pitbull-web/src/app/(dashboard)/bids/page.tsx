@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import api from "@/lib/api";
 import type { PagedResult, Bid } from "@/lib/types";
 import { toast } from "sonner";
@@ -101,11 +101,15 @@ export default function BidsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
+            <>
+              <CardListSkeleton rows={5} />
+              <div className="hidden sm:block">
+                <TableSkeleton 
+                  headers={['Number', 'Name', 'Status', 'Client', 'Value', 'Due Date']}
+                  rows={5}
+                />
+              </div>
+            </>
           ) : bids.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground">No bids yet.</p>
