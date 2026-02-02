@@ -32,6 +32,7 @@
     <ProjectReference Include="..\Modules\Pitbull.Portal\Pitbull.Portal.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.Billing\Pitbull.Billing.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.RFIs\Pitbull.RFIs.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.RFIs\Pitbull.RFIs.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Email\Pitbull.Email.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Storage\Pitbull.Storage.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Messaging\Pitbull.Messaging.csproj" />

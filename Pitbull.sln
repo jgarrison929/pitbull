@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.Tests.Unit", "tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.Tests.Integration", "tests\Pitbull.Tests.Integration\Pitbull.Tests.Integration.csproj", "{EA22AE97-D4E1-43BD-8577-ED66727D3B38}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.RFIs", "src\Modules\Pitbull.RFIs\Pitbull.RFIs.csproj", "{6ED705DC-F262-43EE-9126-566324DB1584}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -199,6 +201,18 @@ Global
 		{EA22AE97-D4E1-43BD-8577-ED66727D3B38}.Release|x64.Build.0 = Release|Any CPU
 		{EA22AE97-D4E1-43BD-8577-ED66727D3B38}.Release|x86.ActiveCfg = Release|Any CPU
 		{EA22AE97-D4E1-43BD-8577-ED66727D3B38}.Release|x86.Build.0 = Release|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Debug|x64.Build.0 = Debug|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Debug|x86.Build.0 = Debug|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Release|x64.ActiveCfg = Release|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Release|x64.Build.0 = Release|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Release|x86.ActiveCfg = Release|Any CPU
+		{6ED705DC-F262-43EE-9126-566324DB1584}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -218,5 +232,6 @@ Global
 		{8DEAC0B2-ADC9-4DA8-9385-D4B5070735DA} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 		{117CACE3-93C6-4AA6-A4CE-D531BBE91929} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 		{EA22AE97-D4E1-43BD-8577-ED66727D3B38} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
+		{6ED705DC-F262-43EE-9126-566324DB1584} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 	EndGlobalSection
 EndGlobal
