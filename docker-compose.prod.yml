@@ -1,0 +1,68 @@
+# =============================================================================
+# Pitbull Construction Solutions - Production Docker Compose
+# Usage: docker compose -f docker-compose.prod.yml up -d
+# Requires: .env file with DB_PASSWORD, JWT_KEY, etc.
+# =============================================================================
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/Pitbull.Api/Dockerfile
+    environment:
+      - ConnectionStrings__PitbullDb=Host=postgres;Port=5432;Database=pitbull;Username=pitbull;Password=${DB_PASSWORD}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=pitbull-api
+      - Jwt__Audience=pitbull-client
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - ASPNETCORE_ENVIRONMENT=Production
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./src/Pitbull.Web/pitbull-web
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: pitbull
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: pitbull
+    volumes:
+      - pitbull-pgdata:/var/lib/postgresql/data
+      - ./deploy/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pitbull"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - pitbull-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pitbull-pgdata:
+  pitbull-redis:

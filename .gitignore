@@ -36,3 +36,6 @@ pitbull-redis/
 appsettings.Production.json
 *.pfx
 *.key
+.env
+.env.local
+.env.production

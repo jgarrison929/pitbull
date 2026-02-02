@@ -64,6 +64,61 @@ pitbull/
 └── docker-compose.yml
 ```
 
+## Deployment
+
+### Railway (Cloud)
+
+1. Create a new project on [Railway](https://railway.app)
+2. Connect your GitHub repo (`jgarrison929/pitbull`)
+3. Add a **PostgreSQL** service from Railway's database templates
+4. Add a **Redis** service from Railway's database templates
+5. Create two services from the repo:
+
+**API Service:**
+- Root directory: `/` (repo root)
+- Custom Dockerfile: `src/Pitbull.Api/Dockerfile`
+- Set environment variables:
+  - `ConnectionStrings__PitbullDb` → use Railway's `${{Postgres.DATABASE_URL}}` or construct from Postgres variables
+  - `Jwt__Key` → generate a random 32+ char string
+  - `Jwt__Issuer` → `pitbull-api`
+  - `Jwt__Audience` → `pitbull-client`
+  - `Cors__AllowedOrigins__0` → your frontend Railway URL
+
+**Web Service:**
+- Root directory: `src/Pitbull.Web/pitbull-web`
+- Custom Dockerfile: `src/Pitbull.Web/pitbull-web/Dockerfile`
+- Build args: `NEXT_PUBLIC_API_BASE_URL` → your API Railway URL
+
+6. Deploy! Railway auto-deploys on push to `main`.
+
+### Self-Hosted (Docker Compose)
+
+```bash
+# Clone the repo
+git clone https://github.com/jgarrison929/pitbull.git
+cd pitbull
+
+# Create environment file
+cp .env.example .env
+# Edit .env with your production values
+
+# Build and start all services
+docker compose -f docker-compose.prod.yml up -d
+
+# API at http://localhost:8080
+# Frontend at http://localhost:3000
+```
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DB_PASSWORD` | PostgreSQL password | Yes |
+| `JWT_KEY` | JWT signing key (min 32 chars) | Yes |
+| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | Yes (prod) |
+| `NEXT_PUBLIC_API_BASE_URL` | API URL for frontend (build-time) | Yes |
+| `ASPNETCORE_ENVIRONMENT` | `Development` or `Production` | No (defaults to Production in Docker) |
+
 ## License
 
 Proprietary. All rights reserved.

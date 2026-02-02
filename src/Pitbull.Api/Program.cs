@@ -5,6 +5,7 @@ using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -67,14 +68,29 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "Pitbull Construction Solutions API", Version = "v1" });
 });
 
-// CORS (dev)
+// CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Dev", policy =>
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+
+    options.AddPolicy("Production", policy =>
+        policy.WithOrigins(
+                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                ?? Array.Empty<string>())
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials());
 });
 
 var app = builder.Build();
+
+// Auto-migrate database on startup
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
+    await db.Database.MigrateAsync();
+}
 
 // Pipeline
 if (app.Environment.IsDevelopment())
@@ -82,6 +98,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
     app.UseCors("Dev");
+}
+else
+{
+    app.UseCors("Production");
 }
 
 app.UseSerilogRequestLogging();
