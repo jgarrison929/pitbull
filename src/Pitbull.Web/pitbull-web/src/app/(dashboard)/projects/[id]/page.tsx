@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DetailPageSkeleton } from "@/components/skeletons";
 import api from "@/lib/api";
 import type { Project } from "@/lib/types";
 import { toast } from "sonner";
@@ -82,15 +82,7 @@ export default function ProjectDetailPage({
   }, [id]);
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-80" />
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
-        </div>
-      </div>
-    );
+    return <DetailPageSkeleton />;
   }
 
   if (error || !project) {
