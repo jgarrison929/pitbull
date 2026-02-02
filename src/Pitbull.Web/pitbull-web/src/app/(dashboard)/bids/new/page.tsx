@@ -169,10 +169,10 @@ export default function NewBidPage() {
               />
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 type="submit"
-                className="bg-amber-500 hover:bg-amber-600 text-white"
+                className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Creating..." : "Create Bid"}
@@ -180,6 +180,7 @@ export default function NewBidPage() {
               <Button
                 type="button"
                 variant="outline"
+                className="min-h-[44px]"
                 onClick={() => router.back()}
               >
                 Cancel

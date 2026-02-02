@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Pitbull.Core.Data;
@@ -12,6 +13,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("auth")]
 public class AuthController(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,

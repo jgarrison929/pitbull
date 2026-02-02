@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -9,6 +10,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("api")]
 public class TenantsController(PitbullDbContext db) : ControllerBase
 {
     /// <summary>

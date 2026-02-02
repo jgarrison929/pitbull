@@ -175,7 +175,7 @@ export default function BidDetailPage({
           {bid.status === "Won" && (
             <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white">
+                <Button className="bg-green-600 hover:bg-green-700 text-white min-h-[44px]">
                   🏗️ Convert to Project
                 </Button>
               </DialogTrigger>
@@ -287,47 +287,92 @@ export default function BidDetailPage({
         </CardHeader>
         <CardContent>
           {bid.bidItems && bid.bidItems.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                  <TableHead className="text-right">Unit Cost</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout for bid items */}
+              <div className="sm:hidden space-y-3">
                 {bid.bidItems.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {item.quantity}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatCurrency(item.unitCost)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-medium">
-                      {formatCurrency(item.totalCost)}
-                    </TableCell>
-                  </TableRow>
+                  <div key={item.id} className="border rounded-lg p-3 space-y-2">
+                    <div className="font-medium text-sm">{item.description}</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Category</span>
+                        <p className="font-medium">{item.category}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Quantity</span>
+                        <p className="font-medium font-mono">{item.quantity}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Unit Cost</span>
+                        <p className="font-medium font-mono">{formatCurrency(item.unitCost)}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Total</span>
+                        <p className="font-medium font-mono">{formatCurrency(item.totalCost)}</p>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-                <TableRow className="font-bold">
-                  <TableCell colSpan={4} className="text-right">
-                    Total
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(
-                      bid.bidItems.reduce(
-                        (sum, item) => sum + item.totalCost,
-                        0
-                      )
-                    )}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                <div className="border-t pt-3 mt-4">
+                  <div className="flex justify-between items-center font-bold">
+                    <span>Total</span>
+                    <span className="font-mono">
+                      {formatCurrency(
+                        bid.bidItems.reduce(
+                          (sum, item) => sum + item.totalCost,
+                          0
+                        )
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Desktop table layout for bid items */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Unit Cost</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bid.bidItems.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {item.quantity}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatCurrency(item.unitCost)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono font-medium">
+                          {formatCurrency(item.totalCost)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="font-bold">
+                      <TableCell colSpan={4} className="text-right">
+                        Total
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCurrency(
+                          bid.bidItems.reduce(
+                            (sum, item) => sum + item.totalCost,
+                            0
+                          )
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           ) : (
             <div className="py-8 text-center">
               <p className="text-muted-foreground text-sm">

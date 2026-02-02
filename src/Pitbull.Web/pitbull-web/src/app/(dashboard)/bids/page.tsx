@@ -80,7 +80,7 @@ export default function BidsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Bids</h1>
           <p className="text-muted-foreground">
@@ -89,7 +89,7 @@ export default function BidsPage() {
         </div>
         <Button
           asChild
-          className="bg-amber-500 hover:bg-amber-600 text-white"
+          className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0"
         >
           <Link href="/bids/new">+ New Bid</Link>
         </Button>
@@ -114,54 +114,101 @@ export default function BidsPage() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Number</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="text-right">Value</TableHead>
-                  <TableHead>Due Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="sm:hidden space-y-3">
                 {bids.map((bid) => (
-                  <TableRow key={bid.id}>
-                    <TableCell className="font-mono text-sm">
-                      {bid.bidNumber}
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/bids/${bid.id}`}
-                        className="font-medium text-amber-700 hover:underline"
-                      >
-                        {bid.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
+                  <div key={bid.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          href={`/bids/${bid.id}`}
+                          className="font-medium text-amber-700 hover:underline text-sm"
+                        >
+                          {bid.name}
+                        </Link>
+                        <p className="text-xs text-muted-foreground font-mono mt-1">
+                          {bid.bidNumber}
+                        </p>
+                      </div>
                       <Badge
                         variant="secondary"
-                        className={statusColor(bid.status)}
+                        className={`${statusColor(bid.status)} text-xs shrink-0`}
                       >
                         {statusLabel(bid.status)}
                       </Badge>
-                    </TableCell>
-                    <TableCell>{bid.clientName || "—"}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {bid.estimatedValue
-                        ? formatCurrency(bid.estimatedValue)
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {bid.dueDate
-                        ? new Date(bid.dueDate).toLocaleDateString()
-                        : "—"}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">Client</span>
+                        <p className="font-medium">{bid.clientName || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">Value</span>
+                        <p className="font-medium font-mono">
+                          {bid.estimatedValue ? formatCurrency(bid.estimatedValue) : "—"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Due {bid.dueDate ? new Date(bid.dueDate).toLocaleDateString() : "—"}
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Number</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                      <TableHead>Due Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {bids.map((bid) => (
+                      <TableRow key={bid.id}>
+                        <TableCell className="font-mono text-sm">
+                          {bid.bidNumber}
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/bids/${bid.id}`}
+                            className="font-medium text-amber-700 hover:underline"
+                          >
+                            {bid.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={statusColor(bid.status)}
+                          >
+                            {statusLabel(bid.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{bid.clientName || "—"}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {bid.estimatedValue
+                            ? formatCurrency(bid.estimatedValue)
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {bid.dueDate
+                            ? new Date(bid.dueDate).toLocaleDateString()
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

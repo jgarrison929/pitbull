@@ -7,8 +7,10 @@ using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using HealthChecks.UI.Client;
 using Serilog;
 
@@ -107,6 +109,31 @@ builder.Services.AddCors(options =>
               .AllowCredentials());
 });
 
+// Rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+    
+    options.AddFixedWindowLimiter("api", opt =>
+    {
+        opt.PermitLimit = 60;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 2;
+    });
+    
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { error = "Too many requests. Try again later." }, token);
+    };
+});
+
 // Health checks with deep dependency checks
 builder.Services.AddHealthChecks()
     .AddNpgSql(
@@ -144,6 +171,7 @@ else
 }
 
 app.UseSerilogRequestLogging();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
