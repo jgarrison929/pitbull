@@ -8,6 +8,8 @@ using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using HealthChecks.UI.Client;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -105,6 +107,15 @@ builder.Services.AddCors(options =>
               .AllowCredentials());
 });
 
+// Health checks with deep dependency checks
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("PitbullDb")!,
+        name: "postgresql",
+        tags: new[] { "db", "ready" })
+    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), 
+        tags: new[] { "live" });
+
 var app = builder.Build();
 
 // Auto-migrate database on startup
@@ -138,12 +149,22 @@ app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
-// Health check
-app.MapGet("/health", () => Results.Ok(new
+// Health check endpoints with deep dependency checks
+app.MapHealthChecks("/health", new HealthCheckOptions
 {
-    status = "healthy",
-    service = "Pitbull Construction Solutions",
-    timestamp = DateTime.UtcNow
-}));
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
 
 app.Run();
