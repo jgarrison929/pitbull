@@ -101,10 +101,17 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // API
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Contract strategy: accept string enum values (and still allow integers for backward compat)
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
+    c.SchemaFilter<Pitbull.Api.Swagger.EnumSchemaFilter>();
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
         Title = "Pitbull Construction Solutions API",

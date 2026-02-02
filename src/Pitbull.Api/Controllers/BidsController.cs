@@ -46,7 +46,7 @@ public class BidsController(IMediator mediator) : ControllerBase
     ///         "items": [
     ///             {
     ///                 "description": "Concrete work",
-    ///                 "category": "Materials",
+    ///                 "category": "Material",
     ///                 "quantity": 500,
     ///                 "unitCost": 125.00
     ///             }
