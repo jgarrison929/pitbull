@@ -42,9 +42,15 @@ public class BidsController(IMediator mediator) : ControllerBase
         [FromQuery] BidStatus? status,
         [FromQuery] string? search,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 25)
+        [FromQuery] int pageSize = 10)
     {
-        var result = await mediator.Send(new ListBidsQuery(status, search, page, pageSize));
+        var query = new ListBidsQuery(status, search)
+        {
+            Page = page,
+            PageSize = pageSize
+        };
+        
+        var result = await mediator.Send(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 

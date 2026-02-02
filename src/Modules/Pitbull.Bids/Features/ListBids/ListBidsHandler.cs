@@ -7,9 +7,9 @@ using Pitbull.Core.Data;
 namespace Pitbull.Bids.Features.ListBids;
 
 public class ListBidsHandler(PitbullDbContext db)
-    : IRequestHandler<ListBidsQuery, Result<PagedBidResult>>
+    : IRequestHandler<ListBidsQuery, Result<PagedResult<BidDto>>>
 {
-    public async Task<Result<PagedBidResult>> Handle(
+    public async Task<Result<PagedResult<BidDto>>> Handle(
         ListBidsQuery request, CancellationToken cancellationToken)
     {
         var query = db.Set<Bid>()
@@ -39,7 +39,7 @@ public class ListBidsHandler(PitbullDbContext db)
 
         var dtos = items.Select(BidMapper.ToDto).ToList();
 
-        return Result.Success(new PagedBidResult(
+        return Result.Success(new PagedResult<BidDto>(
             dtos, totalCount, request.Page, request.PageSize));
     }
 }
