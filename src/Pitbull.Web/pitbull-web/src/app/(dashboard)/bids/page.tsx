@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/lib/api";
-import type { PaginatedResult, Bid } from "@/lib/types";
+import type { PagedResult, Bid } from "@/lib/types";
 import { toast } from "sonner";
 
 function statusColor(status: string) {
@@ -65,7 +65,7 @@ export default function BidsPage() {
   useEffect(() => {
     async function fetchBids() {
       try {
-        const result = await api<PaginatedResult<Bid>>(
+        const result = await api<PagedResult<Bid>>(
           "/api/bids?pageSize=50"
         );
         setBids(result.items);
