@@ -17,32 +17,36 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HardHat } from "lucide-react";
 import api from "@/lib/api";
-import type { PagedResult, Project } from "@/lib/types";
+import { ProjectStatus, type PagedResult, type Project } from "@/lib/types";
 import { toast } from "sonner";
 
-function statusColor(status: string) {
+function statusColor(status: ProjectStatus) {
   switch (status) {
-    case "Active":
+    case ProjectStatus.Active:
       return "bg-green-100 text-green-700 hover:bg-green-100";
-    case "OnHold":
+    case ProjectStatus.OnHold:
       return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-    case "Preconstruction":
+    case ProjectStatus.PreConstruction:
       return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-    case "Complete":
+    case ProjectStatus.Bidding:
+      return "bg-purple-100 text-purple-700 hover:bg-purple-100";
+    case ProjectStatus.Completed:
       return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
-    case "Closed":
+    case ProjectStatus.Closed:
       return "bg-neutral-200 text-neutral-500 hover:bg-neutral-200";
     default:
       return "";
   }
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: ProjectStatus) {
   switch (status) {
-    case "OnHold":
+    case ProjectStatus.OnHold:
       return "On Hold";
+    case ProjectStatus.PreConstruction:
+      return "Pre-Construction";
     default:
-      return status;
+      return ProjectStatus[status];
   }
 }
 
@@ -61,9 +65,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const result = await api<PagedResult<Project>>(
-          "/api/projects?pageSize=50"
-        );
+        const result = await api<PagedResult<Project>>("/api/projects?pageSize=50");
         setProjects(result.items);
       } catch {
         toast.error("Failed to load projects");
@@ -81,7 +83,10 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground">Manage your construction projects</p>
         </div>
-        <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0">
+        <Button
+          asChild
+          className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0"
+        >
           <Link href="/projects/new">+ New Project</Link>
         </Button>
       </div>
@@ -95,8 +100,8 @@ export default function ProjectsPage() {
             <>
               <CardListSkeleton rows={5} />
               <div className="hidden sm:block">
-                <TableSkeleton 
-                  headers={['Number', 'Name', 'Status', 'Client', 'Est. Value', 'Created']}
+                <TableSkeleton
+                  headers={["Number", "Name", "Status", "Client", "Contract", "Created"]}
                   rows={5}
                 />
               </div>
@@ -124,7 +129,7 @@ export default function ProjectsPage() {
                           {project.name}
                         </Link>
                         <p className="text-xs text-muted-foreground font-mono mt-1">
-                          {project.projectNumber}
+                          {project.number}
                         </p>
                       </div>
                       <Badge
@@ -140,14 +145,17 @@ export default function ProjectsPage() {
                         <p className="font-medium">{project.clientName || "—"}</p>
                       </div>
                       <div>
-                        <span className="text-muted-foreground text-xs">Est. Value</span>
+                        <span className="text-muted-foreground text-xs">Contract</span>
                         <p className="font-medium font-mono">
-                          {project.estimatedValue ? formatCurrency(project.estimatedValue) : "—"}
+                          {formatCurrency(project.contractAmount)}
                         </p>
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Created {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : "—"}
+                      Created{" "}
+                      {project.createdAt
+                        ? new Date(project.createdAt).toLocaleDateString()
+                        : "—"}
                     </div>
                   </div>
                 ))}
@@ -162,16 +170,14 @@ export default function ProjectsPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead className="text-right">Est. Value</TableHead>
+                      <TableHead className="text-right">Contract</TableHead>
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {projects.map((project) => (
                       <TableRow key={project.id}>
-                        <TableCell className="font-mono text-sm">
-                          {project.projectNumber}
-                        </TableCell>
+                        <TableCell className="font-mono text-sm">{project.number}</TableCell>
                         <TableCell>
                           <Link
                             href={`/projects/${project.id}`}
@@ -181,18 +187,13 @@ export default function ProjectsPage() {
                           </Link>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={statusColor(project.status)}
-                          >
+                          <Badge variant="secondary" className={statusColor(project.status)}>
                             {statusLabel(project.status)}
                           </Badge>
                         </TableCell>
                         <TableCell>{project.clientName || "—"}</TableCell>
                         <TableCell className="text-right font-mono">
-                          {project.estimatedValue
-                            ? formatCurrency(project.estimatedValue)
-                            : "—"}
+                          {formatCurrency(project.contractAmount)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {project.createdAt

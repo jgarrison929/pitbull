@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DetailPageSkeleton } from "@/components/skeletons";
 import api from "@/lib/api";
-import type { Project } from "@/lib/types";
+import { ProjectStatus, ProjectType, type Project } from "@/lib/types";
 import { toast } from "sonner";
 
 function formatCurrency(amount: number) {
@@ -19,41 +19,48 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-function statusColor(status: string) {
+function statusColor(status: ProjectStatus) {
   switch (status) {
-    case "Active":
+    case ProjectStatus.Active:
       return "bg-green-100 text-green-700";
-    case "OnHold":
+    case ProjectStatus.OnHold:
       return "bg-yellow-100 text-yellow-700";
-    case "Preconstruction":
+    case ProjectStatus.PreConstruction:
       return "bg-blue-100 text-blue-700";
-    case "Complete":
+    case ProjectStatus.Bidding:
+      return "bg-purple-100 text-purple-700";
+    case ProjectStatus.Completed:
       return "bg-neutral-100 text-neutral-600";
-    case "Closed":
+    case ProjectStatus.Closed:
       return "bg-neutral-200 text-neutral-500";
     default:
       return "";
   }
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: ProjectStatus) {
   switch (status) {
-    case "OnHold":
+    case ProjectStatus.OnHold:
       return "On Hold";
+    case ProjectStatus.PreConstruction:
+      return "Pre-Construction";
     default:
-      return status;
+      return ProjectStatus[status];
   }
 }
 
-function typeLabel(type: string) {
+function typeLabel(type: ProjectType) {
   switch (type) {
-    case "NewConstruction":
-      return "New Construction";
-    case "TenantImprovement":
+    case ProjectType.TenantImprovement:
       return "Tenant Improvement";
     default:
-      return type;
+      return ProjectType[type];
   }
+}
+
+function formatLocation(project: Project) {
+  const parts = [project.address, project.city, project.state, project.zipCode].filter(Boolean);
+  return parts.length ? parts.join(", ") : "—";
 }
 
 export default function ProjectDetailPage({
@@ -104,19 +111,12 @@ export default function ProjectDetailPage({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {project.name}
-            </h1>
-            <Badge
-              variant="secondary"
-              className={statusColor(project.status)}
-            >
+            <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+            <Badge variant="secondary" className={statusColor(project.status)}>
               {statusLabel(project.status)}
             </Badge>
           </div>
-          <p className="text-muted-foreground font-mono text-sm">
-            {project.projectNumber}
-          </p>
+          <p className="text-muted-foreground font-mono text-sm">{project.number}</p>
         </div>
       </div>
 
@@ -128,33 +128,26 @@ export default function ProjectDetailPage({
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <span className="text-muted-foreground">Client</span>
-              <span className="font-medium">
-                {project.clientName || "—"}
-              </span>
+              <span className="font-medium">{project.clientName || "—"}</span>
+
               <span className="text-muted-foreground">Type</span>
-              <span className="font-medium">
-                {typeLabel(project.type)}
-              </span>
+              <span className="font-medium">{typeLabel(project.type)}</span>
+
               <span className="text-muted-foreground">Location</span>
-              <span className="font-medium">
-                {project.address || "—"}
-              </span>
-              <span className="text-muted-foreground">Est. Value</span>
-              <span className="font-medium font-mono">
-                {project.estimatedValue
-                  ? formatCurrency(project.estimatedValue)
-                  : "—"}
-              </span>
+              <span className="font-medium">{formatLocation(project)}</span>
+
+              <span className="text-muted-foreground">Contract</span>
+              <span className="font-medium font-mono">{formatCurrency(project.contractAmount)}</span>
+
               <span className="text-muted-foreground">Start Date</span>
               <span className="font-medium">
-                {project.startDate
-                  ? new Date(project.startDate).toLocaleDateString()
-                  : "—"}
+                {project.startDate ? new Date(project.startDate).toLocaleDateString() : "—"}
               </span>
-              <span className="text-muted-foreground">End Date</span>
+
+              <span className="text-muted-foreground">Est. Completion</span>
               <span className="font-medium">
-                {project.endDate
-                  ? new Date(project.endDate).toLocaleDateString()
+                {project.estimatedCompletionDate
+                  ? new Date(project.estimatedCompletionDate).toLocaleDateString()
                   : "—"}
               </span>
             </div>

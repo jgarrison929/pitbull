@@ -1,17 +1,24 @@
-export type ProjectStatus =
-  | "Preconstruction"
-  | "Active"
-  | "OnHold"
-  | "Complete"
-  | "Closed";
+// Frontend types aligned with the ASP.NET Core API contract.
+// NOTE: The API uses System.Text.Json default enum handling (numeric enums).
 
-export type ProjectType =
-  | "NewConstruction"
-  | "Renovation"
-  | "TenantImprovement"
-  | "Restoration"
-  | "Infrastructure"
-  | "Other";
+export enum ProjectStatus {
+  Bidding = 0,
+  PreConstruction = 1,
+  Active = 2,
+  Completed = 3,
+  Closed = 4,
+  OnHold = 5,
+}
+
+export enum ProjectType {
+  Commercial = 0,
+  Residential = 1,
+  Industrial = 2,
+  Infrastructure = 3,
+  Renovation = 4,
+  TenantImprovement = 5,
+  Other = 6,
+}
 
 export type BidStatus =
   | "Draft"
@@ -43,16 +50,32 @@ export type BidItemCategory =
 
 export interface Project {
   id: string;
-  projectNumber: string;
   name: string;
-  description: string;
+  number: string;
+  description: string | null;
   status: ProjectStatus;
   type: ProjectType;
-  address: string;
-  clientName: string;
-  estimatedValue: number;
+
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+
+  clientName: string | null;
+  clientContact: string | null;
+  clientEmail: string | null;
+  clientPhone: string | null;
+
   startDate: string | null;
-  endDate: string | null;
+  estimatedCompletionDate: string | null;
+  actualCompletionDate: string | null;
+
+  contractAmount: number;
+
+  projectManagerId: string | null;
+  superintendentId: string | null;
+  sourceBidId: string | null;
+
   createdAt: string;
 }
 
@@ -89,29 +112,38 @@ export interface PagedResult<T> {
   hasNextPage: boolean;
 }
 
+// Matches src/Modules/Pitbull.Projects/Features/CreateProject/CreateProjectCommand.cs
 export interface CreateProjectCommand {
-  projectNumber: string;
   name: string;
+  number: string;
   description?: string;
-  status: ProjectStatus;
   type: ProjectType;
+
   address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+
   clientName?: string;
-  estimatedValue?: number;
+  clientContact?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+
   startDate?: string;
-  endDate?: string;
+  estimatedCompletionDate?: string;
+
+  contractAmount: number;
+
+  projectManagerId?: string;
+  superintendentId?: string;
+  sourceBidId?: string;
 }
 
 export interface UpdateProjectCommand {
+  // Not yet aligned to an API contract (backend UpdateProject feature may differ).
+  // Kept for existing UI usage.
   name?: string;
   description?: string;
-  status?: ProjectStatus;
-  type?: ProjectType;
-  address?: string;
-  clientName?: string;
-  estimatedValue?: number;
-  startDate?: string;
-  endDate?: string;
 }
 
 export interface CreateBidCommand {
