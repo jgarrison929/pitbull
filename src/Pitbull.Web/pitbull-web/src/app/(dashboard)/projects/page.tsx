@@ -18,33 +18,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { HardHat } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Project } from "@/lib/types";
+import { projectStatusBadgeClass, projectStatusLabel } from "@/lib/projects";
 import { toast } from "sonner";
-
-function statusColor(status: string) {
-  switch (status) {
-    case "Active":
-      return "bg-green-100 text-green-700 hover:bg-green-100";
-    case "OnHold":
-      return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-    case "Preconstruction":
-      return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-    case "Complete":
-      return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
-    case "Closed":
-      return "bg-neutral-200 text-neutral-500 hover:bg-neutral-200";
-    default:
-      return "";
-  }
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case "OnHold":
-      return "On Hold";
-    default:
-      return status;
-  }
-}
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -61,9 +36,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const result = await api<PagedResult<Project>>(
-          "/api/projects?pageSize=50"
-        );
+        const result = await api<PagedResult<Project>>("/api/projects?pageSize=50");
         setProjects(result.items);
       } catch {
         toast.error("Failed to load projects");
@@ -79,9 +52,14 @@ export default function ProjectsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground">Manage your construction projects</p>
+          <p className="text-muted-foreground">
+            Manage your construction projects
+          </p>
         </div>
-        <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0">
+        <Button
+          asChild
+          className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0"
+        >
           <Link href="/projects/new">+ New Project</Link>
         </Button>
       </div>
@@ -95,8 +73,15 @@ export default function ProjectsPage() {
             <>
               <CardListSkeleton rows={5} />
               <div className="hidden sm:block">
-                <TableSkeleton 
-                  headers={['Number', 'Name', 'Status', 'Client', 'Est. Value', 'Created']}
+                <TableSkeleton
+                  headers={[
+                    "Number",
+                    "Name",
+                    "Status",
+                    "Client",
+                    "Contract",
+                    "Created",
+                  ]}
                   rows={5}
                 />
               </div>
@@ -114,7 +99,10 @@ export default function ProjectsPage() {
               {/* Mobile card layout */}
               <div className="sm:hidden space-y-3">
                 {projects.map((project) => (
-                  <div key={project.id} className="border rounded-lg p-4 space-y-3">
+                  <div
+                    key={project.id}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <Link
@@ -124,30 +112,37 @@ export default function ProjectsPage() {
                           {project.name}
                         </Link>
                         <p className="text-xs text-muted-foreground font-mono mt-1">
-                          {project.projectNumber}
+                          {project.number}
                         </p>
                       </div>
                       <Badge
                         variant="secondary"
-                        className={`${statusColor(project.status)} text-xs shrink-0`}
+                        className={`${projectStatusBadgeClass(project.status)} text-xs shrink-0`}
                       >
-                        {statusLabel(project.status)}
+                        {projectStatusLabel(project.status)}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <span className="text-muted-foreground text-xs">Client</span>
+                        <span className="text-muted-foreground text-xs">
+                          Client
+                        </span>
                         <p className="font-medium">{project.clientName || "—"}</p>
                       </div>
                       <div>
-                        <span className="text-muted-foreground text-xs">Est. Value</span>
+                        <span className="text-muted-foreground text-xs">
+                          Contract
+                        </span>
                         <p className="font-medium font-mono">
-                          {project.estimatedValue ? formatCurrency(project.estimatedValue) : "—"}
+                          {formatCurrency(project.contractAmount)}
                         </p>
                       </div>
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Created {project.createdAt ? new Date(project.createdAt).toLocaleDateString() : "—"}
+                      Created{" "}
+                      {project.createdAt
+                        ? new Date(project.createdAt).toLocaleDateString()
+                        : "—"}
                     </div>
                   </div>
                 ))}
@@ -162,7 +157,7 @@ export default function ProjectsPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Client</TableHead>
-                      <TableHead className="text-right">Est. Value</TableHead>
+                      <TableHead className="text-right">Contract</TableHead>
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -170,7 +165,7 @@ export default function ProjectsPage() {
                     {projects.map((project) => (
                       <TableRow key={project.id}>
                         <TableCell className="font-mono text-sm">
-                          {project.projectNumber}
+                          {project.number}
                         </TableCell>
                         <TableCell>
                           <Link
@@ -183,16 +178,14 @@ export default function ProjectsPage() {
                         <TableCell>
                           <Badge
                             variant="secondary"
-                            className={statusColor(project.status)}
+                            className={projectStatusBadgeClass(project.status)}
                           >
-                            {statusLabel(project.status)}
+                            {projectStatusLabel(project.status)}
                           </Badge>
                         </TableCell>
                         <TableCell>{project.clientName || "—"}</TableCell>
                         <TableCell className="text-right font-mono">
-                          {project.estimatedValue
-                            ? formatCurrency(project.estimatedValue)
-                            : "—"}
+                          {formatCurrency(project.contractAmount)}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {project.createdAt
