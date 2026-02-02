@@ -16,7 +16,7 @@ This project is built by a human (Josh) directing an AI lead (JoshuasTrees) who 
 ### Developer
 - Picks top unchecked task from the backlog
 - Implements, tests, commits, pushes
-- MUST: `git pull origin main` before starting
+- MUST: `git pull origin develop` before starting
 - MUST: `dotnet build` + `npm run build` before committing
 - MUST: use conventional commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`)
 - Reports: what changed, which files, commit hash
@@ -49,7 +49,7 @@ This project is built by a human (Josh) directing an AI lead (JoshuasTrees) who 
 
 ## Coordination Rules
 
-1. **Always pull before working.** `git pull origin main` is the first command.
+1. **Always pull before working.** `git pull origin develop` is the first command (we work from `develop` now, not `main`).
 2. **Never touch files another agent owns.** If your task says "don't modify AuthController," don't.
 3. **Test before pushing.** Backend: `dotnet build`. Frontend: `npm run build`. Both must pass.
 4. **One concern per commit.** Don't mix a bug fix with a feature.
@@ -58,16 +58,44 @@ This project is built by a human (Josh) directing an AI lead (JoshuasTrees) who 
 7. **Don't over-engineer.** MVP first. We can refactor later.
 8. **If stuck, report back.** Don't spin for 10 minutes. Say what blocked you.
 
+## Branching Strategy
+
+We use a three-branch promotion model:
+
+| Branch | Purpose | Deploys To | Merges From |
+|--------|---------|------------|-------------|
+| `main` | Production | Railway production | `staging` only |
+| `staging` | Pre-prod testing | Railway staging | `develop` only |
+| `develop` | Active development (default) | Railway dev | Feature branches |
+
+### Rules
+- **`main`** is sacred. Only merged from `staging` after testing.
+- **`staging`** is the pre-production gate. Merged from `develop` when a release is ready.
+- **`develop`** is the integration branch. All feature branches target `develop`.
+- **Feature branches** (`feat/`, `fix/`, `docs/`, `test/`, `refactor/`) branch off `develop`.
+- **All PRs target `develop`** (not main). GitHub default branch is set to `develop`.
+
+### Railway Environments
+- **production** — tied to `main`, live at pitbull-api-production.up.railway.app
+- **staging** — tied to `staging`, for pre-release testing
+- **dev** — tied to `develop`, for integration testing
+
 ## Git Workflow (MANDATORY)
 
-Every change MUST be tied to a GitHub issue or PR. No cowboy commits to main.
+Every change MUST be tied to a GitHub issue or PR. No cowboy commits to any long-lived branch.
 
 1. **Create or reference a GitHub issue** for what you're working on: `gh issue create --title "..." --body "..." --label bug/feature/docs`
-2. **Create a feature branch:** `git checkout -b <type>/<short-name>` (e.g., `fix/registration-fk`, `feat/mobile-responsive`, `docs/best-practices`)
+2. **Create a feature branch from develop:** `git checkout develop && git pull origin develop && git checkout -b <type>/<short-name>` (e.g., `fix/registration-fk`, `feat/mobile-responsive`, `docs/best-practices`)
 3. **Do your work, commit to the branch**
 4. **Push the branch:** `git push -u origin <branch-name>`
-5. **Create a PR:** `gh pr create --title "..." --body "Closes #<issue-number>" --base main`
+5. **Create a PR targeting develop:** `gh pr create --title "..." --body "Closes #<issue-number>" --base develop`
 6. **Report the PR URL back** so the lead can track it
+
+### Release Flow
+1. Feature PRs merge into `develop`
+2. When ready for testing: merge `develop` → `staging` via PR
+3. After staging tests pass: merge `staging` → `main` via PR
+4. Production deploys automatically from `main`
 
 Branch naming: `fix/`, `feat/`, `docs/`, `test/`, `refactor/`
 
@@ -102,8 +130,8 @@ export PATH=$PATH:$HOME/.dotnet:$HOME/.dotnet/tools
 # Working directory
 cd /mnt/c/pitbull
 
-# Always start with
-git pull origin main
+# Always start with (develop is the default working branch)
+git pull origin develop
 
 # Railway CLI (already linked)
 railway service pitbull-api   # switch to API service
