@@ -8,11 +8,11 @@ public class CreateBidValidator : AbstractValidator<CreateBidCommand>
     {
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Bid name is required")
-            .MaximumLength(200);
+            .MaximumLength(200).WithMessage("Bid name cannot exceed 200 characters");
 
         RuleFor(x => x.Number)
             .NotEmpty().WithMessage("Bid number is required")
-            .MaximumLength(50);
+            .MaximumLength(50).WithMessage("Bid number cannot exceed 50 characters");
 
         RuleFor(x => x.EstimatedValue)
             .GreaterThanOrEqualTo(0).WithMessage("Estimated value cannot be negative");

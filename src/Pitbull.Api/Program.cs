@@ -7,8 +7,13 @@ using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using HealthChecks.UI.Client;
 using Serilog;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +33,9 @@ builder.Services.AddPitbullCore(builder.Configuration);
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
+
+// Auth validators (since auth doesn't use CQRS pattern yet)
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // ASP.NET Identity
 builder.Services.AddIdentity<AppUser, AppRole>(options =>
@@ -105,6 +113,40 @@ builder.Services.AddCors(options =>
               .AllowCredentials());
 });
 
+// Rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+    
+    options.AddFixedWindowLimiter("api", opt =>
+    {
+        opt.PermitLimit = 60;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 2;
+    });
+    
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429;
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { error = "Too many requests. Try again later." }, token);
+    };
+});
+
+// Health checks with deep dependency checks
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("PitbullDb")!,
+        name: "postgresql",
+        tags: new[] { "db", "ready" })
+    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), 
+        tags: new[] { "live" });
+
 var app = builder.Build();
 
 // Auto-migrate database on startup
@@ -133,17 +175,28 @@ else
 }
 
 app.UseSerilogRequestLogging();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
-// Health check
-app.MapGet("/health", () => Results.Ok(new
+// Health check endpoints with deep dependency checks
+app.MapHealthChecks("/health", new HealthCheckOptions
 {
-    status = "healthy",
-    service = "Pitbull Construction Solutions",
-    timestamp = DateTime.UtcNow
-}));
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
 
 app.Run();
