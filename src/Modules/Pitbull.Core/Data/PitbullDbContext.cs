@@ -18,6 +18,15 @@ public class PitbullDbContext(
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
+    // Module assemblies to scan for IEntityTypeConfiguration
+    private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
+
+    public static void RegisterModuleAssembly(System.Reflection.Assembly assembly)
+    {
+        if (!_moduleAssemblies.Contains(assembly))
+            _moduleAssemblies.Add(assembly);
+    }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -74,6 +83,10 @@ public class PitbullDbContext(
 
         // Apply module-specific configurations
         builder.ApplyConfigurationsFromAssembly(typeof(PitbullDbContext).Assembly);
+        foreach (var assembly in _moduleAssemblies)
+        {
+            builder.ApplyConfigurationsFromAssembly(assembly);
+        }
     }
 
     /// <summary>

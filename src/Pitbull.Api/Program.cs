@@ -1,7 +1,9 @@
+using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Identity;
 using Serilog;
 
@@ -13,8 +15,16 @@ builder.Host.UseSerilog((context, config) => config
     .Enrich.FromLogContext()
     .WriteTo.Console());
 
+// Register module assemblies for EF configuration discovery
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
+
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
+
+// Module registrations (MediatR handlers + FluentValidation)
+builder.Services.AddPitbullModule<CreateProjectCommand>();
+builder.Services.AddPitbullModule<CreateBidCommand>();
 
 // ASP.NET Identity
 builder.Services.AddIdentity<AppUser, AppRole>(options =>
