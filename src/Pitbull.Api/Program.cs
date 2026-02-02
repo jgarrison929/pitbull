@@ -1,3 +1,4 @@
+using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -91,6 +92,9 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
     await db.Database.MigrateAsync();
 }
+
+// Global exception handling (must be first in pipeline)
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Pipeline
 if (app.Environment.IsDevelopment())

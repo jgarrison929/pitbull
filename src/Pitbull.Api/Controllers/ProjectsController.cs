@@ -11,6 +11,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class ProjectsController(IMediator mediator) : ControllerBase
 {
     [HttpPost]

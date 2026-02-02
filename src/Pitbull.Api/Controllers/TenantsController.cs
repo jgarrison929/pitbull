@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
@@ -7,6 +8,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class TenantsController(PitbullDbContext db) : ControllerBase
 {
     /// <summary>

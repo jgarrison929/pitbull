@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features.CreateBid;
@@ -11,6 +12,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class BidsController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
