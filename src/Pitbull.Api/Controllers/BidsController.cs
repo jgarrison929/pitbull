@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.ConvertBidToProject;
@@ -13,6 +14,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("api")]
 public class BidsController(IMediator mediator) : ControllerBase
 {
     [HttpPost]
