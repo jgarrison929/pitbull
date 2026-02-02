@@ -23,10 +23,11 @@ public class TenantMiddleware(RequestDelegate next, ILogger<TenantMiddleware> lo
         {
             tenantContext.TenantId = tenantId.Value;
 
-            // Set PostgreSQL session variable for RLS
-            await db.Database.ExecuteSqlRawAsync(
-                "SET app.current_tenant = @p0",
-                tenantId.Value.ToString());
+            // EMERGENCY HOTFIX: Temporarily disabled RLS until policies are created
+            // TODO: Re-enable when proper RLS policies are implemented
+            // await db.Database.ExecuteSqlRawAsync(
+            //     "SET app.current_tenant = @p0",
+            //     tenantId.Value.ToString());
 
             logger.LogDebug("Tenant resolved: {TenantId}", tenantId.Value);
         }

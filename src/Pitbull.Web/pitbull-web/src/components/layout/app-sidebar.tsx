@@ -81,7 +81,7 @@ export function AppSidebar() {
           </div>
           <button
             onClick={logout}
-            className="text-neutral-400 hover:text-white text-xs"
+            className="text-neutral-400 hover:text-white text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
             title="Sign out"
           >
             ↗

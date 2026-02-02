@@ -3,8 +3,10 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using FluentValidation;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 
@@ -12,15 +14,26 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("auth")]
 public class AuthController(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
     PitbullDbContext db,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    IValidator<RegisterRequest> registerValidator,
+    IValidator<LoginRequest> loginValidator) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        // Validate request
+        var validationResult = await registerValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new { 
+                errors = validationResult.Errors.Select(e => e.ErrorMessage).ToArray() 
+            });
+        }
         // Use explicit transaction so tenant + user creation are atomic.
         // The execution strategy requires us to wrap the whole transaction block.
         var strategy = db.Database.CreateExecutionStrategy();
@@ -106,6 +119,14 @@ public class AuthController(
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
+        // Validate request
+        var validationResult = await loginValidator.ValidateAsync(request);
+        if (!validationResult.IsValid)
+        {
+            return BadRequest(new { 
+                errors = validationResult.Errors.Select(e => e.ErrorMessage).ToArray() 
+            });
+        }
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
             return Unauthorized(new { error = "Invalid credentials" });
