@@ -79,12 +79,14 @@ export interface BidItem {
   category: BidItemCategory;
 }
 
-export interface PaginatedResult<T> {
+export interface PagedResult<T> {
   items: T[];
   totalCount: number;
   page: number;
   pageSize: number;
   totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 export interface CreateProjectCommand {

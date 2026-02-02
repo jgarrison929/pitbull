@@ -15,7 +15,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import api from "@/lib/api";
-import type { PaginatedResult, Project } from "@/lib/types";
+import type { PagedResult, Project } from "@/lib/types";
 import { toast } from "sonner";
 
 function statusColor(status: string) {
@@ -59,7 +59,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const result = await api<PaginatedResult<Project>>(
+        const result = await api<PagedResult<Project>>(
           "/api/projects?pageSize=50"
         );
         setProjects(result.items);
