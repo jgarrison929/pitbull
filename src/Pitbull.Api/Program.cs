@@ -114,11 +114,11 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
 }
 
+// Global exception handling (must be first in pipeline)
+app.UseMiddleware<ExceptionMiddleware>();
+
 // Correlation IDs (must run early so all downstream logs include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
-
-// Global exception handling
-app.UseMiddleware<ExceptionMiddleware>();
 
 // Pipeline
 if (app.Environment.IsDevelopment())
