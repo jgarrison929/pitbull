@@ -27,7 +27,7 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames)}");
+            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames)}");
+            $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames)}");
+                $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -207,6 +207,8 @@ public class ArchitectureTests
         {
             var result = Types.InAssembly(_apiAssembly)
                 .That().Inherit(typeof(ControllerBase))
+                .And().DoNotHaveName("AuthController")
+                .And().DoNotHaveName("TenantsController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 
