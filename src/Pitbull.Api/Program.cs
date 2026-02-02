@@ -5,6 +5,7 @@ using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -41,8 +42,28 @@ builder.Services.AddIdentity<AppUser, AppRole>(options =>
 .AddEntityFrameworkStores<PitbullDbContext>()
 .AddDefaultTokenProviders();
 
-// JWT Authentication
-builder.Services.AddAuthentication()
+// Prevent Identity cookie auth from redirecting API requests
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnRedirectToLogin = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+        return Task.CompletedTask;
+    };
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+        return Task.CompletedTask;
+    };
+});
+
+// JWT Authentication - set JWT Bearer as default scheme so [Authorize]
+// returns 401 instead of Identity's cookie 302 redirect
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
