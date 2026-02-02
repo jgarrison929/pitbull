@@ -1,3 +1,4 @@
+using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Core.Data;
@@ -34,6 +35,9 @@ builder.Services.AddPitbullCore(builder.Configuration);
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
+
+// Seed data handler (lives in Api assembly)
+builder.Services.AddPitbullModule<SeedDataCommand>();
 
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
