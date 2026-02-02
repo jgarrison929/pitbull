@@ -4,62 +4,65 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import api from "@/lib/api";
-import type { PaginatedResult, Project, Bid } from "@/lib/types";
+import type { DashboardStats } from "@/lib/types";
 import { toast } from "sonner";
 
-interface DashboardStats {
-  activeProjects: number;
-  openBids: number;
+interface DashboardState {
+  stats: DashboardStats | null;
   isLoading: boolean;
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    activeProjects: 0,
-    openBids: 0,
+  const [state, setState] = useState<DashboardState>({
+    stats: null,
     isLoading: true,
   });
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [projectsRes, bidsRes] = await Promise.all([
-          api<PaginatedResult<Project>>("/api/projects?pageSize=1"),
-          api<PaginatedResult<Bid>>("/api/bids?pageSize=1"),
-        ]);
-        setStats({
-          activeProjects: projectsRes.totalCount,
-          openBids: bidsRes.totalCount,
+        const stats = await api<DashboardStats>("/api/dashboard/stats");
+        setState({
+          stats,
           isLoading: false,
         });
       } catch {
         toast.error("Failed to load dashboard data");
-        setStats((s) => ({ ...s, isLoading: false }));
+        setState((s) => ({ ...s, isLoading: false }));
       }
     }
     fetchStats();
   }, []);
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   const statCards = [
     {
       title: "Active Projects",
-      value: stats.activeProjects.toString(),
+      value: state.stats ? state.stats.projectCount.toString() : "—",
       icon: "🏗️",
     },
     {
       title: "Open Bids",
-      value: stats.openBids.toString(),
+      value: state.stats ? state.stats.bidCount.toString() : "—",
       icon: "📋",
     },
     {
-      title: "Pending Change Orders",
-      value: "—",
-      icon: "📝",
+      title: "Total Project Value",
+      value: state.stats ? formatCurrency(state.stats.totalProjectValue) : "—",
+      icon: "💰",
     },
     {
-      title: "Monthly Revenue",
-      value: "—",
-      icon: "💰",
+      title: "Total Bid Value",
+      value: state.stats ? formatCurrency(state.stats.totalBidValue) : "—",
+      icon: "📋",
     },
   ];
 
@@ -82,7 +85,7 @@ export default function DashboardPage() {
               <span className="text-xl">{stat.icon}</span>
             </CardHeader>
             <CardContent>
-              {stats.isLoading ? (
+              {state.isLoading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <div className="text-2xl font-bold">{stat.value}</div>
@@ -92,23 +95,34 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Recent Activity Placeholder */}
+      {/* Recent Activity */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[
-              { text: "Activity feed coming soon — connect more modules to see updates here.", time: "" },
-            ].map((activity, i) => (
-              <div key={i} className="flex items-start gap-3 text-sm">
-                <div className="mt-1 h-2 w-2 rounded-full bg-amber-500 shrink-0" />
+            {state.isLoading ? (
+              <div className="flex items-start gap-3 text-sm">
+                <Skeleton className="mt-1 h-2 w-2 rounded-full shrink-0" />
                 <div className="flex-1">
-                  <p className="text-muted-foreground">{activity.text}</p>
+                  <Skeleton className="h-4 w-full max-w-md" />
                 </div>
               </div>
-            ))}
+            ) : (
+              <div className="flex items-start gap-3 text-sm">
+                <div className="mt-1 h-2 w-2 rounded-full bg-green-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-muted-foreground">
+                    {state.stats ? (
+                      <>Last activity: {new Date(state.stats.lastActivityDate).toLocaleDateString()}</>
+                    ) : (
+                      "Activity feed coming soon — connect more modules to see updates here."
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
