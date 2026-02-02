@@ -184,7 +184,7 @@ export default function ProjectDetailPage({
       <Separator />
 
       <div className="flex">
-        <Button variant="ghost" asChild>
+        <Button variant="ghost" asChild className="min-h-[44px]">
           <Link href="/projects">← Back to Projects</Link>
         </Button>
       </div>
