@@ -134,3 +134,12 @@ export interface UpdateBidCommand {
   dueDate?: string;
   notes?: string;
 }
+
+export interface DashboardStats {
+  projectCount: number;
+  bidCount: number;
+  totalProjectValue: number;
+  totalBidValue: number;
+  pendingChangeOrders: number;
+  lastActivityDate: string;
+}
