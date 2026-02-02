@@ -7,7 +7,7 @@ using Pitbull.Projects.Features.CreateProject;
 
 namespace Pitbull.Projects.Features.GetProject;
 
-public class GetProjectHandler(PitbullDbContext db)
+public sealed class GetProjectHandler(PitbullDbContext db)
     : IRequestHandler<GetProjectQuery, Result<ProjectDto>>
 {
     public async Task<Result<ProjectDto>> Handle(
