@@ -11,20 +11,30 @@ public class UpdateProjectValidator : AbstractValidator<UpdateProjectCommand>
 
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Project name is required")
-            .MaximumLength(200);
+            .MaximumLength(200).WithMessage("Project name cannot exceed 200 characters");
 
         RuleFor(x => x.Number)
             .NotEmpty().WithMessage("Project number is required")
-            .MaximumLength(50);
+            .MaximumLength(50).WithMessage("Project number cannot exceed 50 characters");
 
-        RuleFor(x => x.Description)
-            .MaximumLength(2000);
+        RuleFor(x => x.Status)
+            .IsInEnum().WithMessage("Invalid project status");
+
+        RuleFor(x => x.Type)
+            .IsInEnum().WithMessage("Invalid project type");
 
         RuleFor(x => x.ContractAmount)
             .GreaterThanOrEqualTo(0).WithMessage("Contract amount cannot be negative");
 
+        // Optional field validation
+        RuleFor(x => x.Description)
+            .MaximumLength(1000).WithMessage("Description cannot exceed 1000 characters")
+            .When(x => !string.IsNullOrEmpty(x.Description));
+
         RuleFor(x => x.ClientEmail)
-            .EmailAddress().When(x => !string.IsNullOrEmpty(x.ClientEmail));
+            .EmailAddress().WithMessage("Invalid email format")
+            .MaximumLength(256).WithMessage("Email cannot exceed 256 characters")
+            .When(x => !string.IsNullOrEmpty(x.ClientEmail));
 
         RuleFor(x => x.EstimatedCompletionDate)
             .GreaterThan(x => x.StartDate)
