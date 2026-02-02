@@ -1,35 +1,68 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import api from "@/lib/api";
+import type { PaginatedResult, Project, Bid } from "@/lib/types";
+import { toast } from "sonner";
 
-const stats = [
-  {
-    title: "Active Projects",
-    value: "12",
-    description: "3 starting this month",
-    icon: "🏗️",
-  },
-  {
-    title: "Open Bids",
-    value: "8",
-    description: "2 due this week",
-    icon: "📋",
-  },
-  {
-    title: "Pending Change Orders",
-    value: "5",
-    description: "$127K total value",
-    icon: "📝",
-  },
-  {
-    title: "Monthly Revenue",
-    value: "$2.4M",
-    description: "+12% from last month",
-    icon: "💰",
-  },
-];
+interface DashboardStats {
+  activeProjects: number;
+  openBids: number;
+  isLoading: boolean;
+}
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats>({
+    activeProjects: 0,
+    openBids: 0,
+    isLoading: true,
+  });
+
+  useEffect(() => {
+    async function fetchStats() {
+      try {
+        const [projectsRes, bidsRes] = await Promise.all([
+          api<PaginatedResult<Project>>("/api/projects?pageSize=1"),
+          api<PaginatedResult<Bid>>("/api/bids?pageSize=1"),
+        ]);
+        setStats({
+          activeProjects: projectsRes.totalCount,
+          openBids: bidsRes.totalCount,
+          isLoading: false,
+        });
+      } catch {
+        toast.error("Failed to load dashboard data");
+        setStats((s) => ({ ...s, isLoading: false }));
+      }
+    }
+    fetchStats();
+  }, []);
+
+  const statCards = [
+    {
+      title: "Active Projects",
+      value: stats.activeProjects.toString(),
+      icon: "🏗️",
+    },
+    {
+      title: "Open Bids",
+      value: stats.openBids.toString(),
+      icon: "📋",
+    },
+    {
+      title: "Pending Change Orders",
+      value: "—",
+      icon: "📝",
+    },
+    {
+      title: "Monthly Revenue",
+      value: "—",
+      icon: "💰",
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -40,7 +73,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -49,10 +82,11 @@ export default function DashboardPage() {
               <span className="text-xl">{stat.icon}</span>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {stat.description}
-              </p>
+              {stats.isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <div className="text-2xl font-bold">{stat.value}</div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -66,16 +100,12 @@ export default function DashboardPage() {
         <CardContent>
           <div className="space-y-3">
             {[
-              { text: "Bid #B-2024-015 submitted for Downtown Office Complex", time: "2 hours ago" },
-              { text: "Change order approved on Project #P-2024-008", time: "5 hours ago" },
-              { text: "New RFI received on Riverside Apartments", time: "Yesterday" },
-              { text: "Project #P-2024-012 milestone completed", time: "Yesterday" },
+              { text: "Activity feed coming soon — connect more modules to see updates here.", time: "" },
             ].map((activity, i) => (
               <div key={i} className="flex items-start gap-3 text-sm">
                 <div className="mt-1 h-2 w-2 rounded-full bg-amber-500 shrink-0" />
                 <div className="flex-1">
-                  <p>{activity.text}</p>
-                  <p className="text-xs text-muted-foreground">{activity.time}</p>
+                  <p className="text-muted-foreground">{activity.text}</p>
                 </div>
               </div>
             ))}

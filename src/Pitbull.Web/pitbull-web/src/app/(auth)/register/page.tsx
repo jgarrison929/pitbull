@@ -8,19 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { toast } from "sonner";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [tenantId, setTenantId] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { register } = useAuth();
@@ -32,15 +25,13 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await register({
-        name,
-        email,
-        password,
-        tenantId: tenantId || undefined,
-      });
+      await register({ name, email, password });
+      toast.success("Account created successfully!");
       router.push("/");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      const message = err instanceof Error ? err.message : "Registration failed";
+      setError(message);
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -95,18 +86,6 @@ export default function RegisterPage() {
                 required
                 minLength={8}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tenant">Organization</Label>
-              <Select value={tenantId} onValueChange={setTenantId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select organization" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">Create New Organization</SelectItem>
-                  <SelectItem value="demo">Demo Organization</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <Button type="submit" className="w-full bg-amber-500 hover:bg-amber-600 text-white" disabled={isLoading}>
               {isLoading ? "Creating account..." : "Create Account"}

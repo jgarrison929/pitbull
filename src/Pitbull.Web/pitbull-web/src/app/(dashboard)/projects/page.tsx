@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,71 +13,65 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const projects = [
-  {
-    id: "1",
-    number: "P-2024-001",
-    name: "Downtown Office Complex",
-    status: "Active",
-    budget: "$4,500,000",
-    pm: "Sarah Johnson",
-    updated: "2024-01-15",
-  },
-  {
-    id: "2",
-    number: "P-2024-002",
-    name: "Riverside Apartments",
-    status: "Active",
-    budget: "$8,200,000",
-    pm: "Mike Chen",
-    updated: "2024-01-14",
-  },
-  {
-    id: "3",
-    number: "P-2024-003",
-    name: "Harbor Bridge Repair",
-    status: "On Hold",
-    budget: "$1,750,000",
-    pm: "Lisa Park",
-    updated: "2024-01-12",
-  },
-  {
-    id: "4",
-    number: "P-2024-004",
-    name: "Community Center Renovation",
-    status: "Planning",
-    budget: "$2,100,000",
-    pm: "James Wilson",
-    updated: "2024-01-10",
-  },
-  {
-    id: "5",
-    number: "P-2024-005",
-    name: "Industrial Warehouse Build",
-    status: "Completed",
-    budget: "$3,400,000",
-    pm: "Sarah Johnson",
-    updated: "2024-01-08",
-  },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import api from "@/lib/api";
+import type { PaginatedResult, Project } from "@/lib/types";
+import { toast } from "sonner";
 
 function statusColor(status: string) {
   switch (status) {
     case "Active":
       return "bg-green-100 text-green-700 hover:bg-green-100";
-    case "On Hold":
+    case "OnHold":
       return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-    case "Planning":
+    case "Preconstruction":
       return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-    case "Completed":
+    case "Complete":
       return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
+    case "Closed":
+      return "bg-neutral-200 text-neutral-500 hover:bg-neutral-200";
     default:
       return "";
   }
 }
 
+function statusLabel(status: string) {
+  switch (status) {
+    case "OnHold":
+      return "On Hold";
+    default:
+      return status;
+  }
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}
+
 export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        const result = await api<PaginatedResult<Project>>(
+          "/api/projects?pageSize=50"
+        );
+        setProjects(result.items);
+      } catch {
+        toast.error("Failed to load projects");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchProjects();
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -94,41 +89,69 @@ export default function ProjectsPage() {
           <CardTitle className="text-lg">All Projects</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Number</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Budget</TableHead>
-                <TableHead>Project Manager</TableHead>
-                <TableHead>Updated</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {projects.map((project) => (
-                <TableRow key={project.id}>
-                  <TableCell className="font-mono text-sm">{project.number}</TableCell>
-                  <TableCell>
-                    <Link
-                      href={`/projects/${project.id}`}
-                      className="font-medium text-amber-700 hover:underline"
-                    >
-                      {project.name}
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className={statusColor(project.status)}>
-                      {project.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right font-mono">{project.budget}</TableCell>
-                  <TableCell>{project.pm}</TableCell>
-                  <TableCell className="text-muted-foreground">{project.updated}</TableCell>
-                </TableRow>
+          {isLoading ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : projects.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">No projects yet.</p>
+              <Button asChild variant="outline" className="mt-4">
+                <Link href="/projects/new">Create your first project</Link>
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Number</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Client</TableHead>
+                  <TableHead className="text-right">Est. Value</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {projects.map((project) => (
+                  <TableRow key={project.id}>
+                    <TableCell className="font-mono text-sm">
+                      {project.projectNumber}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="font-medium text-amber-700 hover:underline"
+                      >
+                        {project.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={statusColor(project.status)}
+                      >
+                        {statusLabel(project.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{project.clientName || "—"}</TableCell>
+                    <TableCell className="text-right font-mono">
+                      {project.estimatedValue
+                        ? formatCurrency(project.estimatedValue)
+                        : "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {project.createdAt
+                        ? new Date(project.createdAt).toLocaleDateString()
+                        : "—"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
