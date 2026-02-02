@@ -13,6 +13,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using HealthChecks.UI.Client;
 using Serilog;
+using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,7 @@ builder.Host.UseSerilog((context, config) => config
     .WriteTo.Console());
 
 // Register module assemblies for EF configuration discovery
+PitbullDbContext.RegisterModuleAssembly(typeof(PitbullDbContext).Assembly); // Core module
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
 
@@ -32,6 +34,9 @@ builder.Services.AddPitbullCore(builder.Configuration);
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
+
+// Auth validators (since auth doesn't use CQRS pattern yet)
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // ASP.NET Identity
 builder.Services.AddIdentity<AppUser, AppRole>(options =>
