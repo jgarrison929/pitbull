@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.1" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.12" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modules\Pitbull.Core\Pitbull.Core.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.Projects\Pitbull.Projects.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.Bids\Pitbull.Bids.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.Contracts\Pitbull.Contracts.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.Documents\Pitbull.Documents.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.Portal\Pitbull.Portal.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.Billing\Pitbull.Billing.csproj" />
+    <ProjectReference Include="..\Infrastructure\Pitbull.Email\Pitbull.Email.csproj" />
+    <ProjectReference Include="..\Infrastructure\Pitbull.Storage\Pitbull.Storage.csproj" />
+    <ProjectReference Include="..\Infrastructure\Pitbull.Messaging\Pitbull.Messaging.csproj" />
+  </ItemGroup>
+
+</Project>

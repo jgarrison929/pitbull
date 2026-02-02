@@ -1,0 +1,38 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+*.nupkg
+.vs/
+*.DotSettings.user
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+pitbull-pgdata/
+pitbull-redis/
+
+# Secrets
+appsettings.Production.json
+*.pfx
+*.key

@@ -1,0 +1,91 @@
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Core.Extensions;
+using Pitbull.Core.MultiTenancy;
+using Microsoft.AspNetCore.Identity;
+using Serilog;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Serilog
+builder.Host.UseSerilog((context, config) => config
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console());
+
+// Core services (DbContext, MediatR, validation, multi-tenancy)
+builder.Services.AddPitbullCore(builder.Configuration);
+
+// ASP.NET Identity
+builder.Services.AddIdentity<AppUser, AppRole>(options =>
+{
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 8;
+    options.User.RequireUniqueEmail = true;
+})
+.AddEntityFrameworkStores<PitbullDbContext>()
+.AddDefaultTokenProviders();
+
+// JWT Authentication
+builder.Services.AddAuthentication()
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
+                System.Text.Encoding.UTF8.GetBytes(
+                    builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured")))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// API
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "Pitbull Construction Solutions API", Version = "v1" });
+});
+
+// CORS (dev)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Dev", policy =>
+        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+});
+
+var app = builder.Build();
+
+// Pipeline
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.UseCors("Dev");
+}
+
+app.UseSerilogRequestLogging();
+app.UseAuthentication();
+app.UseMiddleware<TenantMiddleware>();
+app.UseAuthorization();
+app.MapControllers();
+
+// Health check
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "healthy",
+    service = "Pitbull Construction Solutions",
+    timestamp = DateTime.UtcNow
+}));
+
+app.Run();
