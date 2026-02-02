@@ -64,16 +64,16 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: src/Pitbull.Web/package-lock.json
+          cache-dependency-path: src/Pitbull.Web/pitbull-web/package-lock.json
 
       - name: Install dependencies
-        working-directory: src/Pitbull.Web
+        working-directory: src/Pitbull.Web/pitbull-web
         run: npm ci
 
       - name: Build
-        working-directory: src/Pitbull.Web
+        working-directory: src/Pitbull.Web/pitbull-web
         run: npm run build
 
       - name: Lint
-        working-directory: src/Pitbull.Web
+        working-directory: src/Pitbull.Web/pitbull-web
         run: npm run lint
