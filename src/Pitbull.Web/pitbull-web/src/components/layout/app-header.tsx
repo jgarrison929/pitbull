@@ -49,7 +49,7 @@ export function AppHeader() {
       {/* Mobile menu */}
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="sm" className="lg:hidden">
+          <Button variant="ghost" size="sm" className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] text-lg">
             ☰
           </Button>
         </SheetTrigger>
@@ -77,7 +77,7 @@ export function AppHeader() {
       {/* User dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button variant="ghost" size="sm" className="gap-2 min-h-[44px] min-w-[44px]">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
               {user?.name?.charAt(0)?.toUpperCase() || "U"}
             </div>
