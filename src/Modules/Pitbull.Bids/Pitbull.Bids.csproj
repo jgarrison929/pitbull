@@ -1,7 +1,8 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Pitbull.Core\Pitbull.Core.csproj" />
+    <ProjectReference Include="..\Pitbull.Projects\Pitbull.Projects.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
