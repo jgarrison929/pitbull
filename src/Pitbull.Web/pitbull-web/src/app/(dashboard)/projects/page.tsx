@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { HardHat } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Project } from "@/lib/types";
 import { toast } from "sonner";
@@ -100,12 +102,13 @@ export default function ProjectsPage() {
               </div>
             </>
           ) : projects.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground">No projects yet.</p>
-              <Button asChild variant="outline" className="mt-4">
-                <Link href="/projects/new">Create your first project</Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={HardHat}
+              title="No projects yet"
+              description="Kick things off by creating your first project. Track budgets, timelines, and keep your crew on the same page."
+              actionLabel="+ Create Your First Project"
+              actionHref="/projects/new"
+            />
           ) : (
             <>
               {/* Mobile card layout */}
