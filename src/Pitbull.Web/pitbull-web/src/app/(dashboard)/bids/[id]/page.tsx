@@ -204,15 +204,16 @@ export default function BidDetailPage({
                     </p>
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
                   <Button
                     variant="outline"
+                    className="min-h-[44px]"
                     onClick={() => setConvertOpen(false)}
                   >
                     Cancel
                   </Button>
                   <Button
-                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                    className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
                     onClick={handleConvertToProject}
                     disabled={isConverting}
                   >
@@ -386,7 +387,7 @@ export default function BidDetailPage({
       <Separator />
 
       <div className="flex">
-        <Button variant="ghost" asChild>
+        <Button variant="ghost" asChild className="min-h-[44px]">
           <Link href="/bids">← Back to Bids</Link>
         </Button>
       </div>
