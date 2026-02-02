@@ -1,12 +1,12 @@
 using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
+using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
-using Pitbull.RFIs.Features.CreateRfi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
@@ -30,6 +30,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(PitbullDbContext).Assembly); // C
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
@@ -37,6 +38,7 @@ builder.Services.AddPitbullCore(builder.Configuration);
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
+builder.Services.AddPitbullModule<CreateRfiCommand>();
 builder.Services.AddPitbullModule<CreateRfiCommand>();
 
 // Seed data handler (lives in Api assembly)
