@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FileText } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Bid } from "@/lib/types";
 import { toast } from "sonner";
@@ -111,12 +113,13 @@ export default function BidsPage() {
               </div>
             </>
           ) : bids.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground">No bids yet.</p>
-              <Button asChild variant="outline" className="mt-4">
-                <Link href="/bids/new">Create your first bid</Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="No bids yet"
+              description="Start winning work by creating your first bid. Track estimates, due dates, and follow up on every opportunity."
+              actionLabel="+ Create Your First Bid"
+              actionHref="/bids/new"
+            />
           ) : (
             <>
               {/* Mobile card layout */}
