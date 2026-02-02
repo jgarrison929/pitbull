@@ -1,0 +1,59 @@
+name: Feature Request
+description: Propose a new feature for Pitbull Construction Solutions
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please fill out the details below.
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Which module does this feature belong to?
+      options:
+        - Core
+        - Projects
+        - Bids
+        - Contracts
+        - Documents
+        - Portal
+        - Billing
+        - Frontend
+        - Infrastructure
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of the feature you'd like to see.
+      placeholder: Describe the feature...
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Who needs this and why? Think about the GC or sub using it in the field.
+      placeholder: "As a [role], I want to [action] so that [benefit]..."
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this is done?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+    validations:
+      required: false
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Screenshots, mockups, or any other context.
+    validations:
+      required: false

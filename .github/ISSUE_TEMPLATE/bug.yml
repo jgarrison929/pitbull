@@ -1,0 +1,77 @@
+name: Bug Report
+description: Report a bug in Pitbull Construction Solutions
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Found a bug? Let's squash it. Fill out the details below.
+  - type: dropdown
+    id: module
+    attributes:
+      label: Module
+      description: Which module is affected?
+      options:
+        - Core
+        - Projects
+        - Bids
+        - Contracts
+        - Documents
+        - Portal
+        - Billing
+        - Frontend
+        - Infrastructure
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What happened?
+      placeholder: Describe the bug...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Low - Cosmetic / minor inconvenience
+        - Medium - Feature works but with issues
+        - High - Feature broken, workaround exists
+        - Critical - Blocking, no workaround
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Logs, screenshots, environment details, etc.
+    validations:
+      required: false
