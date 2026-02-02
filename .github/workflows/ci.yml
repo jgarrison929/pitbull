@@ -13,7 +13,7 @@ env:
 jobs:
   build-backend:
     name: Build & Test (.NET)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     services:
       postgres:
@@ -54,7 +54,7 @@ jobs:
 
   build-frontend:
     name: Build Frontend (Next.js)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
 
     steps:
       - uses: actions/checkout@v4
