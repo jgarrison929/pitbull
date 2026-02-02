@@ -166,33 +166,32 @@ public class ArchitectureTests
     {
         // Projects module should not depend on Bids or other business modules
         // It can depend on Core (shared kernel)
-        var result = Types.InAssembly(_projectsAssembly)
-            .ShouldNot().HaveDependencyOn("Pitbull.Bids")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Contracts")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Documents")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Billing")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Portal")
-            .GetResult();
+        var forbiddenDeps = new[] { "Pitbull.Bids", "Pitbull.Contracts", "Pitbull.Documents", "Pitbull.Billing", "Pitbull.Portal" };
+        foreach (var dep in forbiddenDeps)
+        {
+            var result = Types.InAssembly(_projectsAssembly)
+                .ShouldNot().HaveDependencyOn(dep)
+                .GetResult();
 
-        result.IsSuccessful.Should().BeTrue(
-            $"Projects module has forbidden dependencies: {string.Join(", ", result.FailingTypeNames)}");
+            result.IsSuccessful.Should().BeTrue(
+                $"Projects module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+        }
     }
 
     [Fact]
     public void CoreModule_ShouldNot_DependOn_BusinessModules()
     {
         // Core is the shared kernel and should not depend on any business modules
-        var result = Types.InAssembly(_coreAssembly)
-            .ShouldNot().HaveDependencyOn("Pitbull.Projects")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Bids")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Contracts")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Documents")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Billing")
-            .And().ShouldNot().HaveDependencyOn("Pitbull.Portal")
-            .GetResult();
+        var forbiddenDeps = new[] { "Pitbull.Projects", "Pitbull.Bids", "Pitbull.Contracts", "Pitbull.Documents", "Pitbull.Billing", "Pitbull.Portal" };
+        foreach (var dep in forbiddenDeps)
+        {
+            var result = Types.InAssembly(_coreAssembly)
+                .ShouldNot().HaveDependencyOn(dep)
+                .GetResult();
 
-        result.IsSuccessful.Should().BeTrue(
-            $"Core module has forbidden dependencies on business modules: {string.Join(", ", result.FailingTypeNames)}");
+            result.IsSuccessful.Should().BeTrue(
+                $"Core module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+        }
     }
 
     [Fact]
@@ -203,14 +202,17 @@ public class ArchitectureTests
         // - Microsoft.AspNetCore (framework)
         // - Domain objects for type safety
         // - Feature contracts (commands/queries)
-        var result = Types.InAssembly(_apiAssembly)
-            .That().Inherit(typeof(ControllerBase))
-            .ShouldNot().HaveDependencyOn("System.Data")  // No direct database access
-            .And().ShouldNot().HaveDependencyOn("Microsoft.EntityFrameworkCore")  // No direct EF access
-            .GetResult();
+        var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
+        foreach (var dep in forbiddenDeps)
+        {
+            var result = Types.InAssembly(_apiAssembly)
+                .That().Inherit(typeof(ControllerBase))
+                .ShouldNot().HaveDependencyOn(dep)
+                .GetResult();
 
-        result.IsSuccessful.Should().BeTrue(
-            $"Controllers have forbidden dependencies: {string.Join(", ", result.FailingTypeNames)}");
+            result.IsSuccessful.Should().BeTrue(
+                $"Controllers have forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+        }
     }
 
     [Fact]
