@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Modules\Pitbull.Core\Pitbull.Core.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.Projects\Pitbull.Projects.csproj" />
+    <ProjectReference Include="..\..\src\Pitbull.Api\Pitbull.Api.csproj" />
   </ItemGroup>
 
 </Project>
