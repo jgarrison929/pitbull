@@ -21,49 +21,86 @@ public class AuthController(
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        // Auto-create tenant if none provided
-        Guid tenantId;
-        if (request.TenantId == Guid.Empty || request.TenantId == default)
+        // Use explicit transaction so tenant + user creation are atomic.
+        // The execution strategy requires us to wrap the whole transaction block.
+        var strategy = db.Database.CreateExecutionStrategy();
+
+        IActionResult? actionResult = null;
+
+        await strategy.ExecuteAsync(async () =>
         {
-            var companyName = request.CompanyName ?? $"{request.FirstName}'s Company";
-            var slug = companyName.ToLowerInvariant().Replace(" ", "-").Replace("'", "");
-            var tenant = new Tenant
+            await using var transaction = await db.Database.BeginTransactionAsync();
+
+            try
             {
-                Id = Guid.NewGuid(),
-                Name = companyName,
-                Slug = slug,
-                Status = TenantStatus.Active,
-                Plan = TenantPlan.Trial,
-                CreatedAt = DateTime.UtcNow
-            };
-            db.Set<Tenant>().Add(tenant);
-            await db.SaveChangesAsync();
-            tenantId = tenant.Id;
-        }
-        else
-        {
-            var tenantExists = await db.Set<Tenant>().AnyAsync(t => t.Id == request.TenantId);
-            if (!tenantExists)
-                return BadRequest(new { errors = new[] { "Invalid tenant ID" } });
-            tenantId = request.TenantId;
-        }
+                // Auto-create tenant if none provided
+                Guid tenantId;
+                if (request.TenantId == Guid.Empty || request.TenantId == default)
+                {
+                    var companyName = request.CompanyName ?? $"{request.FirstName}'s Company";
+                    var slug = companyName.ToLowerInvariant().Replace(" ", "-").Replace("'", "");
 
-        var user = new AppUser
-        {
-            UserName = request.Email,
-            Email = request.Email,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            TenantId = tenantId
-        };
+                    // Check for slug collision
+                    var existingSlug = await db.Set<Tenant>().AnyAsync(t => t.Slug == slug);
+                    if (existingSlug)
+                        slug = $"{slug}-{Guid.NewGuid().ToString()[..8]}";
 
-        var result = await userManager.CreateAsync(user, request.Password);
+                    var tenant = new Tenant
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = companyName,
+                        Slug = slug,
+                        Status = TenantStatus.Active,
+                        Plan = TenantPlan.Trial,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    db.Set<Tenant>().Add(tenant);
+                    await db.SaveChangesAsync();
+                    tenantId = tenant.Id;
+                }
+                else
+                {
+                    var tenantExists = await db.Set<Tenant>().AnyAsync(t => t.Id == request.TenantId);
+                    if (!tenantExists)
+                    {
+                        await transaction.RollbackAsync();
+                        actionResult = BadRequest(new { errors = new[] { "Invalid tenant ID" } });
+                        return;
+                    }
+                    tenantId = request.TenantId;
+                }
 
-        if (!result.Succeeded)
-            return BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+                var user = new AppUser
+                {
+                    UserName = request.Email,
+                    Email = request.Email,
+                    FirstName = request.FirstName,
+                    LastName = request.LastName,
+                    TenantId = tenantId
+                };
 
-        var token = GenerateJwtToken(user);
-        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!));
+                var result = await userManager.CreateAsync(user, request.Password);
+
+                if (!result.Succeeded)
+                {
+                    await transaction.RollbackAsync();
+                    actionResult = BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+                    return;
+                }
+
+                await transaction.CommitAsync();
+
+                var token = GenerateJwtToken(user);
+                actionResult = Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!));
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        });
+
+        return actionResult!;
     }
 
     [HttpPost("login")]

@@ -32,7 +32,14 @@ export function decodeToken(token: string): JwtPayload | null {
   try {
     const payload = token.split(".")[1];
     const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
-    return JSON.parse(decoded) as JwtPayload;
+    const raw = JSON.parse(decoded);
+    // Map API claim names to frontend expected names
+    return {
+      ...raw,
+      name: raw.full_name ?? raw.name ?? "",
+      role: raw.user_type ?? raw.role ?? "",
+      tenantId: raw.tenant_id ?? raw.tenantId ?? "",
+    } as JwtPayload;
   } catch {
     return null;
   }
