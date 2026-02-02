@@ -3,7 +3,9 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 
 namespace Pitbull.Api.Controllers;
@@ -13,18 +15,46 @@ namespace Pitbull.Api.Controllers;
 public class AuthController(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
+    PitbullDbContext db,
     IConfiguration configuration) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        // Auto-create tenant if none provided
+        Guid tenantId;
+        if (request.TenantId == Guid.Empty || request.TenantId == default)
+        {
+            var companyName = request.CompanyName ?? $"{request.FirstName}'s Company";
+            var slug = companyName.ToLowerInvariant().Replace(" ", "-").Replace("'", "");
+            var tenant = new Tenant
+            {
+                Id = Guid.NewGuid(),
+                Name = companyName,
+                Slug = slug,
+                Status = TenantStatus.Active,
+                Plan = TenantPlan.Trial,
+                CreatedAt = DateTime.UtcNow
+            };
+            db.Set<Tenant>().Add(tenant);
+            await db.SaveChangesAsync();
+            tenantId = tenant.Id;
+        }
+        else
+        {
+            var tenantExists = await db.Set<Tenant>().AnyAsync(t => t.Id == request.TenantId);
+            if (!tenantExists)
+                return BadRequest(new { errors = new[] { "Invalid tenant ID" } });
+            tenantId = request.TenantId;
+        }
+
         var user = new AppUser
         {
             UserName = request.Email,
             Email = request.Email,
             FirstName = request.FirstName,
             LastName = request.LastName,
-            TenantId = request.TenantId
+            TenantId = tenantId
         };
 
         var result = await userManager.CreateAsync(user, request.Password);
@@ -87,7 +117,8 @@ public record RegisterRequest(
     string Password,
     string FirstName,
     string LastName,
-    Guid TenantId);
+    Guid TenantId = default,
+    string? CompanyName = null);
 
 public record LoginRequest(
     string Email,

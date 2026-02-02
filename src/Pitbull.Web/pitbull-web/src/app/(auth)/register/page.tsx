@@ -11,7 +11,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 
 export default function RegisterPage() {
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,7 +27,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await register({ name, email, password });
+      await register({ firstName, lastName, email, password, companyName: companyName || undefined });
       toast.success("Account created successfully!");
       router.push("/");
     } catch (err) {
@@ -54,14 +56,35 @@ export default function RegisterPage() {
                 {error}
               </div>
             )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  placeholder="Josh"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  placeholder="Smith"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="companyName">Company Name</Label>
               <Input
-                id="name"
-                placeholder="John Smith"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
+                id="companyName"
+                placeholder="Your Construction Co"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
               />
             </div>
             <div className="space-y-2">

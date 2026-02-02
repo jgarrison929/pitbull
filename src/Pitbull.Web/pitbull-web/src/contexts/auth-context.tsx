@@ -22,9 +22,11 @@ interface AuthContextType {
 }
 
 interface RegisterData {
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
+  companyName?: string;
   tenantId?: string;
 }
 
