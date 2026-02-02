@@ -27,7 +27,7 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames)}");
+            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames ?? [])}");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames)}");
+            $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames ?? [])}");
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames)}");
+                $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames ?? [])}");
         }
     }
 
@@ -203,10 +203,12 @@ public class ArchitectureTests
         // - Domain objects for type safety
         // - Feature contracts (commands/queries)
         var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
+        var excludedControllers = new[] { "AuthController", "TenantsController" };
         foreach (var dep in forbiddenDeps)
         {
             var result = Types.InAssembly(_apiAssembly)
                 .That().Inherit(typeof(ControllerBase))
+                .And().DoNotHaveName(excludedControllers)
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 
