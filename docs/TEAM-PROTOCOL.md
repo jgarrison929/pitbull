@@ -58,6 +58,29 @@ This project is built by a human (Josh) directing an AI lead (JoshuasTrees) who 
 7. **Don't over-engineer.** MVP first. We can refactor later.
 8. **If stuck, report back.** Don't spin for 10 minutes. Say what blocked you.
 
+## Git Workflow (MANDATORY)
+
+Every change MUST be tied to a GitHub issue or PR. No cowboy commits to main.
+
+1. **Create or reference a GitHub issue** for what you're working on: `gh issue create --title "..." --body "..." --label bug/feature/docs`
+2. **Create a feature branch:** `git checkout -b <type>/<short-name>` (e.g., `fix/registration-fk`, `feat/mobile-responsive`, `docs/best-practices`)
+3. **Do your work, commit to the branch**
+4. **Push the branch:** `git push -u origin <branch-name>`
+5. **Create a PR:** `gh pr create --title "..." --body "Closes #<issue-number>" --base main`
+6. **Report the PR URL back** so the lead can track it
+
+Branch naming: `fix/`, `feat/`, `docs/`, `test/`, `refactor/`
+
+## Mobile First
+
+The frontend MUST be mobile friendly. Every UI change should:
+- Use responsive Tailwind classes (sm:, md:, lg:)
+- Test at 375px width minimum (iPhone SE)
+- No horizontal scroll on mobile
+- Touch-friendly tap targets (min 44px)
+- Collapsible navigation on small screens
+- Tables should stack or scroll horizontally on mobile
+
 ## Shared Knowledge Base
 
 | Document | Location | Purpose |
