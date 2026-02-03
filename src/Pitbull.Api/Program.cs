@@ -237,6 +237,14 @@ builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), 
         tags: new[] { "live" });
 
+// Response compression for better bandwidth utilization
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+
 var app = builder.Build();
 
 // Handle forwarded headers from reverse proxy (must be very early)
@@ -282,6 +290,9 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
     c.DocumentTitle = "Pitbull Construction Solutions - API Docs";
 });
+
+// Response compression (before other middlewares that generate responses)
+app.UseResponseCompression();
 
 app.UseSerilogRequestLogging();
 app.UseRateLimiter();
