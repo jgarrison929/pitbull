@@ -31,7 +31,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET (hosted runners only)
+        if: ${{ !contains(runner.labels, 'self-hosted') }}
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
