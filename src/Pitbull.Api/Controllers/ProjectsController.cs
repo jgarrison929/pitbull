@@ -29,6 +29,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     /// <remarks>
     /// Creates a new construction project within the current tenant.
     /// The project number must be unique within the tenant.
+    /// Note: enum values in JSON request bodies are numeric by default (System.Text.Json).
     ///
     /// Sample request:
     ///
@@ -36,7 +37,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     ///     {
     ///         "name": "Highway Bridge Renovation",
     ///         "number": "PRJ-2026-001",
-    ///         "type": "Commercial",
+    ///         "type": 0,
     ///         "contractAmount": 2500000.00,
     ///         "clientName": "State DOT",
     ///         "startDate": "2026-03-01"
