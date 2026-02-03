@@ -158,12 +158,14 @@ public class BidsController(IMediator mediator) : ControllerBase
     /// <response code="400">Validation error or ID mismatch</response>
     /// <response code="401">Not authenticated</response>
     /// <response code="404">Bid not found</response>
+    /// <response code="409">Concurrent modification detected - refresh and try again</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(BidDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBidCommand command)
     {
@@ -172,7 +174,14 @@ public class BidsController(IMediator mediator) : ControllerBase
 
         var result = await mediator.Send(command);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "CONFLICT" => Conflict(new { error = result.Error }),
+                _ => BadRequest(new { error = result.Error })
+            };
+        }
 
         return Ok(result.Value);
     }
