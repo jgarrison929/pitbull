@@ -58,3 +58,13 @@ export function projectTypeLabel(type: ProjectType): string {
       return "Unknown";
   }
 }
+
+export const projectTypeOptions: Array<{ label: string; value: ProjectType }> = [
+  { label: "Commercial", value: ProjectType.Commercial },
+  { label: "Residential", value: ProjectType.Residential },
+  { label: "Industrial", value: ProjectType.Industrial },
+  { label: "Infrastructure", value: ProjectType.Infrastructure },
+  { label: "Renovation", value: ProjectType.Renovation },
+  { label: "Tenant Improvement", value: ProjectType.TenantImprovement },
+  { label: "Other", value: ProjectType.Other },
+];
