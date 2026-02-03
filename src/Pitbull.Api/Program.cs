@@ -206,6 +206,23 @@ builder.Services.AddCors(options =>
 // Rate limiting
 builder.Services.AddRateLimiter(options =>
 {
+    // Registration: 5 requests per hour (stricter for account creation)
+    options.AddFixedWindowLimiter("register", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromHours(1);
+        opt.QueueLimit = 0;
+    });
+    
+    // Login: 10 requests per minute (allows for typos/retries)
+    options.AddFixedWindowLimiter("login", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+    
+    // General auth fallback (currently unused but could be applied broadly)
     options.AddFixedWindowLimiter("auth", opt =>
     {
         opt.PermitLimit = 5;
@@ -213,6 +230,7 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
     
+    // API endpoints: 60 requests per minute
     options.AddFixedWindowLimiter("api", opt =>
     {
         opt.PermitLimit = 60;

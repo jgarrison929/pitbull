@@ -16,11 +16,10 @@ namespace Pitbull.Api.Controllers;
 
 /// <summary>
 /// Authentication and user registration endpoints.
-/// These endpoints are public (no JWT required) but rate-limited to 5 requests/minute.
+/// These endpoints are public (no JWT required) but rate-limited per endpoint.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[EnableRateLimiting("auth")]
 [Produces("application/json")]
 [ApiExplorerSettings(GroupName = "v1")]
 public class AuthController(
@@ -43,7 +42,7 @@ public class AuthController(
     /// 
     /// **Note:** This endpoint requires separate firstName and lastName fields, not a combined fullName field.
     ///
-    /// **Rate limited:** 5 requests per minute.
+    /// **Rate limited:** 5 requests per hour per IP.
     ///
     /// Sample request:
     ///
@@ -63,6 +62,7 @@ public class AuthController(
     /// <response code="400">Validation failed or user creation error</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost("register")]
+    [EnableRateLimiting("register")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -179,7 +179,7 @@ public class AuthController(
     /// The token includes tenant_id, user_type, and full_name claims.
     /// Token expiration is configurable (default: 60 minutes).
     ///
-    /// **Rate limited:** 5 requests per minute.
+    /// **Rate limited:** 10 requests per minute per IP.
     ///
     /// Sample request:
     ///
@@ -197,6 +197,7 @@ public class AuthController(
     /// <response code="401">Invalid credentials</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
