@@ -10,6 +10,7 @@ using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -45,6 +46,14 @@ builder.Services.AddPitbullCore(builder.Configuration);
 // Demo bootstrap (optional)
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
 builder.Services.AddScoped<DemoBootstrapper>();
+
+// Configure forwarded headers for reverse proxy (Railway, Docker, etc.)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
@@ -226,6 +235,9 @@ builder.Services.AddHealthChecks()
         tags: new[] { "live" });
 
 var app = builder.Build();
+
+// Handle forwarded headers from reverse proxy (must be very early)
+app.UseForwardedHeaders();
 
 // Auto-migrate database on startup
 using (var scope = app.Services.CreateScope())
