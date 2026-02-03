@@ -244,6 +244,9 @@ app.UseMiddleware<ExceptionMiddleware>();
 // Correlation IDs (must run early so all downstream logs include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
 
+// Request/response logging for API debugging (after correlation ID)
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
+
 // Request size limits (early in pipeline for security)
 app.UseMiddleware<RequestSizeLimitMiddleware>();
 
