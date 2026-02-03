@@ -37,7 +37,7 @@ jobs:
 
       - name: Setup .NET (GitHub-hosted runners only)
         if: ${{ runner.environment == 'github-hosted' }}
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
