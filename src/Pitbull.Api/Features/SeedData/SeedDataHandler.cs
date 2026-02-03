@@ -9,15 +9,21 @@ namespace Pitbull.Api.Features.SeedData;
 
 /// <summary>
 /// Seeds realistic construction demo data.
-/// Development environment only.
+///
+/// This handler is used by:
+/// - The dev-only HTTP endpoint (SeedDataController)
+/// - The public demo bootstrapper (when explicitly enabled via configuration)
 /// </summary>
-public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env)
+public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration)
     : IRequestHandler<SeedDataCommand, Result<SeedDataResult>>
 {
     public async Task<Result<SeedDataResult>> Handle(
         SeedDataCommand request, CancellationToken cancellationToken)
     {
-        if (!env.IsDevelopment())
+        var allowNonDev = configuration.GetValue<bool>("SeedData:AllowInNonDevelopment")
+                          || configuration.GetValue<bool>("Demo:Enabled");
+
+        if (!env.IsDevelopment() && !allowNonDev)
             return Result.Failure<SeedDataResult>(
                 "Seed data is only available in Development environment", "FORBIDDEN");
 
