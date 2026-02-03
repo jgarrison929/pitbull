@@ -7,8 +7,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Pitbull.Api.Demo;
 using Microsoft.IdentityModel.Tokens;
+using Pitbull.Api.Demo;
+using Pitbull.Api.Extensions;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 
@@ -70,25 +71,12 @@ public class AuthController(
     {
         // Public demo should not allow self-service signups
         if (demoOptions.Value.Enabled && demoOptions.Value.DisableRegistration)
-            return NotFound();
+            return this.NotFoundError("Registration is disabled in demo mode");
 
         // Validate request
         var validationResult = await registerValidator.ValidateAsync(request);
         if (!validationResult.IsValid)
-        {
-            var errorResponse = new
-            {
-                type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
-                title = "One or more validation errors occurred.",
-                status = 400,
-                errors = validationResult.Errors.ToDictionary(
-                    e => e.PropertyName,
-                    e => new[] { e.ErrorMessage }
-                ),
-                traceId = HttpContext.TraceIdentifier
-            };
-            return BadRequest(errorResponse);
-        }
+            return this.ValidationError(validationResult);
         // Use explicit transaction so tenant + user creation are atomic.
         // The execution strategy requires us to wrap the whole transaction block.
         var strategy = db.Database.CreateExecutionStrategy();
@@ -132,7 +120,7 @@ public class AuthController(
                     if (!tenantExists)
                     {
                         await transaction.RollbackAsync();
-                        actionResult = BadRequest(new { errors = new[] { "Invalid tenant ID" } });
+                        actionResult = this.BadRequestError("Invalid tenant ID");
                         return;
                     }
                     tenantId = request.TenantId;
@@ -152,7 +140,11 @@ public class AuthController(
                 if (!result.Succeeded)
                 {
                     await transaction.RollbackAsync();
-                    actionResult = BadRequest(new { errors = result.Errors.Select(e => e.Description) });
+                    var errors = result.Errors.ToDictionary(
+                        e => e.Code,
+                        e => new[] { e.Description }
+                    );
+                    actionResult = this.ValidationError(errors, "User creation failed");
                     return;
                 }
 
@@ -207,18 +199,14 @@ public class AuthController(
         // Validate request
         var validationResult = await loginValidator.ValidateAsync(request);
         if (!validationResult.IsValid)
-        {
-            return BadRequest(new { 
-                errors = validationResult.Errors.Select(e => e.ErrorMessage).ToArray() 
-            });
-        }
+            return this.ValidationError(validationResult);
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
-            return Unauthorized(new { error = "Invalid credentials" });
+            return this.UnauthorizedError("Invalid credentials");
 
         var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
         if (!result.Succeeded)
-            return Unauthorized(new { error = "Invalid credentials" });
+            return this.UnauthorizedError("Invalid credentials");
 
         user.LastLoginAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);

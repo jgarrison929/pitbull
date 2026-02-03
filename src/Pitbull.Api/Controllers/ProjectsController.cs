@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Api.Extensions;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
@@ -86,10 +87,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await mediator.Send(new GetProjectQuery(id));
-        if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
-
-        return Ok(result.Value);
+        return this.HandleResult(result);
     }
 
     /// <summary>
@@ -160,16 +158,16 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProjectCommand command)
     {
         if (id != command.Id)
-            return BadRequest(new { error = "Route ID does not match body ID" });
+            return this.BadRequestError("Route ID does not match body ID");
 
         var result = await mediator.Send(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
             {
-                "NOT_FOUND" => NotFound(new { error = result.Error }),
-                "CONFLICT" => Conflict(new { error = result.Error }),
-                _ => BadRequest(new { error = result.Error })
+                "NOT_FOUND" => this.NotFoundError(result.Error),
+                "CONFLICT" => this.Error(409, result.Error, "CONFLICT"),
+                _ => this.BadRequestError(result.Error)
             };
         }
 
@@ -197,7 +195,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new DeleteProjectCommand(id));
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error) : this.BadRequestError(result.Error);
 
         return NoContent();
     }
