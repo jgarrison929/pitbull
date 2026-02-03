@@ -13,9 +13,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FileText } from "lucide-react";
 import api from "@/lib/api";
-import type { PaginatedResult, Bid } from "@/lib/types";
+import type { PagedResult, Bid } from "@/lib/types";
 import { toast } from "sonner";
 
 function statusColor(status: string) {
@@ -65,7 +67,7 @@ export default function BidsPage() {
   useEffect(() => {
     async function fetchBids() {
       try {
-        const result = await api<PaginatedResult<Bid>>(
+        const result = await api<PagedResult<Bid>>(
           "/api/bids?pageSize=50"
         );
         setBids(result.items);
@@ -101,18 +103,23 @@ export default function BidsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
+            <>
+              <CardListSkeleton rows={5} />
+              <div className="hidden sm:block">
+                <TableSkeleton 
+                  headers={['Number', 'Name', 'Status', 'Client', 'Value', 'Due Date']}
+                  rows={5}
+                />
+              </div>
+            </>
           ) : bids.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground">No bids yet.</p>
-              <Button asChild variant="outline" className="mt-4">
-                <Link href="/bids/new">Create your first bid</Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="No bids yet"
+              description="Start winning work by creating your first bid. Track estimates, due dates, and follow up on every opportunity."
+              actionLabel="+ Create Your First Bid"
+              actionHref="/bids/new"
+            />
           ) : (
             <>
               {/* Mobile card layout */}
