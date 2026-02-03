@@ -1,0 +1,90 @@
+name: CI (self-hosted)
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  NODE_VERSION: '22'
+
+jobs:
+  build-backend:
+    name: Build & Test (.NET) [self-hosted]
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    runs-on: [self-hosted, Linux, X64]
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pitbull
+          POSTGRES_PASSWORD: pitbull_dev
+          POSTGRES_DB: pitbull_test
+        ports:
+          # Map container 5432 -> an ephemeral host port (avoids clashes on self-hosted runners)
+          - 5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Run Unit Tests
+        run: dotnet test tests/Pitbull.Tests.Unit --no-build --configuration Release --verbosity normal
+
+      - name: Run Integration Tests
+        run: dotnet test tests/Pitbull.Tests.Integration --no-build --configuration Release --verbosity normal
+        env:
+          ConnectionStrings__PitbullDb: "Host=localhost;Port=${{ job.services.postgres.ports[5432] }};Database=pitbull_test;Username=pitbull;Password=pitbull_dev"
+
+  build-frontend:
+    name: Build Frontend (Next.js) [self-hosted]
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
+    runs-on: [self-hosted, Linux, X64]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: src/Pitbull.Web/pitbull-web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: src/Pitbull.Web/pitbull-web
+        run: npm ci
+
+      - name: Build
+        working-directory: src/Pitbull.Web/pitbull-web
+        run: npm run build
+
+      - name: Lint
+        working-directory: src/Pitbull.Web/pitbull-web
+        run: npm run lint
