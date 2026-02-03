@@ -13,36 +13,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { HardHat } from "lucide-react";
 import api from "@/lib/api";
-import type { PaginatedResult, Project } from "@/lib/types";
+import type { PagedResult, Project } from "@/lib/types";
+import { projectStatusBadgeClass, projectStatusLabel } from "@/lib/projects";
 import { toast } from "sonner";
-
-function statusColor(status: string) {
-  switch (status) {
-    case "Active":
-      return "bg-green-100 text-green-700 hover:bg-green-100";
-    case "OnHold":
-      return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-    case "Preconstruction":
-      return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-    case "Complete":
-      return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
-    case "Closed":
-      return "bg-neutral-200 text-neutral-500 hover:bg-neutral-200";
-    default:
-      return "";
-  }
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case "OnHold":
-      return "On Hold";
-    default:
-      return status;
-  }
-}
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -59,9 +36,7 @@ export default function ProjectsPage() {
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const result = await api<PaginatedResult<Project>>(
-          "/api/projects?pageSize=50"
-        );
+        const result = await api<PagedResult<Project>>("/api/projects?pageSize=50");
         setProjects(result.items);
       } catch {
         toast.error("Failed to load projects");
@@ -74,12 +49,17 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground">Manage your construction projects</p>
+          <p className="text-muted-foreground">
+            Manage your construction projects
+          </p>
         </div>
-        <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white">
+        <Button
+          asChild
+          className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0"
+        >
           <Link href="/projects/new">+ New Project</Link>
         </Button>
       </div>
@@ -90,67 +70,134 @@ export default function ProjectsPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
+            <>
+              <CardListSkeleton rows={5} />
+              <div className="hidden sm:block">
+                <TableSkeleton
+                  headers={[
+                    "Number",
+                    "Name",
+                    "Status",
+                    "Client",
+                    "Contract",
+                    "Created",
+                  ]}
+                  rows={5}
+                />
+              </div>
+            </>
           ) : projects.length === 0 ? (
-            <div className="py-12 text-center">
-              <p className="text-muted-foreground">No projects yet.</p>
-              <Button asChild variant="outline" className="mt-4">
-                <Link href="/projects/new">Create your first project</Link>
-              </Button>
-            </div>
+            <EmptyState
+              icon={HardHat}
+              title="No projects yet"
+              description="Kick things off by creating your first project. Track budgets, timelines, and keep your crew on the same page."
+              actionLabel="+ Create Your First Project"
+              actionHref="/projects/new"
+            />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Number</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead className="text-right">Est. Value</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="sm:hidden space-y-3">
                 {projects.map((project) => (
-                  <TableRow key={project.id}>
-                    <TableCell className="font-mono text-sm">
-                      {project.projectNumber}
-                    </TableCell>
-                    <TableCell>
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="font-medium text-amber-700 hover:underline"
-                      >
-                        {project.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
+                  <div
+                    key={project.id}
+                    className="border rounded-lg p-4 space-y-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="font-medium text-amber-700 hover:underline text-sm"
+                        >
+                          {project.name}
+                        </Link>
+                        <p className="text-xs text-muted-foreground font-mono mt-1">
+                          {project.number}
+                        </p>
+                      </div>
                       <Badge
                         variant="secondary"
-                        className={statusColor(project.status)}
+                        className={`${projectStatusBadgeClass(project.status)} text-xs shrink-0`}
                       >
-                        {statusLabel(project.status)}
+                        {projectStatusLabel(project.status)}
                       </Badge>
-                    </TableCell>
-                    <TableCell>{project.clientName || "—"}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {project.estimatedValue
-                        ? formatCurrency(project.estimatedValue)
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs">
+                          Client
+                        </span>
+                        <p className="font-medium">{project.clientName || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs">
+                          Contract
+                        </span>
+                        <p className="font-medium font-mono">
+                          {formatCurrency(project.contractAmount)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Created{" "}
                       {project.createdAt
                         ? new Date(project.createdAt).toLocaleDateString()
                         : "—"}
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Number</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Client</TableHead>
+                      <TableHead className="text-right">Contract</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {projects.map((project) => (
+                      <TableRow key={project.id}>
+                        <TableCell className="font-mono text-sm">
+                          {project.number}
+                        </TableCell>
+                        <TableCell>
+                          <Link
+                            href={`/projects/${project.id}`}
+                            className="font-medium text-amber-700 hover:underline"
+                          >
+                            {project.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={projectStatusBadgeClass(project.status)}
+                          >
+                            {projectStatusLabel(project.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{project.clientName || "—"}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatCurrency(project.contractAmount)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {project.createdAt
+                            ? new Date(project.createdAt).toLocaleDateString()
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

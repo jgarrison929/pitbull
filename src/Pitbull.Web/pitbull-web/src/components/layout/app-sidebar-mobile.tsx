@@ -69,7 +69,7 @@ export function AppSidebarMobile() {
             <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
             <p className="text-xs text-neutral-400 truncate">{user?.email || ""}</p>
           </div>
-          <button onClick={logout} className="text-neutral-400 hover:text-white text-xs" title="Sign out">
+          <button onClick={logout} className="text-neutral-400 hover:text-white text-sm min-h-[44px] min-w-[44px] flex items-center justify-center" title="Sign out">
             ↗
           </button>
         </div>
