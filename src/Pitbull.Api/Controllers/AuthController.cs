@@ -59,7 +59,7 @@ public class AuthController(
     /// <response code="400">Validation failed or user creation error</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost("register")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
@@ -146,7 +146,7 @@ public class AuthController(
                 await transaction.CommitAsync();
 
                 var token = GenerateJwtToken(user);
-                actionResult = Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!));
+                actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!));
             }
             catch
             {
