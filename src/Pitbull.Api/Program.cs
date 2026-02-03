@@ -1,3 +1,4 @@
+using Pitbull.Api.Demo;
 using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
@@ -34,6 +35,10 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
+
+// Demo bootstrap (optional)
+builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
+builder.Services.AddScoped<DemoBootstrapper>();
 
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
@@ -206,6 +211,10 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
     await db.Database.MigrateAsync();
+
+    // Optional: bootstrap the public demo tenant + seed data
+    var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
+    await demoBootstrapper.EnsureSeededIfEnabledAsync();
 }
 
 // Global exception handling (must be first in pipeline)
