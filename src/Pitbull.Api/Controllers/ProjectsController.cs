@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.DeleteProject;
 using Pitbull.Projects.Features.GetProject;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
@@ -185,13 +186,10 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        // Soft delete via direct db access (simple enough to not need CQRS)
-        var getResult = await mediator.Send(new GetProjectQuery(id));
-        if (!getResult.IsSuccess)
-            return NotFound(new { error = "Project not found" });
+        var result = await mediator.Send(new DeleteProjectCommand(id));
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
 
-        // We'll use update to mark as closed for now
-        // In a real app you'd have a dedicated soft-delete command
         return NoContent();
     }
 }
