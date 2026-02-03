@@ -207,9 +207,10 @@ public class ListProjectsHandlerTests
         // Arrange
         var dbName = Guid.NewGuid().ToString();
         using var db = TestDbContextFactory.Create(dbName: dbName);
-        var p1 = new Project { Name = "First", Number = "PRJ-001", CreatedAt = DateTime.UtcNow.AddDays(-2), ContractAmount = 0 };
-        var p2 = new Project { Name = "Second", Number = "PRJ-002", CreatedAt = DateTime.UtcNow.AddDays(-1), ContractAmount = 0 };
-        var p3 = new Project { Name = "Third", Number = "PRJ-003", CreatedAt = DateTime.UtcNow, ContractAmount = 0 };
+        var baseTime = DateTime.UtcNow.Date; // Use date only to avoid precision issues
+        var p1 = new Project { Name = "First", Number = "PRJ-001", CreatedAt = baseTime.AddDays(-2), ContractAmount = 0 };
+        var p2 = new Project { Name = "Second", Number = "PRJ-002", CreatedAt = baseTime.AddDays(-1), ContractAmount = 0 };
+        var p3 = new Project { Name = "Third", Number = "PRJ-003", CreatedAt = baseTime, ContractAmount = 0 };
         db.Set<Project>().AddRange(p1, p2, p3);
         await db.SaveChangesAsync();
         var handler = new ListProjectsHandler(db);
@@ -220,6 +221,7 @@ public class ListProjectsHandlerTests
 
         // Assert - most recent first
         result.Value!.Items[0].Name.Should().Be("Third");
+        result.Value.Items[1].Name.Should().Be("Second");
         result.Value.Items[2].Name.Should().Be("First");
     }
 }
