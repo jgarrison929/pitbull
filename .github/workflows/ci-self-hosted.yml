@@ -1,11 +1,14 @@
-name: CI
+name: CI (self-hosted)
 
 on:
-  push:
-    branches: [main, develop]
-  pull_request:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main, develop]
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   DOTNET_VERSION: '9.0.x'
@@ -13,7 +16,8 @@ env:
 
 jobs:
   build-backend:
-    name: Build & Test (.NET)
+    name: Build & Test (.NET) [self-hosted]
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
     runs-on: [self-hosted, Linux, X64]
 
     services:
@@ -34,9 +38,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Setup .NET (GitHub-hosted runners only)
-        if: ${{ runner.environment == 'github-hosted' }}
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
@@ -56,25 +61,21 @@ jobs:
           ConnectionStrings__PitbullDb: "Host=localhost;Port=${{ job.services.postgres.ports[5432] }};Database=pitbull_test;Username=pitbull;Password=pitbull_dev"
 
   build-frontend:
-    name: Build Frontend (Next.js)
+    name: Build Frontend (Next.js) [self-hosted]
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push') }}
     runs-on: [self-hosted, Linux, X64]
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Setup Node.js (GitHub-hosted runners, with cache)
-        if: ${{ runner.environment == 'github-hosted' }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: src/Pitbull.Web/pitbull-web/package-lock.json
-
-      - name: Setup Node.js (self-hosted runners)
-        if: ${{ runner.environment == 'self-hosted' }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         working-directory: src/Pitbull.Web/pitbull-web
