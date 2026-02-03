@@ -9,7 +9,8 @@ This project is built by a human (Josh) directing an AI lead (JoshuasTrees) who 
 ### Lead (JoshuasTrees)
 - Maintains the backlog (`memory/pitbull-pipeline.md`)
 - Spawns and coordinates sub-agents
-- Reviews results, updates docs, keeps momentum
+- **Reviews and merges all PRs** (Josh does not do code reviews)
+- Flags architectural decisions to Josh in plain English for approval
 - Communicates with Josh via Discord
 - Runs on 20-minute pipeline ticks via cron
 

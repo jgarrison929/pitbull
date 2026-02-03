@@ -47,6 +47,9 @@ builder.Services.AddPitbullModule<SeedDataCommand>();
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
+// Auth validators (since auth doesn't use CQRS pattern yet)
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
 // ASP.NET Identity
 builder.Services.AddIdentity<AppUser, AppRole>(options =>
 {
