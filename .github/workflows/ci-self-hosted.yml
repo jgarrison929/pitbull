@@ -45,6 +45,9 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+        env:
+          DOTNET_INSTALL_DIR: /home/jgarrison/.dotnet
+          DOTNET_ROOT: /home/jgarrison/.dotnet
 
       - name: Restore dependencies
         run: dotnet restore
