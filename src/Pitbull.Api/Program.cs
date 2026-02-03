@@ -1,3 +1,4 @@
+using Pitbull.Api.Configuration;
 using Pitbull.Api.Demo;
 using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
@@ -21,6 +22,9 @@ using Serilog;
 using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Validate configuration early to catch issues before startup
+EnvironmentValidator.ValidateRequiredConfiguration(builder.Configuration);
 
 // Serilog
 builder.Host.UseSerilog((context, config) => config
