@@ -1,3 +1,4 @@
+using Pitbull.Api.Demo;
 using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
@@ -13,6 +14,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Server.IIS;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using HealthChecks.UI.Client;
 using Serilog;
 using FluentValidation;
@@ -34,6 +37,10 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
+
+// Demo bootstrap (optional)
+builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
+builder.Services.AddScoped<DemoBootstrapper>();
 
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
@@ -102,6 +109,22 @@ builder.Services.AddAuthentication(options =>
     });
 
 builder.Services.AddAuthorization();
+
+// Request size limits for security
+builder.Services.Configure<RequestSizeLimitOptions>(
+    builder.Configuration.GetSection(RequestSizeLimitOptions.SectionName));
+var sizeLimitOptions = builder.Configuration
+    .GetSection(RequestSizeLimitOptions.SectionName)
+    .Get<RequestSizeLimitOptions>() ?? new RequestSizeLimitOptions();
+
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
+});
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
+});
 
 // API
 builder.Services.AddControllers();
@@ -209,6 +232,10 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
     await db.Database.MigrateAsync();
+
+    // Optional: bootstrap the public demo tenant + seed data
+    var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
+    await demoBootstrapper.EnsureSeededIfEnabledAsync();
 }
 
 // Global exception handling (must be first in pipeline)
@@ -216,6 +243,9 @@ app.UseMiddleware<ExceptionMiddleware>();
 
 // Correlation IDs (must run early so all downstream logs include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Request size limits (early in pipeline for security)
+app.UseMiddleware<RequestSizeLimitMiddleware>();
 
 // Pipeline
 if (app.Environment.IsDevelopment())
