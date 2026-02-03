@@ -1,0 +1,83 @@
+version: 2
+updates:
+  # Enable version updates for NuGet packages
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "automated", "nuget"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Group related updates to reduce PR noise
+    groups:
+      microsoft:
+        patterns:
+          - "Microsoft.*"
+          - "System.*"
+      testing:
+        patterns:
+          - "xunit*"
+          - "*test*"
+          - "FluentAssertions*"
+          - "Moq*"
+      infrastructure:
+        patterns:
+          - "Npgsql*"
+          - "Serilog*"
+          - "MediatR*"
+          - "FluentValidation*"
+
+  # Enable version updates for npm packages  
+  - package-ecosystem: "npm"
+    directory: "/src/Pitbull.Web/pitbull-web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "automated", "npm", "frontend"]
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Group related updates
+    groups:
+      react:
+        patterns:
+          - "react*"
+          - "@types/react*"
+      nextjs:
+        patterns:
+          - "next"
+          - "@next/*"
+      ui:
+        patterns:
+          - "@radix-ui/*"
+          - "lucide-react"
+          - "tailwindcss"
+          - "tailwind*"
+      dev-tools:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "eslint*"
+          - "prettier*"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "automated", "github-actions"]
+    commit-message:
+      prefix: "ci"
+      include: "scope"
