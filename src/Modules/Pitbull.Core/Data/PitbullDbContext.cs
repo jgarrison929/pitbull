@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +15,8 @@ namespace Pitbull.Core.Data;
 /// </summary>
 public class PitbullDbContext(
     DbContextOptions<PitbullDbContext> options,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IdentityDbContext<AppUser, AppRole, Guid>(options)
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -94,16 +97,30 @@ public class PitbullDbContext(
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        var currentUserId = GetCurrentUserId();
+        var now = DateTime.UtcNow;
+
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
                     entry.Entity.TenantId = tenantContext.TenantId;
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                    // Only set CreatedAt if not explicitly set (default DateTime is DateTime.MinValue)
+                    if (entry.Entity.CreatedAt == default)
+                        entry.Entity.CreatedAt = now;
+                    entry.Entity.CreatedBy = currentUserId;
                     break;
                 case EntityState.Modified:
-                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedAt = now;
+                    entry.Entity.UpdatedBy = currentUserId;
+                    break;
+                case EntityState.Deleted:
+                    // Soft delete: mark as deleted instead of actual removal
+                    entry.State = EntityState.Modified;
+                    entry.Entity.IsDeleted = true;
+                    entry.Entity.DeletedAt = now;
+                    entry.Entity.DeletedBy = currentUserId;
                     break;
             }
         }
@@ -112,6 +129,23 @@ public class PitbullDbContext(
         var result = await base.SaveChangesAsync(cancellationToken);
         DispatchDomainEvents();
         return result;
+    }
+
+    private string GetCurrentUserId()
+    {
+        var user = httpContextAccessor?.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            // Try to get the user ID from JWT 'sub' claim
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) 
+                        ?? user.FindFirstValue("sub");
+            
+            if (!string.IsNullOrEmpty(userId))
+                return userId;
+        }
+
+        // Fallback for system operations (migrations, background jobs, etc.)
+        return "system";
     }
 
     private void DispatchDomainEvents()

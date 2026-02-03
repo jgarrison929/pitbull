@@ -119,6 +119,9 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// HTTP Context access for audit fields in DbContext
+builder.Services.AddHttpContextAccessor();
+
 // Request size limits for security
 builder.Services.Configure<RequestSizeLimitOptions>(
     builder.Configuration.GetSection(RequestSizeLimitOptions.SectionName));
