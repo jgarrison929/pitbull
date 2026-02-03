@@ -50,7 +50,6 @@ builder.Services.AddScoped<DemoBootstrapper>();
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
 builder.Services.AddPitbullModule<CreateRfiCommand>();
-builder.Services.AddPitbullModule<CreateRfiCommand>();
 
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
