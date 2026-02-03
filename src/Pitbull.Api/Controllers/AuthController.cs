@@ -39,6 +39,10 @@ public class AuthController(
     /// Creates a new user and optionally a new tenant (organization). If no TenantId is provided,
     /// a new tenant is automatically created using the CompanyName or the user's first name.
     ///
+    /// **Required fields:** email, password, firstName, lastName
+    /// 
+    /// **Note:** This endpoint requires separate firstName and lastName fields, not a combined fullName field.
+    ///
     /// **Rate limited:** 5 requests per minute.
     ///
     /// Sample request:
@@ -72,9 +76,18 @@ public class AuthController(
         var validationResult = await registerValidator.ValidateAsync(request);
         if (!validationResult.IsValid)
         {
-            return BadRequest(new { 
-                errors = validationResult.Errors.Select(e => e.ErrorMessage).ToArray() 
-            });
+            var errorResponse = new
+            {
+                type = "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                title = "One or more validation errors occurred.",
+                status = 400,
+                errors = validationResult.Errors.ToDictionary(
+                    e => e.PropertyName,
+                    e => new[] { e.ErrorMessage }
+                ),
+                traceId = HttpContext.TraceIdentifier
+            };
+            return BadRequest(errorResponse);
         }
         // Use explicit transaction so tenant + user creation are atomic.
         // The execution strategy requires us to wrap the whole transaction block.
