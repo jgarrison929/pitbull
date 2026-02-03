@@ -1,17 +1,23 @@
-export type ProjectStatus =
-  | "Preconstruction"
-  | "Active"
-  | "OnHold"
-  | "Complete"
-  | "Closed";
+// NOTE: API serializes enums as numbers (System.Text.Json default).
+// Keep these as numeric enums to match the backend.
+export enum ProjectStatus {
+  Bidding = 0,
+  PreConstruction = 1,
+  Active = 2,
+  Completed = 3,
+  Closed = 4,
+  OnHold = 5,
+}
 
-export type ProjectType =
-  | "NewConstruction"
-  | "Renovation"
-  | "TenantImprovement"
-  | "Restoration"
-  | "Infrastructure"
-  | "Other";
+export enum ProjectType {
+  Commercial = 0,
+  Residential = 1,
+  Industrial = 2,
+  Infrastructure = 3,
+  Renovation = 4,
+  TenantImprovement = 5,
+  Other = 6,
+}
 
 export type BidStatus =
   | "Draft"
@@ -43,16 +49,26 @@ export type BidItemCategory =
 
 export interface Project {
   id: string;
-  projectNumber: string;
   name: string;
-  description: string;
+  number: string;
+  description?: string | null;
   status: ProjectStatus;
   type: ProjectType;
-  address: string;
-  clientName: string;
-  estimatedValue: number;
-  startDate: string | null;
-  endDate: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  clientName?: string | null;
+  clientContact?: string | null;
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  startDate?: string | null;
+  estimatedCompletionDate?: string | null;
+  actualCompletionDate?: string | null;
+  contractAmount: number;
+  projectManagerId?: string | null;
+  superintendentId?: string | null;
+  sourceBidId?: string | null;
   createdAt: string;
 }
 
@@ -79,37 +95,58 @@ export interface BidItem {
   category: BidItemCategory;
 }
 
-export interface PaginatedResult<T> {
+export interface PagedResult<T> {
   items: T[];
   totalCount: number;
   page: number;
   pageSize: number;
   totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 export interface CreateProjectCommand {
-  projectNumber: string;
   name: string;
+  number: string;
+  description?: string;
+  type: ProjectType;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  clientName?: string;
+  clientContact?: string;
+  clientEmail?: string;
+  clientPhone?: string;
+  startDate?: string;
+  estimatedCompletionDate?: string;
+  contractAmount: number;
+  projectManagerId?: string;
+  superintendentId?: string;
+  sourceBidId?: string;
+}
+
+export interface UpdateProjectCommand {
+  id: string;
+  name: string;
+  number: string;
   description?: string;
   status: ProjectStatus;
   type: ProjectType;
   address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
   clientName?: string;
-  estimatedValue?: number;
+  clientContact?: string;
+  clientEmail?: string;
+  clientPhone?: string;
   startDate?: string;
-  endDate?: string;
-}
-
-export interface UpdateProjectCommand {
-  name?: string;
-  description?: string;
-  status?: ProjectStatus;
-  type?: ProjectType;
-  address?: string;
-  clientName?: string;
-  estimatedValue?: number;
-  startDate?: string;
-  endDate?: string;
+  estimatedCompletionDate?: string;
+  actualCompletionDate?: string;
+  contractAmount: number;
+  projectManagerId?: string;
+  superintendentId?: string;
 }
 
 export interface CreateBidCommand {
@@ -133,4 +170,13 @@ export interface UpdateBidCommand {
   bidDate?: string;
   dueDate?: string;
   notes?: string;
+}
+
+export interface DashboardStats {
+  projectCount: number;
+  bidCount: number;
+  totalProjectValue: number;
+  totalBidValue: number;
+  pendingChangeOrders: number;
+  lastActivityDate: string;
 }

@@ -6,9 +6,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { DetailPageSkeleton } from "@/components/skeletons";
 import api from "@/lib/api";
 import type { Project } from "@/lib/types";
+import {
+  projectStatusBadgeClass,
+  projectStatusLabel,
+  projectTypeLabel,
+} from "@/lib/projects";
 import { toast } from "sonner";
 
 function formatCurrency(amount: number) {
@@ -19,41 +24,11 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-function statusColor(status: string) {
-  switch (status) {
-    case "Active":
-      return "bg-green-100 text-green-700";
-    case "OnHold":
-      return "bg-yellow-100 text-yellow-700";
-    case "Preconstruction":
-      return "bg-blue-100 text-blue-700";
-    case "Complete":
-      return "bg-neutral-100 text-neutral-600";
-    case "Closed":
-      return "bg-neutral-200 text-neutral-500";
-    default:
-      return "";
-  }
-}
-
-function statusLabel(status: string) {
-  switch (status) {
-    case "OnHold":
-      return "On Hold";
-    default:
-      return status;
-  }
-}
-
-function typeLabel(type: string) {
-  switch (type) {
-    case "NewConstruction":
-      return "New Construction";
-    case "TenantImprovement":
-      return "Tenant Improvement";
-    default:
-      return type;
-  }
+function formatLocation(project: Project): string {
+  const parts = [project.address, project.city, project.state, project.zipCode]
+    .map((p) => (p ?? "").trim())
+    .filter(Boolean);
+  return parts.length ? parts.join(", ") : "—";
 }
 
 export default function ProjectDetailPage({
@@ -81,17 +56,7 @@ export default function ProjectDetailPage({
     fetchProject();
   }, [id]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-80" />
-        <div className="grid gap-4 md:grid-cols-2">
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <DetailPageSkeleton />;
 
   if (error || !project) {
     return (
@@ -108,23 +73,18 @@ export default function ProjectDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {project.name}
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
             <Badge
               variant="secondary"
-              className={statusColor(project.status)}
+              className={projectStatusBadgeClass(project.status)}
             >
-              {statusLabel(project.status)}
+              {projectStatusLabel(project.status)}
             </Badge>
           </div>
-          <p className="text-muted-foreground font-mono text-sm">
-            {project.projectNumber}
-          </p>
+          <p className="text-muted-foreground font-mono text-sm">{project.number}</p>
         </div>
       </div>
 
@@ -136,33 +96,30 @@ export default function ProjectDetailPage({
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
               <span className="text-muted-foreground">Client</span>
-              <span className="font-medium">
-                {project.clientName || "—"}
-              </span>
+              <span className="font-medium">{project.clientName || "—"}</span>
+
               <span className="text-muted-foreground">Type</span>
-              <span className="font-medium">
-                {typeLabel(project.type)}
-              </span>
+              <span className="font-medium">{projectTypeLabel(project.type)}</span>
+
               <span className="text-muted-foreground">Location</span>
-              <span className="font-medium">
-                {project.address || "—"}
-              </span>
-              <span className="text-muted-foreground">Est. Value</span>
+              <span className="font-medium">{formatLocation(project)}</span>
+
+              <span className="text-muted-foreground">Contract Amount</span>
               <span className="font-medium font-mono">
-                {project.estimatedValue
-                  ? formatCurrency(project.estimatedValue)
-                  : "—"}
+                {formatCurrency(project.contractAmount)}
               </span>
+
               <span className="text-muted-foreground">Start Date</span>
               <span className="font-medium">
                 {project.startDate
                   ? new Date(project.startDate).toLocaleDateString()
                   : "—"}
               </span>
-              <span className="text-muted-foreground">End Date</span>
+
+              <span className="text-muted-foreground">Estimated Completion</span>
               <span className="font-medium">
-                {project.endDate
-                  ? new Date(project.endDate).toLocaleDateString()
+                {project.estimatedCompletionDate
+                  ? new Date(project.estimatedCompletionDate).toLocaleDateString()
                   : "—"}
               </span>
             </div>
@@ -184,7 +141,7 @@ export default function ProjectDetailPage({
       <Separator />
 
       <div className="flex">
-        <Button variant="ghost" asChild>
+        <Button variant="ghost" asChild className="min-h-[44px]">
           <Link href="/projects">← Back to Projects</Link>
         </Button>
       </div>

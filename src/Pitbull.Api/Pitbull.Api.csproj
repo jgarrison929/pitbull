@@ -4,9 +4,14 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.12" />
@@ -26,6 +31,8 @@
     <ProjectReference Include="..\Modules\Pitbull.Documents\Pitbull.Documents.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.Portal\Pitbull.Portal.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.Billing\Pitbull.Billing.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.RFIs\Pitbull.RFIs.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.RFIs\Pitbull.RFIs.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Email\Pitbull.Email.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Storage\Pitbull.Storage.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Messaging\Pitbull.Messaging.csproj" />

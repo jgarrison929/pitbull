@@ -14,7 +14,11 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         catch (Exception ex)
         {
             var traceId = context.TraceIdentifier;
-            logger.LogError(ex, "Unhandled exception. TraceId: {TraceId}", traceId);
+            var correlationId = context.Items.TryGetValue(CorrelationIdMiddleware.CorrelationIdItemName, out var cid)
+                ? cid?.ToString()
+                : context.Request.Headers[CorrelationIdMiddleware.CorrelationIdHeaderName].FirstOrDefault();
+
+            logger.LogError(ex, "Unhandled exception. TraceId: {TraceId} CorrelationId: {CorrelationId}", traceId, correlationId);
 
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             context.Response.ContentType = "application/json";
@@ -22,7 +26,8 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
             var response = new Dictionary<string, object?>
             {
                 ["error"] = "An unexpected error occurred",
-                ["traceId"] = traceId
+                ["traceId"] = traceId,
+                ["correlationId"] = correlationId
             };
 
             if (env.IsDevelopment())
