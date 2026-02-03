@@ -1,5 +1,7 @@
+using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
+using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
@@ -24,8 +26,11 @@ builder.Host.UseSerilog((context, config) => config
     .WriteTo.Console());
 
 // Register module assemblies for EF configuration discovery
+PitbullDbContext.RegisterModuleAssembly(typeof(PitbullDbContext).Assembly); // Core module
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
@@ -33,6 +38,14 @@ builder.Services.AddPitbullCore(builder.Configuration);
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
+builder.Services.AddPitbullModule<CreateRfiCommand>();
+builder.Services.AddPitbullModule<CreateRfiCommand>();
+
+// Seed data handler (lives in Api assembly)
+builder.Services.AddPitbullModule<SeedDataCommand>();
+
+// Auth validators (since auth doesn't use CQRS pattern yet)
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -95,7 +108,49 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { Title = "Pitbull Construction Solutions API", Version = "v1" });
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Pitbull Construction Solutions API",
+        Version = "v1",
+        Description = "REST API for Pitbull Construction Solutions -- a multi-tenant platform for managing construction projects, bids, contracts, and documents. All endpoints (except auth) require a valid JWT bearer token.",
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        {
+            Name = "Pitbull Dev Team",
+            Url = new Uri("https://github.com/jgarrison929/pitbull")
+        }
+    });
+
+    // JWT Bearer auth definition
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Enter your token below (do not include 'Bearer ' prefix).",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
+    });
+
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+
+    // Include XML comments from API assembly
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        c.IncludeXmlComments(xmlPath);
 });
 
 // CORS
@@ -165,14 +220,20 @@ app.UseMiddleware<CorrelationIdMiddleware>();
 // Pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
     app.UseCors("Dev");
 }
 else
 {
     app.UseCors("Production");
 }
+
+// Swagger available in all environments for API documentation
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
+    c.DocumentTitle = "Pitbull Construction Solutions - API Docs";
+});
 
 app.UseSerilogRequestLogging();
 app.UseRateLimiter();
@@ -200,3 +261,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.Run();
+
+// Make the implicit Program class accessible for WebApplicationFactory in integration tests
+public partial class Program { }
