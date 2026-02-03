@@ -1,8 +1,22 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { getToken, setToken, removeToken, decodeToken, isTokenExpired } from "@/lib/auth";
+
+function buildUserFromToken(token: string): User | null {
+  if (!token || isTokenExpired(token)) return null;
+  const payload = decodeToken(token);
+  if (!payload) return null;
+
+  return {
+    id: payload.sub,
+    email: payload.email,
+    name: payload.name,
+    role: payload.role,
+    tenantId: payload.tenantId,
+  };
+}
 
 interface User {
   id: string;
@@ -37,42 +51,23 @@ interface AuthResponse {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
+  const [user, setUser] = useState<User | null>(() => {
+    if (typeof window === "undefined") return null;
     const token = getToken();
-    if (token && !isTokenExpired(token)) {
-      const payload = decodeToken(token);
-      if (payload) {
-        setUser({
-          id: payload.sub,
-          email: payload.email,
-          name: payload.name,
-          role: payload.role,
-          tenantId: payload.tenantId,
-        });
-      }
-    }
-    setIsLoading(false);
-  }, []);
+    return token ? buildUserFromToken(token) : null;
+  });
+
+  // We initialize from localStorage in the lazy initializer, so no effect needed.
+  const [isLoading] = useState(false);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await api<AuthResponse>("/api/auth/login", {
       method: "POST",
       body: { email, password },
     });
+
     setToken(response.token);
-    const payload = decodeToken(response.token);
-    if (payload) {
-      setUser({
-        id: payload.sub,
-        email: payload.email,
-        name: payload.name,
-        role: payload.role,
-        tenantId: payload.tenantId,
-      });
-    }
+    setUser(buildUserFromToken(response.token));
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
@@ -80,17 +75,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       method: "POST",
       body: data,
     });
+
     setToken(response.token);
-    const payload = decodeToken(response.token);
-    if (payload) {
-      setUser({
-        id: payload.sub,
-        email: payload.email,
-        name: payload.name,
-        role: payload.role,
-        tenantId: payload.tenantId,
-      });
-    }
+    setUser(buildUserFromToken(response.token));
   }, []);
 
   const logout = useCallback(() => {

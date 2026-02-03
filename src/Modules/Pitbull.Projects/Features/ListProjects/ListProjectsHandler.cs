@@ -7,7 +7,7 @@ using Pitbull.Projects.Features.CreateProject;
 
 namespace Pitbull.Projects.Features.ListProjects;
 
-public class ListProjectsHandler(PitbullDbContext db)
+public sealed class ListProjectsHandler(PitbullDbContext db)
     : IRequestHandler<ListProjectsQuery, Result<PagedResult<ProjectDto>>>
 {
     public async Task<Result<PagedResult<ProjectDto>>> Handle(
