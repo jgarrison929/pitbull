@@ -110,11 +110,11 @@ public class PitbullDbContext(
 
         // Dispatch domain events after save
         var result = await base.SaveChangesAsync(cancellationToken);
-        await DispatchDomainEvents();
+        DispatchDomainEvents();
         return result;
     }
 
-    private async Task DispatchDomainEvents()
+    private void DispatchDomainEvents()
     {
         var entities = ChangeTracker.Entries<BaseEntity>()
             .Where(e => e.Entity.DomainEvents.Count != 0)
@@ -126,6 +126,7 @@ public class PitbullDbContext(
 
         // Domain events will be dispatched via MediatR
         // This requires IMediator to be injected - will add in next iteration
+        // TODO: Implement actual domain event dispatching when MediatR is available
     }
 
     private static System.Linq.Expressions.LambdaExpression CreateSoftDeleteFilter(Type entityType)
