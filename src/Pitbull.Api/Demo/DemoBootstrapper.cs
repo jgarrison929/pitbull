@@ -32,12 +32,15 @@ public sealed class DemoBootstrapper(
         var tenant = await EnsureTenantAsync(demo, cancellationToken);
         await EnsureDemoUserAsync(demo, tenant.Id, cancellationToken);
 
-        // Establish tenant context for EF audit fields + Postgres RLS session variable
+        // Establish tenant context for EF audit fields.
         tenantContext.TenantId = tenant.Id;
         tenantContext.TenantName = tenant.Name;
 
+        // IMPORTANT: app.current_tenant is a connection/session setting (used by Postgres RLS).
+        // Ensure it is set on the same connection used for the seed operation.
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         await db.Database.ExecuteSqlRawAsync(
-            "SET app.current_tenant = @p0",
+            "SET LOCAL app.current_tenant = @p0",
             tenant.Id.ToString());
 
         // Seed domain data (projects/bids/etc). This is idempotent per tenant.
@@ -45,6 +48,7 @@ public sealed class DemoBootstrapper(
 
         if (result.IsSuccess)
         {
+            await tx.CommitAsync(cancellationToken);
             logger.LogInformation("Demo seed complete: {Summary}", result.Value!.Summary);
             return;
         }
@@ -52,6 +56,7 @@ public sealed class DemoBootstrapper(
         // Treat already-seeded as success for bootstrap runs
         if (result.ErrorCode == "ALREADY_EXISTS")
         {
+            await tx.CommitAsync(cancellationToken);
             logger.LogInformation("Demo seed skipped: {Message}", result.Error);
             return;
         }
