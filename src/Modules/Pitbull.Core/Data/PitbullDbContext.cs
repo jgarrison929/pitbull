@@ -74,9 +74,9 @@ public class PitbullDbContext(
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
-                // Soft delete filter
+                // Combined tenant isolation + soft delete filter (defense in depth)
                 builder.Entity(entityType.ClrType)
-                    .HasQueryFilter(CreateSoftDeleteFilter(entityType.ClrType));
+                    .HasQueryFilter(CreateTenantAndSoftDeleteFilter(entityType.ClrType));
 
                 // Tenant index on every BaseEntity table
                 builder.Entity(entityType.ClrType)
@@ -163,13 +163,33 @@ public class PitbullDbContext(
         // TODO: Implement actual domain event dispatching when MediatR is available
     }
 
-    private static System.Linq.Expressions.LambdaExpression CreateSoftDeleteFilter(Type entityType)
+    /// <summary>
+    /// Creates a query filter that enforces both tenant isolation and soft delete.
+    /// This provides defense-in-depth security alongside PostgreSQL RLS policies.
+    /// </summary>
+    private System.Linq.Expressions.LambdaExpression CreateTenantAndSoftDeleteFilter(Type entityType)
     {
         var parameter = System.Linq.Expressions.Expression.Parameter(entityType, "e");
-        var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
-        var condition = System.Linq.Expressions.Expression.Equal(
-            property,
+        
+        // Condition 1: IsDeleted == false (soft delete)
+        var isDeletedProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+        var notDeletedCondition = System.Linq.Expressions.Expression.Equal(
+            isDeletedProperty,
             System.Linq.Expressions.Expression.Constant(false));
-        return System.Linq.Expressions.Expression.Lambda(condition, parameter);
+        
+        // Condition 2: TenantId == Current Tenant (tenant isolation)
+        var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.TenantId));
+        var currentTenantCondition = System.Linq.Expressions.Expression.Equal(
+            tenantIdProperty,
+            System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Field(null, typeof(PitbullDbContext), nameof(tenantContext)),
+                nameof(ITenantContext.TenantId)));
+        
+        // Combine both conditions with AND
+        var combinedCondition = System.Linq.Expressions.Expression.AndAlso(
+            notDeletedCondition,
+            currentTenantCondition);
+            
+        return System.Linq.Expressions.Expression.Lambda(combinedCondition, parameter);
     }
 }
