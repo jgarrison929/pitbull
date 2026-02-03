@@ -44,6 +44,12 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
             .WithOne(pr => pr.Project)
             .HasForeignKey(pr => pr.ProjectId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Optimistic concurrency using PostgreSQL xmin
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }
 
