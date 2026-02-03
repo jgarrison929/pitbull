@@ -44,6 +44,21 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
+      - name: Scan for vulnerable packages
+        run: |
+          echo "::group::NuGet Vulnerability Scan"
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee vulnerability-scan.txt
+          if grep -q "has the following vulnerable packages" vulnerability-scan.txt; then
+            echo "::error::Vulnerable NuGet packages detected!"
+            echo "::group::Vulnerable packages found"
+            grep -A 20 "has the following vulnerable packages" vulnerability-scan.txt
+            echo "::endgroup::"
+            exit 1
+          else
+            echo "✅ No vulnerable packages detected"
+          fi
+          echo "::endgroup::"
+
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
@@ -79,6 +94,20 @@ jobs:
       - name: Install dependencies
         working-directory: src/Pitbull.Web/pitbull-web
         run: npm ci
+
+      - name: Audit npm packages for vulnerabilities
+        working-directory: src/Pitbull.Web/pitbull-web
+        run: |
+          echo "::group::npm Vulnerability Audit"
+          # Run audit and capture exit code
+          if npm audit --audit-level moderate; then
+            echo "✅ No moderate+ vulnerabilities detected"
+          else
+            echo "::error::npm audit found moderate+ vulnerabilities!"
+            echo "Run 'npm audit fix' to address auto-fixable issues"
+            exit 1
+          fi
+          echo "::endgroup::"
 
       - name: Build
         working-directory: src/Pitbull.Web/pitbull-web
