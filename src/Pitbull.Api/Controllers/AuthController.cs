@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Pitbull.Api.Demo;
 using Microsoft.IdentityModel.Tokens;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -26,6 +28,7 @@ public class AuthController(
     SignInManager<AppUser> signInManager,
     PitbullDbContext db,
     IConfiguration configuration,
+    IOptions<DemoOptions> demoOptions,
     IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator) : ControllerBase
 {
@@ -61,6 +64,10 @@ public class AuthController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
+        // Public demo should not allow self-service signups
+        if (demoOptions.Value.Enabled && demoOptions.Value.DisableRegistration)
+            return NotFound();
+
         // Validate request
         var validationResult = await registerValidator.ValidateAsync(request);
         if (!validationResult.IsValid)
