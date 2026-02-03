@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,13 +21,49 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import api from "@/lib/api";
+import { projectTypeOptions } from "@/lib/projects";
 import type { CreateProjectCommand, Project, ProjectType } from "@/lib/types";
 import { toast } from "sonner";
+
+type FormErrors = Partial<
+  Record<"number" | "name" | "contractAmount" | "dates", string>
+>;
 
 export default function NewProjectPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [type, setType] = useState<ProjectType>(0);
+
+  // The API expects a numeric enum for ProjectType (System.Text.Json default).
+  const [type, setType] = useState<ProjectType>(projectTypeOptions[0]!.value);
+
+  const [errors, setErrors] = useState<FormErrors>({});
+
+  const typeSelectValue = useMemo(() => String(type), [type]);
+
+  function validate(command: CreateProjectCommand): FormErrors {
+    const next: FormErrors = {};
+
+    if (!command.number?.trim()) next.number = "Project number is required";
+    if (!command.name?.trim()) next.name = "Project name is required";
+
+    if (Number.isNaN(command.contractAmount) || command.contractAmount < 0) {
+      next.contractAmount = "Contract amount must be 0 or greater";
+    }
+
+    if (command.startDate && command.estimatedCompletionDate) {
+      const start = new Date(command.startDate);
+      const end = new Date(command.estimatedCompletionDate);
+      if (
+        !Number.isNaN(start.getTime()) &&
+        !Number.isNaN(end.getTime()) &&
+        end < start
+      ) {
+        next.dates = "Estimated completion date must be after start date";
+      }
+    }
+
+    return next;
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -35,12 +71,12 @@ export default function NewProjectPage() {
 
     const formData = new FormData(e.currentTarget);
 
-    const contractAmountRaw = formData.get("contractAmount") as string;
+    const contractAmountRaw = formData.get("contractAmount") as string | null;
     const contractAmount = contractAmountRaw ? Number(contractAmountRaw) : 0;
 
     const command: CreateProjectCommand = {
-      name: formData.get("name") as string,
-      number: formData.get("number") as string,
+      number: (formData.get("number") as string) || "",
+      name: (formData.get("name") as string) || "",
       description: (formData.get("description") as string) || undefined,
       type,
       address: (formData.get("address") as string) || undefined,
@@ -57,6 +93,15 @@ export default function NewProjectPage() {
       contractAmount,
       // projectManagerId/superintendentId/sourceBidId are not collected in the UI yet
     };
+
+    const nextErrors = validate(command);
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error("Please fix the highlighted fields");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const project = await api<Project>("/api/projects", {
@@ -82,9 +127,7 @@ export default function NewProjectPage() {
       <Card>
         <CardHeader>
           <CardTitle>Project Details</CardTitle>
-          <CardDescription>
-            Enter the basic information for this project
-          </CardDescription>
+          <CardDescription>Enter the basic information for this project</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -92,24 +135,25 @@ export default function NewProjectPage() {
               <div className="space-y-2">
                 <Label htmlFor="number">Project Number</Label>
                 <Input id="number" name="number" placeholder="PRJ-2026-001" required />
+                {errors.number ? (
+                  <p className="text-sm text-destructive">{errors.number}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="type">Type</Label>
                 <Select
-                  value={String(type)}
+                  value={typeSelectValue}
                   onValueChange={(v) => setType(Number(v) as ProjectType)}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">Commercial</SelectItem>
-                    <SelectItem value="1">Residential</SelectItem>
-                    <SelectItem value="2">Industrial</SelectItem>
-                    <SelectItem value="3">Infrastructure</SelectItem>
-                    <SelectItem value="4">Renovation</SelectItem>
-                    <SelectItem value="5">Tenant Improvement</SelectItem>
-                    <SelectItem value="6">Other</SelectItem>
+                    {projectTypeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -123,6 +167,9 @@ export default function NewProjectPage() {
                 placeholder="e.g. Downtown Office Complex"
                 required
               />
+              {errors.name ? (
+                <p className="text-sm text-destructive">{errors.name}</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -147,6 +194,9 @@ export default function NewProjectPage() {
                   step={0.01}
                   required
                 />
+                {errors.contractAmount ? (
+                  <p className="text-sm text-destructive">{errors.contractAmount}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clientName">Client Name</Label>
@@ -157,11 +207,7 @@ export default function NewProjectPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="clientContact">Client Contact</Label>
-                <Input
-                  id="clientContact"
-                  name="clientContact"
-                  placeholder="Contact person"
-                />
+                <Input id="clientContact" name="clientContact" placeholder="Contact person" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clientPhone">Client Phone</Label>
@@ -172,7 +218,12 @@ export default function NewProjectPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="clientEmail">Client Email</Label>
-                <Input id="clientEmail" name="clientEmail" type="email" placeholder="name@company.com" />
+                <Input
+                  id="clientEmail"
+                  name="clientEmail"
+                  type="email"
+                  placeholder="name@company.com"
+                />
               </div>
             </div>
 
@@ -212,6 +263,10 @@ export default function NewProjectPage() {
                 />
               </div>
             </div>
+
+            {errors.dates ? (
+              <p className="text-sm text-destructive">{errors.dates}</p>
+            ) : null}
 
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button

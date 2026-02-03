@@ -31,6 +31,7 @@ public class BidsController(IMediator mediator) : ControllerBase
     /// <remarks>
     /// Creates a new bid/estimate within the current tenant.
     /// The bid number must be unique within the tenant.
+    /// Note: enum values in JSON request bodies are numeric by default (System.Text.Json).
     /// Optionally include line items for detailed cost breakdown.
     ///
     /// Sample request:
@@ -46,7 +47,7 @@ public class BidsController(IMediator mediator) : ControllerBase
     ///         "items": [
     ///             {
     ///                 "description": "Concrete work",
-    ///                 "category": "Materials",
+    ///                 "category": 1,
     ///                 "quantity": 500,
     ///                 "unitCost": 125.00
     ///             }
