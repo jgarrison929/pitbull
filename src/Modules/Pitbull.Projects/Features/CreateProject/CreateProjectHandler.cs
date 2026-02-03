@@ -5,7 +5,7 @@ using Pitbull.Projects.Domain;
 
 namespace Pitbull.Projects.Features.CreateProject;
 
-public class CreateProjectHandler(PitbullDbContext db)
+public sealed class CreateProjectHandler(PitbullDbContext db)
     : IRequestHandler<CreateProjectCommand, Result<ProjectDto>>
 {
     public async Task<Result<ProjectDto>> Handle(
