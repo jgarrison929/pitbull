@@ -10,6 +10,7 @@ using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -46,11 +47,23 @@ builder.Services.AddPitbullCore(builder.Configuration);
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
 builder.Services.AddScoped<DemoBootstrapper>();
 
+// Configure forwarded headers for reverse proxy (Railway, Docker, etc.)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
 builder.Services.AddPitbullModule<CreateRfiCommand>();
-builder.Services.AddPitbullModule<CreateRfiCommand>();
+
+// Direct service registrations (MediatR migration)
+builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
+builder.Services.AddPitbullModuleServices<CreateBidCommand>();
+builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
 
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
@@ -110,6 +123,9 @@ builder.Services.AddAuthentication(options =>
     });
 
 builder.Services.AddAuthorization();
+
+// HTTP Context access for audit fields in DbContext
+builder.Services.AddHttpContextAccessor();
 
 // Request size limits for security
 builder.Services.Configure<RequestSizeLimitOptions>(
@@ -195,6 +211,23 @@ builder.Services.AddCors(options =>
 // Rate limiting
 builder.Services.AddRateLimiter(options =>
 {
+    // Registration: 5 requests per hour (stricter for account creation)
+    options.AddFixedWindowLimiter("register", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromHours(1);
+        opt.QueueLimit = 0;
+    });
+    
+    // Login: 10 requests per minute (allows for typos/retries)
+    options.AddFixedWindowLimiter("login", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+    
+    // General auth fallback (currently unused but could be applied broadly)
     options.AddFixedWindowLimiter("auth", opt =>
     {
         opt.PermitLimit = 5;
@@ -202,6 +235,7 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
     
+    // API endpoints: 60 requests per minute
     options.AddFixedWindowLimiter("api", opt =>
     {
         opt.PermitLimit = 60;
@@ -226,7 +260,18 @@ builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), 
         tags: new[] { "live" });
 
+// Response compression for better bandwidth utilization
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+
 var app = builder.Build();
+
+// Handle forwarded headers from reverse proxy (must be very early)
+app.UseForwardedHeaders();
 
 // Auto-migrate database on startup
 using (var scope = app.Services.CreateScope())
@@ -244,6 +289,9 @@ app.UseMiddleware<ExceptionMiddleware>();
 
 // Correlation IDs (must run early so all downstream logs include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Request/response logging for API debugging (after correlation ID)
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
 
 // Request size limits (early in pipeline for security)
 app.UseMiddleware<RequestSizeLimitMiddleware>();
@@ -265,6 +313,9 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
     c.DocumentTitle = "Pitbull Construction Solutions - API Docs";
 });
+
+// Response compression (before other middlewares that generate responses)
+app.UseResponseCompression();
 
 app.UseSerilogRequestLogging();
 app.UseRateLimiter();

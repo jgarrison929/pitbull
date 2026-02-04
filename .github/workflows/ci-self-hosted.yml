@@ -42,9 +42,12 @@ jobs:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+        env:
+          DOTNET_INSTALL_DIR: /home/jgarrison/.dotnet
+          DOTNET_ROOT: /home/jgarrison/.dotnet
 
       - name: Restore dependencies
         run: dotnet restore

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Controllers;
 
@@ -17,7 +18,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Tenants")]
-public class TenantsController(PitbullDbContext db) : ControllerBase
+public class TenantsController(PitbullDbContext db, ITenantContext tenantContext) : ControllerBase
 {
     /// <summary>
     /// Create a new tenant (organization)
@@ -73,13 +74,13 @@ public class TenantsController(PitbullDbContext db) : ControllerBase
     }
 
     /// <summary>
-    /// Get a tenant by ID
+    /// Get a tenant by ID (must be user's own tenant)
     /// </summary>
     /// <param name="id">Tenant unique identifier</param>
-    /// <returns>Tenant details</returns>
+    /// <returns>Tenant details if accessible to current user</returns>
     /// <response code="200">Tenant found</response>
     /// <response code="401">Not authenticated</response>
-    /// <response code="404">Tenant not found</response>
+    /// <response code="404">Tenant not found or access denied</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status200OK)]
@@ -88,8 +89,16 @@ public class TenantsController(PitbullDbContext db) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var tenant = await db.Tenants.FindAsync(id);
-        if (tenant is null) return NotFound();
+        // Security: Only allow access to user's own tenant
+        if (id != tenantContext.TenantId)
+            return NotFound(new { error = "Tenant not found" }); // Don't reveal it exists
+
+        var tenant = await db.Tenants
+            .Where(t => t.Id == id && t.Status == TenantStatus.Active)
+            .FirstOrDefaultAsync();
+
+        if (tenant is null) 
+            return NotFound(new { error = "Tenant not found" });
 
         return Ok(new TenantResponse(
             tenant.Id,
@@ -100,28 +109,38 @@ public class TenantsController(PitbullDbContext db) : ControllerBase
     }
 
     /// <summary>
-    /// List all active tenants
+    /// Get current user's tenant information
     /// </summary>
     /// <remarks>
-    /// Returns all tenants with Active status. Does not include suspended or deactivated tenants.
+    /// Returns the tenant information for the authenticated user's organization.
+    /// Each user can only see their own tenant details for security/isolation.
     /// </remarks>
-    /// <returns>List of active tenants</returns>
-    /// <response code="200">Returns tenant list</response>
+    /// <returns>Current user's tenant information</returns>
+    /// <response code="200">Returns current tenant</response>
     /// <response code="401">Not authenticated</response>
+    /// <response code="404">Tenant not found</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet]
-    [ProducesResponseType(typeof(List<TenantResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> List()
+    public async Task<IActionResult> GetCurrent()
     {
-        var tenants = await db.Tenants
-            .Where(t => t.Status == TenantStatus.Active)
-            .Select(t => new TenantResponse(
-                t.Id, t.Name, t.Slug, t.Status.ToString(), t.Plan.ToString()))
-            .ToListAsync();
+        // Only return the current user's tenant for security/isolation
+        var tenant = await db.Tenants
+            .Where(t => t.Id == tenantContext.TenantId && t.Status == TenantStatus.Active)
+            .FirstOrDefaultAsync();
 
-        return Ok(tenants);
+        if (tenant is null) 
+            return NotFound(new { error = "Tenant not found or inactive" });
+
+        return Ok(new TenantResponse(
+            tenant.Id,
+            tenant.Name,
+            tenant.Slug,
+            tenant.Status.ToString(),
+            tenant.Plan.ToString()));
     }
 }
 
