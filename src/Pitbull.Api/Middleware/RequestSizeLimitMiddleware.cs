@@ -13,17 +13,25 @@ public class RequestSizeLimitMiddleware(RequestDelegate next, IOptions<RequestSi
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // Always apply a conservative global max size as early as possible.
+        // This prevents large payload attacks even for endpoints that don't match our
+        // method/path heuristics.
+        var feature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+        if (feature != null && !feature.IsReadOnly)
+        {
+            feature.MaxRequestBodySize = _options.GlobalMaxSize;
+        }
+
         // Apply per-endpoint size limits if configured
         var endpoint = context.GetEndpoint();
         if (endpoint != null)
         {
             var endpointPath = endpoint.DisplayName?.ToLowerInvariant() ?? "";
-            
+
             // Special handling for file upload endpoints (when implemented)
             if (endpointPath.Contains("upload") || endpointPath.Contains("document"))
             {
                 // Future: larger limit for document uploads
-                var feature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
                 if (feature != null && !feature.IsReadOnly)
                 {
                     feature.MaxRequestBodySize = _options.DocumentUploadMaxSize;
@@ -32,7 +40,6 @@ public class RequestSizeLimitMiddleware(RequestDelegate next, IOptions<RequestSi
             else if (context.Request.Method == "POST" || context.Request.Method == "PUT" || context.Request.Method == "PATCH")
             {
                 // Standard API payload limit
-                var feature = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
                 if (feature != null && !feature.IsReadOnly)
                 {
                     feature.MaxRequestBodySize = _options.ApiMaxSize;
