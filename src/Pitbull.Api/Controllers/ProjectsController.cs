@@ -10,6 +10,7 @@ using Pitbull.Projects.Features.DeleteProject;
 using Pitbull.Projects.Features.GetProject;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
+using Pitbull.Projects.Services;
 
 namespace Pitbull.Api.Controllers;
 
@@ -23,7 +24,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Projects")]
-public class ProjectsController(IMediator mediator) : ControllerBase
+public class ProjectsController(IMediator mediator, IProjectService projectService) : ControllerBase
 {
     /// <summary>
     /// Create a new project
@@ -198,5 +199,43 @@ public class ProjectsController(IMediator mediator) : ControllerBase
             return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error) : this.BadRequestError(result.Error);
 
         return NoContent();
+    }
+
+    // ========================================
+    // NEW SERVICE-BASED ENDPOINTS (Testing MediatR migration)
+    // ========================================
+
+    /// <summary>
+    /// [TEST] Get a project by ID using direct service (no MediatR)
+    /// </summary>
+    /// <param name="id">Project unique identifier</param>
+    /// <returns>Project details</returns>
+    [HttpGet("v2/{id:guid}")]
+    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByIdV2(Guid id)
+    {
+        var result = await projectService.GetProjectAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error) : this.BadRequestError(result.Error);
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// [TEST] Create a project using direct service (no MediatR)  
+    /// </summary>
+    /// <param name="command">Project creation details</param>
+    /// <returns>The newly created project</returns>
+    [HttpPost("v2")]
+    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateV2([FromBody] CreateProjectCommand command)
+    {
+        var result = await projectService.CreateProjectAsync(command);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return CreatedAtAction(nameof(GetByIdV2), new { id = result.Value!.Id }, result.Value);
     }
 }
