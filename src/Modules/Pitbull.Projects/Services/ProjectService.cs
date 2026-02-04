@@ -48,44 +48,43 @@ public class ProjectService : IProjectService
         return Result.Success(MapToDto(project));
     }
 
-    public async Task<Result<ProjectDto[]>> GetProjectsAsync(GetProjectsFilter? filter = null, CancellationToken cancellationToken = default)
+    public async Task<Result<PagedResult<ProjectDto>>> GetProjectsAsync(ListProjectsQuery listQuery, CancellationToken cancellationToken = default)
     {
-        var query = _db.Set<Project>().AsNoTracking();
+        var dbQuery = _db.Set<Project>().AsNoTracking();
 
         // Apply filtering logic (from ListProjectsHandler)
-        if (filter != null)
+        if (!string.IsNullOrWhiteSpace(listQuery.Search))
         {
-            if (!string.IsNullOrWhiteSpace(filter.Search))
-            {
-                var searchTerm = filter.Search.ToLower();
-                query = query.Where(p => 
-                    p.Name.ToLower().Contains(searchTerm) ||
-                    p.Number.ToLower().Contains(searchTerm) ||
-                    (p.ClientName != null && p.ClientName.ToLower().Contains(searchTerm)));
-            }
-
-            if (filter.Status.HasValue)
-            {
-                query = query.Where(p => p.Status == filter.Status.Value);
-            }
-
-            if (filter.Type.HasValue)
-            {
-                query = query.Where(p => p.Type == filter.Type.Value);
-            }
-
-            if (filter.ProjectManagerId.HasValue)
-            {
-                query = query.Where(p => p.ProjectManagerId == filter.ProjectManagerId.Value);
-            }
+            var searchTerm = listQuery.Search.ToLower();
+            dbQuery = dbQuery.Where(p => 
+                p.Name.ToLower().Contains(searchTerm) ||
+                p.Number.ToLower().Contains(searchTerm) ||
+                (p.ClientName != null && p.ClientName.ToLower().Contains(searchTerm)));
         }
 
-        var projects = await query
-            .OrderBy(p => p.Name)
+        if (listQuery.Status.HasValue)
+        {
+            dbQuery = dbQuery.Where(p => p.Status == listQuery.Status.Value);
+        }
+
+        if (listQuery.Type.HasValue)
+        {
+            dbQuery = dbQuery.Where(p => p.Type == listQuery.Type.Value);
+        }
+
+        // Get total count for pagination
+        var totalCount = await dbQuery.CountAsync(cancellationToken);
+
+        // Apply pagination and get results
+        var projects = await dbQuery
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((listQuery.Page - 1) * listQuery.PageSize)
+            .Take(listQuery.PageSize)
             .ToArrayAsync(cancellationToken);
 
         var dtos = projects.Select(MapToDto).ToArray();
-        return Result.Success(dtos);
+        var result = new PagedResult<ProjectDto>(dtos, totalCount, listQuery.Page, listQuery.PageSize);
+        return Result.Success(result);
     }
 
     public async Task<Result<ProjectDto>> CreateProjectAsync(CreateProjectCommand request, CancellationToken cancellationToken = default)
@@ -106,7 +105,7 @@ public class ProjectService : IProjectService
             Name = request.Name,
             Number = request.Number,
             Description = request.Description,
-            Status = ProjectStatus.Planning,
+            Status = ProjectStatus.PreConstruction,
             Type = request.Type,
             Address = request.Address,
             City = request.City,
@@ -140,44 +139,46 @@ public class ProjectService : IProjectService
         }
     }
 
-    public async Task<Result<ProjectDto>> UpdateProjectAsync(Guid id, UpdateProjectCommand request, CancellationToken cancellationToken = default)
+    public async Task<Result<ProjectDto>> UpdateProjectAsync(UpdateProjectCommand command, CancellationToken cancellationToken = default)
     {
         // Validate request
-        var validationResult = await _updateValidator.ValidateAsync(request, cancellationToken);
+        var validationResult = await _updateValidator.ValidateAsync(command, cancellationToken);
         if (!validationResult.IsValid)
         {
             var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
-            _logger.LogWarning("Project update validation failed for {ProjectId}: {Errors}", id, errors);
+            _logger.LogWarning("Project update validation failed for {ProjectId}: {Errors}", command.Id, errors);
             return Result.Failure<ProjectDto>(errors, "VALIDATION_ERROR");
         }
 
         var project = await _db.Set<Project>()
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == command.Id, cancellationToken);
 
         if (project is null)
         {
-            _logger.LogWarning("Project {ProjectId} not found for update", id);
+            _logger.LogWarning("Project {ProjectId} not found for update", command.Id);
             return Result.Failure<ProjectDto>("Project not found", "NOT_FOUND");
         }
 
         // Update fields
-        project.Name = request.Name;
-        project.Number = request.Number;
-        project.Description = request.Description;
-        project.Type = request.Type;
-        project.Address = request.Address;
-        project.City = request.City;
-        project.State = request.State;
-        project.ZipCode = request.ZipCode;
-        project.ClientName = request.ClientName;
-        project.ClientContact = request.ClientContact;
-        project.ClientEmail = request.ClientEmail;
-        project.ClientPhone = request.ClientPhone;
-        project.StartDate = request.StartDate;
-        project.EstimatedCompletionDate = request.EstimatedCompletionDate;
-        project.ContractAmount = request.ContractAmount;
-        project.ProjectManagerId = request.ProjectManagerId;
-        project.SuperintendentId = request.SuperintendentId;
+        project.Name = command.Name;
+        project.Number = command.Number;
+        project.Description = command.Description;
+        project.Status = command.Status;
+        project.Type = command.Type;
+        project.Address = command.Address;
+        project.City = command.City;
+        project.State = command.State;
+        project.ZipCode = command.ZipCode;
+        project.ClientName = command.ClientName;
+        project.ClientContact = command.ClientContact;
+        project.ClientEmail = command.ClientEmail;
+        project.ClientPhone = command.ClientPhone;
+        project.StartDate = command.StartDate;
+        project.EstimatedCompletionDate = command.EstimatedCompletionDate;
+        project.ActualCompletionDate = command.ActualCompletionDate;
+        project.ContractAmount = command.ContractAmount;
+        project.ProjectManagerId = command.ProjectManagerId;
+        project.SuperintendentId = command.SuperintendentId;
 
         try
         {
@@ -187,7 +188,7 @@ public class ProjectService : IProjectService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to update project {ProjectId}", id);
+            _logger.LogError(ex, "Failed to update project {ProjectId}", command.Id);
             return Result.Failure<ProjectDto>("Failed to update project", "DATABASE_ERROR");
         }
     }

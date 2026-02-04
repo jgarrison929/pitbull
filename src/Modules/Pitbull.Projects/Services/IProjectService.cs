@@ -13,10 +13,10 @@ public interface IProjectService
 {
     // Query operations
     Task<Result<ProjectDto>> GetProjectAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<Result<ProjectDto[]>> GetProjectsAsync(GetProjectsFilter? filter = null, CancellationToken cancellationToken = default);
+    Task<Result<PagedResult<ProjectDto>>> GetProjectsAsync(ListProjectsQuery query, CancellationToken cancellationToken = default);
 
     // Command operations  
-    Task<Result<ProjectDto>> CreateProjectAsync(CreateProjectRequest request, CancellationToken cancellationToken = default);
-    Task<Result<ProjectDto>> UpdateProjectAsync(Guid id, UpdateProjectRequest request, CancellationToken cancellationToken = default);
+    Task<Result<ProjectDto>> CreateProjectAsync(CreateProjectCommand command, CancellationToken cancellationToken = default);
+    Task<Result<ProjectDto>> UpdateProjectAsync(UpdateProjectCommand command, CancellationToken cancellationToken = default);
     Task<Result> DeleteProjectAsync(Guid id, CancellationToken cancellationToken = default);
 }

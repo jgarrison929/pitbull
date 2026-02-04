@@ -238,4 +238,18 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
 
         return CreatedAtAction(nameof(GetByIdV2), new { id = result.Value!.Id }, result.Value);
     }
+
+    /// <summary>
+    /// [TEST] List projects using direct service (no MediatR)
+    /// </summary>
+    [HttpGet("v2")]
+    [ProducesResponseType(typeof(PagedResult<ProjectDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListV2([FromQuery] ListProjectsQuery query)
+    {
+        var result = await projectService.GetProjectsAsync(query);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return Ok(result.Value);
+    }
 }
