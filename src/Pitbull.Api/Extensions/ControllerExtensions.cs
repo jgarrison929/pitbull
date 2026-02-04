@@ -73,11 +73,11 @@ public static class ControllerExtensions
 
         return result.ErrorCode switch
         {
-            "NOT_FOUND" => controller.NotFoundError(result.Error),
-            "UNAUTHORIZED" => controller.UnauthorizedError(result.Error),
-            "FORBIDDEN" => controller.ForbiddenError(result.Error),
-            "VALIDATION_FAILED" => controller.BadRequestError(result.Error),
-            _ => controller.BadRequestError(result.Error)
+            "NOT_FOUND" => controller.NotFoundError(result.Error ?? "Resource not found"),
+            "UNAUTHORIZED" => controller.UnauthorizedError(result.Error ?? "Unauthorized access"),
+            "FORBIDDEN" => controller.ForbiddenError(result.Error ?? "Access forbidden"),
+            "VALIDATION_FAILED" => controller.BadRequestError(result.Error ?? "Validation failed"),
+            _ => controller.BadRequestError(result.Error ?? "Request failed")
         };
     }
 
@@ -91,11 +91,11 @@ public static class ControllerExtensions
 
         return result.ErrorCode switch
         {
-            "NOT_FOUND" => controller.NotFoundError(result.Error),
-            "UNAUTHORIZED" => controller.UnauthorizedError(result.Error),
-            "FORBIDDEN" => controller.ForbiddenError(result.Error),
-            "VALIDATION_FAILED" => controller.BadRequestError(result.Error),
-            _ => controller.BadRequestError(result.Error)
+            "NOT_FOUND" => controller.NotFoundError(result.Error ?? "Resource not found"),
+            "UNAUTHORIZED" => controller.UnauthorizedError(result.Error ?? "Unauthorized access"),
+            "FORBIDDEN" => controller.ForbiddenError(result.Error ?? "Access forbidden"),
+            "VALIDATION_FAILED" => controller.BadRequestError(result.Error ?? "Validation failed"),
+            _ => controller.BadRequestError(result.Error ?? "Request failed")
         };
     }
 }
