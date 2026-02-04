@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Bids.Domain;
+using Pitbull.Bids.Features;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Bids.Features.ListBids;
@@ -173,24 +174,24 @@ public class BidService : IBidService
         }
     }
 
-    public async Task<Result<ConvertBidToProjectResponse>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default)
+    public async Task<Result<ConvertBidToProjectResult>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default)
     {
         var bid = await _db.Set<Bid>()
             .Include(b => b.Items)
             .FirstOrDefaultAsync(b => b.Id == command.BidId, cancellationToken);
 
         if (bid is null)
-            return Result.Failure<ConvertBidToProjectResponse>("Bid not found", "NOT_FOUND");
+            return Result.Failure<ConvertBidToProjectResult>("Bid not found", "NOT_FOUND");
 
         if (bid.Status != BidStatus.Won)
-            return Result.Failure<ConvertBidToProjectResponse>("Only won bids can be converted to projects", "INVALID_STATE");
+            return Result.Failure<ConvertBidToProjectResult>("Only won bids can be converted to projects", "INVALID_STATE");
 
         // Create project from bid data (simplified conversion logic)
         var project = new Projects.Domain.Project
         {
             Id = Guid.NewGuid(),
             Name = bid.Name,
-            Number = $"PRJ-{DateTime.Now:yyyy-MMdd}-{bid.Number}",
+            Number = command.ProjectNumber,
             Description = bid.Description,
             ContractAmount = bid.EstimatedValue,
             SourceBidId = bid.Id,
@@ -204,16 +205,18 @@ public class BidService : IBidService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            
-            return Result.Success(new ConvertBidToProjectResponse(
-                project.Id, 
-                $"Successfully converted bid {bid.Name} to project {project.Name}"
+
+            return Result.Success(new ConvertBidToProjectResult(
+                project.Id,
+                bid.Id,
+                project.Name,
+                project.Number
             ));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to convert bid {BidId} to project", command.BidId);
-            return Result.Failure<ConvertBidToProjectResponse>("Failed to convert bid", "DATABASE_ERROR");
+            return Result.Failure<ConvertBidToProjectResult>("Failed to convert bid", "DATABASE_ERROR");
         }
     }
 
@@ -229,13 +232,14 @@ public class BidService : IBidService
             bid.DueDate,
             bid.Owner,
             bid.Description,
+            bid.ProjectId,
             bid.Items?.Select(item => new BidItemDto(
                 item.Id,
                 item.Description,
+                item.Category,
                 item.Quantity,
-                item.UnitPrice,
-                item.TotalPrice,
-                item.CostCode
+                item.UnitCost,
+                item.TotalCost
             )).ToArray() ?? Array.Empty<BidItemDto>(),
             bid.CreatedAt
         );
