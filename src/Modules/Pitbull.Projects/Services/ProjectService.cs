@@ -186,6 +186,13 @@ public class ProjectService : IProjectService
             _logger.LogInformation("Updated project {ProjectId} '{ProjectName}'", project.Id, project.Name);
             return Result.Success(MapToDto(project));
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning("Concurrency conflict updating project {ProjectId}", command.Id);
+            return Result.Failure<ProjectDto>(
+                "This project was modified by another user. Please refresh and try again.",
+                "CONFLICT");
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to update project {ProjectId}", command.Id);
@@ -196,7 +203,7 @@ public class ProjectService : IProjectService
     public async Task<Result> DeleteProjectAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var project = await _db.Set<Project>()
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
 
         if (project is null)
         {
@@ -204,12 +211,15 @@ public class ProjectService : IProjectService
             return Result.Failure("Project not found", "NOT_FOUND");
         }
 
-        _db.Set<Project>().Remove(project);
+        // Perform soft delete (matches existing DeleteProjectHandler)
+        project.IsDeleted = true;
+        project.DeletedAt = DateTime.UtcNow;
+        project.DeletedBy = "system"; // TODO: Get from current user context
 
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Deleted project {ProjectId} '{ProjectName}'", project.Id, project.Name);
+            _logger.LogInformation("Soft deleted project {ProjectId} '{ProjectName}'", project.Id, project.Name);
             return Result.Success();
         }
         catch (Exception ex)
