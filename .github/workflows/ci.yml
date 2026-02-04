@@ -79,7 +79,7 @@ jobs:
 
       - name: Setup Node.js (GitHub-hosted runners, with cache)
         if: ${{ runner.environment == 'github-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -87,7 +87,7 @@ jobs:
 
       - name: Setup Node.js (self-hosted runners)
         if: ${{ runner.environment == 'self-hosted' }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
