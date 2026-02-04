@@ -2,6 +2,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.UpdateRfi;
 using Pitbull.RFIs.Features.ListRfis;
+using Pitbull.RFIs.Features;
 
 namespace Pitbull.RFIs.Services;
 

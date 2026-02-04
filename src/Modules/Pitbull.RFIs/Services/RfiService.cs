@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.RFIs.Domain;
+using Pitbull.RFIs.Features;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.UpdateRfi;
 using Pitbull.RFIs.Features.ListRfis;
@@ -45,9 +46,8 @@ public class RfiService : IRfiService
     {
         var dbQuery = _db.Set<Rfi>().AsNoTracking();
 
-        // Filter by project if specified
-        if (query.ProjectId.HasValue)
-            dbQuery = dbQuery.Where(r => r.ProjectId == query.ProjectId.Value);
+        // Filter by project (required)
+        dbQuery = dbQuery.Where(r => r.ProjectId == query.ProjectId);
 
         // Filter by status if specified
         if (query.Status.HasValue)
@@ -136,7 +136,8 @@ public class RfiService : IRfiService
         rfi.Priority = command.Priority;
         rfi.DueDate = command.DueDate;
         rfi.Status = command.Status;
-        rfi.Response = command.Response;
+        rfi.Answer = command.Answer;
+        rfi.AnsweredAt = command.Answer is null ? rfi.AnsweredAt : DateTime.UtcNow;
 
         try
         {
@@ -184,11 +185,18 @@ public class RfiService : IRfiService
             rfi.Number,
             rfi.Subject,
             rfi.Question,
-            rfi.Response,
+            rfi.Answer,
             rfi.Status,
             rfi.Priority,
             rfi.DueDate,
+            rfi.AnsweredAt,
+            rfi.ClosedAt,
             rfi.ProjectId,
+            rfi.BallInCourtUserId,
+            rfi.BallInCourtName,
+            rfi.AssignedToUserId,
+            rfi.AssignedToName,
+            rfi.CreatedByName,
             rfi.CreatedAt
         );
     }
