@@ -27,7 +27,7 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames ?? [])}");
+            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
     }
 
     [Fact]
@@ -57,7 +57,7 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames ?? [])}");
+            $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -174,7 +174,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Projects module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Projects module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -190,7 +190,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Core module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Core module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -213,7 +213,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Controllers have forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Controllers have forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
