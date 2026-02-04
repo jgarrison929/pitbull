@@ -166,9 +166,9 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
         {
             return result.ErrorCode switch
             {
-                "NOT_FOUND" => this.NotFoundError(result.Error),
-                "CONFLICT" => this.Error(409, result.Error, "CONFLICT"),
-                _ => this.BadRequestError(result.Error)
+                "NOT_FOUND" => this.NotFoundError(result.Error ?? "Project not found"),
+                "CONFLICT" => this.Error(409, result.Error ?? "Conflict occurred", "CONFLICT"),
+                _ => this.BadRequestError(result.Error ?? "Invalid request")
             };
         }
 
@@ -196,7 +196,7 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
     {
         var result = await mediator.Send(new DeleteProjectCommand(id));
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error) : this.BadRequestError(result.Error);
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Delete failed");
 
         return NoContent();
     }
@@ -217,7 +217,7 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
     {
         var result = await projectService.GetProjectAsync(id);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error) : this.BadRequestError(result.Error);
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Request failed");
 
         return Ok(result.Value);
     }
