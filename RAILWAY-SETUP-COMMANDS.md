@@ -29,9 +29,13 @@ railway add --database postgres
 ### 2. Configure Custom Domains (2 minutes)
 ```bash
 # Add domains to each service (after services are created)
-railway domain add duke.pitbullconstructionsolutions.com
-railway domain add theo.pitbullconstructionsolutions.com  
-railway domain add demo.pitbullconstructionsolutions.com
+# First check service names in each environment:
+railway service status --all
+
+# Then add domains with correct service names:
+railway domain add duke.pitbullconstructionsolutions.com --service [dev-service-name]
+railway domain add theo.pitbullconstructionsolutions.com --service [staging-service-name]  
+railway domain add demo.pitbullconstructionsolutions.com --service [demo-service-name]
 ```
 
 ### 3. Set Environment Variables (1 minute per environment)
