@@ -63,6 +63,7 @@ builder.Services.AddPitbullModule<CreateRfiCommand>();
 // Direct service registrations (MediatR migration)
 builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
 builder.Services.AddPitbullModuleServices<CreateBidCommand>();
+builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
 
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
