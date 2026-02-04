@@ -1,4 +1,5 @@
 using Pitbull.Core.CQRS;
+using Pitbull.Bids.Features;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Bids.Features.ListBids;
@@ -22,5 +23,5 @@ public interface IBidService
     Task<Result> DeleteBidAsync(Guid id, CancellationToken cancellationToken = default);
     
     // Special operations
-    Task<Result<ConvertBidToProjectResponse>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default);
+    Task<Result<ConvertBidToProjectResult>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default);
 }
