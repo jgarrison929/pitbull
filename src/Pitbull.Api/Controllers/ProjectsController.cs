@@ -252,4 +252,51 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
 
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// [TEST] Update a project using direct service (no MediatR)
+    /// </summary>
+    /// <param name="id">Project unique identifier</param>
+    /// <param name="command">Updated project details</param>
+    /// <returns>Updated project</returns>
+    [HttpPut("v2/{id:guid}")]
+    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateV2(Guid id, [FromBody] UpdateProjectCommand command)
+    {
+        // Ensure ID consistency between route and body
+        var commandWithId = command with { Id = id };
+        var result = await projectService.UpdateProjectAsync(commandWithId);
+        
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => this.NotFoundError(result.Error ?? "Project not found"),
+                "CONFLICT" => this.Error(409, result.Error ?? "Conflict occurred", "CONFLICT"),
+                "VALIDATION_ERROR" => this.BadRequestError(result.Error ?? "Validation failed"),
+                _ => this.BadRequestError(result.Error ?? "Update failed")
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// [TEST] Delete a project using direct service (no MediatR)
+    /// </summary>
+    /// <param name="id">Project unique identifier</param>
+    [HttpDelete("v2/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteV2(Guid id)
+    {
+        var result = await projectService.DeleteProjectAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Delete failed");
+
+        return NoContent();
+    }
 }
