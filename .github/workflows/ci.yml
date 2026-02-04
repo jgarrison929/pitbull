@@ -33,7 +33,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup .NET (GitHub-hosted runners only)
         if: ${{ runner.environment == 'github-hosted' }}
@@ -75,7 +75,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Node.js (GitHub-hosted runners, with cache)
         if: ${{ runner.environment == 'github-hosted' }}
