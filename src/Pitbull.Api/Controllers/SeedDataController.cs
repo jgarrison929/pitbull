@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Features.SeedData;
 
 namespace Pitbull.Api.Controllers;
@@ -12,6 +13,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Development")]
 public class SeedDataController(IMediator mediator, IWebHostEnvironment env) : ControllerBase
