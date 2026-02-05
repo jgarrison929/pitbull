@@ -38,7 +38,16 @@ public sealed class UpdateRfiHandler(PitbullDbContext db) : IRequestHandler<Upda
         }
         rfi.Status = request.Status;
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure<RfiDto>(
+                "This RFI was modified by another user. Please refresh and try again.",
+                "CONFLICT");
+        }
 
         return Result.Success(RfiMapper.ToDto(rfi));
     }

@@ -2,12 +2,16 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Api.Attributes;
+using Pitbull.Api.Extensions;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.DeleteProject;
 using Pitbull.Projects.Features.GetProject;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
+using Pitbull.Projects.Services;
 
 namespace Pitbull.Api.Controllers;
 
@@ -21,7 +25,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Projects")]
-public class ProjectsController(IMediator mediator) : ControllerBase
+public class ProjectsController(IMediator mediator, IProjectService projectService) : ControllerBase
 {
     /// <summary>
     /// Create a new project
@@ -29,6 +33,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     /// <remarks>
     /// Creates a new construction project within the current tenant.
     /// The project number must be unique within the tenant.
+    /// Note: enum values in JSON request bodies are numeric by default (System.Text.Json).
     ///
     /// Sample request:
     ///
@@ -36,7 +41,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     ///     {
     ///         "name": "Highway Bridge Renovation",
     ///         "number": "PRJ-2026-001",
-    ///         "type": "Commercial",
+    ///         "type": 0,
     ///         "contractAmount": 2500000.00,
     ///         "clientName": "State DOT",
     ///         "startDate": "2026-03-01"
@@ -77,6 +82,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     /// <response code="404">Project not found</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet("{id:guid}")]
+    [Cacheable(DurationSeconds = 180)] // Cache for 3 minutes (projects change less frequently than dashboard)
     [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -84,10 +90,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetById(Guid id)
     {
         var result = await mediator.Send(new GetProjectQuery(id));
-        if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
-
-        return Ok(result.Value);
+        return this.HandleResult(result);
     }
 
     /// <summary>
@@ -109,6 +112,7 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     /// <response code="401">Not authenticated</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet]
+    [Cacheable(DurationSeconds = 120)] // Cache for 2 minutes (list data changes more frequently)
     [ProducesResponseType(typeof(PagedResult<ProjectDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -146,21 +150,30 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     /// <response code="400">Validation error or ID mismatch</response>
     /// <response code="401">Not authenticated</response>
     /// <response code="404">Project not found</response>
+    /// <response code="409">Concurrent modification detected - refresh and try again</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProjectCommand command)
     {
         if (id != command.Id)
-            return BadRequest(new { error = "Route ID does not match body ID" });
+            return this.BadRequestError("Route ID does not match body ID");
 
         var result = await mediator.Send(command);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => this.NotFoundError(result.Error ?? "Project not found"),
+                "CONFLICT" => this.Error(409, result.Error ?? "Conflict occurred", "CONFLICT"),
+                _ => this.BadRequestError(result.Error ?? "Invalid request")
+            };
+        }
 
         return Ok(result.Value);
     }
@@ -184,13 +197,109 @@ public class ProjectsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        // Soft delete via direct db access (simple enough to not need CQRS)
-        var getResult = await mediator.Send(new GetProjectQuery(id));
-        if (!getResult.IsSuccess)
-            return NotFound(new { error = "Project not found" });
+        var result = await mediator.Send(new DeleteProjectCommand(id));
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Delete failed");
 
-        // We'll use update to mark as closed for now
-        // In a real app you'd have a dedicated soft-delete command
+        return NoContent();
+    }
+
+    // ========================================
+    // NEW SERVICE-BASED ENDPOINTS (Testing MediatR migration)
+    // ========================================
+
+    /// <summary>
+    /// [TEST] Get a project by ID using direct service (no MediatR)
+    /// </summary>
+    /// <param name="id">Project unique identifier</param>
+    /// <returns>Project details</returns>
+    [HttpGet("v2/{id:guid}")]
+    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetByIdV2(Guid id)
+    {
+        var result = await projectService.GetProjectAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Request failed");
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// [TEST] Create a project using direct service (no MediatR)  
+    /// </summary>
+    /// <param name="command">Project creation details</param>
+    /// <returns>The newly created project</returns>
+    [HttpPost("v2")]
+    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CreateV2([FromBody] CreateProjectCommand command)
+    {
+        var result = await projectService.CreateProjectAsync(command);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return CreatedAtAction(nameof(GetByIdV2), new { id = result.Value!.Id }, result.Value);
+    }
+
+    /// <summary>
+    /// [TEST] List projects using direct service (no MediatR)
+    /// </summary>
+    [HttpGet("v2")]
+    [ProducesResponseType(typeof(PagedResult<ProjectDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListV2([FromQuery] ListProjectsQuery query)
+    {
+        var result = await projectService.GetProjectsAsync(query);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// [TEST] Update a project using direct service (no MediatR)
+    /// </summary>
+    /// <param name="id">Project unique identifier</param>
+    /// <param name="command">Updated project details</param>
+    /// <returns>Updated project</returns>
+    [HttpPut("v2/{id:guid}")]
+    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> UpdateV2(Guid id, [FromBody] UpdateProjectCommand command)
+    {
+        // Ensure ID consistency between route and body
+        var commandWithId = command with { Id = id };
+        var result = await projectService.UpdateProjectAsync(commandWithId);
+        
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => this.NotFoundError(result.Error ?? "Project not found"),
+                "CONFLICT" => this.Error(409, result.Error ?? "Conflict occurred", "CONFLICT"),
+                "VALIDATION_ERROR" => this.BadRequestError(result.Error ?? "Validation failed"),
+                _ => this.BadRequestError(result.Error ?? "Update failed")
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// [TEST] Delete a project using direct service (no MediatR)
+    /// </summary>
+    /// <param name="id">Project unique identifier</param>
+    [HttpDelete("v2/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteV2(Guid id)
+    {
+        var result = await projectService.DeleteProjectAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Delete failed");
+
         return NoContent();
     }
 }

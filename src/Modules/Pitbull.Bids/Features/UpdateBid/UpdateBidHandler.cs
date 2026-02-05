@@ -48,7 +48,16 @@ public sealed class UpdateBidHandler(PitbullDbContext db)
             }
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure<BidDto>(
+                "This bid was modified by another user. Please refresh and try again.",
+                "CONFLICT");
+        }
 
         return Result.Success(BidMapper.ToDto(bid));
     }

@@ -27,7 +27,7 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
-            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames ?? [])}");
+            $"Controllers missing [Authorize] attribute: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
     }
 
     [Fact]
@@ -57,7 +57,11 @@ public class ArchitectureTests
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(
+<<<<<<< HEAD
             $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames ?? [])}");
+=======
+            $"Controllers with incorrect naming: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
+>>>>>>> develop
     }
 
     [Fact]
@@ -110,7 +114,11 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
+<<<<<<< HEAD
                 $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+=======
+                $"Handlers with incorrect naming in {assembly.GetName().Name}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
+>>>>>>> develop
         }
     }
 
@@ -174,7 +182,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Projects module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Projects module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -190,7 +198,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Core module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Core module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -207,16 +215,26 @@ public class ArchitectureTests
         var controllersToRefactor = new[] { "AuthController", "TenantsController" };
         
         var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
+        var excludedControllers = new[] { "AuthController", "TenantsController" };
         foreach (var dep in forbiddenDeps)
         {
             var result = Types.InAssembly(_apiAssembly)
                 .That().Inherit(typeof(ControllerBase))
+<<<<<<< HEAD
                 .And().DoNotHaveNameMatching("AuthController|TenantsController")
+=======
+                .And().DoNotHaveName("AuthController")
+                .And().DoNotHaveName("TenantsController")
+>>>>>>> develop
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
+<<<<<<< HEAD
                 $"Controllers (excluding {string.Join(", ", controllersToRefactor)}) have forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+=======
+                $"Controllers have forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
+>>>>>>> develop
         }
     }
 

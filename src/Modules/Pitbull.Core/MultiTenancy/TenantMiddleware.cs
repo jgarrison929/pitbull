@@ -22,14 +22,11 @@ public class TenantMiddleware(RequestDelegate next, ILogger<TenantMiddleware> lo
         if (tenantId.HasValue)
         {
             tenantContext.TenantId = tenantId.Value;
+
             // Set PostgreSQL session variable for RLS.
-            // IMPORTANT: This setting is connection-scoped. We explicitly open the DbContext
-            // connection for the duration of the request so subsequent EF operations see the
-            // same session setting.
-            await db.Database.OpenConnectionAsync();
-            await db.Database.ExecuteSqlRawAsync(
-                "SELECT set_config('app.current_tenant', {0}, false);",
-                tenantId.Value.ToString());
+            // NOTE: Using set_config() avoids issues with parameterizing SET statements.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenantId.Value.ToString()}, false);");
 
             logger.LogDebug("Tenant resolved: {TenantId}", tenantId.Value);
         }
