@@ -13,6 +13,7 @@ COPY src/Pitbull.Api/Pitbull.Api.csproj src/Pitbull.Api/
 COPY src/Modules/Pitbull.Core/Pitbull.Core.csproj src/Modules/Pitbull.Core/
 COPY src/Modules/Pitbull.Projects/Pitbull.Projects.csproj src/Modules/Pitbull.Projects/
 COPY src/Modules/Pitbull.Bids/Pitbull.Bids.csproj src/Modules/Pitbull.Bids/
+COPY src/Modules/Pitbull.RFIs/Pitbull.RFIs.csproj src/Modules/Pitbull.RFIs/
 COPY src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj src/Modules/Pitbull.Contracts/
 COPY src/Modules/Pitbull.Documents/Pitbull.Documents.csproj src/Modules/Pitbull.Documents/
 COPY src/Modules/Pitbull.Portal/Pitbull.Portal.csproj src/Modules/Pitbull.Portal/

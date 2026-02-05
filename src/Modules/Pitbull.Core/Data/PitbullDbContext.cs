@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +15,8 @@ namespace Pitbull.Core.Data;
 /// </summary>
 public class PitbullDbContext(
     DbContextOptions<PitbullDbContext> options,
-    ITenantContext tenantContext)
+    ITenantContext tenantContext,
+    IHttpContextAccessor? httpContextAccessor = null)
     : IdentityDbContext<AppUser, AppRole, Guid>(options)
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -71,9 +74,9 @@ public class PitbullDbContext(
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
-                // Soft delete filter
+                // Combined tenant isolation + soft delete filter (defense in depth)
                 builder.Entity(entityType.ClrType)
-                    .HasQueryFilter(CreateSoftDeleteFilter(entityType.ClrType));
+                    .HasQueryFilter(CreateTenantAndSoftDeleteFilter(entityType.ClrType));
 
                 // Tenant index on every BaseEntity table
                 builder.Entity(entityType.ClrType)
@@ -94,27 +97,58 @@ public class PitbullDbContext(
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
+        var currentUserId = GetCurrentUserId();
+        var now = DateTime.UtcNow;
+
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
                     entry.Entity.TenantId = tenantContext.TenantId;
-                    entry.Entity.CreatedAt = DateTime.UtcNow;
+                    // Only set CreatedAt if not explicitly set (default DateTime is DateTime.MinValue)
+                    if (entry.Entity.CreatedAt == default)
+                        entry.Entity.CreatedAt = now;
+                    entry.Entity.CreatedBy = currentUserId;
                     break;
                 case EntityState.Modified:
-                    entry.Entity.UpdatedAt = DateTime.UtcNow;
+                    entry.Entity.UpdatedAt = now;
+                    entry.Entity.UpdatedBy = currentUserId;
+                    break;
+                case EntityState.Deleted:
+                    // Soft delete: mark as deleted instead of actual removal
+                    entry.State = EntityState.Modified;
+                    entry.Entity.IsDeleted = true;
+                    entry.Entity.DeletedAt = now;
+                    entry.Entity.DeletedBy = currentUserId;
                     break;
             }
         }
 
         // Dispatch domain events after save
         var result = await base.SaveChangesAsync(cancellationToken);
-        await DispatchDomainEvents();
+        DispatchDomainEvents();
         return result;
     }
 
-    private async Task DispatchDomainEvents()
+    private string GetCurrentUserId()
+    {
+        var user = httpContextAccessor?.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            // Try to get the user ID from JWT 'sub' claim
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) 
+                        ?? user.FindFirstValue("sub");
+            
+            if (!string.IsNullOrEmpty(userId))
+                return userId;
+        }
+
+        // Fallback for system operations (migrations, background jobs, etc.)
+        return "system";
+    }
+
+    private void DispatchDomainEvents()
     {
         var entities = ChangeTracker.Entries<BaseEntity>()
             .Where(e => e.Entity.DomainEvents.Count != 0)
@@ -126,15 +160,36 @@ public class PitbullDbContext(
 
         // Domain events will be dispatched via MediatR
         // This requires IMediator to be injected - will add in next iteration
+        // TODO: Implement actual domain event dispatching when MediatR is available
     }
 
-    private static System.Linq.Expressions.LambdaExpression CreateSoftDeleteFilter(Type entityType)
+    /// <summary>
+    /// Creates a query filter that enforces both tenant isolation and soft delete.
+    /// This provides defense-in-depth security alongside PostgreSQL RLS policies.
+    /// </summary>
+    private System.Linq.Expressions.LambdaExpression CreateTenantAndSoftDeleteFilter(Type entityType)
     {
         var parameter = System.Linq.Expressions.Expression.Parameter(entityType, "e");
-        var property = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
-        var condition = System.Linq.Expressions.Expression.Equal(
-            property,
+        
+        // Condition 1: IsDeleted == false (soft delete)
+        var isDeletedProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+        var notDeletedCondition = System.Linq.Expressions.Expression.Equal(
+            isDeletedProperty,
             System.Linq.Expressions.Expression.Constant(false));
-        return System.Linq.Expressions.Expression.Lambda(condition, parameter);
+        
+        // Condition 2: TenantId == Current Tenant (tenant isolation)
+        var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.TenantId));
+        var currentTenantCondition = System.Linq.Expressions.Expression.Equal(
+            tenantIdProperty,
+            System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Field(null, typeof(PitbullDbContext), nameof(tenantContext)),
+                nameof(ITenantContext.TenantId)));
+        
+        // Combine both conditions with AND
+        var combinedCondition = System.Linq.Expressions.Expression.AndAlso(
+            notDeletedCondition,
+            currentTenantCondition);
+            
+        return System.Linq.Expressions.Expression.Lambda(combinedCondition, parameter);
     }
 }
