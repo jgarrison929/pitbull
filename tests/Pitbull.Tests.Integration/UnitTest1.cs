@@ -1,4 +1,4 @@
-﻿namespace Pitbull.Tests.Integration;
+namespace Pitbull.Tests.Integration;
 
 public class UnitTest1
 {
