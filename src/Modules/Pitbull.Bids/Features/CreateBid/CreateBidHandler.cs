@@ -5,7 +5,7 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Bids.Features.CreateBid;
 
-public class CreateBidHandler(PitbullDbContext db)
+public sealed class CreateBidHandler(PitbullDbContext db)
     : IRequestHandler<CreateBidCommand, Result<BidDto>>
 {
     public async Task<Result<BidDto>> Handle(

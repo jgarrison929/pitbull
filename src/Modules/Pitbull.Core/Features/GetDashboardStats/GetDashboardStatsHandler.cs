@@ -9,7 +9,7 @@ namespace Pitbull.Core.Features.GetDashboardStats;
 /// <summary>
 /// Handler for getting dashboard statistics
 /// </summary>
-public class GetDashboardStatsHandler(PitbullDbContext db) 
+public sealed class GetDashboardStatsHandler(PitbullDbContext db) 
     : IRequestHandler<GetDashboardStatsQuery, Result<DashboardStatsResponse>>
 {
     public async Task<Result<DashboardStatsResponse>> Handle(
