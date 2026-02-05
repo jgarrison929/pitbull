@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
+import Link from "next/link";
 
 interface ErrorBoundaryProps {
   children: ReactNode;

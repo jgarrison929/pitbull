@@ -6,7 +6,7 @@ using Pitbull.RFIs.Domain;
 
 namespace Pitbull.RFIs.Features.ListRfis;
 
-public class ListRfisHandler(PitbullDbContext db) : IRequestHandler<ListRfisQuery, Result<PagedResult<RfiDto>>>
+public sealed class ListRfisHandler(PitbullDbContext db) : IRequestHandler<ListRfisQuery, Result<PagedResult<RfiDto>>>
 {
     public async Task<Result<PagedResult<RfiDto>>> Handle(ListRfisQuery request, CancellationToken cancellationToken)
     {
