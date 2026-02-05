@@ -4,6 +4,22 @@
 
 Loyal. Tenacious. Won't let go. 🐕
 
+## Current Status
+
+**🚧 Alpha 0 Development** (Target: Feb 21, 2026)
+- ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
+- ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
+- ✅ **Testing:** 121 tests passing (112 unit + 9 integration)
+- ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
+- 🔄 **Modules:** Projects, Bids, RFIs scaffolded and registering
+- 🔄 **Deployment:** Railway configuration ready, PostgreSQL + Redis
+- 📋 **Next:** Frontend components, Railway demo deployment
+
+**Recent Wins:**
+- Fixed all CI/test pipeline issues (Feb 5)
+- Comprehensive security middleware implemented 
+- Clean architecture with sealed handlers and proper separation
+
 ## Stack
 
 - **Backend:** .NET 9 / ASP.NET Core (modular monolith, CQRS with MediatR)
