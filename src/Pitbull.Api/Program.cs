@@ -304,6 +304,9 @@ using (var scope = app.Services.CreateScope())
 // Global exception handling (must be first in pipeline)
 app.UseMiddleware<ExceptionMiddleware>();
 
+// Security headers (early in pipeline for all responses)
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 // Correlation IDs (must run early so all downstream logs include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
 
