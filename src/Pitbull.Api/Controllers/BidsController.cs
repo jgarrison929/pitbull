@@ -6,6 +6,7 @@ using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.ConvertBidToProject;
+using Pitbull.Bids.Features.DeleteBid;
 using Pitbull.Bids.Features.GetBid;
 using Pitbull.Bids.Features.ListBids;
 using Pitbull.Bids.Features.UpdateBid;
@@ -157,12 +158,14 @@ public class BidsController(IMediator mediator) : ControllerBase
     /// <response code="400">Validation error or ID mismatch</response>
     /// <response code="401">Not authenticated</response>
     /// <response code="404">Bid not found</response>
+    /// <response code="409">Concurrent modification detected - refresh and try again</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(BidDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateBidCommand command)
     {
@@ -171,7 +174,14 @@ public class BidsController(IMediator mediator) : ControllerBase
 
         var result = await mediator.Send(command);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "CONFLICT" => Conflict(new { error = result.Error }),
+                _ => BadRequest(new { error = result.Error })
+            };
+        }
 
         return Ok(result.Value);
     }
@@ -223,6 +233,34 @@ public class BidsController(IMediator mediator) : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Delete a bid (soft delete)
+    /// </summary>
+    /// <remarks>
+    /// Performs a soft delete on the bid. The record is not physically removed from the database
+    /// but is marked as deleted and excluded from all queries.
+    /// Only bids within the authenticated user's tenant can be deleted.
+    /// </remarks>
+    /// <param name="id">Bid unique identifier</param>
+    /// <returns>No content on successful deletion</returns>
+    /// <response code="204">Bid deleted successfully</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Bid not found</response>
+    /// <response code="429">Rate limit exceeded</response>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await mediator.Send(new DeleteBidCommand(id));
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
+
+        return NoContent();
     }
 }
 

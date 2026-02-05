@@ -111,9 +111,14 @@ public class RfisController(IMediator mediator) : ControllerBase
 
         var result = await mediator.Send(command);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "CONFLICT" => Conflict(new { error = result.Error }),
+                _ => BadRequest(new { error = result.Error })
+            };
+        }
 
         return Ok(result.Value);
     }

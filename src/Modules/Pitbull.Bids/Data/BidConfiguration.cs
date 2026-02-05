@@ -25,6 +25,12 @@ public class BidConfiguration : IEntityTypeConfiguration<Bid>
             .WithOne(i => i.Bid)
             .HasForeignKey(i => i.BidId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Optimistic concurrency using PostgreSQL xmin
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }
 
