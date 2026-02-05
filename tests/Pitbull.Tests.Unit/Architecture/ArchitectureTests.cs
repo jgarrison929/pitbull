@@ -208,7 +208,8 @@ public class ArchitectureTests
         {
             var result = Types.InAssembly(_apiAssembly)
                 .That().Inherit(typeof(ControllerBase))
-                .And().DoNotHaveName(excludedControllers)
+                .And().DoNotHaveName("AuthController")
+                .And().DoNotHaveName("TenantsController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 
