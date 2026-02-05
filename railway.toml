@@ -1,0 +1,11 @@
+# Railway.app deployment configuration
+# https://docs.railway.app/deploy/config-as-code
+
+[build]
+builder = "dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
