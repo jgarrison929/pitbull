@@ -66,10 +66,24 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_time_entries_employees");
 
-        // Note: Project and CostCode relationships are cross-module
-        // We'll use shadow properties to avoid circular dependencies
-        builder.Property<Guid>("ProjectId").IsRequired();
-        builder.Property<Guid>("CostCodeId").IsRequired();
+        // Cross-module relationships: Project and CostCode
+        // These use the FK properties already defined on the entity
+        builder.Property(te => te.ProjectId).IsRequired();
+        builder.Property(te => te.CostCodeId).IsRequired();
+
+        // Navigation to Project (from Projects module)
+        builder.HasOne(te => te.Project)
+            .WithMany()
+            .HasForeignKey(te => te.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_time_entries_projects");
+
+        // Navigation to CostCode (from Core module)
+        builder.HasOne(te => te.CostCode)
+            .WithMany()
+            .HasForeignKey(te => te.CostCodeId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_time_entries_cost_codes");
 
         builder.HasOne(te => te.ApprovedBy)
             .WithMany(e => e.ApprovedTimeEntries)
