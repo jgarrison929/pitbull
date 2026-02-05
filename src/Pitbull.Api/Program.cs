@@ -4,6 +4,7 @@ using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.RFIs.Features.CreateRfi;
+using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
@@ -38,6 +39,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(PitbullDbContext).Assembly); // C
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
