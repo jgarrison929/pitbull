@@ -57,4 +57,37 @@ public static class ServiceCollectionExtensions
         services.AddValidatorsFromAssemblyContaining<TAssemblyMarker>();
         return services;
     }
+
+    /// <summary>
+    /// Register a module's direct services (replacing MediatR handlers).
+    /// Use during MediatR migration to register both patterns side-by-side.
+    /// </summary>
+    public static IServiceCollection AddPitbullModuleServices<TAssemblyMarker>(
+        this IServiceCollection services)
+    {
+        // Auto-register all services implementing interfaces in the assembly
+        var assembly = typeof(TAssemblyMarker).Assembly;
+        
+        var serviceTypes = assembly.GetTypes()
+            .Where(type => type.IsClass && !type.IsAbstract)
+            .Where(type => type.GetInterfaces().Any(i => 
+                i.Name.EndsWith("Service") && i.IsPublic))
+            .ToArray();
+
+        foreach (var serviceType in serviceTypes)
+        {
+            var serviceInterface = serviceType.GetInterfaces()
+                .FirstOrDefault(i => i.Name.EndsWith("Service") && i.IsPublic);
+
+            if (serviceInterface != null)
+            {
+                services.AddScoped(serviceInterface, serviceType);
+            }
+        }
+
+        // Still register validators - needed for the service implementations
+        services.AddValidatorsFromAssemblyContaining<TAssemblyMarker>();
+        
+        return services;
+    }
 }
