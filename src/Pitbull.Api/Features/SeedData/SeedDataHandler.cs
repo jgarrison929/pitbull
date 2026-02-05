@@ -11,7 +11,7 @@ namespace Pitbull.Api.Features.SeedData;
 /// Seeds realistic construction demo data.
 /// Development environment only.
 /// </summary>
-public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env)
+public sealed class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env)
     : IRequestHandler<SeedDataCommand, Result<SeedDataResult>>
 {
     public async Task<Result<SeedDataResult>> Handle(

@@ -6,7 +6,7 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Bids.Features.GetBid;
 
-public class GetBidHandler(PitbullDbContext db)
+public sealed class GetBidHandler(PitbullDbContext db)
     : IRequestHandler<GetBidQuery, Result<BidDto>>
 {
     public async Task<Result<BidDto>> Handle(

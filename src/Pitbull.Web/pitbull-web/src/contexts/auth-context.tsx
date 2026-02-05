@@ -41,20 +41,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (token && !isTokenExpired(token)) {
-      const payload = decodeToken(token);
-      if (payload) {
-        setUser({
-          id: payload.sub,
-          email: payload.email,
-          name: payload.name,
-          role: payload.role,
-          tenantId: payload.tenantId,
-        });
+    const initializeAuth = () => {
+      const token = getToken();
+      if (token && !isTokenExpired(token)) {
+        const payload = decodeToken(token);
+        if (payload) {
+          setUser({
+            id: payload.sub,
+            email: payload.email,
+            name: payload.name,
+            role: payload.role,
+            tenantId: payload.tenantId,
+          });
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+    
+    initializeAuth();
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {

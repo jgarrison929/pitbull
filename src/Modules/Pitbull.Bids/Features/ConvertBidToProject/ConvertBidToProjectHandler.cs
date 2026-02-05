@@ -7,7 +7,7 @@ using Pitbull.Projects.Domain;
 
 namespace Pitbull.Bids.Features.ConvertBidToProject;
 
-public class ConvertBidToProjectHandler(PitbullDbContext db)
+public sealed class ConvertBidToProjectHandler(PitbullDbContext db)
     : IRequestHandler<ConvertBidToProjectCommand, Result<ConvertBidToProjectResult>>
 {
     public async Task<Result<ConvertBidToProjectResult>> Handle(

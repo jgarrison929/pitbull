@@ -7,7 +7,7 @@ using Pitbull.Projects.Features.CreateProject;
 
 namespace Pitbull.Projects.Features.UpdateProject;
 
-public class UpdateProjectHandler(PitbullDbContext db)
+public sealed class UpdateProjectHandler(PitbullDbContext db)
     : IRequestHandler<UpdateProjectCommand, Result<ProjectDto>>
 {
     public async Task<Result<ProjectDto>> Handle(

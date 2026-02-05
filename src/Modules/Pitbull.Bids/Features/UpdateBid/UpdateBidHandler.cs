@@ -6,7 +6,7 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Bids.Features.UpdateBid;
 
-public class UpdateBidHandler(PitbullDbContext db)
+public sealed class UpdateBidHandler(PitbullDbContext db)
     : IRequestHandler<UpdateBidCommand, Result<BidDto>>
 {
     public async Task<Result<BidDto>> Handle(
