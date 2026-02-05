@@ -146,6 +146,23 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 // API
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Request timeouts for security (protection against slow loris attacks)
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+        TimeoutStatusCode = 408
+    };
+    
+    // Longer timeout for seed data operations (development only)
+    options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromMinutes(2),
+        TimeoutStatusCode = 408
+    });
+});
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -318,6 +335,7 @@ app.UseSwaggerUI(c =>
 app.UseResponseCompression();
 
 app.UseSerilogRequestLogging();
+app.UseRequestTimeouts();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
