@@ -1,6 +1,6 @@
 # Pitbull Construction Solutions
 
-**On-premise construction management software.** Built for commercial general contractors who are tired of paying per-seat SaaS fees for software that should run on their own servers.
+**Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
 
 Loyal. Tenacious. Won't let go. 🐕
 
@@ -10,7 +10,7 @@ Loyal. Tenacious. Won't let go. 🐕
 - **Frontend:** Next.js 15 + React 19 + Tailwind CSS + shadcn/ui
 - **Database:** PostgreSQL 17 (multi-tenant with Row-Level Security)
 - **Cache:** Redis 7
-- **Auth:** ASP.NET Identity + JWT (on-prem friendly, no cloud dependency)
+- **Auth:** ASP.NET Identity + JWT (cloud-native, multi-tenant)
 
 ## Modules
 
