@@ -174,7 +174,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Projects module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Projects module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -190,7 +190,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Core module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Core module has forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 
@@ -203,6 +203,7 @@ public class ArchitectureTests
         // - Domain objects for type safety
         // - Feature contracts (commands/queries)
         var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
+        var excludedControllers = new[] { "AuthController", "TenantsController" };
         foreach (var dep in forbiddenDeps)
         {
             var result = Types.InAssembly(_apiAssembly)
@@ -213,7 +214,7 @@ public class ArchitectureTests
                 .GetResult();
 
             result.IsSuccessful.Should().BeTrue(
-                $"Controllers have forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? [])}");
+                $"Controllers have forbidden dependency on {dep}: {string.Join(", ", result.FailingTypeNames ?? Array.Empty<string>())}");
         }
     }
 

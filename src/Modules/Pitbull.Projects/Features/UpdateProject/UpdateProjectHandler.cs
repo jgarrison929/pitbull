@@ -39,7 +39,16 @@ public sealed class UpdateProjectHandler(PitbullDbContext db)
         project.ProjectManagerId = request.ProjectManagerId;
         project.SuperintendentId = request.SuperintendentId;
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Result.Failure<ProjectDto>(
+                "This project was modified by another user. Please refresh and try again.",
+                "CONFLICT");
+        }
 
         return Result.Success(CreateProjectHandler.MapToDto(project));
     }

@@ -1,3 +1,5 @@
+using Pitbull.Api.Configuration;
+using Pitbull.Api.Demo;
 using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
@@ -8,16 +10,22 @@ using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Server.IIS;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using HealthChecks.UI.Client;
 using Serilog;
 using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Validate configuration early to catch issues before startup
+EnvironmentValidator.ValidateRequiredConfiguration(builder.Configuration);
 
 // Serilog
 builder.Host.UseSerilog((context, config) => config
@@ -35,11 +43,27 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
 
+// Demo bootstrap (optional)
+builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
+builder.Services.AddScoped<DemoBootstrapper>();
+
+// Configure forwarded headers for reverse proxy (Railway, Docker, etc.)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // Module registrations (MediatR handlers + FluentValidation)
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
 builder.Services.AddPitbullModule<CreateRfiCommand>();
-builder.Services.AddPitbullModule<CreateRfiCommand>();
+
+// Direct service registrations (MediatR migration)
+builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
+builder.Services.AddPitbullModuleServices<CreateBidCommand>();
+builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
 
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
@@ -100,9 +124,45 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddAuthorization();
 
+// HTTP Context access for audit fields in DbContext
+builder.Services.AddHttpContextAccessor();
+
+// Request size limits for security
+builder.Services.Configure<RequestSizeLimitOptions>(
+    builder.Configuration.GetSection(RequestSizeLimitOptions.SectionName));
+var sizeLimitOptions = builder.Configuration
+    .GetSection(RequestSizeLimitOptions.SectionName)
+    .Get<RequestSizeLimitOptions>() ?? new RequestSizeLimitOptions();
+
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
+});
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
+});
+
 // API
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Request timeouts for security (protection against slow loris attacks)
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+        TimeoutStatusCode = 408
+    };
+    
+    // Longer timeout for seed data operations (development only)
+    options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromMinutes(2),
+        TimeoutStatusCode = 408
+    });
+});
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -168,6 +228,23 @@ builder.Services.AddCors(options =>
 // Rate limiting
 builder.Services.AddRateLimiter(options =>
 {
+    // Registration: 5 requests per hour (stricter for account creation)
+    options.AddFixedWindowLimiter("register", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromHours(1);
+        opt.QueueLimit = 0;
+    });
+    
+    // Login: 10 requests per minute (allows for typos/retries)
+    options.AddFixedWindowLimiter("login", opt =>
+    {
+        opt.PermitLimit = 10;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+    
+    // General auth fallback (currently unused but could be applied broadly)
     options.AddFixedWindowLimiter("auth", opt =>
     {
         opt.PermitLimit = 5;
@@ -175,6 +252,7 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
     
+    // API endpoints: 60 requests per minute
     options.AddFixedWindowLimiter("api", opt =>
     {
         opt.PermitLimit = 60;
@@ -199,20 +277,44 @@ builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), 
         tags: new[] { "live" });
 
+// Response compression for better bandwidth utilization
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.BrotliCompressionProvider>();
+    options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
+});
+
 var app = builder.Build();
+
+// Handle forwarded headers from reverse proxy (must be very early)
+app.UseForwardedHeaders();
 
 // Auto-migrate database on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
     await db.Database.MigrateAsync();
+
+    // Optional: bootstrap the public demo tenant + seed data
+    var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
+    await demoBootstrapper.EnsureSeededIfEnabledAsync();
 }
 
 // Global exception handling (must be first in pipeline)
 app.UseMiddleware<ExceptionMiddleware>();
 
+// Security headers (early in pipeline for all responses)
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 // Correlation IDs (must run early so all downstream logs include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Request/response logging for API debugging (after correlation ID)
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
+
+// Request size limits (early in pipeline for security)
+app.UseMiddleware<RequestSizeLimitMiddleware>();
 
 // Pipeline
 if (app.Environment.IsDevelopment())
@@ -232,7 +334,11 @@ app.UseSwaggerUI(c =>
     c.DocumentTitle = "Pitbull Construction Solutions - API Docs";
 });
 
+// Response compression (before other middlewares that generate responses)
+app.UseResponseCompression();
+
 app.UseSerilogRequestLogging();
+app.UseRequestTimeouts();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();

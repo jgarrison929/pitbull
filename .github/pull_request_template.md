@@ -1,28 +1,28 @@
-## Description
-Brief description of changes.
+# Pull Request
 
-## Related Issues
-Closes #
+## Goal
+What does this PR accomplish? (One sentence)
 
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Refactoring
-- [ ] Documentation
+## What changed
+- Brief bullet points of what was added/changed/removed
 
-## Module(s) Affected
-- [ ] Core
-- [ ] Projects
-- [ ] Bids
-- [ ] Contracts
-- [ ] Frontend (Pitbull.Web)
-- [ ] Infrastructure
+## Risks
+What could go wrong? How likely? (e.g., "Low: tests only" or "Medium: auth middleware change")
 
-## Checklist
-- [ ] Code compiles without errors (`dotnet build`)
-- [ ] Tests pass (`dotnet test`)
-- [ ] New code has validators where appropriate
-- [ ] EF migrations added (if schema changed)
-- [ ] API endpoints documented in Swagger
-- [ ] No secrets committed
+## Test plan
+How was this verified before opening the PR?
+- [ ] Local build: `dotnet build`
+- [ ] Local tests: `dotnet test` 
+- [ ] Frontend: `npm run lint && npm run build` (if applicable)
+- [ ] Other: (describe)
+
+## Docs updated
+- [ ] Updated relevant documentation
+- [ ] Added/updated comments for complex logic
+- [ ] N/A (no docs needed)
+
+## Rollback plan
+If this needs to be reverted quickly: (e.g., "Revert commit" or "Toggle feature flag" or "Restore backup")
+
+---
+**Reviewer notes:** Check CI status, review changes, verify test coverage.
