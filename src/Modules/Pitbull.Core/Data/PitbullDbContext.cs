@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -16,7 +17,8 @@ namespace Pitbull.Core.Data;
 public class PitbullDbContext(
     DbContextOptions<PitbullDbContext> options,
     ITenantContext tenantContext,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    IMediator? mediator = null)
     : IdentityDbContext<AppUser, AppRole, Guid>(options)
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -158,9 +160,28 @@ public class PitbullDbContext(
         var domainEvents = entities.SelectMany(e => e.DomainEvents).ToList();
         entities.ForEach(e => e.ClearDomainEvents());
 
-        // Domain events will be dispatched via MediatR
-        // This requires IMediator to be injected - will add in next iteration
-        // TODO: Implement actual domain event dispatching when MediatR is available
+        // Dispatch domain events via MediatR (if available)
+        if (mediator != null)
+        {
+            foreach (var domainEvent in domainEvents)
+            {
+                // Fire-and-forget: we don't await domain event handlers to avoid blocking the SaveChanges
+                // This assumes domain event handlers are fast and don't need to participate in the transaction
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await mediator.Publish(domainEvent);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log domain event handling failures but don't fail the main operation
+                        // TODO: Add proper logging when ILogger is available in DbContext
+                        Console.WriteLine($"Domain event handling failed: {ex.Message}");
+                    }
+                });
+            }
+        }
     }
 
     /// <summary>
