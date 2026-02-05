@@ -38,7 +38,6 @@ PitbullDbContext.RegisterModuleAssembly(typeof(PitbullDbContext).Assembly); // C
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
-PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
