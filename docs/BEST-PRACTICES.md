@@ -321,7 +321,7 @@ public abstract record DomainEventBase : IDomainEvent
 }
 ```
 
-**Current status:** The `DispatchDomainEvents()` method in `PitbullDbContext` collects events after save but does not yet dispatch them via MediatR (noted as TODO in the code). When implemented, add `IMediator` to the DbContext constructor.
+**Current status:** Domain events are now fully implemented. The `DispatchDomainEvents()` method collects and dispatches events via MediatR after SaveChanges. Events are dispatched asynchronously using fire-and-forget pattern to avoid blocking the main transaction.
 
 ### Controller Conventions
 
