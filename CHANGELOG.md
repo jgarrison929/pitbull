@@ -14,9 +14,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Document management module
 - Billing/invoicing module
 - Client portal
-- Domain event dispatching via MediatR
 - Subdomain-based tenant resolution
-- CreatedBy/UpdatedBy audit field auto-population
+
+---
+
+## [0.3.0] - 2026-02-05
+
+### 🔒 Security & Reliability
+
+- **Fixed critical Row-Level Security issues** - Resolved database tenant isolation failures affecting all create operations
+- **Enhanced database connection stability** - Added connection interceptor to ensure tenant context persists across connection pooling
+- **Improved API authentication** - Confirmed production API returns proper 401 status codes instead of redirects
+- **Added comprehensive integration testing** - All 9 integration test suites now passing consistently
+
+### 🚀 Features  
+
+- **Enhanced deployment monitoring** - Added database health scripts and deployment status tracking ([PR #135](https://github.com/jgarrison929/pitbull/pull/135))
+- **HTTP response caching** - Implemented read endpoint caching for improved performance ([PR #134](https://github.com/jgarrison929/pitbull/pull/134))
+- **Domain event dispatching** - Added MediatR-based event system for future module integration ([PR #132](https://github.com/jgarrison929/pitbull/pull/132))
+- **Cost code management** - Added foundation for job cost tracking and accounting ([PR #129](https://github.com/jgarrison929/pitbull/pull/129))
+
+### 🐛 Bug Fixes
+
+- **Frontend build stability** - Resolved duplicate import errors in error boundary components
+- **Dashboard statistics** - Fixed SQL query compatibility issues with EF Core SqlQueryRaw
+- **Docker build reliability** - Added missing RFIs module to container build process
+- **Architecture test resilience** - Improved null safety in test failure reporting
+
+### ⚡ Performance
+
+- **API security headers** - Comprehensive security header implementation with monitoring ([PR #133](https://github.com/jgarrison929/pitbull/pull/133))
+- **Request timeout protection** - Added configurable timeouts to prevent slow loris attacks
+- **Rate limiting enhancements** - Refined authentication endpoint rate limits for better UX
+
+### 🏗️ Infrastructure
+
+- **CI/CD improvements** - Enhanced test reliability and failure diagnostics
+- **Documentation updates** - Added comprehensive design docs for cost codes and time tracking
+- **Pull request workflow** - Added standardized PR template with goal/risk/test checklist ([PR #128](https://github.com/jgarrison929/pitbull/pull/128))
+
+### Technical Notes
+
+- Tenant sanitization research completed for future white-label opportunities
+- Architecture tests now provide actionable failure information
+- Integration test coverage expanded across all major API endpoints
+- Database migrations pipeline enhanced for production stability
 
 ---
 
