@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Pitbull.Tests.Integration;
 
-public sealed class PitbullApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
+public sealed class PitbullTestContainersFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder()
         .WithImage("postgres:17-alpine")

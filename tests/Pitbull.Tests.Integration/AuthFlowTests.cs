@@ -5,7 +5,7 @@ using System.Net.Http.Json;
 
 namespace Pitbull.Tests.Integration;
 
-public class AuthFlowTests(PitbullApiFactory factory) : IClassFixture<PitbullApiFactory>
+public class AuthFlowTests(PitbullTestContainersFactory factory) : IClassFixture<PitbullTestContainersFactory>
 {
     private HttpClient CreateClient() => factory.CreateClient();
 
