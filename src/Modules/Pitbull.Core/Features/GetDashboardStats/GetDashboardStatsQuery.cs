@@ -16,5 +16,20 @@ public record DashboardStatsResponse(
     decimal TotalProjectValue,
     decimal TotalBidValue,
     int PendingChangeOrders,
-    DateTime LastActivityDate
+    DateTime LastActivityDate,
+    int EmployeeCount,
+    int PendingTimeApprovals,
+    List<RecentActivityItem> RecentActivity
+);
+
+/// <summary>
+/// A recent activity item for the dashboard feed
+/// </summary>
+public record RecentActivityItem(
+    string Id,
+    string Type,        // "project", "bid", "employee", "timeentry"
+    string Title,
+    string Description,
+    DateTime Timestamp,
+    string? Icon
 );

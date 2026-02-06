@@ -30,13 +30,25 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
             // Get last activity date (most recent created/updated date across projects and bids)
             var lastActivityDate = await GetLastActivityDate(cancellationToken);
 
+            // Get employee count
+            var employeeCount = await GetEmployeeCount(cancellationToken);
+
+            // Get pending time entry approvals
+            var pendingTimeApprovals = await GetPendingTimeApprovals(cancellationToken);
+
+            // Get recent activity
+            var recentActivity = await GetRecentActivity(cancellationToken);
+
             var response = new DashboardStatsResponse(
                 ProjectCount: projectCount,
                 BidCount: bidCount,
                 TotalProjectValue: totalProjectValue,
                 TotalBidValue: totalBidValue,
                 PendingChangeOrders: pendingChangeOrders,
-                LastActivityDate: lastActivityDate
+                LastActivityDate: lastActivityDate,
+                EmployeeCount: employeeCount,
+                PendingTimeApprovals: pendingTimeApprovals,
+                RecentActivity: recentActivity
             );
 
             return Result.Success(response);
@@ -140,6 +152,124 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
         }
     }
 
+    private async Task<int> GetEmployeeCount(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count = await db.Database.SqlQueryRaw<int>(
+                "SELECT COALESCE(COUNT(*), 0) AS Value FROM employees WHERE \"IsDeleted\" = false AND \"IsActive\" = true"
+            ).FirstAsync(cancellationToken);
+            return count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private async Task<int> GetPendingTimeApprovals(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Status = 0 is "Submitted" (pending approval)
+            var count = await db.Database.SqlQueryRaw<int>(
+                "SELECT COALESCE(COUNT(*), 0) AS Value FROM time_entries WHERE \"IsDeleted\" = false AND \"Status\" = 0"
+            ).FirstAsync(cancellationToken);
+            return count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private async Task<List<RecentActivityItem>> GetRecentActivity(CancellationToken cancellationToken)
+    {
+        var activities = new List<RecentActivityItem>();
+
+        try
+        {
+            // Get recent projects (last 5)
+            var projectsSql = @"
+                SELECT ""Id"", ""Name"", ""Number"", ""CreatedAt""
+                FROM projects
+                WHERE ""IsDeleted"" = false
+                ORDER BY ""CreatedAt"" DESC
+                LIMIT 3";
+            
+            var projects = await db.Database.SqlQueryRaw<ProjectActivityRow>(projectsSql)
+                .ToListAsync(cancellationToken);
+
+            foreach (var p in projects)
+            {
+                activities.Add(new RecentActivityItem(
+                    Id: p.Id.ToString(),
+                    Type: "project",
+                    Title: p.Name,
+                    Description: $"Project {p.Number} created",
+                    Timestamp: p.CreatedAt,
+                    Icon: "🏗️"
+                ));
+            }
+
+            // Get recent bids (last 3)
+            var bidsSql = @"
+                SELECT ""Id"", ""Name"", ""BidNumber"", ""CreatedAt""
+                FROM bids
+                WHERE ""IsDeleted"" = false
+                ORDER BY ""CreatedAt"" DESC
+                LIMIT 3";
+
+            var bids = await db.Database.SqlQueryRaw<BidActivityRow>(bidsSql)
+                .ToListAsync(cancellationToken);
+
+            foreach (var b in bids)
+            {
+                activities.Add(new RecentActivityItem(
+                    Id: b.Id.ToString(),
+                    Type: "bid",
+                    Title: b.Name,
+                    Description: $"Bid {b.BidNumber} created",
+                    Timestamp: b.CreatedAt,
+                    Icon: "📋"
+                ));
+            }
+
+            // Get recent employees (last 2)
+            var employeesSql = @"
+                SELECT ""Id"", ""FirstName"", ""LastName"", ""EmployeeNumber"", ""CreatedAt""
+                FROM employees
+                WHERE ""IsDeleted"" = false
+                ORDER BY ""CreatedAt"" DESC
+                LIMIT 2";
+
+            var employees = await db.Database.SqlQueryRaw<EmployeeActivityRow>(employeesSql)
+                .ToListAsync(cancellationToken);
+
+            foreach (var e in employees)
+            {
+                activities.Add(new RecentActivityItem(
+                    Id: e.Id.ToString(),
+                    Type: "employee",
+                    Title: $"{e.FirstName} {e.LastName}",
+                    Description: $"Employee {e.EmployeeNumber} added",
+                    Timestamp: e.CreatedAt,
+                    Icon: "👤"
+                ));
+            }
+
+            // Sort by timestamp descending and take top 8
+            return activities
+                .OrderByDescending(a => a.Timestamp)
+                .Take(8)
+                .ToList();
+        }
+        catch
+        {
+            return activities;
+        }
+    }
+
     private static Type? GetEntityType(string fullTypeName)
     {
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
@@ -151,3 +281,8 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
         return null;
     }
 }
+
+// Helper DTOs for raw SQL queries
+internal record ProjectActivityRow(Guid Id, string Name, string Number, DateTime CreatedAt);
+internal record BidActivityRow(Guid Id, string Name, string BidNumber, DateTime CreatedAt);
+internal record EmployeeActivityRow(Guid Id, string FirstName, string LastName, string EmployeeNumber, DateTime CreatedAt);
