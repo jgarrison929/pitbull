@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ function formatDate(dateStr: string | null | undefined): string {
 }
 
 export default function EmployeesPage() {
+  const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -230,7 +232,8 @@ export default function EmployeesPage() {
                 {employees.map((emp) => (
                   <div
                     key={emp.id}
-                    className="border rounded-lg p-4 space-y-3"
+                    className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => router.push(`/employees/${emp.id}`)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -291,7 +294,11 @@ export default function EmployeesPage() {
                   </TableHeader>
                   <TableBody>
                     {employees.map((emp) => (
-                      <TableRow key={emp.id}>
+                      <TableRow 
+                        key={emp.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => router.push(`/employees/${emp.id}`)}
+                      >
                         <TableCell>
                           <div>
                             <span className="font-medium">{emp.fullName}</span>
