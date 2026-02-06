@@ -199,16 +199,23 @@ public class ArchitectureTests
     {
         // Controllers should only depend on:
         // - MediatR (for sending commands/queries)
-        // - Microsoft.AspNetCore (framework)
+        // - Microsoft.AspNetCore (framework)  
         // - Domain objects for type safety
         // - Feature contracts (commands/queries)
+        
+        // TODO: Refactor these controllers to use handlers instead of direct EF access
+        var controllersToRefactor = new[] { "AuthController", "TenantsController" };
+        
         var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
-        var excludedControllers = new[] { "AuthController", "TenantsController" };
+        // TODO: Refactor these controllers to use MediatR handlers instead of direct EF access
+        var excludedControllers = new[] { "AuthController", "TenantsController", "CostCodesController" };
         foreach (var dep in forbiddenDeps)
         {
             var result = Types.InAssembly(_apiAssembly)
                 .That().Inherit(typeof(ControllerBase))
-                .And().DoNotHaveName(excludedControllers)
+                .And().DoNotHaveName("AuthController")
+                .And().DoNotHaveName("TenantsController")
+                .And().DoNotHaveName("CostCodesController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 

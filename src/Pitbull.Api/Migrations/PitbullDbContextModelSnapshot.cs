@@ -17,7 +17,7 @@ namespace Pitbull.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.1")
+                .HasAnnotation("ProductVersion", "9.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -191,6 +191,12 @@ namespace Pitbull.Api.Migrations
 
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -400,6 +406,78 @@ namespace Pitbull.Api.Migrations
                     b.HasIndex("TenantId", "Email");
 
                     b.ToTable("users", (string)null);
+                });
+
+            modelBuilder.Entity("Pitbull.Core.Domain.CostCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("CostType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Division")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsCompanyStandard")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid?>("ParentCostCodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentCostCodeId");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique()
+                        .HasDatabaseName("IX_CostCodes_TenantId_Code");
+
+                    b.ToTable("CostCodes", (string)null);
                 });
 
             modelBuilder.Entity("Pitbull.Core.Domain.Tenant", b =>
@@ -636,6 +714,12 @@ namespace Pitbull.Api.Migrations
                     b.Property<string>("ZipCode")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -880,6 +964,12 @@ namespace Pitbull.Api.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("text");
 
+                    b.Property<uint>("xmin")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AssignedToUserId");
@@ -894,6 +984,294 @@ namespace Pitbull.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("rfis", (string)null);
+                });
+
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.Employee", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("BaseHourlyRate")
+                        .HasPrecision(10, 4)
+                        .HasColumnType("numeric(10,4)")
+                        .HasComment("Base hourly rate in dollars");
+
+                    b.Property<int>("Classification")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("EmployeeNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasComment("Employee badge/clock number");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateOnly?>("HireDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid?>("SupervisorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("TerminationDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .HasDatabaseName("IX_employees_email");
+
+                    b.HasIndex("EmployeeNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_employees_employee_number_unique");
+
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_employees_is_active");
+
+                    b.HasIndex("SupervisorId");
+
+                    b.ToTable("employees", (string)null);
+                });
+
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.ProjectAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasComment("Date assignment ends (null = ongoing)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasComment("Whether this assignment is currently active");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasComment("Optional notes about this assignment");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer")
+                        .HasComment("Employee role on this project (0=Worker, 1=Supervisor, 2=Manager)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasComment("Date assignment becomes effective");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("IX_project_assignments_employee");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("IX_project_assignments_project");
+
+                    b.HasIndex("EmployeeId", "IsActive")
+                        .HasDatabaseName("IX_project_assignments_employee_active");
+
+                    b.HasIndex("ProjectId", "IsActive")
+                        .HasDatabaseName("IX_project_assignments_project_active");
+
+                    b.HasIndex("EmployeeId", "ProjectId", "StartDate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_project_assignments_unique");
+
+                    b.ToTable("project_assignments", (string)null);
+                });
+
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.TimeEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ApprovalComments")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasComment("Comments from approver");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CostCodeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date")
+                        .HasComment("Date of work performed");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasComment("Optional description of work performed");
+
+                    b.Property<decimal>("DoubletimeHours")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasComment("Double-time hours worked (max 99.99)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("OvertimeHours")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasComment("Overtime hours worked (max 99.99)");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("RegularHours")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasComment("Regular hours worked (max 99.99)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasComment("Reason for rejection if status is Rejected");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedById");
+
+                    b.HasIndex("CostCodeId");
+
+                    b.HasIndex("EmployeeId");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_time_entries_status");
+
+                    b.HasIndex("Date", "EmployeeId")
+                        .HasDatabaseName("IX_time_entries_date_employee");
+
+                    b.HasIndex("ProjectId", "Date")
+                        .HasDatabaseName("IX_time_entries_project_date");
+
+                    b.HasIndex("Date", "EmployeeId", "ProjectId", "CostCodeId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_time_entries_unique_daily_entry");
+
+                    b.ToTable("time_entries", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -969,6 +1347,16 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("Pitbull.Core.Domain.CostCode", b =>
+                {
+                    b.HasOne("Pitbull.Core.Domain.CostCode", "ParentCostCode")
+                        .WithMany("ChildCostCodes")
+                        .HasForeignKey("ParentCostCodeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ParentCostCode");
+                });
+
             modelBuilder.Entity("Pitbull.Projects.Domain.Phase", b =>
                 {
                     b.HasOne("Pitbull.Projects.Domain.Project", "Project")
@@ -1002,9 +1390,84 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.Employee", b =>
+                {
+                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", "Supervisor")
+                        .WithMany("Subordinates")
+                        .HasForeignKey("SupervisorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_employees_supervisor");
+
+                    b.Navigation("Supervisor");
+                });
+
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.ProjectAssignment", b =>
+                {
+                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", "Employee")
+                        .WithMany("ProjectAssignments")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_project_assignments_employees");
+
+                    b.HasOne("Pitbull.Projects.Domain.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_project_assignments_projects");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.TimeEntry", b =>
+                {
+                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", "ApprovedBy")
+                        .WithMany("ApprovedTimeEntries")
+                        .HasForeignKey("ApprovedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("FK_time_entries_approved_by");
+
+                    b.HasOne("Pitbull.Core.Domain.CostCode", "CostCode")
+                        .WithMany()
+                        .HasForeignKey("CostCodeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_time_entries_cost_codes");
+
+                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", "Employee")
+                        .WithMany("TimeEntries")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_time_entries_employees");
+
+                    b.HasOne("Pitbull.Projects.Domain.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_time_entries_projects");
+
+                    b.Navigation("ApprovedBy");
+
+                    b.Navigation("CostCode");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pitbull.Bids.Domain.Bid", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("Pitbull.Core.Domain.CostCode", b =>
+                {
+                    b.Navigation("ChildCostCodes");
                 });
 
             modelBuilder.Entity("Pitbull.Projects.Domain.Project", b =>
@@ -1014,6 +1477,17 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("Phases");
 
                     b.Navigation("Projections");
+                });
+
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.Employee", b =>
+                {
+                    b.Navigation("ApprovedTimeEntries");
+
+                    b.Navigation("ProjectAssignments");
+
+                    b.Navigation("Subordinates");
+
+                    b.Navigation("TimeEntries");
                 });
 #pragma warning restore 612, 618
         }

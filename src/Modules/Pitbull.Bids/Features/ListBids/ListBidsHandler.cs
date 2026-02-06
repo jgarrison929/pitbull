@@ -6,7 +6,7 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Bids.Features.ListBids;
 
-public class ListBidsHandler(PitbullDbContext db)
+public sealed class ListBidsHandler(PitbullDbContext db)
     : IRequestHandler<ListBidsQuery, Result<PagedResult<BidDto>>>
 {
     public async Task<Result<PagedResult<BidDto>>> Handle(

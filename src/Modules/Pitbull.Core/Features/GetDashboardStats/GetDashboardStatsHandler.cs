@@ -9,7 +9,7 @@ namespace Pitbull.Core.Features.GetDashboardStats;
 /// <summary>
 /// Handler for getting dashboard statistics
 /// </summary>
-public class GetDashboardStatsHandler(PitbullDbContext db) 
+public sealed class GetDashboardStatsHandler(PitbullDbContext db) 
     : IRequestHandler<GetDashboardStatsQuery, Result<DashboardStatsResponse>>
 {
     public async Task<Result<DashboardStatsResponse>> Handle(
@@ -70,7 +70,7 @@ public class GetDashboardStatsHandler(PitbullDbContext db)
 
             // Get total contract amount using raw SQL to avoid complex reflection
             var totalValue = await db.Database.SqlQueryRaw<decimal>(
-                "SELECT COALESCE(SUM(\"ContractAmount\"), 0) FROM projects WHERE \"IsDeleted\" = false"
+                "SELECT COALESCE(SUM(\"ContractAmount\"), 0) AS Value FROM projects WHERE \"IsDeleted\" = false"
             ).FirstAsync(cancellationToken);
 
             return (count, totalValue);
@@ -102,7 +102,7 @@ public class GetDashboardStatsHandler(PitbullDbContext db)
 
             // Get total estimated value using raw SQL to avoid complex reflection
             var totalValue = await db.Database.SqlQueryRaw<decimal>(
-                "SELECT COALESCE(SUM(\"EstimatedValue\"), 0) FROM bids WHERE \"IsDeleted\" = false"
+                "SELECT COALESCE(SUM(\"EstimatedValue\"), 0) AS Value FROM bids WHERE \"IsDeleted\" = false"
             ).FirstAsync(cancellationToken);
 
             return (count, totalValue);
@@ -121,7 +121,7 @@ public class GetDashboardStatsHandler(PitbullDbContext db)
         {
             // Use raw SQL to get the latest activity across both projects and bids
             var sql = @"
-                SELECT MAX(latest_date) FROM (
+                SELECT MAX(latest_date) AS Value FROM (
                     SELECT MAX(COALESCE(""UpdatedAt"", ""CreatedAt"")) as latest_date 
                     FROM projects 
                     WHERE ""IsDeleted"" = false

@@ -3,6 +3,7 @@ using Pitbull.Core.Data;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.TimeTracking.Features.CreateTimeEntry;
 
 namespace Pitbull.Tests.Unit.Helpers;
 
@@ -20,6 +21,7 @@ public static class TestDbContextFactory
         // Register module assemblies so EF discovers entity configurations
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
     }
 
     public static PitbullDbContext Create(Guid? tenantId = null, string? dbName = null)

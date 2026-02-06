@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -16,7 +17,8 @@ namespace Pitbull.Core.Data;
 public class PitbullDbContext(
     DbContextOptions<PitbullDbContext> options,
     ITenantContext tenantContext,
-    IHttpContextAccessor? httpContextAccessor = null)
+    IHttpContextAccessor? httpContextAccessor = null,
+    IMediator? mediator = null)
     : IdentityDbContext<AppUser, AppRole, Guid>(options)
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -105,7 +107,11 @@ public class PitbullDbContext(
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.TenantId = tenantContext.TenantId;
+                    // Skip tenant ID assignment for special cases during system operations
+                    if (tenantContext.TenantId != Guid.Empty)
+                    {
+                        entry.Entity.TenantId = tenantContext.TenantId;
+                    }
                     // Only set CreatedAt if not explicitly set (default DateTime is DateTime.MinValue)
                     if (entry.Entity.CreatedAt == default)
                         entry.Entity.CreatedAt = now;
@@ -122,6 +128,22 @@ public class PitbullDbContext(
                     entry.Entity.DeletedAt = now;
                     entry.Entity.DeletedBy = currentUserId;
                     break;
+            }
+        }
+
+        // Ensure PostgreSQL session variable is set for RLS before save operations
+        if (tenantContext.TenantId != Guid.Empty)
+        {
+            try
+            {
+                await Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT set_config('app.current_tenant', {tenantContext.TenantId.ToString()}, false);",
+                    cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                // In unit tests with in-memory providers, this will fail - that's OK
+                Console.WriteLine($"[DEBUG] Could not set PostgreSQL session variable: {ex.Message}");
             }
         }
 
@@ -158,9 +180,28 @@ public class PitbullDbContext(
         var domainEvents = entities.SelectMany(e => e.DomainEvents).ToList();
         entities.ForEach(e => e.ClearDomainEvents());
 
-        // Domain events will be dispatched via MediatR
-        // This requires IMediator to be injected - will add in next iteration
-        // TODO: Implement actual domain event dispatching when MediatR is available
+        // Dispatch domain events via MediatR (if available)
+        if (mediator != null)
+        {
+            foreach (var domainEvent in domainEvents)
+            {
+                // Fire-and-forget: we don't await domain event handlers to avoid blocking the SaveChanges
+                // This assumes domain event handlers are fast and don't need to participate in the transaction
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await mediator.Publish(domainEvent);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log domain event handling failures but don't fail the main operation
+                        // TODO: Add proper logging when ILogger is available in DbContext
+                        Console.WriteLine($"Domain event handling failed: {ex.Message}");
+                    }
+                });
+            }
+        }
     }
 
     /// <summary>
