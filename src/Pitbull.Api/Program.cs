@@ -67,6 +67,10 @@ builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
 builder.Services.AddPitbullModuleServices<CreateBidCommand>();
 builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
 
+// AI Insights service (uses Claude for project analysis)
+builder.Services.AddHttpClient("Anthropic");
+builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
+
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
 

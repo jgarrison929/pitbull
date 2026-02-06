@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
+using Pitbull.Api.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
@@ -25,7 +26,10 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Projects")]
-public class ProjectsController(IMediator mediator, IProjectService projectService) : ControllerBase
+public class ProjectsController(
+    IMediator mediator, 
+    IProjectService projectService,
+    IAiInsightsService aiInsightsService) : ControllerBase
 {
     /// <summary>
     /// Create a new project
@@ -202,6 +206,56 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
             return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Delete failed");
 
         return NoContent();
+    }
+
+    // ========================================
+    // AI-POWERED INSIGHTS
+    // ========================================
+
+    /// <summary>
+    /// Get AI-powered insights and health assessment for a project
+    /// </summary>
+    /// <remarks>
+    /// Uses Claude AI to analyze the project's time entries, assignments, budget utilization,
+    /// and other metrics to generate an intelligent summary with actionable recommendations.
+    /// 
+    /// The response includes:
+    /// - Executive summary of project health
+    /// - Health score (0-100) with status category
+    /// - Positive highlights
+    /// - Potential concerns
+    /// - AI-generated recommendations
+    /// - Key metrics used in analysis
+    /// 
+    /// Note: Requires ANTHROPIC_API_KEY to be configured. Returns error if not set.
+    /// </remarks>
+    /// <param name="id">Project unique identifier</param>
+    /// <returns>AI-generated project insights</returns>
+    /// <response code="200">AI analysis completed successfully</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Project not found</response>
+    /// <response code="503">AI service unavailable or not configured</response>
+    [HttpGet("{id:guid}/ai-summary")]
+    [ProducesResponseType(typeof(AiProjectSummaryResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> GetAiSummary(Guid id)
+    {
+        var result = await aiInsightsService.GetProjectSummaryAsync(id);
+        
+        if (!result.Success)
+        {
+            if (result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true)
+                return this.NotFoundError(result.Error);
+            
+            if (result.Error?.Contains("not configured", StringComparison.OrdinalIgnoreCase) == true)
+                return StatusCode(503, new { error = result.Error, code = "AI_NOT_CONFIGURED" });
+            
+            return StatusCode(503, new { error = result.Error, code = "AI_ERROR" });
+        }
+
+        return Ok(result);
     }
 
     // ========================================
