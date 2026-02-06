@@ -18,6 +18,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.1] - 2026-02-06
+
+### 🧪 Test Coverage Sprint
+
+Massive test coverage expansion with 58 new tests added in a focused sprint.
+
+#### Handler Tests
+- `GetProjectHandler` - 5 tests for project retrieval
+- `GetBidHandler` - 5 tests for bid retrieval with items
+- `UpdateBidHandler` - 4 tests for bid updates and status changes
+- `UpdateProjectHandler` - 4 tests for project updates
+
+#### Validator Tests
+- `CreateProjectValidator` - 9 tests covering required fields, email format, date logic
+- `CreateBidValidator` - 11 tests including bid item validation
+- `UpdateProjectValidator` - 10 tests for update validation rules
+- `UpdateBidValidator` - 10 tests for bid update validation
+
+### 📈 Stats
+
+- **Test count: 281** (was 223 in v0.7.0, +58 tests)
+- **Test coverage increase: +26%** in one sprint session
+- All validators and handlers now have comprehensive test coverage
+- RFI module tests deferred (not yet integrated in DbContext)
+
+---
+
 ## [0.7.0] - 2026-02-06
 
 ### 📊 Dashboard Analytics
