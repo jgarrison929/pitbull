@@ -1,14 +1,17 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DetailPageSkeleton } from "@/components/skeletons";
+import { AiInsights } from "@/components/ui/ai-insights";
+import { HealthScoreBadge } from "@/components/ui/health-score-gauge";
 import api from "@/lib/api";
-import type { Project } from "@/lib/types";
+import type { AiProjectSummary, Project } from "@/lib/types";
 import {
   projectStatusBadgeClass,
   projectStatusLabel,
@@ -41,6 +44,12 @@ export default function ProjectDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // AI Insights state
+  const [aiSummary, setAiSummary] = useState<AiProjectSummary | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [showAiInsights, setShowAiInsights] = useState(false);
+
   useEffect(() => {
     async function fetchProject() {
       try {
@@ -55,6 +64,22 @@ export default function ProjectDetailPage({
     }
     fetchProject();
   }, [id]);
+
+  const fetchAiInsights = useCallback(async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const data = await api<AiProjectSummary>(`/api/projects/${id}/ai-summary`);
+      setAiSummary(data);
+      if (!showAiInsights) setShowAiInsights(true);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to generate AI insights";
+      setAiError(message);
+      toast.error("AI insights unavailable", { description: message });
+    } finally {
+      setAiLoading(false);
+    }
+  }, [id, showAiInsights]);
 
   if (isLoading) return <DetailPageSkeleton />;
 
@@ -83,9 +108,21 @@ export default function ProjectDetailPage({
             >
               {projectStatusLabel(project.status)}
             </Badge>
+            {aiSummary && aiSummary.success && (
+              <HealthScoreBadge score={aiSummary.healthScore} />
+            )}
           </div>
           <p className="text-muted-foreground font-mono text-sm">{project.number}</p>
         </div>
+        <Button
+          onClick={fetchAiInsights}
+          disabled={aiLoading}
+          variant={showAiInsights ? "secondary" : "default"}
+          className="gap-2"
+        >
+          <Sparkles className={`h-4 w-4 ${aiLoading ? "animate-spin" : ""}`} />
+          {aiLoading ? "Analyzing..." : showAiInsights ? "Refresh AI Insights" : "Get AI Insights"}
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -137,6 +174,17 @@ export default function ProjectDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* AI Insights Section */}
+      {(showAiInsights || aiLoading) && (
+        <AiInsights
+          projectId={id}
+          summary={aiSummary}
+          isLoading={aiLoading}
+          error={aiError}
+          onRefresh={fetchAiInsights}
+        />
+      )}
 
       <Separator />
 

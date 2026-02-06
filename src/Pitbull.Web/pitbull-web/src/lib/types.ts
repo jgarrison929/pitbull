@@ -378,3 +378,28 @@ export const SystemRoles = {
 } as const;
 
 export type SystemRole = (typeof SystemRoles)[keyof typeof SystemRoles];
+
+// AI Insights Types
+export interface AiProjectSummary {
+  success: boolean;
+  error?: string | null;
+  summary?: string | null;
+  healthScore: number;
+  healthStatus?: string | null;
+  highlights: string[];
+  concerns: string[];
+  recommendations: string[];
+  metrics?: ProjectMetrics | null;
+  generatedAt: string;
+}
+
+export interface ProjectMetrics {
+  totalHoursLogged: number;
+  totalLaborCost: number;
+  totalTimeEntries: number;
+  pendingApprovals: number;
+  assignedEmployees: number;
+  daysUntilDeadline: number;
+  budgetUtilization?: number | null;
+  dailyAverageHours?: number | null;
+}

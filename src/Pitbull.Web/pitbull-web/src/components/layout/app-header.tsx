@@ -49,7 +49,12 @@ export function AppHeader() {
       {/* Mobile menu */}
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="ghost" size="sm" className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] text-lg">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] text-lg"
+            aria-label="Open navigation menu"
+          >
             ☰
           </Button>
         </SheetTrigger>
@@ -77,8 +82,13 @@ export function AppHeader() {
       {/* User dropdown */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-2 min-h-[44px] min-w-[44px]">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-medium">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-2 min-h-[44px] min-w-[44px]"
+            aria-label="User menu"
+          >
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-medium" aria-hidden="true">
               {user?.name?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <span className="hidden sm:inline text-sm">{user?.name || "User"}</span>

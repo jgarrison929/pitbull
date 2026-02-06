@@ -104,7 +104,6 @@ export default function EmployeesPage() {
   }, [fetchEmployees]);
 
   // Calculate stats
-  const activeCount = employees.filter((e) => e.isActive).length;
   const hourlyCount = employees.filter((e) => e.classification === 0).length;
   const avgRate =
     employees.length > 0

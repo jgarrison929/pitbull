@@ -29,7 +29,6 @@ import api from "@/lib/api";
 import type {
   ListTimeEntriesResult,
   TimeEntry,
-  TimeEntryStatus,
   PagedResult,
   Project,
   ListEmployeesResult,
