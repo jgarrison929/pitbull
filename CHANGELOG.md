@@ -28,11 +28,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Average hours per week displayed
   - Uses recharts library for interactive visualization
   - New GET `/api/dashboard/weekly-hours` endpoint
-- **Project Labor Summary** - Cost overview on project detail pages
+- **Project Labor Summary** - Comprehensive stats on project detail pages
   - Total hours with reg/OT/DT breakdown
-  - Total labor cost with average $/hr calculation
-  - Quick link to full labor cost report
-  - Empty state with call-to-action
+  - Labor cost with average $/hr calculation
+  - Assigned employee count
+  - Time entry counts with status badges
+  - Activity date range
+  - Uses new GET `/api/projects/{id}/stats` endpoint
+
+### 🔌 New API Endpoints
+
+- `GET /api/dashboard/weekly-hours` - Weekly hours aggregation for charts
+- `GET /api/projects/{id}/stats` - Fast project statistics (no AI)
 
 ### 🧩 New Components
 
@@ -43,7 +50,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🧪 Tests
 
 - 10 new tests for GetWeeklyHoursHandler
-- Test count: 211 (was 201)
+- 6 new tests for GetProjectStatsHandler
+- Test count: 217 (was 201)
 
 ### 📈 Stats
 
