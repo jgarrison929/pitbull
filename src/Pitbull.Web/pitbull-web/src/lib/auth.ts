@@ -22,22 +22,34 @@ interface JwtPayload {
   sub: string;
   email: string;
   name: string;
-  role: string;
+  roles: string[];
   tenantId: string;
   exp: number;
   [key: string]: unknown;
 }
+
+// Standard claim URIs for roles
+const ROLE_CLAIM = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
 
 export function decodeToken(token: string): JwtPayload | null {
   try {
     const payload = token.split(".")[1];
     const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
     const raw = JSON.parse(decoded);
+    
+    // Extract roles from the standard role claim
+    // Can be a string (single role) or array (multiple roles)
+    let roles: string[] = [];
+    const roleClaim = raw[ROLE_CLAIM];
+    if (roleClaim) {
+      roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
+    }
+    
     // Map API claim names to frontend expected names
     return {
       ...raw,
       name: raw.full_name ?? raw.name ?? "",
-      role: raw.user_type ?? raw.role ?? "",
+      roles,
       tenantId: raw.tenant_id ?? raw.tenantId ?? "",
     } as JwtPayload;
   } catch {

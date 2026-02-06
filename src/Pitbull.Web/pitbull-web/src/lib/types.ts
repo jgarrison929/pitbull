@@ -330,3 +330,39 @@ export interface UpdateEmployeeCommand {
   isActive?: boolean;
   notes?: string;
 }
+
+// User Management Types
+export interface AppUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  status: string;
+  type: string;
+  roles: string[];
+  createdAt: string;
+  lastLoginAt?: string | null;
+}
+
+export interface ListUsersResult {
+  items: AppUser[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface RoleInfo {
+  name: string;
+  description: string;
+}
+
+// System Roles
+export const SystemRoles = {
+  Admin: "Admin",
+  Manager: "Manager",
+  Supervisor: "Supervisor",
+  User: "User",
+} as const;
+
+export type SystemRole = (typeof SystemRoles)[keyof typeof SystemRoles];

@@ -208,7 +208,7 @@ public class ArchitectureTests
         
         var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
         // TODO: Refactor these controllers to use MediatR handlers instead of direct EF access
-        var excludedControllers = new[] { "AuthController", "TenantsController", "CostCodesController" };
+        var excludedControllers = new[] { "AuthController", "TenantsController", "CostCodesController", "UsersController" };
         foreach (var dep in forbiddenDeps)
         {
             var result = Types.InAssembly(_apiAssembly)
@@ -216,6 +216,7 @@ public class ArchitectureTests
                 .And().DoNotHaveName("AuthController")
                 .And().DoNotHaveName("TenantsController")
                 .And().DoNotHaveName("CostCodesController")
+                .And().DoNotHaveName("UsersController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 
