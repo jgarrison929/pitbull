@@ -2,6 +2,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 
@@ -18,7 +20,27 @@ public sealed class CreateTimeEntryHandler(PitbullDbContext db)
             .FirstOrDefaultAsync(e => e.Id == request.EmployeeId && e.IsActive, cancellationToken);
 
         if (employee == null)
-            return Result.Failure<TimeEntryDto>("Employee not found or inactive");
+            return Result.Failure<TimeEntryDto>("Employee not found or inactive", "EMPLOYEE_NOT_FOUND");
+
+        // Validate that project exists and is accessible
+        var project = await db.Set<Project>()
+            .FirstOrDefaultAsync(p => p.Id == request.ProjectId, cancellationToken);
+
+        if (project == null)
+            return Result.Failure<TimeEntryDto>("Project not found", "PROJECT_NOT_FOUND");
+
+        // Validate project is in an active status (not closed/completed)
+        if (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed)
+            return Result.Failure<TimeEntryDto>(
+                "Cannot log time to a completed or closed project",
+                "PROJECT_INACTIVE");
+
+        // Validate that cost code exists and is active
+        var costCode = await db.Set<CostCode>()
+            .FirstOrDefaultAsync(cc => cc.Id == request.CostCodeId && cc.IsActive, cancellationToken);
+
+        if (costCode == null)
+            return Result.Failure<TimeEntryDto>("Cost code not found or inactive", "COSTCODE_NOT_FOUND");
 
         // Check for duplicate time entry on the same date
         var existingEntry = await db.Set<TimeEntry>()
@@ -29,7 +51,9 @@ public sealed class CreateTimeEntryHandler(PitbullDbContext db)
                       cancellationToken);
 
         if (existingEntry)
-            return Result.Failure<TimeEntryDto>("Time entry already exists for this employee, project, and cost code on this date");
+            return Result.Failure<TimeEntryDto>(
+                "Time entry already exists for this employee, project, and cost code on this date",
+                "DUPLICATE_ENTRY");
 
         var timeEntry = new TimeEntry
         {
