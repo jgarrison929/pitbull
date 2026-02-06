@@ -8,15 +8,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### 🤖 AI Features
-
-- **AI Project Insights** - Claude-powered project health analysis endpoint (`GET /api/projects/{id}/ai-summary`)
-  - Health score (0-100) with status categories (Excellent/Good/AtRisk/Critical)
-  - Executive summary with natural language overview
-  - Highlights, concerns, and actionable recommendations
-  - Key metrics analysis (hours, labor costs, budget utilization, approvals)
-  - Graceful fallback when API key not configured
-
 ### Planned
 
 - Contract management module
@@ -24,6 +15,95 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Billing/invoicing module
 - Client portal
 - Subdomain-based tenant resolution
+
+---
+
+## [0.4.0] - 2026-02-05
+
+### 🤖 AI Features
+
+- **AI Project Health Insights** - Claude-powered analysis at `/api/projects/{id}/ai-summary`
+  - Health score (0-100) with color-coded status
+  - Executive summary with natural language overview
+  - Highlights, concerns, and actionable recommendations
+  - Key metrics: hours logged, labor costs, budget utilization, pending approvals
+- **Interactive AI Insights UI** - Beautiful frontend integration on project detail pages
+  - Animated circular health gauge with color transitions
+  - Metrics grid with key project statistics
+  - Categorized insights cards (highlights, concerns, recommendations)
+  - Loading skeleton with shimmer animations
+
+### 🔒 Security & Access Control
+
+- **Role-Based Access Control (RBAC)** - Complete permission system
+  - Four built-in roles: Admin, Manager, Supervisor, User
+  - Automatic Admin role assignment for first user per tenant
+  - JWT tokens include role claims for API authorization
+  - Role-protected endpoints for sensitive operations
+- **User Management Dashboard** - Admin panel at `/admin/users`
+  - View all users with roles and status
+  - Assign and remove roles via UI
+  - Search and filter capabilities
+  - Prevents self-demotion (can't remove own Admin role)
+- **Frontend Role Enforcement** - UI adapts to user permissions
+  - Admin-only navigation section
+  - `hasRole()`, `isAdmin`, `isManager` helper functions
+  - Conditional rendering based on user roles
+
+### 🚀 Features
+
+- **Enhanced Dashboard** - Real-time project insights
+  - Personalized greeting with user name
+  - Clickable stat cards for quick navigation
+  - Quick actions panel (create project, bid, employee, log time)
+  - Live activity feed showing recent changes
+  - Portfolio summary with total values
+- **Settings Page** - User profile management at `/settings`
+  - View profile info, roles, and tenant details
+  - Change password functionality
+  - Admin link to user management
+- **Employee Management** - Complete CRUD workflow
+  - Employee directory with search and filters
+  - Create employee form with validation
+  - Employee detail page with assignments and time entries
+  - Employee edit form with status toggle
+  - Clickable list rows for quick navigation
+- **Onboarding Experience** - Guide new users
+  - Getting Started checklist on dashboard
+  - Progress tracking for first project, employee, bid, time entry
+  - Dismissible with localStorage persistence
+
+### ⚡ User Experience
+
+- **Form Improvements**
+  - Phone number auto-formatting `(XXX) XXX-XXXX`
+  - Loading buttons with spinner during submission
+  - Disabled forms while submitting
+  - Required field indicators
+  - Inline validation messages
+- **Accessibility Enhancements**
+  - ARIA labels on all icon-only buttons
+  - Screen reader support for form errors
+  - Keyboard navigation improvements
+  - Focus management in dialogs
+- **Confirmation Dialogs** - Prevent accidental actions
+  - Danger/warning/info variants
+  - Loading states during operations
+- **Tooltips & Help Text**
+  - Tooltips for complex form fields
+  - Help text for business concepts (Classification, Cost Code)
+
+### 🏗️ Infrastructure
+
+- **Demo Data Seeder** - Investor-ready demonstration data
+  - 60 standard construction cost codes (CSI divisions)
+  - 15 realistic employees (PMs, superintendents, tradespeople)
+  - Project assignments linking workers to projects
+  - 30 days of time entries with realistic patterns
+- **Code Quality**
+  - 172 tests passing (163 unit + 9 integration)
+  - ESLint errors resolved across all components
+  - Repository cleanup (40 stale branches removed)
 
 ---
 
