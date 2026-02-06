@@ -64,7 +64,8 @@ function PhoneInput({
   className,
   ...props
 }: PhoneInputProps) {
-  const inputId = id || React.useId();
+  const generatedId = React.useId();
+  const inputId = id || generatedId;
   const errorId = `${inputId}-error`;
   const helpId = `${inputId}-help`;
 

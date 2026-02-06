@@ -7,7 +7,6 @@ import {
   AlertTriangle,
   Lightbulb,
   RefreshCw,
-  TrendingUp,
   Clock,
   Users,
   DollarSign,
@@ -210,6 +209,7 @@ function MetricCard({
         "h-4 w-4 mx-auto mb-1",
         highlight ? "text-orange-500" : "text-muted-foreground"
       )} />
+      <div className="text-xs text-muted-foreground font-medium mb-0.5">{label}</div>
       <div className={cn(
         "text-lg font-bold tabular-nums",
         highlight && "text-orange-600"

@@ -34,7 +34,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
-import { CheckCircle, XCircle, Clock, ArrowLeft } from "lucide-react";
+import { CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 import api from "@/lib/api";
 import type {
   ListTimeEntriesResult,
