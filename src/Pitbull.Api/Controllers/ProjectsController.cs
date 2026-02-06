@@ -12,6 +12,7 @@ using Pitbull.Projects.Features.DeleteProject;
 using Pitbull.Projects.Features.GetProject;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
+using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Services;
 
 namespace Pitbull.Api.Controllers;
@@ -256,6 +257,44 @@ public class ProjectsController(
         }
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Get project statistics (hours, costs, employees)
+    /// </summary>
+    /// <remarks>
+    /// Returns a quick summary of project metrics without AI analysis.
+    /// Faster than the AI endpoint and suitable for dashboards and real-time displays.
+    /// 
+    /// Includes:
+    /// - Total hours logged (regular, OT, DT breakdown)
+    /// - Total labor cost (approved entries only)
+    /// - Time entry counts (total, approved, pending)
+    /// - Number of assigned employees
+    /// - Date range of time entries
+    /// </remarks>
+    /// <param name="id">Project unique identifier</param>
+    /// <returns>Project statistics</returns>
+    /// <response code="200">Statistics returned successfully</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Project not found</response>
+    [HttpGet("{id:guid}/stats")]
+    [Cacheable(DurationSeconds = 60)]
+    [ProducesResponseType(typeof(ProjectStatsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStats(Guid id)
+    {
+        var result = await mediator.Send(new GetProjectStatsQuery(id));
+        
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode == "PROJECT_NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "Project not found")
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
+        }
+
+        return Ok(result.Value);
     }
 
     // ========================================

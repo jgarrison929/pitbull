@@ -28,6 +28,7 @@ import {
 import api from "@/lib/api";
 import type { Employee, TimeEntry, ProjectAssignment, ListTimeEntriesResult } from "@/lib/types";
 import { toast } from "sonner";
+import { EmployeeHoursSummary } from "@/components/employees/employee-hours-summary";
 
 const classificationLabels: Record<number, string> = {
   0: "Hourly",
@@ -300,6 +301,9 @@ export default function EmployeeDetailPage({
               </div>
             </CardContent>
           </Card>
+
+          {/* Hours Summary */}
+          <EmployeeHoursSummary employeeId={resolvedParams.id} />
 
           {/* Recent Time Entries */}
           <Card>

@@ -18,6 +18,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.0] - 2026-02-06
+
+### 📊 Dashboard Analytics
+
+- **Weekly Hours Chart** - Visual labor trends on dashboard
+  - Stacked bar chart showing regular/OT/DT hours by week
+  - 8-week rolling history with hover tooltips
+  - Average hours per week displayed
+  - Uses recharts library for interactive visualization
+  - New GET `/api/dashboard/weekly-hours` endpoint
+- **Project Labor Summary** - Comprehensive stats on project detail pages
+  - Total hours with reg/OT/DT breakdown
+  - Labor cost with average $/hr calculation
+  - Assigned employee count
+  - Time entry counts with status badges
+  - Activity date range
+  - Uses new GET `/api/projects/{id}/stats` endpoint
+
+### 🔌 New API Endpoints
+
+- `GET /api/dashboard/weekly-hours` - Weekly hours aggregation for charts
+- `GET /api/projects/{id}/stats` - Fast project statistics (no AI)
+- `GET /api/employees/{id}/stats` - Fast employee statistics (hours, earnings, projects)
+
+### 🧩 New Components
+
+- `WeeklyHoursChart` - Dashboard chart component (integrated)
+- `ProjectLaborSummary` - Project detail labor card (integrated)
+- `EmployeeHoursSummary` - Employee detail hours card (integrated)
+
+### 🧪 Tests
+
+- 10 new tests for GetWeeklyHoursHandler
+- 6 new tests for GetProjectStatsHandler
+- 6 new tests for GetEmployeeStatsHandler
+- Test count: 223 (was 201)
+
+### 📈 Stats
+
+- Dashboard now shows labor trend visualization
+- Project pages show real-time labor cost data
+
+---
+
 ## [0.6.2] - 2026-02-06
 
 ### 🛡️ Error Handling & Polish
