@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Pitbull.Api.Demo;
 using Pitbull.Api.Extensions;
+using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 
@@ -26,6 +27,7 @@ namespace Pitbull.Api.Controllers;
 public class AuthController(
     UserManager<AppUser> userManager,
     SignInManager<AppUser> signInManager,
+    RoleSeeder roleSeeder,
     PitbullDbContext db,
     IConfiguration configuration,
     IOptions<DemoOptions> demoOptions,
@@ -148,10 +150,16 @@ public class AuthController(
                     return;
                 }
 
+                // Ensure roles exist and auto-promote first user to Admin
+                await roleSeeder.EnsureTenantHasAdminAsync(tenantId);
+                
+                // Get user's roles for JWT
+                var roles = await roleSeeder.GetUserRolesAsync(user);
+
                 await transaction.CommitAsync();
 
-                var token = GenerateJwtToken(user);
-                actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!));
+                var token = await GenerateJwtTokenAsync(user);
+                actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
             }
             catch
             {
@@ -211,15 +219,20 @@ public class AuthController(
         user.LastLoginAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
 
-        var token = GenerateJwtToken(user);
-        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!));
+        // Get user's roles for JWT and response
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+
+        var token = await GenerateJwtTokenAsync(user);
+        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
     }
 
-    private string GenerateJwtToken(AppUser user)
+    private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var roles = await roleSeeder.GetUserRolesAsync(user);
 
         var claims = new List<Claim>
         {
@@ -229,6 +242,12 @@ public class AuthController(
             new("full_name", user.FullName),
             new("user_type", user.Type.ToString())
         };
+        
+        // Add role claims - use ClaimTypes.Role for ASP.NET Core authorization
+        foreach (var role in roles)
+        {
+            claims.Add(new Claim(ClaimTypes.Role, role));
+        }
 
         var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
 
@@ -276,8 +295,10 @@ public record LoginRequest(
 /// <param name="UserId">Unique user identifier</param>
 /// <param name="FullName">User's display name</param>
 /// <param name="Email">User's email address</param>
+/// <param name="Roles">User's assigned roles (e.g., Admin, Manager, User)</param>
 public record AuthResponse(
     string Token,
     Guid UserId,
     string FullName,
-    string Email);
+    string Email,
+    string[] Roles);

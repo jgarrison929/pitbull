@@ -13,7 +13,7 @@ function buildUserFromToken(token: string): User | null {
     id: payload.sub,
     email: payload.email,
     name: payload.name,
-    role: payload.role,
+    roles: payload.roles,
     tenantId: payload.tenantId,
   };
 }
@@ -22,7 +22,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: string;
+  roles: string[];
   tenantId: string;
 }
 
@@ -33,6 +33,11 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
+  // Role helpers
+  hasRole: (role: string) => boolean;
+  hasAnyRole: (roles: string[]) => boolean;
+  isAdmin: boolean;
+  isManager: boolean;
 }
 
 interface RegisterData {
@@ -88,6 +93,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Role helper functions
+  const hasRole = useCallback((role: string) => {
+    return user?.roles?.includes(role) ?? false;
+  }, [user]);
+
+  const hasAnyRole = useCallback((roles: string[]) => {
+    return roles.some(role => user?.roles?.includes(role));
+  }, [user]);
+
+  const isAdmin = user?.roles?.includes("Admin") ?? false;
+  const isManager = user?.roles?.includes("Manager") ?? false;
+
   return (
     <AuthContext.Provider
       value={{
@@ -97,6 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         logout,
+        hasRole,
+        hasAnyRole,
+        isAdmin,
+        isManager,
       }}
     >
       {children}
