@@ -9,23 +9,24 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 172 tests passing (163 unit + 9 integration)
+- ✅ **Testing:** 210 tests passing (201 unit + 9 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
-- ✅ **Modules:** Projects, Bids, RFIs, TimeTracking with full CRUD
-- ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking UI
+- ✅ **Modules:** Projects, Bids, TimeTracking, Employees with full CRUD
+- ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
 - ✅ **Deployment:** Railway production deployment, health checks passing
 - ✅ **RBAC:** Role-based access control with Admin, Manager, Supervisor, User roles
 - ✅ **AI Insights:** Claude-powered project health analysis 🤖
-- 📋 **Next:** Documentation polish, Week 2 features
+- ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export
+- 📋 **Next:** Documentation polish, UAT preparation
 
-**Recent Wins (Feb 5, 2026):**
-- **🤖 AI Project Insights:** Claude-powered analysis generates health scores, highlights, concerns, and recommendations
+**Recent Wins (Feb 6, 2026):**
+- **📊 Vista/Viewpoint Export:** CSV export for payroll integration with date/project filtering
+- **💰 Labor Cost Reports:** Real-time cost rollup by project and cost code with expandable details
+- **🧮 Job Costing Engine:** Labor cost calculator with OT/DT rates and configurable burden
+- **📋 Cost Codes UI:** Searchable, filterable cost code management page
+- **🤖 AI Project Insights:** Claude-powered health scores, highlights, concerns, recommendations
 - Full TimeTracking module with approval workflow (Draft → Submitted → Approved/Rejected)
-- Employee-project assignments with validation
-- RBAC foundation with role seeding and user management UI
-- Cost code seeding for time tracking (60 standard codes)
-- Onboarding checklist for new users
-- 172 tests all green, deployed to production
+- 210 tests all green, deployed to production
 
 ## Stack
 
@@ -42,6 +43,8 @@ Loyal. Tenacious. Won't let go. 🐕
 - **Projects** - Project management, cost codes, budgets
 - **Bids** - Opportunity tracking, bid management, win/loss analytics
 - **TimeTracking** - Labor hours, approval workflow, employee-project assignments
+- **Employees** - Employee management, project assignments
+- **Reports** - Labor cost reports, Vista/Viewpoint CSV export
 
 ### MVP (Planned)
 - **Contracts** - Subcontracts, change orders, approval workflows
