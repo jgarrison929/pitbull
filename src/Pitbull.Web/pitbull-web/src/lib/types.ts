@@ -299,3 +299,34 @@ export interface CreateEmployeeCommand {
   supervisorId?: string;
   notes?: string;
 }
+
+// Project Assignment Types
+export interface ProjectAssignment {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  projectId: string;
+  projectName: string;
+  projectNumber: string;
+  role: string;
+  startDate: string;
+  endDate?: string | null;
+  isActive: boolean;
+  hoursPerWeek?: number | null;
+  notes?: string | null;
+}
+
+export interface UpdateEmployeeCommand {
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  classification: EmployeeClassification;
+  baseHourlyRate?: number;
+  hireDate?: string;
+  terminationDate?: string;
+  supervisorId?: string;
+  isActive?: boolean;
+  notes?: string;
+}
