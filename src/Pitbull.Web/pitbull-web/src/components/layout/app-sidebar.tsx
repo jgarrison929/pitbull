@@ -14,6 +14,7 @@ const navItems = [
   { label: "Employees", href: "/employees", icon: "👷" },
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
   { label: "Labor Cost Report", href: "/reports/labor-cost", icon: "💰" },
+  { label: "Vista Export", href: "/reports/vista-export", icon: "📤" },
   { label: "Settings", href: "/settings", icon: "⚙️" },
   { label: "Contracts", href: "#", icon: "📄", disabled: true },
   { label: "Documents", href: "#", icon: "📁", disabled: true },
