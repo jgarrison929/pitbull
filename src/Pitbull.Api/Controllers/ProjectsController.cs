@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Domain;
@@ -81,6 +82,7 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
     /// <response code="404">Project not found</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet("{id:guid}")]
+    [Cacheable(DurationSeconds = 180)] // Cache for 3 minutes (projects change less frequently than dashboard)
     [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -110,6 +112,7 @@ public class ProjectsController(IMediator mediator, IProjectService projectServi
     /// <response code="401">Not authenticated</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet]
+    [Cacheable(DurationSeconds = 120)] // Cache for 2 minutes (list data changes more frequently)
     [ProducesResponseType(typeof(PagedResult<ProjectDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]

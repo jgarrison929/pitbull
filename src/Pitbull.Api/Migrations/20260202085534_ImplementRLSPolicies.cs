@@ -26,6 +26,10 @@ namespace Pitbull.Api.Migrations
                 // Enable RLS
                 migrationBuilder.Sql($"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;");
 
+                // Force RLS even for table owners (defense-in-depth)
+                migrationBuilder.Sql($"ALTER TABLE {table} FORCE ROW LEVEL SECURITY;");
+
+
                 // Create SELECT policy
                 migrationBuilder.Sql($@"
                     CREATE POLICY {table}_tenant_isolation_select ON {table} 

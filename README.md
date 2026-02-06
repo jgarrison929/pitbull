@@ -1,263 +1,139 @@
 # Pitbull Construction Solutions
 
-**Construction management software built for commercial general contractors.** Tired of paying per-seat SaaS fees for bloated platforms? Pitbull is designed to run on your own terms.
+**Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
 
 Loyal. Tenacious. Won't let go. 🐕
 
-## Live Demo
+## Current Status
 
-- **API:** https://pitbull-api-production.up.railway.app
-- **Web:** https://pitbull-web-production.up.railway.app
+**🚧 Alpha 0 Development** (Target: Feb 21, 2026)
+- ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
+- ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
+- ✅ **Testing:** 121 tests passing (112 unit + 9 integration)
+- ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
+- 🔄 **Modules:** Projects, Bids, RFIs scaffolded and registering
+- 🔄 **Deployment:** Railway configuration ready, PostgreSQL + Redis
+- 📋 **Next:** Frontend components, Railway demo deployment
 
-## Tech Stack
+**Recent Wins:**
+- Fixed all CI/test pipeline issues (Feb 5)
+- Comprehensive security middleware implemented 
+- Clean architecture with sealed handlers and proper separation
 
-| Layer | Technology |
-|-------|------------|
-| Backend | .NET 9 / ASP.NET Core |
-| Frontend | Next.js 15 + React 19 + Tailwind CSS + shadcn/ui |
-| Database | PostgreSQL 17 (multi-tenant with Row-Level Security) |
-| Cache | Redis 7 |
-| Auth | ASP.NET Identity + JWT |
-| CQRS | MediatR with validation pipeline |
-| ORM | Entity Framework Core 9 |
-| Logging | Serilog |
-| CI/CD | GitHub Actions |
-| Hosting | Railway (cloud) / Docker Compose (self-hosted) |
+## Stack
 
-## Architecture
-
-Pitbull follows a **modular monolith** pattern. Each business domain lives in its own module with clear boundaries, but everything ships as a single deployable unit. This gives you the organizational benefits of microservices without the operational overhead.
-
-Key architectural decisions:
-
-- **CQRS with MediatR** for clean command/query separation
-- **Multi-tenancy via Row-Level Security** at the database level, so tenant isolation is enforced by PostgreSQL itself
-- **Vertical slice architecture** within each module (feature folders, not layer folders)
-- **Auto-tenant creation** on user registration, so new companies can self-onboard
-- **Result pattern** for explicit error handling (no exceptions for control flow)
+- **Backend:** .NET 9 / ASP.NET Core (modular monolith, CQRS with MediatR)
+- **Frontend:** Next.js 15 + React 19 + Tailwind CSS + shadcn/ui
+- **Database:** PostgreSQL 17 (multi-tenant with Row-Level Security)
+- **Cache:** Redis 7
+- **Auth:** ASP.NET Identity + JWT (cloud-native, multi-tenant)
 
 ## Modules
 
-### Active (implemented)
-
-- **Core** - Multi-tenancy, ASP.NET Identity, shared domain types, CQRS pipeline, validation behaviors, EF Core DbContext
-- **Projects** - Full CRUD for construction projects with budgets, phases, and projections
-- **Bids** - Bid tracking with line items, statuses, and the ability to convert a won bid directly into a project
-
-### Scaffolded (coming soon)
-
+### MVP
+- **Core** - Multi-tenancy, auth, shared kernel
+- **Projects** - Project management, cost codes, budgets
+- **Bids** - Opportunity tracking, bid management, win/loss analytics
 - **Contracts** - Subcontracts, change orders, approval workflows
-- **Documents** - File storage, versioning, full-text search
+- **Documents** - Cloud/local storage, versioning, full-text search
 - **Portal** - Subcontractor self-service portal
 - **Billing** - Owner billing, AIA pay apps, retainage tracking
 
-### Infrastructure
+### v2
+- Timekeeping, Safety/Compliance, HR/Workforce, Payroll, Equipment
 
-- **Email** - Transactional email service
-- **Storage** - File storage abstraction
-- **Messaging** - Event/message bus
+## Quick Start
 
-## API Endpoints
+```bash
+# Start infrastructure
+docker compose up -d
 
-### Auth
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/register` | Register a new user (auto-creates tenant) |
-| POST | `/api/auth/login` | Login, returns JWT |
+# Run API
+cd src/Pitbull.Api
+dotnet run
 
-### Tenants
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/tenants` | Create a tenant |
-| GET | `/api/tenants/{id}` | Get tenant by ID |
-| GET | `/api/tenants` | List tenants |
+# API docs at http://localhost:5000/swagger
+# Health check at http://localhost:5000/health
+```
 
-### Projects
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/projects` | Create a project |
-| GET | `/api/projects/{id}` | Get project by ID |
-| GET | `/api/projects` | List projects (with filtering) |
-| PUT | `/api/projects/{id}` | Update a project |
-| DELETE | `/api/projects/{id}` | Delete a project |
-
-### Bids
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/bids` | Create a bid |
-| GET | `/api/bids/{id}` | Get bid by ID |
-| GET | `/api/bids` | List bids (with filtering) |
-| PUT | `/api/bids/{id}` | Update a bid |
-| POST | `/api/bids/{id}/convert-to-project` | Convert a won bid into a project |
-
-Full Swagger docs available at `/swagger` when running locally.
-
-## Frontend Routes
-
-The Next.js frontend includes 10 routes across auth and dashboard layouts:
-
-- `/login` and `/register` (auth flow)
-- `/` (dashboard)
-- `/projects`, `/projects/new`, `/projects/[id]` (project management)
-- `/bids`, `/bids/new`, `/bids/[id]` (bid management)
-
-Design uses dark gray backgrounds with amber (#f59e0b) accents.
-
-## Project Structure
+## Architecture
 
 ```
 pitbull/
-├── .github/
-│   ├── ISSUE_TEMPLATE/         # Bug and feature request templates
-│   └── workflows/ci.yml        # GitHub Actions CI pipeline
 ├── src/
-│   ├── Pitbull.Api/            # ASP.NET Core host + controllers
-│   │   ├── Controllers/        # Auth, Projects, Bids, Tenants
-│   │   ├── Migrations/         # EF Core migrations
-│   │   └── Dockerfile
-│   ├── Pitbull.Web/
-│   │   └── pitbull-web/        # Next.js 15 frontend
-│   │       └── src/
-│   │           ├── app/        # App Router (auth + dashboard layouts)
-│   │           ├── components/ # Reusable UI components
-│   │           ├── contexts/   # React contexts (auth, etc.)
-│   │           └── lib/        # Utilities, API client
+│   ├── Pitbull.Api/              # ASP.NET Core host
+│   ├── Pitbull.Web/              # Next.js frontend
 │   ├── Modules/
-│   │   ├── Pitbull.Core/       # Shared kernel
-│   │   │   ├── CQRS/           # ICommand, ValidationBehavior
-│   │   │   ├── Data/           # PitbullDbContext
-│   │   │   ├── Domain/         # AppUser, Tenant, BaseEntity
-│   │   │   ├── Extensions/     # Service registration helpers
-│   │   │   └── MultiTenancy/   # Tenant resolution, RLS
-│   │   ├── Pitbull.Projects/   # Project management module
-│   │   │   ├── Data/           # EF configurations
-│   │   │   ├── Domain/         # Project, Phase, Budget entities
-│   │   │   └── Features/       # Create, Get, List, Update
-│   │   ├── Pitbull.Bids/       # Bid management module
-│   │   │   ├── Data/           # EF configurations
-│   │   │   ├── Domain/         # Bid, BidItem, BidStatus entities
-│   │   │   └── Features/       # Create, Get, List, Update, ConvertToProject
-│   │   ├── Pitbull.Contracts/  # (scaffolded)
-│   │   ├── Pitbull.Documents/  # (scaffolded)
-│   │   ├── Pitbull.Portal/     # (scaffolded)
-│   │   └── Pitbull.Billing/    # (scaffolded)
+│   │   ├── Pitbull.Core/         # Shared kernel
+│   │   ├── Pitbull.Projects/     # Project management
+│   │   ├── Pitbull.Bids/         # Bid management
+│   │   ├── Pitbull.Contracts/    # Subcontracts & COs
+│   │   ├── Pitbull.Documents/    # Document management
+│   │   ├── Pitbull.Portal/       # Sub portal
+│   │   └── Pitbull.Billing/      # Billing & pay apps
 │   └── Infrastructure/
-│       ├── Pitbull.Email/      # Email service
-│       ├── Pitbull.Storage/    # File storage
-│       └── Pitbull.Messaging/  # Message bus
+│       ├── Pitbull.Email/
+│       ├── Pitbull.Storage/
+│       └── Pitbull.Messaging/
 ├── tests/
-│   ├── Pitbull.Tests.Unit/
-│   └── Pitbull.Tests.Integration/
 ├── deploy/
-│   └── init-db.sql             # Database initialization
-├── docker-compose.yml          # Local dev (PostgreSQL + Redis)
-├── docker-compose.prod.yml     # Production Docker setup
-├── .env.example                # Environment variable template
-└── Pitbull.sln                 # Solution file
+└── docker-compose.yml
 ```
-
-## Getting Started
-
-### Prerequisites
-
-- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Node.js 22+](https://nodejs.org/)
-- [Docker](https://www.docker.com/) (for PostgreSQL and Redis)
-
-### Local Development
-
-1. **Clone the repo**
-
-```bash
-git clone https://github.com/jgarrison929/pitbull.git
-cd pitbull
-```
-
-2. **Start infrastructure**
-
-```bash
-docker compose up -d
-```
-
-This spins up PostgreSQL 17 and Redis 7 with health checks.
-
-3. **Run the API**
-
-```bash
-cd src/Pitbull.Api
-dotnet run
-```
-
-The API will be available at `http://localhost:5000`. Swagger docs at `http://localhost:5000/swagger`.
-
-4. **Run the frontend**
-
-```bash
-cd src/Pitbull.Web/pitbull-web
-npm install
-npm run dev
-```
-
-The frontend will be available at `http://localhost:3000`.
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and update for your environment:
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DB_PASSWORD` | PostgreSQL password | Yes |
-| `JWT_KEY` | JWT signing key (min 32 chars) | Yes |
-| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | Production |
-| `NEXT_PUBLIC_API_BASE_URL` | API URL for the frontend (build-time) | Yes |
-| `ASPNETCORE_ENVIRONMENT` | `Development` or `Production` | No |
-
-## CI/CD
-
-GitHub Actions runs on every push and PR to `main` and `develop`:
-
-- **Backend:** Restores, builds, runs unit tests and integration tests against a real PostgreSQL 17 instance
-- **Frontend:** Installs dependencies, builds, and lints
 
 ## Deployment
 
 ### Railway (Cloud)
 
-The project is deployed on [Railway](https://railway.app) with two services:
+1. Create a new project on [Railway](https://railway.app)
+2. Connect your GitHub repo (`jgarrison929/pitbull`)
+3. Add a **PostgreSQL** service from Railway's database templates
+4. Add a **Redis** service from Railway's database templates
+5. Create two services from the repo:
 
 **API Service:**
-- Dockerfile at `src/Pitbull.Api/Dockerfile`
-- Environment: `ConnectionStrings__PitbullDb`, `Jwt__Key`, `Jwt__Issuer`, `Jwt__Audience`, `Cors__AllowedOrigins__0`
+- Root directory: `/` (repo root)
+- Custom Dockerfile: `src/Pitbull.Api/Dockerfile`
+- Set environment variables:
+  - `ConnectionStrings__PitbullDb` → use Railway's `${{Postgres.DATABASE_URL}}` or construct from Postgres variables
+  - `Jwt__Key` → generate a random 32+ char string
+  - `Jwt__Issuer` → `pitbull-api`
+  - `Jwt__Audience` → `pitbull-client`
+  - `Cors__AllowedOrigins__0` → your frontend Railway URL
 
 **Web Service:**
-- Dockerfile at `src/Pitbull.Web/pitbull-web/Dockerfile`
-- Build arg: `NEXT_PUBLIC_API_BASE_URL` pointing to the API service URL
+- Root directory: `src/Pitbull.Web/pitbull-web`
+- Custom Dockerfile: `src/Pitbull.Web/pitbull-web/Dockerfile`
+- Build args: `NEXT_PUBLIC_API_BASE_URL` → your API Railway URL
 
-Both auto-deploy on push to `main`.
+6. Deploy! Railway auto-deploys on push to `main`.
 
 ### Self-Hosted (Docker Compose)
 
 ```bash
+# Clone the repo
 git clone https://github.com/jgarrison929/pitbull.git
 cd pitbull
 
+# Create environment file
 cp .env.example .env
-# Edit .env with production values
+# Edit .env with your production values
 
+# Build and start all services
 docker compose -f docker-compose.prod.yml up -d
+
+# API at http://localhost:8080
+# Frontend at http://localhost:3000
 ```
 
-## Roadmap
+### Environment Variables
 
-Modules planned for upcoming development:
-
-- [ ] **Contracts** - Subcontracts, change orders, approval workflows
-- [ ] **Documents** - Cloud/local file storage, versioning, full-text search
-- [ ] **Portal** - Subcontractor self-service portal
-- [ ] **Billing** - Owner billing, AIA pay applications, retainage tracking
-- [ ] **Timekeeping** - Field time tracking
-- [ ] **Safety/Compliance** - Incident tracking, certifications
-- [ ] **Equipment** - Asset tracking and maintenance
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DB_PASSWORD` | PostgreSQL password | Yes |
+| `JWT_KEY` | JWT signing key (min 32 chars) | Yes |
+| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | Yes (prod) |
+| `NEXT_PUBLIC_API_BASE_URL` | API URL for frontend (build-time) | Yes |
+| `ASPNETCORE_ENVIRONMENT` | `Development` or `Production` | No (defaults to Production in Docker) |
 
 ## License
 
