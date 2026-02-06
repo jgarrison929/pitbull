@@ -18,6 +18,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] - 2026-02-06
+
+### 📊 Job Costing & Reporting
+
+- **Labor Cost Calculator** - Server-side job costing engine
+  - Base wage calculation with OT (1.5x) and DT (2.0x) multipliers
+  - Configurable burden rate (default 35%)
+  - Batch calculation support for reporting
+  - 16 unit tests covering all calculation scenarios
+- **Cost Rollup API** - GET `/api/time-entries/cost-report`
+  - Aggregates approved time entries into cost summaries
+  - Groups by project and cost code
+  - Date range and project filtering
+  - 10 comprehensive handler tests
+- **Labor Cost Report UI** - Interactive reporting page at `/reports/labor-cost`
+  - Summary cards: total cost, hours, projects, burden rate
+  - Date range presets (this week, last week, this month, last month, YTD)
+  - Project filter dropdown with approved-only toggle
+  - Desktop: expandable table with project rows showing cost code breakdown
+  - Mobile: responsive card layout with project summaries
+  - Loading skeleton for better UX
+- **Cost Codes Management UI** - Cost code directory at `/cost-codes`
+  - Searchable, filterable list with summary cards
+  - Badge indicators for cost type (Labor, Material, Equipment, Subcontract)
+  - Desktop table and mobile card responsive layouts
+
+### 🎨 UI Components
+
+- **Collapsible** - New expandable/collapsible component using @radix-ui/react-collapsible
+
+### 📈 Stats
+
+- Test count: 198 (189 unit + 9 integration)
+- Week 2 milestones (Issue #122) completed 4 days ahead of schedule
+
+---
+
 ## [0.4.0] - 2026-02-05
 
 ### 🤖 AI Features
