@@ -211,7 +211,114 @@ public class CreateTimeEntryHandlerTests
         result.ErrorCode.Should().Be("EMPLOYEE_NOT_FOUND");
     }
 
+    [Fact]
+    public async Task Handle_NotAssignedToProject_ReturnsFailure()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var (employee, project, costCode) = await SetupTestDataWithoutAssignment(db);
+        var handler = new CreateTimeEntryHandler(db);
+        
+        var command = new CreateTimeEntryCommand(
+            Date: new DateOnly(2026, 2, 5),
+            EmployeeId: employee.Id,
+            ProjectId: project.Id,
+            CostCodeId: costCode.Id,
+            RegularHours: 8m
+        );
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_ASSIGNED_TO_PROJECT");
+    }
+
+    [Fact]
+    public async Task Handle_AssignmentExpired_ReturnsFailure()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var (employee, project, costCode) = await SetupTestDataWithoutAssignment(db);
+        
+        // Create expired assignment
+        var assignment = new ProjectAssignment
+        {
+            EmployeeId = employee.Id,
+            ProjectId = project.Id,
+            Role = AssignmentRole.Worker,
+            StartDate = new DateOnly(2026, 1, 1),
+            EndDate = new DateOnly(2026, 1, 31), // Expired
+            IsActive = true
+        };
+        db.Set<ProjectAssignment>().Add(assignment);
+        await db.SaveChangesAsync();
+        
+        var handler = new CreateTimeEntryHandler(db);
+        
+        var command = new CreateTimeEntryCommand(
+            Date: new DateOnly(2026, 2, 5), // After assignment ends
+            EmployeeId: employee.Id,
+            ProjectId: project.Id,
+            CostCodeId: costCode.Id,
+            RegularHours: 8m
+        );
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_ASSIGNED_TO_PROJECT");
+    }
+
     private static async Task<(Employee, Project, CostCode)> SetupTestData(
+        Pitbull.Core.Data.PitbullDbContext db)
+    {
+        var employee = new Employee
+        {
+            EmployeeNumber = "E001",
+            FirstName = "John",
+            LastName = "Worker",
+            IsActive = true,
+            Classification = EmployeeClassification.Hourly,
+            BaseHourlyRate = 35m
+        };
+        db.Set<Employee>().Add(employee);
+
+        var project = new Project
+        {
+            Name = "Test Bridge Project",
+            Number = "PRJ-2026-001",
+            Status = ProjectStatus.Active
+        };
+        db.Set<Project>().Add(project);
+
+        var costCode = new CostCode
+        {
+            Code = "01-100",
+            Description = "General Labor",
+            IsActive = true
+        };
+        db.Set<CostCode>().Add(costCode);
+
+        // Create assignment so employee can log time
+        var assignment = new ProjectAssignment
+        {
+            EmployeeId = employee.Id,
+            ProjectId = project.Id,
+            Role = AssignmentRole.Worker,
+            StartDate = new DateOnly(2026, 1, 1),
+            IsActive = true
+        };
+        db.Set<ProjectAssignment>().Add(assignment);
+
+        await db.SaveChangesAsync();
+        return (employee, project, costCode);
+    }
+
+    private static async Task<(Employee, Project, CostCode)> SetupTestDataWithoutAssignment(
         Pitbull.Core.Data.PitbullDbContext db)
     {
         var employee = new Employee

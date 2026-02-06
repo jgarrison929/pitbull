@@ -83,6 +83,7 @@ public class Employee : BaseEntity
     public ICollection<Employee> Subordinates { get; set; } = [];
     public ICollection<TimeEntry> TimeEntries { get; set; } = [];
     public ICollection<TimeEntry> ApprovedTimeEntries { get; set; } = [];
+    public ICollection<ProjectAssignment> ProjectAssignments { get; set; } = [];
 }
 
 /// <summary>

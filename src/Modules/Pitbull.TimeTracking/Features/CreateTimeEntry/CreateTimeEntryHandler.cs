@@ -35,6 +35,20 @@ public sealed class CreateTimeEntryHandler(PitbullDbContext db)
                 "Cannot log time to a completed or closed project",
                 "PROJECT_INACTIVE");
 
+        // Validate employee is assigned to this project
+        var hasAssignment = await db.Set<ProjectAssignment>()
+            .AnyAsync(pa => pa.EmployeeId == request.EmployeeId 
+                         && pa.ProjectId == request.ProjectId
+                         && pa.IsActive
+                         && pa.StartDate <= request.Date
+                         && (pa.EndDate == null || pa.EndDate >= request.Date),
+                      cancellationToken);
+
+        if (!hasAssignment)
+            return Result.Failure<TimeEntryDto>(
+                "Employee is not assigned to this project",
+                "NOT_ASSIGNED_TO_PROJECT");
+
         // Validate that cost code exists and is active
         var costCode = await db.Set<CostCode>()
             .FirstOrDefaultAsync(cc => cc.Id == request.CostCodeId && cc.IsActive, cancellationToken);
