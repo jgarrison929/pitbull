@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -523,16 +524,17 @@ export default function TimeTrackingApprovalPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
+            <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               className="bg-green-600 hover:bg-green-700 text-white"
               onClick={handleApprove}
-              disabled={isSubmitting}
+              loading={isSubmitting}
+              loadingText="Approving..."
             >
-              {isSubmitting ? "Approving..." : "Approve"}
-            </Button>
+              Approve
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -586,16 +588,18 @@ export default function TimeTrackingApprovalPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
+            <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button
+            <LoadingButton
               variant="destructive"
               onClick={handleReject}
-              disabled={isSubmitting || !rejectReason.trim()}
+              disabled={!rejectReason.trim()}
+              loading={isSubmitting}
+              loadingText="Rejecting..."
             >
-              {isSubmitting ? "Rejecting..." : "Reject"}
-            </Button>
+              Reject
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -209,16 +210,18 @@ export default function BidDetailPage({
                     variant="outline"
                     className="min-h-[44px]"
                     onClick={() => setConvertOpen(false)}
+                    disabled={isConverting}
                   >
                     Cancel
                   </Button>
-                  <Button
+                  <LoadingButton
                     className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
                     onClick={handleConvertToProject}
-                    disabled={isConverting}
+                    loading={isConverting}
+                    loadingText="Converting..."
                   >
-                    {isConverting ? "Converting..." : "Convert"}
-                  </Button>
+                    Convert
+                  </LoadingButton>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
