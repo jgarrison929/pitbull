@@ -1,4 +1,4 @@
-import { TableSkeleton, StatsCardsSkeleton } from "@/components/skeletons";
+import { TableSkeleton, DashboardStatsSkeleton } from "@/components/skeletons";
 
 export default function CostCodesLoading() {
   return (
@@ -7,8 +7,11 @@ export default function CostCodesLoading() {
         <div className="h-8 w-48 bg-muted animate-pulse rounded" />
         <div className="h-4 w-80 bg-muted animate-pulse rounded mt-2" />
       </div>
-      <StatsCardsSkeleton count={5} />
-      <TableSkeleton rows={10} columns={5} />
+      <DashboardStatsSkeleton count={5} />
+      <TableSkeleton 
+        headers={["Code", "Description", "Division", "Type", "Status"]} 
+        rows={10} 
+      />
     </div>
   );
 }
