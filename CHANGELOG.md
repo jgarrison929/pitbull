@@ -18,6 +18,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] - 2026-02-06
+
+### 📤 Vista Export Integration
+
+- **Vista Export API** - GET `/api/time-entries/export/vista`
+  - Exports approved time entries in Vista/Viewpoint compatible CSV format
+  - RFC 4180 compliant CSV with proper escaping for special characters
+  - Supports date range and project filtering
+  - Includes all payroll fields: employee, date, project, cost code, hours, amounts
+  - Calculates regular, OT (1.5x), and DT (2.0x) wage amounts
+  - Admin/Manager role authorization required
+  - 12 comprehensive unit tests covering all scenarios
+- **Vista Export UI** - New reporting page at `/reports/vista-export`
+  - Date range selection with quick presets (This Week, Last Week, This Month, etc.)
+  - Project filter dropdown
+  - Preview mode shows export metadata before download
+  - Stats cards: entry count, total hours, employees, projects
+  - CSV download with automatic filename
+  - Help section with Vista import instructions
+  - Responsive design for desktop and mobile
+
+### 📈 Stats
+
+- Test count: 210 (201 unit + 9 integration)
+- Vista export completes Week 3 deliverable (Issue #122)
+
+---
+
 ## [0.5.0] - 2026-02-06
 
 ### 📊 Job Costing & Reporting
