@@ -33,6 +33,7 @@ import {
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Shield, Users, X } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import type { AppUser, ListUsersResult, RoleInfo } from "@/lib/types";
@@ -86,6 +87,10 @@ export default function UsersPage() {
   const [roleDialogOpen, setRoleDialogOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Role removal confirmation dialog state
+  const [roleToRemove, setRoleToRemove] = useState<string | null>(null);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
 
   // Check admin access
   useEffect(() => {
@@ -165,19 +170,23 @@ export default function UsersPage() {
     }
   };
 
-  const handleRemoveRole = async (role: string) => {
-    if (!selectedUser) return;
-    
+  const promptRemoveRole = (role: string) => {
     // Prevent self-demotion
-    if (selectedUser.id === currentUser?.id && role === "Admin") {
+    if (selectedUser?.id === currentUser?.id && role === "Admin") {
       toast.error("You cannot remove your own Admin role");
       return;
     }
+    setRoleToRemove(role);
+    setConfirmRemoveOpen(true);
+  };
+
+  const handleRemoveRole = async () => {
+    if (!selectedUser || !roleToRemove) return;
     
     setIsUpdating(true);
     try {
       const result = await api<{ roles: string[] }>(
-        `/api/users/${selectedUser.id}/roles/${role}`,
+        `/api/users/${selectedUser.id}/roles/${roleToRemove}`,
         { method: "DELETE" }
       );
       
@@ -189,7 +198,9 @@ export default function UsersPage() {
       ));
       setSelectedUser(prev => prev ? { ...prev, roles: result.roles } : null);
       
-      toast.success(`Role "${role}" removed successfully`);
+      toast.success(`Role "${roleToRemove}" removed successfully`);
+      setConfirmRemoveOpen(false);
+      setRoleToRemove(null);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to remove role";
       toast.error(message);
@@ -435,11 +446,11 @@ export default function UsersPage() {
                     {role}
                     <button
                       className="ml-1 hover:opacity-70 disabled:opacity-50"
-                      onClick={() => handleRemoveRole(role)}
+                      onClick={() => promptRemoveRole(role)}
                       disabled={isUpdating || (selectedUser?.id === currentUser?.id && role === "Admin")}
-                      title={selectedUser?.id === currentUser?.id && role === "Admin" 
+                      aria-label={selectedUser?.id === currentUser?.id && role === "Admin" 
                         ? "Cannot remove own Admin role" 
-                        : `Remove ${role}`}
+                        : `Remove ${role} role`}
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -491,6 +502,23 @@ export default function UsersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Role Removal Confirmation Dialog */}
+      <ConfirmDialog
+        open={confirmRemoveOpen}
+        onOpenChange={(open) => {
+          setConfirmRemoveOpen(open);
+          if (!open) setRoleToRemove(null);
+        }}
+        title="Remove Role"
+        description={`Are you sure you want to remove the "${roleToRemove}" role from ${selectedUser?.fullName}?`}
+        confirmLabel="Remove Role"
+        cancelLabel="Cancel"
+        onConfirm={handleRemoveRole}
+        isLoading={isUpdating}
+        loadingText="Removing..."
+        variant="warning"
+      />
     </div>
   );
 }

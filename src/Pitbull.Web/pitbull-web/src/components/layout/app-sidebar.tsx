@@ -119,7 +119,7 @@ export function AppSidebar() {
           <button
             onClick={logout}
             className="text-neutral-400 hover:text-white text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
-            title="Sign out"
+            aria-label="Sign out"
           >
             ↗
           </button>

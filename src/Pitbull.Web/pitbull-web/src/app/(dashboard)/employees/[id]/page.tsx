@@ -2,7 +2,6 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { TableSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   ArrowLeft,
@@ -69,7 +67,6 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const router = useRouter();
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
@@ -106,7 +103,7 @@ export default function EmployeeDetailPage({
           // Time entries endpoint might fail
           setTimeEntries([]);
         }
-      } catch (err) {
+      } catch {
         setError("Failed to load employee");
         toast.error("Failed to load employee");
       } finally {
