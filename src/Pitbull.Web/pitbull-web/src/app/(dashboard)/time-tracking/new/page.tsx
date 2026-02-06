@@ -21,6 +21,8 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { SimpleTooltip } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 import api from "@/lib/api";
 import { getTodayISO } from "@/lib/time-tracking";
 import type {
@@ -197,7 +199,7 @@ export default function NewTimeEntryPage() {
             <fieldset disabled={isSubmitting} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="date">Date *</Label>
+                <Label htmlFor="date">Date <span className="text-destructive">*</span></Label>
                 <Input
                   id="date"
                   type="date"
@@ -205,15 +207,16 @@ export default function NewTimeEntryPage() {
                   onChange={(e) => setDate(e.target.value)}
                   max={getTodayISO()}
                   required
+                  aria-describedby={errors.date ? "date-error" : undefined}
                 />
                 {errors.date && (
-                  <p className="text-sm text-destructive">{errors.date}</p>
+                  <p id="date-error" className="text-sm text-destructive" role="alert">{errors.date}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="employee">Employee *</Label>
+                <Label htmlFor="employee">Employee <span className="text-destructive">*</span></Label>
                 <Select value={employeeId} onValueChange={setEmployeeId}>
-                  <SelectTrigger>
+                  <SelectTrigger id="employee" aria-label="Select employee">
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
@@ -225,16 +228,16 @@ export default function NewTimeEntryPage() {
                   </SelectContent>
                 </Select>
                 {errors.employeeId && (
-                  <p className="text-sm text-destructive">{errors.employeeId}</p>
+                  <p className="text-sm text-destructive" role="alert">{errors.employeeId}</p>
                 )}
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="project">Project *</Label>
+                <Label htmlFor="project">Project <span className="text-destructive">*</span></Label>
                 <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger>
+                  <SelectTrigger id="project" aria-label="Select project">
                     <SelectValue placeholder="Select project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -246,13 +249,18 @@ export default function NewTimeEntryPage() {
                   </SelectContent>
                 </Select>
                 {errors.projectId && (
-                  <p className="text-sm text-destructive">{errors.projectId}</p>
+                  <p className="text-sm text-destructive" role="alert">{errors.projectId}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="costCode">Cost Code *</Label>
+                <div className="flex items-center gap-1">
+                  <Label htmlFor="costCode">Cost Code <span className="text-destructive">*</span></Label>
+                  <SimpleTooltip content="Cost codes categorize labor for job costing (e.g., Rough Framing, Finish Electrical)">
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" aria-label="Cost code help" />
+                  </SimpleTooltip>
+                </div>
                 <Select value={costCodeId} onValueChange={setCostCodeId}>
-                  <SelectTrigger>
+                  <SelectTrigger id="costCode" aria-label="Select cost code">
                     <SelectValue placeholder="Select cost code" />
                   </SelectTrigger>
                   <SelectContent>
@@ -264,7 +272,7 @@ export default function NewTimeEntryPage() {
                   </SelectContent>
                 </Select>
                 {errors.costCodeId && (
-                  <p className="text-sm text-destructive">{errors.costCodeId}</p>
+                  <p className="text-sm text-destructive" role="alert">{errors.costCodeId}</p>
                 )}
               </div>
             </div>

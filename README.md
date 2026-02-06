@@ -9,19 +9,21 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 166 tests passing (157 unit + 9 integration)
+- ✅ **Testing:** 169 tests passing (160 unit + 9 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking UI
 - ✅ **Deployment:** Railway production deployment, health checks passing
-- 📋 **Next:** Employee management UI, documentation polish
+- ✅ **RBAC:** Role-based access control with Admin, Manager, Supervisor, User roles
+- 📋 **Next:** Documentation polish, Week 2 features
 
 **Recent Wins (Feb 5, 2026):**
 - Full TimeTracking module with approval workflow (Draft → Submitted → Approved/Rejected)
 - Employee-project assignments with validation
-- Time entry creation, editing, and manager approval queue
-- Frontend polish with filtering, forms, and loading states
-- 166 tests all green, deployed to production
+- RBAC foundation with role seeding and user management UI
+- Cost code seeding for time tracking (60 standard codes)
+- Onboarding checklist for new users
+- 169 tests all green, deployed to production
 
 ## Stack
 

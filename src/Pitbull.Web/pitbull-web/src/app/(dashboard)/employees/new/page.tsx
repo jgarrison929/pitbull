@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PhoneInput, isValidPhoneNumber } from "@/components/ui/phone-input";
+import { SimpleTooltip } from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -40,7 +43,7 @@ function getTodayISO(): string {
 
 type FormErrors = Partial<
   Record<
-    "employeeNumber" | "firstName" | "lastName" | "email" | "baseHourlyRate" | "general",
+    "employeeNumber" | "firstName" | "lastName" | "email" | "phone" | "baseHourlyRate" | "general",
     string
   >
 >;
@@ -98,7 +101,10 @@ export default function NewEmployeePage() {
       next.lastName = "Last name is required";
     }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      next.email = "Invalid email format";
+      next.email = "Please enter a valid email address";
+    }
+    if (phone && !isValidPhoneNumber(phone)) {
+      next.phone = "Please enter a valid 10-digit phone number";
     }
 
     const rate = parseFloat(baseHourlyRate);
@@ -245,13 +251,12 @@ export default function NewEmployeePage() {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input
+                <PhoneInput
                   id="phone"
-                  type="tel"
+                  label="Phone"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="(555) 123-4567"
+                  onChange={setPhone}
+                  error={errors.phone}
                 />
               </div>
             </div>
@@ -270,9 +275,14 @@ export default function NewEmployeePage() {
             {/* Classification & Rate Row */}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="classification">Classification *</Label>
+                <div className="flex items-center gap-1">
+                  <Label htmlFor="classification">Classification <span className="text-destructive">*</span></Label>
+                  <SimpleTooltip content="Determines pay structure and overtime eligibility">
+                    <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" aria-label="Classification help" />
+                  </SimpleTooltip>
+                </div>
                 <Select value={classification} onValueChange={setClassification}>
-                  <SelectTrigger>
+                  <SelectTrigger id="classification" aria-label="Select employee classification">
                     <SelectValue placeholder="Select classification" />
                   </SelectTrigger>
                   <SelectContent>
@@ -294,9 +304,14 @@ export default function NewEmployeePage() {
                   min={0}
                   step={0.01}
                   placeholder="25.00"
+                  aria-describedby="baseHourlyRate-help"
                 />
-                {errors.baseHourlyRate && (
-                  <p className="text-sm text-destructive">{errors.baseHourlyRate}</p>
+                {errors.baseHourlyRate ? (
+                  <p className="text-sm text-destructive" role="alert">{errors.baseHourlyRate}</p>
+                ) : (
+                  <p id="baseHourlyRate-help" className="text-xs text-muted-foreground">
+                    Used for cost calculations and overtime pay
+                  </p>
                 )}
               </div>
             </div>
