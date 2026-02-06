@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
+using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
 using Pitbull.TimeTracking.Features.GetTimeEntry;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
@@ -231,6 +232,57 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Export approved time entries in Vista/Viewpoint compatible CSV format.
+    /// Only exports approved time entries for the specified date range.
+    /// </summary>
+    /// <param name="startDate">Start date for the export period (required)</param>
+    /// <param name="endDate">End date for the export period (required)</param>
+    /// <param name="projectId">Optional: filter to a specific project</param>
+    /// <returns>CSV file download or JSON metadata if accept header is application/json</returns>
+    [HttpGet("export/vista")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> ExportVista(
+        [FromQuery] DateOnly startDate,
+        [FromQuery] DateOnly endDate,
+        [FromQuery] Guid? projectId = null)
+    {
+        var query = new ExportVistaTimesheetQuery(startDate, endDate, projectId);
+        var result = await mediator.Send(query);
+
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "INVALID_DATE_RANGE" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
+                "DATE_RANGE_TOO_LARGE" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        var export = result.Value!;
+
+        // If client wants JSON metadata (for preview), return that
+        if (Request.Headers.Accept.ToString().Contains("application/json"))
+        {
+            return Ok(new
+            {
+                fileName = export.FileName,
+                rowCount = export.RowCount,
+                totalHours = export.TotalHours,
+                startDate = export.StartDate,
+                endDate = export.EndDate,
+                employeeCount = export.EmployeeCount,
+                projectCount = export.ProjectCount
+            });
+        }
+
+        // Return as downloadable CSV file
+        var bytes = System.Text.Encoding.UTF8.GetBytes(export.CsvContent);
+        return File(bytes, "text/csv", export.FileName);
     }
 }
 
