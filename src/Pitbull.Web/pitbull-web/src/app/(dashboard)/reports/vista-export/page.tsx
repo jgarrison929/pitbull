@@ -26,6 +26,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getToken } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/config";
 import { toast } from "sonner";
 
 const ALL_VALUE = "__all__";
@@ -92,9 +94,8 @@ export default function VistaExportPage() {
 
   // Load projects
   useEffect(() => {
-    api
-      .get<{ items: Project[] }>("/api/projects?page=1&pageSize=100")
-      .then((res) => setProjects(res.data?.items || []))
+    api<{ items: Project[] }>("/api/projects?page=1&pageSize=100")
+      .then((res) => setProjects(res?.items || []))
       .catch(() => toast.error("Failed to load projects"));
   }, []);
 
@@ -126,19 +127,27 @@ export default function VistaExportPage() {
         params.append("projectId", selectedProject);
       }
 
-      const res = await api.get<ExportMetadata>(
-        `/api/time-entries/export/vista?${params.toString()}`,
+      // Use fetch directly to set Accept header for JSON preview
+      const token = getToken();
+      const response = await fetch(
+        `${API_BASE_URL}/api/time-entries/export/vista?${params.toString()}`,
         {
-          headers: { Accept: "application/json" },
+          headers: {
+            Accept: "application/json",
+            Authorization: token ? `Bearer ${token}` : "",
+          },
         }
       );
-      setMetadata(res.data);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `Request failed with status ${response.status}`);
+      }
+
+      const data: ExportMetadata = await response.json();
+      setMetadata(data);
     } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-            "Failed to generate preview";
+      const message = err instanceof Error ? err.message : "Failed to generate preview";
       setError(message);
       toast.error("Preview failed", { description: message });
     } finally {
@@ -163,12 +172,24 @@ export default function VistaExportPage() {
         params.append("projectId", selectedProject);
       }
 
-      const res = await api.get(`/api/time-entries/export/vista?${params.toString()}`, {
-        responseType: "blob",
-      });
+      // Use fetch directly for blob download
+      const token = getToken();
+      const response = await fetch(
+        `${API_BASE_URL}/api/time-entries/export/vista?${params.toString()}`,
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        }
+      );
 
-      // Create download link
-      const blob = new Blob([res.data], { type: "text/csv" });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || `Request failed with status ${response.status}`);
+      }
+
+      // Get the CSV blob
+      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -186,11 +207,7 @@ export default function VistaExportPage() {
         description: `${metadata?.rowCount || 0} time entries exported`,
       });
     } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : (err as { response?: { data?: { error?: string } } })?.response?.data?.error ||
-            "Failed to download export";
+      const message = err instanceof Error ? err.message : "Failed to download export";
       toast.error("Download failed", { description: message });
     } finally {
       setIsDownloading(false);
