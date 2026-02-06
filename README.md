@@ -9,21 +9,23 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 169 tests passing (160 unit + 9 integration)
+- ✅ **Testing:** 172 tests passing (163 unit + 9 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking UI
 - ✅ **Deployment:** Railway production deployment, health checks passing
 - ✅ **RBAC:** Role-based access control with Admin, Manager, Supervisor, User roles
+- ✅ **AI Insights:** Claude-powered project health analysis 🤖
 - 📋 **Next:** Documentation polish, Week 2 features
 
 **Recent Wins (Feb 5, 2026):**
+- **🤖 AI Project Insights:** Claude-powered analysis generates health scores, highlights, concerns, and recommendations
 - Full TimeTracking module with approval workflow (Draft → Submitted → Approved/Rejected)
 - Employee-project assignments with validation
 - RBAC foundation with role seeding and user management UI
 - Cost code seeding for time tracking (60 standard codes)
 - Onboarding checklist for new users
-- 169 tests all green, deployed to production
+- 172 tests all green, deployed to production
 
 ## Stack
 
@@ -142,6 +144,30 @@ docker compose -f docker-compose.prod.yml up -d
 | `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | Yes (prod) |
 | `NEXT_PUBLIC_API_BASE_URL` | API URL for frontend (build-time) | Yes |
 | `ASPNETCORE_ENVIRONMENT` | `Development` or `Production` | No (defaults to Production in Docker) |
+| `ANTHROPIC_API_KEY` | API key for Claude AI features | No (AI features disabled if not set) |
+
+## AI Features 🤖
+
+Pitbull includes AI-powered project insights using Claude:
+
+**Project Health Analysis** (`GET /api/projects/{id}/ai-summary`)
+
+Returns:
+- **Health Score** (0-100) with status category (Excellent/Good/AtRisk/Critical)
+- **Executive Summary** - Natural language overview of project status
+- **Highlights** - What's going well
+- **Concerns** - Potential issues to address
+- **Recommendations** - Actionable next steps
+- **Key Metrics** - Hours logged, labor costs, budget utilization, pending approvals
+
+The AI analyzes:
+- Project details (name, dates, budget, status)
+- Time entries (hours logged, labor costs, trends)
+- Employee assignments (who's working on it)
+- Approval workflow status (pending time entries)
+- Budget utilization (actual vs planned)
+
+To enable: Set `ANTHROPIC_API_KEY` environment variable with your Anthropic API key.
 
 ## License
 
