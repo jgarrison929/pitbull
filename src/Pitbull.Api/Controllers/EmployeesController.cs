@@ -6,7 +6,9 @@ using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
 using Pitbull.TimeTracking.Features.GetEmployee;
+using Pitbull.TimeTracking.Features.GetEmployeeProjects;
 using Pitbull.TimeTracking.Features.ListEmployees;
+using Pitbull.TimeTracking.Features.UpdateEmployee;
 
 namespace Pitbull.Api.Controllers;
 
@@ -22,7 +24,11 @@ public class EmployeesController(IMediator mediator) : ControllerBase
     /// <summary>
     /// Create a new employee
     /// </summary>
+    /// <remarks>
+    /// Requires Admin or Manager role.
+    /// </remarks>
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Create([FromBody] CreateEmployeeRequest request)
     {
         var command = new CreateEmployeeCommand(
@@ -91,7 +97,79 @@ public class EmployeesController(IMediator mediator) : ControllerBase
 
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Get project assignments for a specific employee
+    /// </summary>
+    [HttpGet("{id:guid}/projects")]
+    public async Task<IActionResult> GetProjects(
+        Guid id,
+        [FromQuery] bool activeOnly = true)
+    {
+        var result = await mediator.Send(new GetEmployeeProjectsQuery(id, activeOnly));
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Update an existing employee
+    /// </summary>
+    /// <remarks>
+    /// Requires Admin or Manager role.
+    /// </remarks>
+    [HttpPut("{id:guid}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateEmployeeRequest request)
+    {
+        var command = new UpdateEmployeeCommand(
+            id,
+            request.FirstName,
+            request.LastName,
+            request.Email,
+            request.Phone,
+            request.Title,
+            request.Classification,
+            request.BaseHourlyRate,
+            request.HireDate,
+            request.TerminationDate,
+            request.SupervisorId,
+            request.IsActive,
+            request.Notes
+        );
+
+        var result = await mediator.Send(command);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "INVALID_SUPERVISOR" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(result.Value);
+    }
 }
+
+public record UpdateEmployeeRequest(
+    string FirstName,
+    string LastName,
+    string? Email = null,
+    string? Phone = null,
+    string? Title = null,
+    EmployeeClassification Classification = EmployeeClassification.Hourly,
+    decimal BaseHourlyRate = 0,
+    DateOnly? HireDate = null,
+    DateOnly? TerminationDate = null,
+    Guid? SupervisorId = null,
+    bool IsActive = true,
+    string? Notes = null
+);
 
 // Request DTOs
 public record CreateEmployeeRequest(
