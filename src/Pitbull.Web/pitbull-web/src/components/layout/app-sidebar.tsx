@@ -16,6 +16,10 @@ const navItems = [
   { label: "Documents", href: "#", icon: "📁", disabled: true },
 ];
 
+const adminItems = [
+  { label: "Users", href: "/admin/users", icon: "👥" },
+];
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -67,6 +71,36 @@ export function AppSidebar() {
             </Link>
           );
         })}
+
+        {/* Admin Section - Only visible to admins */}
+        {user?.roles?.includes("Admin") && (
+          <>
+            <div className="pt-4 pb-2">
+              <span className="px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                Admin
+              </span>
+            </div>
+            {adminItems.map((item) => {
+              const isActive = pathname.startsWith(item.href);
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-amber-500/15 text-amber-400"
+                      : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                  )}
+                >
+                  <span className="text-base">{item.icon}</span>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       <Separator className="bg-white/10" />
