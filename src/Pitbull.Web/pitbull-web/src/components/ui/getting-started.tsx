@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -69,13 +69,11 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
 const STORAGE_KEY = "pitbull_getting_started_dismissed";
 
 export function GettingStarted({ stats }: GettingStartedProps) {
-  const [isDismissed, setIsDismissed] = useState(true); // Start hidden to prevent flash
-
-  useEffect(() => {
-    // Check localStorage on mount
-    const dismissed = localStorage.getItem(STORAGE_KEY);
-    setIsDismissed(dismissed === "true");
-  }, []);
+  // Initialize from localStorage synchronously to prevent flash
+  const [isDismissed, setIsDismissed] = useState(() => {
+    if (typeof window === "undefined") return true; // SSR: hide by default
+    return localStorage.getItem(STORAGE_KEY) === "true";
+  });
 
   const completedCount = CHECKLIST_ITEMS.filter((item) =>
     item.isComplete(stats)
