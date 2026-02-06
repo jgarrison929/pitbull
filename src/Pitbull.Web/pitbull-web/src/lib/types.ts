@@ -285,3 +285,84 @@ export interface ListTimeEntriesResult {
   pageSize: number;
   totalPages: number;
 }
+
+export interface CreateEmployeeCommand {
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  classification: EmployeeClassification;
+  baseHourlyRate?: number;
+  hireDate?: string;
+  supervisorId?: string;
+  notes?: string;
+}
+
+// Project Assignment Types
+export interface ProjectAssignment {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  projectId: string;
+  projectName: string;
+  projectNumber: string;
+  role: string;
+  startDate: string;
+  endDate?: string | null;
+  isActive: boolean;
+  hoursPerWeek?: number | null;
+  notes?: string | null;
+}
+
+export interface UpdateEmployeeCommand {
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  classification: EmployeeClassification;
+  baseHourlyRate?: number;
+  hireDate?: string;
+  terminationDate?: string;
+  supervisorId?: string;
+  isActive?: boolean;
+  notes?: string;
+}
+
+// User Management Types
+export interface AppUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  status: string;
+  type: string;
+  roles: string[];
+  createdAt: string;
+  lastLoginAt?: string | null;
+}
+
+export interface ListUsersResult {
+  items: AppUser[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface RoleInfo {
+  name: string;
+  description: string;
+}
+
+// System Roles
+export const SystemRoles = {
+  Admin: "Admin",
+  Manager: "Manager",
+  Supervisor: "Supervisor",
+  User: "User",
+} as const;
+
+export type SystemRole = (typeof SystemRoles)[keyof typeof SystemRoles];

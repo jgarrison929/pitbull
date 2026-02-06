@@ -27,6 +27,8 @@ public class TenantsController(PitbullDbContext db, ITenantContext tenantContext
     /// Creates a new tenant/organization. A URL-friendly slug is auto-generated from the name.
     /// This is typically the first step when a new company onboards to Pitbull.
     ///
+    /// **Requires Admin role.**
+    ///
     /// Sample request:
     ///
     ///     POST /api/tenants
@@ -39,11 +41,14 @@ public class TenantsController(PitbullDbContext db, ITenantContext tenantContext
     /// <returns>The newly created tenant</returns>
     /// <response code="201">Tenant created successfully</response>
     /// <response code="401">Not authenticated</response>
+    /// <response code="403">Forbidden - requires Admin role</response>
     /// <response code="409">A tenant with this name already exists</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateTenantRequest request)
