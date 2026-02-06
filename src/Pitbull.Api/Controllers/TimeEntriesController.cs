@@ -6,7 +6,9 @@ using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.GetTimeEntry;
+using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
+using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 
 namespace Pitbull.Api.Controllers;
 
@@ -85,6 +87,122 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
 
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Update a time entry (status changes, hour corrections, approval/rejection)
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTimeEntryRequest request)
+    {
+        var command = new UpdateTimeEntryCommand(
+            TimeEntryId: id,
+            RegularHours: request.RegularHours,
+            OvertimeHours: request.OvertimeHours,
+            DoubletimeHours: request.DoubletimeHours,
+            Description: request.Description,
+            NewStatus: request.NewStatus,
+            ApproverId: request.ApproverId,
+            ApproverNotes: request.ApproverNotes
+        );
+
+        var result = await mediator.Send(command);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "UNAUTHORIZED" => Forbid(),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Approve a time entry
+    /// </summary>
+    [HttpPost("{id:guid}/approve")]
+    public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveTimeEntryRequest request)
+    {
+        var command = new UpdateTimeEntryCommand(
+            TimeEntryId: id,
+            NewStatus: TimeEntryStatus.Approved,
+            ApproverId: request.ApproverId,
+            ApproverNotes: request.Comments
+        );
+
+        var result = await mediator.Send(command);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "UNAUTHORIZED" => Forbid(),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Reject a time entry
+    /// </summary>
+    [HttpPost("{id:guid}/reject")]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectTimeEntryRequest request)
+    {
+        var command = new UpdateTimeEntryCommand(
+            TimeEntryId: id,
+            NewStatus: TimeEntryStatus.Rejected,
+            ApproverId: request.ApproverId,
+            ApproverNotes: request.Reason
+        );
+
+        var result = await mediator.Send(command);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "UNAUTHORIZED" => Forbid(),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get all time entries for a project (for project managers)
+    /// </summary>
+    [HttpGet("by-project/{projectId:guid}")]
+    public async Task<IActionResult> GetByProject(
+        Guid projectId,
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        [FromQuery] TimeEntryStatus? status,
+        [FromQuery] bool includeSummary = false,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        var query = new GetTimeEntriesByProjectQuery(
+            projectId, startDate, endDate, status, includeSummary)
+        {
+            Page = page,
+            PageSize = pageSize
+        };
+
+        var result = await mediator.Send(query);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+        }
+
+        return Ok(result.Value);
+    }
 }
 
 // Request DTOs
@@ -97,4 +215,24 @@ public record CreateTimeEntryRequest(
     decimal OvertimeHours = 0,
     decimal DoubletimeHours = 0,
     string? Description = null
+);
+
+public record UpdateTimeEntryRequest(
+    decimal? RegularHours = null,
+    decimal? OvertimeHours = null,
+    decimal? DoubletimeHours = null,
+    string? Description = null,
+    TimeEntryStatus? NewStatus = null,
+    Guid? ApproverId = null,
+    string? ApproverNotes = null
+);
+
+public record ApproveTimeEntryRequest(
+    Guid ApproverId,
+    string? Comments = null
+);
+
+public record RejectTimeEntryRequest(
+    Guid ApproverId,
+    string Reason
 );

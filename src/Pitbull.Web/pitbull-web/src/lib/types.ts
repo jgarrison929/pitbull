@@ -180,3 +180,108 @@ export interface DashboardStats {
   pendingChangeOrders: number;
   lastActivityDate: string;
 }
+
+// Time Tracking Types
+export enum TimeEntryStatus {
+  Submitted = 0,
+  Approved = 1,
+  Rejected = 2,
+  Draft = 3,
+}
+
+export enum EmployeeClassification {
+  Hourly = 0,
+  Salaried = 1,
+  Contractor = 2,
+  Apprentice = 3,
+  Supervisor = 4,
+}
+
+export interface Employee {
+  id: string;
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  title?: string | null;
+  classification: EmployeeClassification;
+  baseHourlyRate: number;
+  isActive: boolean;
+  hireDate?: string | null;
+  terminationDate?: string | null;
+  supervisorId?: string | null;
+  supervisorName?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface TimeEntry {
+  id: string;
+  date: string;
+  employeeId: string;
+  employeeName: string;
+  projectId: string;
+  projectName: string;
+  projectNumber: string;
+  costCodeId: string;
+  costCodeDescription: string;
+  regularHours: number;
+  overtimeHours: number;
+  doubletimeHours: number;
+  totalHours: number;
+  description?: string | null;
+  status: TimeEntryStatus;
+  approvedById?: string | null;
+  approvedByName?: string | null;
+  approvedAt?: string | null;
+  approvalComments?: string | null;
+  rejectionReason?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface CostCode {
+  id: string;
+  code: string;
+  description: string;
+  division?: string | null;
+  costType: CostType;
+  isActive: boolean;
+}
+
+export enum CostType {
+  Labor = 1,
+  Material = 2,
+  Equipment = 3,
+  Subcontract = 4,
+  Other = 5,
+}
+
+export interface CreateTimeEntryCommand {
+  date: string;
+  employeeId: string;
+  projectId: string;
+  costCodeId: string;
+  regularHours: number;
+  overtimeHours?: number;
+  doubletimeHours?: number;
+  description?: string;
+}
+
+export interface ListEmployeesResult {
+  items: Employee[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface ListTimeEntriesResult {
+  items: TimeEntry[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
