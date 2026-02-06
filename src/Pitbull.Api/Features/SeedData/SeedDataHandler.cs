@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Bids.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 
 namespace Pitbull.Api.Features.SeedData;
@@ -38,7 +39,9 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         var projects = CreateProjects();
         var bids = CreateBids();
+        var costCodes = CreateCostCodes();
 
+        db.Set<CostCode>().AddRange(costCodes);
         db.Set<Project>().AddRange(projects);
         db.Set<Bid>().AddRange(bids);
 
@@ -52,9 +55,98 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
             BidsCreated: bids.Count,
             BidItemsCreated: totalBidItems,
             PhasesCreated: totalPhases,
+            CostCodesCreated: costCodes.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
-                     $"{totalBidItems} bid items, {totalPhases} phases"
+                     $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes"
         ));
+    }
+
+    /// <summary>
+    /// Creates standard construction labor cost codes.
+    /// These are used for time tracking entries.
+    /// </summary>
+    private static List<CostCode> CreateCostCodes()
+    {
+        return
+        [
+            // General Conditions / Supervision
+            new CostCode { Code = "01-100", Description = "Project Management", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-200", Description = "Supervision - General Foreman", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-300", Description = "Supervision - Trade Foreman", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-400", Description = "Safety & First Aid", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-500", Description = "Quality Control", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Site Work
+            new CostCode { Code = "02-100", Description = "Excavation & Grading", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "02-200", Description = "Trenching & Utilities", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "02-300", Description = "Backfill & Compaction", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "02-400", Description = "Demolition", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Concrete
+            new CostCode { Code = "03-100", Description = "Concrete Formwork", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "03-200", Description = "Rebar & Reinforcement", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "03-300", Description = "Concrete Placement", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "03-400", Description = "Concrete Finishing", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Masonry
+            new CostCode { Code = "04-100", Description = "Block & Brick Masonry", Division = "04", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "04-200", Description = "Stone & Veneer", Division = "04", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Metals / Structural Steel
+            new CostCode { Code = "05-100", Description = "Structural Steel Erection", Division = "05", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "05-200", Description = "Miscellaneous Metals", Division = "05", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "05-300", Description = "Metal Deck Installation", Division = "05", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Carpentry
+            new CostCode { Code = "06-100", Description = "Rough Carpentry", Division = "06", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "06-200", Description = "Finish Carpentry", Division = "06", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "06-300", Description = "Framing", Division = "06", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Thermal & Moisture
+            new CostCode { Code = "07-100", Description = "Waterproofing", Division = "07", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "07-200", Description = "Insulation", Division = "07", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "07-300", Description = "Roofing", Division = "07", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Doors & Windows
+            new CostCode { Code = "08-100", Description = "Door Installation", Division = "08", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "08-200", Description = "Window Installation", Division = "08", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "08-300", Description = "Hardware Installation", Division = "08", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Finishes
+            new CostCode { Code = "09-100", Description = "Drywall & Framing", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-200", Description = "Painting", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-300", Description = "Flooring", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-400", Description = "Tile Work", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-500", Description = "Ceiling Systems", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // MEP (Mechanical, Electrical, Plumbing)
+            new CostCode { Code = "15-100", Description = "Plumbing Rough-In", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "15-200", Description = "Plumbing Trim", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "15-300", Description = "HVAC Rough-In", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "15-400", Description = "HVAC Trim & Startup", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "16-100", Description = "Electrical Rough-In", Division = "16", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "16-200", Description = "Electrical Trim", Division = "16", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "16-300", Description = "Low Voltage & Data", Division = "16", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Equipment Cost Codes
+            new CostCode { Code = "EQ-100", Description = "Crane Operation", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+            new CostCode { Code = "EQ-200", Description = "Excavator / Loader", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+            new CostCode { Code = "EQ-300", Description = "Aerial Lift / Scaffolding", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+            new CostCode { Code = "EQ-400", Description = "Concrete Equipment", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+
+            // Material Cost Codes
+            new CostCode { Code = "MAT-100", Description = "Lumber & Sheathing", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-200", Description = "Concrete Materials", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-300", Description = "Steel & Metals", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-400", Description = "MEP Materials", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-500", Description = "Finish Materials", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+
+            // Subcontract Cost Codes
+            new CostCode { Code = "SUB-100", Description = "Electrical Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-200", Description = "Mechanical Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-300", Description = "Plumbing Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-400", Description = "Fire Protection Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+        ];
     }
 
     private static List<Project> CreateProjects()

@@ -14,11 +14,13 @@ public record SeedDataCommand : ICommand<SeedDataResult>;
 /// <param name="BidsCreated">Number of bids created</param>
 /// <param name="BidItemsCreated">Number of bid items created</param>
 /// <param name="PhasesCreated">Number of project phases created</param>
+/// <param name="CostCodesCreated">Number of cost codes created</param>
 /// <param name="Summary">Summary message of the operation</param>
 public record SeedDataResult(
     int ProjectsCreated,
     int BidsCreated,
     int BidItemsCreated,
     int PhasesCreated,
+    int CostCodesCreated,
     string Summary
 );
