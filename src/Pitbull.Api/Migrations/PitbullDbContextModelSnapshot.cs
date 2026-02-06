@@ -1086,6 +1086,87 @@ namespace Pitbull.Api.Migrations
                     b.ToTable("employees", (string)null);
                 });
 
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.ProjectAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date")
+                        .HasComment("Date assignment ends (null = ongoing)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasComment("Whether this assignment is currently active");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasComment("Optional notes about this assignment");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer")
+                        .HasComment("Employee role on this project (0=Worker, 1=Supervisor, 2=Manager)");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasComment("Date assignment becomes effective");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .HasDatabaseName("IX_project_assignments_employee");
+
+                    b.HasIndex("ProjectId")
+                        .HasDatabaseName("IX_project_assignments_project");
+
+                    b.HasIndex("EmployeeId", "IsActive")
+                        .HasDatabaseName("IX_project_assignments_employee_active");
+
+                    b.HasIndex("ProjectId", "IsActive")
+                        .HasDatabaseName("IX_project_assignments_project_active");
+
+                    b.HasIndex("EmployeeId", "ProjectId", "StartDate")
+                        .IsUnique()
+                        .HasDatabaseName("IX_project_assignments_unique");
+
+                    b.ToTable("project_assignments", (string)null);
+                });
+
             modelBuilder.Entity("Pitbull.TimeTracking.Domain.TimeEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1320,6 +1401,27 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("Supervisor");
                 });
 
+            modelBuilder.Entity("Pitbull.TimeTracking.Domain.ProjectAssignment", b =>
+                {
+                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", "Employee")
+                        .WithMany("ProjectAssignments")
+                        .HasForeignKey("EmployeeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_project_assignments_employees");
+
+                    b.HasOne("Pitbull.Projects.Domain.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_project_assignments_projects");
+
+                    b.Navigation("Employee");
+
+                    b.Navigation("Project");
+                });
+
             modelBuilder.Entity("Pitbull.TimeTracking.Domain.TimeEntry", b =>
                 {
                     b.HasOne("Pitbull.TimeTracking.Domain.Employee", "ApprovedBy")
@@ -1380,6 +1482,8 @@ namespace Pitbull.Api.Migrations
             modelBuilder.Entity("Pitbull.TimeTracking.Domain.Employee", b =>
                 {
                     b.Navigation("ApprovedTimeEntries");
+
+                    b.Navigation("ProjectAssignments");
 
                     b.Navigation("Subordinates");
 
