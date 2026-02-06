@@ -2,11 +2,13 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Api.Attributes;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
 using Pitbull.TimeTracking.Features.GetEmployee;
 using Pitbull.TimeTracking.Features.GetEmployeeProjects;
+using Pitbull.TimeTracking.Features.GetEmployeeStats;
 using Pitbull.TimeTracking.Features.ListEmployees;
 using Pitbull.TimeTracking.Features.UpdateEmployee;
 
@@ -248,6 +250,43 @@ public class EmployeesController(IMediator mediator) : ControllerBase
                 "INVALID_SUPERVISOR" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get employee statistics (hours, earnings, projects)
+    /// </summary>
+    /// <remarks>
+    /// Returns a quick summary of employee metrics.
+    /// 
+    /// Includes:
+    /// - Total hours logged (regular, OT, DT breakdown)
+    /// - Total earnings (calculated from base rate)
+    /// - Time entry counts (total, approved, pending)
+    /// - Number of projects worked on
+    /// - Date range of time entries
+    /// </remarks>
+    /// <param name="id">Employee unique identifier</param>
+    /// <returns>Employee statistics</returns>
+    /// <response code="200">Statistics returned successfully</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Employee not found</response>
+    [HttpGet("{id:guid}/stats")]
+    [Cacheable(DurationSeconds = 60)]
+    [ProducesResponseType(typeof(EmployeeStatsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetStats(Guid id)
+    {
+        var result = await mediator.Send(new GetEmployeeStatsQuery(id));
+        
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode == "EMPLOYEE_NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
         }
 
         return Ok(result.Value);
