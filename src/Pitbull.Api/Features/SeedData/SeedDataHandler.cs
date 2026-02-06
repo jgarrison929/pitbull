@@ -3,7 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Bids.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
+using Pitbull.TimeTracking.Domain;
 
 namespace Pitbull.Api.Features.SeedData;
 
@@ -38,10 +40,26 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         var projects = CreateProjects();
         var bids = CreateBids();
+        var costCodes = CreateCostCodes();
+        var employees = CreateEmployees();
 
+        db.Set<CostCode>().AddRange(costCodes);
         db.Set<Project>().AddRange(projects);
         db.Set<Bid>().AddRange(bids);
+        db.Set<Employee>().AddRange(employees);
 
+        // Save first to get IDs for relationships
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Now create project assignments linking employees to active projects
+        var activeProjects = projects.Where(p => p.Status == ProjectStatus.Active).ToList();
+        var assignments = CreateProjectAssignments(employees, activeProjects);
+        db.Set<ProjectAssignment>().AddRange(assignments);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Now create time entries for assigned employees
+        var timeEntries = CreateTimeEntries(employees, activeProjects, costCodes, assignments);
+        db.Set<TimeEntry>().AddRange(timeEntries);
         await db.SaveChangesAsync(cancellationToken);
 
         var totalPhases = projects.Sum(p => p.Phases.Count);
@@ -52,9 +70,103 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
             BidsCreated: bids.Count,
             BidItemsCreated: totalBidItems,
             PhasesCreated: totalPhases,
+            CostCodesCreated: costCodes.Count,
+            EmployeesCreated: employees.Count,
+            ProjectAssignmentsCreated: assignments.Count,
+            TimeEntriesCreated: timeEntries.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
-                     $"{totalBidItems} bid items, {totalPhases} phases"
+                     $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes, " +
+                     $"{employees.Count} employees, {assignments.Count} project assignments, " +
+                     $"{timeEntries.Count} time entries"
         ));
+    }
+
+    /// <summary>
+    /// Creates standard construction labor cost codes.
+    /// These are used for time tracking entries.
+    /// </summary>
+    private static List<CostCode> CreateCostCodes()
+    {
+        return
+        [
+            // General Conditions / Supervision
+            new CostCode { Code = "01-100", Description = "Project Management", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-200", Description = "Supervision - General Foreman", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-300", Description = "Supervision - Trade Foreman", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-400", Description = "Safety & First Aid", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "01-500", Description = "Quality Control", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Site Work
+            new CostCode { Code = "02-100", Description = "Excavation & Grading", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "02-200", Description = "Trenching & Utilities", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "02-300", Description = "Backfill & Compaction", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "02-400", Description = "Demolition", Division = "02", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Concrete
+            new CostCode { Code = "03-100", Description = "Concrete Formwork", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "03-200", Description = "Rebar & Reinforcement", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "03-300", Description = "Concrete Placement", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "03-400", Description = "Concrete Finishing", Division = "03", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Masonry
+            new CostCode { Code = "04-100", Description = "Block & Brick Masonry", Division = "04", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "04-200", Description = "Stone & Veneer", Division = "04", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Metals / Structural Steel
+            new CostCode { Code = "05-100", Description = "Structural Steel Erection", Division = "05", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "05-200", Description = "Miscellaneous Metals", Division = "05", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "05-300", Description = "Metal Deck Installation", Division = "05", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Carpentry
+            new CostCode { Code = "06-100", Description = "Rough Carpentry", Division = "06", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "06-200", Description = "Finish Carpentry", Division = "06", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "06-300", Description = "Framing", Division = "06", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Thermal & Moisture
+            new CostCode { Code = "07-100", Description = "Waterproofing", Division = "07", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "07-200", Description = "Insulation", Division = "07", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "07-300", Description = "Roofing", Division = "07", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Doors & Windows
+            new CostCode { Code = "08-100", Description = "Door Installation", Division = "08", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "08-200", Description = "Window Installation", Division = "08", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "08-300", Description = "Hardware Installation", Division = "08", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Finishes
+            new CostCode { Code = "09-100", Description = "Drywall & Framing", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-200", Description = "Painting", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-300", Description = "Flooring", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-400", Description = "Tile Work", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "09-500", Description = "Ceiling Systems", Division = "09", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // MEP (Mechanical, Electrical, Plumbing)
+            new CostCode { Code = "15-100", Description = "Plumbing Rough-In", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "15-200", Description = "Plumbing Trim", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "15-300", Description = "HVAC Rough-In", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "15-400", Description = "HVAC Trim & Startup", Division = "15", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "16-100", Description = "Electrical Rough-In", Division = "16", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "16-200", Description = "Electrical Trim", Division = "16", CostType = CostType.Labor, IsCompanyStandard = true },
+            new CostCode { Code = "16-300", Description = "Low Voltage & Data", Division = "16", CostType = CostType.Labor, IsCompanyStandard = true },
+
+            // Equipment Cost Codes
+            new CostCode { Code = "EQ-100", Description = "Crane Operation", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+            new CostCode { Code = "EQ-200", Description = "Excavator / Loader", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+            new CostCode { Code = "EQ-300", Description = "Aerial Lift / Scaffolding", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+            new CostCode { Code = "EQ-400", Description = "Concrete Equipment", Division = "EQ", CostType = CostType.Equipment, IsCompanyStandard = true },
+
+            // Material Cost Codes
+            new CostCode { Code = "MAT-100", Description = "Lumber & Sheathing", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-200", Description = "Concrete Materials", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-300", Description = "Steel & Metals", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-400", Description = "MEP Materials", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+            new CostCode { Code = "MAT-500", Description = "Finish Materials", Division = "MAT", CostType = CostType.Material, IsCompanyStandard = true },
+
+            // Subcontract Cost Codes
+            new CostCode { Code = "SUB-100", Description = "Electrical Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-200", Description = "Mechanical Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-300", Description = "Plumbing Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-400", Description = "Fire Protection Subcontract", Division = "SUB", CostType = CostType.Subcontract, IsCompanyStandard = true },
+        ];
     }
 
     private static List<Project> CreateProjects()
@@ -725,4 +837,571 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
         new() { Description = "General Conditions & Supervision", Category = BidItemCategory.Labor, Quantity = 14, UnitCost = 85_000m, TotalCost = 1_190_000m },
         new() { Description = "Contingency", Category = BidItemCategory.Other, Quantity = 1, UnitCost = 373_000m, TotalCost = 373_000m },
     ];
+
+    /// <summary>
+    /// Creates realistic construction employees with diverse roles and classifications.
+    /// </summary>
+    private static List<Employee> CreateEmployees()
+    {
+        return
+        [
+            // Management / Office Staff (Salaried)
+            new Employee
+            {
+                EmployeeNumber = "DEMO-001",
+                FirstName = "Michael",
+                LastName = "Rodriguez",
+                Email = "mrodriguez@demo.pitbull.com",
+                Phone = "(916) 555-1001",
+                Title = "Project Manager",
+                Classification = EmployeeClassification.Salaried,
+                BaseHourlyRate = 75.00m,
+                HireDate = new DateOnly(2019, 3, 15),
+                IsActive = true,
+                Notes = "PMP certified. Manages MOB and Distribution Center projects."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-002",
+                FirstName = "Jennifer",
+                LastName = "Thompson",
+                Email = "jthompson@demo.pitbull.com",
+                Phone = "(916) 555-1002",
+                Title = "Project Engineer",
+                Classification = EmployeeClassification.Salaried,
+                BaseHourlyRate = 55.00m,
+                HireDate = new DateOnly(2021, 6, 1),
+                IsActive = true,
+                Notes = "Civil engineering background. Handles submittals and RFIs."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-003",
+                FirstName = "David",
+                LastName = "Chen",
+                Email = "dchen@demo.pitbull.com",
+                Phone = "(916) 555-1003",
+                Title = "Estimator",
+                Classification = EmployeeClassification.Salaried,
+                BaseHourlyRate = 58.00m,
+                HireDate = new DateOnly(2020, 1, 10),
+                IsActive = true,
+                Notes = "Specializes in commercial and industrial estimates."
+            },
+
+            // Field Supervision (Supervisor classification)
+            new Employee
+            {
+                EmployeeNumber = "DEMO-004",
+                FirstName = "Robert",
+                LastName = "Martinez",
+                Email = "rmartinez@demo.pitbull.com",
+                Phone = "(916) 555-1004",
+                Title = "General Superintendent",
+                Classification = EmployeeClassification.Supervisor,
+                BaseHourlyRate = 62.00m,
+                HireDate = new DateOnly(2015, 8, 20),
+                IsActive = true,
+                Notes = "30+ years experience. Oversees all field operations."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-005",
+                FirstName = "Sarah",
+                LastName = "Johnson",
+                Email = "sjohnson@demo.pitbull.com",
+                Phone = "(916) 555-1005",
+                Title = "Site Superintendent",
+                Classification = EmployeeClassification.Supervisor,
+                BaseHourlyRate = 52.00m,
+                HireDate = new DateOnly(2018, 4, 12),
+                IsActive = true,
+                Notes = "Assigned to Medical Office Building project."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-006",
+                FirstName = "James",
+                LastName = "Wilson",
+                Email = "jwilson@demo.pitbull.com",
+                Phone = "(916) 555-1006",
+                Title = "Concrete Foreman",
+                Classification = EmployeeClassification.Supervisor,
+                BaseHourlyRate = 48.00m,
+                HireDate = new DateOnly(2017, 9, 5),
+                IsActive = true,
+                Notes = "Runs concrete crew. Expert in structural concrete."
+            },
+
+            // Skilled Trades (Hourly)
+            new Employee
+            {
+                EmployeeNumber = "DEMO-007",
+                FirstName = "Marcus",
+                LastName = "Brown",
+                Email = "mbrown@demo.pitbull.com",
+                Phone = "(916) 555-1007",
+                Title = "Journeyman Carpenter",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 42.00m,
+                HireDate = new DateOnly(2019, 11, 18),
+                IsActive = true,
+                Notes = "Skilled in formwork and finish carpentry."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-008",
+                FirstName = "Antonio",
+                LastName = "Garcia",
+                Email = "agarcia@demo.pitbull.com",
+                Phone = "(916) 555-1008",
+                Title = "Ironworker",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 45.00m,
+                HireDate = new DateOnly(2020, 3, 22),
+                IsActive = true,
+                Notes = "Structural steel and rebar. Certified welder."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-009",
+                FirstName = "Kevin",
+                LastName = "Nguyen",
+                Email = "knguyen@demo.pitbull.com",
+                Phone = "(916) 555-1009",
+                Title = "Equipment Operator",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 38.00m,
+                HireDate = new DateOnly(2021, 2, 8),
+                IsActive = true,
+                Notes = "Excavator, loader, and crane certified."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-010",
+                FirstName = "Carlos",
+                LastName = "Ramirez",
+                Email = "cramirez@demo.pitbull.com",
+                Phone = "(916) 555-1010",
+                Title = "Concrete Finisher",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 36.00m,
+                HireDate = new DateOnly(2020, 7, 14),
+                IsActive = true,
+                Notes = "Flatwork and tilt-up specialist."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-011",
+                FirstName = "Thomas",
+                LastName = "Anderson",
+                Email = "tanderson@demo.pitbull.com",
+                Phone = "(916) 555-1011",
+                Title = "Laborer",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 28.00m,
+                HireDate = new DateOnly(2022, 5, 1),
+                IsActive = true,
+                Notes = "General labor. Working toward carpenter apprenticeship."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-012",
+                FirstName = "Miguel",
+                LastName = "Hernandez",
+                Email = "mhernandez@demo.pitbull.com",
+                Phone = "(916) 555-1012",
+                Title = "Laborer",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 26.00m,
+                HireDate = new DateOnly(2023, 1, 9),
+                IsActive = true,
+                Notes = "General labor and cleanup."
+            },
+
+            // Apprentices
+            new Employee
+            {
+                EmployeeNumber = "DEMO-013",
+                FirstName = "Tyler",
+                LastName = "Davis",
+                Email = "tdavis@demo.pitbull.com",
+                Phone = "(916) 555-1013",
+                Title = "Carpenter Apprentice",
+                Classification = EmployeeClassification.Apprentice,
+                BaseHourlyRate = 24.00m,
+                HireDate = new DateOnly(2023, 6, 15),
+                IsActive = true,
+                Notes = "2nd year apprentice. Shows strong potential."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-014",
+                FirstName = "Ashley",
+                LastName = "Miller",
+                Email = "amiller@demo.pitbull.com",
+                Phone = "(916) 555-1014",
+                Title = "Ironworker Apprentice",
+                Classification = EmployeeClassification.Apprentice,
+                BaseHourlyRate = 22.00m,
+                HireDate = new DateOnly(2024, 1, 8),
+                IsActive = true,
+                Notes = "1st year apprentice. Learning rebar tying."
+            },
+
+            // Inactive employee for realism
+            new Employee
+            {
+                EmployeeNumber = "DEMO-015",
+                FirstName = "Brian",
+                LastName = "Taylor",
+                Email = "btaylor@demo.pitbull.com",
+                Phone = "(916) 555-1015",
+                Title = "Journeyman Carpenter",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 40.00m,
+                HireDate = new DateOnly(2018, 2, 1),
+                TerminationDate = new DateOnly(2025, 11, 15),
+                IsActive = false,
+                Notes = "Resigned to start own business. Good rehire."
+            }
+        ];
+    }
+
+    /// <summary>
+    /// Creates project assignments linking employees to active projects.
+    /// </summary>
+    private static List<ProjectAssignment> CreateProjectAssignments(
+        List<Employee> employees, 
+        List<Project> activeProjects)
+    {
+        var assignments = new List<ProjectAssignment>();
+        var now = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Find the active employees by role
+        var pm = employees.First(e => e.EmployeeNumber == "DEMO-001");
+        var pe = employees.First(e => e.EmployeeNumber == "DEMO-002");
+        var genSuper = employees.First(e => e.EmployeeNumber == "DEMO-004");
+        var siteSuper = employees.First(e => e.EmployeeNumber == "DEMO-005");
+        var concreteForeman = employees.First(e => e.EmployeeNumber == "DEMO-006");
+        var carpenter = employees.First(e => e.EmployeeNumber == "DEMO-007");
+        var ironworker = employees.First(e => e.EmployeeNumber == "DEMO-008");
+        var operator1 = employees.First(e => e.EmployeeNumber == "DEMO-009");
+        var finisher = employees.First(e => e.EmployeeNumber == "DEMO-010");
+        var laborer1 = employees.First(e => e.EmployeeNumber == "DEMO-011");
+        var laborer2 = employees.First(e => e.EmployeeNumber == "DEMO-012");
+        var apprentice1 = employees.First(e => e.EmployeeNumber == "DEMO-013");
+        var apprentice2 = employees.First(e => e.EmployeeNumber == "DEMO-014");
+
+        foreach (var project in activeProjects)
+        {
+            // PM and PE are assigned to all active projects as Manager role
+            assignments.Add(new ProjectAssignment
+            {
+                EmployeeId = pm.Id,
+                ProjectId = project.Id,
+                Role = AssignmentRole.Manager,
+                StartDate = DateOnly.FromDateTime(project.StartDate ?? DateTime.UtcNow.AddMonths(-3)),
+                IsActive = true,
+                Notes = "Project Manager"
+            });
+
+            assignments.Add(new ProjectAssignment
+            {
+                EmployeeId = pe.Id,
+                ProjectId = project.Id,
+                Role = AssignmentRole.Manager,
+                StartDate = DateOnly.FromDateTime(project.StartDate ?? DateTime.UtcNow.AddMonths(-3)),
+                IsActive = true,
+                Notes = "Project Engineer"
+            });
+
+            // General Superintendent oversees all
+            assignments.Add(new ProjectAssignment
+            {
+                EmployeeId = genSuper.Id,
+                ProjectId = project.Id,
+                Role = AssignmentRole.Supervisor,
+                StartDate = DateOnly.FromDateTime(project.StartDate ?? DateTime.UtcNow.AddMonths(-3)),
+                IsActive = true,
+                Notes = "General Superintendent"
+            });
+        }
+
+        // Site Superintendent assigned to Medical Office Building (first active project)
+        var mobProject = activeProjects.FirstOrDefault(p => p.Number == "DEMO-PRJ-2026-001");
+        if (mobProject != null)
+        {
+            assignments.Add(new ProjectAssignment
+            {
+                EmployeeId = siteSuper.Id,
+                ProjectId = mobProject.Id,
+                Role = AssignmentRole.Supervisor,
+                StartDate = DateOnly.FromDateTime(mobProject.StartDate ?? DateTime.UtcNow.AddMonths(-3)),
+                IsActive = true,
+                Notes = "Site Superintendent - MOB"
+            });
+
+            // Concrete foreman
+            assignments.Add(new ProjectAssignment
+            {
+                EmployeeId = concreteForeman.Id,
+                ProjectId = mobProject.Id,
+                Role = AssignmentRole.Supervisor,
+                StartDate = now.AddDays(-30),
+                IsActive = true,
+                Notes = "Concrete Foreman"
+            });
+
+            // Workers on MOB
+            foreach (var worker in new[] { carpenter, ironworker, finisher, laborer1, apprentice1 })
+            {
+                assignments.Add(new ProjectAssignment
+                {
+                    EmployeeId = worker.Id,
+                    ProjectId = mobProject.Id,
+                    Role = AssignmentRole.Worker,
+                    StartDate = now.AddDays(-30),
+                    IsActive = true
+                });
+            }
+        }
+
+        // Distribution Center project gets different crew
+        var dcProject = activeProjects.FirstOrDefault(p => p.Number == "DEMO-PRJ-2026-003");
+        if (dcProject != null)
+        {
+            assignments.Add(new ProjectAssignment
+            {
+                EmployeeId = concreteForeman.Id,
+                ProjectId = dcProject.Id,
+                Role = AssignmentRole.Supervisor,
+                StartDate = DateOnly.FromDateTime(dcProject.StartDate ?? DateTime.UtcNow.AddMonths(-5)),
+                IsActive = true,
+                Notes = "Concrete Foreman - tilt-up"
+            });
+
+            foreach (var worker in new[] { operator1, finisher, laborer2, apprentice2 })
+            {
+                assignments.Add(new ProjectAssignment
+                {
+                    EmployeeId = worker.Id,
+                    ProjectId = dcProject.Id,
+                    Role = AssignmentRole.Worker,
+                    StartDate = DateOnly.FromDateTime(dcProject.StartDate ?? DateTime.UtcNow.AddMonths(-5)),
+                    IsActive = true
+                });
+            }
+        }
+
+        return assignments;
+    }
+
+    /// <summary>
+    /// Creates 30 days of realistic time entries across employees and projects.
+    /// </summary>
+    private static List<TimeEntry> CreateTimeEntries(
+        List<Employee> employees,
+        List<Project> activeProjects,
+        List<CostCode> costCodes,
+        List<ProjectAssignment> assignments)
+    {
+        var entries = new List<TimeEntry>();
+        var random = new Random(42); // Fixed seed for reproducibility
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Get labor cost codes for time entries
+        var laborCostCodes = costCodes
+            .Where(c => c.CostType == CostType.Labor)
+            .ToList();
+
+        if (laborCostCodes.Count == 0) return entries;
+
+        // Get supervisor for approvals
+        var genSuper = employees.First(e => e.EmployeeNumber == "DEMO-004");
+
+        // Create entries for the last 30 days (skip weekends for most)
+        for (int dayOffset = -30; dayOffset <= 0; dayOffset++)
+        {
+            var date = today.AddDays(dayOffset);
+            var dayOfWeek = date.DayOfWeek;
+
+            // Skip most weekends (occasional Saturday work)
+            if (dayOfWeek == DayOfWeek.Sunday) continue;
+            if (dayOfWeek == DayOfWeek.Saturday && random.Next(100) > 30) continue;
+
+            foreach (var assignment in assignments.Where(a => a.IsActive && a.Role != AssignmentRole.Manager))
+            {
+                // Skip if assignment hasn't started yet
+                if (date < assignment.StartDate) continue;
+
+                var employee = employees.First(e => e.Id == assignment.EmployeeId);
+                var project = activeProjects.First(p => p.Id == assignment.ProjectId);
+
+                // Not everyone works every day (80% chance of working)
+                if (random.Next(100) > 80) continue;
+
+                // Pick appropriate cost codes based on role
+                var applicableCostCodes = GetApplicableCostCodes(employee, laborCostCodes);
+                if (applicableCostCodes.Count == 0) continue;
+
+                var costCode = applicableCostCodes[random.Next(applicableCostCodes.Count)];
+
+                // Generate hours - typically 8, sometimes more
+                decimal regularHours = 8.0m;
+                decimal overtimeHours = 0m;
+                decimal doubletimeHours = 0m;
+
+                // 30% chance of overtime on weekdays
+                if (dayOfWeek != DayOfWeek.Saturday && random.Next(100) < 30)
+                {
+                    overtimeHours = random.Next(1, 4); // 1-3 hours OT
+                }
+
+                // Saturday work is all OT
+                if (dayOfWeek == DayOfWeek.Saturday)
+                {
+                    regularHours = 0;
+                    overtimeHours = random.Next(4, 9); // 4-8 hours Saturday OT
+                }
+
+                // Determine status based on date
+                TimeEntryStatus status;
+                Guid? approvedById = null;
+                DateTime? approvedAt = null;
+
+                if (dayOffset < -14)
+                {
+                    // Old entries are approved
+                    status = TimeEntryStatus.Approved;
+                    approvedById = genSuper.Id;
+                    approvedAt = DateTime.UtcNow.AddDays(dayOffset + 2);
+                }
+                else if (dayOffset < -7)
+                {
+                    // Week before last - mostly approved, some pending
+                    status = random.Next(100) < 85 ? TimeEntryStatus.Approved : TimeEntryStatus.Submitted;
+                    if (status == TimeEntryStatus.Approved)
+                    {
+                        approvedById = genSuper.Id;
+                        approvedAt = DateTime.UtcNow.AddDays(dayOffset + 3);
+                    }
+                }
+                else if (dayOffset < -2)
+                {
+                    // Last week - mix of submitted and approved
+                    status = random.Next(100) < 50 ? TimeEntryStatus.Approved : TimeEntryStatus.Submitted;
+                    if (status == TimeEntryStatus.Approved)
+                    {
+                        approvedById = genSuper.Id;
+                        approvedAt = DateTime.UtcNow.AddDays(1);
+                    }
+                }
+                else
+                {
+                    // Recent entries - mostly drafts and submitted
+                    status = random.Next(100) < 40 ? TimeEntryStatus.Draft : TimeEntryStatus.Submitted;
+                }
+
+                var entry = new TimeEntry
+                {
+                    Date = date,
+                    EmployeeId = employee.Id,
+                    ProjectId = project.Id,
+                    CostCodeId = costCode.Id,
+                    RegularHours = regularHours,
+                    OvertimeHours = overtimeHours,
+                    DoubletimeHours = doubletimeHours,
+                    Description = GetWorkDescription(costCode, random),
+                    Status = status,
+                    ApprovedById = approvedById,
+                    ApprovedAt = approvedAt
+                };
+
+                entries.Add(entry);
+            }
+        }
+
+        return entries;
+    }
+
+    /// <summary>
+    /// Gets applicable cost codes based on employee role/title.
+    /// </summary>
+    private static List<CostCode> GetApplicableCostCodes(Employee employee, List<CostCode> laborCostCodes)
+    {
+        var title = employee.Title?.ToLower() ?? "";
+
+        if (title.Contains("superintendent") || title.Contains("foreman"))
+        {
+            return laborCostCodes.Where(c => 
+                c.Code.StartsWith("01-") // General conditions/supervision
+            ).ToList();
+        }
+
+        if (title.Contains("carpenter"))
+        {
+            return laborCostCodes.Where(c => 
+                c.Code.StartsWith("06-") || // Carpentry
+                c.Code.StartsWith("03-")    // Concrete formwork
+            ).ToList();
+        }
+
+        if (title.Contains("ironworker"))
+        {
+            return laborCostCodes.Where(c => 
+                c.Code.StartsWith("05-") || // Metals
+                c.Code.StartsWith("03-2")   // Rebar
+            ).ToList();
+        }
+
+        if (title.Contains("operator"))
+        {
+            return laborCostCodes.Where(c => 
+                c.Code.StartsWith("02-") // Site work
+            ).ToList();
+        }
+
+        if (title.Contains("finisher"))
+        {
+            return laborCostCodes.Where(c => 
+                c.Code.StartsWith("03-") // Concrete
+            ).ToList();
+        }
+
+        // Laborers and apprentices can do various work
+        return laborCostCodes.Where(c => 
+            c.Code.StartsWith("02-") || // Site work
+            c.Code.StartsWith("03-") || // Concrete
+            c.Code.StartsWith("06-")    // Carpentry
+        ).ToList();
+    }
+
+    /// <summary>
+    /// Generates realistic work descriptions based on cost code.
+    /// </summary>
+    private static string GetWorkDescription(CostCode costCode, Random random)
+    {
+        var descriptions = costCode.Code switch
+        {
+            "01-100" => new[] { "Project coordination and meetings", "Safety walk and documentation", "Subcontractor coordination" },
+            "01-200" => new[] { "Crew supervision and layout", "Quality inspection", "Schedule coordination" },
+            "01-300" => new[] { "Trade coordination", "Material staging", "Daily planning" },
+            "02-100" => new[] { "Excavation for footings", "Grading and compaction", "Utility trench work" },
+            "02-200" => new[] { "Utility trenching", "Pipe laying", "Backfill operations" },
+            "02-300" => new[] { "Backfill and compaction", "Grade work", "Site cleanup" },
+            "03-100" => new[] { "Formwork installation", "Form stripping", "Form preparation" },
+            "03-200" => new[] { "Rebar installation", "Rebar tying", "Dowel installation" },
+            "03-300" => new[] { "Concrete placement", "Pump setup and pour", "Vibrating and finishing" },
+            "03-400" => new[] { "Slab finishing", "Trowel work", "Curing application" },
+            "05-100" => new[] { "Steel erection", "Beam installation", "Connection work" },
+            "05-200" => new[] { "Misc metals installation", "Handrail work", "Embed plates" },
+            "06-100" => new[] { "Wall framing", "Blocking installation", "Sheathing work" },
+            "06-200" => new[] { "Trim installation", "Door hanging", "Cabinet install" },
+            "06-300" => new[] { "Floor framing", "Truss setting", "Deck installation" },
+            _ => new[] { "General work", "Site activities", "Project support" }
+        };
+
+        return descriptions[random.Next(descriptions.Length)];
+    }
 }

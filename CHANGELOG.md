@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 🤖 AI Features
+
+- **AI Project Insights** - Claude-powered project health analysis endpoint (`GET /api/projects/{id}/ai-summary`)
+  - Health score (0-100) with status categories (Excellent/Good/AtRisk/Critical)
+  - Executive summary with natural language overview
+  - Highlights, concerns, and actionable recommendations
+  - Key metrics analysis (hours, labor costs, budget utilization, approvals)
+  - Graceful fallback when API key not configured
+
 ### Planned
 
 - Contract management module
