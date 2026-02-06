@@ -44,9 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### 🧩 New Components
 
-- `WeeklyHoursChart` - Dashboard chart component
-- `ProjectLaborSummary` - Project detail labor card
-- `EmployeeHoursSummary` - Employee hours summary (ready for integration)
+- `WeeklyHoursChart` - Dashboard chart component (integrated)
+- `ProjectLaborSummary` - Project detail labor card (integrated)
+- `EmployeeHoursSummary` - Employee detail hours card (integrated)
 
 ### 🧪 Tests
 
