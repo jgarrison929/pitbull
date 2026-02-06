@@ -4,6 +4,7 @@ using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.RFIs.Features.CreateRfi;
+using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
@@ -38,7 +39,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(PitbullDbContext).Assembly); // C
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
-PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration);
@@ -149,6 +150,23 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 // API
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+
+// Request timeouts for security (protection against slow loris attacks)
+builder.Services.AddRequestTimeouts(options =>
+{
+    options.DefaultPolicy = new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(30),
+        TimeoutStatusCode = 408
+    };
+    
+    // Longer timeout for seed data operations (development only)
+    options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromMinutes(2),
+        TimeoutStatusCode = 408
+    });
+});
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -290,6 +308,9 @@ using (var scope = app.Services.CreateScope())
 // Global exception handling (must be first in pipeline)
 app.UseMiddleware<ExceptionMiddleware>();
 
+// Security headers (early in pipeline for all responses)
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
 // Correlation IDs (must run early so all downstream logs include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
 
@@ -321,6 +342,7 @@ app.UseSwaggerUI(c =>
 app.UseResponseCompression();
 
 app.UseSerilogRequestLogging();
+app.UseRequestTimeouts();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();

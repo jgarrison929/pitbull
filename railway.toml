@@ -1,11 +1,9 @@
-# Railway.app deployment configuration
-# https://docs.railway.app/deploy/config-as-code
-
 [build]
 builder = "dockerfile"
+dockerfilePath = "src/Pitbull.Api/Dockerfile"
+buildCommand = "docker build -f src/Pitbull.Api/Dockerfile ."
 
 [deploy]
-healthcheckPath = "/health"
+healthcheckPath = "/health/live"
 healthcheckTimeout = 300
-restartPolicyType = "on_failure"
-restartPolicyMaxRetries = 3
+startCommand = "dotnet Pitbull.Api.dll"

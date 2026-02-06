@@ -32,13 +32,13 @@ This isn't a chatbot bolted onto a project list. Pitbull's AI reads your documen
 - **Insurance Compliance**: OCR every COI, cross-reference against contract requirements. "Sub's CGL is occurrence-based but contract requires claims-made." Auto-track expirations.
 - **Sub Compliance Dashboard**: Every sub, every requirement, one view. Insurance, licenses, safety records, prevailing wage, bonding, certifications. Auto-flag before anyone steps on site with a lapsed cert.
 
-### Self-Hosted. Your Data. Your Servers.
+### Cloud-Native. Built for Tomorrow.
 
-Every competitor is cloud-only. Your data lives on someone else's servers, governed by someone else's terms, accessible only as long as you keep paying.
+The future of construction runs in the cloud. With data centers in space within the next decade and edge computing everywhere, local infrastructure is becoming obsolete except for unique edge cases.
 
-Pitbull runs on your infrastructure if you need it to. Government contractors, DOD work, contractors in regulated environments, or anyone who just wants to own their data. `docker compose up` and you're running.
+Pitbull is built cloud-first, leveraging modern cloud infrastructure for scalability, reliability, and global accessibility. Your team can access projects from anywhere, your data is backed up across multiple regions, and you get automatic updates without IT headaches.
 
-Cloud is available too. We're not anti-cloud. We're anti-lock-in.
+We handle the infrastructure so you can focus on building.
 
 ### Built for General Contractors
 
@@ -74,7 +74,7 @@ No "contact sales for a quote." No per-user pricing that punishes you for growin
 - Full AI document intelligence (submittal review, bid leveling, contract ops, redlines)
 - Insurance and sub compliance automation
 - QuickBooks/accounting integration
-- Self-hosted deployment package
+- Advanced analytics and reporting
 - Payroll, HR, Safety/compliance modules
 
 ## The Stack
@@ -82,7 +82,7 @@ No "contact sales for a quote." No per-user pricing that punishes you for growin
 - **Backend**: .NET 9, modular monolith, CQRS/MediatR, PostgreSQL with pgvector
 - **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui
 - **AI**: Docling (self-hosted OCR), Azure Document Intelligence (cloud OCR), pgvector for embeddings
-- **Deployment**: Docker, Railway (cloud), self-hosted via Docker Compose
+- **Deployment**: Cloud-native on Railway, Docker for development
 
 ## Who We Are
 
@@ -90,11 +90,11 @@ Built by a construction technology veteran with 20 years in the industry, powere
 
 ## The Pitch
 
-Construction software should work for contractors, not against them. It should be affordable, understandable, and yours. It should make PMs faster, not busier. And it should never hold your data hostage.
+Construction software should work for contractors, not against them. It should be affordable, understandable, and accessible from anywhere. It should make PMs faster, not busier. And it should leverage the best of modern cloud infrastructure.
 
 That's Pitbull.
 
-One platform. One database. Everything talks to everything. Runs on your servers if you want.
+One platform. One database. Everything talks to everything. Built for the cloud.
 
 No more duct tape.
 

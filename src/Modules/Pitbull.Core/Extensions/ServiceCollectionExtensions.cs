@@ -18,19 +18,21 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // PostgreSQL + EF Core
-        services.AddDbContext<PitbullDbContext>(options =>
+        // Multi-tenancy
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+        services.AddScoped<TenantConnectionInterceptor>();
+
+        // PostgreSQL + EF Core with tenant isolation interceptor
+        services.AddDbContext<PitbullDbContext>((serviceProvider, options) =>
             options.UseNpgsql(
                 configuration.GetConnectionString("PitbullDb"),
                 npgsql =>
                 {
                     npgsql.MigrationsAssembly("Pitbull.Api");
                     npgsql.EnableRetryOnFailure(3);
-                }));
-
-        // Multi-tenancy
-        services.AddScoped<TenantContext>();
-        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+                })
+            .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>()));
 
         // MediatR + pipeline behaviors
         services.AddMediatR(cfg =>

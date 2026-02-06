@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Features.SeedData;
 
 namespace Pitbull.Api.Controllers;
@@ -12,6 +13,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Development")]
 public class SeedDataController(IMediator mediator, IWebHostEnvironment env) : ControllerBase
@@ -36,6 +38,7 @@ public class SeedDataController(IMediator mediator, IWebHostEnvironment env) : C
     /// <response code="404">Not available (non-development environment)</response>
     /// <response code="409">Tenant already has seed data</response>
     [HttpPost]
+    [Microsoft.AspNetCore.Http.Timeouts.RequestTimeout("seed")]
     [ProducesResponseType(typeof(SeedDataResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
