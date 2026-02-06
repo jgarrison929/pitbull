@@ -18,6 +18,7 @@ COPY src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj src/Modules/Pitbull.
 COPY src/Modules/Pitbull.Documents/Pitbull.Documents.csproj src/Modules/Pitbull.Documents/
 COPY src/Modules/Pitbull.Portal/Pitbull.Portal.csproj src/Modules/Pitbull.Portal/
 COPY src/Modules/Pitbull.Billing/Pitbull.Billing.csproj src/Modules/Pitbull.Billing/
+COPY src/Modules/Pitbull.RFIs/Pitbull.RFIs.csproj src/Modules/Pitbull.RFIs/
 COPY src/Infrastructure/Pitbull.Email/Pitbull.Email.csproj src/Infrastructure/Pitbull.Email/
 COPY src/Infrastructure/Pitbull.Storage/Pitbull.Storage.csproj src/Infrastructure/Pitbull.Storage/
 COPY src/Infrastructure/Pitbull.Messaging/Pitbull.Messaging.csproj src/Infrastructure/Pitbull.Messaging/

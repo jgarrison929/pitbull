@@ -6,7 +6,7 @@ using Pitbull.RFIs.Domain;
 
 namespace Pitbull.RFIs.Features.UpdateRfi;
 
-public class UpdateRfiHandler(PitbullDbContext db) : IRequestHandler<UpdateRfiCommand, Result<RfiDto>>
+public sealed class UpdateRfiHandler(PitbullDbContext db) : IRequestHandler<UpdateRfiCommand, Result<RfiDto>>
 {
     public async Task<Result<RfiDto>> Handle(UpdateRfiCommand request, CancellationToken cancellationToken)
     {
