@@ -9,6 +9,7 @@ using Pitbull.TimeTracking.Features.GetTimeEntry;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
+using Pitbull.TimeTracking.Features.GetLaborCostReport;
 
 namespace Pitbull.Api.Controllers;
 
@@ -168,6 +169,34 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
                 "UNAUTHORIZED" => Forbid(),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get labor cost report with breakdown by project and cost code.
+    /// Uses approved time entries to calculate burdened labor costs.
+    /// </summary>
+    /// <param name="projectId">Optional: filter to a specific project</param>
+    /// <param name="startDate">Optional: filter entries from this date</param>
+    /// <param name="endDate">Optional: filter entries to this date</param>
+    /// <param name="approvedOnly">Only include approved entries (default: true)</param>
+    [HttpGet("cost-report")]
+    public async Task<IActionResult> GetCostReport(
+        [FromQuery] Guid? projectId,
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        [FromQuery] bool approvedOnly = true)
+    {
+        var query = new GetLaborCostReportQuery(projectId, startDate, endDate, approvedOnly);
+        var result = await mediator.Send(query);
+
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
         }
 
         return Ok(result.Value);

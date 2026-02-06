@@ -71,6 +71,9 @@ builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
 builder.Services.AddHttpClient("Anthropic");
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
 
+// TimeTracking services
+builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
+
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
 
