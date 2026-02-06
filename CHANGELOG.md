@@ -40,6 +40,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `GET /api/dashboard/weekly-hours` - Weekly hours aggregation for charts
 - `GET /api/projects/{id}/stats` - Fast project statistics (no AI)
+- `GET /api/employees/{id}/stats` - Fast employee statistics (hours, earnings, projects)
 
 ### 🧩 New Components
 
@@ -51,7 +52,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 10 new tests for GetWeeklyHoursHandler
 - 6 new tests for GetProjectStatsHandler
-- Test count: 217 (was 201)
+- 6 new tests for GetEmployeeStatsHandler
+- Test count: 223 (was 201)
 
 ### 📈 Stats
 
