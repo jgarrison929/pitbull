@@ -6,57 +6,54 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Calendar, CheckCircle, AlertCircle, ExternalLink } from "lucide-react";
+import {
+  Clock,
+  DollarSign,
+  TrendingUp,
+  ExternalLink,
+  Briefcase,
+  Calendar,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import api from "@/lib/api";
 
-interface TimeEntry {
-  id: string;
-  date: string;
+interface EmployeeStats {
+  employeeId: string;
+  fullName: string;
+  employeeNumber: string;
+  totalHours: number;
   regularHours: number;
   overtimeHours: number;
   doubleTimeHours: number;
-  status: number;
-  projectName?: string;
-}
-
-interface TimeEntriesResponse {
-  items: TimeEntry[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
+  totalEarnings: number;
+  timeEntryCount: number;
+  approvedEntryCount: number;
+  pendingEntryCount: number;
+  projectCount: number;
+  firstEntryDate: string | null;
+  lastEntryDate: string | null;
 }
 
 interface EmployeeHoursSummaryProps {
   employeeId: string;
 }
 
-const statusLabels: Record<number, string> = {
-  0: "Submitted",
-  1: "Approved",
-  2: "Rejected",
-};
-
-const statusColors: Record<number, string> = {
-  0: "bg-amber-100 text-amber-800",
-  1: "bg-green-100 text-green-800",
-  2: "bg-red-100 text-red-800",
-};
-
 export function EmployeeHoursSummary({ employeeId }: EmployeeHoursSummaryProps) {
-  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [stats, setStats] = useState<EmployeeStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const response = await api<TimeEntriesResponse>(
-          `/api/time-entries?employeeId=${employeeId}&pageSize=50`
+        const response = await api<EmployeeStats>(
+          `/api/employees/${employeeId}/stats`
         );
-        setEntries(response.items || []);
+        setStats(response);
       } catch (err) {
-        setError("Failed to load time entries");
-        console.error("Time entries fetch error:", err);
+        setError("Failed to load employee stats");
+        console.error("Employee stats fetch error:", err);
       } finally {
         setIsLoading(false);
       }
@@ -71,9 +68,11 @@ export function EmployeeHoursSummary({ employeeId }: EmployeeHoursSummaryProps) 
           <Skeleton className="h-5 w-32" />
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <Skeleton className="h-12" />
-            <Skeleton className="h-12" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
           </div>
         </CardContent>
       </Card>
@@ -93,22 +92,7 @@ export function EmployeeHoursSummary({ employeeId }: EmployeeHoursSummaryProps) 
     );
   }
 
-  // Calculate totals
-  const totalRegular = entries.reduce((sum, e) => sum + e.regularHours, 0);
-  const totalOT = entries.reduce((sum, e) => sum + e.overtimeHours, 0);
-  const totalDT = entries.reduce((sum, e) => sum + e.doubleTimeHours, 0);
-  const totalHours = totalRegular + totalOT + totalDT;
-
-  const approvedEntries = entries.filter((e) => e.status === 1);
-  const pendingEntries = entries.filter((e) => e.status === 0);
-
-  const formatHours = (hours: number) =>
-    new Intl.NumberFormat("en-US", {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    }).format(hours);
-
-  if (entries.length === 0) {
+  if (!stats || stats.totalHours === 0) {
     return (
       <Card>
         <CardHeader>
@@ -119,7 +103,7 @@ export function EmployeeHoursSummary({ employeeId }: EmployeeHoursSummaryProps) 
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            No time entries recorded for this employee.
+            No time entries recorded for this employee yet.
           </p>
           <Button asChild variant="outline" size="sm" className="mt-3">
             <Link href={`/time-tracking/new?employeeId=${employeeId}`}>
@@ -130,6 +114,28 @@ export function EmployeeHoursSummary({ employeeId }: EmployeeHoursSummaryProps) 
       </Card>
     );
   }
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+
+  const formatHours = (hours: number) =>
+    new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(hours);
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return "—";
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  };
 
   return (
     <Card>
@@ -147,76 +153,100 @@ export function EmployeeHoursSummary({ employeeId }: EmployeeHoursSummaryProps) 
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Total Hours */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-2xl font-bold">{formatHours(totalHours)} hrs</p>
-            <div className="flex gap-2 text-xs text-muted-foreground">
-              <span>Reg: {formatHours(totalRegular)}</span>
-              {totalOT > 0 && (
-                <span className="text-amber-600">OT: {formatHours(totalOT)}</span>
+      <CardContent>
+        {/* Main Stats Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+          {/* Total Hours */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              Total Hours
+            </div>
+            <p className="text-2xl font-bold">{formatHours(stats.totalHours)}</p>
+            <div className="text-[10px] text-muted-foreground space-x-1">
+              <span>R: {formatHours(stats.regularHours)}</span>
+              {stats.overtimeHours > 0 && (
+                <span className="text-amber-600">
+                  OT: {formatHours(stats.overtimeHours)}
+                </span>
               )}
-              {totalDT > 0 && (
-                <span className="text-red-600">DT: {formatHours(totalDT)}</span>
+              {stats.doubleTimeHours > 0 && (
+                <span className="text-red-600">
+                  DT: {formatHours(stats.doubleTimeHours)}
+                </span>
               )}
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-sm text-muted-foreground">{entries.length} entries</p>
+
+          {/* Earnings */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <DollarSign className="h-3 w-3" />
+              Earnings
+            </div>
+            <p className="text-2xl font-bold text-green-600">
+              {formatCurrency(stats.totalEarnings)}
+            </p>
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+              <TrendingUp className="h-3 w-3" />
+              {formatCurrency(
+                stats.totalHours > 0 ? stats.totalEarnings / stats.totalHours : 0
+              )}
+              /hr avg
+            </div>
+          </div>
+
+          {/* Projects */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Briefcase className="h-3 w-3" />
+              Projects
+            </div>
+            <p className="text-2xl font-bold">{stats.projectCount}</p>
+            <p className="text-[10px] text-muted-foreground">worked on</p>
+          </div>
+
+          {/* Time Entries */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              Entries
+            </div>
+            <p className="text-2xl font-bold">{stats.timeEntryCount}</p>
+            <div className="flex gap-1">
+              {stats.pendingEntryCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1 py-0 bg-amber-100 text-amber-800"
+                >
+                  <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
+                  {stats.pendingEntryCount}
+                </Badge>
+              )}
+              {stats.approvedEntryCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] px-1 py-0 bg-green-100 text-green-800"
+                >
+                  <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
+                  {stats.approvedEntryCount}
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Status Breakdown */}
-        <div className="flex gap-2">
-          {pendingEntries.length > 0 && (
-            <Badge variant="secondary" className={statusColors[0]}>
-              <AlertCircle className="h-3 w-3 mr-1" />
-              {pendingEntries.length} pending
-            </Badge>
-          )}
-          {approvedEntries.length > 0 && (
-            <Badge variant="secondary" className={statusColors[1]}>
-              <CheckCircle className="h-3 w-3 mr-1" />
-              {approvedEntries.length} approved
-            </Badge>
-          )}
-        </div>
-
-        {/* Recent entries (last 3) */}
-        {entries.length > 0 && (
-          <div className="space-y-2 pt-2 border-t">
-            <p className="text-xs font-medium text-muted-foreground">Recent Entries</p>
-            {entries.slice(0, 3).map((entry) => (
-              <div
-                key={entry.id}
-                className="flex items-center justify-between text-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-3 w-3 text-muted-foreground" />
-                  <span>{new Date(entry.date).toLocaleDateString()}</span>
-                  {entry.projectName && (
-                    <span className="text-muted-foreground text-xs truncate max-w-[100px]">
-                      {entry.projectName}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono">
-                    {formatHours(
-                      entry.regularHours + entry.overtimeHours + entry.doubleTimeHours
-                    )}
-                    h
-                  </span>
-                  <Badge
-                    variant="secondary"
-                    className={`text-[10px] px-1.5 py-0 ${statusColors[entry.status]}`}
-                  >
-                    {statusLabels[entry.status]}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+        {/* Date Range */}
+        {stats.firstEntryDate && (
+          <div className="pt-3 border-t text-xs text-muted-foreground">
+            <span>Activity: </span>
+            <span className="font-medium text-foreground">
+              {formatDate(stats.firstEntryDate)}
+            </span>
+            <span> — </span>
+            <span className="font-medium text-foreground">
+              {formatDate(stats.lastEntryDate)}
+            </span>
           </div>
         )}
       </CardContent>
