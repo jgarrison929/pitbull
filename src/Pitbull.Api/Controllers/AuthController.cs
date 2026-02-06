@@ -226,6 +226,111 @@ public class AuthController(
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
     }
 
+    /// <summary>
+    /// Change the current user's password
+    /// </summary>
+    /// <remarks>
+    /// Changes the password for the currently authenticated user.
+    /// Requires the current password for verification.
+    ///
+    /// **Rate limited:** Standard API rate limit.
+    ///
+    /// Sample request:
+    ///
+    ///     POST /api/auth/change-password
+    ///     {
+    ///         "currentPassword": "OldPass123",
+    ///         "newPassword": "NewPass456"
+    ///     }
+    ///
+    /// </remarks>
+    /// <param name="request">Current and new password</param>
+    /// <returns>Success message</returns>
+    /// <response code="200">Password changed successfully</response>
+    /// <response code="400">Validation failed or password change error</response>
+    /// <response code="401">Not authenticated or current password incorrect</response>
+    [HttpPost("change-password")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
+            return this.BadRequestError("Current password and new password are required");
+
+        if (request.NewPassword.Length < 8)
+            return this.BadRequestError("New password must be at least 8 characters");
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        
+        if (string.IsNullOrEmpty(userId))
+            return this.UnauthorizedError("User not found");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null)
+            return this.UnauthorizedError("User not found");
+
+        var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.ToDictionary(
+                e => e.Code,
+                e => new[] { e.Description }
+            );
+            return this.ValidationError(errors, "Password change failed");
+        }
+
+        return Ok(new { message = "Password changed successfully" });
+    }
+
+    /// <summary>
+    /// Get the current user's profile
+    /// </summary>
+    /// <remarks>
+    /// Returns the profile information for the currently authenticated user.
+    /// </remarks>
+    /// <returns>User profile</returns>
+    /// <response code="200">Returns user profile</response>
+    /// <response code="401">Not authenticated</response>
+    [HttpGet("me")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetProfile()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        
+        if (string.IsNullOrEmpty(userId))
+            return this.UnauthorizedError("User not found");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null)
+            return this.UnauthorizedError("User not found");
+
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+
+        // Get tenant info
+        var tenant = await db.Set<Tenant>().FindAsync(user.TenantId);
+
+        return Ok(new UserProfileResponse(
+            Id: user.Id,
+            Email: user.Email!,
+            FirstName: user.FirstName,
+            LastName: user.LastName,
+            FullName: user.FullName,
+            Roles: roles.ToArray(),
+            TenantId: user.TenantId,
+            TenantName: tenant?.Name ?? "Unknown",
+            CreatedAt: user.CreatedAt,
+            LastLoginAt: user.LastLoginAt
+        ));
+    }
+
     private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {
         var key = new SymmetricSecurityKey(
@@ -261,6 +366,30 @@ public class AuthController(
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 }
+
+/// <summary>
+/// Change password request
+/// </summary>
+/// <param name="CurrentPassword">Current password for verification</param>
+/// <param name="NewPassword">New password (min 8 chars)</param>
+public record ChangePasswordRequest(
+    string CurrentPassword,
+    string NewPassword);
+
+/// <summary>
+/// User profile response
+/// </summary>
+public record UserProfileResponse(
+    Guid Id,
+    string Email,
+    string FirstName,
+    string LastName,
+    string FullName,
+    string[] Roles,
+    Guid TenantId,
+    string TenantName,
+    DateTime CreatedAt,
+    DateTime? LastLoginAt);
 
 /// <summary>
 /// Registration request with user and optional company details

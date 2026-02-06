@@ -179,6 +179,18 @@ export interface DashboardStats {
   totalBidValue: number;
   pendingChangeOrders: number;
   lastActivityDate: string;
+  employeeCount: number;
+  pendingTimeApprovals: number;
+  recentActivity: RecentActivityItem[];
+}
+
+export interface RecentActivityItem {
+  id: string;
+  type: "project" | "bid" | "employee" | "timeentry";
+  title: string;
+  description: string;
+  timestamp: string;
+  icon?: string;
 }
 
 // Time Tracking Types

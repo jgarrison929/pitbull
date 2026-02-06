@@ -49,6 +49,9 @@ public class GetDashboardStatsHandlerTests
         stats.TotalProjectValue.Should().BeGreaterThanOrEqualTo(0);
         stats.TotalBidValue.Should().BeGreaterThanOrEqualTo(0);
         stats.PendingChangeOrders.Should().Be(0);
+        stats.EmployeeCount.Should().BeGreaterThanOrEqualTo(0);
+        stats.PendingTimeApprovals.Should().BeGreaterThanOrEqualTo(0);
+        stats.RecentActivity.Should().NotBeNull();
         stats.LastActivityDate.Should().BeBefore(DateTime.UtcNow.AddMinutes(1));
     }
 
@@ -57,9 +60,10 @@ public class GetDashboardStatsHandlerTests
     {
         // Arrange
         var date = DateTime.UtcNow;
-        var stats1 = new DashboardStatsResponse(5, 10, 500_000m, 1_000_000m, 2, date);
-        var stats2 = new DashboardStatsResponse(5, 10, 500_000m, 1_000_000m, 2, date);
-        var stats3 = new DashboardStatsResponse(3, 10, 500_000m, 1_000_000m, 2, date);
+        var activity = new List<RecentActivityItem>();
+        var stats1 = new DashboardStatsResponse(5, 10, 500_000m, 1_000_000m, 2, date, 15, 3, activity);
+        var stats2 = new DashboardStatsResponse(5, 10, 500_000m, 1_000_000m, 2, date, 15, 3, activity);
+        var stats3 = new DashboardStatsResponse(3, 10, 500_000m, 1_000_000m, 2, date, 15, 3, activity);
 
         // Assert - record value equality
         stats1.Should().Be(stats2);
