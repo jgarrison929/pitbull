@@ -22,7 +22,7 @@ public sealed class GetTimeEntryHandler(PitbullDbContext db)
             .FirstOrDefaultAsync(te => te.Id == request.TimeEntryId, cancellationToken);
 
         if (timeEntry == null)
-            return Result.Failure<TimeEntryDto>("NOT_FOUND", "Time entry not found");
+            return Result.Failure<TimeEntryDto>("Time entry not found", "NOT_FOUND");
 
         return Result.Success(TimeEntryMapper.ToDto(timeEntry));
     }
