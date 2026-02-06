@@ -9,10 +9,11 @@ namespace Pitbull.Api.Controllers;
 /// <summary>
 /// Seed data endpoint for demo and development purposes.
 /// Only available in the Development environment -- returns 404 in production.
+/// Requires Admin role.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Roles = "Admin")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Development")]

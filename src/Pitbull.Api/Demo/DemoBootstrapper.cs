@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pitbull.Api.Features.SeedData;
+using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
@@ -17,6 +18,7 @@ public sealed class DemoBootstrapper(
     PitbullDbContext db,
     TenantContext tenantContext,
     UserManager<AppUser> userManager,
+    RoleSeeder roleSeeder,
     IMediator mediator,
     IOptions<DemoOptions> options,
     ILogger<DemoBootstrapper> logger)
@@ -115,40 +117,51 @@ public sealed class DemoBootstrapper(
 
     private async Task EnsureDemoUserAsync(DemoOptions demo, Guid tenantId, CancellationToken ct)
     {
+        // Always ensure roles exist for the tenant
+        await roleSeeder.EnsureRolesForTenantAsync(tenantId, ct);
+
         if (string.IsNullOrWhiteSpace(demo.UserEmail))
             return;
 
         var user = await userManager.FindByEmailAsync(demo.UserEmail);
-        if (user is not null)
-            return;
-
-        if (string.IsNullOrWhiteSpace(demo.UserPassword))
+        var userExisted = user is not null;
+        
+        if (user is null)
         {
-            logger.LogWarning("Demo user password not set; skipping demo user creation");
-            return;
+            if (string.IsNullOrWhiteSpace(demo.UserPassword))
+            {
+                logger.LogWarning("Demo user password not set; skipping demo user creation");
+                return;
+            }
+
+            user = new AppUser
+            {
+                UserName = demo.UserEmail,
+                Email = demo.UserEmail,
+                EmailConfirmed = true,
+                FirstName = demo.UserFirstName,
+                LastName = demo.UserLastName,
+                TenantId = tenantId,
+                Type = UserType.Internal,
+                Status = UserStatus.Active
+            };
+
+            var result = await userManager.CreateAsync(user, demo.UserPassword);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                logger.LogWarning("Failed to create demo user: {Errors}", errors);
+                return;
+            }
+
+            logger.LogInformation("Created demo user {Email}", demo.UserEmail);
         }
 
-        user = new AppUser
-        {
-            UserName = demo.UserEmail,
-            Email = demo.UserEmail,
-            EmailConfirmed = true,
-            FirstName = demo.UserFirstName,
-            LastName = demo.UserLastName,
-            TenantId = tenantId,
-            Type = UserType.Internal,
-            Status = UserStatus.Active
-        };
-
-        var result = await userManager.CreateAsync(user, demo.UserPassword);
-
-        if (!result.Succeeded)
-        {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            logger.LogWarning("Failed to create demo user: {Errors}", errors);
-            return;
-        }
-
-        logger.LogInformation("Created demo user {Email}", demo.UserEmail);
+        // Always ensure demo user has Admin role
+        await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin, ct);
+        
+        if (userExisted)
+            logger.LogInformation("Ensured demo user {Email} has Admin role", demo.UserEmail);
     }
 }
