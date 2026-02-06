@@ -231,10 +231,10 @@ export default function CostCodesPage() {
       {/* Table (Desktop) */}
       <div className="hidden md:block">
         {isLoading ? (
-          <TableSkeleton rows={10} columns={5} />
+          <TableSkeleton headers={["Code", "Description", "Division", "Type", "Status"]} rows={10} />
         ) : costCodes.length === 0 ? (
           <EmptyState
-            icon={<Layers className="h-12 w-12 text-muted-foreground" />}
+            icon={Layers}
             title="No cost codes found"
             description="No cost codes match your filters. Try adjusting your search criteria."
           />
@@ -295,10 +295,10 @@ export default function CostCodesPage() {
       {/* Card List (Mobile) */}
       <div className="md:hidden">
         {isLoading ? (
-          <CardListSkeleton count={5} />
+          <CardListSkeleton rows={5} />
         ) : costCodes.length === 0 ? (
           <EmptyState
-            icon={<Layers className="h-12 w-12 text-muted-foreground" />}
+            icon={Layers}
             title="No cost codes found"
             description="No cost codes match your filters."
           />
