@@ -18,6 +18,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.1] - 2026-02-06
+
+### 📚 API Documentation
+
+- **Complete OpenAPI Documentation** - All 13 API controllers now have comprehensive Swagger docs
+  - TimeEntriesController: 9 endpoints with full request/response schemas
+  - EmployeesController: 5 endpoints with classification enum docs
+  - CostCodesController: 2 endpoints with cost type documentation
+  - ProjectAssignmentsController: 5 endpoints with role permission details
+  - Detailed XML comments with `<remarks>`, `<param>`, and `<response>` tags
+  - `[ProducesResponseType]` attributes for all response codes
+  - Sample requests and business logic explanations
+- **Swagger UI** - Interactive API explorer ready for demos and UAT
+  - Complete endpoint documentation visible at `/swagger`
+  - Try-it-out functionality for all authenticated endpoints
+  - Request/response examples for complex operations
+
+### 📈 Stats
+
+- All 13 controllers documented with OpenAPI specs
+- Swagger UI ready for investor demos and customer UAT
+- Alpha 0 Week 2 + Week 3 complete, 11 days ahead of schedule
+
+---
+
 ## [0.6.0] - 2026-02-06
 
 ### 📤 Vista Export Integration
