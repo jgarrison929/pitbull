@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import { RootErrorBoundary } from "@/components/root-error-boundary";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,8 +33,10 @@ export default function RootLayout({
       >
         <RootErrorBoundary>
           <AuthProvider>
-            {children}
-            <Toaster position="top-right" richColors />
+            <TooltipProvider>
+              {children}
+              <Toaster position="top-right" richColors />
+            </TooltipProvider>
           </AuthProvider>
         </RootErrorBoundary>
       </body>
