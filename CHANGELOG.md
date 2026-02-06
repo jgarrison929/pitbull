@@ -18,6 +18,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.2] - 2026-02-06
+
+### 🛡️ Error Handling & Polish
+
+- **Error Boundaries** - Graceful error handling throughout the app
+  - `error.tsx` - Route-level error catching with retry functionality
+  - `global-error.tsx` - Root layout error boundary for critical failures
+  - Mobile-responsive error UI with helpful recovery options
+- **Custom 404 Page** - User-friendly "not found" experience
+  - Clear messaging with helpful navigation links
+  - Quick access to Projects, Bids, Time Tracking, and Employees
+  - Consistent branding and design
+- **SEO & PWA Enhancements**
+  - Comprehensive metadata with Open Graph and Twitter cards
+  - Web manifest for PWA installability ("Add to Home Screen")
+  - Viewport configuration with theme color support
+  - robots.txt for search engine guidance
+  - Construction management SEO keywords
+
+### 📈 Stats
+
+- Production ready for UAT
+- Error handling coverage: 100% of routes
+- PWA installable on mobile devices
+
+---
+
 ## [0.6.1] - 2026-02-06
 
 ### 📚 API Documentation
