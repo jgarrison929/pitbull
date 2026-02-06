@@ -13,6 +13,7 @@ const navItems = [
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
   { label: "Employees", href: "/employees", icon: "👷" },
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
+  { label: "Labor Cost Report", href: "/reports/labor-cost", icon: "💰" },
   { label: "Settings", href: "/settings", icon: "⚙️" },
   { label: "Contracts", href: "#", icon: "📄", disabled: true },
   { label: "Documents", href: "#", icon: "📁", disabled: true },
