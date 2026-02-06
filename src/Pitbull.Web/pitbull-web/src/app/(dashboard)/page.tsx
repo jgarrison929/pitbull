@@ -18,6 +18,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { GettingStarted } from "@/components/ui/getting-started";
+import { WeeklyHoursChart } from "@/components/dashboard/weekly-hours-chart";
 import api from "@/lib/api";
 import type { DashboardStats, RecentActivityItem } from "@/lib/types";
 import { toast } from "sonner";
@@ -344,6 +345,9 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Weekly Hours Chart */}
+          <WeeklyHoursChart />
 
           {/* Portfolio Summary */}
           <div className="grid gap-4 sm:grid-cols-2">
