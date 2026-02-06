@@ -1,6 +1,7 @@
 using Pitbull.Api.Configuration;
 using Pitbull.Api.Demo;
 using Pitbull.Api.Features.SeedData;
+using Pitbull.Api.Infrastructure;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.RFIs.Features.CreateRfi;
@@ -87,6 +88,9 @@ builder.Services.AddIdentity<AppUser, AppRole>(options =>
 })
 .AddEntityFrameworkStores<PitbullDbContext>()
 .AddDefaultTokenProviders();
+
+// Role seeder for RBAC
+builder.Services.AddScoped<RoleSeeder>();
 
 // Prevent Identity cookie auth from redirecting API requests
 builder.Services.ConfigureApplicationCookie(options =>
