@@ -11,6 +11,7 @@ import { DetailPageSkeleton } from "@/components/skeletons";
 import { AiInsights } from "@/components/ui/ai-insights";
 import { HealthScoreBadge } from "@/components/ui/health-score-gauge";
 import api from "@/lib/api";
+import { ProjectLaborSummary } from "@/components/projects/project-labor-summary";
 import type { AiProjectSummary, Project } from "@/lib/types";
 import {
   projectStatusBadgeClass,
@@ -124,6 +125,9 @@ export default function ProjectDetailPage({
           {aiLoading ? "Analyzing..." : showAiInsights ? "Refresh AI Insights" : "Get AI Insights"}
         </Button>
       </div>
+
+      {/* Labor Summary */}
+      <ProjectLaborSummary projectId={id} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
