@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,7 @@ export default function NewBidPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <fieldset disabled={isSubmitting} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="bidNumber">Bid Number</Label>
@@ -168,20 +170,23 @@ export default function NewBidPage() {
                 rows={2}
               />
             </div>
+            </fieldset>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button
+              <LoadingButton
                 type="submit"
                 className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-                disabled={isSubmitting}
+                loading={isSubmitting}
+                loadingText="Creating..."
               >
-                {isSubmitting ? "Creating..." : "Create Bid"}
-              </Button>
+                Create Bid
+              </LoadingButton>
               <Button
                 type="button"
                 variant="outline"
                 className="min-h-[44px]"
                 onClick={() => router.back()}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>

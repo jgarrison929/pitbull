@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -290,20 +291,14 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <Button
+              <LoadingButton
                 type="submit"
-                disabled={isChangingPassword}
+                loading={isChangingPassword}
+                loadingText="Changing..."
                 className="bg-amber-500 hover:bg-amber-600"
               >
-                {isChangingPassword ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Changing...
-                  </>
-                ) : (
-                  "Change Password"
-                )}
-              </Button>
+                Change Password
+              </LoadingButton>
             </form>
           </CardContent>
         </Card>

@@ -17,6 +17,7 @@ import {
   TrendingUp,
   CheckCircle,
 } from "lucide-react";
+import { GettingStarted } from "@/components/ui/getting-started";
 import api from "@/lib/api";
 import type { DashboardStats, RecentActivityItem } from "@/lib/types";
 import { toast } from "sonner";
@@ -195,6 +196,9 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Getting Started Checklist - shows for new users until dismissed */}
+      {!state.isLoading && <GettingStarted stats={state.stats} />}
 
       {state.isLoading ? (
         <>

@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -238,6 +239,7 @@ export default function EditEmployeePage({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <fieldset disabled={isSubmitting} className="space-y-4">
             {/* Employee Number (read-only) */}
             <div className="space-y-2">
               <Label htmlFor="employeeNumber">Employee Number</Label>
@@ -417,21 +419,24 @@ export default function EditEmployeePage({
                 rows={3}
               />
             </div>
+            </fieldset>
 
             {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <Button
+              <LoadingButton
                 type="submit"
                 className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-                disabled={isSubmitting}
+                loading={isSubmitting}
+                loadingText="Saving..."
               >
-                {isSubmitting ? "Saving..." : "Save Changes"}
-              </Button>
+                Save Changes
+              </LoadingButton>
               <Button
                 type="button"
                 variant="outline"
                 className="min-h-[44px]"
                 onClick={() => router.back()}
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
