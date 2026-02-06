@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -118,11 +119,10 @@ export default function EmployeesPage() {
           </p>
         </div>
         <Button
+          asChild
           className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0"
-          disabled
-          title="Coming soon"
         >
-          + Add Employee
+          <Link href="/employees/new">+ Add Employee</Link>
         </Button>
       </div>
 

@@ -285,3 +285,17 @@ export interface ListTimeEntriesResult {
   pageSize: number;
   totalPages: number;
 }
+
+export interface CreateEmployeeCommand {
+  employeeNumber: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  title?: string;
+  classification: EmployeeClassification;
+  baseHourlyRate?: number;
+  hireDate?: string;
+  supervisorId?: string;
+  notes?: string;
+}
