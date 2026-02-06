@@ -15,6 +15,9 @@ public record SeedDataCommand : ICommand<SeedDataResult>;
 /// <param name="BidItemsCreated">Number of bid items created</param>
 /// <param name="PhasesCreated">Number of project phases created</param>
 /// <param name="CostCodesCreated">Number of cost codes created</param>
+/// <param name="EmployeesCreated">Number of employees created</param>
+/// <param name="ProjectAssignmentsCreated">Number of project assignments created</param>
+/// <param name="TimeEntriesCreated">Number of time entries created</param>
 /// <param name="Summary">Summary message of the operation</param>
 public record SeedDataResult(
     int ProjectsCreated,
@@ -22,5 +25,8 @@ public record SeedDataResult(
     int BidItemsCreated,
     int PhasesCreated,
     int CostCodesCreated,
+    int EmployeesCreated,
+    int ProjectAssignmentsCreated,
+    int TimeEntriesCreated,
     string Summary
 );
