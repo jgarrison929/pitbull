@@ -18,6 +18,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.4] - 2026-02-07
+
+### 🔧 Code Quality
+
+- **User Context for Soft Deletes**: `ProjectService` now captures actual user ID for `DeletedBy` field instead of hardcoded "system"
+  - Injected `IHttpContextAccessor` into service
+  - Added `GetCurrentUserId()` helper method (same pattern as DbContext)
+  - Provides proper audit trail for soft delete operations
+
+- **Improved Error Logging**: Enhanced domain event error messages in `PitbullDbContext` to include exception type
+
+### 📈 Stats
+
+- **Test count: 413** (no change - code quality fix only)
+
+---
+
 ## [0.7.3] - 2026-02-07
 
 ### 🔒 Data Validation Sprint
