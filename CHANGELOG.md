@@ -18,6 +18,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.2] - 2026-02-06
+
+### 🔧 Code Quality
+
+- Fixed 5 compiler warnings across tests and API docs
+- Added 7 tests for `ConvertBidToProjectValidator`
+- **Test count: 297** (288 unit + 9 integration)
+
+#### Warning Fixes
+- CS1998: Removed unnecessary async from sync test methods
+- CS8625: Fixed null reference warnings in mock setup
+- CS1573: Added missing CancellationToken param documentation
+
+---
+
 ## [0.7.1] - 2026-02-06
 
 ### 🧪 Test Coverage Sprint
