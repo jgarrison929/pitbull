@@ -130,17 +130,17 @@ public class ListBidsHandlerTests
         var dbName = Guid.NewGuid().ToString();
         using var db = TestDbContextFactory.Create(dbName: dbName);
         db.Set<Bid>().Add(new Bid { Name = "B1", Number = "BID-001", Owner = "Mike Reynolds", EstimatedValue = 100_000m });
-        db.Set<Bid>().Add(new Bid { Name = "B2", Number = "BID-002", Owner = "Mike", EstimatedValue = 200_000m });
+        db.Set<Bid>().Add(new Bid { Name = "B2", Number = "BID-002", Owner = "Sarah Chen", EstimatedValue = 200_000m });
         await db.SaveChangesAsync();
         var handler = new ListBidsHandler(db);
-        var query = new ListBidsQuery(Search: "demo") { Page = 1, PageSize = 10 };
+        var query = new ListBidsQuery(Search: "reynolds") { Page = 1, PageSize = 10 };
 
         // Act
         var result = await handler.Handle(query, CancellationToken.None);
 
         // Assert
         result.Value!.Items.Should().HaveCount(1);
-        result.Value.Items[0].Owner.Should().Be("Demo User");
+        result.Value.Items[0].Owner.Should().Be("Mike Reynolds");
     }
 
     [Fact]
