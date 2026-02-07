@@ -2,16 +2,16 @@
 
 ## How We Work
 
-This project is built by a human (Josh) directing an AI lead (JoshuasTrees) who coordinates a team of sub-agents. Each sub-agent is specialized, isolated, and disposable. The lead maintains continuity.
+This project uses AI-assisted development with a human lead directing AI agents who coordinate specialized sub-agents. Each sub-agent is specialized, isolated, and disposable. The lead maintains continuity.
 
 ## Roles
 
-### Lead (JoshuasTrees)
+### Lead Agent
 - Maintains the backlog (`memory/pitbull-pipeline.md`)
 - Spawns and coordinates sub-agents
-- **Reviews and merges all PRs** (Josh does not do code reviews)
-- Flags architectural decisions to Josh in plain English for approval
-- Communicates with Josh via Discord
+- **Reviews and merges all PRs**
+- Flags architectural decisions for human approval
+- Communicates via Discord/Telegram
 - Runs on 20-minute pipeline ticks via cron
 
 ### Developer
@@ -149,7 +149,6 @@ railway logs -n 20            # check deploy logs
 
 ## What NOT to Do
 
-- Don't mention Lyles Construction Group or iTransition anywhere
 - Don't use em dashes
 - Don't force push
 - Don't delete branches other agents might be using

@@ -919,7 +919,7 @@ public void Controllers_ShouldAll_HaveAuthorizeAttribute()
 
 **Mitigation:**
 
-1. Review all migrations manually before merge (Josh's responsibility per TEAM-PROTOCOL.md)
+1. Review all migrations manually before merge (human review required per TEAM-PROTOCOL.md)
 2. Add a migration linter. For PostgreSQL, consider `squawk` (open source SQL migration linter):
 
 ```yaml
