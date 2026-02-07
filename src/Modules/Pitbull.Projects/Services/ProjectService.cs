@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
@@ -19,18 +21,34 @@ public class ProjectService : IProjectService
     private readonly PitbullDbContext _db;
     private readonly IValidator<CreateProjectCommand> _createValidator;
     private readonly IValidator<UpdateProjectCommand> _updateValidator;
+    private readonly IHttpContextAccessor? _httpContextAccessor;
     private readonly ILogger<ProjectService> _logger;
 
     public ProjectService(
         PitbullDbContext db,
         IValidator<CreateProjectCommand> createValidator,
         IValidator<UpdateProjectCommand> updateValidator,
+        IHttpContextAccessor? httpContextAccessor,
         ILogger<ProjectService> logger)
     {
         _db = db;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+    }
+
+    private string GetCurrentUserId()
+    {
+        var user = _httpContextAccessor?.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) 
+                        ?? user.FindFirstValue("sub");
+            if (!string.IsNullOrEmpty(userId))
+                return userId;
+        }
+        return "system";
     }
 
     public async Task<Result<ProjectDto>> GetProjectAsync(Guid id, CancellationToken cancellationToken = default)
@@ -214,7 +232,7 @@ public class ProjectService : IProjectService
         // Perform soft delete (matches existing DeleteProjectHandler)
         project.IsDeleted = true;
         project.DeletedAt = DateTime.UtcNow;
-        project.DeletedBy = "system"; // TODO: Get from current user context
+        project.DeletedBy = GetCurrentUserId();
 
         try
         {
