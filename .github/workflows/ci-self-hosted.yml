@@ -41,10 +41,8 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+      - name: Verify .NET SDK (self-hosted)
+        run: dotnet --version
 
       - name: Restore dependencies
         run: dotnet restore
