@@ -18,6 +18,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.8] - 2026-02-07
+
+### 🔒 Security
+
+- **RLS Policies for TimeTracking**: Added missing Row-Level Security policies for `employees`, `time_entries`, and `employee_project_assignments` tables
+  - Migration `20260207120000_AddMissingRLSPolicies` ensures tenant isolation
+  - Critical fix: tables added after initial RLS migration were unprotected
+
+### 🧪 Test Coverage
+
+- **TimeEntries Integration Tests**: 5 new integration tests for TimeTracking API
+  - Authentication requirements
+  - CRUD operations
+  - Multi-tenant isolation
+  - Duplicate employee number validation
+
+### 📈 Stats
+
+- **Test count: 551** (537 unit + 14 integration)
+- +5 integration tests for TimeTracking security verification
+
+---
+
 ## [0.7.7] - 2026-02-07
 
 ### 🧪 Test Coverage

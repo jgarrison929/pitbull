@@ -9,7 +9,7 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 546 tests passing (537 unit + 9 integration)
+- ✅ **Testing:** 551 tests passing (537 unit + 14 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
 - ✅ **Modules:** Projects, Bids, TimeTracking, Employees with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
@@ -20,7 +20,8 @@ Loyal. Tenacious. Won't let go. 🐕
 - 📋 **Next:** Documentation polish, UAT preparation
 
 **Recent Wins (Feb 7, 2026):**
-- **🧪 546 Tests:** Comprehensive coverage for handlers, validators, RFI module, auth flows
+- **🧪 551 Tests:** Comprehensive coverage for handlers, validators, RFI module, auth flows
+- **🔒 RLS Security Fix:** Added missing Row-Level Security policies for TimeTracking tables
 - **📊 Vista/Viewpoint Export:** CSV export for payroll integration with date/project filtering
 - **💰 Labor Cost Reports:** Real-time cost rollup by project and cost code with expandable details
 - **🧮 Job Costing Engine:** Labor cost calculator with OT/DT rates and configurable burden
