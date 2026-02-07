@@ -18,6 +18,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.7] - 2026-02-07
+
+### 🧪 Test Coverage
+
+- **RFI Validators**: CreateRfiValidator (19 tests), UpdateRfiValidator (26 tests)
+  - ProjectId, Subject, Question, Priority validation
+  - Answer length validation for updates
+  - Status enum validation (Open/Answered/Closed)
+  - All edge cases and workflow scenarios covered
+
+### 📈 Stats
+
+- **Test count: 546** (537 unit + 9 integration)
+- +45 tests from RFI validator coverage
+
+---
+
 ## [0.7.6] - 2026-02-07
 
 ### 🛠️ Infrastructure
