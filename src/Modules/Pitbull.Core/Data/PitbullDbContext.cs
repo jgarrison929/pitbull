@@ -195,9 +195,10 @@ public class PitbullDbContext(
                     }
                     catch (Exception ex)
                     {
-                        // Log domain event handling failures but don't fail the main operation
-                        // TODO: Add proper logging when ILogger is available in DbContext
-                        Console.WriteLine($"Domain event handling failed: {ex.Message}");
+                        // Log domain event handling failures but don't fail the main operation.
+                        // Note: Console.WriteLine is intentional here as DbContext doesn't inject ILogger
+                        // to keep the constructor simple. Domain events are fire-and-forget anyway.
+                        Console.WriteLine($"[PitbullDbContext] Domain event handling failed: {ex.GetType().Name}: {ex.Message}");
                     }
                 });
             }
