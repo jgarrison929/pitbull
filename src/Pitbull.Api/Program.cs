@@ -61,17 +61,19 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.AddPitbullModule<CreateProjectCommand>();
 builder.Services.AddPitbullModule<CreateBidCommand>();
 builder.Services.AddPitbullModule<CreateRfiCommand>();
+builder.Services.AddPitbullModule<CreateTimeEntryCommand>(); // TimeTracking module
 
 // Direct service registrations (MediatR migration)
 builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
 builder.Services.AddPitbullModuleServices<CreateBidCommand>();
 builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
+builder.Services.AddPitbullModuleServices<CreateTimeEntryCommand>(); // TimeTracking module
 
 // AI Insights service (uses Claude for project analysis)
 builder.Services.AddHttpClient("Anthropic");
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
 
-// TimeTracking services
+// TimeTracking singleton services (don't require DI scope)
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
 
 // Seed data handler (lives in Api assembly)
