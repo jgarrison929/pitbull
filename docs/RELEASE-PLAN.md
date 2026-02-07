@@ -160,7 +160,7 @@ Production ready for paying customers. This is where money changes hands.
 - Billing: Stripe subscription flow works end-to-end
 - Uptime: 99.5% over a 30-day test period
 - Documentation: user guide covers all modules
-- Self-hosted: installation guide tested by someone other than Josh
+- Self-hosted: installation guide tested by someone else
 
 ---
 
@@ -217,16 +217,16 @@ The AI pipeline runs every 20 minutes. That is 72 ticks per day, 504 per week.
 - ~20% of ticks hit blockers, conflicts, or produce work that needs rework
 - ~20% of ticks are wasted (rate limits, build failures, bad assumptions)
 
-That gives us roughly **28-30 meaningful code PRs per week** from AI agents, plus Josh's nights/weekends contributions.
+That gives us roughly **28-30 meaningful code PRs per week** from AI agents, plus the lead's nights/weekends contributions.
 
 ### Sprint Structure
 
 Use **1-week sprints**, Monday to Sunday.
 
 - **Monday-Friday daytime:** AI agents work autonomously, creating PRs against develop
-- **Weeknight evenings:** Josh reviews PRs, merges good ones, closes bad ones, adjusts priorities
-- **Weekends:** Josh does hands-on development, architecture decisions, and integration work
-- **Sunday night:** Sprint review -- Josh updates pipeline backlog, picks next week's priorities
+- **Weeknight evenings:** Lead reviews PRs, merges good ones, closes bad ones, adjusts priorities
+- **Weekends:** Lead does hands-on development, architecture decisions, and integration work
+- **Sunday night:** Sprint review -- Lead updates pipeline backlog, picks next week's priorities
 
 ### Release Cadence
 
@@ -238,7 +238,7 @@ Use **1-week sprints**, Monday to Sunday.
 
 1. Freeze develop (no new merges for 24 hours)
 2. Deploy develop to staging environment
-3. Run full QA pass on staging (AI agent + Josh spot check)
+3. Run full QA pass on staging (AI agent + human spot check)
 4. If clean, merge develop -> main
 5. Tag the release: `git tag -a v0.X.0 -m "Release v0.X.0"`
 6. Railway auto-deploys main to production
@@ -270,15 +270,15 @@ Keep them short. Nobody reads long changelogs.
 
 ## Risk Register
 
-### R1: Josh Burnout
+### R1: Lead Burnout
 - **Likelihood:** High
 - **Impact:** Project stalls for weeks or months
-- **Mitigation:** Keep scope small per version. AI agents handle the grind work. Josh only does architecture, reviews, and decisions. Do not commit to external deadlines.
+- **Mitigation:** Keep scope small per version. AI agents handle the grind work. Lead only does architecture, reviews, and decisions. Do not commit to external deadlines.
 
 ### R2: AI Agent Quality Drift
 - **Likelihood:** Medium
 - **Impact:** Bad code accumulates, technical debt compounds
-- **Mitigation:** Josh must review every PR before merge. AI agents run CI checks. Weekly code quality review. If agent output quality drops, pause pipeline and fix patterns.
+- **Mitigation:** Lead must review every PR before merge. AI agents run CI checks. Weekly code quality review. If agent output quality drops, pause pipeline and fix patterns.
 
 ### R3: Railway Costs Spike
 - **Likelihood:** Low-Medium
@@ -303,12 +303,12 @@ Keep them short. Nobody reads long changelogs.
 ### R7: Scope Creep
 - **Likelihood:** High
 - **Impact:** No version ever ships
-- **Mitigation:** This document defines what's in each version. If it's not listed here, it waits. Josh is the only person who can add features to a milestone.
+- **Mitigation:** This document defines what's in each version. If it's not listed here, it waits. Lead is the only person who can add features to a milestone.
 
 ### R8: No Pilot Customer Interest
 - **Likelihood:** Medium
 - **Impact:** Building in a vacuum without feedback
-- **Mitigation:** Start networking with local GCs now (Josh's industry contacts). Have v0.2.0 ready to demo by late March. Even if nobody signs up, the feedback from showing it is invaluable.
+- **Mitigation:** Start networking with local GCs now (the lead's industry contacts). Have v0.2.0 ready to demo by late March. Even if nobody signs up, the feedback from showing it is invaluable.
 
 ---
 
@@ -323,7 +323,7 @@ Keep them short. Nobody reads long changelogs.
 
 These dates assume:
 - AI pipeline runs consistently (no extended outages)
-- Josh maintains ~10-15 hours/week
+- Lead maintains ~10-15 hours/week
 - No major architecture rewrites are needed
 - No major life events derail the schedule
 

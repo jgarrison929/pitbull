@@ -20,7 +20,7 @@ public class CreateBidHandlerTests
             EstimatedValue: 750_000m,
             BidDate: new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc),
             DueDate: new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc),
-            Owner: "Josh Garrison",
+            Owner: "Demo User",
             Description: "Overpass reconstruction bid",
             Items: null
         );
@@ -35,7 +35,7 @@ public class CreateBidHandlerTests
         result.Value.Number.Should().Be("BID-2026-001");
         result.Value.Status.Should().Be(BidStatus.Draft);
         result.Value.EstimatedValue.Should().Be(750_000m);
-        result.Value.Owner.Should().Be("Josh Garrison");
+        result.Value.Owner.Should().Be("Demo User");
         result.Value.Items.Should().BeEmpty();
     }
 

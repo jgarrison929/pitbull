@@ -42,9 +42,9 @@ This project uses AI-assisted development with a human lead directing AI agents 
 - Notes inconsistencies for developers to fix
 
 ### Twitter/Social
-- Posts build updates to @NotNahm
+- Posts build updates
 - Voice: authentic, tired builder energy, short posts
-- NEVER: mention Lyles, iTransition, employer names
+- NEVER: mention employer names or clients
 - NEVER: em dashes, hashtag spam, AI fluff
 - Max 1-2 posts per session
 
