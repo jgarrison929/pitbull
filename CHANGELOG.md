@@ -18,6 +18,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.6] - 2026-02-07
+
+### 🛠️ Infrastructure
+
+- **CI Fix for Self-Hosted Runner**: Removed `setup-dotnet` step from `ci-self-hosted.yml` that was failing with permission denied errors when trying to write to `/usr/share/dotnet`. Self-hosted runner has .NET pre-installed.
+
+### 🧪 Test Coverage
+
+- **Auth Validators**: LoginRequest (12 tests), RegisterRequest (25 tests) 
+- **TimeTracking Handlers**: Complete coverage for ListTimeEntries, ListEmployees, ApproveTimeEntry, RejectTimeEntry, GetTimeEntry, CreateEmployee handlers
+
+### 📈 Stats
+
+- **Test count: 502** (493 unit + 9 integration)
+- All CI workflows passing
+
+---
+
 ## [0.7.4] - 2026-02-07
 
 ### 🔧 Code Quality
