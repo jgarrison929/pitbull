@@ -18,6 +18,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.7.3] - 2026-02-07
+
+### 🔒 Data Validation Sprint
+
+Comprehensive FluentValidation coverage for all command types across TimeTracking, Projects, and Bids modules.
+
+#### TimeTracking Validators
+- `CreateTimeEntryValidator` - Date, hours, required field validation (18 tests)
+- `UpdateTimeEntryValidator` - Approval workflow rules, hours validation (18 tests)
+- `CreateEmployeeValidator` - Required fields, email, rate limits (22 tests)
+- `UpdateEmployeeValidator` - Termination date logic, all field validation (20 tests)
+- `AssignEmployeeToProjectValidator` - Role, date range validation (13 tests)
+- `RemoveEmployeeFromProjectValidator` - Both ID variants covered (8 tests)
+- `ApproveTimeEntryValidator` - Approver required, comments length (6 tests)
+- `RejectTimeEntryValidator` - Reason required with length limit (7 tests)
+
+#### Projects/Bids Validators
+- `DeleteProjectValidator` - Project ID required (2 tests)
+- `DeleteBidValidator` - Bid ID required (2 tests)
+
+### 📈 Stats
+
+- **Test count: 413** (404 unit + 9 integration) 🎉
+- **Hit 400 unit tests milestone!**
+- +116 new tests in one overnight session
+- All Commands in TimeTracking, Projects, and Bids modules now have validators
+
+---
+
 ## [0.7.2] - 2026-02-06
 
 ### 🔧 Code Quality
