@@ -45,6 +45,7 @@ public class UsersController(
     /// <param name="search">Optional search term for name/email</param>
     /// <param name="page">Page number (1-based)</param>
     /// <param name="pageSize">Items per page (default 20, max 100)</param>
+    /// <param name="ct">Cancellation token</param>
     /// <returns>Paginated list of users</returns>
     [HttpGet]
     [ProducesResponseType(typeof(ListUsersResult), StatusCodes.Status200OK)]
