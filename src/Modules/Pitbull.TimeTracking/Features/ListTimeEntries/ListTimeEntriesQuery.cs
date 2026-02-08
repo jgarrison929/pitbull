@@ -35,6 +35,7 @@ public sealed class ListTimeEntriesHandler(PitbullDbContext db)
     {
         var query = db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Where(te => !te.IsDeleted)
             .AsQueryable();
 
         // Apply filters
