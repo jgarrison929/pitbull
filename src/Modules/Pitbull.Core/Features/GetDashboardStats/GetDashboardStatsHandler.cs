@@ -24,8 +24,8 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
             // Get bid count and total value
             var (bidCount, totalBidValue) = await GetBidStats(cancellationToken);
 
-            // Get pending change orders count (for now return 0, will implement when change orders module exists)
-            var pendingChangeOrders = 0;
+            // Get pending change orders count from Contracts module
+            var pendingChangeOrders = await GetPendingChangeOrders(cancellationToken);
 
             // Get last activity date (most recent created/updated date across projects and bids)
             var lastActivityDate = await GetLastActivityDate(cancellationToken);
@@ -183,6 +183,22 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
         }
     }
 
+    private async Task<int> GetPendingChangeOrders(CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Status = 0 is "Pending", Status = 1 is "UnderReview" - both are pending approval
+            var count = await db.Database.SqlQueryRaw<int>(
+                "SELECT COALESCE(COUNT(*), 0) AS Value FROM change_orders WHERE \"IsDeleted\" = false AND \"Status\" IN (0, 1)"
+            ).FirstAsync(cancellationToken);
+            return count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     private async Task<List<RecentActivityItem>> GetRecentActivity(CancellationToken cancellationToken)
     {
         var activities = new List<RecentActivityItem>();
@@ -258,6 +274,29 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
                 ));
             }
 
+            // Get recent subcontracts (last 2)
+            var subcontractsSql = @"
+                SELECT ""Id"", ""SubcontractNumber"", ""SubcontractorName"", ""CreatedAt""
+                FROM subcontracts
+                WHERE ""IsDeleted"" = false
+                ORDER BY ""CreatedAt"" DESC
+                LIMIT 2";
+
+            var subcontracts = await db.Database.SqlQueryRaw<SubcontractActivityRow>(subcontractsSql)
+                .ToListAsync(cancellationToken);
+
+            foreach (var s in subcontracts)
+            {
+                activities.Add(new RecentActivityItem(
+                    Id: s.Id.ToString(),
+                    Type: "subcontract",
+                    Title: s.SubcontractorName,
+                    Description: $"Subcontract {s.SubcontractNumber} created",
+                    Timestamp: s.CreatedAt,
+                    Icon: "📄"
+                ));
+            }
+
             // Sort by timestamp descending and take top 8
             return activities
                 .OrderByDescending(a => a.Timestamp)
@@ -286,3 +325,4 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
 internal record ProjectActivityRow(Guid Id, string Name, string Number, DateTime CreatedAt);
 internal record BidActivityRow(Guid Id, string Name, string BidNumber, DateTime CreatedAt);
 internal record EmployeeActivityRow(Guid Id, string FirstName, string LastName, string EmployeeNumber, DateTime CreatedAt);
+internal record SubcontractActivityRow(Guid Id, string SubcontractNumber, string SubcontractorName, DateTime CreatedAt);
