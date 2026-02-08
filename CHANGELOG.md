@@ -10,11 +10,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Planned
 
-- Contract management module
 - Document management module
 - Billing/invoicing module
 - Client portal
 - Subdomain-based tenant resolution
+
+---
+
+## [0.8.0] - 2026-02-08
+
+### ✨ New Module: Contracts Management
+
+The Contracts module provides comprehensive subcontract lifecycle management:
+
+#### Subcontracts (#138)
+- **Subcontract entity** linked to projects with full CRUD
+- Contract values: original, current, billed, paid, retainage tracking
+- Subcontractor info: name, contact, email, phone, address
+- Scope of work and trade code classification
+- Status workflow: Draft → Active → Completed → Closed
+- Insurance/compliance tracking with expiration dates
+
+#### Change Orders (#139)
+- **Change order entity** linked to subcontracts
+- Financial impact tracking (positive/negative amounts)
+- Schedule impact (days extension)
+- Approval workflow: Pending → Approved/Rejected/Void
+- Automatic subcontract value updates on approval
+- Audit trail: submitted/approved/rejected dates, approver tracking
+
+#### Payment Applications (#140)
+- **AIA G702-style billing** with full pay app workflow
+- Auto-calculated amounts from previous applications
+- Retainage calculations matching subcontract terms
+- Status workflow: Draft → Submitted → UnderReview → Approved/PartiallyApproved/Rejected → Paid
+- Automatic subcontract totals sync when marked Paid
+- 26 new validator tests for comprehensive coverage
+
+### 📈 Stats
+
+- **Test count: 688** (674 unit + 14 integration)
+- +137 tests from Contracts module
+- 3 new API controllers: SubcontractsController, ChangeOrdersController, PaymentApplicationsController
+
+### 🗄️ Database
+
+- Migration `20260208030543_AddContractsModule` - Subcontracts and ChangeOrders
+- Migration `20260208050611_AddPaymentApplications` - Payment Applications
 
 ---
 
