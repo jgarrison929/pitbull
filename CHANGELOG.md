@@ -17,6 +17,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.3] - 2026-02-08
+
+### 🧹 Quality Improvements
+
+- **EF Core Query Diagnostics** (PR #146): Development-only diagnostics to catch performance issues early
+  - Enable detailed errors and sensitive data logging in dev
+  - Log N+1 query warnings (MultipleCollectionIncludeWarning)
+  - Throw on potential unintended Equals() usage in queries
+- **Connection Pool Configuration**: Added production-ready pool settings documentation
+  - Maximum Pool Size: 50 (prevents exhaustion)
+  - Connection Idle Lifetime: 300s
+  - Updated .env.example with pool documentation
+
+### 📊 Quality Strategy
+
+- **v0.2.0 Checklist: 4/7 items complete**
+  - ✅ N+1 query detection in dev
+  - ✅ Missing database indexes
+  - ✅ Multi-SaveChanges transaction rule (documented + verified)
+  - ✅ DB connection pool configuration
+
+---
+
 ## [0.8.2] - 2026-02-08
 
 ### 🔒 Security
