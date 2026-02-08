@@ -4,6 +4,7 @@ using Pitbull.Core.MultiTenancy;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 
 namespace Pitbull.Tests.Unit.Helpers;
@@ -24,6 +25,7 @@ public static class TestDbContextFactory
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
     }
 
     public static PitbullDbContext Create(Guid? tenantId = null, string? dbName = null)
