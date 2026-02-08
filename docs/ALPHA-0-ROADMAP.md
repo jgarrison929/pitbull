@@ -18,11 +18,11 @@
 
 ## 📊 Current Stats (Feb 8, 2026)
 
-- **Version:** v0.8.1
-- **Tests:** 733 passing (719 unit + 14 integration)
+- **Version:** v0.8.4
+- **Tests:** 782 passing (768 unit + 14 integration)
 - **CI:** Green on all branches
 - **Deployment:** Railway production healthy
-- **Modules:** Core, Projects, Bids, TimeTracking, Employees, Reports, Contracts
+- **Modules:** Core, Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts
 
 ## ✅ Completed Work
 
@@ -102,11 +102,12 @@
 | Core | 150+ | 5 | ~155 |
 | Projects | 120+ | 3 | ~123 |
 | Bids | 80+ | 2 | ~82 |
+| RFIs | 49 | - | 49 |
 | TimeTracking | 100+ | 4 | ~104 |
 | Employees | 60+ | - | ~60 |
 | Reports | 40+ | - | ~40 |
 | Contracts | 137 | - | 137 |
-| **Total** | **719** | **14** | **733** |
+| **Total** | **768** | **14** | **782** |
 
 ## 🎨 UI/UX Implemented
 
