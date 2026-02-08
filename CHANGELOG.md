@@ -17,6 +17,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.4] - 2026-02-08
+
+### 🧪 Test Coverage
+
+- **RFI Handler Tests** (PR #147): +36 comprehensive handler tests for RFI module
+  - CreateRfiHandler (14 tests): RFI creation, sequential numbering, ball-in-court defaults
+  - GetRfiHandler (5 tests): retrieval, project isolation, all field mapping
+  - ListRfisHandler (14 tests): status/priority/user filtering, search, pagination
+  - UpdateRfiHandler (18 tests): field updates, status transitions (Open->Answered->Closed), timestamp logic
+
+### 📊 Test Stats
+
+- **Total tests:** 782 (768 unit + 14 integration)
+- All modules now have comprehensive handler test coverage
+
+---
+
 ## [0.8.3] - 2026-02-08
 
 ### 🧹 Quality Improvements
