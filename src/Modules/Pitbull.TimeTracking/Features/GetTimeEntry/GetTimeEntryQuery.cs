@@ -19,7 +19,7 @@ public sealed class GetTimeEntryHandler(PitbullDbContext db)
     {
         var timeEntry = await db.Set<TimeEntry>()
             .Include(te => te.Employee)
-            .FirstOrDefaultAsync(te => te.Id == request.TimeEntryId, cancellationToken);
+            .FirstOrDefaultAsync(te => te.Id == request.TimeEntryId && !te.IsDeleted, cancellationToken);
 
         if (timeEntry == null)
             return Result.Failure<TimeEntryDto>("Time entry not found", "NOT_FOUND");
