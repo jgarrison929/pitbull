@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Bids.Features.CreateBid;
+using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 
@@ -22,6 +23,7 @@ public static class TestDbContextFactory
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
     }
 
     public static PitbullDbContext Create(Guid? tenantId = null, string? dbName = null)

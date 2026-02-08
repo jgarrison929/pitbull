@@ -19,9 +19,12 @@ public sealed class DeleteChangeOrderHandler(PitbullDbContext db)
         if (changeOrder is null)
             return Result.Failure<bool>("Change order not found", "NOT_FOUND");
 
-        // Soft delete
-        changeOrder.IsDeleted = true;
-        changeOrder.DeletedAt = DateTime.UtcNow;
+        // Can only delete Pending or Rejected change orders
+        if (changeOrder.Status == ChangeOrderStatus.Approved)
+            return Result.Failure<bool>("Cannot delete an approved change order", "CANNOT_DELETE");
+
+        // Hard delete for non-approved
+        db.Set<ChangeOrder>().Remove(changeOrder);
 
         await db.SaveChangesAsync(cancellationToken);
 
