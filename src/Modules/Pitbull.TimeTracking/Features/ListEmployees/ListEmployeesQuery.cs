@@ -33,6 +33,7 @@ public sealed class ListEmployeesHandler(PitbullDbContext db)
     {
         var query = db.Set<Employee>()
             .Include(e => e.Supervisor)
+            .Where(e => !e.IsDeleted)
             .AsQueryable();
 
         // Apply filters

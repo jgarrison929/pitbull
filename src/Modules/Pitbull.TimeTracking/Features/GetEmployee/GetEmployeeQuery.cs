@@ -19,7 +19,7 @@ public sealed class GetEmployeeHandler(PitbullDbContext db)
     {
         var employee = await db.Set<Employee>()
             .Include(e => e.Supervisor)
-            .FirstOrDefaultAsync(e => e.Id == request.EmployeeId, cancellationToken);
+            .FirstOrDefaultAsync(e => e.Id == request.EmployeeId && !e.IsDeleted, cancellationToken);
 
         if (employee is null)
             return Result.Failure<EmployeeDto>("Employee not found", "NOT_FOUND");
