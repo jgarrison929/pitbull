@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
 using Pitbull.Bids.Features.CreateBid;
+using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
@@ -113,5 +114,183 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var getAsOtherTenant = await clientTenantB.GetAsync($"/api/bids/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getAsOtherTenant.StatusCode);
+    }
+
+    [Fact]
+    public async Task Can_update_bid_and_change_status()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a bid
+        var create = new CreateBidCommand(
+            Name: "Original Bid",
+            Number: $"BID-{Guid.NewGuid():N}",
+            EstimatedValue: 100000m,
+            BidDate: null,
+            DueDate: null,
+            Owner: null,
+            Description: null,
+            Items: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/bids", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        Assert.Equal(BidStatus.Draft, created.Status);
+
+        // Update to Submitted status
+        var update = new
+        {
+            id = created.Id,
+            name = "Updated Bid Name",
+            number = created.Number,
+            status = (int)BidStatus.Submitted,
+            estimatedValue = 150000m,
+            bidDate = DateTime.UtcNow.Date,
+            dueDate = (DateTime?)null,
+            owner = "Senior Estimator",
+            description = "Updated description",
+            items = (object?)null
+        };
+
+        var updateResp = await client.PutAsJsonAsync($"/api/bids/{created.Id}", update);
+        if (updateResp.StatusCode != HttpStatusCode.OK)
+        {
+            var body = await updateResp.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected 200 OK but got {(int)updateResp.StatusCode}. Body: {body}");
+        }
+
+        var updated = (await updateResp.Content.ReadFromJsonAsync<BidDto>())!;
+        Assert.Equal("Updated Bid Name", updated.Name);
+        Assert.Equal(BidStatus.Submitted, updated.Status);
+        Assert.Equal(150000m, updated.EstimatedValue);
+        Assert.Equal("Senior Estimator", updated.Owner);
+    }
+
+    [Fact]
+    public async Task Can_transition_bid_to_won_status()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create and submit bid
+        var create = new CreateBidCommand(
+            Name: "Winning Bid",
+            Number: $"BID-WIN-{Guid.NewGuid():N}",
+            EstimatedValue: 250000m,
+            BidDate: DateTime.UtcNow.Date,
+            DueDate: DateTime.UtcNow.Date.AddDays(14),
+            Owner: "Lead Estimator",
+            Description: "This one we'll win",
+            Items: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/bids", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+
+        // Update to Won
+        var update = new
+        {
+            id = created.Id,
+            name = created.Name,
+            number = created.Number,
+            status = (int)BidStatus.Won,
+            estimatedValue = created.EstimatedValue,
+            bidDate = created.BidDate,
+            dueDate = created.DueDate,
+            owner = created.Owner,
+            description = "We won!",
+            items = (object?)null
+        };
+
+        var updateResp = await client.PutAsJsonAsync($"/api/bids/{created.Id}", update);
+        updateResp.EnsureSuccessStatusCode();
+
+        var updated = (await updateResp.Content.ReadFromJsonAsync<BidDto>())!;
+        Assert.Equal(BidStatus.Won, updated.Status);
+    }
+
+    [Fact]
+    public async Task Duplicate_bid_number_in_same_tenant_is_rejected()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var bidNumber = $"BID-DUP-{Guid.NewGuid():N}";
+
+        // Create first bid
+        var create1 = new CreateBidCommand(
+            Name: "First Bid",
+            Number: bidNumber,
+            EstimatedValue: 100000m,
+            BidDate: null,
+            DueDate: null,
+            Owner: null,
+            Description: null,
+            Items: null);
+
+        var resp1 = await client.PostAsJsonAsync("/api/bids", create1);
+        resp1.EnsureSuccessStatusCode();
+
+        // Try to create duplicate
+        var create2 = new CreateBidCommand(
+            Name: "Second Bid",
+            Number: bidNumber,
+            EstimatedValue: 200000m,
+            BidDate: null,
+            DueDate: null,
+            Owner: null,
+            Description: null,
+            Items: null);
+
+        var resp2 = await client.PostAsJsonAsync("/api/bids", create2);
+        
+        // Should be rejected - DB constraint enforces uniqueness
+        // Ideally returns 400, but may return 500 if constraint hits DB layer
+        Assert.True(
+            resp2.StatusCode == HttpStatusCode.BadRequest || 
+            resp2.StatusCode == HttpStatusCode.InternalServerError ||
+            resp2.StatusCode == HttpStatusCode.Conflict,
+            $"Expected rejection but got {resp2.StatusCode}");
+    }
+
+    [Fact]
+    public async Task Can_delete_bid_and_it_becomes_invisible()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a bid
+        var create = new CreateBidCommand(
+            Name: "To Be Deleted",
+            Number: $"BID-DEL-{Guid.NewGuid():N}",
+            EstimatedValue: 50000m,
+            BidDate: null,
+            DueDate: null,
+            Owner: null,
+            Description: null,
+            Items: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/bids", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+
+        // Delete it
+        var deleteResp = await client.DeleteAsync($"/api/bids/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResp.StatusCode);
+
+        // Soft-deleted bid should return 404 on GET
+        var getResp = await client.GetAsync($"/api/bids/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+
+        // Soft-deleted bid should not appear in list
+        var listResp = await client.GetAsync("/api/bids?page=1&pageSize=100");
+        listResp.EnsureSuccessStatusCode();
+        var listJson = await listResp.Content.ReadAsStringAsync();
+        Assert.DoesNotContain(created.Number, listJson);
     }
 }

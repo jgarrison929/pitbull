@@ -14,7 +14,7 @@ public sealed class ListChangeOrdersHandler(PitbullDbContext db)
         ListChangeOrdersQuery request, 
         CancellationToken cancellationToken)
     {
-        var query = db.Set<ChangeOrder>().AsQueryable();
+        var query = db.Set<ChangeOrder>().Where(co => !co.IsDeleted).AsQueryable();
 
         // Filter by subcontract
         if (request.SubcontractId.HasValue)

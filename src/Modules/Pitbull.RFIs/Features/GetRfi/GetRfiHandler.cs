@@ -12,7 +12,7 @@ public sealed class GetRfiHandler(PitbullDbContext db) : IRequestHandler<GetRfiQ
     {
         var rfi = await db.Set<Rfi>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == request.Id && r.ProjectId == request.ProjectId,
+            .FirstOrDefaultAsync(r => r.Id == request.Id && r.ProjectId == request.ProjectId && !r.IsDeleted,
                 cancellationToken);
 
         if (rfi is null)

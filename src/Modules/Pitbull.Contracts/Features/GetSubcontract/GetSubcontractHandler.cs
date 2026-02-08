@@ -15,7 +15,7 @@ public sealed class GetSubcontractHandler(PitbullDbContext db)
     {
         var subcontract = await db.Set<Subcontract>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == request.Id && !s.IsDeleted, cancellationToken);
 
         if (subcontract is null)
             return Result.Failure<SubcontractDto>("Subcontract not found", "NOT_FOUND");
