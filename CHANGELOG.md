@@ -17,6 +17,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.6] - 2026-02-08
+
+### 🐛 Bug Fixes
+
+- **TimeTracking Soft-Delete Filtering**: Completes consistency across ALL modules
+  - `GetEmployeeHandler`, `ListEmployeesHandler` now filter deleted records
+  - `GetTimeEntryHandler`, `ListTimeEntriesHandler` now filter deleted records
+  - All 5 modules now have proper soft-delete filtering
+
+---
+
 ## [0.8.5] - 2026-02-08
 
 ### 🐛 Bug Fixes
