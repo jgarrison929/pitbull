@@ -17,6 +17,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.1] - 2026-02-08
+
+### 🧪 Test Coverage
+
+- **Contracts Handler Tests**: +45 comprehensive handler tests
+  - GetChangeOrderHandler (4 tests): retrieve, not found, approval/rejection details
+  - ListChangeOrdersHandler (9 tests): filtering, search, pagination, ordering
+  - UpdateChangeOrderHandler (11 tests): field updates, duplicate detection, status transitions
+  - GetPaymentApplicationHandler (4 tests): retrieve, not found, approval/paid details
+  - ListPaymentApplicationsHandler (8 tests): filtering, pagination, ordering
+  - UpdatePaymentApplicationHandler (9 tests): recalculation, status transitions, subcontract sync
+
+### 📚 Documentation
+
+- **README.md**: Updated test count (733), Contracts module status
+- **RfisController**: Added full OpenAPI documentation (ProducesResponseType, XML docs, examples)
+- 16/16 API controllers now have comprehensive Swagger documentation
+
+### 📈 Stats
+
+- **Test count: 733** (719 unit + 14 integration)
+- +45 handler tests from PR #141
+
+---
+
 ## [0.8.0] - 2026-02-08
 
 ### ✨ New Module: Contracts Management
