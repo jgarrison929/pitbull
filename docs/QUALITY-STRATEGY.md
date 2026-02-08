@@ -1145,7 +1145,7 @@ Thresholds:
 | 5 | ~~Deep health checks with DB connectivity (3.1)~~ | ~~P0~~ | ✅ Done |
 | 6 | ~~Correlation ID middleware (5.1)~~ | ~~P0~~ | ✅ Done |
 | 7 | ~~Populate CreatedBy/UpdatedBy audit fields (7.1)~~ | ~~P0~~ | ✅ Done |
-| 8 | Optimistic concurrency via xmin (1.2) | P1 | 2 hours |
+| 8 | ~~Optimistic concurrency via xmin (1.2)~~ | ~~P1~~ | ✅ Done (PR #143) |
 | 9 | ~~Mass assignment architecture test (2.1)~~ | ~~P1~~ | ✅ Done |
 | 10 | ~~Cap pageSize server-side (4.3)~~ | ~~P1~~ | ✅ Done |
 | 11 | ~~Dependabot configuration (6.4)~~ | ~~P1~~ | ✅ Done |

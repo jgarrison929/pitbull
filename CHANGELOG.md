@@ -17,6 +17,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.8.2] - 2026-02-08
+
+### 🔒 Security
+
+- **Optimistic Concurrency for TimeTracking**: Added PostgreSQL `xmin` concurrency tokens to prevent "last write wins" data corruption
+  - Employee entity: concurrent edit protection
+  - TimeEntry entity: concurrent edit protection
+  - ProjectAssignment entity: concurrent edit protection
+  - CostCode entity: concurrent edit protection
+
+### 📊 Quality Milestone
+
+- **v0.1.0 Quality Checklist: 13/13 COMPLETE** ✅
+  - All P0 security items done
+  - All P1 architecture items done
+  - Foundation ready for Beta Demo phase
+
+### 🗄️ Database
+
+- Migration `20260208071202_AddOptimisticConcurrencyToTimeTracking`
+- Uses PostgreSQL system column `xmin` (no additional storage overhead)
+
+---
+
 ## [0.8.1] - 2026-02-08
 
 ### 🧪 Test Coverage
