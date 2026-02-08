@@ -62,6 +62,31 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
+      - name: Check migrations for dangerous patterns
+        run: |
+          echo "::group::Migration Safety Check"
+          DANGEROUS_PATTERNS=0
+          
+          # Check for RenameColumn or RenameTable (dangerous in production - can break queries)
+          if grep -rE "(RenameColumn|RenameTable)" src/Pitbull.Api/Migrations/*.cs 2>/dev/null; then
+            echo "::error::RenameColumn/RenameTable detected - this can break production queries!"
+            DANGEROUS_PATTERNS=1
+          fi
+          
+          # Check for Sql() with DROP or TRUNCATE (manual SQL that destroys data)
+          if grep -rE 'Sql\s*\(\s*"[^"]*\b(DROP|TRUNCATE)\b' src/Pitbull.Api/Migrations/*.cs 2>/dev/null; then
+            echo "::error::Manual DROP/TRUNCATE SQL detected - review carefully!"
+            DANGEROUS_PATTERNS=1
+          fi
+          
+          if [ $DANGEROUS_PATTERNS -eq 1 ]; then
+            echo "::error::Dangerous migration patterns detected. Review carefully before merging."
+            exit 1
+          else
+            echo "✅ No dangerous migration patterns detected"
+          fi
+          echo "::endgroup::"
+
       - name: Run Unit Tests
         run: dotnet test tests/Pitbull.Tests.Unit --no-build --configuration Release --verbosity normal
 
