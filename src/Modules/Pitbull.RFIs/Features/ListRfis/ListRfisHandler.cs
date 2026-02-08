@@ -12,7 +12,7 @@ public sealed class ListRfisHandler(PitbullDbContext db) : IRequestHandler<ListR
     {
         var query = db.Set<Rfi>()
             .AsNoTracking()
-            .Where(r => r.ProjectId == request.ProjectId)
+            .Where(r => r.ProjectId == request.ProjectId && !r.IsDeleted)
             .AsQueryable();
 
         if (request.Status.HasValue)

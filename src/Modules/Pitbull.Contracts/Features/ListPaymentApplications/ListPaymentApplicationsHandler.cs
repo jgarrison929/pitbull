@@ -14,7 +14,7 @@ public sealed class ListPaymentApplicationsHandler(PitbullDbContext db)
         ListPaymentApplicationsQuery request, 
         CancellationToken cancellationToken)
     {
-        var query = db.Set<PaymentApplication>().AsQueryable();
+        var query = db.Set<PaymentApplication>().Where(pa => !pa.IsDeleted).AsQueryable();
 
         if (request.SubcontractId.HasValue)
             query = query.Where(pa => pa.SubcontractId == request.SubcontractId.Value);

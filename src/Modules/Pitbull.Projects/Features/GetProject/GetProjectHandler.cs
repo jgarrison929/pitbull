@@ -15,7 +15,7 @@ public sealed class GetProjectHandler(PitbullDbContext db)
     {
         var project = await db.Set<Project>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == request.Id && !p.IsDeleted, cancellationToken);
 
         if (project is null)
             return Result.Failure<ProjectDto>("Project not found", "NOT_FOUND");

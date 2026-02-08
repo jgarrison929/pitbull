@@ -15,7 +15,7 @@ public sealed class GetChangeOrderHandler(PitbullDbContext db)
         CancellationToken cancellationToken)
     {
         var changeOrder = await db.Set<ChangeOrder>()
-            .FirstOrDefaultAsync(co => co.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(co => co.Id == request.Id && !co.IsDeleted, cancellationToken);
 
         if (changeOrder is null)
             return Result.Failure<ChangeOrderDto>("Change order not found", "NOT_FOUND");

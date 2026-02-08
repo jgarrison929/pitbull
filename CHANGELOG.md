@@ -8,6 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- **Soft-Delete Filtering for Bids**: Fixed data integrity issue where soft-deleted bids remained visible
+  - `GetBidHandler` now returns 404 for deleted bids
+  - `ListBidsHandler` excludes deleted bids from results
+  - Ensures proper data lifecycle management
+
+### 🧪 Test Coverage
+
+- **Bids Integration Tests**: +4 tests for complete CRUD coverage
+  - Update and status transitions (Draft → Submitted → Won)
+  - Duplicate bid number rejection
+  - Soft-delete verification (deleted bids return 404)
+- **RFI Integration Tests**: +6 tests for full API lifecycle
+  - Auth check, CRUD, status workflow, numbering, multi-tenant isolation
+- **Contracts Integration Tests**: +14 tests for full API coverage
+  - Subcontracts, Change Orders, Payment Applications
+- **Total tests:** 806 (768 unit + 38 integration)
+
+### 🏗️ Infrastructure
+
+- **CI Migration Safety**: Added automated checks for dangerous migration patterns
+  - Detects `DROP TABLE`, `DROP COLUMN`, `DELETE FROM` without safeguards
+  - Prevents accidental data loss in production deployments
+
 ### Planned
 
 - Document management module
