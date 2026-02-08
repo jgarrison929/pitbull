@@ -135,10 +135,9 @@ public sealed class GetProjectHandlerTests
         // Act
         var result = await handler.Handle(query, CancellationToken.None);
 
-        // Assert - soft-deleted projects should still be found by ID
-        // (deletion filtering is typically at the list level)
-        // If you want different behavior, update handler and this test
-        result.IsSuccess.Should().BeTrue();
+        // Assert - soft-deleted projects should return NOT_FOUND
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
     [Fact]
