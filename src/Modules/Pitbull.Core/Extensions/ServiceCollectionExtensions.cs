@@ -24,6 +24,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<TenantConnectionInterceptor>();
 
         // PostgreSQL + EF Core with tenant isolation interceptor
+        // Connection pool settings are configured in the connection string:
+        // - "Maximum Pool Size=50" - prevents connection exhaustion under load
+        // - "Connection Idle Lifetime=300" - closes stale connections after 5 min
+        // - "Pooling=true" - enables connection reuse (default)
+        // See appsettings.Production.json for recommended production values.
         services.AddDbContext<PitbullDbContext>((serviceProvider, options) =>
             options.UseNpgsql(
                 configuration.GetConnectionString("PitbullDb"),
