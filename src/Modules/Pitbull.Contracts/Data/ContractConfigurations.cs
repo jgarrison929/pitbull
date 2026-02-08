@@ -52,8 +52,8 @@ public class PaymentApplicationConfiguration : IEntityTypeConfiguration<PaymentA
             .ValueGeneratedOnAddOrUpdate()
             .IsConcurrencyToken();
 
-        // Soft delete filter
-        builder.HasQueryFilter(x => !x.IsDeleted);
+        // Note: Global tenant+soft-delete filter is applied in PitbullDbContext for all BaseEntity types
+        // Do not add a local HasQueryFilter here as it would override the tenant isolation
 
         // Relationship
         builder.HasOne(x => x.Subcontract)

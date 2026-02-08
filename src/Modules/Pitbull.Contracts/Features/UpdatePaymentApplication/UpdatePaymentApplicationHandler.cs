@@ -47,6 +47,9 @@ public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db)
             payApp.CurrentPaymentDue = payApp.TotalEarnedLessRetainage - payApp.LessPreviousCertificates;
         }
 
+        // Track old amounts for delta calculation on Paid apps
+        var oldApprovedAmount = payApp.ApprovedAmount ?? 0m;
+
         // Update fields
         payApp.Status = request.Status;
         payApp.ApprovedBy = request.ApprovedBy;
@@ -54,6 +57,7 @@ public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db)
         payApp.InvoiceNumber = request.InvoiceNumber;
         payApp.CheckNumber = request.CheckNumber;
         payApp.Notes = request.Notes;
+        var oldCurrentPaymentDue = payApp.CurrentPaymentDue;
 
         // Set dates on status transitions
         if (oldStatus != newStatus)
@@ -78,6 +82,19 @@ public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db)
                     subcontract.RetainageHeld = payApp.TotalRetainage;
                     break;
             }
+        }
+        else if (newStatus == PaymentApplicationStatus.Paid)
+        {
+            // Already Paid - sync amount changes as deltas
+            var newApprovedAmount = request.ApprovedAmount ?? payApp.CurrentPaymentDue;
+            var billedDelta = payApp.CurrentPaymentDue - oldCurrentPaymentDue;
+            var paidDelta = newApprovedAmount - oldApprovedAmount;
+            
+            if (billedDelta != 0)
+                subcontract.BilledToDate += billedDelta;
+            if (paidDelta != 0)
+                subcontract.PaidToDate += paidDelta;
+            subcontract.RetainageHeld = payApp.TotalRetainage;
         }
 
         await db.SaveChangesAsync(cancellationToken);
