@@ -15,6 +15,7 @@ public sealed class ListBidsHandler(PitbullDbContext db)
         var query = db.Set<Bid>()
             .AsNoTracking()
             .Include(b => b.Items)
+            .Where(b => !b.IsDeleted)
             .AsQueryable();
 
         if (request.Status.HasValue)

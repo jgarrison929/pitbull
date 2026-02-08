@@ -15,7 +15,7 @@ public sealed class GetBidHandler(PitbullDbContext db)
         var bid = await db.Set<Bid>()
             .AsNoTracking()
             .Include(b => b.Items)
-            .FirstOrDefaultAsync(b => b.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(b => b.Id == request.Id && !b.IsDeleted, cancellationToken);
 
         if (bid is null)
             return Result.Failure<BidDto>("Bid not found", "NOT_FOUND");

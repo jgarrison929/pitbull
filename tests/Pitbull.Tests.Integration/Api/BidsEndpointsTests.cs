@@ -258,7 +258,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Can_delete_bid()
+    public async Task Can_delete_bid_and_it_becomes_invisible()
     {
         await db.ResetAsync();
 
@@ -283,14 +283,14 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var deleteResp = await client.DeleteAsync($"/api/bids/{created.Id}");
         Assert.Equal(HttpStatusCode.NoContent, deleteResp.StatusCode);
 
-        // Note: Soft delete - bid may still be visible via direct GET
-        // List should filter out deleted bids
+        // Soft-deleted bid should return 404 on GET
+        var getResp = await client.GetAsync($"/api/bids/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+
+        // Soft-deleted bid should not appear in list
         var listResp = await client.GetAsync("/api/bids?page=1&pageSize=100");
         listResp.EnsureSuccessStatusCode();
         var listJson = await listResp.Content.ReadAsStringAsync();
-        
-        // The deleted bid should NOT appear in list (soft delete filter)
-        // But this test documents current behavior - if it appears, that's a bug to fix
-        // For now, just verify delete returns 204
+        Assert.DoesNotContain(created.Number, listJson);
     }
 }
