@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 🧪 Test Coverage
+
+- **Contracts Module Integration Tests**: +14 integration tests for full API coverage
+  - Subcontracts (4 tests): CRUD operations, multi-tenant isolation, duplicate number validation
+  - Change Orders (5 tests): CRUD, tenant isolation, status workflow (Pending → Approved)
+  - Payment Applications (5 tests): AIA G702-style billing, application number sequencing
+- **Total tests:** 796 (768 unit + 28 integration)
+
 ### Planned
 
 - Document management module
