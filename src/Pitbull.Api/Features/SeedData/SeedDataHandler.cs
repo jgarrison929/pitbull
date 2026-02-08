@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Bids.Domain;
+using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -62,8 +63,19 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<TimeEntry>().AddRange(timeEntries);
         await db.SaveChangesAsync(cancellationToken);
 
+        // Create subcontracts with change orders and payment applications
+        var subcontracts = CreateSubcontracts(projects);
+        db.Set<Subcontract>().AddRange(subcontracts);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Create payment applications for executed subcontracts
+        var paymentApplications = CreatePaymentApplications(subcontracts);
+        db.Set<PaymentApplication>().AddRange(paymentApplications);
+        await db.SaveChangesAsync(cancellationToken);
+
         var totalPhases = projects.Sum(p => p.Phases.Count);
         var totalBidItems = bids.Sum(b => b.Items.Count);
+        var totalChangeOrders = subcontracts.Sum(s => s.ChangeOrders.Count);
 
         return Result.Success(new SeedDataResult(
             ProjectsCreated: projects.Count,
@@ -74,10 +86,14 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
             EmployeesCreated: employees.Count,
             ProjectAssignmentsCreated: assignments.Count,
             TimeEntriesCreated: timeEntries.Count,
+            SubcontractsCreated: subcontracts.Count,
+            ChangeOrdersCreated: totalChangeOrders,
+            PaymentApplicationsCreated: paymentApplications.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
                      $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes, " +
                      $"{employees.Count} employees, {assignments.Count} project assignments, " +
-                     $"{timeEntries.Count} time entries"
+                     $"{timeEntries.Count} time entries, {subcontracts.Count} subcontracts, " +
+                     $"{totalChangeOrders} change orders, {paymentApplications.Count} payment applications"
         ));
     }
 
@@ -1403,5 +1419,449 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
         };
 
         return descriptions[random.Next(descriptions.Length)];
+    }
+
+    /// <summary>
+    /// Creates realistic subcontracts with change orders for the demo projects.
+    /// </summary>
+    private static List<Subcontract> CreateSubcontracts(List<Project> projects)
+    {
+        var now = DateTime.UtcNow;
+        var subcontracts = new List<Subcontract>();
+
+        // Medical Office Building project subcontracts
+        var mobProject = projects.FirstOrDefault(p => p.Number == "DEMO-PRJ-2026-001");
+        if (mobProject != null)
+        {
+            // HVAC Subcontract - In Progress with change orders
+            var hvacSub = new Subcontract
+            {
+                ProjectId = mobProject.Id,
+                SubcontractNumber = "SC-2026-001",
+                SubcontractorName = "Valley Mechanical Systems Inc.",
+                SubcontractorContact = "Tony Marchetti",
+                SubcontractorEmail = "tmarchetti@valleymech.com",
+                SubcontractorPhone = "(916) 555-2100",
+                SubcontractorAddress = "2847 Industrial Way, Sacramento, CA 95828",
+                ScopeOfWork = "Complete HVAC system installation including rooftop units, VAV boxes, ductwork, controls, and balancing. Medical-grade air handling for surgical suites.",
+                TradeCode = "15 - Mechanical",
+                OriginalValue = 2_100_000m,
+                CurrentValue = 2_245_000m, // After approved COs
+                BilledToDate = 420_000m,
+                PaidToDate = 378_000m,
+                RetainagePercent = 10m,
+                RetainageHeld = 42_000m,
+                ExecutionDate = now.AddMonths(-3),
+                StartDate = now.AddMonths(-2),
+                CompletionDate = now.AddMonths(5),
+                Status = SubcontractStatus.InProgress,
+                InsuranceExpirationDate = now.AddMonths(10),
+                InsuranceCurrent = true,
+                LicenseNumber = "CA-MECH-847291",
+                Notes = "Strong performance. On schedule.",
+                ChangeOrders = 
+                [
+                    new ChangeOrder
+                    {
+                        ChangeOrderNumber = "CO-001",
+                        SubcontractId = Guid.Empty, // Will be set by EF
+                        Title = "UV-C Air Purification Addition",
+                        Description = "Add UV-C air purification system to surgical suite AHUs per owner request. Value engineering offset with duct insulation material change.",
+                        Reason = "Owner requested enhancement",
+                        Amount = 85_000m,
+                        Status = ChangeOrderStatus.Approved,
+                        SubmittedDate = now.AddMonths(-1),
+                        ApprovedDate = now.AddDays(-20),
+                        ApprovedBy = "Mike Rodriguez",
+                        DaysExtension = 0
+                    },
+                    new ChangeOrder
+                    {
+                        ChangeOrderNumber = "CO-002",
+                        SubcontractId = Guid.Empty,
+                        Title = "MRI Suite Exhaust Relocation",
+                        Description = "Additional exhaust for relocated MRI suite. Negotiated from $72K to $60K. Minor schedule impact acceptable.",
+                        Reason = "Design change",
+                        Amount = 60_000m,
+                        Status = ChangeOrderStatus.Approved,
+                        SubmittedDate = now.AddDays(-15),
+                        ApprovedDate = now.AddDays(-5),
+                        ApprovedBy = "Mike Rodriguez",
+                        DaysExtension = 3
+                    },
+                    new ChangeOrder
+                    {
+                        ChangeOrderNumber = "CO-003",
+                        SubcontractId = Guid.Empty,
+                        Title = "Suite 220 Ductwork Extension",
+                        Description = "Extend ductwork to new tenant improvement area (Suite 220). Awaiting owner approval for TI scope.",
+                        Reason = "Scope addition",
+                        Amount = 45_000m,
+                        Status = ChangeOrderStatus.Pending,
+                        SubmittedDate = now.AddDays(-3),
+                        DaysExtension = 5
+                    }
+                ]
+            };
+            subcontracts.Add(hvacSub);
+
+            // Electrical Subcontract - In Progress
+            var elecSub = new Subcontract
+            {
+                ProjectId = mobProject.Id,
+                SubcontractNumber = "SC-2026-002",
+                SubcontractorName = "Precision Electric Company",
+                SubcontractorContact = "Maria Santos",
+                SubcontractorEmail = "msantos@precisionelec.com",
+                SubcontractorPhone = "(916) 555-2200",
+                SubcontractorAddress = "4521 Power Line Rd, West Sacramento, CA 95691",
+                ScopeOfWork = "Complete electrical installation including main switchgear, distribution, lighting, fire alarm, low voltage, and medical equipment connections.",
+                TradeCode = "16 - Electrical",
+                OriginalValue = 1_850_000m,
+                CurrentValue = 1_920_000m,
+                BilledToDate = 370_000m,
+                PaidToDate = 333_000m,
+                RetainagePercent = 10m,
+                RetainageHeld = 37_000m,
+                ExecutionDate = now.AddMonths(-3),
+                StartDate = now.AddMonths(-2),
+                CompletionDate = now.AddMonths(6),
+                Status = SubcontractStatus.InProgress,
+                InsuranceExpirationDate = now.AddMonths(8),
+                InsuranceCurrent = true,
+                LicenseNumber = "CA-ELEC-C10-582914",
+                Notes = "Excellent quality work. Proactive on coordination.",
+                ChangeOrders =
+                [
+                    new ChangeOrder
+                    {
+                        ChangeOrderNumber = "CO-001",
+                        SubcontractId = Guid.Empty,
+                        Title = "Generator Upsizing",
+                        Description = "Generator upsizing from 500kW to 750kW per code review. Required for new emergency power calculations.",
+                        Reason = "Code requirement",
+                        Amount = 70_000m,
+                        Status = ChangeOrderStatus.Approved,
+                        SubmittedDate = now.AddMonths(-2),
+                        ApprovedDate = now.AddDays(-45),
+                        ApprovedBy = "Mike Rodriguez",
+                        DaysExtension = 0
+                    }
+                ]
+            };
+            subcontracts.Add(elecSub);
+
+            // Plumbing - In Progress
+            var plumbSub = new Subcontract
+            {
+                ProjectId = mobProject.Id,
+                SubcontractNumber = "SC-2026-003",
+                SubcontractorName = "Capitol Plumbing & Medical Gas",
+                SubcontractorContact = "Dave Richardson",
+                SubcontractorEmail = "drichardson@capitolplumb.com",
+                SubcontractorPhone = "(916) 555-2300",
+                SubcontractorAddress = "1890 Commerce Circle, Sacramento, CA 95822",
+                ScopeOfWork = "Complete plumbing installation including domestic water, sanitary, storm, medical gas (O2, N2O, vacuum, air), and natural gas.",
+                TradeCode = "15 - Plumbing",
+                OriginalValue = 1_200_000m,
+                CurrentValue = 1_200_000m,
+                BilledToDate = 180_000m,
+                PaidToDate = 162_000m,
+                RetainagePercent = 10m,
+                RetainageHeld = 18_000m,
+                ExecutionDate = now.AddMonths(-3),
+                StartDate = now.AddMonths(-1),
+                CompletionDate = now.AddMonths(7),
+                Status = SubcontractStatus.InProgress,
+                InsuranceExpirationDate = now.AddMonths(14),
+                InsuranceCurrent = true,
+                LicenseNumber = "CA-PLUMB-C36-471829",
+                Notes = "Medical gas certified. Clean safety record."
+            };
+            subcontracts.Add(plumbSub);
+
+            // Drywall - Draft (not yet issued)
+            var drywallSub = new Subcontract
+            {
+                ProjectId = mobProject.Id,
+                SubcontractNumber = "SC-2026-004",
+                SubcontractorName = "Sierra Drywall & Acoustical",
+                SubcontractorContact = "Keith Morrison",
+                SubcontractorEmail = "kmorrison@sierradrywall.com",
+                SubcontractorPhone = "(916) 555-2400",
+                ScopeOfWork = "Metal stud framing, drywall installation and finishing, acoustic ceiling installation.",
+                TradeCode = "09 - Finishes",
+                OriginalValue = 680_000m,
+                CurrentValue = 680_000m,
+                RetainagePercent = 10m,
+                CompletionDate = now.AddMonths(10),
+                Status = SubcontractStatus.Draft,
+                Notes = "Final scope review pending. Targeting April start."
+            };
+            subcontracts.Add(drywallSub);
+        }
+
+        // Distribution Center project subcontracts
+        var dcProject = projects.FirstOrDefault(p => p.Number == "DEMO-PRJ-2026-003");
+        if (dcProject != null)
+        {
+            // Fire Protection - In Progress
+            var fireSub = new Subcontract
+            {
+                ProjectId = dcProject.Id,
+                SubcontractNumber = "SC-2026-005",
+                SubcontractorName = "Advanced Fire Protection Inc.",
+                SubcontractorContact = "Robert Kim",
+                SubcontractorEmail = "rkim@advancedfire.com",
+                SubcontractorPhone = "(209) 555-3100",
+                SubcontractorAddress = "7842 Industrial Blvd, Stockton, CA 95206",
+                ScopeOfWork = "ESFR sprinkler system for 450,000 SF warehouse. Includes fire pump, underground fire main, and NFPA 13 compliant system.",
+                TradeCode = "15 - Fire Protection",
+                OriginalValue = 1_800_000m,
+                CurrentValue = 1_925_000m,
+                BilledToDate = 960_000m,
+                PaidToDate = 864_000m,
+                RetainagePercent = 10m,
+                RetainageHeld = 96_000m,
+                ExecutionDate = now.AddMonths(-5),
+                StartDate = now.AddMonths(-4),
+                CompletionDate = now.AddMonths(2),
+                Status = SubcontractStatus.InProgress,
+                InsuranceExpirationDate = now.AddMonths(6),
+                InsuranceCurrent = true,
+                LicenseNumber = "CA-FIRE-C16-392847",
+                Notes = "Ahead of schedule. Great coordination with steel.",
+                ChangeOrders =
+                [
+                    new ChangeOrder
+                    {
+                        ChangeOrderNumber = "CO-001",
+                        SubcontractId = Guid.Empty,
+                        Title = "In-Rack Sprinkler Addition",
+                        Description = "Add in-rack sprinklers for high-pile storage area. Owner-directed for Amazon storage requirements.",
+                        Reason = "Owner requirement - increased storage height",
+                        Amount = 125_000m,
+                        Status = ChangeOrderStatus.Approved,
+                        SubmittedDate = now.AddMonths(-2),
+                        ApprovedDate = now.AddMonths(-1).AddDays(-15),
+                        ApprovedBy = "Mike Rodriguez",
+                        DaysExtension = 0
+                    }
+                ]
+            };
+            subcontracts.Add(fireSub);
+
+            // Concrete/Site - Executed, substantial work complete
+            var siteSub = new Subcontract
+            {
+                ProjectId = dcProject.Id,
+                SubcontractNumber = "SC-2026-006",
+                SubcontractorName = "Pacific Sitework & Paving",
+                SubcontractorContact = "Jennifer Walsh",
+                SubcontractorEmail = "jwalsh@pacificsitework.com",
+                SubcontractorPhone = "(209) 555-3200",
+                SubcontractorAddress = "3920 Industrial Parkway, Tracy, CA 95376",
+                ScopeOfWork = "Site grading, underground utilities, concrete paving (truck court, parking), striping, and landscaping.",
+                TradeCode = "02 - Site Work",
+                OriginalValue = 3_500_000m,
+                CurrentValue = 3_650_000m,
+                BilledToDate = 2_920_000m,
+                PaidToDate = 2_628_000m,
+                RetainagePercent = 10m,
+                RetainageHeld = 292_000m,
+                ExecutionDate = now.AddMonths(-5),
+                StartDate = now.AddMonths(-5),
+                CompletionDate = now.AddMonths(3),
+                Status = SubcontractStatus.InProgress,
+                InsuranceExpirationDate = now.AddMonths(7),
+                InsuranceCurrent = true,
+                LicenseNumber = "CA-GEN-A-847291",
+                Notes = "80% complete. Paving in final phase.",
+                ChangeOrders =
+                [
+                    new ChangeOrder
+                    {
+                        ChangeOrderNumber = "CO-001",
+                        SubcontractId = Guid.Empty,
+                        Title = "EV Charging Infrastructure",
+                        Description = "Additional 40 EV charging station conduit runs. EV infrastructure for delivery vans.",
+                        Reason = "Owner sustainability requirement",
+                        Amount = 150_000m,
+                        Status = ChangeOrderStatus.Approved,
+                        SubmittedDate = now.AddMonths(-3),
+                        ApprovedDate = now.AddMonths(-2).AddDays(-20),
+                        ApprovedBy = "Mike Rodriguez",
+                        DaysExtension = 0
+                    }
+                ]
+            };
+            subcontracts.Add(siteSub);
+
+            // Steel Erection - Complete
+            var steelSub = new Subcontract
+            {
+                ProjectId = dcProject.Id,
+                SubcontractNumber = "SC-2026-007",
+                SubcontractorName = "Delta Steel Erectors",
+                SubcontractorContact = "Mike Huang",
+                SubcontractorEmail = "mhuang@deltasteel.com",
+                SubcontractorPhone = "(209) 555-3300",
+                SubcontractorAddress = "8100 Port Road, Stockton, CA 95206",
+                ScopeOfWork = "Structural steel erection, metal deck installation, and miscellaneous iron.",
+                TradeCode = "05 - Metals",
+                OriginalValue = 4_200_000m,
+                CurrentValue = 4_200_000m,
+                BilledToDate = 4_200_000m,
+                PaidToDate = 3_780_000m,
+                RetainagePercent = 10m,
+                RetainageHeld = 420_000m,
+                ExecutionDate = now.AddMonths(-4),
+                StartDate = now.AddMonths(-3),
+                CompletionDate = now.AddDays(-30),
+                ActualCompletionDate = now.AddDays(-35),
+                Status = SubcontractStatus.Complete,
+                InsuranceExpirationDate = now.AddMonths(5),
+                InsuranceCurrent = true,
+                LicenseNumber = "CA-STRUCT-C51-293847",
+                Notes = "Completed 5 days early. Excellent safety record. Retainage pending final inspection."
+            };
+            subcontracts.Add(steelSub);
+        }
+
+        // Completed Bridge project - closed out subcontract
+        var bridgeProject = projects.FirstOrDefault(p => p.Number == "DEMO-PRJ-2025-004");
+        if (bridgeProject != null)
+        {
+            var bridgeSub = new Subcontract
+            {
+                ProjectId = bridgeProject.Id,
+                SubcontractNumber = "SC-2025-001",
+                SubcontractorName = "Golden State Bridge Works",
+                SubcontractorContact = "Frank DeLuca",
+                SubcontractorEmail = "fdeluca@gsbridgeworks.com",
+                SubcontractorPhone = "(916) 555-4100",
+                SubcontractorAddress = "1200 Bridge Way, West Sacramento, CA 95691",
+                ScopeOfWork = "Seismic retrofit including column jacketing, bearing replacement, and deck demolition/replacement.",
+                TradeCode = "03 - Concrete",
+                OriginalValue = 5_200_000m,
+                CurrentValue = 5_480_000m,
+                BilledToDate = 5_480_000m,
+                PaidToDate = 5_480_000m, // All paid including retainage
+                RetainagePercent = 5m, // Caltrans standard
+                RetainageHeld = 0m, // Released
+                ExecutionDate = now.AddMonths(-14),
+                StartDate = now.AddMonths(-13),
+                CompletionDate = now.AddMonths(-2),
+                ActualCompletionDate = now.AddMonths(-2),
+                Status = SubcontractStatus.ClosedOut,
+                InsuranceExpirationDate = now.AddMonths(10),
+                InsuranceCurrent = true,
+                LicenseNumber = "CA-BRIDGE-A-183729",
+                Notes = "Project complete. Final lien release received. Excellent performance.",
+                ChangeOrders =
+                [
+                    new ChangeOrder
+                    {
+                        ChangeOrderNumber = "CO-001",
+                        SubcontractId = Guid.Empty,
+                        Title = "Additional Column Jacketing",
+                        Description = "Additional column jacketing due to unforeseen deterioration. Caltrans approved time extension.",
+                        Reason = "Unforeseen condition",
+                        Amount = 280_000m,
+                        Status = ChangeOrderStatus.Approved,
+                        SubmittedDate = now.AddMonths(-10),
+                        ApprovedDate = now.AddMonths(-9),
+                        ApprovedBy = "Mike Rodriguez",
+                        DaysExtension = 14
+                    }
+                ]
+            };
+            subcontracts.Add(bridgeSub);
+        }
+
+        return subcontracts;
+    }
+
+    /// <summary>
+    /// Creates payment applications for subcontracts that are in progress or complete.
+    /// </summary>
+    private static List<PaymentApplication> CreatePaymentApplications(List<Subcontract> subcontracts)
+    {
+        var now = DateTime.UtcNow;
+        var payApps = new List<PaymentApplication>();
+        var appNumber = 1;
+
+        foreach (var sub in subcontracts.Where(s => 
+            s.Status is SubcontractStatus.InProgress or SubcontractStatus.Complete or SubcontractStatus.ClosedOut))
+        {
+            // Calculate number of pay apps based on billed amount
+            var monthsActive = sub.BilledToDate > 0 
+                ? Math.Max(1, (int)Math.Ceiling((double)(sub.BilledToDate / sub.CurrentValue) * 6))
+                : 0;
+
+            if (monthsActive == 0) continue;
+
+            var billedRemaining = sub.BilledToDate;
+            var paidRemaining = sub.PaidToDate;
+
+            for (int i = 1; i <= monthsActive; i++)
+            {
+                var isLast = i == monthsActive;
+                var periodEnd = now.AddMonths(-monthsActive + i);
+                
+                // Distribute amounts across pay apps
+                var scheduledValue = sub.CurrentValue / monthsActive;
+                var completedWork = isLast ? billedRemaining : Math.Min(scheduledValue, billedRemaining);
+                billedRemaining -= completedWork;
+
+                var retainageAmount = completedWork * (sub.RetainagePercent / 100);
+                var netPayable = completedWork - retainageAmount;
+
+                var previouslyPaid = sub.PaidToDate - paidRemaining;
+                var currentPayment = isLast ? paidRemaining : Math.Min(netPayable, paidRemaining);
+                paidRemaining -= currentPayment;
+
+                var status = currentPayment > 0 
+                    ? PaymentApplicationStatus.Paid 
+                    : (isLast ? PaymentApplicationStatus.Approved : PaymentApplicationStatus.Paid);
+
+                var workCompletedToDate = sub.BilledToDate - billedRemaining;
+                var totalRetainage = workCompletedToDate * (sub.RetainagePercent / 100);
+                var totalEarnedLessRetainage = workCompletedToDate * (1 - sub.RetainagePercent / 100);
+                
+                payApps.Add(new PaymentApplication
+                {
+                    SubcontractId = sub.Id,
+                    ApplicationNumber = i,
+                    PeriodStart = periodEnd.AddMonths(-1).AddDays(1),
+                    PeriodEnd = periodEnd,
+                    SubmittedDate = periodEnd.AddDays(5),
+                    Status = status,
+                    ScheduledValue = scheduledValue,
+                    WorkCompletedPrevious = workCompletedToDate - completedWork,
+                    WorkCompletedThisPeriod = completedWork,
+                    WorkCompletedToDate = workCompletedToDate,
+                    StoredMaterials = 0,
+                    TotalCompletedAndStored = workCompletedToDate,
+                    RetainagePercent = sub.RetainagePercent,
+                    RetainageThisPeriod = retainageAmount,
+                    RetainagePrevious = totalRetainage - retainageAmount,
+                    TotalRetainage = totalRetainage,
+                    TotalEarnedLessRetainage = totalEarnedLessRetainage,
+                    LessPreviousCertificates = previouslyPaid,
+                    CurrentPaymentDue = currentPayment,
+                    ApprovedAmount = completedWork,
+                    ApprovedBy = status == PaymentApplicationStatus.Paid ? "Mike Rodriguez" : null,
+                    ApprovedDate = status == PaymentApplicationStatus.Paid ? periodEnd.AddDays(10) : null,
+                    PaidDate = status == PaymentApplicationStatus.Paid ? periodEnd.AddDays(25) : null,
+                    CheckNumber = status == PaymentApplicationStatus.Paid ? $"CHK-{10000 + appNumber}" : null,
+                    Notes = $"Pay App #{i} for {sub.SubcontractorName}"
+                });
+
+                appNumber++;
+            }
+        }
+
+        return payApps;
     }
 }
