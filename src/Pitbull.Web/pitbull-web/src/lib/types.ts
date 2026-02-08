@@ -403,3 +403,126 @@ export interface ProjectMetrics {
   budgetUtilization?: number | null;
   dailyAverageHours?: number | null;
 }
+
+// Contracts Module Types
+export enum SubcontractStatus {
+  Draft = 0,
+  PendingApproval = 1,
+  Issued = 2,
+  Executed = 3,
+  InProgress = 4,
+  Complete = 5,
+  ClosedOut = 6,
+  Terminated = 7,
+  OnHold = 8,
+}
+
+export enum ChangeOrderStatus {
+  Pending = 0,
+  UnderReview = 1,
+  Approved = 2,
+  Rejected = 3,
+  Withdrawn = 4,
+  Void = 5,
+}
+
+export enum PaymentApplicationStatus {
+  Draft = 0,
+  Submitted = 1,
+  UnderReview = 2,
+  Approved = 3,
+  PartiallyApproved = 4,
+  Rejected = 5,
+  Paid = 6,
+  Void = 7,
+}
+
+export interface Subcontract {
+  id: string;
+  projectId: string;
+  projectName?: string | null;
+  projectNumber?: string | null;
+  subcontractNumber: string;
+  subcontractorName: string;
+  subcontractorContact?: string | null;
+  subcontractorEmail?: string | null;
+  subcontractorPhone?: string | null;
+  subcontractorAddress?: string | null;
+  scopeOfWork: string;
+  tradeCode?: string | null;
+  originalValue: number;
+  currentValue: number;
+  billedToDate: number;
+  paidToDate: number;
+  retainagePercent: number;
+  retainageHeld: number;
+  executionDate?: string | null;
+  startDate?: string | null;
+  completionDate?: string | null;
+  actualCompletionDate?: string | null;
+  status: SubcontractStatus;
+  insuranceExpirationDate?: string | null;
+  insuranceCurrent: boolean;
+  licenseNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface ChangeOrder {
+  id: string;
+  subcontractId: string;
+  subcontractNumber?: string | null;
+  subcontractorName?: string | null;
+  changeOrderNumber: string;
+  title: string;
+  description: string;
+  reason?: string | null;
+  amount: number;
+  daysExtension?: number | null;
+  status: ChangeOrderStatus;
+  submittedDate?: string | null;
+  approvedDate?: string | null;
+  rejectedDate?: string | null;
+  approvedBy?: string | null;
+  rejectedBy?: string | null;
+  rejectionReason?: string | null;
+  referenceNumber?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface PaymentApplication {
+  id: string;
+  subcontractId: string;
+  subcontractNumber?: string | null;
+  subcontractorName?: string | null;
+  applicationNumber: number;
+  periodStart: string;
+  periodEnd: string;
+  scheduledValue: number;
+  workCompletedPrevious: number;
+  workCompletedThisPeriod: number;
+  workCompletedToDate: number;
+  storedMaterials: number;
+  totalCompletedAndStored: number;
+  retainagePercent: number;
+  retainageThisPeriod: number;
+  retainagePrevious: number;
+  totalRetainage: number;
+  totalEarnedLessRetainage: number;
+  lessPreviousCertificates: number;
+  currentPaymentDue: number;
+  status: PaymentApplicationStatus;
+  submittedDate?: string | null;
+  reviewedDate?: string | null;
+  approvedDate?: string | null;
+  paidDate?: string | null;
+  approvedBy?: string | null;
+  approvedAmount?: number | null;
+  invoiceNumber?: string | null;
+  checkNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
