@@ -10,11 +10,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### 🧪 Test Coverage
 
+- **RFI Module Integration Tests**: +6 integration tests for full API coverage
+  - Auth check (401 without authentication)
+  - CRUD operations (create, get, list) with authentication
+  - Status workflow (Open → Answered)
+  - RFI number auto-increment within project
+  - Multi-tenant isolation (tenant B cannot see tenant A's RFIs)
+  - List filtering by status
 - **Contracts Module Integration Tests**: +14 integration tests for full API coverage
   - Subcontracts (4 tests): CRUD operations, multi-tenant isolation, duplicate number validation
   - Change Orders (5 tests): CRUD, tenant isolation, status workflow (Pending → Approved)
   - Payment Applications (5 tests): AIA G702-style billing, application number sequencing
-- **Total tests:** 796 (768 unit + 28 integration)
+- **Total tests:** 802 (768 unit + 34 integration)
 
 ### Planned
 
