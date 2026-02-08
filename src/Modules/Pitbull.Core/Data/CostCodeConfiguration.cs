@@ -51,5 +51,11 @@ public class CostCodeConfiguration : IEntityTypeConfiguration<CostCode>
             
         // Soft delete
         builder.HasQueryFilter(cc => !cc.IsDeleted);
+
+        // Optimistic concurrency using PostgreSQL xmin (prevents concurrent edit conflicts)
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }
