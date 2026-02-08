@@ -18,7 +18,7 @@ public sealed class GetSubcontractHandler(PitbullDbContext db)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         if (subcontract is null)
-            return Result.Failure<SubcontractDto>("Subcontract not found");
+            return Result.Failure<SubcontractDto>("Subcontract not found", "NOT_FOUND");
 
         return Result.Success(CreateSubcontractHandler.MapToDto(subcontract));
     }

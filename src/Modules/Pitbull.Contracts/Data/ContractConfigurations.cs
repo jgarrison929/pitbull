@@ -4,6 +4,65 @@ using Pitbull.Contracts.Domain;
 
 namespace Pitbull.Contracts.Data;
 
+public class PaymentApplicationConfiguration : IEntityTypeConfiguration<PaymentApplication>
+{
+    public void Configure(EntityTypeBuilder<PaymentApplication> builder)
+    {
+        builder.ToTable("payment_applications");
+
+        builder.HasKey(x => x.Id);
+
+        // Unique constraint: one application number per subcontract
+        builder.HasIndex(x => new { x.SubcontractId, x.ApplicationNumber }).IsUnique();
+        builder.HasIndex(x => x.Status);
+        builder.HasIndex(x => x.PeriodEnd);
+
+        builder.Property(x => x.ApplicationNumber).IsRequired();
+        builder.Property(x => x.PeriodStart).IsRequired();
+        builder.Property(x => x.PeriodEnd).IsRequired();
+
+        // Money fields with precision
+        builder.Property(x => x.ScheduledValue).HasPrecision(18, 2);
+        builder.Property(x => x.WorkCompletedPrevious).HasPrecision(18, 2);
+        builder.Property(x => x.WorkCompletedThisPeriod).HasPrecision(18, 2);
+        builder.Property(x => x.WorkCompletedToDate).HasPrecision(18, 2);
+        builder.Property(x => x.StoredMaterials).HasPrecision(18, 2);
+        builder.Property(x => x.TotalCompletedAndStored).HasPrecision(18, 2);
+        builder.Property(x => x.RetainagePercent).HasPrecision(5, 2);
+        builder.Property(x => x.RetainageThisPeriod).HasPrecision(18, 2);
+        builder.Property(x => x.RetainagePrevious).HasPrecision(18, 2);
+        builder.Property(x => x.TotalRetainage).HasPrecision(18, 2);
+        builder.Property(x => x.TotalEarnedLessRetainage).HasPrecision(18, 2);
+        builder.Property(x => x.LessPreviousCertificates).HasPrecision(18, 2);
+        builder.Property(x => x.CurrentPaymentDue).HasPrecision(18, 2);
+        builder.Property(x => x.ApprovedAmount).HasPrecision(18, 2);
+
+        builder.Property(x => x.Status)
+            .HasConversion<string>()
+            .HasMaxLength(50);
+
+        builder.Property(x => x.ApprovedBy).HasMaxLength(200);
+        builder.Property(x => x.Notes).HasMaxLength(4000);
+        builder.Property(x => x.InvoiceNumber).HasMaxLength(100);
+        builder.Property(x => x.CheckNumber).HasMaxLength(100);
+
+        // Optimistic concurrency (PostgreSQL xmin)
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+
+        // Note: Global tenant+soft-delete filter is applied in PitbullDbContext for all BaseEntity types
+        // Do not add a local HasQueryFilter here as it would override the tenant isolation
+
+        // Relationship
+        builder.HasOne(x => x.Subcontract)
+            .WithMany()
+            .HasForeignKey(x => x.SubcontractId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}
+
 public class SubcontractConfiguration : IEntityTypeConfiguration<Subcontract>
 {
     public void Configure(EntityTypeBuilder<Subcontract> builder)
