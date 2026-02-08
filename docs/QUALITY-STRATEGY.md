@@ -1157,7 +1157,7 @@ Thresholds:
 | # | Issue | Risk Level | Effort |
 |---|-------|-----------|--------|
 | 14 | N+1 query detection in dev (4.1) | P2 | 1 hour |
-| 15 | Missing database indexes (4.2) | P2 | 1 hour |
+| 15 | ~~Missing database indexes (4.2)~~ | ~~P2~~ | ✅ Done (verified in Hour 2) |
 | 16 | Sentry error tracking (5.3) | P2 | 2 hours |
 | 17 | Alerting with UptimeRobot (5.4) | P2 | 30 min |
 | 18 | Migration safety checks (6.3) | P2 | 2 hours |
