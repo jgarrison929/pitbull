@@ -90,5 +90,11 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasForeignKey(te => te.ApprovedById)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_time_entries_approved_by");
+
+        // Optimistic concurrency using PostgreSQL xmin (prevents concurrent edit conflicts)
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }
