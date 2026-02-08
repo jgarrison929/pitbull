@@ -15,7 +15,7 @@ public sealed class GetPaymentApplicationHandler(PitbullDbContext db)
         CancellationToken cancellationToken)
     {
         var payApp = await db.Set<PaymentApplication>()
-            .FirstOrDefaultAsync(pa => pa.Id == request.Id, cancellationToken);
+            .FirstOrDefaultAsync(pa => pa.Id == request.Id && !pa.IsDeleted, cancellationToken);
 
         if (payApp is null)
             return Result.Failure<PaymentApplicationDto>("Payment application not found", "NOT_FOUND");

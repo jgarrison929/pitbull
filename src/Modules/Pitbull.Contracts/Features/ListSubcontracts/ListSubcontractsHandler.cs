@@ -13,7 +13,7 @@ public sealed class ListSubcontractsHandler(PitbullDbContext db)
     public async Task<Result<PagedResult<SubcontractDto>>> Handle(
         ListSubcontractsQuery request, CancellationToken cancellationToken)
     {
-        var query = db.Set<Subcontract>().AsNoTracking();
+        var query = db.Set<Subcontract>().AsNoTracking().Where(s => !s.IsDeleted);
 
         // Filter by project
         if (request.ProjectId.HasValue)
