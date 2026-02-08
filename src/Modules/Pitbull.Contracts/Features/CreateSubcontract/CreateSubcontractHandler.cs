@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -11,6 +12,18 @@ public sealed class CreateSubcontractHandler(PitbullDbContext db)
     public async Task<Result<SubcontractDto>> Handle(
         CreateSubcontractCommand request, CancellationToken cancellationToken)
     {
+        // Check for duplicate subcontract number within same project
+        var exists = await db.Set<Subcontract>()
+            .AnyAsync(s => s.ProjectId == request.ProjectId 
+                && s.SubcontractNumber == request.SubcontractNumber, cancellationToken);
+        
+        if (exists)
+        {
+            return Result.Failure<SubcontractDto>(
+                $"Subcontract number '{request.SubcontractNumber}' already exists for this project.",
+                "DUPLICATE_NUMBER");
+        }
+
         var subcontract = new Subcontract
         {
             ProjectId = request.ProjectId,
