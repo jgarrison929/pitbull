@@ -1160,7 +1160,7 @@ Thresholds:
 | 15 | ~~Missing database indexes (4.2)~~ | ~~P2~~ | ✅ Done (verified in Hour 2) |
 | 16 | Sentry error tracking (5.3) | P2 | 2 hours |
 | 17 | Alerting with UptimeRobot (5.4) | P2 | 30 min |
-| 18 | Migration safety checks (6.3) | P2 | 2 hours |
+| 18 | ~~Migration safety checks (6.3)~~ | ~~P2~~ | ✅ Done (PR #148 - CI check for dangerous patterns) |
 | 19 | ~~Multi-SaveChanges transaction rule (1.5)~~ | ~~P2~~ | ✅ Done (documented in BEST-PRACTICES.md, code verified clean) |
 | 20 | ~~DB connection pool configuration (3.2)~~ | ~~P2~~ | ✅ Done (connection pool config merged)
 
