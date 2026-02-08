@@ -76,5 +76,11 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .WithOne(te => te.ApprovedBy)
             .HasForeignKey(te => te.ApprovedById)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Optimistic concurrency using PostgreSQL xmin (prevents concurrent edit conflicts)
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }

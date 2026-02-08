@@ -67,5 +67,11 @@ public class ProjectAssignmentConfiguration : IEntityTypeConfiguration<ProjectAs
             .HasForeignKey(pa => pa.ProjectId)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_project_assignments_projects");
+
+        // Optimistic concurrency using PostgreSQL xmin (prevents concurrent edit conflicts)
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
     }
 }
