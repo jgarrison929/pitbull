@@ -1139,7 +1139,7 @@ Thresholds:
 | # | Issue | Risk Level | Effort |
 |---|-------|-----------|--------|
 | 1 | ~~Fix SQL interpolation in TenantMiddleware (1.1)~~ | ~~P0~~ | ✅ Done |
-| 2 | Add tenant query filter for defense-in-depth (1.4) | P0 | 2 hours |
+| 2 | ~~Add tenant query filter for defense-in-depth (1.4)~~ | ~~P0~~ | ✅ Done |
 | 3 | ~~JWT secret validation on startup (2.2)~~ | ~~P0~~ | ✅ Done |
 | 4 | ~~Rate limiting on auth endpoints (2.3)~~ | ~~P0~~ | ✅ Done |
 | 5 | ~~Deep health checks with DB connectivity (3.1)~~ | ~~P0~~ | ✅ Done |
