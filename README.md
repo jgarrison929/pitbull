@@ -9,9 +9,9 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 551 tests passing (537 unit + 14 integration)
+- ✅ **Testing:** 733 tests passing (719 unit + 14 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
-- ✅ **Modules:** Projects, Bids, TimeTracking, Employees with full CRUD
+- ✅ **Modules:** Projects, Bids, TimeTracking, Employees, Contracts with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
 - ✅ **Deployment:** Railway production deployment, health checks passing
 - ✅ **RBAC:** Role-based access control with Admin, Manager, Supervisor, User roles
@@ -19,13 +19,12 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export
 - 📋 **Next:** Documentation polish, UAT preparation
 
-**Recent Wins (Feb 7, 2026):**
-- **🧪 551 Tests:** Comprehensive coverage for handlers, validators, RFI module, auth flows
+**Recent Wins (Feb 8, 2026):**
+- **📜 v0.8.0 Contracts Module:** Subcontracts, Change Orders, Payment Applications (AIA G702-style)
+- **🧪 733 Tests:** +137 from Contracts module, comprehensive CRUD coverage
 - **🔒 RLS Security Fix:** Added missing Row-Level Security policies for TimeTracking tables
 - **📊 Vista/Viewpoint Export:** CSV export for payroll integration with date/project filtering
 - **💰 Labor Cost Reports:** Real-time cost rollup by project and cost code with expandable details
-- **🧮 Job Costing Engine:** Labor cost calculator with OT/DT rates and configurable burden
-- **📋 Cost Codes UI:** Searchable, filterable cost code management page
 - **🤖 AI Project Insights:** Claude-powered health scores, highlights, concerns, recommendations
 - Full TimeTracking module with approval workflow (Draft → Submitted → Approved/Rejected)
 
@@ -46,12 +45,12 @@ Loyal. Tenacious. Won't let go. 🐕
 - **TimeTracking** - Labor hours, approval workflow, employee-project assignments
 - **Employees** - Employee management, project assignments
 - **Reports** - Labor cost reports, Vista/Viewpoint CSV export
+- **Contracts** - Subcontracts, change orders, AIA G702 payment applications
 
 ### MVP (Planned)
-- **Contracts** - Subcontracts, change orders, approval workflows
 - **Documents** - Cloud/local storage, versioning, full-text search
 - **Portal** - Subcontractor self-service portal
-- **Billing** - Owner billing, AIA pay apps, retainage tracking
+- **Billing** - Owner billing, invoicing, retainage release
 
 ### v2
 - Safety/Compliance, HR/Workforce, Payroll, Equipment
