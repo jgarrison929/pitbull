@@ -9,9 +9,9 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 733 tests passing (719 unit + 14 integration)
+- ✅ **Testing:** 782 tests passing (768 unit + 14 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
-- ✅ **Modules:** Projects, Bids, TimeTracking, Employees, Contracts with full CRUD
+- ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
 - ✅ **Deployment:** Railway production deployment, health checks passing
 - ✅ **RBAC:** Role-based access control with Admin, Manager, Supervisor, User roles
@@ -20,13 +20,11 @@ Loyal. Tenacious. Won't let go. 🐕
 - 📋 **Next:** Documentation polish, UAT preparation
 
 **Recent Wins (Feb 8, 2026):**
-- **📜 v0.8.0 Contracts Module:** Subcontracts, Change Orders, Payment Applications (AIA G702-style)
-- **🧪 733 Tests:** +137 from Contracts module, comprehensive CRUD coverage
-- **🔒 RLS Security Fix:** Added missing Row-Level Security policies for TimeTracking tables
-- **📊 Vista/Viewpoint Export:** CSV export for payroll integration with date/project filtering
-- **💰 Labor Cost Reports:** Real-time cost rollup by project and cost code with expandable details
-- **🤖 AI Project Insights:** Claude-powered health scores, highlights, concerns, recommendations
-- Full TimeTracking module with approval workflow (Draft → Submitted → Approved/Rejected)
+- **📜 v0.8.4:** RFI handler tests (+49 tests), 782 total tests
+- **🧹 v0.8.3:** EF Core query diagnostics, connection pool config
+- **🔒 v0.8.2:** Optimistic concurrency for TimeTracking entities
+- **📜 v0.8.0-v0.8.1:** Contracts Module with comprehensive test coverage
+- Full suite: Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts
 
 ## Stack
 
