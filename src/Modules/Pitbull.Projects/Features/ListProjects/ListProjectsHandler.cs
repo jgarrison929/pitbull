@@ -13,7 +13,7 @@ public sealed class ListProjectsHandler(PitbullDbContext db)
     public async Task<Result<PagedResult<ProjectDto>>> Handle(
         ListProjectsQuery request, CancellationToken cancellationToken)
     {
-        var query = db.Set<Project>().AsNoTracking().AsQueryable();
+        var query = db.Set<Project>().AsNoTracking().Where(p => !p.IsDeleted).AsQueryable();
 
         if (request.Status.HasValue)
             query = query.Where(p => p.Status == request.Status.Value);
