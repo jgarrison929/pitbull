@@ -1,8 +1,10 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.MultiTenancy;
@@ -16,7 +18,8 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddPitbullCore(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IHostEnvironment? environment = null)
     {
         // Multi-tenancy
         services.AddScoped<TenantContext>();
@@ -29,7 +32,10 @@ public static class ServiceCollectionExtensions
         // - "Connection Idle Lifetime=300" - closes stale connections after 5 min
         // - "Pooling=true" - enables connection reuse (default)
         // See appsettings.Production.json for recommended production values.
+        var isDevelopment = environment?.IsDevelopment() ?? false;
+        
         services.AddDbContext<PitbullDbContext>((serviceProvider, options) =>
+        {
             options.UseNpgsql(
                 configuration.GetConnectionString("PitbullDb"),
                 npgsql =>
@@ -37,7 +43,18 @@ public static class ServiceCollectionExtensions
                     npgsql.MigrationsAssembly("Pitbull.Api");
                     npgsql.EnableRetryOnFailure(3);
                 })
-            .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>()));
+            .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>());
+
+            // Development: Enable detailed errors and N+1 query warnings
+            if (isDevelopment)
+            {
+                options.EnableDetailedErrors();
+                options.EnableSensitiveDataLogging();
+                options.ConfigureWarnings(w => w
+                    .Log(RelationalEventId.MultipleCollectionIncludeWarning)
+                    .Throw(RelationalEventId.QueryPossibleUnintendedUseOfEqualsWarning));
+            }
+        });
 
         // MediatR + pipeline behaviors
         services.AddMediatR(cfg =>
