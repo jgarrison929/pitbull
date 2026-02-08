@@ -16,11 +16,14 @@ public sealed class DeleteSubcontractHandler(PitbullDbContext db)
             .FirstOrDefaultAsync(s => s.Id == request.Id, cancellationToken);
 
         if (subcontract is null)
-            return Result.Failure<bool>("Subcontract not found");
+            return Result.Failure<bool>("Subcontract not found", "NOT_FOUND");
 
-        // Soft delete
-        subcontract.IsDeleted = true;
-        subcontract.DeletedAt = DateTime.UtcNow;
+        // Can only delete Draft subcontracts
+        if (subcontract.Status != SubcontractStatus.Draft)
+            return Result.Failure<bool>("Cannot delete subcontract that is not in Draft status", "CANNOT_DELETE");
+
+        // Hard delete for Draft status
+        db.Set<Subcontract>().Remove(subcontract);
 
         await db.SaveChangesAsync(cancellationToken);
 

@@ -23,9 +23,8 @@ public sealed class DeletePaymentApplicationHandler(PitbullDbContext db)
         if (payApp.Status != PaymentApplicationStatus.Draft)
             return Result.Failure<bool>("Only draft payment applications can be deleted", "INVALID_STATUS");
 
-        // Soft delete
-        payApp.IsDeleted = true;
-        payApp.DeletedAt = DateTime.UtcNow;
+        // Hard delete for draft applications
+        db.Set<PaymentApplication>().Remove(payApp);
 
         await db.SaveChangesAsync(cancellationToken);
 
