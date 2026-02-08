@@ -1138,19 +1138,19 @@ Thresholds:
 
 | # | Issue | Risk Level | Effort |
 |---|-------|-----------|--------|
-| 1 | Fix SQL interpolation in TenantMiddleware (1.1) | P0 | 15 min |
-| 2 | Add tenant query filter for defense-in-depth (1.4) | P0 | 2 hours |
-| 3 | JWT secret validation on startup (2.2) | P0 | 30 min |
-| 4 | Rate limiting on auth endpoints (2.3) | P0 | 1 hour |
-| 5 | Deep health checks with DB connectivity (3.1) | P0 | 1 hour |
-| 6 | Correlation ID middleware (5.1) | P0 | 1 hour |
-| 7 | Populate CreatedBy/UpdatedBy audit fields (7.1) | P0 | 1 hour |
+| 1 | ~~Fix SQL interpolation in TenantMiddleware (1.1)~~ | ~~P0~~ | ✅ Done |
+| 2 | ~~Add tenant query filter for defense-in-depth (1.4)~~ | ~~P0~~ | ✅ Done |
+| 3 | ~~JWT secret validation on startup (2.2)~~ | ~~P0~~ | ✅ Done |
+| 4 | ~~Rate limiting on auth endpoints (2.3)~~ | ~~P0~~ | ✅ Done |
+| 5 | ~~Deep health checks with DB connectivity (3.1)~~ | ~~P0~~ | ✅ Done |
+| 6 | ~~Correlation ID middleware (5.1)~~ | ~~P0~~ | ✅ Done |
+| 7 | ~~Populate CreatedBy/UpdatedBy audit fields (7.1)~~ | ~~P0~~ | ✅ Done |
 | 8 | Optimistic concurrency via xmin (1.2) | P1 | 2 hours |
-| 9 | Mass assignment architecture test (2.1) | P1 | 1 hour |
-| 10 | Cap pageSize server-side (4.3) | P1 | 30 min |
-| 11 | Dependabot configuration (6.4) | P1 | 15 min |
-| 12 | Architecture tests project (6.2) | P1 | 3 hours |
-| 13 | CORS environment validation (2.4) | P1 | 30 min |
+| 9 | ~~Mass assignment architecture test (2.1)~~ | ~~P1~~ | ✅ Done |
+| 10 | ~~Cap pageSize server-side (4.3)~~ | ~~P1~~ | ✅ Done |
+| 11 | ~~Dependabot configuration (6.4)~~ | ~~P1~~ | ✅ Done |
+| 12 | ~~Architecture tests project (6.2)~~ | ~~P1~~ | ✅ Done |
+| 13 | ~~CORS environment validation (2.4)~~ | ~~P1~~ | ✅ Done |
 
 ### v0.2.0 (Must-Have for Beta Demo)
 
@@ -1181,11 +1181,11 @@ Thresholds:
 
 Things you can fix in under 30 minutes each:
 
-- [ ] Change `ExecuteSqlRawAsync` to `ExecuteSqlInterpolatedAsync` in TenantMiddleware
-- [ ] Add `Math.Clamp(pageSize, 1, 100)` to all list handlers
-- [ ] Add JWT key validation on startup
-- [ ] Add `.github/dependabot.yml`
-- [ ] Add CORS environment check
-- [ ] Cap search string length in validators
-- [ ] Add `[Authorize]` architecture test
-- [ ] Remove auto-migrate from production startup path
+- [x] Change `ExecuteSqlRawAsync` to `ExecuteSqlInterpolatedAsync` in TenantMiddleware ✅ (Feb 2026)
+- [x] Add `Math.Clamp(pageSize, 1, 100)` to all list handlers ✅ (PaginationQuery caps at 100)
+- [x] Add JWT key validation on startup ✅ (EnvironmentValidator.cs)
+- [x] Add `.github/dependabot.yml` ✅ (configured)
+- [x] Add CORS environment check ✅ (EnvironmentValidator.cs)
+- [x] Cap search string length in validators ✅ (query validation PR #105)
+- [x] Add `[Authorize]` architecture test ✅ (ArchitectureTests.cs)
+- [ ] Remove auto-migrate from production startup path (deferred - acceptable for alpha)
