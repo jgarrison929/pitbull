@@ -45,7 +45,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly)
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
-builder.Services.AddPitbullCore(builder.Configuration);
+builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
 
 // Demo bootstrap (optional)
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
