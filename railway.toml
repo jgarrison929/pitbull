@@ -1,9 +1,0 @@
-[build]
-builder = "dockerfile"
-dockerfilePath = "src/Pitbull.Api/Dockerfile"
-buildCommand = "docker build -f src/Pitbull.Api/Dockerfile ."
-
-[deploy]
-healthcheckPath = "/health/live"
-healthcheckTimeout = 300
-startCommand = "dotnet Pitbull.Api.dll"
