@@ -19,7 +19,7 @@
 ## 📊 Current Stats (Feb 8, 2026)
 
 - **Version:** v0.8.4
-- **Tests:** 782 passing (768 unit + 14 integration)
+- **Tests:** 796 passing (768 unit + 28 integration)
 - **CI:** Green on all branches
 - **Deployment:** Railway production healthy
 - **Modules:** Core, Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts
@@ -107,7 +107,7 @@
 | Employees | 60+ | - | ~60 |
 | Reports | 40+ | - | ~40 |
 | Contracts | 137 | - | 137 |
-| **Total** | **768** | **14** | **782** |
+| **Total** | **768** | **28** | **796** |
 
 ## 🎨 UI/UX Implemented
 
