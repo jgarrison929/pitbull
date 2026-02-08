@@ -8,20 +8,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 🐛 Bug Fixes
+
+- **Soft-Delete Filtering for Bids**: Fixed data integrity issue where soft-deleted bids remained visible
+  - `GetBidHandler` now returns 404 for deleted bids
+  - `ListBidsHandler` excludes deleted bids from results
+  - Ensures proper data lifecycle management
+
 ### 🧪 Test Coverage
 
-- **RFI Module Integration Tests**: +6 integration tests for full API coverage
-  - Auth check (401 without authentication)
-  - CRUD operations (create, get, list) with authentication
-  - Status workflow (Open → Answered)
-  - RFI number auto-increment within project
-  - Multi-tenant isolation (tenant B cannot see tenant A's RFIs)
-  - List filtering by status
-- **Contracts Module Integration Tests**: +14 integration tests for full API coverage
-  - Subcontracts (4 tests): CRUD operations, multi-tenant isolation, duplicate number validation
-  - Change Orders (5 tests): CRUD, tenant isolation, status workflow (Pending → Approved)
-  - Payment Applications (5 tests): AIA G702-style billing, application number sequencing
-- **Total tests:** 802 (768 unit + 34 integration)
+- **Bids Integration Tests**: +4 tests for complete CRUD coverage
+  - Update and status transitions (Draft → Submitted → Won)
+  - Duplicate bid number rejection
+  - Soft-delete verification (deleted bids return 404)
+- **RFI Integration Tests**: +6 tests for full API lifecycle
+  - Auth check, CRUD, status workflow, numbering, multi-tenant isolation
+- **Contracts Integration Tests**: +14 tests for full API coverage
+  - Subcontracts, Change Orders, Payment Applications
+- **Total tests:** 806 (768 unit + 38 integration)
+
+### 🏗️ Infrastructure
+
+- **CI Migration Safety**: Added automated checks for dangerous migration patterns
+  - Detects `DROP TABLE`, `DROP COLUMN`, `DELETE FROM` without safeguards
+  - Prevents accidental data loss in production deployments
 
 ### Planned
 
