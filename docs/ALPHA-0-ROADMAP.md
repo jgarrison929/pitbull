@@ -18,11 +18,12 @@
 
 ## 📊 Current Stats (Feb 8, 2026)
 
-- **Version:** v0.8.4
-- **Tests:** 796 passing (768 unit + 28 integration)
+- **Version:** v0.8.4+
+- **Tests:** 806 passing (768 unit + 38 integration)
 - **CI:** Green on all branches
-- **Deployment:** Railway production healthy
+- **Deployment:** Railway production fixed and deploying (Feb 8 AM)
 - **Modules:** Core, Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts
+- **Quality:** Soft-delete filtering consistent across all modules
 
 ## ✅ Completed Work
 
@@ -107,7 +108,7 @@
 | Employees | 60+ | - | ~60 |
 | Reports | 40+ | - | ~40 |
 | Contracts | 137 | - | 137 |
-| **Total** | **768** | **28** | **796** |
+| **Total** | **768** | **38** | **806** |
 
 ## 🎨 UI/UX Implemented
 
@@ -166,11 +167,12 @@
 
 ## 🚀 Next Steps
 
-1. **Josh action needed:** Railway/Cloudflare access for demo environment (#119, #120)
-2. When unblocked: Deploy demo environment with seeded data
-3. Conduct UAT testing with 50+ time entries
-4. Validate Vista export with real format
-5. Tag v0.50 release
+1. ✅ **Railway deploy fixed** (Feb 8) - Service-specific configs, web Dockerfile paths corrected
+2. **Josh exploring:** Production deploy now working, Josh reviewing the app
+3. **Demo environment:** Still needs DNS setup for `demo.pitbullconstructionsolutions.com`
+4. Conduct UAT testing with 50+ time entries
+5. Validate Vista export with real format
+6. Tag v0.50 release
 
 ---
 
