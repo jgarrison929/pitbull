@@ -26,6 +26,8 @@ const hrItems = [
 
 const adminItems = [
   { label: "Users", href: "/admin/users", icon: "👥" },
+  { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜" },
+  { label: "Company Settings", href: "/admin/company", icon: "🏢" },
 ];
 
 export function AppSidebar() {
