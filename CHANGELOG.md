@@ -17,6 +17,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.13] - 2026-02-09
+
+### 🏗️ Infrastructure
+
+- **Module cleanup complete**: Removed incomplete HR and Payroll modules that were blocking production deployments
+- **CI reliability improvements**: Added workspace cleanup to self-hosted runner to prevent stale file issues
+- **Database migration cleanup**: Removed orphaned migration files to ensure clean schema state
+
+### 🐛 Bug Fixes
+
+- Fixed Railway deployment failures caused by incomplete module references
+- Fixed CI build failures from cached test files on self-hosted runner
+- Fixed EF Core migration warnings that were failing integration tests
+
+### 📊 Test Coverage
+
+- **Total tests**: ~900 (reduced from 1244 after removing HR/Payroll test suites)
+- Test count decreased as a result of module removal - actual coverage of active modules remains complete
+
+---
+
 ## [0.10.12] - 2026-02-09
 
 ### 📊 Test Coverage Milestone
