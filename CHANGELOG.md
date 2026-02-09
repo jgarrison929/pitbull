@@ -17,6 +17,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.4] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1133 (1000 unit + 133 integration)
+- **New integration tests**: +18
+  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
+  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
+
+### 📝 Documentation
+
+- Updated README with current test counts (1133)
+- Updated recent wins section with HR module test coverage
+
+---
+
 ## [0.10.3] - 2026-02-09
 
 ### 📊 Test Coverage
