@@ -7,6 +7,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.HR.Domain;
 using Pitbull.HR.Features;
 using Pitbull.HR.Features.CreateEmployee;
+using Pitbull.HR.Features.DeleteEmployee;
 using Pitbull.HR.Features.GetEmployee;
 using Pitbull.HR.Features.ListEmployees;
 using Pitbull.HR.Features.UpdateEmployee;
@@ -128,5 +129,17 @@ public class HREmployeesController(IMediator mediator) : ControllerBase
         }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Delete (soft-delete) an HR employee
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await mediator.Send(new DeleteEmployeeCommand(id));
+        return result ? NoContent() : NotFound();
     }
 }
