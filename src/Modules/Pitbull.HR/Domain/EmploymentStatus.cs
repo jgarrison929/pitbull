@@ -109,10 +109,45 @@ public enum EVerifyStatus
     NotSubmitted = 0,
     Pending = 1,
     EmploymentAuthorized = 2,
-    TentativeNonconfirmation = 3,
-    CaseInContinuance = 4,
-    FinalNonconfirmation = 5,
-    ClosedCaseInvalidated = 6
+    TNCPending = 3, // TNC issued, awaiting employee response
+    TNCContested = 4, // Employee contested TNC
+    CaseInContinuance = 5,
+    FinalNonconfirmation = 6,
+    ClosedCaseInvalidated = 7
+}
+
+/// <summary>
+/// E-Verify case result.
+/// </summary>
+public enum EVerifyResult
+{
+    EmploymentAuthorized = 1,
+    FinalNonconfirmation = 2,
+    ClosedCaseInvalidated = 3,
+    ClosedOther = 4
+}
+
+/// <summary>
+/// E-Verify SSA (Social Security Administration) verification result.
+/// </summary>
+public enum EVerifySSAResult
+{
+    SSAMatch = 1,
+    SSAMismatch = 2,
+    SSATentativeNonconfirmation = 3,
+    SSAUnableToVerify = 4
+}
+
+/// <summary>
+/// E-Verify DHS (Department of Homeland Security) verification result.
+/// </summary>
+public enum EVerifyDHSResult
+{
+    DHSMatch = 1,
+    DHSMismatch = 2,
+    DHSTentativeNonconfirmation = 3,
+    DHSUnableToVerify = 4,
+    DHSPhotoMismatch = 5
 }
 
 /// <summary>
