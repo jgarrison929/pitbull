@@ -17,6 +17,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.10] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1211 (1000 unit + 211 integration)
+- **New integration tests**: +7
+  - ProjectsEndpointsTests (+7): Update, delete, filter by type, search by name, stats 404, cannot update nonexistent, cannot delete nonexistent
+
+### 📝 Documentation
+
+- Updated README with current test counts (1211)
+- Updated recent wins section
+
+---
+
 ## [0.10.9] - 2026-02-09
 
 ### 📊 Test Coverage
