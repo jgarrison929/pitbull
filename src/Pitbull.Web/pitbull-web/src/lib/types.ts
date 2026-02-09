@@ -379,6 +379,109 @@ export const SystemRoles = {
 
 export type SystemRole = (typeof SystemRoles)[keyof typeof SystemRoles];
 
+// ============================================
+// Admin API Types
+// ============================================
+
+// Admin User Management
+export interface AdminUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  status: UserStatus;
+  roles: string[];
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export type UserStatus = "Active" | "Inactive" | "Locked" | "Invited";
+
+export interface AdminListUsersResult {
+  items: AdminUser[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminUpdateUserCommand {
+  firstName?: string;
+  lastName?: string;
+  roles?: string[];
+  status?: UserStatus;
+}
+
+// Audit Logs
+export interface AuditLog {
+  id: string;
+  userId: string | null;
+  userEmail: string | null;
+  userName: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  description: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: Record<string, unknown> | null;
+  timestamp: string;
+}
+
+export interface AuditLogListResult {
+  items: AuditLog[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AuditLogFilters {
+  userId?: string;
+  action?: string;
+  resourceType?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// Company Settings
+export interface CompanySettings {
+  id: string;
+  name: string;
+  legalName: string | null;
+  taxId: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zipCode: string | null;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  defaultRetainagePercent: number;
+  fiscalYearStartMonth: number;
+  timeZone: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface UpdateCompanySettingsCommand {
+  name?: string;
+  legalName?: string | null;
+  taxId?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  defaultRetainagePercent?: number;
+  fiscalYearStartMonth?: number;
+  timeZone?: string | null;
+}
+
 // AI Insights Types
 export interface AiProjectSummary {
   success: boolean;
