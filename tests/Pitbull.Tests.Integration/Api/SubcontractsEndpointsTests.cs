@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateSubcontract;
+using Pitbull.Contracts.Features.UpdateSubcontract;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Tests.Integration.Infrastructure;
@@ -227,5 +228,290 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
         Assert.Equal(HttpStatusCode.BadRequest, second.StatusCode);
         var body = await second.Content.ReadAsStringAsync();
         Assert.Contains("already exists", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Can_update_subcontract()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create project
+        var projectCmd = new CreateProjectCommand(
+            Name: "Update Test Project",
+            Number: $"PRJ-UPD-{Guid.NewGuid():N}",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 200_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
+        projectResp.EnsureSuccessStatusCode();
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Create subcontract
+        var createCmd = new CreateSubcontractCommand(
+            ProjectId: project.Id,
+            SubcontractNumber: $"SC-UPD-{Guid.NewGuid():N}",
+            SubcontractorName: "Original Subcontractor",
+            SubcontractorContact: "Original Contact",
+            SubcontractorEmail: "original@test.com",
+            SubcontractorPhone: "555-000-0000",
+            SubcontractorAddress: "123 Original St",
+            ScopeOfWork: "Original scope",
+            TradeCode: "01",
+            OriginalValue: 50_000m,
+            RetainagePercent: 10m,
+            StartDate: DateTime.UtcNow,
+            CompletionDate: DateTime.UtcNow.AddMonths(1),
+            LicenseNumber: "LIC-001",
+            Notes: "Original notes");
+
+        var createResp = await client.PostAsJsonAsync("/api/subcontracts", createCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+
+        // Update
+        var updateCmd = new UpdateSubcontractCommand(
+            Id: created.Id,
+            SubcontractNumber: created.SubcontractNumber,
+            SubcontractorName: "Updated Subcontractor Name",
+            SubcontractorContact: "Updated Contact",
+            SubcontractorEmail: "updated@test.com",
+            SubcontractorPhone: "555-999-9999",
+            SubcontractorAddress: "456 Updated Ave",
+            ScopeOfWork: "Updated scope of work",
+            TradeCode: "02",
+            OriginalValue: 60_000m,
+            RetainagePercent: 5m,
+            ExecutionDate: DateTime.UtcNow,
+            StartDate: DateTime.UtcNow,
+            CompletionDate: DateTime.UtcNow.AddMonths(2),
+            Status: SubcontractStatus.Executed,
+            InsuranceExpirationDate: DateTime.UtcNow.AddYears(1),
+            InsuranceCurrent: true,
+            LicenseNumber: "LIC-002",
+            Notes: "Updated notes");
+
+        var updateResp = await client.PutAsJsonAsync($"/api/subcontracts/{created.Id}", updateCmd);
+        if (updateResp.StatusCode != HttpStatusCode.OK)
+        {
+            var body = await updateResp.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected 200 OK but got {(int)updateResp.StatusCode}. Body: {body}");
+        }
+
+        var updated = (await updateResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        Assert.Equal("Updated Subcontractor Name", updated.SubcontractorName);
+        Assert.Equal("updated@test.com", updated.SubcontractorEmail);
+        Assert.Equal(SubcontractStatus.Executed, updated.Status);
+        Assert.Equal(60_000m, updated.OriginalValue);
+    }
+
+    [Fact]
+    public async Task Can_delete_subcontract()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create project
+        var projectCmd = new CreateProjectCommand(
+            Name: "Delete Test Project",
+            Number: $"PRJ-DEL-{Guid.NewGuid():N}",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
+        projectResp.EnsureSuccessStatusCode();
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Create subcontract
+        var createCmd = new CreateSubcontractCommand(
+            ProjectId: project.Id,
+            SubcontractNumber: $"SC-DEL-{Guid.NewGuid():N}",
+            SubcontractorName: "To Be Deleted",
+            SubcontractorContact: null,
+            SubcontractorEmail: null,
+            SubcontractorPhone: null,
+            SubcontractorAddress: null,
+            ScopeOfWork: "Will be deleted",
+            TradeCode: null,
+            OriginalValue: 10_000m,
+            RetainagePercent: 10m,
+            StartDate: null,
+            CompletionDate: null,
+            LicenseNumber: null,
+            Notes: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/subcontracts", createCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+
+        // Delete
+        var deleteResp = await client.DeleteAsync($"/api/subcontracts/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResp.StatusCode);
+
+        // Verify deleted (soft delete - should return 404)
+        var getResp = await client.GetAsync($"/api/subcontracts/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Can_filter_subcontracts_by_project()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create two projects
+        var project1Cmd = new CreateProjectCommand(
+            Name: "Filter Project 1",
+            Number: $"PRJ-F1-{Guid.NewGuid():N}",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var project2Cmd = new CreateProjectCommand(
+            Name: "Filter Project 2",
+            Number: $"PRJ-F2-{Guid.NewGuid():N}",
+            Description: null,
+            Type: ProjectType.Residential,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 200_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var p1Resp = await client.PostAsJsonAsync("/api/projects", project1Cmd);
+        var p2Resp = await client.PostAsJsonAsync("/api/projects", project2Cmd);
+        p1Resp.EnsureSuccessStatusCode();
+        p2Resp.EnsureSuccessStatusCode();
+        var project1 = (await p1Resp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project2 = (await p2Resp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Create subcontract for each project
+        var sc1Number = $"SC-P1-{Guid.NewGuid():N}"[..20];
+        var sc2Number = $"SC-P2-{Guid.NewGuid():N}"[..20];
+
+        var sc1Cmd = new CreateSubcontractCommand(
+            ProjectId: project1.Id,
+            SubcontractNumber: sc1Number,
+            SubcontractorName: "Project 1 Sub",
+            SubcontractorContact: null, SubcontractorEmail: null, SubcontractorPhone: null, SubcontractorAddress: null,
+            ScopeOfWork: "Scope 1", TradeCode: null,
+            OriginalValue: 25_000m, RetainagePercent: 10m,
+            StartDate: null, CompletionDate: null, LicenseNumber: null, Notes: null);
+
+        var sc2Cmd = new CreateSubcontractCommand(
+            ProjectId: project2.Id,
+            SubcontractNumber: sc2Number,
+            SubcontractorName: "Project 2 Sub",
+            SubcontractorContact: null, SubcontractorEmail: null, SubcontractorPhone: null, SubcontractorAddress: null,
+            ScopeOfWork: "Scope 2", TradeCode: null,
+            OriginalValue: 35_000m, RetainagePercent: 10m,
+            StartDate: null, CompletionDate: null, LicenseNumber: null, Notes: null);
+
+        await client.PostAsJsonAsync("/api/subcontracts", sc1Cmd);
+        await client.PostAsJsonAsync("/api/subcontracts", sc2Cmd);
+
+        // Filter by project 1
+        var filteredResp = await client.GetAsync($"/api/subcontracts?projectId={project1.Id}");
+        filteredResp.EnsureSuccessStatusCode();
+
+        var filteredJson = await filteredResp.Content.ReadAsStringAsync();
+        Assert.Contains(sc1Number, filteredJson);
+        Assert.DoesNotContain(sc2Number, filteredJson);
+    }
+
+    [Fact]
+    public async Task Can_search_subcontracts_by_name()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create project
+        var projectCmd = new CreateProjectCommand(
+            Name: "Search Test Project",
+            Number: $"PRJ-SRCH-{Guid.NewGuid():N}",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
+        projectResp.EnsureSuccessStatusCode();
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Create subcontracts with different names
+        var uniqueId = Guid.NewGuid().ToString("N")[..8];
+        var sc1Cmd = new CreateSubcontractCommand(
+            ProjectId: project.Id,
+            SubcontractNumber: $"SC-1-{uniqueId}",
+            SubcontractorName: $"Alpha Electric {uniqueId}",
+            SubcontractorContact: null, SubcontractorEmail: null, SubcontractorPhone: null, SubcontractorAddress: null,
+            ScopeOfWork: "Electrical", TradeCode: null,
+            OriginalValue: 50_000m, RetainagePercent: 10m,
+            StartDate: null, CompletionDate: null, LicenseNumber: null, Notes: null);
+
+        var sc2Cmd = new CreateSubcontractCommand(
+            ProjectId: project.Id,
+            SubcontractNumber: $"SC-2-{uniqueId}",
+            SubcontractorName: $"Beta Plumbing {uniqueId}",
+            SubcontractorContact: null, SubcontractorEmail: null, SubcontractorPhone: null, SubcontractorAddress: null,
+            ScopeOfWork: "Plumbing", TradeCode: null,
+            OriginalValue: 40_000m, RetainagePercent: 10m,
+            StartDate: null, CompletionDate: null, LicenseNumber: null, Notes: null);
+
+        await client.PostAsJsonAsync("/api/subcontracts", sc1Cmd);
+        await client.PostAsJsonAsync("/api/subcontracts", sc2Cmd);
+
+        // Search for "Alpha" (just the common prefix to find it)
+        var searchResp = await client.GetAsync($"/api/subcontracts?search=Alpha");
+        searchResp.EnsureSuccessStatusCode();
+
+        var searchJson = await searchResp.Content.ReadAsStringAsync();
+        Assert.Contains("Alpha Electric", searchJson);
+        Assert.DoesNotContain("Beta Plumbing", searchJson);
+    }
+
+    [Fact]
+    public async Task Cannot_update_nonexistent_subcontract()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var fakeId = Guid.NewGuid();
+        var updateCmd = new UpdateSubcontractCommand(
+            Id: fakeId,
+            SubcontractNumber: "SC-FAKE",
+            SubcontractorName: "Fake Sub",
+            SubcontractorContact: null, SubcontractorEmail: null, SubcontractorPhone: null, SubcontractorAddress: null,
+            ScopeOfWork: "Fake", TradeCode: null,
+            OriginalValue: 1000m, RetainagePercent: 10m,
+            ExecutionDate: null, StartDate: null, CompletionDate: null,
+            Status: SubcontractStatus.Draft,
+            InsuranceExpirationDate: null, InsuranceCurrent: false,
+            LicenseNumber: null, Notes: null);
+
+        var updateResp = await client.PutAsJsonAsync($"/api/subcontracts/{fakeId}", updateCmd);
+        Assert.Equal(HttpStatusCode.NotFound, updateResp.StatusCode);
     }
 }
