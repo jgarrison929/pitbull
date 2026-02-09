@@ -22,6 +22,9 @@ public class PitbullDbContext(
     : IdentityDbContext<AppUser, AppRole, Guid>(options)
 {
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    // TODO: Add after EF migration tools are working
+    // public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    // public DbSet<CompanySettings> CompanySettings => Set<CompanySettings>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
