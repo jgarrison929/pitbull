@@ -1,0 +1,25 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Tests (not needed in production image)
+tests/
+
+# Documentation
+docs/
+*.md
+
+# Git
+.git/
+.gitignore
+
+# Incomplete modules (exclude until ready)
+src/Modules/Pitbull.HR/
+src/Modules/Pitbull.Payroll/
