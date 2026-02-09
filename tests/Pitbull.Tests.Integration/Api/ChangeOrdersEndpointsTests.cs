@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateChangeOrder;
 using Pitbull.Contracts.Features.CreateSubcontract;
+using Pitbull.Contracts.Features.UpdateChangeOrder;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Tests.Integration.Infrastructure;
@@ -240,5 +241,160 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
         var updated = (await updateResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
         Assert.Equal(ChangeOrderStatus.Approved, updated.Status);
         Assert.NotNull(updated.ApprovedDate);
+    }
+
+    [Fact]
+    public async Task Can_delete_change_order()
+    {
+        await db.ResetAsync();
+
+        var (client, _, subcontractId) = await SetupProjectAndSubcontractAsync();
+
+        // Create a change order to delete
+        var coCmd = new CreateChangeOrderCommand(
+            SubcontractId: subcontractId,
+            ChangeOrderNumber: $"CO-DEL-{Guid.NewGuid():N}",
+            Title: "To Be Deleted",
+            Description: "This will be deleted",
+            Reason: null,
+            Amount: 5_000m,
+            DaysExtension: null,
+            ReferenceNumber: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/changeorders", coCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+
+        // Delete
+        var deleteResp = await client.DeleteAsync($"/api/changeorders/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResp.StatusCode);
+
+        // Verify deleted (soft delete - should return 404)
+        var getResp = await client.GetAsync($"/api/changeorders/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Can_filter_change_orders_by_subcontract()
+    {
+        await db.ResetAsync();
+
+        var (client, projectId, subcontract1Id) = await SetupProjectAndSubcontractAsync();
+
+        // Create a second subcontract in the same project
+        var sc2Cmd = new CreateSubcontractCommand(
+            ProjectId: projectId,
+            SubcontractNumber: $"SC-2-{Guid.NewGuid():N}",
+            SubcontractorName: "Second Subcontractor",
+            SubcontractorContact: null, SubcontractorEmail: null, SubcontractorPhone: null, SubcontractorAddress: null,
+            ScopeOfWork: "Second scope", TradeCode: null,
+            OriginalValue: 50_000m, RetainagePercent: 10m,
+            StartDate: null, CompletionDate: null, LicenseNumber: null, Notes: null);
+
+        var sc2Resp = await client.PostAsJsonAsync("/api/subcontracts", sc2Cmd);
+        sc2Resp.EnsureSuccessStatusCode();
+        var subcontract2 = (await sc2Resp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+
+        // Create change orders for each subcontract  
+        var co1Cmd = new CreateChangeOrderCommand(
+            SubcontractId: subcontract1Id,
+            ChangeOrderNumber: $"CO-SC1-{Guid.NewGuid():N}",
+            Title: "Change Order for SC1",
+            Description: "Test description for SC1", Reason: null,
+            Amount: 2_000m, DaysExtension: null, ReferenceNumber: null);
+
+        var co2Cmd = new CreateChangeOrderCommand(
+            SubcontractId: subcontract2.Id,
+            ChangeOrderNumber: $"CO-SC2-{Guid.NewGuid():N}",
+            Title: "Change Order for SC2",
+            Description: "Test description for SC2", Reason: null,
+            Amount: 3_000m, DaysExtension: null, ReferenceNumber: null);
+
+        var co1Resp = await client.PostAsJsonAsync("/api/changeorders", co1Cmd);
+        co1Resp.EnsureSuccessStatusCode();
+        var co1 = (await co1Resp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+
+        var co2Resp = await client.PostAsJsonAsync("/api/changeorders", co2Cmd);
+        co2Resp.EnsureSuccessStatusCode();
+        var co2 = (await co2Resp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+
+        // Filter by first subcontract
+        var filteredResp = await client.GetAsync($"/api/changeorders?subcontractId={subcontract1Id}");
+        filteredResp.EnsureSuccessStatusCode();
+
+        var filteredJson = await filteredResp.Content.ReadAsStringAsync();
+        Assert.Contains(co1.ChangeOrderNumber, filteredJson);
+        Assert.DoesNotContain(co2.ChangeOrderNumber, filteredJson);
+    }
+
+    [Fact]
+    public async Task Can_filter_change_orders_by_status()
+    {
+        await db.ResetAsync();
+
+        var (client, _, subcontractId) = await SetupProjectAndSubcontractAsync();
+
+        // Create first change order
+        var firstCo = new CreateChangeOrderCommand(
+            SubcontractId: subcontractId,
+            ChangeOrderNumber: $"CO-FIRST-{Guid.NewGuid():N}",
+            Title: "First Change Order",
+            Description: "First CO description", Reason: null,
+            Amount: 1_000m, DaysExtension: null, ReferenceNumber: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/changeorders", firstCo);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+
+        // Approve this one using the typed command
+        var updateCmd = new UpdateChangeOrderCommand(
+            Id: created.Id,
+            ChangeOrderNumber: created.ChangeOrderNumber,
+            Title: created.Title,
+            Description: created.Description ?? "",
+            Reason: created.Reason,
+            Amount: created.Amount,
+            DaysExtension: created.DaysExtension,
+            Status: ChangeOrderStatus.Approved,
+            ReferenceNumber: created.ReferenceNumber
+        );
+        var approveResp = await client.PutAsJsonAsync($"/api/changeorders/{created.Id}", updateCmd);
+        approveResp.EnsureSuccessStatusCode();
+
+        // Create another pending one
+        var pending2Co = new CreateChangeOrderCommand(
+            SubcontractId: subcontractId,
+            ChangeOrderNumber: $"CO-PEND2-{Guid.NewGuid():N}",
+            Title: "Still Pending",
+            Description: "Pending CO description", Reason: null,
+            Amount: 2_000m, DaysExtension: null, ReferenceNumber: null);
+        await client.PostAsJsonAsync("/api/changeorders", pending2Co);
+
+        // Filter by Pending status
+        var pendingResp = await client.GetAsync($"/api/changeorders?status={(int)ChangeOrderStatus.Pending}");
+        pendingResp.EnsureSuccessStatusCode();
+
+        var pendingJson = await pendingResp.Content.ReadAsStringAsync();
+        Assert.Contains("Still Pending", pendingJson);
+        Assert.DoesNotContain("First Change Order", pendingJson);
+
+        // Filter by Approved status
+        var approvedResp = await client.GetAsync($"/api/changeorders?status={(int)ChangeOrderStatus.Approved}");
+        approvedResp.EnsureSuccessStatusCode();
+
+        var approvedJson = await approvedResp.Content.ReadAsStringAsync();
+        Assert.Contains("First Change Order", approvedJson); // This was approved
+        Assert.DoesNotContain("Still Pending", approvedJson);
+    }
+
+    [Fact]
+    public async Task Cannot_delete_nonexistent_change_order()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var deleteResp = await client.DeleteAsync($"/api/changeorders/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, deleteResp.StatusCode);
     }
 }
