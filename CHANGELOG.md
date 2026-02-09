@@ -17,6 +17,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.9.0] - 2026-02-08
+
+### ✨ New Features
+
+- **HR Module Certification CRUD**: Full certification tracking for compliance
+  - `POST /api/hr/certifications` - Create employee certification
+  - `GET /api/hr/certifications/{id}` - Get certification details
+  - `GET /api/hr/certifications` - List with filtering (status, type, expiring)
+  - `PUT /api/hr/certifications/{id}` - Update certification
+  - `DELETE /api/hr/certifications/{id}` - Soft-delete certification
+  - `GET /api/hr/certifications/expiring` - Compliance dashboard convenience endpoint
+  - Supports expiration tracking, verification status, warning notifications
+  - 39 new tests (validators + handlers)
+
+- **HR Module PayRate CRUD**: Construction-specific pay rate management
+  - `POST /api/hr/pay-rates` - Create pay rate
+  - `GET /api/hr/pay-rates/{id}` - Get pay rate details
+  - `GET /api/hr/pay-rates` - List with filtering (type, project, shift, state)
+  - `PUT /api/hr/pay-rates/{id}` - Update pay rate
+  - `DELETE /api/hr/pay-rates/{id}` - Soft-delete pay rate
+  - `GET /api/hr/pay-rates/employee/{id}/active` - Active rates for employee
+  - Supports effective dating, project-specific rates, shift differentials
+  - Union fringe benefits (H&W, pension, training) with TotalHourlyCost calculation
+  - Priority-based rate selection for complex scenarios
+  - 34 new tests (validators + handlers)
+
+- **HR Module DeleteEmployee**: Soft-delete endpoint for HR employees
+  - `DELETE /api/hr/employees/{id}`
+  - 3 new tests
+
+### 📊 Test Coverage
+
+- **Total tests**: 971 (933 unit + 38 integration)
+- **Test growth**: +72 tests from 0.8.6
+
+---
+
 ## [0.8.6] - 2026-02-08
 
 ### 🐛 Bug Fixes
