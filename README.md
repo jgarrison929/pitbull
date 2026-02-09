@@ -9,7 +9,7 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 1159 tests passing (1000 unit + 159 integration)
+- ✅ **Testing:** 1177 tests passing (1000 unit + 177 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
@@ -20,10 +20,10 @@ Loyal. Tenacious. Won't let go. 🐕
 - 📋 **Next:** Documentation polish, UAT preparation
 
 **Recent Wins (Feb 9, 2026):**
-- **🧪 HR Module Tests:** +44 integration tests for Pay Rates, Certifications, Emergency Contacts, Deductions, Employment Episodes
-- **📊 Test Coverage:** 1159 tests total (1000 unit + 159 integration)
-- **📜 v0.10.5:** Full HR sub-module endpoint coverage
-- **📜 v0.10.4:** HR Pay Rates and Certifications endpoint coverage
+- **🧪 HR Module Tests:** +62 integration tests across all HR sub-modules
+- **📊 Test Coverage:** 1177 tests total (1000 unit + 177 integration)
+- **📜 v0.10.7:** Union Memberships, I-9 Records, Employment Episodes, Deductions tests
+- **📜 v0.10.5:** Pay Rates, Certifications, Emergency Contacts endpoint coverage
 - **🔒 v0.10.1:** HR & Payroll RLS policies, comprehensive integration test coverage
 
 ## Stack
