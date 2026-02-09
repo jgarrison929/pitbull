@@ -9,7 +9,7 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 796 tests passing (768 unit + 28 integration)
+- ✅ **Testing:** 1083 tests passing (1000 unit + 83 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
@@ -19,11 +19,11 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export
 - 📋 **Next:** Documentation polish, UAT preparation
 
-**Recent Wins (Feb 8, 2026):**
-- **🧪 Integration Tests:** +14 Contracts module integration tests (now 28 total)
-- **📜 v0.8.4:** RFI handler tests (+49 tests), migration safety CI check
-- **🧹 v0.8.3:** EF Core query diagnostics, connection pool config
-- **🔒 v0.8.2:** Optimistic concurrency for TimeTracking entities
+**Recent Wins (Feb 9, 2026):**
+- **🧪 Integration Tests:** +27 endpoint integration tests (Dashboard, CostCodes, Monitoring, Auth)
+- **📊 Test Coverage:** 1083 tests total (1000 unit + 83 integration)
+- **📜 v0.10.1:** HR & Payroll RLS policies, comprehensive integration test coverage
+- **🔒 v0.8.4:** RFI handler tests (+49 tests), migration safety CI check
 - **📜 v0.8.0-v0.8.1:** Contracts Module with comprehensive test coverage
 
 ## Stack
