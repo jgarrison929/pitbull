@@ -17,6 +17,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.11] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1220 (1000 unit + 220 integration)
+- **New integration tests**: +9
+  - ProjectAssignmentsEndpointsTests (+9): Auth tests (4), CRUD tests (2), error handling tests (3)
+
+### 🐛 Bug Fix
+
+- Fixed `ProjectAssignmentsController` returning 400 instead of 404 for nonexistent assignments
+  - Handler returned `ASSIGNMENT_NOT_FOUND` but controller only checked for `NOT_FOUND`
+
+---
+
 ## [0.10.10] - 2026-02-09
 
 ### 📊 Test Coverage

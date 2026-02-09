@@ -9,7 +9,7 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 1211 tests passing (1000 unit + 211 integration)
+- ✅ **Testing:** 1220 tests passing (1000 unit + 220 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
@@ -20,12 +20,12 @@ Loyal. Tenacious. Won't let go. 🐕
 - 📋 **Next:** Documentation polish, UAT preparation
 
 **Recent Wins (Feb 9, 2026):**
-- **🧪 HR Module Tests:** +80 integration tests across ALL HR sub-modules (100% endpoint coverage!)
-- **📦 Projects + Contracts Tests:** Core modules expanded (update, delete, filtering, search)
-- **📊 Test Coverage:** 1211 tests total (1000 unit + 211 integration)
+- **🔗 ProjectAssignments Tests:** +9 integration tests (auth, CRUD, error handling)
+- **🐛 Bug Fix:** Fixed 400→404 for nonexistent assignment deletion
+- **📊 Test Coverage:** 1220 tests total (1000 unit + 220 integration)
+- **📜 v0.10.11:** ProjectAssignments endpoint tests (+9)
 - **📜 v0.10.10:** Projects module test expansion (+7 tests)
 - **📜 v0.10.9:** Contracts module test expansion (+9 tests)
-- **📜 v0.10.8:** Withholding Elections, E-Verify Cases tests (final HR endpoints)
 
 ## Stack
 
