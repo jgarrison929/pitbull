@@ -181,7 +181,7 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
 
         if (!result.IsSuccess)
         {
-            return result.ErrorCode == "NOT_FOUND"
+            return result.ErrorCode is "NOT_FOUND" or "ASSIGNMENT_NOT_FOUND"
                 ? NotFound(new { error = result.Error })
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
         }
@@ -222,7 +222,7 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
 
         if (!result.IsSuccess)
         {
-            return result.ErrorCode == "NOT_FOUND"
+            return result.ErrorCode is "NOT_FOUND" or "ASSIGNMENT_NOT_FOUND"
                 ? NotFound(new { error = result.Error })
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
         }
