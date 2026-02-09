@@ -17,12 +17,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.8] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1195 (1000 unit + 195 integration)
+- **New integration tests**: +18
+  - HRWithholdingElectionsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, tax jurisdiction filtering, current elections by employee, auto-expiration of previous elections, W-4 fields
+  - HREVerifyCasesEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint, needs-action endpoint, status updates (TNC, authorized, etc.)
+- **HR Module 100% Complete!** All 10 HR controllers now have integration test coverage
+
+### 📝 Documentation
+
+- Updated README with current test counts (1195)
+- Updated recent wins section - HR module test coverage complete!
+
+---
+
 ## [0.10.7] - 2026-02-09
 
 ### 📊 Test Coverage
 
 - **Total tests**: 1177 (1000 unit + 177 integration)
-- **New integration tests**: +18
+- **New integration tests**: +9
   - HRUnionMembershipsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, union local filtering, by-employee endpoint, dispatch tracking, fringe rates
 
 ### 📝 Documentation
