@@ -9,7 +9,7 @@
 *.user
 *.suo
 
-# Tests (not needed in production image)
+# Tests
 tests/
 
 # Documentation
@@ -20,6 +20,6 @@ docs/
 .git/
 .gitignore
 
-# Incomplete modules (exclude until ready)
+# Incomplete modules
 src/Modules/Pitbull.HR/
 src/Modules/Pitbull.Payroll/
