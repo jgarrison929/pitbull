@@ -28,8 +28,6 @@
     <ProjectReference Include="..\..\src\Pitbull.Api\Pitbull.Api.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.Bids\Pitbull.Bids.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Pitbull.HR\Pitbull.HR.csproj" />
-    <ProjectReference Include="..\..\src\Modules\Pitbull.Payroll\Pitbull.Payroll.csproj" />
   </ItemGroup>
 
 </Project>
