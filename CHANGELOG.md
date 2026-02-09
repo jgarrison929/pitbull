@@ -17,6 +17,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.2] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1097 (1000 unit + 97 integration)
+- **New integration tests**: +41 (from 56 to 97)
+  - Dashboard endpoints (+3): Auth, response validation, tenant isolation
+  - CostCodes endpoints (+8): Pagination, filters, search
+  - Monitoring endpoints (+7): Version, health, security status
+  - Auth endpoints (+9): Login, register, profile, change-password
+  - Health endpoints (+3): Liveness, readiness, combined health
+  - Tenants endpoints (+5): Current tenant, access control, cross-tenant security
+  - Admin Users endpoints (+6): List, get, roles, search
+
+### 📝 Documentation
+
+- Updated README with current test counts (1097)
+- Updated recent wins section
+
+---
+
 ## [0.10.1] - 2026-02-08
 
 ### 🔒 Security
