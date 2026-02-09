@@ -17,6 +17,140 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.10] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1211 (1000 unit + 211 integration)
+- **New integration tests**: +7
+  - ProjectsEndpointsTests (+7): Update, delete, filter by type, search by name, stats 404, cannot update nonexistent, cannot delete nonexistent
+
+### 📝 Documentation
+
+- Updated README with current test counts (1211)
+- Updated recent wins section
+
+---
+
+## [0.10.9] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1204 (1000 unit + 204 integration)
+- **New integration tests**: +9
+  - SubcontractsEndpointsTests (+5): Update, delete, filter by project, search by name, nonexistent update
+  - ChangeOrdersEndpointsTests (+4): Delete, filter by subcontract, filter by status, nonexistent delete
+
+### 📝 Documentation
+
+- Updated README with current test counts (1204)
+- Updated recent wins section - Contracts module test coverage expanded
+
+---
+
+## [0.10.8] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1195 (1000 unit + 195 integration)
+- **New integration tests**: +18
+  - HRWithholdingElectionsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, tax jurisdiction filtering, current elections by employee, auto-expiration of previous elections, W-4 fields
+  - HREVerifyCasesEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint, needs-action endpoint, status updates (TNC, authorized, etc.)
+- **HR Module 100% Complete!** All 10 HR controllers now have integration test coverage
+
+### 📝 Documentation
+
+- Updated README with current test counts (1195)
+- Updated recent wins section - HR module test coverage complete!
+
+---
+
+## [0.10.7] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1177 (1000 unit + 177 integration)
+- **New integration tests**: +9
+  - HRUnionMembershipsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, union local filtering, by-employee endpoint, dispatch tracking, fringe rates
+
+### 📝 Documentation
+
+- Updated README with current test counts (1177)
+- Updated recent wins section
+
+---
+
+## [0.10.6] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1168 (1000 unit + 168 integration)
+- **New integration tests**: +44
+  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
+  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
+  - HREmergencyContactsEndpointsTests (+8): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint
+  - HRDeductionsEndpointsTests (+9): Auth, CRUD, tenant isolation, garnishments, employee filtering, active deductions endpoint
+  - HREmploymentEpisodesEndpointsTests (+9): Auth, list/get, tenant isolation, employee filtering, termination workflow, delete
+  - HRI9RecordsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, eligibility verification workflow
+
+### 📝 Documentation
+
+- Updated README with current test counts (1168)
+- Updated recent wins section with comprehensive HR module coverage
+
+---
+
+## [0.10.5] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1150 (1000 unit + 150 integration)
+- **New integration tests**: +35
+  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
+  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
+  - HREmergencyContactsEndpointsTests (+8): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint
+  - HRDeductionsEndpointsTests (+9): Auth, CRUD, tenant isolation, garnishments, employee filtering, active deductions endpoint
+
+### 📝 Documentation
+
+- Updated README with current test counts (1150)
+- Updated recent wins section with full HR sub-module coverage
+
+---
+
+## [0.10.4] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1133 (1000 unit + 133 integration)
+- **New integration tests**: +18
+  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
+  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
+
+### 📝 Documentation
+
+- Updated README with current test counts (1133)
+- Updated recent wins section with HR module test coverage
+
+---
+
+## [0.10.3] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1115 (1000 unit + 115 integration)
+- **New integration tests**: +18
+  - AdminAuditEndpointsTests (+6): Auth, listing, pagination, filters, resource types, action types
+  - AdminCompanyEndpointsTests (+5): Auth, default settings, update, minimal update, persistence
+  - UsersEndpointsTests (+7): Auth, listing, user details, roles, search, pagination
+
+### 📝 Documentation
+
+- Updated README with current test counts (1115)
+- Updated recent wins section with admin panel test coverage
+
+---
+
 ## [0.10.2] - 2026-02-09
 
 ### 📊 Test Coverage
