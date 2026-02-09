@@ -6,6 +6,7 @@ using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
+using Pitbull.HR.Features.CreateEmployee;
 
 namespace Pitbull.Tests.Unit.Helpers;
 
@@ -26,6 +27,7 @@ public static class TestDbContextFactory
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(CreateEmployeeCommand).Assembly); // HR module
     }
 
     public static PitbullDbContext Create(Guid? tenantId = null, string? dbName = null)
