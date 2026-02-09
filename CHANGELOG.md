@@ -17,6 +17,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.9] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1204 (1000 unit + 204 integration)
+- **New integration tests**: +9
+  - SubcontractsEndpointsTests (+5): Update, delete, filter by project, search by name, nonexistent update
+  - ChangeOrdersEndpointsTests (+4): Delete, filter by subcontract, filter by status, nonexistent delete
+
+### 📝 Documentation
+
+- Updated README with current test counts (1204)
+- Updated recent wins section - Contracts module test coverage expanded
+
+---
+
 ## [0.10.8] - 2026-02-09
 
 ### 📊 Test Coverage
