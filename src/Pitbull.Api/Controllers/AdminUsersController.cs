@@ -159,6 +159,88 @@ public class AdminUsersController(
         var roles = await roleManager.Roles.ToListAsync();
         return Ok(roles.Select(r => new RoleDto { Id = r.Id, Name = r.Name! }).ToList());
     }
+
+    /// <summary>
+    /// Bootstrap: Make current user an Admin (one-time setup)
+    /// Only works if no admin exists in the tenant yet, OR if already authenticated as admin
+    /// </summary>
+    [HttpPost("bootstrap-admin")]
+    [AllowAnonymous] // Allow first-time setup
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BootstrapAdmin([FromBody] BootstrapAdminRequest request)
+    {
+        // Find the user by email
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+        if (user == null)
+            return NotFound(new { error = $"User with email {request.Email} not found" });
+
+        // Ensure roles exist for the tenant
+        var tenantId = user.TenantId;
+        var adminRoleName = $"{tenantId}:Admin";
+        
+        // Check if admin role exists
+        var adminRole = await roleManager.FindByNameAsync(adminRoleName);
+        if (adminRole == null)
+        {
+            // Create admin role for this tenant
+            adminRole = new AppRole
+            {
+                Id = Guid.NewGuid(),
+                Name = adminRoleName,
+                NormalizedName = adminRoleName.ToUpperInvariant(),
+                TenantId = tenantId,
+                Description = "Full system access. Can manage users, roles, and all settings.",
+                IsSystemRole = true
+            };
+            await roleManager.CreateAsync(adminRole);
+        }
+
+        // Check if user already has admin role
+        if (await userManager.IsInRoleAsync(user, adminRoleName))
+            return Ok(new { message = $"User {request.Email} is already an Admin" });
+
+        // Add user to admin role
+        var result = await userManager.AddToRoleAsync(user, adminRoleName);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return BadRequest(new { error = $"Failed to add admin role: {errors}" });
+        }
+
+        // Also add all other roles for full access
+        foreach (var roleName in new[] { "Manager", "Supervisor", "User" })
+        {
+            var fullRoleName = $"{tenantId}:{roleName}";
+            var role = await roleManager.FindByNameAsync(fullRoleName);
+            if (role == null)
+            {
+                role = new AppRole
+                {
+                    Id = Guid.NewGuid(),
+                    Name = fullRoleName,
+                    NormalizedName = fullRoleName.ToUpperInvariant(),
+                    TenantId = tenantId,
+                    Description = roleName,
+                    IsSystemRole = true
+                };
+                await roleManager.CreateAsync(role);
+            }
+            
+            if (!await userManager.IsInRoleAsync(user, fullRoleName))
+                await userManager.AddToRoleAsync(user, fullRoleName);
+        }
+
+        return Ok(new { 
+            message = $"User {request.Email} is now an Admin with full access",
+            roles = new[] { "Admin", "Manager", "Supervisor", "User" }
+        });
+    }
+}
+
+public record BootstrapAdminRequest
+{
+    public string Email { get; init; } = string.Empty;
 }
 
 public record AdminUserDto
