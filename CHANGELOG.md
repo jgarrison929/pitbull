@@ -17,6 +17,58 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.0] - 2026-02-08
+
+### 🎉 HR Module Complete!
+
+Full HR Core module with 10 entities, 10 controllers, 55+ endpoints.
+Foundation for Payroll → Job Costing → Accounting pipeline.
+
+### ✨ New Entities (this release)
+
+- **EmploymentEpisode CRUD**: Rehire tracking for construction's 60%+ turnover
+  - Auto-incrementing episode numbers per employee
+  - Separation reason tracking
+  - Prevents duplicate active episodes
+
+- **WithholdingElection CRUD**: Federal W-4 and state tax elections
+  - 2020+ W-4 fields (filing status, multiple jobs, dependents, extra withholding)
+  - All 50 states + DC + PR validation
+  - Effective dating (new elections auto-expire previous)
+
+- **Deduction CRUD**: Payroll deductions management
+  - Benefits (health, dental, vision, 401k with employer match)
+  - Garnishments with court case tracking (child support, tax levies)
+  - Union dues, charity contributions
+  - Pre-tax vs post-tax handling
+  - YTD tracking for annual limits
+
+- **UnionMembership CRUD**: Union labor management
+  - Union local and membership tracking
+  - Apprentice level tracking (1-10)
+  - Dispatch tracking (number, date, list position)
+  - Fringe benefit rates (H&W, pension, training)
+  - Dues paid status and expiration
+
+- **I9Record CRUD**: Employment eligibility verification
+  - Section 1: Employee information + citizenship status
+  - Section 2: Employer document verification (List A/B/C)
+  - Section 3: Reverification for work auth expiration
+  - `/reverification-needed` endpoint for compliance dashboard
+
+- **EVerifyCase CRUD**: DHS employment verification
+  - Case submission and status tracking
+  - SSA and DHS verification results
+  - TNC (Tentative Non-Confirmation) workflow
+  - `/needs-action` endpoint for pending cases
+
+### 📊 Test Coverage
+
+- **Total tests**: 991 unit tests passing
+- **Test growth**: +20 tests from 0.9.0
+
+---
+
 ## [0.9.0] - 2026-02-08
 
 ### ✨ New Features
