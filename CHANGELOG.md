@@ -17,6 +17,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.1] - 2026-02-08
+
+### 🔒 Security
+
+- **Payroll RLS Policies**: Multi-tenant isolation for pay_periods, payroll_batches, payroll_entries, payroll_deduction_lines
+- **HR RLS Policies**: Multi-tenant isolation for all 10 HR schema tables
+- All tenant-scoped tables now have database-level row security
+
+### 🐛 Bug Fixes
+
+- Fixed BidNumber → Number column reference in dashboard raw SQL query
+- Fixed Payroll module registration in Program.cs (was causing PendingModelChangesWarning)
+
+### 📊 Test Coverage
+
+- **Total tests**: 1056 (1000 unit + 56 integration)
+- **New integration tests**: 18 (10 Payroll + 8 HR Employees)
+- Tests verify tenant isolation, CRUD operations, auth requirements, and unique constraints
+
+---
+
 ## [0.10.0] - 2026-02-08
 
 ### 🎉 HR Module Complete!
