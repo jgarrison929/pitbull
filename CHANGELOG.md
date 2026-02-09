@@ -17,6 +17,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.3] - 2026-02-09
+
+### 📊 Test Coverage
+
+- **Total tests**: 1115 (1000 unit + 115 integration)
+- **New integration tests**: +18
+  - AdminAuditEndpointsTests (+6): Auth, listing, pagination, filters, resource types, action types
+  - AdminCompanyEndpointsTests (+5): Auth, default settings, update, minimal update, persistence
+  - UsersEndpointsTests (+7): Auth, listing, user details, roles, search, pagination
+
+### 📝 Documentation
+
+- Updated README with current test counts (1115)
+- Updated recent wins section with admin panel test coverage
+
+---
+
 ## [0.10.2] - 2026-02-09
 
 ### 📊 Test Coverage
