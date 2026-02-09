@@ -1,78 +1,76 @@
 namespace Pitbull.Core.Domain;
 
 /// <summary>
-/// Audit log entry tracking user actions within the system.
-/// Used for compliance, debugging, and security monitoring.
+/// Immutable audit log entry for tracking all system activity
 /// </summary>
 public class AuditLog
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public Guid TenantId { get; set; }
-    
-    /// <summary>User who performed the action (null for system operations)</summary>
-    public Guid? UserId { get; set; }
-    public string? UserEmail { get; set; }
-    public string? UserName { get; set; }
-    
-    /// <summary>Type of action: Login, Create, Update, Delete, Export, AdminAction, etc.</summary>
-    public AuditAction Action { get; set; }
-    
-    /// <summary>Type of resource affected: User, Project, Employee, TimeEntry, etc.</summary>
-    public string ResourceType { get; set; } = string.Empty;
-    
-    /// <summary>ID of the affected resource (if applicable)</summary>
-    public string? ResourceId { get; set; }
-    
-    /// <summary>Human-readable description of what happened</summary>
-    public string Description { get; set; } = string.Empty;
-    
-    /// <summary>JSON containing before/after values or additional context</summary>
-    public string? Details { get; set; }
-    
-    /// <summary>IP address of the request</summary>
-    public string? IpAddress { get; set; }
-    
-    /// <summary>User agent string</summary>
-    public string? UserAgent { get; set; }
-    
-    /// <summary>When the action occurred</summary>
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-    
-    /// <summary>Whether the action succeeded</summary>
-    public bool Success { get; set; } = true;
-    
-    /// <summary>Error message if the action failed</summary>
-    public string? ErrorMessage { get; set; }
+    public Guid Id { get; private set; } = Guid.NewGuid();
+    public Guid TenantId { get; private set; }
+    public Guid? UserId { get; private set; }
+    public string? UserEmail { get; private set; }
+    public string? UserName { get; private set; }
+    public AuditAction Action { get; private set; }
+    public string ResourceType { get; private set; } = string.Empty;
+    public string? ResourceId { get; private set; }
+    public string Description { get; private set; } = string.Empty;
+    public string? Details { get; private set; } // JSON
+    public string? IpAddress { get; private set; }
+    public string? UserAgent { get; private set; }
+    public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
+    public bool Success { get; private set; } = true;
+    public string? ErrorMessage { get; private set; }
+
+    private AuditLog() { }
+
+    public static AuditLog Create(
+        Guid tenantId,
+        Guid? userId,
+        string? userEmail,
+        string? userName,
+        AuditAction action,
+        string resourceType,
+        string? resourceId,
+        string description,
+        string? details = null,
+        string? ipAddress = null,
+        string? userAgent = null,
+        bool success = true,
+        string? errorMessage = null)
+    {
+        return new AuditLog
+        {
+            TenantId = tenantId,
+            UserId = userId,
+            UserEmail = userEmail,
+            UserName = userName,
+            Action = action,
+            ResourceType = resourceType,
+            ResourceId = resourceId,
+            Description = description,
+            Details = details,
+            IpAddress = ipAddress,
+            UserAgent = userAgent,
+            Success = success,
+            ErrorMessage = errorMessage
+        };
+    }
 }
 
 public enum AuditAction
 {
-    // Authentication
-    Login = 0,
-    LoginFailed = 1,
-    Logout = 2,
-    PasswordChanged = 3,
-    PasswordReset = 4,
-    
-    // CRUD Operations
-    Create = 10,
-    Read = 11,
-    Update = 12,
-    Delete = 13,
-    
-    // Admin Actions
-    UserInvited = 20,
-    UserActivated = 21,
-    UserDeactivated = 22,
-    RoleAssigned = 23,
-    RoleRemoved = 24,
-    SettingsChanged = 25,
-    
-    // Data Operations
-    Export = 30,
-    Import = 31,
-    BulkUpdate = 32,
-    
-    // System
-    SystemEvent = 40
+    Create = 1,
+    Read = 2,
+    Update = 3,
+    Delete = 4,
+    Login = 5,
+    Logout = 6,
+    FailedLogin = 7,
+    PasswordReset = 8,
+    RoleChange = 9,
+    Export = 10,
+    Import = 11,
+    StatusChange = 12,
+    Approval = 13,
+    Rejection = 14
 }
