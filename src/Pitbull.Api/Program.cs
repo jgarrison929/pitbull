@@ -7,8 +7,6 @@ using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
-using Pitbull.HR.Features.CreateEmployee;
-using Pitbull.Payroll.Features.CreatePayPeriod;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
@@ -45,8 +43,6 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
-PitbullDbContext.RegisterModuleAssembly(typeof(CreateEmployeeCommand).Assembly); // HR module
-PitbullDbContext.RegisterModuleAssembly(typeof(CreatePayPeriodCommand).Assembly); // Payroll module
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
@@ -69,8 +65,6 @@ builder.Services.AddPitbullModule<CreateBidCommand>();
 builder.Services.AddPitbullModule<CreateRfiCommand>();
 builder.Services.AddPitbullModule<CreateTimeEntryCommand>(); // TimeTracking module
 builder.Services.AddPitbullModule<CreateSubcontractCommand>(); // Contracts module
-builder.Services.AddPitbullModule<CreateEmployeeCommand>(); // HR module
-builder.Services.AddPitbullModule<CreatePayPeriodCommand>(); // Payroll module
 
 // Direct service registrations (MediatR migration)
 builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
@@ -78,8 +72,6 @@ builder.Services.AddPitbullModuleServices<CreateBidCommand>();
 builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
 builder.Services.AddPitbullModuleServices<CreateTimeEntryCommand>(); // TimeTracking module
 builder.Services.AddPitbullModuleServices<CreateSubcontractCommand>(); // Contracts module
-builder.Services.AddPitbullModuleServices<CreateEmployeeCommand>(); // HR module
-builder.Services.AddPitbullModuleServices<CreatePayPeriodCommand>(); // Payroll module
 
 // AI Insights service (uses Claude for project analysis)
 builder.Services.AddHttpClient("Anthropic");
