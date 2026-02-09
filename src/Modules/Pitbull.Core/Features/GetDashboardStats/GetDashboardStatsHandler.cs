@@ -230,7 +230,7 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
 
             // Get recent bids (last 3)
             var bidsSql = @"
-                SELECT ""Id"", ""Name"", ""BidNumber"", ""CreatedAt""
+                SELECT ""Id"", ""Name"", ""Number"", ""CreatedAt""
                 FROM bids
                 WHERE ""IsDeleted"" = false
                 ORDER BY ""CreatedAt"" DESC
@@ -245,7 +245,7 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
                     Id: b.Id.ToString(),
                     Type: "bid",
                     Title: b.Name,
-                    Description: $"Bid {b.BidNumber} created",
+                    Description: $"Bid {b.Number} created",
                     Timestamp: b.CreatedAt,
                     Icon: "📋"
                 ));
@@ -323,6 +323,6 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
 
 // Helper DTOs for raw SQL queries
 internal record ProjectActivityRow(Guid Id, string Name, string Number, DateTime CreatedAt);
-internal record BidActivityRow(Guid Id, string Name, string BidNumber, DateTime CreatedAt);
+internal record BidActivityRow(Guid Id, string Name, string Number, DateTime CreatedAt);
 internal record EmployeeActivityRow(Guid Id, string FirstName, string LastName, string EmployeeNumber, DateTime CreatedAt);
 internal record SubcontractActivityRow(Guid Id, string SubcontractNumber, string SubcontractorName, DateTime CreatedAt);
