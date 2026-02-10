@@ -169,6 +169,49 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Update_bid_with_mismatched_id_returns_400()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a bid
+        var create = new CreateBidCommand(
+            Name: "Mismatch Test",
+            Number: $"BID-MISMATCH-{Guid.NewGuid():N}",
+            EstimatedValue: 50000m,
+            BidDate: null,
+            DueDate: null,
+            Owner: null,
+            Description: null,
+            Items: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/bids", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+
+        // Update with mismatched ID in body
+        var differentId = Guid.NewGuid();
+        var update = new
+        {
+            id = differentId, // Different from route
+            name = "Should Fail",
+            number = created.Number,
+            status = (int)BidStatus.Draft,
+            estimatedValue = 50000m,
+            bidDate = (DateTime?)null,
+            dueDate = (DateTime?)null,
+            owner = (string?)null,
+            description = (string?)null,
+            items = (object?)null
+        };
+
+        var resp = await client.PutAsJsonAsync($"/api/bids/{created.Id}", update);
+        
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task Can_transition_bid_to_won_status()
     {
         await db.ResetAsync();
@@ -292,6 +335,19 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         listResp.EnsureSuccessStatusCode();
         var listJson = await listResp.Content.ReadAsStringAsync();
         Assert.DoesNotContain(created.Number, listJson);
+    }
+
+    [Fact]
+    public async Task Delete_nonexistent_bid_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var nonexistentId = Guid.NewGuid();
+        var resp = await client.DeleteAsync($"/api/bids/{nonexistentId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
 
     [Fact]
