@@ -80,4 +80,48 @@ public sealed class DashboardEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Contains("projectCount", jsonA);
         Assert.Contains("projectCount", jsonB);
     }
+
+    [Fact]
+    public async Task Get_weekly_hours_without_auth_returns_401()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.GetAsync("/api/dashboard/weekly-hours");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_weekly_hours_returns_valid_response()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.GetAsync("/api/dashboard/weekly-hours");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadAsStringAsync();
+        
+        // Should contain expected fields
+        Assert.Contains("data", json);
+        Assert.Contains("totalHours", json);
+        Assert.Contains("averageHoursPerWeek", json);
+    }
+
+    [Fact]
+    public async Task Get_weekly_hours_respects_weeks_parameter()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Request 4 weeks of data
+        var resp = await client.GetAsync("/api/dashboard/weekly-hours?weeks=4");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("data", json);
+    }
 }

@@ -14,8 +14,7 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public PostgresFixture()
     {
-        _container = new PostgreSqlBuilder()
-            .WithImage("postgres:17-alpine")
+        _container = new PostgreSqlBuilder("postgres:17-alpine")
             .WithDatabase("pitbull_test")
             .WithUsername("pitbull")
             .WithPassword("pitbull_test")
