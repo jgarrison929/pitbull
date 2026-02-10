@@ -299,9 +299,9 @@ export interface ListTimeEntriesResult {
 }
 
 export interface CreateEmployeeCommand {
-  employeeNumber: string;
   firstName: string;
   lastName: string;
+  employeeNumber?: string;  // Optional - auto-generated if not provided
   email?: string;
   phone?: string;
   title?: string;

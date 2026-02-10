@@ -91,9 +91,7 @@ export default function NewEmployeePage() {
   function validate(): FormErrors {
     const next: FormErrors = {};
 
-    if (!employeeNumber.trim()) {
-      next.employeeNumber = "Employee number is required";
-    }
+    // Employee number is optional - will be auto-generated
     if (!firstName.trim()) {
       next.firstName = "First name is required";
     }
@@ -129,9 +127,9 @@ export default function NewEmployeePage() {
     }
 
     const command: CreateEmployeeCommand = {
-      employeeNumber: employeeNumber.trim(),
       firstName: firstName.trim(),
       lastName: lastName.trim(),
+      employeeNumber: employeeNumber.trim() || undefined,  // Optional - auto-generated if empty
       email: email.trim() || undefined,
       phone: phone.trim() || undefined,
       title: title.trim() || undefined,
@@ -190,19 +188,18 @@ export default function NewEmployeePage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <fieldset disabled={isSubmitting} className="space-y-4">
-            {/* Employee Number */}
+            {/* Employee Number - Optional, auto-generated if empty */}
             <div className="space-y-2">
-              <Label htmlFor="employeeNumber">Employee Number *</Label>
+              <Label htmlFor="employeeNumber">Employee Number</Label>
               <Input
                 id="employeeNumber"
                 value={employeeNumber}
                 onChange={(e) => setEmployeeNumber(e.target.value)}
-                placeholder="E001"
-                required
+                placeholder="Auto-generated (e.g., EMP-00001)"
               />
-              {errors.employeeNumber && (
-                <p className="text-sm text-destructive">{errors.employeeNumber}</p>
-              )}
+              <p className="text-xs text-muted-foreground">
+                Leave blank to auto-generate, or enter a custom number
+              </p>
             </div>
 
             {/* Name Row */}
