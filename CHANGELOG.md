@@ -17,6 +17,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.15] - 2026-02-10
+
+### 📊 Test Coverage
+
+- **Integration tests for PaymentApplications endpoints** (+6 tests)
+  - Update payment application
+  - Update nonexistent payment application returns 404
+  - Update with mismatched ID returns 400
+  - Delete draft payment application
+  - Delete nonexistent payment application returns 404
+  - Cannot delete submitted payment application
+- **Integration tests for TimeEntries approval workflow** (+8 tests)
+  - Approve/reject auth checks
+  - Project-based time entry filtering
+  - Labor cost report endpoint
+- **Integration tests for Dashboard** (+3 tests)
+  - Weekly hours endpoint coverage
+- **Integration tests for Users** (+6 tests)
+  - Role assignment endpoints
+
+### 📝 Documentation
+
+- Updated README with accurate test counts (924 passing)
+- Updated Alpha 0 roadmap with module list
+
+### 🔧 Infrastructure
+
+- Fixed Testcontainers deprecation warning (CS0618)
+
+**Total tests:** 930 (768 unit + 162 integration)
+
+---
+
 ## [0.10.14] - 2026-02-10
 
 ### 🐛 Bug Fixes
