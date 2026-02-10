@@ -295,6 +295,19 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Delete_nonexistent_bid_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var nonexistentId = Guid.NewGuid();
+        var resp = await client.DeleteAsync($"/api/bids/{nonexistentId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task Can_convert_won_bid_to_project()
     {
         await db.ResetAsync();
