@@ -55,7 +55,7 @@ public class ProjectService : IProjectService
     {
         var project = await _db.Set<Project>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
 
         if (project is null)
         {
@@ -68,7 +68,7 @@ public class ProjectService : IProjectService
 
     public async Task<Result<PagedResult<ProjectDto>>> GetProjectsAsync(ListProjectsQuery listQuery, CancellationToken cancellationToken = default)
     {
-        var dbQuery = _db.Set<Project>().AsNoTracking();
+        var dbQuery = _db.Set<Project>().AsNoTracking().Where(p => !p.IsDeleted);
 
         // Apply filtering logic (from ListProjectsHandler)
         if (!string.IsNullOrWhiteSpace(listQuery.Search))
@@ -169,7 +169,7 @@ public class ProjectService : IProjectService
         }
 
         var project = await _db.Set<Project>()
-            .FirstOrDefaultAsync(p => p.Id == command.Id, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == command.Id && !p.IsDeleted, cancellationToken);
 
         if (project is null)
         {

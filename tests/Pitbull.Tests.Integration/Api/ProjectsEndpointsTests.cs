@@ -344,4 +344,191 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var deleteResp = await client.DeleteAsync($"/api/projects/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, deleteResp.StatusCode);
     }
+
+    [Fact]
+    public async Task Can_get_project_stats()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a project
+        var create = new CreateProjectCommand(
+            Name: "Stats Test Project",
+            Number: $"PRJ-STATS-{Guid.NewGuid():N}",
+            Description: "Project for stats test",
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 500_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/projects", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Get stats (should return zeros for new project)
+        var statsResp = await client.GetAsync($"/api/projects/{created.Id}/stats");
+        if (statsResp.StatusCode != HttpStatusCode.OK)
+        {
+            var body = await statsResp.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected 200 OK but got {(int)statsResp.StatusCode}. Body: {body}");
+        }
+
+        var statsJson = await statsResp.Content.ReadAsStringAsync();
+        Assert.Contains(created.Id.ToString(), statsJson);
+        Assert.Contains("Stats Test Project", statsJson);
+        Assert.Contains("totalHours", statsJson, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task V2_can_create_and_get_project()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create via V2 endpoint
+        var create = new CreateProjectCommand(
+            Name: "V2 Test Project",
+            Number: $"PRJ-V2-{Guid.NewGuid():N}",
+            Description: "Created via V2 endpoint",
+            Type: ProjectType.Industrial,
+            Address: "100 V2 Street", City: "Test City", State: "CA", ZipCode: "90210",
+            ClientName: "V2 Client", ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: DateTime.UtcNow, EstimatedCompletionDate: DateTime.UtcNow.AddMonths(6),
+            ContractAmount: 750_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/projects/v2", create);
+        if (createResp.StatusCode != HttpStatusCode.Created)
+        {
+            var body = await createResp.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
+        }
+
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        Assert.NotEqual(Guid.Empty, created.Id);
+        Assert.Equal("V2 Test Project", created.Name);
+
+        // Get via V2 endpoint
+        var getResp = await client.GetAsync($"/api/projects/v2/{created.Id}");
+        Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
+
+        var fetched = (await getResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        Assert.Equal(created.Id, fetched.Id);
+        Assert.Equal(created.Name, fetched.Name);
+    }
+
+    [Fact]
+    public async Task V2_can_list_projects()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a project via V2
+        var create = new CreateProjectCommand(
+            Name: "V2 List Test",
+            Number: $"PRJ-V2L-{Guid.NewGuid():N}",
+            Description: null, Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null, ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        await client.PostAsJsonAsync("/api/projects/v2", create);
+
+        // List via V2 endpoint
+        var listResp = await client.GetAsync("/api/projects/v2?page=1&pageSize=25");
+        Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
+
+        var listJson = await listResp.Content.ReadAsStringAsync();
+        Assert.Contains("V2 List Test", listJson);
+    }
+
+    [Fact]
+    public async Task V2_can_update_project()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create project via V2
+        var create = new CreateProjectCommand(
+            Name: "V2 Update Original",
+            Number: $"PRJ-V2U-{Guid.NewGuid():N}",
+            Description: "Original", Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null, ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/projects/v2", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Update via V2 endpoint
+        var update = new UpdateProjectCommand(
+            Id: created.Id,
+            Name: "V2 Update Modified",
+            Number: created.Number,
+            Description: "Modified via V2",
+            Type: ProjectType.Industrial,
+            Status: ProjectStatus.Active,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null, ActualCompletionDate: null,
+            ContractAmount: 200_000m,
+            ProjectManagerId: null, SuperintendentId: null);
+
+        var updateResp = await client.PutAsJsonAsync($"/api/projects/v2/{created.Id}", update);
+        Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
+
+        var updated = (await updateResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        Assert.Equal("V2 Update Modified", updated.Name);
+        Assert.Equal(200_000m, updated.ContractAmount);
+    }
+
+    [Fact]
+    public async Task V2_can_delete_project()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create project via V2
+        var create = new CreateProjectCommand(
+            Name: "V2 Delete Me",
+            Number: $"PRJ-V2D-{Guid.NewGuid():N}",
+            Description: null, Type: ProjectType.Residential,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null, ContractAmount: 50_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/projects/v2", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Delete via V2 endpoint
+        var deleteResp = await client.DeleteAsync($"/api/projects/v2/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResp.StatusCode);
+
+        // Verify deleted
+        var getResp = await client.GetAsync($"/api/projects/v2/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task V2_get_nonexistent_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var getResp = await client.GetAsync($"/api/projects/v2/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+    }
 }
