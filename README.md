@@ -20,10 +20,10 @@ Loyal. Tenacious. Won't let go. 🐕
 - 📋 **Next:** Documentation polish, UAT preparation
 
 **Recent Wins (Feb 10, 2026):**
-- **🚀 v0.10.16:** Released to production with V2 soft-delete + stats endpoint fixes
+- **🚀 v0.10.17:** Released to production with edge case integration tests
 - **🎯 1000+ Tests:** Crossed milestone with 1017 tests (834 unit + 183 integration)
 - **🐛 Bug Fixes:** V2 soft-delete filter, stats endpoint SqlQueryRaw scalar mapping
-- **📋 Test Coverage:** Complete validator tests for Contracts module, security middleware tests
+- **📋 Test Coverage:** Bids/Subcontracts edge cases, Contracts validators, security middleware
 
 ## Stack
 
