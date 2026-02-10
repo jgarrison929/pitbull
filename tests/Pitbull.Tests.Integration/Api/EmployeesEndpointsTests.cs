@@ -259,13 +259,10 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             lastName = "Employee"
         });
 
-        // Note: Currently returns 400 BadRequest because TimeTracking handlers have 
-        // Result.Failure parameter order reversed (code, message instead of message, code).
-        // This is a known bug - the controller checks ErrorCode=="DUPLICATE" but it's in Error.
-        // TODO: Fix TimeTracking handlers to use correct Result.Failure("message", "CODE") order.
-        Assert.Equal(HttpStatusCode.BadRequest, dupResp.StatusCode);
+        // Controller maps ErrorCode=="DUPLICATE" to 409 Conflict
+        Assert.Equal(HttpStatusCode.Conflict, dupResp.StatusCode);
         var body = await dupResp.Content.ReadAsStringAsync();
-        Assert.Contains("DUPLICATE", body);
+        Assert.Contains("Employee number already exists", body);
     }
 
     #endregion
