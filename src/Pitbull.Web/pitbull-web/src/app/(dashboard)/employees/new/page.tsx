@@ -329,13 +329,13 @@ export default function NewEmployeePage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="supervisor">Supervisor</Label>
-                <Select value={supervisorId} onValueChange={setSupervisorId}>
+                <Select value={supervisorId || "none"} onValueChange={(v) => setSupervisorId(v === "none" ? "" : v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select supervisor (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
-                    {supervisors.map((s) => (
+                    <SelectItem value="none">None</SelectItem>
+                    {supervisors.filter((s) => s.id).map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.fullName} ({s.employeeNumber})
                       </SelectItem>
