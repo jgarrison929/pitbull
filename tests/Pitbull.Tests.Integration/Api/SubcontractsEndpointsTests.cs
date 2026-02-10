@@ -366,6 +366,19 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
     }
 
     [Fact]
+    public async Task Delete_nonexistent_subcontract_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var nonexistentId = Guid.NewGuid();
+        var resp = await client.DeleteAsync($"/api/subcontracts/{nonexistentId}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task Can_filter_subcontracts_by_project()
     {
         await db.ResetAsync();
