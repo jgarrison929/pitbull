@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <ProjectReference Include="..\Modules\Pitbull.Core\Pitbull.Core.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.Projects\Pitbull.Projects.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.Bids\Pitbull.Bids.csproj" />
