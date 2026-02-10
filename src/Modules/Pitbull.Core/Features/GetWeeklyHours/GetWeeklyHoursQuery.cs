@@ -48,18 +48,20 @@ public sealed class GetWeeklyHoursHandler(PitbullDbContext db)
             var startDate = endDate.AddDays(-7 * weeks);
 
             // Get weekly aggregated hours using raw SQL
+            // Note: Column name is "DoubletimeHours" (lowercase 't') per migration
+            // Note: Aliases must match DTO property names exactly (EF Core raw SQL mapping)
             var sql = $@"
                 SELECT 
-                    DATE_TRUNC('week', ""Date""::timestamp)::date as week_start,
-                    COALESCE(SUM(""RegularHours""), 0) as regular_hours,
-                    COALESCE(SUM(""OvertimeHours""), 0) as overtime_hours,
-                    COALESCE(SUM(""DoubleTimeHours""), 0) as doubletime_hours
+                    DATE_TRUNC('week', ""Date""::timestamp)::date as ""WeekStart"",
+                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
+                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
+                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours""
                 FROM time_entries
                 WHERE ""IsDeleted"" = false
                   AND ""Date"" >= '{startDate:yyyy-MM-dd}'
                   AND ""Date"" <= '{endDate:yyyy-MM-dd}'
                 GROUP BY DATE_TRUNC('week', ""Date""::timestamp)
-                ORDER BY week_start";
+                ORDER BY ""WeekStart""";
 
             var rawData = await db.Database.SqlQueryRaw<WeeklyHoursRow>(sql)
                 .ToListAsync(cancellationToken);

@@ -20,9 +20,7 @@ const navItems = [
   { label: "Documents", href: "#", icon: "📁", disabled: true },
 ];
 
-const hrItems = [
-  { label: "HR Employees", href: "/hr/employees", icon: "🧑‍💼" },
-];
+// HR module removed - employees are in TimeTracking module at /employees
 
 const adminItems = [
   { label: "Users", href: "/admin/users", icon: "👥" },
@@ -82,31 +80,7 @@ export function AppSidebar() {
           );
         })}
 
-        {/* HR Section */}
-        <div className="pt-4 pb-2">
-          <span className="px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
-            HR
-          </span>
-        </div>
-        {hrItems.map((item) => {
-          const isActive = pathname.startsWith(item.href);
-
-          return (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                isActive
-                  ? "bg-amber-500/15 text-amber-400"
-                  : "text-neutral-300 hover:bg-white/5 hover:text-white"
-              )}
-            >
-              <span className="text-base">{item.icon}</span>
-              {item.label}
-            </Link>
-          );
-        })}
+        {/* HR Section removed - employees are in TimeTracking module */}
 
         {/* Admin Section - Only visible to admins */}
         {user?.roles?.includes("Admin") && (
