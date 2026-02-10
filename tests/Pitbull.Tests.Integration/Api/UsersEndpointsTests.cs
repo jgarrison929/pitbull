@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
@@ -129,5 +130,76 @@ public sealed class UsersEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var json = await resp.Content.ReadAsStringAsync();
         Assert.Contains("\"page\":2", json);
         Assert.Contains("\"pageSize\":5", json);
+    }
+
+    [Fact]
+    public async Task Assign_role_returns_401_without_auth()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.PostAsJsonAsync($"/api/users/{Guid.NewGuid()}/roles", new { Role = "Manager" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Assign_role_to_nonexistent_user_returns_404()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.PostAsJsonAsync($"/api/users/{Guid.NewGuid()}/roles", new { Role = "Manager" });
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Assign_invalid_role_returns_400()
+    {
+        await db.ResetAsync();
+        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.PostAsJsonAsync($"/api/users/{auth.UserId}/roles", new { Role = "InvalidRole123" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("Invalid role", json);
+    }
+
+    [Fact]
+    public async Task Remove_role_returns_401_without_auth()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.DeleteAsync($"/api/users/{Guid.NewGuid()}/roles/Manager");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Remove_invalid_role_returns_400()
+    {
+        await db.ResetAsync();
+        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.DeleteAsync($"/api/users/{auth.UserId}/roles/InvalidRole123");
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_cannot_remove_own_admin_role()
+    {
+        await db.ResetAsync();
+        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Try to remove own Admin role
+        var resp = await client.DeleteAsync($"/api/users/{auth.UserId}/roles/Admin");
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("cannot remove your own Admin role", json);
     }
 }

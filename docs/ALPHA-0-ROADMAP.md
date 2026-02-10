@@ -16,14 +16,16 @@
 
 **UAT Validation:** 50+ time entries processed with accurate cost calculations
 
-## 📊 Current Stats (Feb 9, 2026)
+## 📊 Current Stats (Feb 10, 2026)
 
-- **Version:** v0.10.11
-- **Tests:** 1244 passing (1000 unit + 244 integration)
+- **Version:** v0.10.14
+- **Tests:** 907 passing (768 unit + 139 integration)
 - **CI:** Green on all branches
 - **Deployment:** Railway production healthy
-- **Modules:** Core, Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts, HR, Payroll
-- **Quality:** Comprehensive integration test coverage across all modules
+- **Modules:** Core, Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts
+- **Quality:** Comprehensive integration test coverage across all active modules
+
+> **Note:** HR and Payroll modules were removed Feb 9 as incomplete - scheduled for v2. Test count dropped from 1244 to 907 as a result.
 
 ## ✅ Completed Work
 
