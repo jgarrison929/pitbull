@@ -39,9 +39,11 @@ jobs:
 
       - name: Clean stale files from previous builds
         run: |
-          git clean -ffdx -e node_modules -e .nuget
+          git clean -ffdx -e node_modules
           # Explicitly remove bin/obj to prevent stale DLLs on self-hosted runner
           find . -type d \( -name 'bin' -o -name 'obj' \) -exec rm -rf {} + 2>/dev/null || true
+          # Clear local NuGet HTTP cache (not the global package cache)
+          dotnet nuget locals http-cache --clear 2>/dev/null || true
 
       - name: Setup .NET (GitHub-hosted runners only)
         if: ${{ runner.environment == 'github-hosted' }}
