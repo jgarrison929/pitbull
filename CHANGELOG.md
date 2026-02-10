@@ -17,6 +17,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.14] - 2026-02-10
+
+### 🐛 Bug Fixes
+
+- **fix(employees):** Corrected `CreateEmployeeCommand` argument order in controller - was passing parameters in wrong order
+- **fix:** Corrected raw SQL column names in stats queries - changed from snake_case to PascalCase to match EF Core conventions
+- **fix(timetracking):** Corrected `Result.Failure` parameter order in `CreateEmployeeHandler`
+
+---
+
 ## [0.10.13] - 2026-02-09
 
 ### 🏗️ Infrastructure
