@@ -293,4 +293,97 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var listJson = await listResp.Content.ReadAsStringAsync();
         Assert.DoesNotContain(created.Number, listJson);
     }
+
+    [Fact]
+    public async Task Can_convert_won_bid_to_project()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create and mark bid as Won
+        var bidNumber = $"BID-CONV-{Guid.NewGuid():N}";
+        var create = new CreateBidCommand(
+            Name: "Bid to Convert",
+            Number: bidNumber,
+            EstimatedValue: 300000m,
+            BidDate: DateTime.UtcNow.Date,
+            DueDate: null,
+            Owner: "Estimator",
+            Description: "This will become a project",
+            Items: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/bids", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+
+        // Update to Won status
+        var update = new
+        {
+            id = created.Id,
+            name = created.Name,
+            number = created.Number,
+            status = (int)BidStatus.Won,
+            estimatedValue = created.EstimatedValue,
+            bidDate = created.BidDate,
+            dueDate = (DateTime?)null,
+            owner = created.Owner,
+            description = created.Description,
+            items = (object?)null
+        };
+
+        var updateResp = await client.PutAsJsonAsync($"/api/bids/{created.Id}", update);
+        updateResp.EnsureSuccessStatusCode();
+
+        // Convert to project
+        var projectNumber = $"PRJ-{Guid.NewGuid():N}";
+        var convertResp = await client.PostAsJsonAsync($"/api/bids/{created.Id}/convert-to-project", new { projectNumber });
+        
+        if (convertResp.StatusCode != HttpStatusCode.OK)
+        {
+            var body = await convertResp.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected 200 OK but got {(int)convertResp.StatusCode}. Body: {body}");
+        }
+
+        var convertResult = await convertResp.Content.ReadAsStringAsync();
+        Assert.Contains("projectId", convertResult, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Convert_non_won_bid_returns_400()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a draft bid (not won)
+        var create = new CreateBidCommand(
+            Name: "Draft Bid",
+            Number: $"BID-DRAFT-{Guid.NewGuid():N}",
+            EstimatedValue: 100000m,
+            BidDate: null,
+            DueDate: null,
+            Owner: null,
+            Description: null,
+            Items: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/bids", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+
+        // Try to convert - should fail
+        var convertResp = await client.PostAsJsonAsync($"/api/bids/{created.Id}/convert-to-project", new { projectNumber = "PRJ-TEST" });
+        Assert.Equal(HttpStatusCode.BadRequest, convertResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Convert_nonexistent_bid_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var convertResp = await client.PostAsJsonAsync($"/api/bids/{Guid.NewGuid()}/convert-to-project", new { projectNumber = "PRJ-NOEXIST" });
+        Assert.Equal(HttpStatusCode.NotFound, convertResp.StatusCode);
+    }
 }
