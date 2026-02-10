@@ -6,9 +6,10 @@ public class CreateEmployeeValidator : AbstractValidator<CreateEmployeeCommand>
 {
     public CreateEmployeeValidator()
     {
+        // EmployeeNumber is optional - auto-generated if not provided
         RuleFor(x => x.EmployeeNumber)
-            .NotEmpty().WithMessage("Employee number is required")
-            .MaximumLength(50).WithMessage("Employee number cannot exceed 50 characters");
+            .MaximumLength(50).WithMessage("Employee number cannot exceed 50 characters")
+            .When(x => !string.IsNullOrEmpty(x.EmployeeNumber));
 
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("First name is required")

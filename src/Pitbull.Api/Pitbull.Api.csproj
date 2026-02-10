@@ -24,6 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <ProjectReference Include="..\Modules\Pitbull.Core\Pitbull.Core.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.Projects\Pitbull.Projects.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.Bids\Pitbull.Bids.csproj" />
@@ -33,8 +34,9 @@
     <ProjectReference Include="..\Modules\Pitbull.Billing\Pitbull.Billing.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.RFIs\Pitbull.RFIs.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj" />
-    <ProjectReference Include="..\Modules\Pitbull.HR\Pitbull.HR.csproj" />
-    <ProjectReference Include="..\Modules\Pitbull.Payroll\Pitbull.Payroll.csproj" />
+    <!-- HR and Payroll modules not yet complete - uncomment when ready -->
+    <!-- <ProjectReference Include="..\Modules\Pitbull.HR\Pitbull.HR.csproj" /> -->
+    <!-- <ProjectReference Include="..\Modules\Pitbull.Payroll\Pitbull.Payroll.csproj" /> -->
     <ProjectReference Include="..\Infrastructure\Pitbull.Email\Pitbull.Email.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Storage\Pitbull.Storage.csproj" />
     <ProjectReference Include="..\Infrastructure\Pitbull.Messaging\Pitbull.Messaging.csproj" />

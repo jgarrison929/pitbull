@@ -34,6 +34,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          clean: true
+
+      - name: Clean stale files from previous builds
+        run: git clean -ffdx -e node_modules -e .nuget
 
       - name: Setup .NET (GitHub-hosted runners only)
         if: ${{ runner.environment == 'github-hosted' }}

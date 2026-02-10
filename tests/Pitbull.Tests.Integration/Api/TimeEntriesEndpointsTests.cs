@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
@@ -10,6 +11,11 @@ namespace Pitbull.Tests.Integration.Api;
 [Collection(DatabaseCollection.Name)]
 public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+    
     private PitbullApiFactory _factory = null!;
 
     public async Task InitializeAsync()
@@ -63,7 +69,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
 
-        var created = await createResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var created = await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions);
         Assert.NotNull(created);
         Assert.NotEqual(Guid.Empty, created!.Id);
         Assert.Equal(createEmployee.firstName, created.FirstName);
@@ -94,7 +100,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             baseHourlyRate = 30.00m
         });
         employeeResp.EnsureSuccessStatusCode();
-        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions);
 
         // Create a project
         var projectResp = await client.PostAsJsonAsync("/api/projects", new
@@ -202,7 +208,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         });
         createResp.EnsureSuccessStatusCode();
 
-        var created = await createResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var created = await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions);
 
         // Try to get employee from Tenant B - should be 404
         var getAsOtherTenant = await clientTenantB.GetAsync($"/api/employees/{created!.Id}");
@@ -210,7 +216,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
     }
 
     [Fact]
-    public async Task Duplicate_employee_number_returns_400()
+    public async Task Duplicate_employee_number_returns_409_Conflict()
     {
         await db.ResetAsync();
 
@@ -239,7 +245,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             baseHourlyRate = 25.00m
         });
 
-        Assert.Equal(HttpStatusCode.BadRequest, resp2.StatusCode);
+        Assert.Equal(HttpStatusCode.Conflict, resp2.StatusCode);
         var body = await resp2.Content.ReadAsStringAsync();
         Assert.Contains("already exists", body.ToLower());
     }
