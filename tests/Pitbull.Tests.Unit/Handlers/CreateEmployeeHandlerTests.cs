@@ -175,8 +175,8 @@ public class CreateEmployeeHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.Error.Should().Be("INVALID_SUPERVISOR");
-        // Note: The handler passes error code as first param to Result.Failure
+        result.Error.Should().Be("Supervisor not found");
+        result.ErrorCode.Should().Be("INVALID_SUPERVISOR");
     }
 
     [Fact]

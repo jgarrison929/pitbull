@@ -428,7 +428,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
     #region Stats Endpoint Tests
 
-    [Fact(Skip = "Pre-existing bug: DoubleTimeHours column missing in TimeTracking.TimeEntries table migration")]
+    [Fact]
     public async Task Can_get_employee_stats()
     {
         await db.ResetAsync();
@@ -460,7 +460,10 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
         }
 
         var statsJson = await statsResp.Content.ReadAsStringAsync();
-        Assert.Contains("totalRegularHours", statsJson);
+        // Verify response contains expected properties (camelCase JSON)
+        Assert.Contains("regularHours", statsJson);
+        Assert.Contains("totalHours", statsJson);
+        Assert.Contains("employeeId", statsJson);
     }
 
     [Fact]

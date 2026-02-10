@@ -46,12 +46,12 @@ public sealed class CreateEmployeeValidatorTests
     }
 
     [Fact]
-    public void Validate_WithEmptyEmployeeNumber_ShouldHaveError()
+    public void Validate_WithEmptyEmployeeNumber_ShouldNotHaveError()
     {
+        // EmployeeNumber is optional - auto-generated if not provided
         var command = CreateValidCommand(employeeNumber: "");
         var result = _validator.TestValidate(command);
-        result.ShouldHaveValidationErrorFor(x => x.EmployeeNumber)
-            .WithErrorMessage("Employee number is required");
+        result.ShouldNotHaveValidationErrorFor(x => x.EmployeeNumber);
     }
 
     [Fact]
