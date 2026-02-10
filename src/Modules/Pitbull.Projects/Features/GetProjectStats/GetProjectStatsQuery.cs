@@ -82,13 +82,14 @@ public sealed class GetProjectStatsHandler(PitbullDbContext db)
 
             // Get assigned employee count
             var employeeCountSql = $@"
-                SELECT COUNT(DISTINCT ""EmployeeId"") as Value
+                SELECT COUNT(DISTINCT ""EmployeeId"") as ""Value""
                 FROM project_assignments
                 WHERE ""ProjectId"" = '{request.ProjectId}'
                   AND ""IsActive"" = true";
 
-            var employeeCount = await db.Database.SqlQueryRaw<int>(employeeCountSql)
+            var employeeCountResult = await db.Database.SqlQueryRaw<ScalarInt>(employeeCountSql)
                 .FirstAsync(cancellationToken);
+            var employeeCount = employeeCountResult.Value;
 
             // Calculate labor cost (simple: hours * average rate)
             // For more accurate costing, use the full LaborCostCalculator
@@ -97,15 +98,16 @@ public sealed class GetProjectStatsHandler(PitbullDbContext db)
                     (te.""RegularHours"" * e.""BaseHourlyRate"") +
                     (te.""OvertimeHours"" * e.""BaseHourlyRate"" * 1.5) +
                     (te.""DoubletimeHours"" * e.""BaseHourlyRate"" * 2.0)
-                ), 0) as Value
+                ), 0) as ""Value""
                 FROM time_entries te
                 JOIN employees e ON te.""EmployeeId"" = e.""Id""
                 WHERE te.""ProjectId"" = '{request.ProjectId}'
                   AND te.""IsDeleted"" = false
                   AND te.""Status"" = 1";
 
-            var laborCost = await db.Database.SqlQueryRaw<decimal>(laborCostSql)
+            var laborCostResult = await db.Database.SqlQueryRaw<ScalarDecimal>(laborCostSql)
                 .FirstAsync(cancellationToken);
+            var laborCost = laborCostResult.Value;
 
             var totalHours = stats.RegularHours + stats.OvertimeHours + stats.DoubleTimeHours;
 
@@ -147,3 +149,6 @@ internal record TimeEntryStatsRow(
     DateTime? FirstDate,
     DateTime? LastDate
 );
+// Wrapper DTOs for scalar queries (EF Core SqlQueryRaw doesn't map primitives directly)
+internal record ScalarInt(int Value);
+internal record ScalarDecimal(decimal Value);

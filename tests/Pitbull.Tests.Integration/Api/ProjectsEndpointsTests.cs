@@ -345,11 +345,42 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, deleteResp.StatusCode);
     }
 
-    // TODO: Stats endpoint has a bug with EF Core SqlQueryRaw<int/decimal> mapping
-    // The "as Value" alias doesn't map to primitive types correctly
-    // Skipping this test until the handler is fixed
-    // [Fact]
-    // public async Task Can_get_project_stats() { ... }
+    [Fact]
+    public async Task Can_get_project_stats()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a project
+        var create = new CreateProjectCommand(
+            Name: "Stats Test Project",
+            Number: $"PRJ-STATS-{Guid.NewGuid():N}",
+            Description: "Project for stats test",
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 500_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/projects", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Get stats (should return zeros for new project)
+        var statsResp = await client.GetAsync($"/api/projects/{created.Id}/stats");
+        if (statsResp.StatusCode != HttpStatusCode.OK)
+        {
+            var body = await statsResp.Content.ReadAsStringAsync();
+            Assert.Fail($"Expected 200 OK but got {(int)statsResp.StatusCode}. Body: {body}");
+        }
+
+        var statsJson = await statsResp.Content.ReadAsStringAsync();
+        Assert.Contains(created.Id.ToString(), statsJson);
+        Assert.Contains("Stats Test Project", statsJson);
+        Assert.Contains("totalHours", statsJson, StringComparison.OrdinalIgnoreCase);
+    }
 
     [Fact]
     public async Task V2_can_create_and_get_project()
