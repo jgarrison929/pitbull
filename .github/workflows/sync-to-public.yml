@@ -1,0 +1,34 @@
+name: Sync to Public Repository
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove private content
+        run: |
+          # Remove private folder and any sensitive files
+          rm -rf .private/
+          rm -rf .github/workflows/sync-to-public.yml
+          # Add any other exclusions here
+          
+      - name: Push to public repo
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.PUBLIC_REPO_DEPLOY_KEY }}
+        with:
+          source-directory: '.'
+          destination-github-username: 'jgarrison929'
+          destination-repository-name: 'pitbull'
+          target-branch: main
+          commit-message: 'Sync from private repository'
