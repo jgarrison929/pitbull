@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.Tests.Integration.Infrastructure;
@@ -13,6 +14,11 @@ namespace Pitbull.Tests.Integration.Api;
 [Collection(DatabaseCollection.Name)]
 public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+    
     private PitbullApiFactory _factory = null!;
 
     public async Task InitializeAsync()
@@ -101,7 +107,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
 
-        var created = await createResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var created = await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions);
         Assert.NotNull(created);
         Assert.NotEqual(Guid.Empty, created!.Id);
         Assert.Equal(employeeNumber, created.EmployeeNumber);
@@ -129,13 +135,13 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             firstName = "GetTest",
             lastName = "Employee"
         });
-        var created = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         // Get
         var getResp = await client.GetAsync($"/api/employees/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
-        var fetched = await getResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var fetched = await getResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions);
         Assert.NotNull(fetched);
         Assert.Equal(created.Id, fetched!.Id);
         Assert.Equal("GetTest", fetched.FirstName);
@@ -185,7 +191,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             lastName = "Name",
             baseHourlyRate = 25.00m
         });
-        var created = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         // Update
         var updateResp = await client.PutAsJsonAsync($"/api/employees/{created.Id}", new
@@ -198,7 +204,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
 
-        var updated = await updateResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var updated = await updateResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions);
         Assert.NotNull(updated);
         Assert.Equal("Updated", updated!.FirstName);
         Assert.Equal(30.00m, updated.BaseHourlyRate);
@@ -292,7 +298,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             firstName = "Inactive",
             lastName = "Employee"
         });
-        var inactive = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>())!;
+        var inactive = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         await client.PutAsJsonAsync($"/api/employees/{inactive.Id}", new
         {
@@ -388,7 +394,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             firstName = "Isolated",
             lastName = "Employee"
         });
-        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>())!;
+        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         // Try to access from tenant B
         var getResp = await clientB.GetAsync($"/api/employees/{employee.Id}");
@@ -412,7 +418,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             firstName = "TenantA",
             lastName = "Employee"
         });
-        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>())!;
+        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         // Try to update from tenant B
         var updateResp = await clientB.PutAsJsonAsync($"/api/employees/{employee.Id}", new
@@ -448,7 +454,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
         
-        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>())!;
+        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         // Get stats
         var statsResp = await client.GetAsync($"/api/employees/{employee.Id}/stats");
