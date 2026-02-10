@@ -250,6 +250,131 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         Assert.Contains("already exists", body.ToLower());
     }
 
+    [Fact]
+    public async Task Approve_time_entry_returns_401_without_auth()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.PostAsJsonAsync($"/api/time-entries/{Guid.NewGuid()}/approve", new
+        {
+            approverId = Guid.NewGuid(),
+            comments = "Approved"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Approve_nonexistent_time_entry_returns_404()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.PostAsJsonAsync($"/api/time-entries/{Guid.NewGuid()}/approve", new
+        {
+            approverId = Guid.NewGuid(),
+            comments = "Should not exist"
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reject_time_entry_returns_401_without_auth()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.PostAsJsonAsync($"/api/time-entries/{Guid.NewGuid()}/reject", new
+        {
+            approverId = Guid.NewGuid(),
+            reason = "Not good"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reject_nonexistent_time_entry_returns_404()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.PostAsJsonAsync($"/api/time-entries/{Guid.NewGuid()}/reject", new
+        {
+            approverId = Guid.NewGuid(),
+            reason = "Should not exist"
+        });
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Can_get_time_entries_by_project()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a project
+        var projectResp = await client.PostAsJsonAsync("/api/projects", new
+        {
+            name = "ByProject Test Project",
+            number = $"BPT-{Guid.NewGuid():N}".Substring(0, 15),
+            type = 0,
+            contractAmount = 50000m
+        });
+        projectResp.EnsureSuccessStatusCode();
+        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>();
+
+        // Query time entries by project (should be empty but return 200)
+        var resp = await client.GetAsync($"/api/time-entries/by-project/{project!.Id}");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var body = await resp.Content.ReadAsStringAsync();
+        // Response includes projectId and timeEntries array
+        Assert.Contains("projectId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("timeEntries", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Get_time_entries_by_nonexistent_project_returns_404()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.GetAsync($"/api/time-entries/by-project/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Can_get_labor_cost_report()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Cost report should work even with no data
+        var resp = await client.GetAsync("/api/time-entries/cost-report");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var body = await resp.Content.ReadAsStringAsync();
+        // Should contain report structure with totalCost summary
+        Assert.Contains("generatedAt", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("totalCost", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Cost_report_requires_auth()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.GetAsync("/api/time-entries/cost-report");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
     // Simple DTO for project response parsing
     private record ProjectDto(Guid Id, string Name, string Number);
 }
