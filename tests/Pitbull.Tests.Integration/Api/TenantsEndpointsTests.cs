@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
@@ -93,5 +94,52 @@ public sealed class TenantsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var resp = await client.GetAsync($"/api/tenants/{nonExistentId}");
 
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_tenant_without_auth_returns_401()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.PostAsJsonAsync("/api/tenants", new { name = "Test Tenant" });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_can_create_tenant()
+    {
+        await db.ResetAsync();
+
+        // First user is auto-promoted to Admin
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var tenantName = $"New Tenant {Guid.NewGuid():N}";
+        var resp = await client.PostAsJsonAsync("/api/tenants", new { name = tenantName });
+
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains(tenantName, json);
+        Assert.Contains("slug", json);
+    }
+
+    [Fact]
+    public async Task Create_tenant_with_duplicate_name_returns_409()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var tenantName = $"Duplicate Test {Guid.NewGuid():N}";
+        
+        // Create first tenant
+        var resp1 = await client.PostAsJsonAsync("/api/tenants", new { name = tenantName });
+        Assert.Equal(HttpStatusCode.Created, resp1.StatusCode);
+
+        // Try to create duplicate
+        var resp2 = await client.PostAsJsonAsync("/api/tenants", new { name = tenantName });
+        Assert.Equal(HttpStatusCode.Conflict, resp2.StatusCode);
     }
 }
