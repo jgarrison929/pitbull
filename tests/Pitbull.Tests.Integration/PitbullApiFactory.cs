@@ -7,8 +7,7 @@ namespace Pitbull.Tests.Integration;
 
 public sealed class PitbullTestContainersFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder()
-        .WithImage("postgres:17-alpine")
+    private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("pitbull_tests")
         .WithUsername("pitbull")
         .WithPassword("pitbull")
