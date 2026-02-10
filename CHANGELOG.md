@@ -17,6 +17,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.17] - 2026-02-10
+
+### 📊 Test Coverage
+
+- **Bids integration tests** (+2 tests)
+  - Delete nonexistent bid returns 404
+  - Update bid with mismatched ID returns 400
+- **Subcontracts integration tests** (+2 tests)
+  - Delete nonexistent subcontract returns 404
+  - Update subcontract with mismatched ID returns 400
+
+**Total tests:** 1017 (834 unit + 183 integration)
+
+---
+
 ## [0.10.16] - 2026-02-10
 
 ### 🐛 Bug Fixes
