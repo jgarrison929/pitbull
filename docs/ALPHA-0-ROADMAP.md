@@ -19,13 +19,13 @@
 ## 📊 Current Stats (Feb 10, 2026)
 
 - **Version:** v0.10.14
-- **Tests:** 907 passing (768 unit + 139 integration)
+- **Tests:** 1013 passing (834 unit + 179 integration)
 - **CI:** Green on all branches
 - **Deployment:** Railway production healthy
 - **Modules:** Core, Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts
 - **Quality:** Comprehensive integration test coverage across all active modules
 
-> **Note:** HR and Payroll modules were removed Feb 9 as incomplete - scheduled for v2. Test count dropped from 1244 to 907 as a result.
+> **Note:** HR and Payroll modules were removed Feb 9 as incomplete - scheduled for v2. Test count dropped from 1244, then rebuilt to 1013+ with expanded coverage.
 
 ## ✅ Completed Work
 
