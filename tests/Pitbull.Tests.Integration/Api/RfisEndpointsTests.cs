@@ -254,4 +254,30 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Contains("Answered RFI", answeredListJson);
         Assert.DoesNotContain("Open RFI", answeredListJson);
     }
+
+    [Fact]
+    public async Task Get_nonexistent_rfi_returns_404()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        var getResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_nonexistent_rfi_returns_404()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        var updateResp = await client.PutAsJsonAsync($"/api/projects/{projectId}/rfis/{Guid.NewGuid()}", new
+        {
+            Subject = "Updated Subject",
+            Question = "Updated question",
+            Status = RfiStatus.Open,
+            Priority = RfiPriority.Normal
+        });
+        Assert.Equal(HttpStatusCode.NotFound, updateResp.StatusCode);
+    }
 }
