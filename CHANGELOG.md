@@ -17,6 +17,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.16] - 2026-02-10
+
+### 🐛 Bug Fixes
+
+- **fix(projects):** V2 service methods now filter by `!IsDeleted` - soft-deleted records were being returned
+- **fix(projects):** Stats endpoint SqlQueryRaw scalar mapping - added wrapper DTOs to fix EF Core mapping
+
+### 📊 Test Coverage
+
+- **Contracts module validator tests** (+57 tests)
+  - CreateSubcontractValidator (22 tests)
+  - CreateChangeOrderValidator (19 tests)
+  - CreatePaymentApplicationValidator (16 tests)
+- **Security middleware tests** (+9 tests)
+  - SecurityHeadersMiddleware header verification
+- **Bids integration tests** (+3 tests)
+  - Convert to project workflow
+- **Projects V2 integration tests** (+5 tests)
+  - Full CRUD coverage for V2 endpoints
+- **RFI integration tests** (+2 tests)
+  - Nonexistent RFI edge cases
+- **Various module integration tests** (+10 tests)
+  - Tenants, SeedData, TimeEntries, Dashboard
+
+**Total tests:** 1013 (834 unit + 179 integration) 🎉 **Crossed 1000 tests milestone!**
+
+---
+
 ## [0.10.15] - 2026-02-10
 
 ### 📊 Test Coverage
