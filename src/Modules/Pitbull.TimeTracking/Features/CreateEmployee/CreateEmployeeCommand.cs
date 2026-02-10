@@ -59,7 +59,7 @@ public sealed class CreateEmployeeHandler(PitbullDbContext db)
                 .AnyAsync(e => e.EmployeeNumber == employeeNumber, cancellationToken);
 
             if (existingEmployee)
-                return Result.Failure<EmployeeDto>("DUPLICATE", "Employee number already exists");
+                return Result.Failure<EmployeeDto>("Employee number already exists", "DUPLICATE");
         }
 
         // Validate supervisor exists if provided
@@ -69,7 +69,7 @@ public sealed class CreateEmployeeHandler(PitbullDbContext db)
                 .AnyAsync(e => e.Id == request.SupervisorId.Value, cancellationToken);
 
             if (!supervisorExists)
-                return Result.Failure<EmployeeDto>("INVALID_SUPERVISOR", "Supervisor not found");
+                return Result.Failure<EmployeeDto>("Supervisor not found", "INVALID_SUPERVISOR");
         }
 
         var employee = new Employee

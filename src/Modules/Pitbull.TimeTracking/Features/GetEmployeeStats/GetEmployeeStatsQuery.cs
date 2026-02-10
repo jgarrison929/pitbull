@@ -61,17 +61,19 @@ public sealed class GetEmployeeStatsHandler(PitbullDbContext db)
             }
 
             // Get time entry stats
+            // Note: Column name is "DoubletimeHours" (lowercase 't') per migration
+            // Note: Aliases must match DTO property names exactly (EF Core raw SQL mapping)
             var statsSql = $@"
                 SELECT 
-                    COALESCE(SUM(""RegularHours""), 0) as regular_hours,
-                    COALESCE(SUM(""OvertimeHours""), 0) as overtime_hours,
-                    COALESCE(SUM(""DoubleTimeHours""), 0) as doubletime_hours,
-                    COUNT(*) as entry_count,
-                    COUNT(*) FILTER (WHERE ""Status"" = 1) as approved_count,
-                    COUNT(*) FILTER (WHERE ""Status"" = 0) as pending_count,
-                    COUNT(DISTINCT ""ProjectId"") as project_count,
-                    MIN(""Date"") as first_date,
-                    MAX(""Date"") as last_date
+                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
+                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
+                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours"",
+                    COUNT(*) as ""EntryCount"",
+                    COUNT(*) FILTER (WHERE ""Status"" = 1) as ""ApprovedCount"",
+                    COUNT(*) FILTER (WHERE ""Status"" = 0) as ""PendingCount"",
+                    COUNT(DISTINCT ""ProjectId"") as ""ProjectCount"",
+                    MIN(""Date"") as ""FirstDate"",
+                    MAX(""Date"") as ""LastDate""
                 FROM time_entries
                 WHERE ""EmployeeId"" = '{request.EmployeeId}'
                   AND ""IsDeleted"" = false";
