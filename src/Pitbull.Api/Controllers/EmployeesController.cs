@@ -70,17 +70,17 @@ public class EmployeesController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> Create([FromBody] CreateEmployeeRequest request)
     {
         var command = new CreateEmployeeCommand(
-            request.EmployeeNumber,
-            request.FirstName,
-            request.LastName,
-            request.Email,
-            request.Phone,
-            request.Title,
-            request.Classification,
-            request.BaseHourlyRate,
-            request.HireDate,
-            request.SupervisorId,
-            request.Notes
+            FirstName: request.FirstName,
+            LastName: request.LastName,
+            EmployeeNumber: request.EmployeeNumber,
+            Email: request.Email,
+            Phone: request.Phone,
+            Title: request.Title,
+            Classification: request.Classification,
+            BaseHourlyRate: request.BaseHourlyRate,
+            HireDate: request.HireDate,
+            SupervisorId: request.SupervisorId,
+            Notes: request.Notes
         );
 
         var result = await mediator.Send(command);
