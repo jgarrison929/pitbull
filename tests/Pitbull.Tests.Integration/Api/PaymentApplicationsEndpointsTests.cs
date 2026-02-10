@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.CreateSubcontract;
+using Pitbull.Contracts.Features.UpdatePaymentApplication;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Tests.Integration.Infrastructure;
@@ -237,5 +238,192 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         // Previous work should carry forward
         Assert.Equal(30_000m, created2.WorkCompletedPrevious);
         Assert.Equal(55_000m, created2.WorkCompletedToDate); // 30K + 25K
+    }
+
+    [Fact]
+    public async Task Can_update_payment_application()
+    {
+        await db.ResetAsync();
+
+        var (client, _, subcontractId) = await SetupProjectAndSubcontractAsync();
+
+        // Create payment application
+        var createCmd = new CreatePaymentApplicationCommand(
+            SubcontractId: subcontractId,
+            PeriodStart: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            PeriodEnd: new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+            WorkCompletedThisPeriod: 20_000m,
+            StoredMaterials: 0m,
+            InvoiceNumber: "INV-001",
+            Notes: "Initial draft");
+
+        var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+
+        // Update it
+        var updateCmd = new UpdatePaymentApplicationCommand(
+            Id: created.Id,
+            WorkCompletedThisPeriod: 25_000m,
+            StoredMaterials: 3_000m,
+            Status: PaymentApplicationStatus.Submitted,
+            ApprovedBy: null,
+            ApprovedAmount: null,
+            InvoiceNumber: "INV-001-REV",
+            CheckNumber: null,
+            Notes: "Revised and submitted");
+
+        var updateResp = await client.PutAsJsonAsync($"/api/paymentapplications/{created.Id}", updateCmd);
+        Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
+
+        var updated = (await updateResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        Assert.Equal(25_000m, updated.WorkCompletedThisPeriod);
+        Assert.Equal(3_000m, updated.StoredMaterials);
+        Assert.Equal(PaymentApplicationStatus.Submitted, updated.Status);
+        Assert.Equal("INV-001-REV", updated.InvoiceNumber);
+    }
+
+    [Fact]
+    public async Task Update_nonexistent_payment_application_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var updateCmd = new UpdatePaymentApplicationCommand(
+            Id: Guid.NewGuid(),
+            WorkCompletedThisPeriod: 10_000m,
+            StoredMaterials: 0m,
+            Status: PaymentApplicationStatus.Draft,
+            ApprovedBy: null,
+            ApprovedAmount: null,
+            InvoiceNumber: null,
+            CheckNumber: null,
+            Notes: null);
+
+        var resp = await client.PutAsJsonAsync($"/api/paymentapplications/{updateCmd.Id}", updateCmd);
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Update_with_mismatched_id_returns_400()
+    {
+        await db.ResetAsync();
+
+        var (client, _, subcontractId) = await SetupProjectAndSubcontractAsync();
+
+        // Create payment application
+        var createCmd = new CreatePaymentApplicationCommand(
+            SubcontractId: subcontractId,
+            PeriodStart: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            PeriodEnd: new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+            WorkCompletedThisPeriod: 20_000m,
+            StoredMaterials: 0m,
+            InvoiceNumber: null,
+            Notes: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+
+        // Try to update with different ID in body
+        var updateCmd = new UpdatePaymentApplicationCommand(
+            Id: Guid.NewGuid(), // Different from route
+            WorkCompletedThisPeriod: 25_000m,
+            StoredMaterials: 0m,
+            Status: PaymentApplicationStatus.Draft,
+            ApprovedBy: null,
+            ApprovedAmount: null,
+            InvoiceNumber: null,
+            CheckNumber: null,
+            Notes: null);
+
+        var resp = await client.PutAsJsonAsync($"/api/paymentapplications/{created.Id}", updateCmd);
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Can_delete_draft_payment_application()
+    {
+        await db.ResetAsync();
+
+        var (client, _, subcontractId) = await SetupProjectAndSubcontractAsync();
+
+        // Create payment application
+        var createCmd = new CreatePaymentApplicationCommand(
+            SubcontractId: subcontractId,
+            PeriodStart: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            PeriodEnd: new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+            WorkCompletedThisPeriod: 20_000m,
+            StoredMaterials: 0m,
+            InvoiceNumber: null,
+            Notes: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+
+        // Delete it
+        var deleteResp = await client.DeleteAsync($"/api/paymentapplications/{created.Id}");
+        Assert.Equal(HttpStatusCode.NoContent, deleteResp.StatusCode);
+
+        // Verify it's gone
+        var getResp = await client.GetAsync($"/api/paymentapplications/{created.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_nonexistent_payment_application_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.DeleteAsync($"/api/paymentapplications/{Guid.NewGuid()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Cannot_delete_submitted_payment_application()
+    {
+        await db.ResetAsync();
+
+        var (client, _, subcontractId) = await SetupProjectAndSubcontractAsync();
+
+        // Create payment application
+        var createCmd = new CreatePaymentApplicationCommand(
+            SubcontractId: subcontractId,
+            PeriodStart: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            PeriodEnd: new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc),
+            WorkCompletedThisPeriod: 20_000m,
+            StoredMaterials: 0m,
+            InvoiceNumber: "INV-001",
+            Notes: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+
+        // Submit it
+        var updateCmd = new UpdatePaymentApplicationCommand(
+            Id: created.Id,
+            WorkCompletedThisPeriod: 20_000m,
+            StoredMaterials: 0m,
+            Status: PaymentApplicationStatus.Submitted,
+            ApprovedBy: null,
+            ApprovedAmount: null,
+            InvoiceNumber: "INV-001",
+            CheckNumber: null,
+            Notes: null);
+
+        var updateResp = await client.PutAsJsonAsync($"/api/paymentapplications/{created.Id}", updateCmd);
+        updateResp.EnsureSuccessStatusCode();
+
+        // Try to delete - should fail
+        var deleteResp = await client.DeleteAsync($"/api/paymentapplications/{created.Id}");
+        Assert.Equal(HttpStatusCode.BadRequest, deleteResp.StatusCode);
     }
 }
