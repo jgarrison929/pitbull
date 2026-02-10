@@ -312,6 +312,79 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
     }
 
     [Fact]
+    public async Task Update_subcontract_with_mismatched_id_returns_400()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create project
+        var projectCmd = new CreateProjectCommand(
+            Name: "Mismatch Test Project",
+            Number: $"PRJ-MISMATCH-{Guid.NewGuid():N}",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
+        projectResp.EnsureSuccessStatusCode();
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Create subcontract
+        var createCmd = new CreateSubcontractCommand(
+            ProjectId: project.Id,
+            SubcontractNumber: $"SC-MISMATCH-{Guid.NewGuid():N}",
+            SubcontractorName: "Test Subcontractor",
+            SubcontractorContact: null,
+            SubcontractorEmail: null,
+            SubcontractorPhone: null,
+            SubcontractorAddress: null,
+            ScopeOfWork: "Test scope",
+            TradeCode: null,
+            OriginalValue: 25_000m,
+            RetainagePercent: 10m,
+            StartDate: null,
+            CompletionDate: null,
+            LicenseNumber: null,
+            Notes: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/subcontracts", createCmd);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+
+        // Update with mismatched ID in body
+        var differentId = Guid.NewGuid();
+        var updateCmd = new UpdateSubcontractCommand(
+            Id: differentId, // Different from route
+            SubcontractNumber: created.SubcontractNumber,
+            SubcontractorName: "Should Fail",
+            SubcontractorContact: null,
+            SubcontractorEmail: null,
+            SubcontractorPhone: null,
+            SubcontractorAddress: null,
+            ScopeOfWork: "Test scope",
+            TradeCode: null,
+            OriginalValue: 25_000m,
+            RetainagePercent: 10m,
+            ExecutionDate: null,
+            StartDate: null,
+            CompletionDate: null,
+            Status: SubcontractStatus.Draft,
+            InsuranceExpirationDate: null,
+            InsuranceCurrent: false,
+            LicenseNumber: null,
+            Notes: null);
+
+        var resp = await client.PutAsJsonAsync($"/api/subcontracts/{created.Id}", updateCmd);
+        
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task Can_delete_subcontract()
     {
         await db.ResetAsync();
