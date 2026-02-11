@@ -213,8 +213,8 @@ The accounting module is the **heart of any construction ERP**. This is where Vi
 ## Phased Approach
 
 ### Phase 1: Foundation (DONE ✅)
-- Multi-tenant, RBAC, Projects, Bids, Contracts, RFIs, TimeTracking
-- 806 tests, Railway deployed
+- Multi-tenant, RBAC, Projects, Bids, Contracts, RFIs, TimeTracking, Employees, Reports
+- 1017 tests (834 unit + 183 integration), Railway deployed, v0.10.17
 
 ### Phase 2: HR Core (NEXT)
 - **Employee data warehouse** - the source of truth
@@ -272,4 +272,8 @@ Build the API right, agents handle the repetitive work.
 
 ---
 
-*Last updated: February 8, 2026*
+*Last updated: February 10, 2026*
+
+> **Note:** HR/Payroll modules were removed Feb 9 (incomplete code blocking builds). 
+> Phase 2/3/4 sequencing still valid - will rebuild when ready.
+> See `/mnt/c/pitbull/docs/PROJECT-SCHEDULE.md` for current milestone tracking.
