@@ -102,7 +102,6 @@ const TIME_ZONES = [
 export default function CompanySettingsPage() {
   const router = useRouter();
   const { isAdmin } = useAuth();
-  const [settings, setSettings] = useState<CompanySettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -138,7 +137,6 @@ export default function CompanySettingsPage() {
     setIsLoading(true);
     try {
       const data = await api<CompanySettings>("/api/admin/company");
-      setSettings(data);
       setForm({
         name: data.name || "",
         legalName: data.legalName || "",

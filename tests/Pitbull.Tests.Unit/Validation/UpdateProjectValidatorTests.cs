@@ -125,7 +125,7 @@ public sealed class UpdateProjectValidatorTests
     [Fact]
     public void Validate_WithAllStatuses_ShouldNotHaveError()
     {
-        foreach (ProjectStatus status in Enum.GetValues(typeof(ProjectStatus)))
+        foreach (ProjectStatus status in Enum.GetValues<ProjectStatus>())
         {
             var command = CreateValidCommand(status: status);
             var result = _validator.TestValidate(command);
@@ -136,7 +136,7 @@ public sealed class UpdateProjectValidatorTests
     [Fact]
     public void Validate_WithAllTypes_ShouldNotHaveError()
     {
-        foreach (ProjectType type in Enum.GetValues(typeof(ProjectType)))
+        foreach (ProjectType type in Enum.GetValues<ProjectType>())
         {
             var command = CreateValidCommand(type: type);
             var result = _validator.TestValidate(command);

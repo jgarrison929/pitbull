@@ -158,7 +158,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         // Parse cost code ID from response
         var costCodeStart = costCodesJson.IndexOf("\"id\":\"") + 6;
         var costCodeEnd = costCodesJson.IndexOf("\"", costCodeStart);
-        costCodeId = Guid.Parse(costCodesJson.Substring(costCodeStart, costCodeEnd - costCodeStart));
+        costCodeId = Guid.Parse(costCodesJson.AsSpan(costCodeStart, costCodeEnd - costCodeStart));
 
         // Create time entry
         var createEntry = new

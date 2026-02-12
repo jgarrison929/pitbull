@@ -153,7 +153,7 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         return result;
     }
 
-    private Dictionary<string, string> GetSafeHeaders(IHeaderDictionary headers)
+    private static Dictionary<string, string> GetSafeHeaders(IHeaderDictionary headers)
     {
         var result = new Dictionary<string, string>();
         foreach (var header in headers)

@@ -8,7 +8,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class UpdateChangeOrderHandlerTests
 {
-    private async Task<ChangeOrder> CreateTestChangeOrder(PitbullDbContext db, Guid? subcontractId = null)
+    private static async Task<ChangeOrder> CreateTestChangeOrder(PitbullDbContext db, Guid? subcontractId = null)
     {
         var changeOrder = new ChangeOrder
         {
@@ -29,7 +29,7 @@ public class UpdateChangeOrderHandlerTests
         return changeOrder;
     }
 
-    private UpdateChangeOrderCommand CreateValidCommand(ChangeOrder co)
+    private static UpdateChangeOrderCommand CreateValidCommand(ChangeOrder co)
     {
         return new UpdateChangeOrderCommand(
             co.Id,

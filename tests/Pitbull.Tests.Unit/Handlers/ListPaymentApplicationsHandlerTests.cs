@@ -8,7 +8,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class ListPaymentApplicationsHandlerTests
 {
-    private async Task SeedPaymentApplications(PitbullDbContext db, Guid subcontractId)
+    private static async Task SeedPaymentApplications(PitbullDbContext db, Guid subcontractId)
     {
         var payApps = new[]
         {

@@ -9,7 +9,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class DeleteSubcontractHandlerTests
 {
-    private async Task<Subcontract> CreateTestSubcontract(PitbullDbContext db, SubcontractStatus status = SubcontractStatus.Draft)
+    private static async Task<Subcontract> CreateTestSubcontract(PitbullDbContext db, SubcontractStatus status = SubcontractStatus.Draft)
     {
         var subcontract = new Subcontract
         {

@@ -75,9 +75,9 @@ public class ProjectService : IProjectService
         {
             var searchTerm = listQuery.Search.ToLower();
             dbQuery = dbQuery.Where(p => 
-                p.Name.ToLower().Contains(searchTerm) ||
+                p.Name.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
                 p.Number.ToLower().Contains(searchTerm) ||
-                (p.ClientName != null && p.ClientName.ToLower().Contains(searchTerm)));
+                (p.ClientName != null && p.ClientName.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         if (listQuery.Status.HasValue)

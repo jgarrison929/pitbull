@@ -58,6 +58,6 @@ public class UpdateBidValidator : AbstractValidator<UpdateBidCommand>
             
             item.RuleFor(i => i.UnitCost)
                 .GreaterThanOrEqualTo(0).WithMessage("Unit cost cannot be negative");
-        }).When(x => x.Items != null && x.Items.Any());
+        }).When(x => x.Items != null && x.Items.Count != 0);
     }
 }

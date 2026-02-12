@@ -9,7 +9,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class CreateChangeOrderHandlerTests
 {
-    private async Task<Subcontract> CreateTestSubcontract(PitbullDbContext db)
+    private static async Task<Subcontract> CreateTestSubcontract(PitbullDbContext db)
     {
         var subcontract = new Subcontract
         {

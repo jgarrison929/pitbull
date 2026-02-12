@@ -47,10 +47,10 @@ public sealed class ListEmployeesHandler(PitbullDbContext db)
         {
             var searchTerm = request.Search.ToLower();
             query = query.Where(e =>
-                e.EmployeeNumber.ToLower().Contains(searchTerm) ||
+                e.EmployeeNumber.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
                 e.FirstName.ToLower().Contains(searchTerm) ||
-                e.LastName.ToLower().Contains(searchTerm) ||
-                (e.Email != null && e.Email.ToLower().Contains(searchTerm)));
+                e.LastName.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
+                (e.Email != null && e.Email.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         // Get total count before pagination

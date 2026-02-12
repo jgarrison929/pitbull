@@ -387,7 +387,7 @@ public class ListTimeEntriesHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Items.First().EmployeeName.Should().Be("John Worker");
+        result.Value!.Items[0].EmployeeName.Should().Be("John Worker");
     }
 
     #region Helper Methods

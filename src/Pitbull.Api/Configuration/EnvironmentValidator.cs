@@ -28,7 +28,7 @@ public static class EnvironmentValidator
         // Demo configuration validation (when demo is enabled)
         ValidateDemoConfiguration(configuration, errors);
 
-        if (errors.Any())
+        if (errors.Count != 0)
         {
             var message = "Configuration validation failed:\n" + string.Join("\n", errors.Select(e => $"  - {e}"));
             throw new InvalidOperationException(message);

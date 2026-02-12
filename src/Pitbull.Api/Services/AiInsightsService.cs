@@ -114,7 +114,7 @@ public class AiInsightsService : IAiInsightsService
             .Where(t => t.Status == TimeEntryStatus.Submitted)
             .Count(t => t.CreatedAt < DateTime.UtcNow.AddDays(-7));
 
-        var daysActive = timeEntries.Any() 
+        var daysActive = timeEntries.Count != 0
             ? (int)(timeEntries.Max(t => t.Date).ToDateTime(TimeOnly.MinValue) - 
                     timeEntries.Min(t => t.Date).ToDateTime(TimeOnly.MinValue)).TotalDays + 1
             : 0;

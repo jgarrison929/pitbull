@@ -32,10 +32,10 @@ public class AdminUsersController(
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.ToLower();
-            query = query.Where(u => 
-                u.Email!.ToLower().Contains(searchLower) ||
-                u.FirstName!.ToLower().Contains(searchLower) ||
-                u.LastName!.ToLower().Contains(searchLower));
+            query = query.Where(u =>
+                u.Email!.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase) ||
+                u.FirstName!.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase) ||
+                u.LastName!.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase));
         }
 
         if (isActive.HasValue)
