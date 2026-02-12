@@ -19,11 +19,11 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export
 - 📋 **Next:** Documentation polish, UAT preparation
 
-**Recent Wins (Feb 10, 2026):**
-- **🚀 v0.10.17:** Released to production with edge case integration tests
-- **🎯 1000+ Tests:** Crossed milestone with 1017 tests (834 unit + 183 integration)
-- **🐛 Bug Fixes:** V2 soft-delete filter, stats endpoint SqlQueryRaw scalar mapping
-- **📋 Test Coverage:** Bids/Subcontracts edge cases, Contracts validators, security middleware
+**Recent Wins (Feb 12, 2026):**
+- **🚀 v0.10.18:** Security hardening release with rate limiting on all admin controllers
+- **🔒 Security Docs:** Updated SECURITY.md with comprehensive implemented features
+- **📚 Best Practices:** Reorganized Known Issues section (Open/Resolved tracking)
+- **🧹 Code Quality:** ESLint warnings resolved, codebase clean
 
 ## Stack
 
