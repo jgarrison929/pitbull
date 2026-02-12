@@ -1,8 +1,17 @@
 # Pitbull Construction Solutions
 
+[![CI](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml/badge.svg)](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml)
+[![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-000000)](https://nextjs.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
+[![Tests](https://img.shields.io/badge/tests-1017%20passing-success)](tests/)
+[![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
+
 **Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
 
 Loyal. Tenacious. Won't let go. 🐕
+
+---
 
 ## Current Status
 
@@ -168,6 +177,27 @@ The AI analyzes:
 - Budget utilization (actual vs planned)
 
 To enable: Set `ANTHROPIC_API_KEY` environment variable with your Anthropic API key.
+
+## Documentation
+
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute to this project
+- [Security Policy](.github/SECURITY.md) - Security practices and vulnerability reporting
+- [Architecture Docs](docs/architecture/) - System design and technical decisions
+- [Deployment Guide](docs/deployment/) - Deployment instructions and configuration
+- [API Reference](http://localhost:5000/swagger) - Interactive API documentation (when running locally)
+
+## Contributing
+
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for:
+
+- Development environment setup
+- Code style and standards
+- Testing requirements
+- Pull request process
+
+## Security
+
+Found a security vulnerability? Please report it responsibly. See our [Security Policy](.github/SECURITY.md) for details.
 
 ## License
 
