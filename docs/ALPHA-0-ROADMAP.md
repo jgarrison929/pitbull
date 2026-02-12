@@ -18,14 +18,14 @@
 
 ## 📊 Current Stats (Feb 12, 2026)
 
-- **Version:** v0.10.19
+- **Version:** v0.10.20
 - **Tests:** 1017 passing (834 unit + 183 integration)
 - **CI:** Green on all branches
 - **Deployment:** Railway production healthy
 - **Modules:** Core, Projects, Bids, RFIs, TimeTracking, Employees, Reports, Contracts
 - **Quality:** Comprehensive integration test coverage across all active modules
 
-> **Note:** HR and Payroll modules were removed Feb 9 as incomplete - scheduled for v2. Test count dropped from 1244, then rebuilt to 1013+ with expanded coverage.
+> **Note:** HR and Payroll modules were removed Feb 9 as incomplete - scheduled for v2. Test count dropped from 1244, then rebuilt to 1017 with expanded architecture tests.
 
 ## ✅ Completed Work
 
@@ -100,17 +100,13 @@
 
 ## 📈 Test Coverage
 
-| Module | Unit Tests | Integration | Total |
-|--------|-----------|-------------|-------|
-| Core | 150+ | 5 | ~155 |
-| Projects | 120+ | 3 | ~123 |
-| Bids | 80+ | 2 | ~82 |
-| RFIs | 49 | - | 49 |
-| TimeTracking | 100+ | 4 | ~104 |
-| Employees | 60+ | - | ~60 |
-| Reports | 40+ | - | ~40 |
-| Contracts | 137 | - | 137 |
-| **Total** | **768** | **38** | **806** |
+| Category | Count |
+|----------|-------|
+| Unit Tests | 834 |
+| Integration Tests | 183 |
+| **Total** | **1017** |
+
+All modules have unit test coverage. Integration tests cover API contracts, database operations, and multi-tenant isolation.
 
 ## 🎨 UI/UX Implemented
 
