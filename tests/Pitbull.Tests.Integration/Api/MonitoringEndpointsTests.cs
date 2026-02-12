@@ -80,7 +80,8 @@ public sealed class MonitoringEndpointsTests(PostgresFixture db) : IAsyncLifetim
             $"Expected 200 or 503 but got {resp.StatusCode}");
 
         var json = await resp.Content.ReadAsStringAsync();
-        Assert.Contains("status", json);
+        // Response should have status field (lowercase due to JSON serialization)
+        Assert.Contains("\"status\"", json, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
