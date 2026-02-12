@@ -15,6 +15,7 @@ public interface IRfiService
     // Query operations
     Task<Result<RfiDto>> GetRfiAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result<PagedResult<RfiDto>>> GetRfisAsync(ListRfisQuery query, CancellationToken cancellationToken = default);
+    Task<Result<RfiCostImpactDto>> GetRfiCostImpactAsync(Guid id, CancellationToken cancellationToken = default);
 
     // Command operations
     Task<Result<RfiDto>> CreateRfiAsync(CreateRfiCommand command, CancellationToken cancellationToken = default);

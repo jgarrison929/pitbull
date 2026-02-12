@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pitbull.Core\Pitbull.Core.csproj" />
+    <ProjectReference Include="..\Pitbull.Contracts\Pitbull.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

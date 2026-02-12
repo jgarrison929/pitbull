@@ -239,6 +239,40 @@ public class RfisController(IRfiService rfiService) : ControllerBase
 
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Get cost impact analysis for an RFI
+    /// </summary>
+    /// <remarks>
+    /// Returns the full financial and schedule impact of an RFI, including:
+    /// - Time metrics (days open, response delay)
+    /// - Cost totals (direct costs, delay costs)
+    /// - Linked change orders with their amounts
+    /// - Timeline of events
+    ///
+    /// This enables tracking the end-to-end impact: RFI → Change Order → Cost.
+    /// "This RFI cost us $45K in direct costs and $18K in delays."
+    /// </remarks>
+    /// <param name="projectId">The project ID containing the RFI</param>
+    /// <param name="id">The RFI ID to analyze</param>
+    /// <returns>Cost impact analysis</returns>
+    /// <response code="200">Cost impact analysis returned</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">RFI not found</response>
+    [HttpGet("{id:guid}/cost-impact")]
+    [ProducesResponseType(typeof(RfiCostImpactDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCostImpact(Guid projectId, Guid id)
+    {
+        var result = await rfiService.GetRfiCostImpactAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+
+        return Ok(result.Value);
+    }
 }
 
 /// <summary>Request body for creating a new RFI</summary>
