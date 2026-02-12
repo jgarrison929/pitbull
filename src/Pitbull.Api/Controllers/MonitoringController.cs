@@ -56,17 +56,50 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
     /// <response code="200">System is healthy</response>
     /// <response code="503">System or dependencies are unhealthy</response>
     [HttpGet("health")]
-    [ProducesResponseType(typeof(HealthReport), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    [ProducesResponseType(typeof(HealthStatusResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HealthStatusResponse), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> GetHealth()
     {
-        var health = await healthCheckService.CheckHealthAsync();
-        
-        var statusCode = health.Status == HealthStatus.Healthy
-            ? StatusCodes.Status200OK
-            : StatusCodes.Status503ServiceUnavailable;
+        try
+        {
+            var health = await healthCheckService.CheckHealthAsync();
+            
+            var response = new HealthStatusResponse(
+                Status: health.Status.ToString(),
+                TotalDuration: health.TotalDuration.TotalMilliseconds,
+                Entries: health.Entries.ToDictionary(
+                    e => e.Key,
+                    e => new HealthEntryInfo(
+                        Status: e.Value.Status.ToString(),
+                        Duration: e.Value.Duration.TotalMilliseconds,
+                        Description: e.Value.Description,
+                        Exception: e.Value.Exception?.Message
+                    )
+                )
+            );
+            
+            var statusCode = health.Status == HealthStatus.Healthy
+                ? StatusCodes.Status200OK
+                : StatusCodes.Status503ServiceUnavailable;
 
-        return StatusCode(statusCode, health);
+            return StatusCode(statusCode, response);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new HealthStatusResponse(
+                Status: "Unhealthy",
+                TotalDuration: 0,
+                Entries: new Dictionary<string, HealthEntryInfo>
+                {
+                    ["error"] = new HealthEntryInfo(
+                        Status: "Unhealthy",
+                        Duration: 0,
+                        Description: "Health check failed",
+                        Exception: ex.Message
+                    )
+                }
+            ));
+        }
     }
 
     /// <summary>
@@ -148,3 +181,27 @@ public record SecurityStatus(
     bool SecurityHeadersEnabled,
     bool AuthenticationEnabled,
     bool RequestSizeLimitsEnabled);
+
+/// <summary>
+/// Health check status response
+/// </summary>
+/// <param name="Status">Overall health status (Healthy, Degraded, Unhealthy)</param>
+/// <param name="TotalDuration">Total time to run all health checks in milliseconds</param>
+/// <param name="Entries">Individual health check entries</param>
+public record HealthStatusResponse(
+    string Status,
+    double TotalDuration,
+    Dictionary<string, HealthEntryInfo> Entries);
+
+/// <summary>
+/// Individual health check entry information
+/// </summary>
+/// <param name="Status">Health status of this check</param>
+/// <param name="Duration">Duration of this check in milliseconds</param>
+/// <param name="Description">Optional description</param>
+/// <param name="Exception">Exception message if check failed</param>
+public record HealthEntryInfo(
+    string Status,
+    double Duration,
+    string? Description,
+    string? Exception);
