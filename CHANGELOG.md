@@ -17,6 +17,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.20] - 2026-02-12
+
+### 🧹 Code Quality
+
+- **chore:** Apply `dotnet format` whitespace fixes across 115 files
+  - All C# files now pass `dotnet format --verify-no-changes`
+  - No functional changes, formatting only
+
+---
+
 ## [0.10.19] - 2026-02-12
 
 ### 🐛 Bug Fixes
