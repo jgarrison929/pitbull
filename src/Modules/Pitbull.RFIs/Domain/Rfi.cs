@@ -29,4 +29,17 @@ public class Rfi : BaseEntity
     public string? AssignedToName { get; set; }
     
     public string? CreatedByName { get; set; }
+    
+    // Document references
+    public string? SpecSection { get; set; }        // CSI format: "03 30 00 - Cast-in-Place Concrete"
+    public string? DrawingReferences { get; set; }  // JSON array: ["S-101", "S-102", "D-001"]
+    
+    // Cost impact tracking
+    public bool HasCostImpact { get; set; }
+    public decimal? EstimatedCostImpact { get; set; }
+    public int? EstimatedDelayDays { get; set; }
+    
+    // AI assistance
+    public string? AiSuggestedAnswer { get; set; }
+    public DateTime? AiAnalyzedAt { get; set; }
 }

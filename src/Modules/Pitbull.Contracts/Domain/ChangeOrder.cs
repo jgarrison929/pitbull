@@ -36,6 +36,14 @@ public class ChangeOrder : BaseEntity
     // Reference
     public string? ReferenceNumber { get; set; } // Owner's CO number if applicable
     
+    // RFI Linkage - Track cost impact back to originating RFI
+    public Guid? OriginatingRfiId { get; set; }
+    
+    // Delay cost tracking (separate from direct Amount)
+    public int? DelayDays { get; set; }           // Days of delay caused
+    public decimal? DelayCost { get; set; }       // Standby, acceleration costs
+    public string? DelayDescription { get; set; } // "Crew standby waiting for clarification"
+    
     // Navigation
     public Subcontract? Subcontract { get; set; }
 }
