@@ -34,7 +34,7 @@ public class RfiService : IRfiService
     {
         var rfi = await _db.Set<Rfi>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(r => r.Id == id && !r.IsDeleted, cancellationToken);
 
         if (rfi is null)
             return Result.Failure<RfiDto>("RFI not found", "NOT_FOUND");
@@ -44,7 +44,9 @@ public class RfiService : IRfiService
 
     public async Task<Result<PagedResult<RfiDto>>> GetRfisAsync(ListRfisQuery query, CancellationToken cancellationToken = default)
     {
-        var dbQuery = _db.Set<Rfi>().AsNoTracking();
+        var dbQuery = _db.Set<Rfi>()
+            .Where(r => !r.IsDeleted)
+            .AsNoTracking();
 
         // Filter by project (required)
         dbQuery = dbQuery.Where(r => r.ProjectId == query.ProjectId);
@@ -99,6 +101,11 @@ public class RfiService : IRfiService
             DueDate = command.DueDate,
             ProjectId = command.ProjectId,
             Status = RfiStatus.Open,
+            AssignedToUserId = command.AssignedToUserId,
+            AssignedToName = command.AssignedToName,
+            BallInCourtUserId = command.BallInCourtUserId ?? command.AssignedToUserId,
+            BallInCourtName = command.BallInCourtName ?? command.AssignedToName,
+            CreatedByName = command.CreatedByName,
             CreatedAt = DateTime.UtcNow
         };
 

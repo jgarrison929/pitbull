@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -6,9 +5,9 @@ using Pitbull.Core.CQRS;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features;
 using Pitbull.RFIs.Features.CreateRfi;
-using Pitbull.RFIs.Features.GetRfi;
 using Pitbull.RFIs.Features.ListRfis;
 using Pitbull.RFIs.Features.UpdateRfi;
+using Pitbull.RFIs.Services;
 
 namespace Pitbull.Api.Controllers;
 
@@ -23,7 +22,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("RFIs")]
-public class RfisController(IMediator mediator) : ControllerBase
+public class RfisController(IRfiService rfiService) : ControllerBase
 {
     /// <summary>
     /// Create a new RFI for the specified project
@@ -71,7 +70,7 @@ public class RfisController(IMediator mediator) : ControllerBase
             request.CreatedByName
         );
 
-        var result = await mediator.Send(command);
+        var result = await rfiService.CreateRfiAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -100,11 +99,15 @@ public class RfisController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid projectId, Guid id)
     {
-        var result = await mediator.Send(new GetRfiQuery(projectId, id));
+        var result = await rfiService.GetRfiAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
                 ? NotFound(new { error = result.Error })
                 : BadRequest(new { error = result.Error });
+
+        // Verify RFI belongs to the specified project
+        if (result.Value!.ProjectId != projectId)
+            return NotFound(new { error = "RFI not found in this project" });
 
         return Ok(result.Value);
     }
@@ -156,7 +159,7 @@ public class RfisController(IMediator mediator) : ControllerBase
             PageSize = pageSize
         };
 
-        var result = await mediator.Send(query);
+        var result = await rfiService.GetRfisAsync(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -223,7 +226,7 @@ public class RfisController(IMediator mediator) : ControllerBase
             request.BallInCourtName
         );
 
-        var result = await mediator.Send(command);
+        var result = await rfiService.UpdateRfiAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
