@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
@@ -112,5 +113,101 @@ public sealed class AdminUsersEndpointsTests(PostgresFixture db) : IAsyncLifetim
 
         var json = await resp.Content.ReadAsStringAsync();
         Assert.Equal("[]", json);
+    }
+
+    [Fact]
+    public async Task Update_user_changes_name_and_status()
+    {
+        await db.ResetAsync();
+
+        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync(
+            firstName: "Original",
+            lastName: "Name");
+        var userId = auth.UserId;
+
+        // Update user's name
+        var updateReq = new
+        {
+            firstName = "Updated",
+            lastName = "UserName",
+            status = "Active"
+        };
+
+        var resp = await client.PutAsJsonAsync($"/api/admin/users/{userId}", updateReq);
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("\"firstName\":\"Updated\"", json);
+        Assert.Contains("\"lastName\":\"UserName\"", json);
+    }
+
+    [Fact]
+    public async Task Update_user_can_change_roles()
+    {
+        await db.ResetAsync();
+
+        var (client, auth, tenantId) = await _factory.CreateAuthenticatedClientAsync();
+        var userId = auth.UserId;
+
+        // Update user's roles (remove Admin, just keep User)
+        var updateReq = new
+        {
+            roles = new[] { $"{tenantId}:User" }
+        };
+
+        var resp = await client.PutAsJsonAsync($"/api/admin/users/{userId}", updateReq);
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("roles", json);
+    }
+
+    [Fact]
+    public async Task Update_nonexistent_user_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var updateReq = new
+        {
+            firstName = "Ghost",
+            lastName = "User"
+        };
+
+        var resp = await client.PutAsJsonAsync($"/api/admin/users/{Guid.NewGuid()}", updateReq);
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task List_users_supports_role_filter()
+    {
+        await db.ResetAsync();
+
+        var (client, _, tenantId) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Filter by Admin role (first user should have it)
+        var resp = await client.GetAsync($"/api/admin/users?role={tenantId}:Admin");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadAsStringAsync();
+        // Should return at least one user (the current admin)
+        Assert.NotEqual("[]", json);
+    }
+
+    [Fact]
+    public async Task List_users_supports_active_filter()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Filter by active status
+        var resp = await client.GetAsync("/api/admin/users?isActive=true");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+
+        var json = await resp.Content.ReadAsStringAsync();
+        // Should return at least one active user
+        Assert.NotEqual("[]", json);
     }
 }

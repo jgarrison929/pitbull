@@ -484,4 +484,77 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
     }
 
     #endregion
+
+    #region Projects Endpoint Tests
+
+    [Fact]
+    public async Task Can_get_employee_projects()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create employee
+        var createResp = await client.PostAsJsonAsync("/api/employees", new
+        {
+            employeeNumber = $"PROJ-{Guid.NewGuid():N}"[..15],
+            firstName = "ProjectsTest",
+            lastName = "Employee"
+        });
+        
+        Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
+        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
+
+        // Get projects (should return empty list for new employee)
+        var projectsResp = await client.GetAsync($"/api/employees/{employee.Id}/projects");
+
+        Assert.Equal(HttpStatusCode.OK, projectsResp.StatusCode);
+
+        var projectsJson = await projectsResp.Content.ReadAsStringAsync();
+        // Response should be a valid JSON array/object
+        Assert.True(projectsJson.StartsWith("[") || projectsJson.StartsWith("{"), 
+            $"Expected JSON array or object, got: {projectsJson}");
+    }
+
+    [Fact]
+    public async Task Get_projects_for_nonexistent_employee_returns_empty_list()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Note: Current implementation returns empty list for nonexistent employee
+        // This is valid behavior as the query just returns no matching assignments
+        var projectsResp = await client.GetAsync($"/api/employees/{Guid.NewGuid()}/projects");
+
+        Assert.Equal(HttpStatusCode.OK, projectsResp.StatusCode);
+        var json = await projectsResp.Content.ReadAsStringAsync();
+        Assert.Equal("[]", json);
+    }
+
+    [Fact]
+    public async Task Employee_projects_returns_empty_for_cross_tenant_request()
+    {
+        await db.ResetAsync();
+
+        // Create employee in tenant A
+        var (clientA, _, _) = await _factory.CreateAuthenticatedClientAsync();
+        var createResp = await clientA.PostAsJsonAsync("/api/employees", new
+        {
+            employeeNumber = $"ISO-{Guid.NewGuid():N}"[..15],
+            firstName = "TenantA",
+            lastName = "Employee"
+        });
+        var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
+
+        // Create tenant B client
+        var (clientB, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Tenant B querying for tenant A's employee ID returns empty (tenant scoping filters it out)
+        var projectsResp = await clientB.GetAsync($"/api/employees/{employee.Id}/projects");
+
+        Assert.Equal(HttpStatusCode.OK, projectsResp.StatusCode);
+        var json = await projectsResp.Content.ReadAsStringAsync();
+        Assert.Equal("[]", json);
+    }
+
+    #endregion
 }

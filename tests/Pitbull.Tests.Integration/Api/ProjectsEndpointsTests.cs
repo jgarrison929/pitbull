@@ -531,4 +531,104 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var getResp = await client.GetAsync($"/api/projects/v2/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, getResp.StatusCode);
     }
+
+    #region AI Summary Endpoint Tests
+
+    [Fact]
+    public async Task Get_ai_summary_without_auth_returns_401()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/ai-summary");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_ai_summary_for_nonexistent_project_returns_404()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var resp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/ai-summary");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_ai_summary_returns_response_for_valid_project()
+    {
+        await db.ResetAsync();
+
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create a project first
+        var create = new CreateProjectCommand(
+            Name: "AI Summary Test Project",
+            Number: $"PRJ-AI-{Guid.NewGuid():N}",
+            Description: "Testing AI summary endpoint",
+            Type: ProjectType.Commercial,
+            Address: "123 Test Street",
+            City: "Test City",
+            State: "CA",
+            ZipCode: "90210",
+            ClientName: "AI Test Client",
+            ClientContact: "Contact Name",
+            ClientEmail: "ai@test.com",
+            ClientPhone: "555-AI-TEST",
+            StartDate: DateTime.UtcNow,
+            EstimatedCompletionDate: DateTime.UtcNow.AddMonths(6),
+            ContractAmount: 1_000_000m,
+            ProjectManagerId: null,
+            SuperintendentId: null,
+            SourceBidId: null);
+
+        var createResp = await client.PostAsJsonAsync("/api/projects", create);
+        createResp.EnsureSuccessStatusCode();
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Request AI summary - might return 503 if AI not configured, which is valid
+        var summaryResp = await client.GetAsync($"/api/projects/{created.Id}/ai-summary");
+
+        // Accept either 200 (success) or 503 (AI not configured in test env)
+        Assert.True(
+            summaryResp.StatusCode == HttpStatusCode.OK || 
+            summaryResp.StatusCode == HttpStatusCode.ServiceUnavailable,
+            $"Expected 200 or 503 but got {(int)summaryResp.StatusCode}");
+
+        var json = await summaryResp.Content.ReadAsStringAsync();
+        // Response should be valid JSON
+        Assert.True(json.StartsWith("{"), $"Expected JSON object, got: {json[..Math.Min(100, json.Length)]}");
+    }
+
+    [Fact]
+    public async Task Get_ai_summary_respects_tenant_isolation()
+    {
+        await db.ResetAsync();
+
+        // Create project in tenant A
+        var (clientA, _, _) = await _factory.CreateAuthenticatedClientAsync();
+        var create = new CreateProjectCommand(
+            Name: "Tenant A AI Project",
+            Number: $"PRJ-AIA-{Guid.NewGuid():N}",
+            Description: null, Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null, ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var createResp = await clientA.PostAsJsonAsync("/api/projects", create);
+        createResp.EnsureSuccessStatusCode();
+        var project = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+
+        // Tenant B should not be able to access tenant A's project AI summary
+        var (clientB, _, _) = await _factory.CreateAuthenticatedClientAsync();
+        var summaryResp = await clientB.GetAsync($"/api/projects/{project.Id}/ai-summary");
+
+        Assert.Equal(HttpStatusCode.NotFound, summaryResp.StatusCode);
+    }
+
+    #endregion
 }
