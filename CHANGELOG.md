@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 🏗️ Infrastructure
+
+- **ci:** Switched from self-hosted to GitHub-hosted runners (`ubuntu-latest`)
+  - Self-hosted runners were offline 23+ hours
+  - CI now completes in ~4 minutes (was stuck indefinitely)
+
 ### Planned
 
 - Document management module
