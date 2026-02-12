@@ -641,14 +641,18 @@ await strategy.ExecuteAsync(async () =>
 
 ## Known Issues
 
+> **Last reviewed:** Feb 12, 2026
+
+### Open Issues
+
 1. **Domain events not dispatched:** `PitbullDbContext.DispatchDomainEvents()` collects events but doesn't call `IMediator.Publish()`. Needs `IMediator` injected into the DbContext (or use a separate dispatcher service to avoid the circular dependency).
 
-2. **CreatedBy/UpdatedBy not populated:** The audit fields `CreatedBy`, `UpdatedBy`, and `DeletedBy` exist on `BaseEntity` but `SaveChangesAsync` doesn't set them. Need to inject `IHttpContextAccessor` and read from `User.Claims`.
+2. **Subdomain tenant resolution not implemented:** `TenantMiddleware` has a placeholder for subdomain-based tenant lookup but returns null. Will need a tenant lookup service.
 
-3. **Delete endpoint is a no-op:** `ProjectsController.Delete` fetches the project but doesn't actually mark it as deleted. Needs a proper soft-delete implementation.
+3. **BidDto/BidMapper at Features root:** `BidDto.cs` and `BidMapper.cs` sit in `Pitbull.Bids/Features/` at the root level instead of in a shared subfolder. Consider moving to `Pitbull.Bids/Features/Shared/` or a `Mapping/` folder for consistency with the per-feature folder pattern.
 
-4. **Subdomain tenant resolution not implemented:** `TenantMiddleware` has a placeholder for subdomain-based tenant lookup but returns null. Will need a tenant lookup service.
+### Resolved Issues
 
-5. **PagedResult defined in Projects module:** `PagedResult<T>` lives in `Pitbull.Projects.Features.ListProjects` but is used by other modules too. Should be moved to `Pitbull.Core.CQRS`.
-
-6. **BidDto/BidMapper at Features root:** `BidDto.cs` and `BidMapper.cs` sit in `Pitbull.Bids/Features/` at the root level instead of in a shared subfolder. Consider moving to `Pitbull.Bids/Features/Shared/` or a `Mapping/` folder for consistency with the per-feature folder pattern.
+- ✅ **CreatedBy/UpdatedBy not populated** - Fixed Feb 2026. `SaveChangesAsync` now sets audit fields from `IHttpContextAccessor`.
+- ✅ **Delete endpoint is a no-op** - Fixed Feb 2026. Proper soft-delete implemented via `DeleteProjectCommand`.
+- ✅ **PagedResult defined in Projects module** - Fixed Feb 2026. Moved to `Pitbull.Core.CQRS`.
