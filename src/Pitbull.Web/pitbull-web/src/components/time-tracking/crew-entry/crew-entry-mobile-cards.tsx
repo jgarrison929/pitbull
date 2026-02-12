@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, ChevronLeft, ChevronRight } from "lucide-react";
 import type { CrewMemberEntryData } from "@/types/crew-entry.types";
-import type { CostCode } from "@/types/employee";
+import type { CostCode } from "@/lib/types";
 
 interface CrewEntryMobileCardsProps {
   entries: CrewMemberEntryData[];

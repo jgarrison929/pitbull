@@ -9,7 +9,7 @@ import type {
   CrewMemberProjectDto,
   UseCrewEntryDataReturn,
 } from "@/types/crew-entry.types";
-import type { CostCode } from "@/types/employee";
+import type { CostCode } from "@/lib/types";
 
 interface CostCodeListResult {
   items: CostCode[];

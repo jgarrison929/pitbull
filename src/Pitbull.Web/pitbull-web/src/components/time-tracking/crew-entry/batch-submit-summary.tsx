@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Clock, User, Calendar, Building } from "lucide-react";
 import type { CrewMemberEntryData } from "@/types/crew-entry.types";
-import type { CostCode } from "@/types/employee";
+import type { CostCode } from "@/lib/types";
 
 interface BatchSubmitSummaryProps {
   open: boolean;

@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import type { CrewMemberEntryData } from "@/types/crew-entry.types";
-import type { CostCode } from "@/types/employee";
+import type { CostCode } from "@/lib/types";
 
 interface CrewEntryGridProps {
   entries: CrewMemberEntryData[];
