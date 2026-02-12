@@ -41,10 +41,10 @@ public sealed class DemoBootstrapper(
         // IMPORTANT: app.current_tenant is a connection/session setting (used by Postgres RLS).
         // Ensure it is set on the same connection used for the seed operation.
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
-        // NOTE: SET LOCAL doesn't support parameterized queries in PostgreSQL.
-        // The tenant.Id is a trusted Guid (not user input), so direct string concat is safe.
-        var setTenantSql = "SET LOCAL app.current_tenant = '" + tenant.Id.ToString() + "'";
-        await db.Database.ExecuteSqlRawAsync(setTenantSql);
+        // Use set_config() which supports parameters (unlike SET LOCAL which doesn't).
+        // The 'true' argument makes it local to the current transaction.
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_tenant', {tenant.Id.ToString()}, true)");
 
         // Seed domain data (projects/bids/etc). This is idempotent per tenant.
         var result = await mediator.Send(new SeedDataCommand(), cancellationToken);
