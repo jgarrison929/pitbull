@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Infrastructure;
@@ -19,6 +20,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(Roles = "Admin")]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [ApiExplorerSettings(GroupName = "v1")]
 public class UsersController(
