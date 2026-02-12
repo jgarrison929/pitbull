@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -6,10 +5,9 @@ using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
-using Pitbull.Contracts.Features.DeletePaymentApplication;
-using Pitbull.Contracts.Features.GetPaymentApplication;
 using Pitbull.Contracts.Features.ListPaymentApplications;
 using Pitbull.Contracts.Features.UpdatePaymentApplication;
+using Pitbull.Contracts.Services;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.Api.Controllers;
@@ -24,7 +22,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Payment Applications")]
-public class PaymentApplicationsController(IMediator mediator) : ControllerBase
+public class PaymentApplicationsController(IContractsService contractsService) : ControllerBase
 {
     /// <summary>
     /// Create a new payment application
@@ -60,7 +58,7 @@ public class PaymentApplicationsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreatePaymentApplicationCommand command)
     {
-        var result = await mediator.Send(command);
+        var result = await contractsService.CreatePaymentApplicationAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -87,7 +85,7 @@ public class PaymentApplicationsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await mediator.Send(new GetPaymentApplicationQuery(id));
+        var result = await contractsService.GetPaymentApplicationAsync(id);
         return this.HandleResult(result);
     }
 
@@ -120,7 +118,7 @@ public class PaymentApplicationsController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         var query = new ListPaymentApplicationsQuery(subcontractId, status, page, pageSize);
-        var result = await mediator.Send(query);
+        var result = await contractsService.ListPaymentApplicationsAsync(query);
         
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
@@ -154,7 +152,7 @@ public class PaymentApplicationsController(IMediator mediator) : ControllerBase
         if (id != command.Id)
             return this.BadRequestError("Route ID does not match body ID");
 
-        var result = await mediator.Send(command);
+        var result = await contractsService.UpdatePaymentApplicationAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -188,7 +186,7 @@ public class PaymentApplicationsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await mediator.Send(new DeletePaymentApplicationCommand(id));
+        var result = await contractsService.DeletePaymentApplicationAsync(id);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch

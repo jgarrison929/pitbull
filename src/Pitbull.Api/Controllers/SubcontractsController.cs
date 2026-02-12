@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -6,10 +5,9 @@ using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateSubcontract;
-using Pitbull.Contracts.Features.DeleteSubcontract;
-using Pitbull.Contracts.Features.GetSubcontract;
 using Pitbull.Contracts.Features.ListSubcontracts;
 using Pitbull.Contracts.Features.UpdateSubcontract;
+using Pitbull.Contracts.Services;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.Api.Controllers;
@@ -24,7 +22,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Subcontracts")]
-public class SubcontractsController(IMediator mediator) : ControllerBase
+public class SubcontractsController(IContractsService contractsService) : ControllerBase
 {
     /// <summary>
     /// Create a new subcontract
@@ -60,7 +58,7 @@ public class SubcontractsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateSubcontractCommand command)
     {
-        var result = await mediator.Send(command);
+        var result = await contractsService.CreateSubcontractAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -88,7 +86,7 @@ public class SubcontractsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await mediator.Send(new GetSubcontractQuery(id));
+        var result = await contractsService.GetSubcontractAsync(id);
         return this.HandleResult(result);
     }
 
@@ -123,7 +121,7 @@ public class SubcontractsController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         var query = new ListSubcontractsQuery(projectId, status, search, page, pageSize);
-        var result = await mediator.Send(query);
+        var result = await contractsService.ListSubcontractsAsync(query);
         
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
@@ -159,7 +157,7 @@ public class SubcontractsController(IMediator mediator) : ControllerBase
         if (id != command.Id)
             return this.BadRequestError("Route ID does not match body ID");
 
-        var result = await mediator.Send(command);
+        var result = await contractsService.UpdateSubcontractAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -193,7 +191,7 @@ public class SubcontractsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await mediator.Send(new DeleteSubcontractCommand(id));
+        var result = await contractsService.DeleteSubcontractAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND" 
                 ? this.NotFoundError(result.Error ?? "Subcontract not found") 

@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -6,10 +5,9 @@ using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateChangeOrder;
-using Pitbull.Contracts.Features.DeleteChangeOrder;
-using Pitbull.Contracts.Features.GetChangeOrder;
 using Pitbull.Contracts.Features.ListChangeOrders;
 using Pitbull.Contracts.Features.UpdateChangeOrder;
+using Pitbull.Contracts.Services;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.Api.Controllers;
@@ -24,7 +22,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Change Orders")]
-public class ChangeOrdersController(IMediator mediator) : ControllerBase
+public class ChangeOrdersController(IContractsService contractsService) : ControllerBase
 {
     /// <summary>
     /// Create a new change order
@@ -61,7 +59,7 @@ public class ChangeOrdersController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateChangeOrderCommand command)
     {
-        var result = await mediator.Send(command);
+        var result = await contractsService.CreateChangeOrderAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -88,7 +86,7 @@ public class ChangeOrdersController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await mediator.Send(new GetChangeOrderQuery(id));
+        var result = await contractsService.GetChangeOrderAsync(id);
         return this.HandleResult(result);
     }
 
@@ -123,7 +121,7 @@ public class ChangeOrdersController(IMediator mediator) : ControllerBase
         [FromQuery] int pageSize = 20)
     {
         var query = new ListChangeOrdersQuery(subcontractId, status, search, page, pageSize);
-        var result = await mediator.Send(query);
+        var result = await contractsService.ListChangeOrdersAsync(query);
         
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
@@ -157,7 +155,7 @@ public class ChangeOrdersController(IMediator mediator) : ControllerBase
         if (id != command.Id)
             return this.BadRequestError("Route ID does not match body ID");
 
-        var result = await mediator.Send(command);
+        var result = await contractsService.UpdateChangeOrderAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -189,7 +187,7 @@ public class ChangeOrdersController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await mediator.Send(new DeleteChangeOrderCommand(id));
+        var result = await contractsService.DeleteChangeOrderAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND" 
                 ? this.NotFoundError(result.Error ?? "Change order not found") 
