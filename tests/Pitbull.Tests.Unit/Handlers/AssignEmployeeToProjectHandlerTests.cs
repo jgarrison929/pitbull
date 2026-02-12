@@ -17,7 +17,7 @@ public class AssignEmployeeToProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project) = await SetupTestData(db);
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: employee.Id,
             ProjectId: project.Id,
@@ -45,7 +45,7 @@ public class AssignEmployeeToProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project) = await SetupTestData(db);
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: employee.Id,
             ProjectId: project.Id,
@@ -68,7 +68,7 @@ public class AssignEmployeeToProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (_, project) = await SetupTestData(db);
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: Guid.NewGuid(),
             ProjectId: project.Id
@@ -89,7 +89,7 @@ public class AssignEmployeeToProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, _) = await SetupTestData(db);
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: employee.Id,
             ProjectId: Guid.NewGuid()
@@ -110,7 +110,7 @@ public class AssignEmployeeToProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project) = await SetupTestData(db);
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: employee.Id,
             ProjectId: project.Id
@@ -133,7 +133,7 @@ public class AssignEmployeeToProjectHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (_, project) = await SetupTestData(db);
-        
+
         // Create inactive employee
         var inactiveEmployee = new Employee
         {
@@ -144,9 +144,9 @@ public class AssignEmployeeToProjectHandlerTests
         };
         db.Set<Employee>().Add(inactiveEmployee);
         await db.SaveChangesAsync();
-        
+
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: inactiveEmployee.Id,
             ProjectId: project.Id
@@ -167,7 +167,7 @@ public class AssignEmployeeToProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project) = await SetupTestData(db);
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: employee.Id,
             ProjectId: project.Id,
@@ -190,7 +190,7 @@ public class AssignEmployeeToProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project) = await SetupTestData(db);
         var handler = new AssignEmployeeToProjectHandler(db);
-        
+
         var command = new AssignEmployeeToProjectCommand(
             EmployeeId: employee.Id,
             ProjectId: project.Id,

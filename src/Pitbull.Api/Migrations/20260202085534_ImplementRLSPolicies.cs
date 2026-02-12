@@ -14,7 +14,7 @@ namespace Pitbull.Api.Migrations
             var tables = new[]
             {
                 "projects",
-                "bids", 
+                "bids",
                 "project_phases",
                 "project_budgets",
                 "project_projections",
@@ -69,7 +69,7 @@ namespace Pitbull.Api.Migrations
             {
                 "projects",
                 "bids",
-                "project_phases", 
+                "project_phases",
                 "project_budgets",
                 "project_projections",
                 "bid_items"
@@ -82,7 +82,7 @@ namespace Pitbull.Api.Migrations
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS {table}_tenant_isolation_insert ON {table};");
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS {table}_tenant_isolation_update ON {table};");
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS {table}_tenant_isolation_delete ON {table};");
-                
+
                 // Disable RLS
                 migrationBuilder.Sql($"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;");
             }

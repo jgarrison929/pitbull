@@ -138,7 +138,7 @@ public class BidsController(IMediator mediator) : ControllerBase
             Page = page,
             PageSize = pageSize
         };
-        
+
         var result = await mediator.Send(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });

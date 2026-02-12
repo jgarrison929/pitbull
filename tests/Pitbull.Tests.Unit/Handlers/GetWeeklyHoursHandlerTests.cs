@@ -61,7 +61,7 @@ public sealed class GetWeeklyHoursHandlerTests
             new("Jan 6", DateOnly.Parse("2026-01-06"), 40m, 5m, 0m, 45m),
             new("Jan 13", DateOnly.Parse("2026-01-13"), 38m, 2m, 0m, 40m),
         };
-        
+
         var response = new WeeklyHoursResponse(data, 85m, 42.5m);
 
         // Assert

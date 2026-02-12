@@ -17,7 +17,7 @@ public class UpdateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (timeEntry, _, _) = await SetupTestData(db);
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             RegularHours: 10m,
@@ -41,7 +41,7 @@ public class UpdateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (timeEntry, supervisor, _) = await SetupTestData(db);
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             NewStatus: TimeEntryStatus.Approved,
@@ -66,7 +66,7 @@ public class UpdateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (timeEntry, supervisor, _) = await SetupTestData(db);
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             NewStatus: TimeEntryStatus.Rejected,
@@ -90,7 +90,7 @@ public class UpdateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (timeEntry, supervisor, _) = await SetupTestData(db);
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             NewStatus: TimeEntryStatus.Rejected,
@@ -113,7 +113,7 @@ public class UpdateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (timeEntry, _, _) = await SetupTestData(db);
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             NewStatus: TimeEntryStatus.Approved,
@@ -135,7 +135,7 @@ public class UpdateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (timeEntry, _, worker) = await SetupTestData(db);
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             NewStatus: TimeEntryStatus.Approved,
@@ -156,13 +156,13 @@ public class UpdateTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (timeEntry, supervisor, _) = await SetupTestData(db);
-        
+
         // Set entry to Draft status first
         timeEntry.Status = TimeEntryStatus.Draft;
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         // Try to approve directly from Draft (should require Submitted first)
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
@@ -184,13 +184,13 @@ public class UpdateTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (timeEntry, supervisor, _) = await SetupTestData(db);
-        
+
         // First approve the entry
         timeEntry.Status = TimeEntryStatus.Approved;
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             RegularHours: 12m // Trying to modify hours on approved entry
@@ -210,7 +210,7 @@ public class UpdateTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: Guid.NewGuid(),
             RegularHours: 8m
@@ -232,9 +232,9 @@ public class UpdateTimeEntryHandlerTests
         var (timeEntry, _, _) = await SetupTestData(db);
         timeEntry.Status = TimeEntryStatus.Draft;
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             NewStatus: TimeEntryStatus.Submitted
@@ -256,9 +256,9 @@ public class UpdateTimeEntryHandlerTests
         var (timeEntry, _, _) = await SetupTestData(db);
         timeEntry.Status = TimeEntryStatus.Rejected;
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdateTimeEntryHandler(db);
-        
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: timeEntry.Id,
             NewStatus: TimeEntryStatus.Submitted,

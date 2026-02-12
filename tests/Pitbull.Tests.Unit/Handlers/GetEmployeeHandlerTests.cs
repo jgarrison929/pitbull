@@ -65,7 +65,7 @@ public class GetEmployeeHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        
+
         var supervisor = new Employee
         {
             EmployeeNumber = "EMP-000",
@@ -75,7 +75,7 @@ public class GetEmployeeHandlerTests
         };
         db.Set<Employee>().Add(supervisor);
         await db.SaveChangesAsync();
-        
+
         var employee = new Employee
         {
             EmployeeNumber = "EMP-001",

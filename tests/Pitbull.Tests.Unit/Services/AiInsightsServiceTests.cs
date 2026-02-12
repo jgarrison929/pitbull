@@ -17,7 +17,7 @@ public class AiInsightsServiceTests
             new Microsoft.EntityFrameworkCore.DbContextOptions<PitbullDbContext>(),
             Mock.Of<Pitbull.Core.MultiTenancy.ITenantContext>(),
             null!, null!);
-        
+
         var emptyConfig = new ConfigurationBuilder().Build();
         var mockLogger = Mock.Of<ILogger<AiInsightsService>>();
         var mockHttpClientFactory = new Mock<IHttpClientFactory>();
@@ -25,7 +25,7 @@ public class AiInsightsServiceTests
 
         // Clear any environment variable that might be set
         Environment.SetEnvironmentVariable("ANTHROPIC_API_KEY", null);
-        
+
         var service = new AiInsightsService(
             mockDb.Object,
             emptyConfig,

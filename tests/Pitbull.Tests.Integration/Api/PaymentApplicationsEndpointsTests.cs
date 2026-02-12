@@ -97,7 +97,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         // Create a payment application (first draw)
         var periodStart = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var periodEnd = new DateTime(2026, 1, 31, 0, 0, 0, DateTimeKind.Utc);
-        
+
         var payAppCmd = new CreatePaymentApplicationCommand(
             SubcontractId: subcontractId,
             PeriodStart: periodStart,
@@ -120,7 +120,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         Assert.Equal(payAppCmd.WorkCompletedThisPeriod, created.WorkCompletedThisPeriod);
         Assert.Equal(payAppCmd.StoredMaterials, created.StoredMaterials);
         Assert.Equal(PaymentApplicationStatus.Draft, created.Status);
-        
+
         // Verify calculations
         Assert.Equal(35_000m, created.TotalCompletedAndStored); // 30K work + 5K materials
         Assert.Equal(10m, created.RetainagePercent); // From subcontract
@@ -233,7 +233,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         var resp2 = await client.PostAsJsonAsync("/api/paymentapplications", payApp2);
         resp2.EnsureSuccessStatusCode();
         var created2 = (await resp2.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
-        
+
         Assert.Equal(2, created2.ApplicationNumber);
         // Previous work should carry forward
         Assert.Equal(30_000m, created2.WorkCompletedPrevious);

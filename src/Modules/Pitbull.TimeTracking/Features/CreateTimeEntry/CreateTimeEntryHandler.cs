@@ -37,7 +37,7 @@ public sealed class CreateTimeEntryHandler(PitbullDbContext db)
 
         // Validate employee is assigned to this project
         var hasAssignment = await db.Set<ProjectAssignment>()
-            .AnyAsync(pa => pa.EmployeeId == request.EmployeeId 
+            .AnyAsync(pa => pa.EmployeeId == request.EmployeeId
                          && pa.ProjectId == request.ProjectId
                          && pa.IsActive
                          && pa.StartDate <= request.Date
@@ -58,10 +58,10 @@ public sealed class CreateTimeEntryHandler(PitbullDbContext db)
 
         // Check for duplicate time entry on the same date
         var existingEntry = await db.Set<TimeEntry>()
-            .AnyAsync(te => te.Date == request.Date 
-                         && te.EmployeeId == request.EmployeeId 
+            .AnyAsync(te => te.Date == request.Date
+                         && te.EmployeeId == request.EmployeeId
                          && te.ProjectId == request.ProjectId
-                         && te.CostCodeId == request.CostCodeId, 
+                         && te.CostCodeId == request.CostCodeId,
                       cancellationToken);
 
         if (existingEntry)

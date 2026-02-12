@@ -17,7 +17,7 @@ public class CreateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project, costCode) = await SetupTestData(db);
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: employee.Id,
@@ -48,7 +48,7 @@ public class CreateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (_, project, costCode) = await SetupTestData(db);
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: Guid.NewGuid(), // Non-existent employee
@@ -72,7 +72,7 @@ public class CreateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, _, costCode) = await SetupTestData(db);
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: employee.Id,
@@ -96,7 +96,7 @@ public class CreateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project, _) = await SetupTestData(db);
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: employee.Id,
@@ -119,19 +119,19 @@ public class CreateTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employee, _, costCode) = await SetupTestData(db);
-        
+
         // Create a closed project
-        var closedProject = new Project 
-        { 
-            Name = "Closed Project", 
+        var closedProject = new Project
+        {
+            Name = "Closed Project",
             Number = "PRJ-CLOSED",
-            Status = ProjectStatus.Closed 
+            Status = ProjectStatus.Closed
         };
         db.Set<Project>().Add(closedProject);
         await db.SaveChangesAsync();
-        
+
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: employee.Id,
@@ -155,7 +155,7 @@ public class CreateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project, costCode) = await SetupTestData(db);
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: employee.Id,
@@ -181,7 +181,7 @@ public class CreateTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (_, project, costCode) = await SetupTestData(db);
-        
+
         // Create inactive employee
         var inactiveEmployee = new Employee
         {
@@ -192,9 +192,9 @@ public class CreateTimeEntryHandlerTests
         };
         db.Set<Employee>().Add(inactiveEmployee);
         await db.SaveChangesAsync();
-        
+
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: inactiveEmployee.Id,
@@ -218,7 +218,7 @@ public class CreateTimeEntryHandlerTests
         using var db = TestDbContextFactory.Create();
         var (employee, project, costCode) = await SetupTestDataWithoutAssignment(db);
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5),
             EmployeeId: employee.Id,
@@ -241,7 +241,7 @@ public class CreateTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employee, project, costCode) = await SetupTestDataWithoutAssignment(db);
-        
+
         // Create expired assignment
         var assignment = new ProjectAssignment
         {
@@ -254,9 +254,9 @@ public class CreateTimeEntryHandlerTests
         };
         db.Set<ProjectAssignment>().Add(assignment);
         await db.SaveChangesAsync();
-        
+
         var handler = new CreateTimeEntryHandler(db);
-        
+
         var command = new CreateTimeEntryCommand(
             Date: new DateOnly(2026, 2, 5), // After assignment ends
             EmployeeId: employee.Id,

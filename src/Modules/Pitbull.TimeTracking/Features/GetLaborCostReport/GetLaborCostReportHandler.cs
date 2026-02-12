@@ -34,7 +34,7 @@ public sealed class GetLaborCostReportHandler(
             // Verify project exists
             var projectExists = await db.Set<Project>()
                 .AnyAsync(p => p.Id == request.ProjectId.Value, cancellationToken);
-            
+
             if (!projectExists)
                 return Result.Failure<LaborCostReportResponse>("Project not found", "NOT_FOUND");
 

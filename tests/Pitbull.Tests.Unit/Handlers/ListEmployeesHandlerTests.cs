@@ -88,7 +88,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(3);
-        result.Value.Items.Should().OnlyContain(e => 
+        result.Value.Items.Should().OnlyContain(e =>
             e.Classification == EmployeeClassification.Hourly);
     }
 
@@ -110,7 +110,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(2);
-        result.Value.Items.Should().OnlyContain(e => 
+        result.Value.Items.Should().OnlyContain(e =>
             e.Classification == EmployeeClassification.Salaried);
     }
 
@@ -233,7 +233,7 @@ public class ListEmployeesHandlerTests
 
         var handler = new ListEmployeesHandler(db);
         var query = new ListEmployeesQuery(
-            IsActive: true, 
+            IsActive: true,
             Classification: EmployeeClassification.Hourly);
 
         // Act
@@ -242,7 +242,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(2); // Only active hourly employees
-        result.Value.Items.Should().OnlyContain(e => 
+        result.Value.Items.Should().OnlyContain(e =>
             e.IsActive && e.Classification == EmployeeClassification.Hourly);
     }
 

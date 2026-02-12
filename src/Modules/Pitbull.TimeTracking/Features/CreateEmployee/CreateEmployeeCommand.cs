@@ -53,7 +53,7 @@ public sealed class CreateEmployeeHandler(PitbullDbContext db)
         else
         {
             employeeNumber = request.EmployeeNumber;
-            
+
             // Check for duplicate only if user provided a custom number
             var existingEmployee = await db.Set<Employee>()
                 .AnyAsync(e => e.EmployeeNumber == employeeNumber, cancellationToken);

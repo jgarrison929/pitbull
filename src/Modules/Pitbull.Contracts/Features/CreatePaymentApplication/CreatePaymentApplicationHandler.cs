@@ -6,17 +6,17 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.CreatePaymentApplication;
 
-public sealed class CreatePaymentApplicationHandler(PitbullDbContext db) 
+public sealed class CreatePaymentApplicationHandler(PitbullDbContext db)
     : IRequestHandler<CreatePaymentApplicationCommand, Result<PaymentApplicationDto>>
 {
     public async Task<Result<PaymentApplicationDto>> Handle(
-        CreatePaymentApplicationCommand request, 
+        CreatePaymentApplicationCommand request,
         CancellationToken cancellationToken)
     {
         // Get subcontract
         var subcontract = await db.Set<Subcontract>()
             .FirstOrDefaultAsync(s => s.Id == request.SubcontractId, cancellationToken);
-        
+
         if (subcontract is null)
             return Result.Failure<PaymentApplicationDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
 
@@ -33,12 +33,12 @@ public sealed class CreatePaymentApplicationHandler(PitbullDbContext db)
         var workCompletedPrevious = lastApp?.WorkCompletedToDate ?? 0m;
         var workCompletedToDate = workCompletedPrevious + request.WorkCompletedThisPeriod;
         var totalCompletedAndStored = workCompletedToDate + request.StoredMaterials;
-        
+
         var retainagePercent = subcontract.RetainagePercent;
         var retainageThisPeriod = request.WorkCompletedThisPeriod * (retainagePercent / 100m);
         var retainagePrevious = lastApp?.TotalRetainage ?? 0m;
         var totalRetainage = retainagePrevious + retainageThisPeriod;
-        
+
         var totalEarnedLessRetainage = totalCompletedAndStored - totalRetainage;
         var lessPreviousCertificates = lastApp?.TotalEarnedLessRetainage ?? 0m;
         var currentPaymentDue = totalEarnedLessRetainage - lessPreviousCertificates;

@@ -27,7 +27,7 @@ public class DeleteBidHandlerTests
         };
         db.Set<Bid>().Add(bid);
         await db.SaveChangesAsync();
-        
+
         var handler = new DeleteBidHandler(db);
         var command = new DeleteBidCommand(bid.Id);
 
@@ -37,7 +37,7 @@ public class DeleteBidHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeTrue();
-        
+
         // Verify bid is soft deleted
         var deletedBid = await db.Set<Bid>().IgnoreQueryFilters()
             .FirstOrDefaultAsync(b => b.Id == bid.Id);
@@ -84,7 +84,7 @@ public class DeleteBidHandlerTests
         };
         db.Set<Bid>().Add(bid);
         await db.SaveChangesAsync();
-        
+
         var handler = new DeleteBidHandler(db);
         var command = new DeleteBidCommand(bid.Id);
 

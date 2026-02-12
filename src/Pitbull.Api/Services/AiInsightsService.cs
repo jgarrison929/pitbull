@@ -34,7 +34,7 @@ public class AiInsightsService : IAiInsightsService
 
     public async Task<AiProjectSummaryResult> GetProjectSummaryAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
-        var apiKey = _configuration["ANTHROPIC_API_KEY"] 
+        var apiKey = _configuration["ANTHROPIC_API_KEY"]
             ?? _configuration["Anthropic:ApiKey"]
             ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY");
 
@@ -52,7 +52,7 @@ public class AiInsightsService : IAiInsightsService
         {
             // Gather all project data
             var projectData = await GatherProjectDataAsync(projectId, cancellationToken);
-            
+
             if (projectData == null)
             {
                 return new AiProjectSummaryResult
@@ -64,7 +64,7 @@ public class AiInsightsService : IAiInsightsService
 
             // Call Claude API
             var aiResponse = await CallClaudeAsync(projectData, apiKey, cancellationToken);
-            
+
             return aiResponse;
         }
         catch (Exception ex)
@@ -104,18 +104,18 @@ public class AiInsightsService : IAiInsightsService
 
         // Calculate metrics
         var totalHours = timeEntries.Sum(t => t.TotalHours);
-        var totalLaborCost = timeEntries.Sum(t => 
+        var totalLaborCost = timeEntries.Sum(t =>
             (t.RegularHours * t.Employee.BaseHourlyRate) +
             (t.OvertimeHours * t.Employee.BaseHourlyRate * 1.5m) +
             (t.DoubletimeHours * t.Employee.BaseHourlyRate * 2.0m));
-        
+
         var pendingApprovals = timeEntries.Count(t => t.Status == TimeEntryStatus.Submitted);
         var oldPendingApprovals = timeEntries
             .Where(t => t.Status == TimeEntryStatus.Submitted)
             .Count(t => t.CreatedAt < DateTime.UtcNow.AddDays(-7));
 
-        var daysActive = timeEntries.Any() 
-            ? (int)(timeEntries.Max(t => t.Date).ToDateTime(TimeOnly.MinValue) - 
+        var daysActive = timeEntries.Any()
+            ? (int)(timeEntries.Max(t => t.Date).ToDateTime(TimeOnly.MinValue) -
                     timeEntries.Min(t => t.Date).ToDateTime(TimeOnly.MinValue)).TotalDays + 1
             : 0;
 
@@ -125,7 +125,7 @@ public class AiInsightsService : IAiInsightsService
             ? (int)(project.EstimatedCompletionDate.Value - DateTime.UtcNow).TotalDays
             : -1;
 
-        var budgetUtilization = project.ContractAmount > 0 
+        var budgetUtilization = project.ContractAmount > 0
             ? (totalLaborCost / project.ContractAmount) * 100
             : (decimal?)null;
 
@@ -147,10 +147,10 @@ public class AiInsightsService : IAiInsightsService
 
         // Recent trends (last 7 days vs previous 7 days)
         var recentEntries = timeEntries.Where(t => t.Date >= DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)));
-        var previousEntries = timeEntries.Where(t => 
+        var previousEntries = timeEntries.Where(t =>
             t.Date >= DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14)) &&
             t.Date < DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)));
-        
+
         var recentHours = recentEntries.Sum(t => t.TotalHours);
         var previousHours = previousEntries.Sum(t => t.TotalHours);
         var hoursTrend = previousHours > 0 ? ((recentHours - previousHours) / previousHours) * 100 : 0;
@@ -178,12 +178,12 @@ public class AiInsightsService : IAiInsightsService
     }
 
     private async Task<AiProjectSummaryResult> CallClaudeAsync(
-        ProjectAnalysisData data, 
-        string apiKey, 
+        ProjectAnalysisData data,
+        string apiKey,
         CancellationToken cancellationToken)
     {
         var prompt = BuildPrompt(data);
-        
+
         var requestBody = new
         {
             model = ModelId,
@@ -293,7 +293,7 @@ public class AiInsightsService : IAiInsightsService
 
             // Extract the text content from Claude's response
             var content = root.GetProperty("content")[0].GetProperty("text").GetString();
-            
+
             if (string.IsNullOrEmpty(content))
             {
                 return new AiProjectSummaryResult

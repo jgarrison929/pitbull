@@ -39,7 +39,7 @@ public class ArchitectureTests
             .FirstOrDefault();
 
         authControllerType.Should().NotBeNull("AuthController should exist");
-        
+
         var hasAuthorizeAttribute = authControllerType!
             .GetCustomAttributes(typeof(AuthorizeAttribute), true)
             .Any();
@@ -85,7 +85,7 @@ public class ArchitectureTests
                 foreach (var interfaceType in interfaceTypes)
                 {
                     var responseType = interfaceType.GetGenericArguments()[1];
-                    
+
                     // Check if response type is Result or Result<T>
                     var isResultType = responseType == typeof(Result) ||
                         (responseType.IsGenericType && responseType.GetGenericTypeDefinition() == typeof(Result<>));
@@ -202,10 +202,10 @@ public class ArchitectureTests
         // - Microsoft.AspNetCore (framework)  
         // - Domain objects for type safety
         // - Feature contracts (commands/queries)
-        
+
         // TODO: Refactor these controllers to use handlers instead of direct EF access
         var controllersToRefactor = new[] { "AuthController", "TenantsController" };
-        
+
         var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
         // TODO: Refactor these controllers to use MediatR handlers instead of direct EF access
         var excludedControllers = new[] { "AuthController", "TenantsController", "CostCodesController", "UsersController" };
@@ -268,7 +268,7 @@ public class ArchitectureTests
 
                 // Alternative check: records inherit from object and have specific characteristics
                 var hasEqualityContract = dtoType.GetProperty("EqualityContract", BindingFlags.NonPublic | BindingFlags.Instance) != null;
-                
+
                 (isRecord || hasEqualityContract).Should().BeTrue(
                     $"DTO {dtoType.Name} should be a record for immutability and value semantics");
             }
@@ -293,7 +293,7 @@ public class ArchitectureTests
             {
                 // Check if it's a record type
                 var hasEqualityContract = type.GetProperty("EqualityContract", BindingFlags.NonPublic | BindingFlags.Instance) != null;
-                
+
                 hasEqualityContract.Should().BeTrue(
                     $"Command/Query {type.Name} should be a record for immutability");
             }

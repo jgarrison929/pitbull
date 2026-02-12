@@ -139,10 +139,10 @@ public sealed class GetEmployeeStatsHandlerTests
         const decimal regularHours = 80m;
         const decimal overtimeHours = 10m;
         const decimal doubleTimeHours = 5m;
-        
-        var expectedEarnings = 
-            (regularHours * baseRate) + 
-            (overtimeHours * baseRate * 1.5m) + 
+
+        var expectedEarnings =
+            (regularHours * baseRate) +
+            (overtimeHours * baseRate * 1.5m) +
             (doubleTimeHours * baseRate * 2.0m);
 
         // Act

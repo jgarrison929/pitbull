@@ -247,7 +247,7 @@ public class UsersController(
     private async Task<Dictionary<Guid, string[]>> GetUserRolesAsync(Guid tenantId, List<Guid> userIds, CancellationToken ct)
     {
         var prefix = $"{tenantId}:";
-        
+
         var userRoleData = await db.Set<IdentityUserRole<Guid>>()
             .Where(ur => userIds.Contains(ur.UserId))
             .Join(

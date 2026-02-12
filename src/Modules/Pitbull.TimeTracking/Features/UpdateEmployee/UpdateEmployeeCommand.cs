@@ -43,7 +43,7 @@ public sealed class UpdateEmployeeHandler(PitbullDbContext db)
         {
             var supervisorExists = await db.Set<Employee>()
                 .AnyAsync(e => e.Id == request.SupervisorId.Value, cancellationToken);
-            
+
             if (!supervisorExists)
                 return Result.Failure<EmployeeDto>("Supervisor not found", "INVALID_SUPERVISOR");
 

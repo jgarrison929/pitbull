@@ -178,10 +178,10 @@ public class CreateSubcontractValidatorTests
     {
         var startDate = DateTime.UtcNow.AddDays(30);
         var completionDate = DateTime.UtcNow.AddDays(7); // Before start
-        var command = CreateValidCommand() with 
-        { 
+        var command = CreateValidCommand() with
+        {
             StartDate = startDate,
-            CompletionDate = completionDate 
+            CompletionDate = completionDate
         };
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.CompletionDate)
@@ -193,10 +193,10 @@ public class CreateSubcontractValidatorTests
     {
         var startDate = DateTime.UtcNow.AddDays(7);
         var completionDate = DateTime.UtcNow.AddDays(60);
-        var command = CreateValidCommand() with 
-        { 
+        var command = CreateValidCommand() with
+        {
             StartDate = startDate,
-            CompletionDate = completionDate 
+            CompletionDate = completionDate
         };
         var result = _validator.TestValidate(command);
         result.ShouldNotHaveValidationErrorFor(x => x.CompletionDate);

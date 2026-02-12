@@ -7,11 +7,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.ListChangeOrders;
 
-public sealed class ListChangeOrdersHandler(PitbullDbContext db) 
+public sealed class ListChangeOrdersHandler(PitbullDbContext db)
     : IRequestHandler<ListChangeOrdersQuery, Result<PagedResult<ChangeOrderDto>>>
 {
     public async Task<Result<PagedResult<ChangeOrderDto>>> Handle(
-        ListChangeOrdersQuery request, 
+        ListChangeOrdersQuery request,
         CancellationToken cancellationToken)
     {
         var query = db.Set<ChangeOrder>().Where(co => !co.IsDeleted).AsQueryable();
@@ -28,7 +28,7 @@ public sealed class ListChangeOrdersHandler(PitbullDbContext db)
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             var search = request.Search.ToLower();
-            query = query.Where(co => 
+            query = query.Where(co =>
                 co.Title.ToLower().Contains(search) ||
                 co.ChangeOrderNumber.ToLower().Contains(search));
         }

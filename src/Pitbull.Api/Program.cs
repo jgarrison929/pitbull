@@ -176,7 +176,7 @@ builder.Services.AddRequestTimeouts(options =>
         Timeout = TimeSpan.FromSeconds(30),
         TimeoutStatusCode = 408
     };
-    
+
     // Longer timeout for seed data operations (development only)
     options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
     {
@@ -256,7 +256,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromHours(1);
         opt.QueueLimit = 0;
     });
-    
+
     // Login: 10 requests per minute (allows for typos/retries)
     options.AddFixedWindowLimiter("login", opt =>
     {
@@ -264,7 +264,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
     });
-    
+
     // General auth fallback (currently unused but could be applied broadly)
     options.AddFixedWindowLimiter("auth", opt =>
     {
@@ -272,7 +272,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
     });
-    
+
     // API endpoints: 60 requests per minute
     options.AddFixedWindowLimiter("api", opt =>
     {
@@ -280,7 +280,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 2;
     });
-    
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = 429;
@@ -295,7 +295,7 @@ builder.Services.AddHealthChecks()
         builder.Configuration.GetConnectionString("PitbullDb")!,
         name: "postgresql",
         tags: new[] { "db", "ready" })
-    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), 
+    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"),
         tags: new[] { "live" });
 
 // Response compression for better bandwidth utilization

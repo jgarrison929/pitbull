@@ -46,7 +46,7 @@ public class ListChangeOrdersHandlerTests
                 CreatedAt = DateTime.UtcNow.AddDays(-1)
             }
         };
-        
+
         db.Set<ChangeOrder>().AddRange(changeOrders);
         await db.SaveChangesAsync();
     }
@@ -78,7 +78,7 @@ public class ListChangeOrdersHandlerTests
         var subcontractId1 = Guid.NewGuid();
         var subcontractId2 = Guid.NewGuid();
         await SeedChangeOrders(db, subcontractId1);
-        
+
         // Add one more for different subcontract
         db.Set<ChangeOrder>().Add(new ChangeOrder
         {
@@ -91,7 +91,7 @@ public class ListChangeOrdersHandlerTests
             Status = ChangeOrderStatus.Pending
         });
         await db.SaveChangesAsync();
-        
+
         var handler = new ListChangeOrdersHandler(db);
         var query = new ListChangeOrdersQuery(subcontractId1, null, null);
 

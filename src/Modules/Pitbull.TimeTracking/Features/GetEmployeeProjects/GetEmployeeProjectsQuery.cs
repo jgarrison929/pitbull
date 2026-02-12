@@ -32,7 +32,7 @@ public sealed class GetEmployeeProjectsHandler(PitbullDbContext db)
         if (request.AsOfDate.HasValue)
         {
             var asOf = request.AsOfDate.Value;
-            query = query.Where(pa => pa.StartDate <= asOf 
+            query = query.Where(pa => pa.StartDate <= asOf
                                    && (pa.EndDate == null || pa.EndDate >= asOf));
         }
 

@@ -6,11 +6,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.DeletePaymentApplication;
 
-public sealed class DeletePaymentApplicationHandler(PitbullDbContext db) 
+public sealed class DeletePaymentApplicationHandler(PitbullDbContext db)
     : IRequestHandler<DeletePaymentApplicationCommand, Result<bool>>
 {
     public async Task<Result<bool>> Handle(
-        DeletePaymentApplicationCommand request, 
+        DeletePaymentApplicationCommand request,
         CancellationToken cancellationToken)
     {
         var payApp = await db.Set<PaymentApplication>()

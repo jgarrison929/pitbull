@@ -147,7 +147,7 @@ public class ExportVistaTimesheetHandlerTests
         var costCode = CreateCostCode("01-100", "General Labor");
         var employee = CreateEmployee("John", "Doe", 40m, "EMP001");
         var today = DateOnly.FromDateTime(DateTime.Today);
-        var entry = CreateTimeEntry(employee, project, costCode, today, 
+        var entry = CreateTimeEntry(employee, project, costCode, today,
             regularHours: 8m, overtimeHours: 2m, doubletimeHours: 1m);
 
         db.Set<Project>().Add(project);
@@ -188,13 +188,13 @@ public class ExportVistaTimesheetHandlerTests
         var employee = CreateEmployee("John", "Doe", 25m);
         var today = DateOnly.FromDateTime(DateTime.Today);
 
-        var approvedEntry = CreateTimeEntry(employee, project, costCode, today, 
+        var approvedEntry = CreateTimeEntry(employee, project, costCode, today,
             regularHours: 8m, status: TimeEntryStatus.Approved);
-        var submittedEntry = CreateTimeEntry(employee, project, costCode, today, 
+        var submittedEntry = CreateTimeEntry(employee, project, costCode, today,
             regularHours: 4m, status: TimeEntryStatus.Submitted);
-        var rejectedEntry = CreateTimeEntry(employee, project, costCode, today, 
+        var rejectedEntry = CreateTimeEntry(employee, project, costCode, today,
             regularHours: 2m, status: TimeEntryStatus.Rejected);
-        var draftEntry = CreateTimeEntry(employee, project, costCode, today, 
+        var draftEntry = CreateTimeEntry(employee, project, costCode, today,
             regularHours: 1m, status: TimeEntryStatus.Draft);
 
         db.Set<Project>().Add(project);

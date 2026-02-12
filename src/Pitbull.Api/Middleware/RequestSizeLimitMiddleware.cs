@@ -57,17 +57,17 @@ public class RequestSizeLimitMiddleware(RequestDelegate next, IOptions<RequestSi
 public class RequestSizeLimitOptions
 {
     public const string SectionName = "RequestSizeLimits";
-    
+
     /// <summary>
     /// Maximum size for standard API requests (JSON payloads). Default: 1 MB.
     /// </summary>
     public long ApiMaxSize { get; set; } = 1_048_576; // 1 MB
-    
+
     /// <summary>
     /// Maximum size for document upload requests. Default: 50 MB.
     /// </summary>
     public long DocumentUploadMaxSize { get; set; } = 52_428_800; // 50 MB
-    
+
     /// <summary>
     /// Global maximum request size (fallback). Default: 10 MB.
     /// </summary>

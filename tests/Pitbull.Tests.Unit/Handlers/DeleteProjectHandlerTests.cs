@@ -25,7 +25,7 @@ public class DeleteProjectHandlerTests
         };
         db.Set<Project>().Add(project);
         await db.SaveChangesAsync();
-        
+
         var handler = new DeleteProjectHandler(db);
         var command = new DeleteProjectCommand(project.Id);
 
@@ -35,14 +35,14 @@ public class DeleteProjectHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeTrue();
-        
+
         // Verify project is soft deleted
         var deletedProject = await db.Set<Project>().IgnoreQueryFilters()
             .FirstOrDefaultAsync(p => p.Id == project.Id);
         deletedProject.Should().NotBeNull();
         deletedProject!.IsDeleted.Should().BeTrue();
         deletedProject.DeletedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
-        
+
         // Note: In-memory database may not fully respect query filters
         // The important thing is that IsDeleted = true and DeletedAt is set
     }
@@ -83,7 +83,7 @@ public class DeleteProjectHandlerTests
         };
         db.Set<Project>().Add(project);
         await db.SaveChangesAsync();
-        
+
         var handler = new DeleteProjectHandler(db);
         var command = new DeleteProjectCommand(project.Id);
 

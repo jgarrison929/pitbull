@@ -44,7 +44,7 @@ public sealed class AdminCompanyEndpointsTests(PostgresFixture db) : IAsyncLifet
         var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/api/admin/company");
-        
+
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();

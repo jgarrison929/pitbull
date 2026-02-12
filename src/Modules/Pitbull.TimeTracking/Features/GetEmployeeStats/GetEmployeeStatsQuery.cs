@@ -82,9 +82,9 @@ public sealed class GetEmployeeStatsHandler(PitbullDbContext db)
                 .FirstAsync(cancellationToken);
 
             var totalHours = stats.RegularHours + stats.OvertimeHours + stats.DoubleTimeHours;
-            
+
             // Calculate earnings using employee's rate
-            var totalEarnings = 
+            var totalEarnings =
                 (stats.RegularHours * employee.BaseHourlyRate) +
                 (stats.OvertimeHours * employee.BaseHourlyRate * 1.5m) +
                 (stats.DoubleTimeHours * employee.BaseHourlyRate * 2.0m);

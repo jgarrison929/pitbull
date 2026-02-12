@@ -118,7 +118,7 @@ public class CreateChangeOrderHandlerTests
         using var db = TestDbContextFactory.Create();
         var subcontract = await CreateTestSubcontract(db);
         var handler = new CreateChangeOrderHandler(db);
-        
+
         // Create first CO
         var first = new CreateChangeOrderCommand(
             SubcontractId: subcontract.Id,

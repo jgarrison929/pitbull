@@ -49,13 +49,13 @@ public class UpdateBidValidator : AbstractValidator<UpdateBidCommand>
             item.RuleFor(i => i.Description)
                 .NotEmpty().WithMessage("Bid item description is required")
                 .MaximumLength(500).WithMessage("Bid item description cannot exceed 500 characters");
-            
+
             item.RuleFor(i => i.Category)
                 .IsInEnum().WithMessage("Invalid bid item category");
-            
+
             item.RuleFor(i => i.Quantity)
                 .GreaterThan(0).WithMessage("Quantity must be greater than 0");
-            
+
             item.RuleFor(i => i.UnitCost)
                 .GreaterThanOrEqualTo(0).WithMessage("Unit cost cannot be negative");
         }).When(x => x.Items != null && x.Items.Any());

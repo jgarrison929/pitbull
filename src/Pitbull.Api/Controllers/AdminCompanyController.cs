@@ -27,7 +27,7 @@ public class AdminCompanyController : ControllerBase
     public IActionResult GetSettings()
     {
         var tenantId = GetTenantId();
-        
+
         if (_settings.TryGetValue(tenantId, out var settings))
             return Ok(settings);
 
@@ -50,7 +50,7 @@ public class AdminCompanyController : ControllerBase
     public IActionResult UpdateSettings([FromBody] UpdateCompanySettingsRequest request)
     {
         var tenantId = GetTenantId();
-        
+
         var settings = new CompanySettingsDto
         {
             Id = Guid.NewGuid(),

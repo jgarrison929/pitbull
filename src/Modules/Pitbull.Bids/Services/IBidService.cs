@@ -21,7 +21,7 @@ public interface IBidService
     Task<Result<BidDto>> CreateBidAsync(CreateBidCommand command, CancellationToken cancellationToken = default);
     Task<Result<BidDto>> UpdateBidAsync(UpdateBidCommand command, CancellationToken cancellationToken = default);
     Task<Result> DeleteBidAsync(Guid id, CancellationToken cancellationToken = default);
-    
+
     // Special operations
     Task<Result<ConvertBidToProjectResult>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default);
 }

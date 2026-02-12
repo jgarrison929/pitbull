@@ -7,11 +7,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.ListPaymentApplications;
 
-public sealed class ListPaymentApplicationsHandler(PitbullDbContext db) 
+public sealed class ListPaymentApplicationsHandler(PitbullDbContext db)
     : IRequestHandler<ListPaymentApplicationsQuery, Result<PagedResult<PaymentApplicationDto>>>
 {
     public async Task<Result<PagedResult<PaymentApplicationDto>>> Handle(
-        ListPaymentApplicationsQuery request, 
+        ListPaymentApplicationsQuery request,
         CancellationToken cancellationToken)
     {
         var query = db.Set<PaymentApplication>().Where(pa => !pa.IsDeleted).AsQueryable();

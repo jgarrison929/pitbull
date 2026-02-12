@@ -26,7 +26,7 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
         context.Response.Headers.Append("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none';");
 
         // Permissions-Policy: Disable all browser features for API endpoints
-        context.Response.Headers.Append("Permissions-Policy", 
+        context.Response.Headers.Append("Permissions-Policy",
             "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()");
 
         // Remove server headers that reveal implementation details

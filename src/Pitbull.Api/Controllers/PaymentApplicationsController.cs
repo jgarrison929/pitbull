@@ -121,7 +121,7 @@ public class PaymentApplicationsController(IMediator mediator) : ControllerBase
     {
         var query = new ListPaymentApplicationsQuery(subcontractId, status, page, pageSize);
         var result = await mediator.Send(query);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 

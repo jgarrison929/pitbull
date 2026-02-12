@@ -28,7 +28,7 @@ namespace Pitbull.Api.Controllers;
 [Produces("application/json")]
 [Tags("Projects")]
 public class ProjectsController(
-    IMediator mediator, 
+    IMediator mediator,
     IProjectService projectService,
     IAiInsightsService aiInsightsService) : ControllerBase
 {
@@ -133,7 +133,7 @@ public class ProjectsController(
             Page = page,
             PageSize = pageSize
         };
-        
+
         var result = await mediator.Send(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
@@ -244,15 +244,15 @@ public class ProjectsController(
     public async Task<IActionResult> GetAiSummary(Guid id)
     {
         var result = await aiInsightsService.GetProjectSummaryAsync(id);
-        
+
         if (!result.Success)
         {
             if (result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true)
                 return this.NotFoundError(result.Error);
-            
+
             if (result.Error?.Contains("not configured", StringComparison.OrdinalIgnoreCase) == true)
                 return StatusCode(503, new { error = result.Error, code = "AI_NOT_CONFIGURED" });
-            
+
             return StatusCode(503, new { error = result.Error, code = "AI_ERROR" });
         }
 
@@ -286,7 +286,7 @@ public class ProjectsController(
     public async Task<IActionResult> GetStats(Guid id)
     {
         var result = await mediator.Send(new GetProjectStatsQuery(id));
-        
+
         if (!result.IsSuccess)
         {
             return result.ErrorCode == "PROJECT_NOT_FOUND"
@@ -365,7 +365,7 @@ public class ProjectsController(
         // Ensure ID consistency between route and body
         var commandWithId = command with { Id = id };
         var result = await projectService.UpdateProjectAsync(commandWithId);
-        
+
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch

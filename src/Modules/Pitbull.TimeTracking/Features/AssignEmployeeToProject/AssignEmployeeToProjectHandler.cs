@@ -32,10 +32,10 @@ public sealed class AssignEmployeeToProjectHandler(PitbullDbContext db)
 
         // Check for existing active assignment to the same project
         var existingAssignment = await db.Set<ProjectAssignment>()
-            .AnyAsync(pa => pa.EmployeeId == request.EmployeeId 
+            .AnyAsync(pa => pa.EmployeeId == request.EmployeeId
                         && pa.ProjectId == request.ProjectId
                         && pa.IsActive
-                        && (pa.EndDate == null || pa.EndDate >= startDate), 
+                        && (pa.EndDate == null || pa.EndDate >= startDate),
                       cancellationToken);
 
         if (existingAssignment)

@@ -47,7 +47,7 @@ public sealed class UsersEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Should have pagination structure
         Assert.Contains("items", json);
         Assert.Contains("totalCount", json);
