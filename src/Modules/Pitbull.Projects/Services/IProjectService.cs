@@ -1,5 +1,6 @@
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
 
@@ -14,6 +15,7 @@ public interface IProjectService
     // Query operations
     Task<Result<ProjectDto>> GetProjectAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result<PagedResult<ProjectDto>>> GetProjectsAsync(ListProjectsQuery query, CancellationToken cancellationToken = default);
+    Task<Result<ProjectStatsResponse>> GetProjectStatsAsync(Guid id, CancellationToken cancellationToken = default);
 
     // Command operations  
     Task<Result<ProjectDto>> CreateProjectAsync(CreateProjectCommand command, CancellationToken cancellationToken = default);

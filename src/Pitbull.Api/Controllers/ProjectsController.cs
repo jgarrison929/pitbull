@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -8,11 +7,9 @@ using Pitbull.Api.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
-using Pitbull.Projects.Features.DeleteProject;
-using Pitbull.Projects.Features.GetProject;
+using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
-using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Services;
 
 namespace Pitbull.Api.Controllers;
@@ -28,7 +25,6 @@ namespace Pitbull.Api.Controllers;
 [Produces("application/json")]
 [Tags("Projects")]
 public class ProjectsController(
-    IMediator mediator, 
     IProjectService projectService,
     IAiInsightsService aiInsightsService) : ControllerBase
 {
@@ -66,7 +62,7 @@ public class ProjectsController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateProjectCommand command)
     {
-        var result = await mediator.Send(command);
+        var result = await projectService.CreateProjectAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -87,15 +83,20 @@ public class ProjectsController(
     /// <response code="404">Project not found</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet("{id:guid}")]
-    [Cacheable(DurationSeconds = 180)] // Cache for 3 minutes (projects change less frequently than dashboard)
+    [Cacheable(DurationSeconds = 180)]
     [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await mediator.Send(new GetProjectQuery(id));
-        return this.HandleResult(result);
+        var result = await projectService.GetProjectAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND" 
+                ? this.NotFoundError(result.Error ?? "Project not found") 
+                : this.BadRequestError(result.Error ?? "Request failed");
+
+        return Ok(result.Value);
     }
 
     /// <summary>
@@ -117,7 +118,7 @@ public class ProjectsController(
     /// <response code="401">Not authenticated</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet]
-    [Cacheable(DurationSeconds = 120)] // Cache for 2 minutes (list data changes more frequently)
+    [Cacheable(DurationSeconds = 120)]
     [ProducesResponseType(typeof(PagedResult<ProjectDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -134,7 +135,7 @@ public class ProjectsController(
             PageSize = pageSize
         };
         
-        var result = await mediator.Send(query);
+        var result = await projectService.GetProjectsAsync(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -166,17 +167,18 @@ public class ProjectsController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateProjectCommand command)
     {
-        if (id != command.Id)
-            return this.BadRequestError("Route ID does not match body ID");
-
-        var result = await mediator.Send(command);
+        // Ensure ID consistency between route and body
+        var commandWithId = command with { Id = id };
+        var result = await projectService.UpdateProjectAsync(commandWithId);
+        
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
             {
                 "NOT_FOUND" => this.NotFoundError(result.Error ?? "Project not found"),
                 "CONFLICT" => this.Error(409, result.Error ?? "Conflict occurred", "CONFLICT"),
-                _ => this.BadRequestError(result.Error ?? "Invalid request")
+                "VALIDATION_ERROR" => this.BadRequestError(result.Error ?? "Validation failed"),
+                _ => this.BadRequestError(result.Error ?? "Update failed")
             };
         }
 
@@ -202,9 +204,11 @@ public class ProjectsController(
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await mediator.Send(new DeleteProjectCommand(id));
+        var result = await projectService.DeleteProjectAsync(id);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Delete failed");
+            return result.ErrorCode == "NOT_FOUND" 
+                ? this.NotFoundError(result.Error ?? "Project not found") 
+                : this.BadRequestError(result.Error ?? "Delete failed");
 
         return NoContent();
     }
@@ -285,7 +289,7 @@ public class ProjectsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetStats(Guid id)
     {
-        var result = await mediator.Send(new GetProjectStatsQuery(id));
+        var result = await projectService.GetProjectStatsAsync(id);
         
         if (!result.IsSuccess)
         {
@@ -295,104 +299,5 @@ public class ProjectsController(
         }
 
         return Ok(result.Value);
-    }
-
-    // ========================================
-    // NEW SERVICE-BASED ENDPOINTS (Testing MediatR migration)
-    // ========================================
-
-    /// <summary>
-    /// [TEST] Get a project by ID using direct service (no MediatR)
-    /// </summary>
-    /// <param name="id">Project unique identifier</param>
-    /// <returns>Project details</returns>
-    [HttpGet("v2/{id:guid}")]
-    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetByIdV2(Guid id)
-    {
-        var result = await projectService.GetProjectAsync(id);
-        if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Request failed");
-
-        return Ok(result.Value);
-    }
-
-    /// <summary>
-    /// [TEST] Create a project using direct service (no MediatR)  
-    /// </summary>
-    /// <param name="command">Project creation details</param>
-    /// <returns>The newly created project</returns>
-    [HttpPost("v2")]
-    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> CreateV2([FromBody] CreateProjectCommand command)
-    {
-        var result = await projectService.CreateProjectAsync(command);
-        if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
-
-        return CreatedAtAction(nameof(GetByIdV2), new { id = result.Value!.Id }, result.Value);
-    }
-
-    /// <summary>
-    /// [TEST] List projects using direct service (no MediatR)
-    /// </summary>
-    [HttpGet("v2")]
-    [ProducesResponseType(typeof(PagedResult<ProjectDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListV2([FromQuery] ListProjectsQuery query)
-    {
-        var result = await projectService.GetProjectsAsync(query);
-        if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
-
-        return Ok(result.Value);
-    }
-
-    /// <summary>
-    /// [TEST] Update a project using direct service (no MediatR)
-    /// </summary>
-    /// <param name="id">Project unique identifier</param>
-    /// <param name="command">Updated project details</param>
-    /// <returns>Updated project</returns>
-    [HttpPut("v2/{id:guid}")]
-    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> UpdateV2(Guid id, [FromBody] UpdateProjectCommand command)
-    {
-        // Ensure ID consistency between route and body
-        var commandWithId = command with { Id = id };
-        var result = await projectService.UpdateProjectAsync(commandWithId);
-        
-        if (!result.IsSuccess)
-        {
-            return result.ErrorCode switch
-            {
-                "NOT_FOUND" => this.NotFoundError(result.Error ?? "Project not found"),
-                "CONFLICT" => this.Error(409, result.Error ?? "Conflict occurred", "CONFLICT"),
-                "VALIDATION_ERROR" => this.BadRequestError(result.Error ?? "Validation failed"),
-                _ => this.BadRequestError(result.Error ?? "Update failed")
-            };
-        }
-
-        return Ok(result.Value);
-    }
-
-    /// <summary>
-    /// [TEST] Delete a project using direct service (no MediatR)
-    /// </summary>
-    /// <param name="id">Project unique identifier</param>
-    [HttpDelete("v2/{id:guid}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DeleteV2(Guid id)
-    {
-        var result = await projectService.DeleteProjectAsync(id);
-        if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" ? this.NotFoundError(result.Error ?? "Project not found") : this.BadRequestError(result.Error ?? "Delete failed");
-
-        return NoContent();
     }
 }

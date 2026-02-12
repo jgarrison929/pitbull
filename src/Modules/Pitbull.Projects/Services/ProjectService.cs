@@ -7,6 +7,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
 
@@ -247,6 +248,98 @@ public class ProjectService : IProjectService
         }
     }
 
+    public async Task<Result<ProjectStatsResponse>> GetProjectStatsAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Verify project exists
+            var project = await _db.Set<Project>()
+                .AsNoTracking()
+                .Where(p => p.Id == id && !p.IsDeleted)
+                .Select(p => new { p.Id, p.Name, p.Number })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (project == null)
+            {
+                return Result.Failure<ProjectStatsResponse>(
+                    "Project not found",
+                    "PROJECT_NOT_FOUND");
+            }
+
+            // Get time entry stats using raw SQL for performance
+            var statsSql = $@"
+                SELECT 
+                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
+                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
+                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours"",
+                    COUNT(*) as ""EntryCount"",
+                    COUNT(*) FILTER (WHERE ""Status"" = 1) as ""ApprovedCount"",
+                    COUNT(*) FILTER (WHERE ""Status"" = 0) as ""PendingCount"",
+                    MIN(""Date"") as ""FirstDate"",
+                    MAX(""Date"") as ""LastDate""
+                FROM time_entries
+                WHERE ""ProjectId"" = '{id}'
+                  AND ""IsDeleted"" = false";
+
+            var stats = await _db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql)
+                .FirstAsync(cancellationToken);
+
+            // Get assigned employee count
+            var employeeCountSql = $@"
+                SELECT COUNT(DISTINCT ""EmployeeId"") as ""Value""
+                FROM project_assignments
+                WHERE ""ProjectId"" = '{id}'
+                  AND ""IsActive"" = true";
+
+            var employeeCountResult = await _db.Database.SqlQueryRaw<ScalarInt>(employeeCountSql)
+                .FirstAsync(cancellationToken);
+            var employeeCount = employeeCountResult.Value;
+
+            // Calculate labor cost
+            var laborCostSql = $@"
+                SELECT COALESCE(SUM(
+                    (te.""RegularHours"" * e.""BaseHourlyRate"") +
+                    (te.""OvertimeHours"" * e.""BaseHourlyRate"" * 1.5) +
+                    (te.""DoubletimeHours"" * e.""BaseHourlyRate"" * 2.0)
+                ), 0) as ""Value""
+                FROM time_entries te
+                JOIN employees e ON te.""EmployeeId"" = e.""Id""
+                WHERE te.""ProjectId"" = '{id}'
+                  AND te.""IsDeleted"" = false
+                  AND te.""Status"" = 1";
+
+            var laborCostResult = await _db.Database.SqlQueryRaw<ScalarDecimal>(laborCostSql)
+                .FirstAsync(cancellationToken);
+            var laborCost = laborCostResult.Value;
+
+            var totalHours = stats.RegularHours + stats.OvertimeHours + stats.DoubleTimeHours;
+
+            return Result.Success(new ProjectStatsResponse(
+                ProjectId: id,
+                ProjectName: project.Name,
+                ProjectNumber: project.Number,
+                TotalHours: totalHours,
+                RegularHours: stats.RegularHours,
+                OvertimeHours: stats.OvertimeHours,
+                DoubleTimeHours: stats.DoubleTimeHours,
+                TotalLaborCost: laborCost,
+                TimeEntryCount: stats.EntryCount,
+                ApprovedEntryCount: stats.ApprovedCount,
+                PendingEntryCount: stats.PendingCount,
+                AssignedEmployeeCount: employeeCount,
+                FirstEntryDate: stats.FirstDate.HasValue ? DateOnly.FromDateTime(stats.FirstDate.Value) : null,
+                LastEntryDate: stats.LastDate.HasValue ? DateOnly.FromDateTime(stats.LastDate.Value) : null
+            ));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get stats for project {ProjectId}", id);
+            return Result.Failure<ProjectStatsResponse>(
+                $"Failed to retrieve project statistics: {ex.Message}",
+                "PROJECT_STATS_ERROR");
+        }
+    }
+
     /// <summary>
     /// Maps Project entity to ProjectDto (extracted from CreateProjectHandler)
     /// </summary>
@@ -278,3 +371,17 @@ public class ProjectService : IProjectService
         );
     }
 }
+
+// Helper DTOs for raw SQL queries (moved from handler, shared with service)
+internal record TimeEntryStatsRow(
+    decimal RegularHours,
+    decimal OvertimeHours,
+    decimal DoubleTimeHours,
+    int EntryCount,
+    int ApprovedCount,
+    int PendingCount,
+    DateTime? FirstDate,
+    DateTime? LastDate
+);
+internal record ScalarInt(int Value);
+internal record ScalarDecimal(decimal Value);
