@@ -8,14 +8,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### 🚀 Features
+
+- **RFI Cost Impact Tracking** - Track the full financial impact of RFIs through the project lifecycle
+  - Link Change Orders to originating RFIs
+  - Track delay costs separately from direct costs
+  - Document references (spec sections, drawing sheets)
+  - AI assistance fields for future answer suggestions
+  - *"This RFI cost us $45K in delays"* - now trackable end-to-end
+
 ### 🏗️ Infrastructure
+
+- **Architecture:** Removed MediatR from 6 controllers (Contracts, Bids, RFIs, Projects)
+  - Direct service injection improves testability and debugging
+  - Preserves CQRS patterns without message bus overhead
+  - 50% of controller migration complete (6/12)
+
+- **Demo Environment:** Fixed PostgreSQL session variable handling
+  - `SET LOCAL` replaced with `set_config()` function for parameterized queries
+  - Resolves Railway demo startup crash
 
 - **ci:** Switched from self-hosted to GitHub-hosted runners (`ubuntu-latest`)
   - Self-hosted runners were offline 23+ hours
   - CI now completes in ~4 minutes (was stuck indefinitely)
 
+### 🐛 Bug Fixes
+
+- **EF Core LINQ:** Fixed `StringComparison.CurrentCultureIgnoreCase` translation errors across 12 files
+- **Web UI:** Added missing `date-fns` package and `Switch` component for pay periods page
+- **Web UI:** Fixed CostCode import paths in crew entry components
+
 ### Planned
 
+- RFI Cost Impact API endpoints (Phase 2)
 - Document management module
 - Billing/invoicing module
 - Client portal
