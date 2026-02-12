@@ -190,7 +190,6 @@ export default function CompanySettingsPage() {
         body: form,
       });
       
-      setSettings(updatedSettings);
       setHasChanges(false);
       setSuccessMessage("Company settings saved successfully!");
       toast.success("Company settings saved");
