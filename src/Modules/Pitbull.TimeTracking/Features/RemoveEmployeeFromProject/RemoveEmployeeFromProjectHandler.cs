@@ -34,9 +34,9 @@ public sealed class RemoveEmployeeFromProjectByIdsHandler(PitbullDbContext db)
         RemoveEmployeeFromProjectByIdsCommand request, CancellationToken cancellationToken)
     {
         var assignment = await db.Set<ProjectAssignment>()
-            .FirstOrDefaultAsync(pa => pa.EmployeeId == request.EmployeeId 
+            .FirstOrDefaultAsync(pa => pa.EmployeeId == request.EmployeeId
                                     && pa.ProjectId == request.ProjectId
-                                    && pa.IsActive, 
+                                    && pa.IsActive,
                                  cancellationToken);
 
         if (assignment == null)

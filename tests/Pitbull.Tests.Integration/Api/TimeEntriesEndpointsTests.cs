@@ -15,7 +15,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
     {
         PropertyNameCaseInsensitive = true
     };
-    
+
     private PitbullApiFactory _factory = null!;
 
     public async Task InitializeAsync()
@@ -121,7 +121,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             role = 0, // Worker
             startDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)).ToString("yyyy-MM-dd")
         });
-        
+
         if (assignResp.StatusCode != HttpStatusCode.Created && assignResp.StatusCode != HttpStatusCode.OK)
         {
             var body = await assignResp.Content.ReadAsStringAsync();
@@ -132,7 +132,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         var costCodesResp = await client.GetAsync("/api/cost-codes?pageSize=1");
         costCodesResp.EnsureSuccessStatusCode();
         var costCodesJson = await costCodesResp.Content.ReadAsStringAsync();
-        
+
         // If no cost codes exist, create one
         Guid costCodeId;
         if (costCodesJson.Contains("\"items\":[]") || !costCodesJson.Contains("\"id\""))

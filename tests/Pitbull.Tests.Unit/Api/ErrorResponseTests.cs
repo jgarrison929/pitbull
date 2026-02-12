@@ -14,7 +14,7 @@ public class ErrorResponseTests
     {
         // Act
         var result = ErrorResponseBuilder.Create("Test message", "TEST_CODE", "trace-123");
-        
+
         // Assert
         result.Should().NotBeNull();
         result.Error.Message.Should().Be("Test message");
@@ -32,10 +32,10 @@ public class ErrorResponseTests
             ["Email"] = new[] { "Email is required" },
             ["Password"] = new[] { "Password too weak", "Password must be 8+ chars" }
         };
-        
+
         // Act
         var result = ErrorResponseBuilder.CreateValidation("Validation failed", details, "trace-456");
-        
+
         // Assert
         result.Error.Message.Should().Be("Validation failed");
         result.Error.Code.Should().Be("VALIDATION_FAILED");
@@ -48,7 +48,7 @@ public class ErrorResponseTests
     {
         // Act
         var result = ErrorResponseBuilder.Common.NotFound();
-        
+
         // Assert
         result.Error.Message.Should().Be("Resource not found");
         result.Error.Code.Should().Be("NOT_FOUND");
@@ -59,10 +59,10 @@ public class ErrorResponseTests
     {
         // Arrange
         var controller = new TestController();
-        
+
         // Act
         var result = controller.NotFoundError("Custom not found message");
-        
+
         // Assert
         result.Should().BeOfType<NotFoundObjectResult>();
         var errorResponse = result.Value.Should().BeOfType<ErrorResponse>().Subject;
@@ -70,7 +70,7 @@ public class ErrorResponseTests
         errorResponse.Error.Code.Should().Be("NOT_FOUND");
     }
 
-    [Fact] 
+    [Fact]
     public void ControllerExtensions_ValidationError_FromFluentValidation_ShouldFormatCorrectly()
     {
         // Arrange
@@ -78,10 +78,10 @@ public class ErrorResponseTests
         var validationResult = new FluentValidation.Results.ValidationResult();
         validationResult.Errors.Add(new FluentValidation.Results.ValidationFailure("Email", "Email is required"));
         validationResult.Errors.Add(new FluentValidation.Results.ValidationFailure("Password", "Password too weak"));
-        
+
         // Act
         var result = controller.ValidationError(validationResult);
-        
+
         // Assert
         result.Should().BeOfType<BadRequestObjectResult>();
         var errorResponse = result.Value.Should().BeOfType<ErrorResponse>().Subject;

@@ -54,7 +54,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         for (int i = 1; i <= 5; i++)
         {
             db.Set<Rfi>().Add(CreateTestRfi(projectId, i, $"RFI #{i}"));
@@ -79,7 +79,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 1));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 3));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 2));
@@ -103,7 +103,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, status: RfiStatus.Open));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, status: RfiStatus.Answered));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, status: RfiStatus.Open));
@@ -128,7 +128,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, priority: RfiPriority.Low));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, priority: RfiPriority.High));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, priority: RfiPriority.Normal));
@@ -155,7 +155,7 @@ public class ListRfisHandlerTests
         var projectId = Guid.NewGuid();
         var user1 = Guid.NewGuid();
         var user2 = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, ballInCourtUserId: user1));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, ballInCourtUserId: user2));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, ballInCourtUserId: user1));
@@ -179,7 +179,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, subject: "Concrete foundation spec"));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, subject: "Steel beam dimensions"));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, subject: "Concrete wall thickness"));
@@ -202,7 +202,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, assignedToName: "John Smith"));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, assignedToName: "Jane Doe"));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, assignedToName: "John Johnson"));
@@ -225,7 +225,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, subject: "ELECTRICAL Panel"));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, subject: "Electrical wiring"));
         db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, subject: "electrical CONDUIT"));
@@ -248,7 +248,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         for (int i = 1; i <= 15; i++)
         {
             db.Set<Rfi>().Add(CreateTestRfi(projectId, i, $"RFI #{i}"));
@@ -279,21 +279,21 @@ public class ListRfisHandlerTests
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
         var user1 = Guid.NewGuid();
-        
-        db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, subject: "Concrete foundation", 
+
+        db.Set<Rfi>().Add(CreateTestRfi(projectId, 1, subject: "Concrete foundation",
             status: RfiStatus.Open, priority: RfiPriority.High, ballInCourtUserId: user1));
-        db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, subject: "Concrete wall", 
+        db.Set<Rfi>().Add(CreateTestRfi(projectId, 2, subject: "Concrete wall",
             status: RfiStatus.Answered, priority: RfiPriority.High, ballInCourtUserId: user1));
-        db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, subject: "Steel beam", 
+        db.Set<Rfi>().Add(CreateTestRfi(projectId, 3, subject: "Steel beam",
             status: RfiStatus.Open, priority: RfiPriority.High, ballInCourtUserId: user1));
-        db.Set<Rfi>().Add(CreateTestRfi(projectId, 4, subject: "Concrete slab", 
+        db.Set<Rfi>().Add(CreateTestRfi(projectId, 4, subject: "Concrete slab",
             status: RfiStatus.Open, priority: RfiPriority.Low, ballInCourtUserId: user1));
         await db.SaveChangesAsync();
 
         var handler = new ListRfisHandler(db);
-        var query = new ListRfisQuery(projectId, 
-            Status: RfiStatus.Open, 
-            Priority: RfiPriority.High, 
+        var query = new ListRfisQuery(projectId,
+            Status: RfiStatus.Open,
+            Priority: RfiPriority.High,
             BallInCourtUserId: user1,
             Search: "concrete");
 
@@ -313,7 +313,7 @@ public class ListRfisHandlerTests
         using var db = TestDbContextFactory.Create();
         var project1 = Guid.NewGuid();
         var project2 = Guid.NewGuid();
-        
+
         db.Set<Rfi>().Add(CreateTestRfi(project1, 1, "Project 1 RFI"));
         db.Set<Rfi>().Add(CreateTestRfi(project2, 1, "Project 2 RFI"));
         db.Set<Rfi>().Add(CreateTestRfi(project1, 2, "Project 1 RFI 2"));
@@ -337,7 +337,7 @@ public class ListRfisHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var projectId = Guid.NewGuid();
-        
+
         for (int i = 1; i <= 13; i++)
         {
             db.Set<Rfi>().Add(CreateTestRfi(projectId, i, $"RFI #{i}"));

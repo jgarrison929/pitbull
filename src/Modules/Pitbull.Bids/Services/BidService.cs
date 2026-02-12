@@ -21,7 +21,7 @@ public class BidService : IBidService
 
     public BidService(
         PitbullDbContext db,
-        IValidator<CreateBidCommand> createValidator, 
+        IValidator<CreateBidCommand> createValidator,
         IValidator<UpdateBidCommand> updateValidator,
         ILogger<BidService> logger)
     {

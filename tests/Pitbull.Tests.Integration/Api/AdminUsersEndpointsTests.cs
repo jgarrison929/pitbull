@@ -43,7 +43,7 @@ public sealed class AdminUsersEndpointsTests(PostgresFixture db) : IAsyncLifetim
         var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/api/admin/users");
-        
+
         // First user should have Admin role
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 

@@ -65,7 +65,7 @@ public sealed class GetProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var startDate = new DateTime(2026, 3, 1);
         var estimatedCompletion = new DateTime(2026, 12, 31);
-        
+
         var project = new Project
         {
             Id = Guid.NewGuid(),

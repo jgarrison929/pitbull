@@ -27,6 +27,6 @@ public class Rfi : BaseEntity
     // Assignment tracking
     public Guid? AssignedToUserId { get; set; }
     public string? AssignedToName { get; set; }
-    
+
     public string? CreatedByName { get; set; }
 }

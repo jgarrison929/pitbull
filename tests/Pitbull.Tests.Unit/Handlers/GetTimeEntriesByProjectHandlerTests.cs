@@ -17,7 +17,7 @@ public class GetTimeEntriesByProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (project, _) = await SetupTestData(db);
         var handler = new GetTimeEntriesByProjectHandler(db);
-        
+
         var query = new GetTimeEntriesByProjectQuery(project.Id);
 
         // Act
@@ -38,7 +38,7 @@ public class GetTimeEntriesByProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (project, _) = await SetupTestData(db);
         var handler = new GetTimeEntriesByProjectHandler(db);
-        
+
         var query = new GetTimeEntriesByProjectQuery(
             project.Id,
             StartDate: new DateOnly(2026, 2, 3),
@@ -60,7 +60,7 @@ public class GetTimeEntriesByProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (project, _) = await SetupTestData(db);
         var handler = new GetTimeEntriesByProjectHandler(db);
-        
+
         var query = new GetTimeEntriesByProjectQuery(
             project.Id,
             Status: TimeEntryStatus.Approved
@@ -82,7 +82,7 @@ public class GetTimeEntriesByProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (project, _) = await SetupTestData(db);
         var handler = new GetTimeEntriesByProjectHandler(db);
-        
+
         var query = new GetTimeEntriesByProjectQuery(
             project.Id,
             IncludeSummary: true
@@ -108,7 +108,7 @@ public class GetTimeEntriesByProjectHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new GetTimeEntriesByProjectHandler(db);
-        
+
         var query = new GetTimeEntriesByProjectQuery(Guid.NewGuid());
 
         // Act
@@ -126,7 +126,7 @@ public class GetTimeEntriesByProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var (project, _) = await SetupTestData(db);
         var handler = new GetTimeEntriesByProjectHandler(db);
-        
+
         var query = new GetTimeEntriesByProjectQuery(project.Id)
         {
             Page = 1,

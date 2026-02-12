@@ -162,9 +162,9 @@ public class PitbullDbContext(
         if (user?.Identity?.IsAuthenticated == true)
         {
             // Try to get the user ID from JWT 'sub' claim
-            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) 
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
                         ?? user.FindFirstValue("sub");
-            
+
             if (!string.IsNullOrEmpty(userId))
                 return userId;
         }
@@ -215,13 +215,13 @@ public class PitbullDbContext(
     private System.Linq.Expressions.LambdaExpression CreateTenantAndSoftDeleteFilter(Type entityType)
     {
         var parameter = System.Linq.Expressions.Expression.Parameter(entityType, "e");
-        
+
         // Condition 1: IsDeleted == false (soft delete)
         var isDeletedProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
         var notDeletedCondition = System.Linq.Expressions.Expression.Equal(
             isDeletedProperty,
             System.Linq.Expressions.Expression.Constant(false));
-        
+
         // Condition 2: TenantId == Current Tenant (tenant isolation)
         var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.TenantId));
         var currentTenantCondition = System.Linq.Expressions.Expression.Equal(
@@ -229,12 +229,12 @@ public class PitbullDbContext(
             System.Linq.Expressions.Expression.Property(
                 System.Linq.Expressions.Expression.Field(null, typeof(PitbullDbContext), nameof(tenantContext)),
                 nameof(ITenantContext.TenantId)));
-        
+
         // Combine both conditions with AND
         var combinedCondition = System.Linq.Expressions.Expression.AndAlso(
             notDeletedCondition,
             currentTenantCondition);
-            
+
         return System.Linq.Expressions.Expression.Lambda(combinedCondition, parameter);
     }
 }

@@ -13,7 +13,7 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "John",
@@ -50,7 +50,7 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "John",
@@ -76,7 +76,7 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "Jane",
@@ -98,7 +98,7 @@ public class CreateEmployeeHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        
+
         // Create existing employee
         var existingEmployee = new Employee
         {
@@ -130,7 +130,7 @@ public class CreateEmployeeHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        
+
         // Create supervisor
         var supervisor = new Employee
         {
@@ -163,7 +163,7 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "John",
@@ -185,7 +185,7 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "John",
@@ -206,7 +206,7 @@ public class CreateEmployeeHandlerTests
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
         var beforeCreate = DateTime.UtcNow;
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "John",
@@ -226,7 +226,7 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "John",
@@ -246,12 +246,12 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command1 = new CreateEmployeeCommand(
             EmployeeNumber: "E001",
             FirstName: "John",
             LastName: "Doe");
-        
+
         var command2 = new CreateEmployeeCommand(
             EmployeeNumber: "E002",
             FirstName: "Jane",
@@ -273,7 +273,7 @@ public class CreateEmployeeHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateEmployeeHandler(db);
-        
+
         var command = new CreateEmployeeCommand(
             EmployeeNumber: "C001",
             FirstName: "Bob",

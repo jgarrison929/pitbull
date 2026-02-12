@@ -7,11 +7,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.UpdatePaymentApplication;
 
-public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db) 
+public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db)
     : IRequestHandler<UpdatePaymentApplicationCommand, Result<PaymentApplicationDto>>
 {
     public async Task<Result<PaymentApplicationDto>> Handle(
-        UpdatePaymentApplicationCommand request, 
+        UpdatePaymentApplicationCommand request,
         CancellationToken cancellationToken)
     {
         var payApp = await db.Set<PaymentApplication>()
@@ -32,17 +32,17 @@ public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db)
         var newStatus = request.Status;
 
         // Recalculate amounts if work changed
-        if (payApp.WorkCompletedThisPeriod != request.WorkCompletedThisPeriod || 
+        if (payApp.WorkCompletedThisPeriod != request.WorkCompletedThisPeriod ||
             payApp.StoredMaterials != request.StoredMaterials)
         {
             payApp.WorkCompletedThisPeriod = request.WorkCompletedThisPeriod;
             payApp.StoredMaterials = request.StoredMaterials;
             payApp.WorkCompletedToDate = payApp.WorkCompletedPrevious + request.WorkCompletedThisPeriod;
             payApp.TotalCompletedAndStored = payApp.WorkCompletedToDate + request.StoredMaterials;
-            
+
             payApp.RetainageThisPeriod = request.WorkCompletedThisPeriod * (payApp.RetainagePercent / 100m);
             payApp.TotalRetainage = payApp.RetainagePrevious + payApp.RetainageThisPeriod;
-            
+
             payApp.TotalEarnedLessRetainage = payApp.TotalCompletedAndStored - payApp.TotalRetainage;
             payApp.CurrentPaymentDue = payApp.TotalEarnedLessRetainage - payApp.LessPreviousCertificates;
         }
@@ -70,7 +70,7 @@ public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db)
                 case PaymentApplicationStatus.UnderReview when !payApp.ReviewedDate.HasValue:
                     payApp.ReviewedDate = DateTime.UtcNow;
                     break;
-                case PaymentApplicationStatus.Approved or PaymentApplicationStatus.PartiallyApproved 
+                case PaymentApplicationStatus.Approved or PaymentApplicationStatus.PartiallyApproved
                     when !payApp.ApprovedDate.HasValue:
                     payApp.ApprovedDate = DateTime.UtcNow;
                     break;
@@ -89,7 +89,7 @@ public sealed class UpdatePaymentApplicationHandler(PitbullDbContext db)
             var newApprovedAmount = request.ApprovedAmount ?? payApp.CurrentPaymentDue;
             var billedDelta = payApp.CurrentPaymentDue - oldCurrentPaymentDue;
             var paidDelta = newApprovedAmount - oldApprovedAmount;
-            
+
             if (billedDelta != 0)
                 subcontract.BilledToDate += billedDelta;
             if (paidDelta != 0)

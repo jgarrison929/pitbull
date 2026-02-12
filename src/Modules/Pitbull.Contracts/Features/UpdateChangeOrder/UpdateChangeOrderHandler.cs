@@ -7,11 +7,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.UpdateChangeOrder;
 
-public sealed class UpdateChangeOrderHandler(PitbullDbContext db) 
+public sealed class UpdateChangeOrderHandler(PitbullDbContext db)
     : IRequestHandler<UpdateChangeOrderCommand, Result<ChangeOrderDto>>
 {
     public async Task<Result<ChangeOrderDto>> Handle(
-        UpdateChangeOrderCommand request, 
+        UpdateChangeOrderCommand request,
         CancellationToken cancellationToken)
     {
         var changeOrder = await db.Set<ChangeOrder>()
@@ -24,14 +24,14 @@ public sealed class UpdateChangeOrderHandler(PitbullDbContext db)
         if (changeOrder.ChangeOrderNumber != request.ChangeOrderNumber)
         {
             var duplicateExists = await db.Set<ChangeOrder>()
-                .AnyAsync(co => co.SubcontractId == changeOrder.SubcontractId 
+                .AnyAsync(co => co.SubcontractId == changeOrder.SubcontractId
                              && co.ChangeOrderNumber == request.ChangeOrderNumber
-                             && co.Id != request.Id, 
+                             && co.Id != request.Id,
                          cancellationToken);
-            
+
             if (duplicateExists)
                 return Result.Failure<ChangeOrderDto>(
-                    "Change order number already exists for this subcontract", 
+                    "Change order number already exists for this subcontract",
                     "DUPLICATE_CO_NUMBER");
         }
 

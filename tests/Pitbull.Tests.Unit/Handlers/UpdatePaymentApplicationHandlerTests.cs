@@ -26,7 +26,7 @@ public class UpdatePaymentApplicationHandlerTests
             Status = SubcontractStatus.Executed
         };
         db.Set<Subcontract>().Add(subcontract);
-        
+
         var payApp = new PaymentApplication
         {
             Id = Guid.NewGuid(),
@@ -51,7 +51,7 @@ public class UpdatePaymentApplicationHandlerTests
         };
         db.Set<PaymentApplication>().Add(payApp);
         await db.SaveChangesAsync();
-        
+
         return (subcontract, payApp);
     }
 
@@ -137,7 +137,7 @@ public class UpdatePaymentApplicationHandlerTests
         payApp.Status = PaymentApplicationStatus.Submitted;
         payApp.SubmittedDate = DateTime.UtcNow.AddDays(-2);
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdatePaymentApplicationHandler(db);
         var command = new UpdatePaymentApplicationCommand(
             payApp.Id,
@@ -170,7 +170,7 @@ public class UpdatePaymentApplicationHandlerTests
         payApp.Status = PaymentApplicationStatus.Approved;
         payApp.ApprovedDate = DateTime.UtcNow.AddDays(-1);
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdatePaymentApplicationHandler(db);
         var command = new UpdatePaymentApplicationCommand(
             payApp.Id,
@@ -192,7 +192,7 @@ public class UpdatePaymentApplicationHandlerTests
         result.Value!.Status.Should().Be(PaymentApplicationStatus.Paid);
         result.Value.PaidDate.Should().NotBeNull();
         result.Value.CheckNumber.Should().Be("CHK-12345");
-        
+
         // Verify subcontract totals updated
         var updatedSubcontract = await db.Set<Subcontract>().FindAsync(subcontract.Id);
         updatedSubcontract!.BilledToDate.Should().Be(27500m);
@@ -261,7 +261,7 @@ public class UpdatePaymentApplicationHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (subcontract, payApp) = await CreateTestData(db);
-        
+
         // Set initial paid state
         payApp.Status = PaymentApplicationStatus.Paid;
         payApp.ApprovedAmount = 27500m;
@@ -269,7 +269,7 @@ public class UpdatePaymentApplicationHandlerTests
         subcontract.PaidToDate = 27500m;
         subcontract.RetainageHeld = 2500m;
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdatePaymentApplicationHandler(db);
         var command = new UpdatePaymentApplicationCommand(
             payApp.Id,
@@ -289,7 +289,7 @@ public class UpdatePaymentApplicationHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.ApprovedAmount.Should().Be(30000m);
-        
+
         // Verify delta applied to subcontract
         var updatedSubcontract = await db.Set<Subcontract>().FindAsync(subcontract.Id);
         updatedSubcontract!.PaidToDate.Should().Be(30000m); // 27500 + (30000-27500) delta
@@ -300,7 +300,7 @@ public class UpdatePaymentApplicationHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        
+
         // Create pay app without subcontract
         var payApp = new PaymentApplication
         {
@@ -316,7 +316,7 @@ public class UpdatePaymentApplicationHandlerTests
         };
         db.Set<PaymentApplication>().Add(payApp);
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdatePaymentApplicationHandler(db);
         var command = new UpdatePaymentApplicationCommand(
             payApp.Id,

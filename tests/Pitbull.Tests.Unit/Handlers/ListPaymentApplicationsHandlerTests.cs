@@ -55,7 +55,7 @@ public class ListPaymentApplicationsHandlerTests
                 CreatedAt = DateTime.UtcNow.AddDays(-1)
             }
         };
-        
+
         db.Set<PaymentApplication>().AddRange(payApps);
         await db.SaveChangesAsync();
     }
@@ -87,7 +87,7 @@ public class ListPaymentApplicationsHandlerTests
         var subcontractId1 = Guid.NewGuid();
         var subcontractId2 = Guid.NewGuid();
         await SeedPaymentApplications(db, subcontractId1);
-        
+
         // Add one for different subcontract
         db.Set<PaymentApplication>().Add(new PaymentApplication
         {
@@ -101,7 +101,7 @@ public class ListPaymentApplicationsHandlerTests
             Status = PaymentApplicationStatus.Draft
         });
         await db.SaveChangesAsync();
-        
+
         var handler = new ListPaymentApplicationsHandler(db);
         var query = new ListPaymentApplicationsQuery(subcontractId1, null);
 

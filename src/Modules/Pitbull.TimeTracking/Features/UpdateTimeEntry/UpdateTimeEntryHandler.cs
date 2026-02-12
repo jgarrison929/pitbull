@@ -25,7 +25,7 @@ public sealed class UpdateTimeEntryHandler(PitbullDbContext db)
         {
             var transitionResult = await ValidateAndApplyStatusTransition(
                 timeEntry, request, cancellationToken);
-            
+
             if (!transitionResult.IsSuccess)
                 return Result.Failure<TimeEntryDto>(transitionResult.Error!, transitionResult.ErrorCode);
         }
@@ -35,17 +35,17 @@ public sealed class UpdateTimeEntryHandler(PitbullDbContext db)
         {
             if (request.RegularHours.HasValue)
                 timeEntry.RegularHours = request.RegularHours.Value;
-            
+
             if (request.OvertimeHours.HasValue)
                 timeEntry.OvertimeHours = request.OvertimeHours.Value;
-            
+
             if (request.DoubletimeHours.HasValue)
                 timeEntry.DoubletimeHours = request.DoubletimeHours.Value;
-            
+
             if (request.Description != null)
                 timeEntry.Description = request.Description;
         }
-        else if (request.RegularHours.HasValue || request.OvertimeHours.HasValue || 
+        else if (request.RegularHours.HasValue || request.OvertimeHours.HasValue ||
                  request.DoubletimeHours.HasValue)
         {
             return Result.Failure<TimeEntryDto>(
@@ -59,8 +59,8 @@ public sealed class UpdateTimeEntryHandler(PitbullDbContext db)
     }
 
     private async Task<Result> ValidateAndApplyStatusTransition(
-        TimeEntry timeEntry, 
-        UpdateTimeEntryCommand request, 
+        TimeEntry timeEntry,
+        UpdateTimeEntryCommand request,
         CancellationToken cancellationToken)
     {
         var currentStatus = timeEntry.Status;
@@ -85,7 +85,7 @@ public sealed class UpdateTimeEntryHandler(PitbullDbContext db)
             }
 
             var hasPermission = await ValidateApproverPermission(
-                request.ApproverId.Value, 
+                request.ApproverId.Value,
                 timeEntry.EmployeeId,
                 cancellationToken);
 
@@ -123,7 +123,7 @@ public sealed class UpdateTimeEntryHandler(PitbullDbContext db)
     }
 
     private async Task<bool> ValidateApproverPermission(
-        Guid approverId, 
+        Guid approverId,
         Guid employeeId,
         CancellationToken cancellationToken)
     {
@@ -158,22 +158,22 @@ public sealed class UpdateTimeEntryHandler(PitbullDbContext db)
         {
             // Draft can go to Submitted
             (TimeEntryStatus.Draft, TimeEntryStatus.Submitted) => true,
-            
+
             // Submitted can go to Approved, Rejected, or back to Draft
             (TimeEntryStatus.Submitted, TimeEntryStatus.Approved) => true,
             (TimeEntryStatus.Submitted, TimeEntryStatus.Rejected) => true,
             (TimeEntryStatus.Submitted, TimeEntryStatus.Draft) => true,
-            
+
             // Rejected can go back to Draft (for corrections) or resubmitted
             (TimeEntryStatus.Rejected, TimeEntryStatus.Draft) => true,
             (TimeEntryStatus.Rejected, TimeEntryStatus.Submitted) => true,
-            
+
             // Approved entries generally shouldn't change, but allow reverting if needed
             (TimeEntryStatus.Approved, TimeEntryStatus.Submitted) => true,
-            
+
             // Same status is a no-op, allow it
             var (f, t) when f == t => true,
-            
+
             _ => false
         };
     }

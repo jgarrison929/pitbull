@@ -88,7 +88,7 @@ public class GetChangeOrderHandlerTests
         };
         db.Set<ChangeOrder>().Add(changeOrder);
         await db.SaveChangesAsync();
-        
+
         var handler = new GetChangeOrderHandler(db);
         var query = new GetChangeOrderQuery(changeOrder.Id);
 
@@ -123,7 +123,7 @@ public class GetChangeOrderHandlerTests
         };
         db.Set<ChangeOrder>().Add(changeOrder);
         await db.SaveChangesAsync();
-        
+
         var handler = new GetChangeOrderHandler(db);
         var query = new GetChangeOrderQuery(changeOrder.Id);
 

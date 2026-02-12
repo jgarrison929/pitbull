@@ -81,7 +81,7 @@ public class TimeEntry : BaseEntity
 
     // Navigation properties
     public Employee Employee { get; set; } = null!;
-    public Project Project { get; set; } = null!; 
+    public Project Project { get; set; } = null!;
     public CostCode CostCode { get; set; } = null!;
     public Employee? ApprovedBy { get; set; }
 }

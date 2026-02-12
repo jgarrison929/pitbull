@@ -110,7 +110,7 @@ public class UpdateChangeOrderHandlerTests
         using var db = TestDbContextFactory.Create();
         var subcontractId = Guid.NewGuid();
         var changeOrder1 = await CreateTestChangeOrder(db, subcontractId);
-        
+
         // Create second CO with different number
         var changeOrder2 = new ChangeOrder
         {
@@ -124,7 +124,7 @@ public class UpdateChangeOrderHandlerTests
         };
         db.Set<ChangeOrder>().Add(changeOrder2);
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdateChangeOrderHandler(db);
         // Try to update changeOrder1 with changeOrder2's number
         var command = new UpdateChangeOrderCommand(
@@ -155,7 +155,7 @@ public class UpdateChangeOrderHandlerTests
         var subcontractId1 = Guid.NewGuid();
         var subcontractId2 = Guid.NewGuid();
         var changeOrder1 = await CreateTestChangeOrder(db, subcontractId1);
-        
+
         // Create second CO with same number but different subcontract
         var changeOrder2 = new ChangeOrder
         {
@@ -169,7 +169,7 @@ public class UpdateChangeOrderHandlerTests
         };
         db.Set<ChangeOrder>().Add(changeOrder2);
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdateChangeOrderHandler(db);
         // Update changeOrder1 with same number as changeOrder2 (different subcontract)
         var command = new UpdateChangeOrderCommand(
@@ -315,7 +315,7 @@ public class UpdateChangeOrderHandlerTests
         };
         db.Set<ChangeOrder>().Add(changeOrder);
         await db.SaveChangesAsync();
-        
+
         var handler = new UpdateChangeOrderHandler(db);
         var command = new UpdateChangeOrderCommand(
             changeOrder.Id,

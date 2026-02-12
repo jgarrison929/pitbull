@@ -54,7 +54,7 @@ public class CreateSubcontractHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var handler = new CreateSubcontractHandler(db);
-        
+
         // Create first subcontract
         var first = new CreateSubcontractCommand(
             ProjectId: Guid.NewGuid(),

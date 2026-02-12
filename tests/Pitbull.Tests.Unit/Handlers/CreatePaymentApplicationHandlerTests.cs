@@ -73,7 +73,7 @@ public class CreatePaymentApplicationHandlerTests
         using var db = TestDbContextFactory.Create();
         var subcontract = await CreateTestSubcontract(db, 100000m, 10m);
         var handler = new CreatePaymentApplicationHandler(db);
-        
+
         // Create first application
         var first = new CreatePaymentApplicationCommand(
             SubcontractId: subcontract.Id,

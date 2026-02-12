@@ -102,7 +102,7 @@ public class TenantsController(PitbullDbContext db, ITenantContext tenantContext
             .Where(t => t.Id == id && t.Status == TenantStatus.Active)
             .FirstOrDefaultAsync();
 
-        if (tenant is null) 
+        if (tenant is null)
             return NotFound(new { error = "Tenant not found" });
 
         return Ok(new TenantResponse(
@@ -137,7 +137,7 @@ public class TenantsController(PitbullDbContext db, ITenantContext tenantContext
             .Where(t => t.Id == tenantContext.TenantId && t.Status == TenantStatus.Active)
             .FirstOrDefaultAsync();
 
-        if (tenant is null) 
+        if (tenant is null)
             return NotFound(new { error = "Tenant not found or inactive" });
 
         return Ok(new TenantResponse(

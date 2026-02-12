@@ -34,7 +34,7 @@ public class AdminUsersController(
         if (!string.IsNullOrWhiteSpace(search))
         {
             var searchLower = search.ToLower();
-            query = query.Where(u => 
+            query = query.Where(u =>
                 u.Email!.ToLower().Contains(searchLower) ||
                 u.FirstName!.ToLower().Contains(searchLower) ||
                 u.LastName!.ToLower().Contains(searchLower));
@@ -42,18 +42,18 @@ public class AdminUsersController(
 
         if (isActive.HasValue)
         {
-            query = query.Where(u => isActive.Value 
-                ? u.Status == UserStatus.Active 
+            query = query.Where(u => isActive.Value
+                ? u.Status == UserStatus.Active
                 : u.Status != UserStatus.Active);
         }
 
         var users = await query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName).ToListAsync();
-        
+
         var result = new List<AdminUserDto>();
         foreach (var user in users)
         {
             var roles = await userManager.GetRolesAsync(user);
-            
+
             if (!string.IsNullOrWhiteSpace(role) && !roles.Contains(role, StringComparer.OrdinalIgnoreCase))
                 continue;
 
@@ -125,7 +125,7 @@ public class AdminUsersController(
         {
             var currentRoles = await userManager.GetRolesAsync(user);
             await userManager.RemoveFromRolesAsync(user, currentRoles);
-            
+
             foreach (var roleName in request.Roles)
             {
                 if (await roleManager.RoleExistsAsync(roleName))
@@ -180,7 +180,7 @@ public class AdminUsersController(
         // Ensure roles exist for the tenant
         var tenantId = user.TenantId;
         var adminRoleName = $"{tenantId}:Admin";
-        
+
         // Check if admin role exists
         var adminRole = await roleManager.FindByNameAsync(adminRoleName);
         if (adminRole == null)
@@ -228,12 +228,13 @@ public class AdminUsersController(
                 };
                 await roleManager.CreateAsync(role);
             }
-            
+
             if (!await userManager.IsInRoleAsync(user, fullRoleName))
                 await userManager.AddToRoleAsync(user, fullRoleName);
         }
 
-        return Ok(new { 
+        return Ok(new
+        {
             message = $"User {request.Email} is now an Admin with full access",
             roles = new[] { "Admin", "Manager", "Supervisor", "User" }
         });

@@ -24,9 +24,9 @@ public sealed class RoleSeeder(
         public const string Manager = "Manager";
         public const string Supervisor = "Supervisor";
         public const string User = "User";
-        
+
         public static readonly string[] All = [Admin, Manager, Supervisor, User];
-        
+
         public static readonly Dictionary<string, string> Descriptions = new()
         {
             [Admin] = "Full system access. Can manage users, roles, and all settings.",
@@ -47,7 +47,7 @@ public sealed class RoleSeeder(
             // Check if role already exists for this tenant
             var existingRole = await db.Set<AppRole>()
                 .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.Name == roleName, ct);
-            
+
             if (existingRole is not null)
                 continue;
 
@@ -80,7 +80,7 @@ public sealed class RoleSeeder(
     public async Task AssignRoleToUserAsync(AppUser user, string roleName, CancellationToken ct = default)
     {
         var tenantRoleName = $"{user.TenantId}:{roleName}";
-        
+
         if (await userManager.IsInRoleAsync(user, tenantRoleName))
         {
             logger.LogDebug("User {UserId} already has role {RoleName}", user.Id, roleName);
@@ -90,13 +90,13 @@ public sealed class RoleSeeder(
         var result = await userManager.AddToRoleAsync(user, tenantRoleName);
         if (result.Succeeded)
         {
-            logger.LogInformation("Assigned role {RoleName} to user {UserId} ({Email})", 
+            logger.LogInformation("Assigned role {RoleName} to user {UserId} ({Email})",
                 roleName, user.Id, user.Email);
         }
         else
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            logger.LogWarning("Failed to assign role {RoleName} to user {UserId}: {Errors}", 
+            logger.LogWarning("Failed to assign role {RoleName} to user {UserId}: {Errors}",
                 roleName, user.Id, errors);
         }
     }
@@ -108,7 +108,7 @@ public sealed class RoleSeeder(
     {
         var roles = await userManager.GetRolesAsync(user);
         var prefix = $"{user.TenantId}:";
-        
+
         return roles
             .Where(r => r.StartsWith(prefix))
             .Select(r => r[prefix.Length..])

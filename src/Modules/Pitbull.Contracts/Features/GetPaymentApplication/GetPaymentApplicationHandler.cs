@@ -7,11 +7,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.GetPaymentApplication;
 
-public sealed class GetPaymentApplicationHandler(PitbullDbContext db) 
+public sealed class GetPaymentApplicationHandler(PitbullDbContext db)
     : IRequestHandler<GetPaymentApplicationQuery, Result<PaymentApplicationDto>>
 {
     public async Task<Result<PaymentApplicationDto>> Handle(
-        GetPaymentApplicationQuery request, 
+        GetPaymentApplicationQuery request,
         CancellationToken cancellationToken)
     {
         var payApp = await db.Set<PaymentApplication>()

@@ -73,7 +73,7 @@ public sealed class GetWeeklyHoursHandler(PitbullDbContext db)
 
             while (currentWeek <= lastWeek)
             {
-                var weekData = rawData.FirstOrDefault(r => 
+                var weekData = rawData.FirstOrDefault(r =>
                     DateOnly.FromDateTime(r.WeekStart) == currentWeek);
 
                 var regular = weekData?.RegularHours ?? 0;

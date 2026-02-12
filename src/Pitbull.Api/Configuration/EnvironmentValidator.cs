@@ -18,13 +18,13 @@ public static class EnvironmentValidator
 
         // Database configuration
         ValidateConnectionString(configuration, "ConnectionStrings:PitbullDb", errors);
-        
+
         // JWT configuration (required for auth)
         ValidateJwtConfiguration(configuration, errors);
-        
+
         // CORS configuration (required for web app)
         ValidateCorsConfiguration(configuration, errors);
-        
+
         // Demo configuration validation (when demo is enabled)
         ValidateDemoConfiguration(configuration, errors);
 
@@ -107,7 +107,7 @@ public static class EnvironmentValidator
         var requiredDemoKeys = new[]
         {
             "Demo:TenantSlug",
-            "Demo:TenantName", 
+            "Demo:TenantName",
             "Demo:UserEmail",
             "Demo:UserPassword"
         };

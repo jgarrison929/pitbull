@@ -9,11 +9,11 @@ namespace Pitbull.Core.Features.GetDashboardStats;
 /// <summary>
 /// Handler for getting dashboard statistics
 /// </summary>
-public sealed class GetDashboardStatsHandler(PitbullDbContext db) 
+public sealed class GetDashboardStatsHandler(PitbullDbContext db)
     : IRequestHandler<GetDashboardStatsQuery, Result<DashboardStatsResponse>>
 {
     public async Task<Result<DashboardStatsResponse>> Handle(
-        GetDashboardStatsQuery request, 
+        GetDashboardStatsQuery request,
         CancellationToken cancellationToken)
     {
         try
@@ -212,7 +212,7 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
                 WHERE ""IsDeleted"" = false
                 ORDER BY ""CreatedAt"" DESC
                 LIMIT 3";
-            
+
             var projects = await db.Database.SqlQueryRaw<ProjectActivityRow>(projectsSql)
                 .ToListAsync(cancellationToken);
 

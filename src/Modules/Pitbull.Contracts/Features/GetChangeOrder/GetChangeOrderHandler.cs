@@ -7,11 +7,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.GetChangeOrder;
 
-public sealed class GetChangeOrderHandler(PitbullDbContext db) 
+public sealed class GetChangeOrderHandler(PitbullDbContext db)
     : IRequestHandler<GetChangeOrderQuery, Result<ChangeOrderDto>>
 {
     public async Task<Result<ChangeOrderDto>> Handle(
-        GetChangeOrderQuery request, 
+        GetChangeOrderQuery request,
         CancellationToken cancellationToken)
     {
         var changeOrder = await db.Set<ChangeOrder>()

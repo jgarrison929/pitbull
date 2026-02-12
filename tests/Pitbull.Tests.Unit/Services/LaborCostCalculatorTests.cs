@@ -24,18 +24,18 @@ public class LaborCostCalculatorTests
         decimal overtimeHours = 0m,
         decimal doubletimeHours = 0m,
         Employee? employee = null) => new()
-    {
-        Id = Guid.NewGuid(),
-        Date = DateOnly.FromDateTime(DateTime.Today),
-        EmployeeId = employee?.Id ?? Guid.NewGuid(),
-        ProjectId = Guid.NewGuid(),
-        CostCodeId = Guid.NewGuid(),
-        RegularHours = regularHours,
-        OvertimeHours = overtimeHours,
-        DoubletimeHours = doubletimeHours,
-        Status = TimeEntryStatus.Approved,
-        Employee = employee!
-    };
+        {
+            Id = Guid.NewGuid(),
+            Date = DateOnly.FromDateTime(DateTime.Today),
+            EmployeeId = employee?.Id ?? Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            CostCodeId = Guid.NewGuid(),
+            RegularHours = regularHours,
+            OvertimeHours = overtimeHours,
+            DoubletimeHours = doubletimeHours,
+            Status = TimeEntryStatus.Approved,
+            Employee = employee!
+        };
 
     [Fact]
     public void CalculateCost_RegularHoursOnly_CalculatesCorrectly()

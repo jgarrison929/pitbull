@@ -1088,7 +1088,7 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Creates project assignments linking employees to active projects.
     /// </summary>
     private static List<ProjectAssignment> CreateProjectAssignments(
-        List<Employee> employees, 
+        List<Employee> employees,
         List<Project> activeProjects)
     {
         var assignments = new List<ProjectAssignment>();
@@ -1350,14 +1350,14 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         if (title.Contains("superintendent") || title.Contains("foreman"))
         {
-            return laborCostCodes.Where(c => 
+            return laborCostCodes.Where(c =>
                 c.Code.StartsWith("01-") // General conditions/supervision
             ).ToList();
         }
 
         if (title.Contains("carpenter"))
         {
-            return laborCostCodes.Where(c => 
+            return laborCostCodes.Where(c =>
                 c.Code.StartsWith("06-") || // Carpentry
                 c.Code.StartsWith("03-")    // Concrete formwork
             ).ToList();
@@ -1365,7 +1365,7 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         if (title.Contains("ironworker"))
         {
-            return laborCostCodes.Where(c => 
+            return laborCostCodes.Where(c =>
                 c.Code.StartsWith("05-") || // Metals
                 c.Code.StartsWith("03-2")   // Rebar
             ).ToList();
@@ -1373,20 +1373,20 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         if (title.Contains("operator"))
         {
-            return laborCostCodes.Where(c => 
+            return laborCostCodes.Where(c =>
                 c.Code.StartsWith("02-") // Site work
             ).ToList();
         }
 
         if (title.Contains("finisher"))
         {
-            return laborCostCodes.Where(c => 
+            return laborCostCodes.Where(c =>
                 c.Code.StartsWith("03-") // Concrete
             ).ToList();
         }
 
         // Laborers and apprentices can do various work
-        return laborCostCodes.Where(c => 
+        return laborCostCodes.Where(c =>
             c.Code.StartsWith("02-") || // Site work
             c.Code.StartsWith("03-") || // Concrete
             c.Code.StartsWith("06-")    // Carpentry
@@ -1459,7 +1459,7 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
                 InsuranceCurrent = true,
                 LicenseNumber = "CA-MECH-847291",
                 Notes = "Strong performance. On schedule.",
-                ChangeOrders = 
+                ChangeOrders =
                 [
                     new ChangeOrder
                     {
@@ -1791,11 +1791,11 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
         var payApps = new List<PaymentApplication>();
         var appNumber = 1;
 
-        foreach (var sub in subcontracts.Where(s => 
+        foreach (var sub in subcontracts.Where(s =>
             s.Status is SubcontractStatus.InProgress or SubcontractStatus.Complete or SubcontractStatus.ClosedOut))
         {
             // Calculate number of pay apps based on billed amount
-            var monthsActive = sub.BilledToDate > 0 
+            var monthsActive = sub.BilledToDate > 0
                 ? Math.Max(1, (int)Math.Ceiling((double)(sub.BilledToDate / sub.CurrentValue) * 6))
                 : 0;
 
@@ -1808,7 +1808,7 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
             {
                 var isLast = i == monthsActive;
                 var periodEnd = now.AddMonths(-monthsActive + i);
-                
+
                 // Distribute amounts across pay apps
                 var scheduledValue = sub.CurrentValue / monthsActive;
                 var completedWork = isLast ? billedRemaining : Math.Min(scheduledValue, billedRemaining);
@@ -1821,14 +1821,14 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
                 var currentPayment = isLast ? paidRemaining : Math.Min(netPayable, paidRemaining);
                 paidRemaining -= currentPayment;
 
-                var status = currentPayment > 0 
-                    ? PaymentApplicationStatus.Paid 
+                var status = currentPayment > 0
+                    ? PaymentApplicationStatus.Paid
                     : (isLast ? PaymentApplicationStatus.Approved : PaymentApplicationStatus.Paid);
 
                 var workCompletedToDate = sub.BilledToDate - billedRemaining;
                 var totalRetainage = workCompletedToDate * (sub.RetainagePercent / 100);
                 var totalEarnedLessRetainage = workCompletedToDate * (1 - sub.RetainagePercent / 100);
-                
+
                 payApps.Add(new PaymentApplication
                 {
                     SubcontractId = sub.Id,

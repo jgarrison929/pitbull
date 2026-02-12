@@ -174,7 +174,7 @@ public class GetTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employee, project, costCode) = await SetupTestData(db);
-        
+
         var timeEntry = new TimeEntry
         {
             Date = new DateOnly(2026, 2, 5),

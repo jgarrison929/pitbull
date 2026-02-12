@@ -17,7 +17,7 @@ public class GetProjectAssignmentsHandlerTests
         using var db = TestDbContextFactory.Create();
         var (project, _) = await SetupTestDataWithAssignments(db);
         var handler = new GetProjectAssignmentsHandler(db);
-        
+
         var query = new GetProjectAssignmentsQuery(ProjectId: project.Id);
 
         // Act
@@ -36,7 +36,7 @@ public class GetProjectAssignmentsHandlerTests
         using var db = TestDbContextFactory.Create();
         var (project, _) = await SetupTestDataWithAssignments(db);
         var handler = new GetProjectAssignmentsHandler(db);
-        
+
         var query = new GetProjectAssignmentsQuery(
             ProjectId: project.Id,
             ActiveOnly: false
@@ -63,9 +63,9 @@ public class GetProjectAssignmentsHandlerTests
         };
         db.Set<Project>().Add(project);
         await db.SaveChangesAsync();
-        
+
         var handler = new GetProjectAssignmentsHandler(db);
-        
+
         var query = new GetProjectAssignmentsQuery(ProjectId: project.Id);
 
         // Act
@@ -160,7 +160,7 @@ public class GetEmployeeProjectsHandlerTests
         using var db = TestDbContextFactory.Create();
         var (_, employee) = await SetupEmployeeProjectData(db);
         var handler = new GetEmployeeProjectsHandler(db);
-        
+
         var query = new GetEmployeeProjectsQuery(EmployeeId: employee.Id);
 
         // Act
@@ -176,7 +176,7 @@ public class GetEmployeeProjectsHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        
+
         var employee = new Employee
         {
             EmployeeNumber = "E001",
@@ -208,9 +208,9 @@ public class GetEmployeeProjectsHandlerTests
         };
         db.Set<ProjectAssignment>().Add(assignment);
         await db.SaveChangesAsync();
-        
+
         var handler = new GetEmployeeProjectsHandler(db);
-        
+
         // Query for date within range
         var queryInRange = new GetEmployeeProjectsQuery(
             EmployeeId: employee.Id,
@@ -230,7 +230,7 @@ public class GetEmployeeProjectsHandlerTests
         // Assert
         resultInRange.IsSuccess.Should().BeTrue();
         resultInRange.Value.Should().HaveCount(1);
-        
+
         resultOutOfRange.IsSuccess.Should().BeTrue();
         resultOutOfRange.Value.Should().BeEmpty();
     }

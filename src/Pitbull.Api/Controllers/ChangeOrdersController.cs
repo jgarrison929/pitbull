@@ -124,7 +124,7 @@ public class ChangeOrdersController(IMediator mediator) : ControllerBase
     {
         var query = new ListChangeOrdersQuery(subcontractId, status, search, page, pageSize);
         var result = await mediator.Send(query);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -191,8 +191,8 @@ public class ChangeOrdersController(IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(new DeleteChangeOrderCommand(id));
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" 
-                ? this.NotFoundError(result.Error ?? "Change order not found") 
+            return result.ErrorCode == "NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "Change order not found")
                 : this.BadRequestError(result.Error ?? "Delete failed");
 
         return NoContent();

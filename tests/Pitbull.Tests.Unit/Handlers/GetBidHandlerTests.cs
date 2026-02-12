@@ -70,7 +70,7 @@ public sealed class GetBidHandlerTests
             Status = BidStatus.Draft,
             EstimatedValue = 100000m
         };
-        
+
         bid.Items.Add(new BidItem
         {
             Id = Guid.NewGuid(),
@@ -80,7 +80,7 @@ public sealed class GetBidHandlerTests
             UnitCost = 50000m,
             TotalCost = 50000m
         });
-        
+
         bid.Items.Add(new BidItem
         {
             Id = Guid.NewGuid(),

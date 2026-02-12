@@ -18,7 +18,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
     {
         PropertyNameCaseInsensitive = true
     };
-    
+
     private PitbullApiFactory _factory = null!;
 
     public async Task InitializeAsync()
@@ -447,13 +447,13 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             firstName = "Stats",
             lastName = "Employee"
         });
-        
+
         if (createResp.StatusCode != HttpStatusCode.Created)
         {
             var body = await createResp.Content.ReadAsStringAsync();
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
-        
+
         var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         // Get stats

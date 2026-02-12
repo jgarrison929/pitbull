@@ -35,7 +35,7 @@ public class ListTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employee, project1, costCode) = await SetupTestData(db);
-        
+
         // Create second project
         var project2 = new Project
         {
@@ -68,7 +68,7 @@ public class ListTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employee1, project, costCode) = await SetupTestData(db);
-        
+
         // Create second employee
         var employee2 = new Employee
         {
@@ -80,7 +80,7 @@ public class ListTimeEntriesHandlerTests
             BaseHourlyRate = 40m
         };
         db.Set<Employee>().Add(employee2);
-        
+
         // Add assignment for employee2
         var assignment = new ProjectAssignment
         {
@@ -170,7 +170,7 @@ public class ListTimeEntriesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(3);
-        result.Value.Items.Should().OnlyContain(e => 
+        result.Value.Items.Should().OnlyContain(e =>
             e.Date >= new DateOnly(2026, 2, 1) && e.Date <= new DateOnly(2026, 2, 10));
     }
 
@@ -446,7 +446,7 @@ public class ListTimeEntriesHandlerTests
     {
         var entries = Enumerable.Range(0, count)
             .Select(i => CreateTimeEntry(
-                employee, project, costCode, 
+                employee, project, costCode,
                 new DateOnly(2026, 2, 1 + startDayOffset + i)))
             .ToList();
 

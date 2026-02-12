@@ -23,7 +23,7 @@ public class EnvironmentValidatorTests
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(
             () => EnvironmentValidator.ValidateRequiredConfiguration(configuration));
-        
+
         Assert.Contains("Missing required connection string: ConnectionStrings:PitbullDb", exception.Message);
     }
 
@@ -45,7 +45,7 @@ public class EnvironmentValidatorTests
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(
             () => EnvironmentValidator.ValidateRequiredConfiguration(configuration));
-        
+
         Assert.Contains("JWT key too short: Jwt:Key must be at least 32 characters", exception.Message);
     }
 
@@ -67,7 +67,7 @@ public class EnvironmentValidatorTests
         // Act & Assert
         var exception = Record.Exception(
             () => EnvironmentValidator.ValidateRequiredConfiguration(configuration));
-        
+
         Assert.Null(exception);
     }
 
@@ -91,7 +91,7 @@ public class EnvironmentValidatorTests
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(
             () => EnvironmentValidator.ValidateRequiredConfiguration(configuration));
-        
+
         Assert.Contains("Missing required demo configuration: Demo:TenantSlug", exception.Message);
     }
 
@@ -113,7 +113,7 @@ public class EnvironmentValidatorTests
         // Act & Assert
         var exception = Assert.Throws<InvalidOperationException>(
             () => EnvironmentValidator.ValidateRequiredConfiguration(configuration));
-        
+
         Assert.Contains("Invalid CORS origin format: 'not-a-valid-uri' is not a valid absolute URI", exception.Message);
     }
 }

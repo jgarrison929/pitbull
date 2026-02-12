@@ -103,7 +103,7 @@ public class GetLaborCostReportHandlerTests
         var project = CreateProject("Test Project", "PRJ-001");
         var costCode = CreateCostCode("01-100", "General Labor");
         var employee = CreateEmployee("John", "Doe", 25m); // $25/hr
-        var entry = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 8m);
 
         db.Set<Project>().Add(project);
@@ -146,9 +146,9 @@ public class GetLaborCostReportHandlerTests
         var costCode = CreateCostCode("01-100", "General Labor");
         var employee = CreateEmployee("John", "Doe", 20m);
 
-        var entry1 = CreateTimeEntry(employee, project1, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry1 = CreateTimeEntry(employee, project1, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 8m);
-        var entry2 = CreateTimeEntry(employee, project2, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry2 = CreateTimeEntry(employee, project2, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 4m);
 
         db.Set<Project>().AddRange(project1, project2);
@@ -170,7 +170,7 @@ public class GetLaborCostReportHandlerTests
 
         report.TotalCost.TotalHours.Should().Be(12m);
         report.ByProject.Should().HaveCount(2);
-        
+
         // Ordered by project number
         report.ByProject[0].ProjectNumber.Should().Be("PRJ-A");
         report.ByProject[0].Cost.TotalHours.Should().Be(8m);
@@ -188,9 +188,9 @@ public class GetLaborCostReportHandlerTests
         var costCode2 = CreateCostCode("02-200", "Equipment Operation");
         var employee = CreateEmployee("John", "Doe", 30m);
 
-        var entry1 = CreateTimeEntry(employee, project, costCode1, DateOnly.FromDateTime(DateTime.Today), 
+        var entry1 = CreateTimeEntry(employee, project, costCode1, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 8m);
-        var entry2 = CreateTimeEntry(employee, project, costCode2, DateOnly.FromDateTime(DateTime.Today), 
+        var entry2 = CreateTimeEntry(employee, project, costCode2, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 4m, overtimeHours: 2m);
 
         db.Set<Project>().Add(project);
@@ -231,11 +231,11 @@ public class GetLaborCostReportHandlerTests
         var costCode = CreateCostCode("01-100", "General Labor");
         var employee = CreateEmployee("John", "Doe", 25m);
 
-        var entry1 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry1 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 8m, status: TimeEntryStatus.Approved);
-        var entry2 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry2 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 4m, status: TimeEntryStatus.Submitted);
-        var entry3 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry3 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 2m, status: TimeEntryStatus.Rejected);
 
         db.Set<Project>().Add(project);
@@ -265,9 +265,9 @@ public class GetLaborCostReportHandlerTests
         var costCode = CreateCostCode("01-100", "General Labor");
         var employee = CreateEmployee("John", "Doe", 25m);
 
-        var entry1 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry1 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 8m, status: TimeEntryStatus.Approved);
-        var entry2 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry2 = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 4m, status: TimeEntryStatus.Submitted);
 
         db.Set<Project>().Add(project);
@@ -298,9 +298,9 @@ public class GetLaborCostReportHandlerTests
         var costCode = CreateCostCode("01-100", "General Labor");
         var employee = CreateEmployee("John", "Doe", 20m);
 
-        var entry1 = CreateTimeEntry(employee, project1, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry1 = CreateTimeEntry(employee, project1, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 8m);
-        var entry2 = CreateTimeEntry(employee, project2, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry2 = CreateTimeEntry(employee, project2, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 4m);
 
         db.Set<Project>().AddRange(project1, project2);
@@ -383,7 +383,7 @@ public class GetLaborCostReportHandlerTests
         var costCode = CreateCostCode("01-100", "General Labor");
         var employee = CreateEmployee("John", "Doe", 40m); // $40/hr
 
-        var entry = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today), 
+        var entry = CreateTimeEntry(employee, project, costCode, DateOnly.FromDateTime(DateTime.Today),
             regularHours: 8m, overtimeHours: 2m, doubletimeHours: 1m);
 
         db.Set<Project>().Add(project);

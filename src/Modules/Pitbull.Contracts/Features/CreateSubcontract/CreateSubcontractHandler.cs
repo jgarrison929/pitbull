@@ -14,9 +14,9 @@ public sealed class CreateSubcontractHandler(PitbullDbContext db)
     {
         // Check for duplicate subcontract number within same project
         var exists = await db.Set<Subcontract>()
-            .AnyAsync(s => s.ProjectId == request.ProjectId 
+            .AnyAsync(s => s.ProjectId == request.ProjectId
                 && s.SubcontractNumber == request.SubcontractNumber, cancellationToken);
-        
+
         if (exists)
         {
             return Result.Failure<SubcontractDto>(

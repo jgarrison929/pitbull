@@ -6,11 +6,11 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.DeleteChangeOrder;
 
-public sealed class DeleteChangeOrderHandler(PitbullDbContext db) 
+public sealed class DeleteChangeOrderHandler(PitbullDbContext db)
     : IRequestHandler<DeleteChangeOrderCommand, Result<bool>>
 {
     public async Task<Result<bool>> Handle(
-        DeleteChangeOrderCommand request, 
+        DeleteChangeOrderCommand request,
         CancellationToken cancellationToken)
     {
         var changeOrder = await db.Set<ChangeOrder>()

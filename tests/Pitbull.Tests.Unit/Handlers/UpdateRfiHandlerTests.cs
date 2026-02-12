@@ -70,8 +70,8 @@ public class UpdateRfiHandlerTests
         await db.SaveChangesAsync();
 
         var handler = new UpdateRfiHandler(db);
-        var command = CreateUpdateCommand(rfi.Id, projectId, 
-            subject: "New subject", 
+        var command = CreateUpdateCommand(rfi.Id, projectId,
+            subject: "New subject",
             question: "New question?");
 
         // Act
@@ -196,8 +196,8 @@ public class UpdateRfiHandlerTests
         var before = DateTime.UtcNow;
 
         var handler = new UpdateRfiHandler(db);
-        var command = CreateUpdateCommand(rfi.Id, projectId, 
-            status: RfiStatus.Answered, 
+        var command = CreateUpdateCommand(rfi.Id, projectId,
+            status: RfiStatus.Answered,
             answer: "Here is the answer.");
 
         // Act
@@ -282,8 +282,8 @@ public class UpdateRfiHandlerTests
         await db.SaveChangesAsync();
 
         var handler = new UpdateRfiHandler(db);
-        var command = CreateUpdateCommand(rfi.Id, projectId, 
-            status: RfiStatus.Closed, 
+        var command = CreateUpdateCommand(rfi.Id, projectId,
+            status: RfiStatus.Closed,
             subject: "Updated but still closed");
 
         // Act
@@ -306,8 +306,8 @@ public class UpdateRfiHandlerTests
 
         var newUserId = Guid.NewGuid();
         var handler = new UpdateRfiHandler(db);
-        var command = CreateUpdateCommand(rfi.Id, projectId, 
-            assignedToUserId: newUserId, 
+        var command = CreateUpdateCommand(rfi.Id, projectId,
+            assignedToUserId: newUserId,
             assignedToName: "New Assignee");
 
         // Act
@@ -331,8 +331,8 @@ public class UpdateRfiHandlerTests
 
         var newUserId = Guid.NewGuid();
         var handler = new UpdateRfiHandler(db);
-        var command = CreateUpdateCommand(rfi.Id, projectId, 
-            ballInCourtUserId: newUserId, 
+        var command = CreateUpdateCommand(rfi.Id, projectId,
+            ballInCourtUserId: newUserId,
             ballInCourtName: "New Ball Holder");
 
         // Act
@@ -388,8 +388,8 @@ public class UpdateRfiHandlerTests
         await db.SaveChangesAsync();
 
         var handler = new UpdateRfiHandler(db);
-        var command = CreateUpdateCommand(rfi.Id, projectId, 
-            answer: null, 
+        var command = CreateUpdateCommand(rfi.Id, projectId,
+            answer: null,
             status: RfiStatus.Open);
 
         // Act

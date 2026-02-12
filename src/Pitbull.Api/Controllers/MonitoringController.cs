@@ -34,7 +34,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
         var assembly = Assembly.GetExecutingAssembly();
         var version = assembly.GetName().Version?.ToString() ?? "unknown";
         var buildTime = GetBuildDateTime(assembly);
-        
+
         return Ok(new VersionInfo(
             Version: version,
             BuildTime: buildTime,
@@ -63,7 +63,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
         try
         {
             var health = await healthCheckService.CheckHealthAsync();
-            
+
             var response = new HealthStatusResponse(
                 Status: health.Status.ToString(),
                 TotalDuration: health.TotalDuration.TotalMilliseconds,
@@ -77,7 +77,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
                     )
                 )
             );
-            
+
             var statusCode = health.Status == HealthStatus.Healthy
                 ? StatusCodes.Status200OK
                 : StatusCodes.Status503ServiceUnavailable;
@@ -118,7 +118,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
     {
         // Check if rate limiting is enabled by looking at DI container
         var rateLimiterService = HttpContext.RequestServices.GetService(typeof(RateLimiterOptions));
-        
+
         return Ok(new SecurityStatus(
             RateLimitingEnabled: rateLimiterService != null,
             HttpsRedirection: Environment.GetEnvironmentVariable("ASPNETCORE_HTTPS_PORT") != null,
@@ -147,7 +147,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
         {
             // Fallback to a default if we can't determine build time
         }
-        
+
         return DateTime.UtcNow; // Fallback
     }
 }

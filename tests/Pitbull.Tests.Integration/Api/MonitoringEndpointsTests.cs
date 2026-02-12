@@ -45,7 +45,7 @@ public sealed class MonitoringEndpointsTests(PostgresFixture db) : IAsyncLifetim
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Should contain version info fields
         Assert.Contains("version", json);
         Assert.Contains("buildTime", json);
@@ -73,7 +73,7 @@ public sealed class MonitoringEndpointsTests(PostgresFixture db) : IAsyncLifetim
         var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/api/monitoring/health");
-        
+
         // Health check might return 200 (healthy) or 503 (unhealthy) - both are valid responses
         Assert.True(
             resp.StatusCode == HttpStatusCode.OK || resp.StatusCode == HttpStatusCode.ServiceUnavailable,
@@ -106,7 +106,7 @@ public sealed class MonitoringEndpointsTests(PostgresFixture db) : IAsyncLifetim
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Should contain security status fields
         Assert.Contains("rateLimitingEnabled", json);
         Assert.Contains("httpsRedirection", json);
@@ -126,7 +126,7 @@ public sealed class MonitoringEndpointsTests(PostgresFixture db) : IAsyncLifetim
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Authenticated request should show authenticationEnabled: true
         Assert.Contains("\"authenticationEnabled\":true", json);
     }

@@ -53,7 +53,7 @@ public class DashboardController(IMediator mediator) : ControllerBase
     {
         var query = new GetDashboardStatsQuery();
         var result = await mediator.Send(query);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -98,7 +98,7 @@ public class DashboardController(IMediator mediator) : ControllerBase
     {
         var query = new GetWeeklyHoursQuery(weeks);
         var result = await mediator.Send(query);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 

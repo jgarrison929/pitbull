@@ -67,7 +67,7 @@ public class CreateBidHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(3);
-        
+
         var concrete = result.Value.Items.First(i => i.Description == "Concrete Work");
         concrete.Category.Should().Be(BidItemCategory.Material);
         concrete.Quantity.Should().Be(100m);

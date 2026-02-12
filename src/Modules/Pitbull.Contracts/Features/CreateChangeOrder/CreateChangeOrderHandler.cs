@@ -6,29 +6,29 @@ using Pitbull.Core.Data;
 
 namespace Pitbull.Contracts.Features.CreateChangeOrder;
 
-public sealed class CreateChangeOrderHandler(PitbullDbContext db) 
+public sealed class CreateChangeOrderHandler(PitbullDbContext db)
     : IRequestHandler<CreateChangeOrderCommand, Result<ChangeOrderDto>>
 {
     public async Task<Result<ChangeOrderDto>> Handle(
-        CreateChangeOrderCommand request, 
+        CreateChangeOrderCommand request,
         CancellationToken cancellationToken)
     {
         // Verify subcontract exists
         var subcontractExists = await db.Set<Subcontract>()
             .AnyAsync(s => s.Id == request.SubcontractId, cancellationToken);
-        
+
         if (!subcontractExists)
             return Result.Failure<ChangeOrderDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
 
         // Check for duplicate CO number on this subcontract
         var duplicateExists = await db.Set<ChangeOrder>()
-            .AnyAsync(co => co.SubcontractId == request.SubcontractId 
-                         && co.ChangeOrderNumber == request.ChangeOrderNumber, 
+            .AnyAsync(co => co.SubcontractId == request.SubcontractId
+                         && co.ChangeOrderNumber == request.ChangeOrderNumber,
                      cancellationToken);
-        
+
         if (duplicateExists)
             return Result.Failure<ChangeOrderDto>(
-                "Change order number already exists for this subcontract", 
+                "Change order number already exists for this subcontract",
                 "DUPLICATE_CO_NUMBER");
 
         var changeOrder = new ChangeOrder

@@ -11,18 +11,18 @@ public class CostCode : BaseEntity
     public string? Division { get; set; } // CSI division (optional)
     public CostType CostType { get; set; } = CostType.Labor;
     public bool IsActive { get; set; } = true;
-    
+
     /// <summary>
     /// Whether this is a company-wide standard cost code or project-specific override
     /// </summary>
     public bool IsCompanyStandard { get; set; } = true;
-    
+
     /// <summary>
     /// Optional parent cost code for hierarchical organization
     /// </summary>
     public Guid? ParentCostCodeId { get; set; }
     public CostCode? ParentCostCode { get; set; }
-    
+
     /// <summary>
     /// Child cost codes (sub-codes)
     /// </summary>

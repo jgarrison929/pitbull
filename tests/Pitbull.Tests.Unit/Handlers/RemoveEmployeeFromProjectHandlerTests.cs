@@ -16,7 +16,7 @@ public class RemoveEmployeeFromProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var assignment = await SetupTestData(db);
         var handler = new RemoveEmployeeFromProjectHandler(db);
-        
+
         var command = new RemoveEmployeeFromProjectCommand(
             AssignmentId: assignment.Id
         );
@@ -26,7 +26,7 @@ public class RemoveEmployeeFromProjectHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        
+
         var updated = await db.Set<ProjectAssignment>()
             .IgnoreQueryFilters()
             .FirstAsync(a => a.Id == assignment.Id);
@@ -41,7 +41,7 @@ public class RemoveEmployeeFromProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var assignment = await SetupTestData(db);
         var handler = new RemoveEmployeeFromProjectHandler(db);
-        
+
         var endDate = new DateOnly(2026, 6, 30);
         var command = new RemoveEmployeeFromProjectCommand(
             AssignmentId: assignment.Id,
@@ -53,7 +53,7 @@ public class RemoveEmployeeFromProjectHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        
+
         var updated = await db.Set<ProjectAssignment>()
             .IgnoreQueryFilters()
             .FirstAsync(a => a.Id == assignment.Id);
@@ -67,7 +67,7 @@ public class RemoveEmployeeFromProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         await SetupTestData(db);
         var handler = new RemoveEmployeeFromProjectHandler(db);
-        
+
         var command = new RemoveEmployeeFromProjectCommand(
             AssignmentId: Guid.NewGuid()
         );
@@ -86,13 +86,13 @@ public class RemoveEmployeeFromProjectHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var assignment = await SetupTestData(db);
-        
+
         // Deactivate the assignment
         assignment.IsActive = false;
         await db.SaveChangesAsync();
-        
+
         var handler = new RemoveEmployeeFromProjectHandler(db);
-        
+
         var command = new RemoveEmployeeFromProjectCommand(
             AssignmentId: assignment.Id
         );
@@ -112,7 +112,7 @@ public class RemoveEmployeeFromProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         var assignment = await SetupTestData(db);
         var handler = new RemoveEmployeeFromProjectByIdsHandler(db);
-        
+
         var command = new RemoveEmployeeFromProjectByIdsCommand(
             EmployeeId: assignment.EmployeeId,
             ProjectId: assignment.ProjectId
@@ -123,7 +123,7 @@ public class RemoveEmployeeFromProjectHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        
+
         var updated = await db.Set<ProjectAssignment>()
             .IgnoreQueryFilters()
             .FirstAsync(a => a.Id == assignment.Id);
@@ -137,7 +137,7 @@ public class RemoveEmployeeFromProjectHandlerTests
         using var db = TestDbContextFactory.Create();
         await SetupTestData(db);
         var handler = new RemoveEmployeeFromProjectByIdsHandler(db);
-        
+
         var command = new RemoveEmployeeFromProjectByIdsCommand(
             EmployeeId: Guid.NewGuid(),
             ProjectId: Guid.NewGuid()

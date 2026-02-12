@@ -44,7 +44,7 @@ public sealed class AdminAuditEndpointsTests(PostgresFixture db) : IAsyncLifetim
         var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/api/admin/audit-logs");
-        
+
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
@@ -84,7 +84,7 @@ public sealed class AdminAuditEndpointsTests(PostgresFixture db) : IAsyncLifetim
 
         var resp = await client.GetAsync(
             $"/api/admin/audit-logs?userId={userId}&action=Create&resourceType=Project&from={from}&to={to}&success=true");
-        
+
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
 

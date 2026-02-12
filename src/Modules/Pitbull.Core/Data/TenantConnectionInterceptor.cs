@@ -28,10 +28,10 @@ public class TenantConnectionInterceptor(ITenantContext tenantContext) : DbConne
         {
             // Set the session variable on this specific connection
             await using var command = new NpgsqlCommand(
-                "SELECT set_config('app.current_tenant', @tenantId, false);", 
+                "SELECT set_config('app.current_tenant', @tenantId, false);",
                 npgsqlConn);
             command.Parameters.AddWithValue("tenantId", tenantContext.TenantId.ToString());
-            
+
             await command.ExecuteScalarAsync(cancellationToken);
         }
         catch (Exception)
