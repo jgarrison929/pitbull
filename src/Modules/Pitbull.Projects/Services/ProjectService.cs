@@ -3,13 +3,16 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.GetProjectRfiCostSummary;
 using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
+using Pitbull.RFIs.Domain;
 
 namespace Pitbull.Projects.Services;
 
@@ -338,6 +341,98 @@ public class ProjectService : IProjectService
                 $"Failed to retrieve project statistics: {ex.Message}",
                 "PROJECT_STATS_ERROR");
         }
+    }
+
+    public async Task<Result<ProjectRfiCostSummaryDto>> GetProjectRfiCostSummaryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var project = await _db.Set<Project>()
+            .AsNoTracking()
+            .Where(p => p.Id == id && !p.IsDeleted)
+            .Select(p => new { p.Id, p.Name, p.Number })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (project == null)
+            return Result.Failure<ProjectRfiCostSummaryDto>("Project not found", "PROJECT_NOT_FOUND");
+
+        var now = DateTime.UtcNow;
+
+        // Get all RFIs for this project
+        var rfis = await _db.Set<Rfi>()
+            .AsNoTracking()
+            .Where(r => r.ProjectId == id && !r.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        // Get all change orders linked to RFIs in this project
+        var rfiIds = rfis.Select(r => r.Id).ToList();
+        var changeOrders = await _db.Set<ChangeOrder>()
+            .AsNoTracking()
+            .Where(co => co.OriginatingRfiId != null && rfiIds.Contains(co.OriginatingRfiId.Value) && !co.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        // Calculate metrics
+        var totalRfis = rfis.Count;
+        var openRfis = rfis.Count(r => r.Status == RfiStatus.Open);
+        var overdueRfis = rfis.Count(r => r.Status == RfiStatus.Open && r.DueDate.HasValue && r.DueDate < now);
+        
+        // RFIs with cost impact = RFIs that have linked change orders
+        var rfiIdsWithCOs = changeOrders.Where(co => co.OriginatingRfiId.HasValue)
+            .Select(co => co.OriginatingRfiId!.Value)
+            .Distinct()
+            .ToHashSet();
+        var rfisWithCostImpact = rfiIdsWithCOs.Count;
+
+        // Cost totals from change orders
+        var totalDirectCost = changeOrders.Sum(co => co.Amount);
+        var totalDelayCost = changeOrders.Sum(co => co.DelayCost ?? 0);
+        var totalCost = totalDirectCost + totalDelayCost;
+        var totalDelayDays = changeOrders.Sum(co => co.DelayDays ?? 0);
+
+        // Average resolution time for closed RFIs
+        var closedRfis = rfis.Where(r => r.ClosedAt.HasValue).ToList();
+        var avgResolutionDays = closedRfis.Any()
+            ? closedRfis.Average(r => (r.ClosedAt!.Value - r.CreatedAt).TotalDays)
+            : 0;
+
+        // Top 5 costly RFIs
+        var rfiCosts = rfis.Select(r => new
+        {
+            Rfi = r,
+            DirectCost = changeOrders.Where(co => co.OriginatingRfiId == r.Id).Sum(co => co.Amount),
+            DelayCost = changeOrders.Where(co => co.OriginatingRfiId == r.Id).Sum(co => co.DelayCost ?? 0)
+        })
+        .Select(x => new
+        {
+            x.Rfi,
+            TotalCost = x.DirectCost + x.DelayCost
+        })
+        .Where(x => x.TotalCost > 0)
+        .OrderByDescending(x => x.TotalCost)
+        .Take(5)
+        .ToList();
+
+        var topCostlyRfis = rfiCosts.Select(x => new TopCostlyRfiDto(
+            x.Rfi.Id,
+            x.Rfi.Number,
+            x.Rfi.Subject,
+            x.TotalCost,
+            (int)(x.Rfi.ClosedAt ?? now).Subtract(x.Rfi.CreatedAt).TotalDays
+        )).ToList();
+
+        return Result.Success(new ProjectRfiCostSummaryDto(
+            ProjectId: id,
+            ProjectName: project.Name,
+            ProjectNumber: project.Number,
+            TotalRfis: totalRfis,
+            OpenRfis: openRfis,
+            RfisWithCostImpact: rfisWithCostImpact,
+            OverdueRfis: overdueRfis,
+            TotalDirectCost: totalDirectCost,
+            TotalDelayCost: totalDelayCost,
+            TotalCost: totalCost,
+            TotalDelayDays: totalDelayDays,
+            AverageResolutionDays: Math.Round(avgResolutionDays, 1),
+            TopCostlyRfis: topCostlyRfis
+        ));
     }
 
     /// <summary>

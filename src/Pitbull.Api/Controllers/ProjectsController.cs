@@ -7,6 +7,7 @@ using Pitbull.Api.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.GetProjectRfiCostSummary;
 using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
@@ -290,6 +291,45 @@ public class ProjectsController(
     public async Task<IActionResult> GetStats(Guid id)
     {
         var result = await projectService.GetProjectStatsAsync(id);
+        
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode == "PROJECT_NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "Project not found")
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get RFI cost impact summary for a project
+    /// </summary>
+    /// <remarks>
+    /// Returns an aggregated view of all RFI-related costs for the project.
+    /// 
+    /// Includes:
+    /// - RFI counts (total, open, with cost impact, overdue)
+    /// - Cost totals (direct cost, delay cost, total)
+    /// - Time metrics (total delay days, average resolution time)
+    /// - Top 5 most costly RFIs
+    /// 
+    /// Use this for project dashboards and executive reporting.
+    /// "This project has $323,500 in RFI-related costs across 12 RFIs."
+    /// </remarks>
+    /// <param name="id">Project unique identifier</param>
+    /// <returns>RFI cost impact summary</returns>
+    /// <response code="200">Summary returned successfully</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Project not found</response>
+    [HttpGet("{id:guid}/rfi-cost-summary")]
+    [Cacheable(DurationSeconds = 120)]
+    [ProducesResponseType(typeof(ProjectRfiCostSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRfiCostSummary(Guid id)
+    {
+        var result = await projectService.GetProjectRfiCostSummaryAsync(id);
         
         if (!result.IsSuccess)
         {

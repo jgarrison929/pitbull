@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pitbull.Core\Pitbull.Core.csproj" />
+    <ProjectReference Include="..\Pitbull.Contracts\Pitbull.Contracts.csproj" />
+    <ProjectReference Include="..\Pitbull.RFIs\Pitbull.RFIs.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
