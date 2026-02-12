@@ -17,6 +17,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.18] - 2026-02-12
+
+### 🔒 Security
+
+- **security:** Add rate limiting to all admin controllers
+  - AdminAuditController
+  - AdminCompanyController
+  - AdminUsersController
+  - UsersController
+  - All 19 controllers now have consistent `[EnableRateLimiting("api")]`
+
+### 📚 Documentation
+
+- **docs:** Update Known Issues in BEST-PRACTICES.md
+  - Mark resolved issues (CreatedBy/UpdatedBy, Delete endpoint, PagedResult location)
+  - Reorganize into Open/Resolved sections
+
+### 🐛 Bug Fixes
+
+- **fix:** Remove unused `settings` state in company settings page (ESLint warning)
+
+---
+
 ## [0.10.17] - 2026-02-10
 
 ### 📊 Test Coverage
