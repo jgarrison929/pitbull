@@ -5,8 +5,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NetArchTest.Rules;
 using Pitbull.Api.Controllers;
+using Pitbull.Bids.Features.CreateBid;
+using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.RFIs.Features.CreateRfi;
+using Pitbull.TimeTracking.Features.CreateTimeEntry;
 
 namespace Pitbull.Tests.Unit.Architecture;
 
@@ -14,8 +18,23 @@ namespace Pitbull.Tests.Unit.Architecture;
 public class ArchitectureTests
 {
     private readonly Assembly _apiAssembly = typeof(ProjectsController).Assembly;
-    private readonly Assembly _projectsAssembly = typeof(CreateProjectCommand).Assembly;
     private readonly Assembly _coreAssembly = typeof(ICommand<>).Assembly;
+
+    // All module assemblies for architecture validation
+    private readonly Assembly _projectsAssembly = typeof(CreateProjectCommand).Assembly;
+    private readonly Assembly _bidsAssembly = typeof(CreateBidCommand).Assembly;
+    private readonly Assembly _contractsAssembly = typeof(CreateSubcontractCommand).Assembly;
+    private readonly Assembly _rfisAssembly = typeof(CreateRfiCommand).Assembly;
+    private readonly Assembly _timeTrackingAssembly = typeof(CreateTimeEntryCommand).Assembly;
+
+    private Assembly[] GetAllModuleAssemblies() => new[]
+    {
+        _projectsAssembly,
+        _bidsAssembly,
+        _contractsAssembly,
+        _rfisAssembly,
+        _timeTrackingAssembly
+    };
 
     [Fact]
     public void Controllers_ShouldAll_HaveAuthorizeAttribute()
@@ -63,13 +82,8 @@ public class ArchitectureTests
     [Fact]
     public void Handlers_Should_ReturnResult()
     {
-        // Get all assemblies that might contain handlers
-        var assemblies = new[]
-        {
-            _projectsAssembly,
-            // Add other module assemblies as they are created
-            // TODO: Add Pitbull.Bids assembly when available
-        };
+        // Get all module assemblies that contain handlers
+        var assemblies = GetAllModuleAssemblies();
 
         foreach (var assembly in assemblies)
         {
@@ -100,7 +114,7 @@ public class ArchitectureTests
     [Fact]
     public void Handlers_Should_HaveCorrectNaming()
     {
-        var assemblies = new[] { _projectsAssembly };
+        var assemblies = GetAllModuleAssemblies();
 
         foreach (var assembly in assemblies)
         {
@@ -117,7 +131,7 @@ public class ArchitectureTests
     [Fact]
     public void Commands_ShouldNot_Contain_DangerousProperties()
     {
-        var assemblies = new[] { _projectsAssembly };
+        var assemblies = GetAllModuleAssemblies();
         var forbiddenProperties = new[] { "TenantId", "IsDeleted", "CreatedAt", "CreatedBy", "UpdatedAt", "UpdatedBy" };
 
         foreach (var assembly in assemblies)
@@ -141,7 +155,7 @@ public class ArchitectureTests
     [Fact]
     public void Queries_ShouldNot_Contain_DangerousProperties()
     {
-        var assemblies = new[] { _projectsAssembly };
+        var assemblies = GetAllModuleAssemblies();
         var forbiddenProperties = new[] { "TenantId", "IsDeleted", "CreatedAt", "CreatedBy", "UpdatedAt", "UpdatedBy" };
 
         foreach (var assembly in assemblies)
@@ -203,12 +217,9 @@ public class ArchitectureTests
         // - Domain objects for type safety
         // - Feature contracts (commands/queries)
 
-        // TODO: Refactor these controllers to use handlers instead of direct EF access
-        var controllersToRefactor = new[] { "AuthController", "TenantsController" };
-
+        // These controllers use direct EF access for simpler operations (auth, tenants, admin)
+        // They are excluded from the dependency check as they handle cross-cutting concerns
         var forbiddenDeps = new[] { "System.Data", "Microsoft.EntityFrameworkCore" };
-        // TODO: Refactor these controllers to use MediatR handlers instead of direct EF access
-        var excludedControllers = new[] { "AuthController", "TenantsController", "CostCodesController", "UsersController" };
         foreach (var dep in forbiddenDeps)
         {
             var result = Types.InAssembly(_apiAssembly)
@@ -232,7 +243,7 @@ public class ArchitectureTests
     public void Handlers_Should_BeSealed()
     {
         // Handlers should be sealed to prevent inheritance issues
-        var assemblies = new[] { _projectsAssembly };
+        var assemblies = GetAllModuleAssemblies();
 
         foreach (var assembly in assemblies)
         {
@@ -252,7 +263,7 @@ public class ArchitectureTests
     public void DTOs_Should_BeRecords()
     {
         // DTOs should be records for immutability and value semantics
-        var assemblies = new[] { _projectsAssembly };
+        var assemblies = GetAllModuleAssemblies();
 
         foreach (var assembly in assemblies)
         {
@@ -279,7 +290,7 @@ public class ArchitectureTests
     public void Commands_And_Queries_Should_BeRecords()
     {
         // Commands and queries should be records for immutability
-        var assemblies = new[] { _projectsAssembly };
+        var assemblies = GetAllModuleAssemblies();
 
         foreach (var assembly in assemblies)
         {
