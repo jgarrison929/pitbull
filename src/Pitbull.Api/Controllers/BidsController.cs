@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -7,10 +6,9 @@ using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.ConvertBidToProject;
-using Pitbull.Bids.Features.DeleteBid;
-using Pitbull.Bids.Features.GetBid;
 using Pitbull.Bids.Features.ListBids;
 using Pitbull.Bids.Features.UpdateBid;
+using Pitbull.Bids.Services;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.Api.Controllers;
@@ -25,7 +23,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Bids")]
-public class BidsController(IMediator mediator) : ControllerBase
+public class BidsController(IBidService bidService) : ControllerBase
 {
     /// <summary>
     /// Create a new bid
@@ -70,7 +68,7 @@ public class BidsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateBidCommand command)
     {
-        var result = await mediator.Send(command);
+        var result = await bidService.CreateBidAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -98,7 +96,7 @@ public class BidsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await mediator.Send(new GetBidQuery(id));
+        var result = await bidService.GetBidAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
 
@@ -139,7 +137,7 @@ public class BidsController(IMediator mediator) : ControllerBase
             PageSize = pageSize
         };
         
-        var result = await mediator.Send(query);
+        var result = await bidService.GetBidsAsync(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -175,7 +173,7 @@ public class BidsController(IMediator mediator) : ControllerBase
         if (id != command.Id)
             return BadRequest(new { error = "Route ID does not match body ID" });
 
-        var result = await mediator.Send(command);
+        var result = await bidService.UpdateBidAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -223,7 +221,7 @@ public class BidsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ConvertToProject(Guid id, [FromBody] ConvertToProjectRequest request)
     {
-        var result = await mediator.Send(new ConvertBidToProjectCommand(id, request.ProjectNumber));
+        var result = await bidService.ConvertToProjectAsync(new ConvertBidToProjectCommand(id, request.ProjectNumber));
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -259,7 +257,7 @@ public class BidsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await mediator.Send(new DeleteBidCommand(id));
+        var result = await bidService.DeleteBidAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND" ? NotFound(new { error = result.Error }) : BadRequest(new { error = result.Error });
 

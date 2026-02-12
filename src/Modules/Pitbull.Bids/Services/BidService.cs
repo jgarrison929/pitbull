@@ -36,7 +36,7 @@ public class BidService : IBidService
         var bid = await _db.Set<Bid>()
             .Include(b => b.Items)
             .AsNoTracking()
-            .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
+            .FirstOrDefaultAsync(b => b.Id == id && !b.IsDeleted, cancellationToken);
 
         if (bid is null)
             return Result.Failure<BidDto>("Bid not found", "NOT_FOUND");
@@ -46,7 +46,10 @@ public class BidService : IBidService
 
     public async Task<Result<PagedResult<BidDto>>> GetBidsAsync(ListBidsQuery query, CancellationToken cancellationToken = default)
     {
-        var dbQuery = _db.Set<Bid>().Include(b => b.Items).AsNoTracking();
+        var dbQuery = _db.Set<Bid>()
+            .Include(b => b.Items)
+            .Where(b => !b.IsDeleted)
+            .AsNoTracking();
 
         // Apply filters
         if (query.Status.HasValue)
@@ -95,6 +98,22 @@ public class BidService : IBidService
             Description = command.Description,
             CreatedAt = DateTime.UtcNow
         };
+
+        // Add bid items if provided
+        if (command.Items is { Count: > 0 })
+        {
+            foreach (var item in command.Items)
+            {
+                bid.Items.Add(new BidItem
+                {
+                    Description = item.Description,
+                    Category = item.Category,
+                    Quantity = item.Quantity,
+                    UnitCost = item.UnitCost,
+                    TotalCost = item.Quantity * item.UnitCost
+                });
+            }
+        }
 
         _db.Set<Bid>().Add(bid);
 
