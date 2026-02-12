@@ -17,6 +17,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.19] - 2026-02-12
+
+### 🐛 Bug Fixes
+
+- **fix(monitoring):** Health check endpoint now returns proper JSON response
+  - Replace `HealthReport` serialization with custom `HealthStatusResponse` DTO
+  - Add exception handling to return 503 with structured error on failure
+  - Fixes intermittent 500 errors when health checks throw exceptions
+
+---
+
 ## [0.10.18] - 2026-02-12
 
 ### 🔒 Security
