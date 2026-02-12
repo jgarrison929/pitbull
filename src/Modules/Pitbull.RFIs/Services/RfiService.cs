@@ -58,7 +58,7 @@ public class RfiService : IRfiService
         {
             var searchTerm = query.Search.ToLower();
             dbQuery = dbQuery.Where(r =>
-                r.Subject.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
+                r.Subject.ToLower().Contains(searchTerm.ToLower()) ||
                 r.Question.ToLower().Contains(searchTerm));
         }
 

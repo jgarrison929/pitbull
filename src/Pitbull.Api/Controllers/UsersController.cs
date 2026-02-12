@@ -71,9 +71,9 @@ public class UsersController(
         {
             var searchLower = search.ToLower();
             query = query.Where(u =>
-                u.FirstName.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase) ||
+                u.FirstName.ToLower().Contains(searchLower) ||
                 u.LastName.ToLower().Contains(searchLower) ||
-                u.Email!.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase));
+                u.Email!.ToLower().Contains(searchLower));
         }
 
         var totalCount = await query.CountAsync(ct);

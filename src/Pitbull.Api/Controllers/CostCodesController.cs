@@ -68,7 +68,7 @@ public class CostCodesController(PitbullDbContext db) : ControllerBase
         {
             var searchTerm = search.ToLower();
             query = query.Where(c =>
-                c.Code.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
+                c.Code.ToLower().Contains(searchTerm) ||
                 c.Description.ToLower().Contains(searchTerm));
         }
 

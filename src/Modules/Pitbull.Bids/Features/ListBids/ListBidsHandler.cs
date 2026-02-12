@@ -25,9 +25,9 @@ public sealed class ListBidsHandler(PitbullDbContext db)
         {
             var search = request.Search.ToLower();
             query = query.Where(b =>
-                b.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                b.Name.ToLower().Contains(search.ToLower()) ||
                 b.Number.ToLower().Contains(search) ||
-                (b.Owner != null && b.Owner.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
+                (b.Owner != null && b.Owner.ToLower().Contains(search.ToLower())));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

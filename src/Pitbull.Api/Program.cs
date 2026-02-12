@@ -80,6 +80,9 @@ builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.
 // TimeTracking singleton services (don't require DI scope)
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
 
+// TimeTracking scoped services (require DbContext)
+builder.Services.AddScoped<Pitbull.TimeTracking.Services.IPayPeriodService, Pitbull.TimeTracking.Services.PayPeriodService>();
+
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
 

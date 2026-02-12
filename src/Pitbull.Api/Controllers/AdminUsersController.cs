@@ -33,9 +33,9 @@ public class AdminUsersController(
         {
             var searchLower = search.ToLower();
             query = query.Where(u =>
-                u.Email!.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase) ||
-                u.FirstName!.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase) ||
-                u.LastName!.Contains(searchLower, StringComparison.CurrentCultureIgnoreCase));
+                u.Email!.ToLower().Contains(searchLower) ||
+                u.FirstName!.ToLower().Contains(searchLower) ||
+                u.LastName!.ToLower().Contains(searchLower));
         }
 
         if (isActive.HasValue)

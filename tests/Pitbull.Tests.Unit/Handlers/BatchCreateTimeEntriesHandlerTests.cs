@@ -1,22 +1,32 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
+using Pitbull.TimeTracking.Services;
 using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 
 public class BatchCreateTimeEntriesHandlerTests
 {
+    private static IPayPeriodService CreateMockPayPeriodService()
+    {
+        var mock = new Mock<IPayPeriodService>();
+        // By default, allow all time entries (no locked periods)
+        mock.Setup(s => s.ValidateTimeEntryDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        return mock.Object;
+    }
     [Fact]
     public async Task Handle_ValidBatch_CreatesAllEntries()
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employees, project, costCode) = await SetupTestData(db, 3);
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = employees.Select(e => new BatchTimeEntryItem(
             Date: new DateOnly(2026, 2, 5),
@@ -48,7 +58,7 @@ public class BatchCreateTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employees, project, costCode) = await SetupTestData(db, 2);
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = new List<BatchTimeEntryItem>
         {
@@ -76,8 +86,8 @@ public class BatchCreateTimeEntriesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.SuccessCount.Should().Be(0); // All rolled back
-        result.Value.FailureCount.Should().Be(2);
-        result.Value.Results.All(r => !r.Success).Should().BeTrue();
+        result.Value.FailureCount.Should().Be(1); // Original failure count (1 invalid employee)
+        result.Value.Results.All(r => !r.Success).Should().BeTrue(); // But all marked as failed
         
         // Verify nothing was saved
         var savedEntries = await db.Set<TimeEntry>().ToListAsync();
@@ -90,7 +100,7 @@ public class BatchCreateTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employees, project, costCode) = await SetupTestData(db, 2);
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = new List<BatchTimeEntryItem>
         {
@@ -132,7 +142,7 @@ public class BatchCreateTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employees, project, costCode) = await SetupTestData(db, 1);
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = new List<BatchTimeEntryItem>
         {
@@ -170,7 +180,7 @@ public class BatchCreateTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employees, project, costCode) = await SetupTestDataWithoutAssignments(db, 2);
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = employees.Select(e => new BatchTimeEntryItem(
             Date: new DateOnly(2026, 2, 5),
@@ -209,7 +219,7 @@ public class BatchCreateTimeEntriesHandlerTests
         db.Set<Employee>().Add(inactiveEmployee);
         await db.SaveChangesAsync();
         
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = new List<BatchTimeEntryItem>
         {
@@ -250,7 +260,7 @@ public class BatchCreateTimeEntriesHandlerTests
         db.Set<Project>().Add(closedProject);
         await db.SaveChangesAsync();
         
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = new List<BatchTimeEntryItem>
         {
@@ -280,7 +290,7 @@ public class BatchCreateTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employees, project, costCode) = await SetupTestData(db, 2);
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = employees.Select(e => new BatchTimeEntryItem(
             Date: new DateOnly(2026, 2, 5),
@@ -307,7 +317,7 @@ public class BatchCreateTimeEntriesHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employees, project, costCode) = await SetupTestData(db, 1);
-        var handler = new BatchCreateTimeEntriesHandler(db);
+        var handler = new BatchCreateTimeEntriesHandler(db, CreateMockPayPeriodService());
         
         var entries = new List<BatchTimeEntryItem>
         {

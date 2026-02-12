@@ -25,9 +25,9 @@ public sealed class ListProjectsHandler(PitbullDbContext db)
         {
             var search = request.Search.ToLower();
             query = query.Where(p =>
-                p.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                p.Name.ToLower().Contains(search.ToLower()) ||
                 p.Number.ToLower().Contains(search) ||
-                (p.ClientName != null && p.ClientName.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
+                (p.ClientName != null && p.ClientName.ToLower().Contains(search.ToLower())));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

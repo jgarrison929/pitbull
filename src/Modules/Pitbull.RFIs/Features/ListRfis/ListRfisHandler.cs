@@ -28,9 +28,9 @@ public sealed class ListRfisHandler(PitbullDbContext db) : IRequestHandler<ListR
         {
             var search = request.Search.ToLower();
             query = query.Where(r =>
-                r.Subject.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                r.Subject.ToLower().Contains(search.ToLower()) ||
                 r.Question.ToLower().Contains(search) ||
-                (r.AssignedToName != null && r.AssignedToName.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
+                (r.AssignedToName != null && r.AssignedToName.ToLower().Contains(search.ToLower())));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

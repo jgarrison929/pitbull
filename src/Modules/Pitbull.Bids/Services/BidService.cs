@@ -56,7 +56,7 @@ public class BidService : IBidService
         {
             var searchTerm = query.Search.ToLower();
             dbQuery = dbQuery.Where(b =>
-                b.Name.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
+                b.Name.ToLower().Contains(searchTerm.ToLower()) ||
                 b.Number.ToLower().Contains(searchTerm));
         }
 
