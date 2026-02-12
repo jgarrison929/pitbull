@@ -50,14 +50,16 @@ public sealed class LockPayPeriodHandler(PitbullDbContext db)
         period.LockedBy = locker;
 
         // Create audit log
-        var auditLog = new AuditLog
-        {
-            Action = "PayPeriodLocked",
-            ResourceType = "PayPeriod",
-            ResourceId = period.Id.ToString(),
-            Description = $"Pay period {period.StartDate:MMM d} - {period.EndDate:MMM d, yyyy} locked by {locker.FirstName} {locker.LastName}",
-            UserId = request.LockedById.ToString()
-        };
+        var auditLog = AuditLog.Create(
+            tenantId: period.TenantId,
+            userId: request.LockedById,
+            userEmail: locker.Email,
+            userName: $"{locker.FirstName} {locker.LastName}",
+            action: AuditAction.StatusChange,
+            resourceType: "PayPeriod",
+            resourceId: period.Id.ToString(),
+            description: $"Pay period {period.StartDate:MMM d} - {period.EndDate:MMM d, yyyy} locked by {locker.FirstName} {locker.LastName}"
+        );
         db.Set<AuditLog>().Add(auditLog);
 
         await db.SaveChangesAsync(cancellationToken);

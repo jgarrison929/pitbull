@@ -49,14 +49,16 @@ public sealed class UnlockPayPeriodHandler(PitbullDbContext db)
         period.Notes = $"Unlocked by {unlocker.FirstName} {unlocker.LastName}: {request.Reason}";
 
         // Create audit log (important for compliance)
-        var auditLog = new AuditLog
-        {
-            Action = "PayPeriodUnlocked",
-            ResourceType = "PayPeriod",
-            ResourceId = period.Id.ToString(),
-            Description = $"Pay period {period.StartDate:MMM d} - {period.EndDate:MMM d, yyyy} unlocked from {previousStatus} status. Reason: {request.Reason}",
-            UserId = request.UnlockedById.ToString()
-        };
+        var auditLog = AuditLog.Create(
+            tenantId: period.TenantId,
+            userId: request.UnlockedById,
+            userEmail: unlocker.Email,
+            userName: $"{unlocker.FirstName} {unlocker.LastName}",
+            action: AuditAction.StatusChange,
+            resourceType: "PayPeriod",
+            resourceId: period.Id.ToString(),
+            description: $"Pay period {period.StartDate:MMM d} - {period.EndDate:MMM d, yyyy} unlocked from {previousStatus} status. Reason: {request.Reason}"
+        );
         db.Set<AuditLog>().Add(auditLog);
 
         await db.SaveChangesAsync(cancellationToken);
