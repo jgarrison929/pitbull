@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateChangeOrder;
 using Pitbull.Core.CQRS;
@@ -15,4 +14,4 @@ public record UpdateChangeOrderCommand(
     int? DaysExtension,
     ChangeOrderStatus Status,
     string? ReferenceNumber
-) : IRequest<Result<ChangeOrderDto>>;
+) : ICommand<ChangeOrderDto>;

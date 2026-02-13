@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 
@@ -13,7 +12,7 @@ public record CreateChangeOrderCommand(
     decimal Amount,
     int? DaysExtension,
     string? ReferenceNumber
-) : IRequest<Result<ChangeOrderDto>>;
+) : ICommand<ChangeOrderDto>;
 
 public record ChangeOrderDto(
     Guid Id,

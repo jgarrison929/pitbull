@@ -17,7 +17,7 @@ public record GetTimeEntriesByProjectQuery(
     DateOnly? EndDate = null,
     TimeEntryStatus? Status = null,
     bool IncludeSummary = false
-) : IRequest<Result<ProjectTimeEntriesResult>>
+) : IQuery<ProjectTimeEntriesResult>
 {
     public int Page { get; init; } = 1;
     public int PageSize { get; init; } = 50;

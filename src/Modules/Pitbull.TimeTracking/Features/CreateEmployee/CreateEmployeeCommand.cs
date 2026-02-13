@@ -22,7 +22,7 @@ public record CreateEmployeeCommand(
     DateOnly? HireDate = null,
     Guid? SupervisorId = null,
     string? Notes = null
-) : IRequest<Result<EmployeeDto>>;
+) : ICommand<EmployeeDto>;
 
 public sealed class CreateEmployeeHandler(PitbullDbContext db)
     : IRequestHandler<CreateEmployeeCommand, Result<EmployeeDto>>

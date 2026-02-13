@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Services;
 
@@ -13,7 +12,7 @@ public record GetLaborCostReportQuery(
     DateOnly? StartDate = null,
     DateOnly? EndDate = null,
     bool ApprovedOnly = true
-) : IRequest<Result<LaborCostReportResponse>>;
+) : IQuery<LaborCostReportResponse>;
 
 /// <summary>
 /// Labor cost report response with project-level and cost-code-level breakdowns.

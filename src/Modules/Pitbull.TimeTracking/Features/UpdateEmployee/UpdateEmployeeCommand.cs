@@ -23,7 +23,7 @@ public record UpdateEmployeeCommand(
     Guid? SupervisorId = null,
     bool IsActive = true,
     string? Notes = null
-) : IRequest<Result<EmployeeDto>>;
+) : ICommand<EmployeeDto>;
 
 public sealed class UpdateEmployeeHandler(PitbullDbContext db)
     : IRequestHandler<UpdateEmployeeCommand, Result<EmployeeDto>>

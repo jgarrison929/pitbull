@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Core.CQRS;
@@ -10,4 +9,4 @@ public record ListPaymentApplicationsQuery(
     PaymentApplicationStatus? Status,
     int Page = 1,
     int PageSize = 20
-) : IRequest<Result<PagedResult<PaymentApplicationDto>>>;
+) : IQuery<PagedResult<PaymentApplicationDto>>;

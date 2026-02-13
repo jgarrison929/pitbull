@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Core.CQRS;
@@ -15,4 +14,4 @@ public record UpdatePaymentApplicationCommand(
     string? InvoiceNumber,
     string? CheckNumber,
     string? Notes
-) : IRequest<Result<PaymentApplicationDto>>;
+) : ICommand<PaymentApplicationDto>;

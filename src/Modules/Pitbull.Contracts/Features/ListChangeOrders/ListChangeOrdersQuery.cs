@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateChangeOrder;
 using Pitbull.Core.CQRS;
@@ -11,4 +10,4 @@ public record ListChangeOrdersQuery(
     string? Search,
     int Page = 1,
     int PageSize = 20
-) : IRequest<Result<PagedResult<ChangeOrderDto>>>;
+) : IQuery<PagedResult<ChangeOrderDto>>;

@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
@@ -10,7 +9,7 @@ namespace Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
 public record BatchCreateTimeEntriesCommand(
     List<BatchTimeEntryItem> Entries,
     bool AllowPartialSuccess = false
-) : IRequest<Result<BatchCreateTimeEntriesResult>>;
+) : ICommand<BatchCreateTimeEntriesResult>;
 
 /// <summary>
 /// Individual time entry in a batch submission

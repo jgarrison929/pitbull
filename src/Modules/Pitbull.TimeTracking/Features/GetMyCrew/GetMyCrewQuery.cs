@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 
@@ -11,7 +10,7 @@ namespace Pitbull.TimeTracking.Features.GetMyCrew;
 public record GetMyCrewQuery(
     Guid SupervisorId,
     bool ActiveOnly = true
-) : IRequest<Result<MyCrewResult>>;
+) : IQuery<MyCrewResult>;
 
 /// <summary>
 /// Result containing the crew members

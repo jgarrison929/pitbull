@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 
@@ -12,7 +11,7 @@ public record CreatePaymentApplicationCommand(
     decimal StoredMaterials,
     string? InvoiceNumber,
     string? Notes
-) : IRequest<Result<PaymentApplicationDto>>;
+) : ICommand<PaymentApplicationDto>;
 
 public record PaymentApplicationDto(
     Guid Id,

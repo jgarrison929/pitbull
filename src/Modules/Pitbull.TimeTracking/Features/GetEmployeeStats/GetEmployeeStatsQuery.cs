@@ -8,7 +8,7 @@ namespace Pitbull.TimeTracking.Features.GetEmployeeStats;
 /// <summary>
 /// Query to get employee statistics (hours, projects, entries)
 /// </summary>
-public record GetEmployeeStatsQuery(Guid EmployeeId) : IRequest<Result<EmployeeStatsResponse>>;
+public record GetEmployeeStatsQuery(Guid EmployeeId) : IQuery<EmployeeStatsResponse>;
 
 /// <summary>
 /// Response containing employee statistics

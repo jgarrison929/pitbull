@@ -12,7 +12,7 @@ namespace Pitbull.TimeTracking.Features.ListEmployees;
 public record ListEmployeesQuery(
     bool? IsActive = null,
     EmployeeClassification? Classification = null,
-    string? Search = null) : IRequest<Result<ListEmployeesResult>>
+    string? Search = null) : IQuery<ListEmployeesResult>
 {
     public int Page { get; init; } = 1;
     public int PageSize { get; init; } = 50;

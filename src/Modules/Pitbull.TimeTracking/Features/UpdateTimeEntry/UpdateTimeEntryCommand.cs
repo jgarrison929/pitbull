@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 
@@ -37,4 +36,4 @@ public record UpdateTimeEntryCommand(
     /// Comments from approver (for approval/rejection)
     /// </summary>
     string? ApproverNotes = null
-) : IRequest<Result<TimeEntryDto>>;
+) : ICommand<TimeEntryDto>;

@@ -14,7 +14,7 @@ public record ListTimeEntriesQuery(
     Guid? EmployeeId = null,
     DateOnly? StartDate = null,
     DateOnly? EndDate = null,
-    TimeEntryStatus? Status = null) : IRequest<Result<ListTimeEntriesResult>>
+    TimeEntryStatus? Status = null) : IQuery<ListTimeEntriesResult>
 {
     public int Page { get; init; } = 1;
     public int PageSize { get; init; } = 25;

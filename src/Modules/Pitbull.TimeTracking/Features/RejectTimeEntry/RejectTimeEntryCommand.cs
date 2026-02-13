@@ -13,7 +13,7 @@ public record RejectTimeEntryCommand(
     Guid TimeEntryId,
     Guid RejectedById,
     string Reason
-) : IRequest<Result<TimeEntryDto>>;
+) : ICommand<TimeEntryDto>;
 
 public sealed class RejectTimeEntryHandler(PitbullDbContext db)
     : IRequestHandler<RejectTimeEntryCommand, Result<TimeEntryDto>>

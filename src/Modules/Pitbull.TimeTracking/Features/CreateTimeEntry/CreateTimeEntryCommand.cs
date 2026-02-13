@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
@@ -17,4 +16,4 @@ public record CreateTimeEntryCommand(
     decimal OvertimeHours = 0,
     decimal DoubletimeHours = 0,
     string? Description = null
-) : IRequest<Result<TimeEntryDto>>;
+) : ICommand<TimeEntryDto>;

@@ -9,7 +9,7 @@ namespace Pitbull.TimeTracking.Features.GetEmployee;
 /// <summary>
 /// Query to get a single employee by ID
 /// </summary>
-public record GetEmployeeQuery(Guid EmployeeId) : IRequest<Result<EmployeeDto>>;
+public record GetEmployeeQuery(Guid EmployeeId) : IQuery<EmployeeDto>;
 
 public sealed class GetEmployeeHandler(PitbullDbContext db)
     : IRequestHandler<GetEmployeeQuery, Result<EmployeeDto>>

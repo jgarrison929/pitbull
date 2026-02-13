@@ -8,7 +8,7 @@ namespace Pitbull.Projects.Features.GetProjectStats;
 /// <summary>
 /// Query to get project statistics (hours, costs, employees)
 /// </summary>
-public record GetProjectStatsQuery(Guid ProjectId) : IRequest<Result<ProjectStatsResponse>>;
+public record GetProjectStatsQuery(Guid ProjectId) : IQuery<ProjectStatsResponse>;
 
 /// <summary>
 /// Response containing project statistics

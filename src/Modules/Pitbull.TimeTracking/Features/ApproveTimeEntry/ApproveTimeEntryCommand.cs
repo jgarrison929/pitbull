@@ -13,7 +13,7 @@ public record ApproveTimeEntryCommand(
     Guid TimeEntryId,
     Guid ApprovedById,
     string? Comments = null
-) : IRequest<Result<TimeEntryDto>>;
+) : ICommand<TimeEntryDto>;
 
 public sealed class ApproveTimeEntryHandler(PitbullDbContext db)
     : IRequestHandler<ApproveTimeEntryCommand, Result<TimeEntryDto>>

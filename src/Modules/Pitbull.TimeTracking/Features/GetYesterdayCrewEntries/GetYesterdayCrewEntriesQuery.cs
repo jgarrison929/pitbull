@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.TimeTracking.Features.GetYesterdayCrewEntries;
@@ -10,7 +9,7 @@ namespace Pitbull.TimeTracking.Features.GetYesterdayCrewEntries;
 public record GetYesterdayCrewEntriesQuery(
     Guid ForemanId,
     DateOnly? TargetDate = null // If null, uses yesterday. This is the date to get entries FOR
-) : IRequest<Result<YesterdayCrewEntriesResult>>;
+) : IQuery<YesterdayCrewEntriesResult>;
 
 /// <summary>
 /// Result containing yesterday's crew time entries

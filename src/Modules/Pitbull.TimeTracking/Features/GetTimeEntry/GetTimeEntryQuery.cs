@@ -9,7 +9,7 @@ namespace Pitbull.TimeTracking.Features.GetTimeEntry;
 /// <summary>
 /// Query to get a single time entry by ID
 /// </summary>
-public record GetTimeEntryQuery(Guid TimeEntryId) : IRequest<Result<TimeEntryDto>>;
+public record GetTimeEntryQuery(Guid TimeEntryId) : IQuery<TimeEntryDto>;
 
 public sealed class GetTimeEntryHandler(PitbullDbContext db)
     : IRequestHandler<GetTimeEntryQuery, Result<TimeEntryDto>>

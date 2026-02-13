@@ -1,4 +1,3 @@
-using MediatR;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.TimeTracking.Features.ExportVistaTimesheet;
@@ -22,7 +21,7 @@ public sealed record ExportVistaTimesheetQuery(
     /// Optional: Filter to specific project
     /// </summary>
     Guid? ProjectId = null
-) : IRequest<Result<VistaExportResult>>;
+) : IQuery<VistaExportResult>;
 
 /// <summary>
 /// Result containing the CSV content and metadata
