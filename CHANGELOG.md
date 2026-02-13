@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.10.21] - 2026-02-13
 
+### 🔒 Security
+
+- **security:** Add HSTS header to SecurityHeadersMiddleware
+  - Enforces HTTPS with `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+  - Protects against protocol downgrade attacks
+
 ### 🐛 Bug Fixes
 
 - **fix(demo):** Use `set_config()` instead of `SET LOCAL` in DemoBootstrapper
@@ -26,6 +32,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - EF Core was converting interpolated string to parameters → 42601 syntax error
   - `set_config()` supports params and is transaction-local with third param `true`
   - Fixes demo environment startup failures on Railway
+
+### 🧹 Code Quality
+
+- **refactor:** Move BidDto and BidMapper to Features/Shared folder
+  - Resolves circular dependency potential between Bids and Projects modules
+
+### 🏗️ Infrastructure
+
+- **chore:** Add developer environment consistency files
+  - `.nvmrc` - Node.js 22 pinned for frontend builds
+  - `.editorconfig` - Consistent formatting across IDEs
+  - `.gitattributes` - Consistent line endings (LF)
+
+### 📚 Documentation
+
+- **docs:** Add SECURITY.md with vulnerability reporting process
+  - Security contact: security@pitbullconstructionsolutions.com
+  - 48-hour acknowledgment SLA
+  - Feature summary for security-conscious evaluators
+- **docs:** Update README with v0.10.21 milestone achievements
+- **docs:** Correct Known Issues - domain events implemented, BidDto resolved
 
 ---
 
