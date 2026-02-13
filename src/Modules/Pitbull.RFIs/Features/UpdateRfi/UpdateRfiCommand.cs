@@ -17,5 +17,14 @@ public record UpdateRfiCommand(
     Guid? AssignedToUserId,
     string? AssignedToName,
     Guid? BallInCourtUserId,
-    string? BallInCourtName
+    string? BallInCourtName,
+
+    // Document references
+    string? SpecSection = null,
+    List<string>? DrawingReferences = null,
+
+    // Cost impact tracking
+    bool HasCostImpact = false,
+    decimal? EstimatedCostImpact = null,
+    int? EstimatedDelayDays = null
 );

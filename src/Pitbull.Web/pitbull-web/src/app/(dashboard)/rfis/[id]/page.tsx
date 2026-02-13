@@ -105,6 +105,13 @@ export default function RfiDetailPage({
   const [editBallInCourtName, setEditBallInCourtName] = useState("");
   const [editAssignedToName, setEditAssignedToName] = useState("");
 
+  // Cost impact fields
+  const [editSpecSection, setEditSpecSection] = useState("");
+  const [editDrawingReferences, setEditDrawingReferences] = useState("");
+  const [editHasCostImpact, setEditHasCostImpact] = useState(false);
+  const [editEstimatedCostImpact, setEditEstimatedCostImpact] = useState("");
+  const [editEstimatedDelayDays, setEditEstimatedDelayDays] = useState("");
+
   useEffect(() => {
     if (!projectId) {
       setError("Project ID is required");
@@ -125,6 +132,13 @@ export default function RfiDetailPage({
         setEditDueDate(data.dueDate ? data.dueDate.split("T")[0] : "");
         setEditBallInCourtName(data.ballInCourtName || "");
         setEditAssignedToName(data.assignedToName || "");
+
+        // Cost impact fields
+        setEditSpecSection(data.specSection || "");
+        setEditDrawingReferences(data.drawingReferences?.join(", ") || "");
+        setEditHasCostImpact(data.hasCostImpact);
+        setEditEstimatedCostImpact(data.estimatedCostImpact?.toString() || "");
+        setEditEstimatedDelayDays(data.estimatedDelayDays?.toString() || "");
       } catch {
         setError("Failed to load RFI");
         toast.error("Failed to load RFI");
@@ -140,6 +154,12 @@ export default function RfiDetailPage({
 
     setIsSaving(true);
     try {
+      // Parse drawing references from comma-separated string
+      const drawingRefs = editDrawingReferences
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
       const command: UpdateRfiCommand = {
         subject: editSubject,
         question: editQuestion,
@@ -149,6 +169,17 @@ export default function RfiDetailPage({
         dueDate: editDueDate || null,
         ballInCourtName: editBallInCourtName || null,
         assignedToName: editAssignedToName || null,
+
+        // Cost impact fields
+        specSection: editSpecSection || null,
+        drawingReferences: drawingRefs.length > 0 ? drawingRefs : undefined,
+        hasCostImpact: editHasCostImpact,
+        estimatedCostImpact: editEstimatedCostImpact
+          ? parseFloat(editEstimatedCostImpact)
+          : null,
+        estimatedDelayDays: editEstimatedDelayDays
+          ? parseInt(editEstimatedDelayDays)
+          : null,
       };
 
       const updated = await api<Rfi>(
@@ -328,6 +359,76 @@ export default function RfiDetailPage({
                     />
                   </div>
                 </div>
+
+                {/* Document References */}
+                <Separator className="my-4" />
+                <h3 className="text-sm font-semibold text-muted-foreground">Document References</h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="specSection">Spec Section</Label>
+                    <Input
+                      id="specSection"
+                      value={editSpecSection}
+                      onChange={(e) => setEditSpecSection(e.target.value)}
+                      placeholder="e.g., 03 30 00 - Cast-in-Place Concrete"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="drawingReferences">Drawing References</Label>
+                    <Input
+                      id="drawingReferences"
+                      value={editDrawingReferences}
+                      onChange={(e) => setEditDrawingReferences(e.target.value)}
+                      placeholder="e.g., S-101, S-102, D-001"
+                    />
+                  </div>
+                </div>
+
+                {/* Cost Impact */}
+                <Separator className="my-4" />
+                <h3 className="text-sm font-semibold text-muted-foreground">Cost Impact</h3>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="hasCostImpact">Has Cost Impact</Label>
+                    <Select
+                      value={editHasCostImpact ? "true" : "false"}
+                      onValueChange={(v) => setEditHasCostImpact(v === "true")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="false">No</SelectItem>
+                        <SelectItem value="true">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="estimatedCostImpact">Estimated Cost ($)</Label>
+                    <Input
+                      id="estimatedCostImpact"
+                      type="number"
+                      step="0.01"
+                      value={editEstimatedCostImpact}
+                      onChange={(e) => setEditEstimatedCostImpact(e.target.value)}
+                      placeholder="0.00"
+                      disabled={!editHasCostImpact}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="estimatedDelayDays">Estimated Delay (days)</Label>
+                    <Input
+                      id="estimatedDelayDays"
+                      type="number"
+                      value={editEstimatedDelayDays}
+                      onChange={(e) => setEditEstimatedDelayDays(e.target.value)}
+                      placeholder="0"
+                      disabled={!editHasCostImpact}
+                    />
+                  </div>
+                </div>
               </fieldset>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
@@ -449,6 +550,64 @@ export default function RfiDetailPage({
               )}
             </CardContent>
           </Card>
+
+          {/* Document References & Cost Impact Card */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Document References</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <span className="text-muted-foreground">Spec Section</span>
+                  <span className="font-medium">
+                    {rfi.specSection || "—"}
+                  </span>
+                  <span className="text-muted-foreground">Drawings</span>
+                  <span className="font-medium">
+                    {rfi.drawingReferences && rfi.drawingReferences.length > 0
+                      ? rfi.drawingReferences.join(", ")
+                      : "—"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  Cost Impact
+                  {rfi.hasCostImpact && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                      Has Impact
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {rfi.hasCostImpact ? (
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <span className="text-muted-foreground">Estimated Cost</span>
+                    <span className="font-medium text-amber-700">
+                      {rfi.estimatedCostImpact != null
+                        ? `$${rfi.estimatedCostImpact.toLocaleString()}`
+                        : "—"}
+                    </span>
+                    <span className="text-muted-foreground">Estimated Delay</span>
+                    <span className="font-medium text-amber-700">
+                      {rfi.estimatedDelayDays != null
+                        ? `${rfi.estimatedDelayDays} day${rfi.estimatedDelayDays !== 1 ? "s" : ""}`
+                        : "—"}
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No cost impact identified
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
 

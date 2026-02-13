@@ -19,5 +19,14 @@ public record RfiDto(
     Guid? AssignedToUserId,
     string? AssignedToName,
     string? CreatedByName,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+
+    // Document references
+    string? SpecSection,
+    List<string> DrawingReferences,
+
+    // Cost impact tracking
+    bool HasCostImpact,
+    decimal? EstimatedCostImpact,
+    int? EstimatedDelayDays
 );

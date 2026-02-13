@@ -15,5 +15,14 @@ public record CreateRfiCommand(
     string? AssignedToName,
     Guid? BallInCourtUserId,
     string? BallInCourtName,
-    string? CreatedByName
+    string? CreatedByName,
+
+    // Document references
+    string? SpecSection = null,
+    List<string>? DrawingReferences = null,
+
+    // Cost impact tracking
+    bool HasCostImpact = false,
+    decimal? EstimatedCostImpact = null,
+    int? EstimatedDelayDays = null
 );

@@ -662,6 +662,15 @@ export interface Rfi {
   assignedToName?: string | null;
   createdByName?: string | null;
   createdAt: string;
+
+  // Document references
+  specSection?: string | null;
+  drawingReferences: string[];
+
+  // Cost impact tracking
+  hasCostImpact: boolean;
+  estimatedCostImpact?: number | null;
+  estimatedDelayDays?: number | null;
 }
 
 export interface CreateRfiCommand {
@@ -674,6 +683,15 @@ export interface CreateRfiCommand {
   ballInCourtUserId?: string;
   ballInCourtName?: string;
   createdByName?: string;
+
+  // Document references
+  specSection?: string;
+  drawingReferences?: string[];
+
+  // Cost impact tracking
+  hasCostImpact?: boolean;
+  estimatedCostImpact?: number;
+  estimatedDelayDays?: number;
 }
 
 export interface UpdateRfiCommand {
@@ -687,4 +705,13 @@ export interface UpdateRfiCommand {
   assignedToName?: string | null;
   ballInCourtUserId?: string | null;
   ballInCourtName?: string | null;
+
+  // Document references
+  specSection?: string | null;
+  drawingReferences?: string[];
+
+  // Cost impact tracking
+  hasCostImpact?: boolean;
+  estimatedCostImpact?: number | null;
+  estimatedDelayDays?: number | null;
 }

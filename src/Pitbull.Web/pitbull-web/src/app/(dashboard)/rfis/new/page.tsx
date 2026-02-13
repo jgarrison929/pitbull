@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -35,6 +36,9 @@ export default function NewRfiPage() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [priority, setPriority] = useState<RfiPriority>(1); // Normal
+
+  // Cost impact state
+  const [hasCostImpact, setHasCostImpact] = useState(false);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -67,6 +71,17 @@ export default function NewRfiPage() {
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
+
+    // Parse drawing references from comma-separated string
+    const drawingRefsString = formData.get("drawingReferences") as string;
+    const drawingRefs = drawingRefsString
+      ? drawingRefsString.split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+      : undefined;
+
+    // Parse cost impact fields
+    const estimatedCostStr = formData.get("estimatedCostImpact") as string;
+    const estimatedDelayStr = formData.get("estimatedDelayDays") as string;
+
     const command: CreateRfiCommand = {
       subject: formData.get("subject") as string,
       question: formData.get("question") as string,
@@ -75,6 +90,15 @@ export default function NewRfiPage() {
       ballInCourtName: (formData.get("ballInCourtName") as string) || undefined,
       assignedToName: (formData.get("assignedToName") as string) || undefined,
       createdByName: (formData.get("createdByName") as string) || undefined,
+
+      // Document references
+      specSection: (formData.get("specSection") as string) || undefined,
+      drawingReferences: drawingRefs,
+
+      // Cost impact
+      hasCostImpact,
+      estimatedCostImpact: hasCostImpact && estimatedCostStr ? parseFloat(estimatedCostStr) : undefined,
+      estimatedDelayDays: hasCostImpact && estimatedDelayStr ? parseInt(estimatedDelayStr) : undefined,
     };
 
     try {
@@ -213,6 +237,72 @@ export default function NewRfiPage() {
                   name="createdByName"
                   placeholder="Your name"
                 />
+              </div>
+
+              {/* Document References */}
+              <Separator className="my-4" />
+              <h3 className="text-sm font-semibold text-muted-foreground">Document References</h3>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="specSection">Spec Section</Label>
+                  <Input
+                    id="specSection"
+                    name="specSection"
+                    placeholder="e.g., 03 30 00 - Cast-in-Place Concrete"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="drawingReferences">Drawing References</Label>
+                  <Input
+                    id="drawingReferences"
+                    name="drawingReferences"
+                    placeholder="e.g., S-101, S-102, D-001"
+                  />
+                </div>
+              </div>
+
+              {/* Cost Impact */}
+              <Separator className="my-4" />
+              <h3 className="text-sm font-semibold text-muted-foreground">Cost Impact</h3>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="hasCostImpact">Has Cost Impact</Label>
+                  <Select
+                    value={hasCostImpact ? "true" : "false"}
+                    onValueChange={(v) => setHasCostImpact(v === "true")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="false">No</SelectItem>
+                      <SelectItem value="true">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedCostImpact">Estimated Cost ($)</Label>
+                  <Input
+                    id="estimatedCostImpact"
+                    name="estimatedCostImpact"
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    disabled={!hasCostImpact}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedDelayDays">Estimated Delay (days)</Label>
+                  <Input
+                    id="estimatedDelayDays"
+                    name="estimatedDelayDays"
+                    type="number"
+                    placeholder="0"
+                    disabled={!hasCostImpact}
+                  />
+                </div>
               </div>
             </fieldset>
 

@@ -107,7 +107,18 @@ public class RfiService : IRfiService
             BallInCourtUserId = command.BallInCourtUserId ?? command.AssignedToUserId,
             BallInCourtName = command.BallInCourtName ?? command.AssignedToName,
             CreatedByName = command.CreatedByName,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+
+            // Document references
+            SpecSection = command.SpecSection,
+            DrawingReferences = command.DrawingReferences != null
+                ? System.Text.Json.JsonSerializer.Serialize(command.DrawingReferences)
+                : null,
+
+            // Cost impact tracking
+            HasCostImpact = command.HasCostImpact,
+            EstimatedCostImpact = command.EstimatedCostImpact,
+            EstimatedDelayDays = command.EstimatedDelayDays
         };
 
         _db.Set<Rfi>().Add(rfi);
@@ -146,6 +157,17 @@ public class RfiService : IRfiService
         rfi.Status = command.Status;
         rfi.Answer = command.Answer;
         rfi.AnsweredAt = command.Answer is null ? rfi.AnsweredAt : DateTime.UtcNow;
+
+        // Document references
+        rfi.SpecSection = command.SpecSection;
+        rfi.DrawingReferences = command.DrawingReferences != null
+            ? System.Text.Json.JsonSerializer.Serialize(command.DrawingReferences)
+            : null;
+
+        // Cost impact tracking
+        rfi.HasCostImpact = command.HasCostImpact;
+        rfi.EstimatedCostImpact = command.EstimatedCostImpact;
+        rfi.EstimatedDelayDays = command.EstimatedDelayDays;
 
         try
         {
@@ -294,6 +316,20 @@ public class RfiService : IRfiService
 
     private static RfiDto MapToDto(Rfi rfi)
     {
+        // Parse drawing references from JSON
+        var drawingRefs = new List<string>();
+        if (!string.IsNullOrEmpty(rfi.DrawingReferences))
+        {
+            try
+            {
+                drawingRefs = System.Text.Json.JsonSerializer.Deserialize<List<string>>(rfi.DrawingReferences) ?? new List<string>();
+            }
+            catch
+            {
+                // If parsing fails, return empty list
+            }
+        }
+
         return new RfiDto(
             rfi.Id,
             rfi.Number,
@@ -311,7 +347,16 @@ public class RfiService : IRfiService
             rfi.AssignedToUserId,
             rfi.AssignedToName,
             rfi.CreatedByName,
-            rfi.CreatedAt
+            rfi.CreatedAt,
+
+            // Document references
+            rfi.SpecSection,
+            drawingRefs,
+
+            // Cost impact tracking
+            rfi.HasCostImpact,
+            rfi.EstimatedCostImpact,
+            rfi.EstimatedDelayDays
         );
     }
 }

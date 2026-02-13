@@ -21,6 +21,14 @@ public class RfiConfiguration : IEntityTypeConfiguration<Rfi>
         builder.Property(r => r.AssignedToName).HasMaxLength(200);
         builder.Property(r => r.CreatedByName).HasMaxLength(200);
 
+        // Document references
+        builder.Property(r => r.SpecSection).HasMaxLength(200);
+        builder.Property(r => r.DrawingReferences).HasMaxLength(2000); // JSON array of drawing numbers
+
+        // Cost impact tracking
+        builder.Property(r => r.HasCostImpact).HasDefaultValue(false);
+        builder.Property(r => r.EstimatedCostImpact).HasPrecision(18, 2);
+
         // Unique RFI number per tenant+project
         builder.HasIndex(r => new { r.TenantId, r.ProjectId, r.Number }).IsUnique();
         builder.HasIndex(r => r.ProjectId);
