@@ -629,3 +629,62 @@ export interface PaymentApplication {
   createdAt: string;
   updatedAt?: string | null;
 }
+
+// RFI (Request for Information) Types
+export enum RfiStatus {
+  Open = 0,
+  Answered = 1,
+  Closed = 2,
+}
+
+export enum RfiPriority {
+  Low = 0,
+  Normal = 1,
+  High = 2,
+  Urgent = 3,
+}
+
+export interface Rfi {
+  id: string;
+  number: number;
+  subject: string;
+  question: string;
+  answer?: string | null;
+  status: RfiStatus;
+  priority: RfiPriority;
+  dueDate?: string | null;
+  answeredAt?: string | null;
+  closedAt?: string | null;
+  projectId: string;
+  ballInCourtUserId?: string | null;
+  ballInCourtName?: string | null;
+  assignedToUserId?: string | null;
+  assignedToName?: string | null;
+  createdByName?: string | null;
+  createdAt: string;
+}
+
+export interface CreateRfiCommand {
+  subject: string;
+  question: string;
+  priority?: RfiPriority;
+  dueDate?: string;
+  assignedToUserId?: string;
+  assignedToName?: string;
+  ballInCourtUserId?: string;
+  ballInCourtName?: string;
+  createdByName?: string;
+}
+
+export interface UpdateRfiCommand {
+  subject: string;
+  question: string;
+  answer?: string | null;
+  status: RfiStatus;
+  priority: RfiPriority;
+  dueDate?: string | null;
+  assignedToUserId?: string | null;
+  assignedToName?: string | null;
+  ballInCourtUserId?: string | null;
+  ballInCourtName?: string | null;
+}

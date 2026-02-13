@@ -10,6 +10,7 @@ const navItems = [
   { label: "Dashboard", href: "/", icon: "📊" },
   { label: "Projects", href: "/projects", icon: "🏗️" },
   { label: "Bids", href: "/bids", icon: "📋" },
+  { label: "RFIs", href: "/rfis", icon: "❓" },
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
   { label: "Employees", href: "/employees", icon: "👷" },
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
