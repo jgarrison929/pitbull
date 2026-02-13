@@ -396,11 +396,30 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
     /// <inheritdoc />
     public async Task<Result<RfisNeedingAttentionResponse>> GetRfisNeedingAttentionAsync(Guid? userId = null, int limit = 5, CancellationToken cancellationToken = default)
     {
+        limit = Math.Clamp(limit, 1, 20);
+        var today = DateTime.UtcNow.Date;
+
+        // Get RFIs needing attention - gracefully handle SQL failures
+        var items = await GetRfiAttentionItems(userId, limit, today, cancellationToken);
+
+        // Get counts - these methods handle their own exceptions
+        var overdueCount = await GetOverdueRfiCount(today, cancellationToken);
+        var ballInCourtCount = userId.HasValue
+            ? await GetBallInCourtRfiCount(userId.Value, cancellationToken)
+            : 0;
+
+        return Result.Success(new RfisNeedingAttentionResponse(
+            OverdueCount: overdueCount,
+            BallInCourtCount: ballInCourtCount,
+            TotalCount: items.Count,
+            Items: items
+        ));
+    }
+
+    private async Task<List<RfiAttentionItem>> GetRfiAttentionItems(Guid? userId, int limit, DateTime today, CancellationToken cancellationToken)
+    {
         try
         {
-            limit = Math.Clamp(limit, 1, 20);
-            var today = DateTime.UtcNow.Date;
-
             // Build the SQL query to get RFIs needing attention
             // Status = 'Open' (0) - only open RFIs need attention
             // Either overdue (DueDate < today) or ball-in-court = current user
@@ -439,7 +458,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
             var rawData = await db.Database.SqlQueryRaw<RfiAttentionRow>(sql)
                 .ToListAsync(cancellationToken);
 
-            var items = rawData.Select(r =>
+            return rawData.Select(r =>
             {
                 var isOverdue = r.DueDate.HasValue && r.DueDate.Value.Date < today;
                 var daysOverdue = isOverdue ? (int)(today - r.DueDate!.Value.Date).TotalDays : 0;
@@ -460,25 +479,10 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
                     BallInCourtName: r.BallInCourtName
                 );
             }).ToList();
-
-            // Get counts
-            var overdueCount = await GetOverdueRfiCount(today, cancellationToken);
-            var ballInCourtCount = userId.HasValue
-                ? await GetBallInCourtRfiCount(userId.Value, cancellationToken)
-                : 0;
-
-            return Result.Success(new RfisNeedingAttentionResponse(
-                OverdueCount: overdueCount,
-                BallInCourtCount: ballInCourtCount,
-                TotalCount: items.Count,
-                Items: items
-            ));
         }
-        catch (Exception ex)
+        catch
         {
-            return Result.Failure<RfisNeedingAttentionResponse>(
-                $"Failed to retrieve RFIs needing attention: {ex.Message}",
-                "RFIS_ATTENTION_ERROR");
+            return [];
         }
     }
 
