@@ -1,3 +1,4 @@
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Core.CQRS;

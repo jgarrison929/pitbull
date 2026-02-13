@@ -1,3 +1,4 @@
+using Pitbull.Bids.Features.Shared;
 using FluentValidation;
 
 namespace Pitbull.Bids.Features.UpdateBid;

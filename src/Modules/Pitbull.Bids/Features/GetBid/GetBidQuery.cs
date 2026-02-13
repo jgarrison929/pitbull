@@ -1,3 +1,4 @@
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.Bids.Features.GetBid;

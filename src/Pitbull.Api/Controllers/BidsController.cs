@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.ConvertBidToProject;
 using Pitbull.Bids.Features.DeleteBid;
