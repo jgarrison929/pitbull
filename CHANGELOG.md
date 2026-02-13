@@ -17,6 +17,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.10.21] - 2026-02-13
+
+### 🐛 Bug Fixes
+
+- **fix(demo):** Use `set_config()` instead of `SET LOCAL` in DemoBootstrapper
+  - PostgreSQL's `SET LOCAL` doesn't support parameterized queries (`@p0` syntax)
+  - EF Core was converting interpolated string to parameters → 42601 syntax error
+  - `set_config()` supports params and is transaction-local with third param `true`
+  - Fixes demo environment startup failures on Railway
+
+---
+
 ## [0.10.20] - 2026-02-12
 
 ### 🧹 Code Quality
