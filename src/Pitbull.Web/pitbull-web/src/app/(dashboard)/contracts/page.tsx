@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,10 +25,34 @@ import {
   formatCurrency,
 } from "@/lib/contracts";
 import { toast } from "sonner";
+import { ChangeOrderDialog } from "@/components/contracts/change-order-dialog";
 
 export default function ContractsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [subcontracts, setSubcontracts] = useState<Subcontract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Check for fromRfi query param to auto-open change order dialog
+  const fromRfiId = searchParams.get("fromRfi");
+  const rfiNumber = searchParams.get("rfiNumber");
+  const rfiSubject = searchParams.get("rfiSubject");
+
+  const [showChangeOrderDialog, setShowChangeOrderDialog] = useState(false);
+  const [prefillDescription, setPrefillDescription] = useState<string | undefined>();
+
+  // Open change order dialog if coming from RFI
+  useEffect(() => {
+    if (fromRfiId) {
+      const description = rfiNumber && rfiSubject
+        ? `Per RFI #${rfiNumber}: ${rfiSubject}`
+        : rfiNumber
+        ? `Per RFI #${rfiNumber}`
+        : undefined;
+      setPrefillDescription(description);
+      setShowChangeOrderDialog(true);
+    }
+  }, [fromRfiId, rfiNumber, rfiSubject]);
 
   useEffect(() => {
     async function fetchSubcontracts() {
@@ -44,6 +69,19 @@ export default function ContractsPage() {
     }
     fetchSubcontracts();
   }, []);
+
+  function handleDialogClose(open: boolean) {
+    setShowChangeOrderDialog(open);
+    if (!open && fromRfiId) {
+      // Clear the query params when dialog closes
+      router.replace("/contracts", { scroll: false });
+    }
+  }
+
+  function handleChangeOrderCreated() {
+    // Optionally refresh data or navigate somewhere
+    // For now, just show the toast (already handled in dialog)
+  }
 
   return (
     <div className="space-y-6">
@@ -213,6 +251,15 @@ export default function ContractsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Change Order Dialog - opens when fromRfi param is present */}
+      <ChangeOrderDialog
+        open={showChangeOrderDialog}
+        onOpenChange={handleDialogClose}
+        originatingRfiId={fromRfiId || undefined}
+        prefillDescription={prefillDescription}
+        onCreated={handleChangeOrderCreated}
+      />
     </div>
   );
 }
