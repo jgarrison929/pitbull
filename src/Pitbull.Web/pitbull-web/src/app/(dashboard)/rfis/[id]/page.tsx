@@ -627,7 +627,7 @@ export default function RfiDetailPage({
 
           <TabsContent value="cost-impact">
             {projectId && (
-              <RfiCostImpactSection projectId={projectId} rfiId={id} />
+              <RfiCostImpactSection projectId={projectId} rfiId={id} rfi={rfi} />
             )}
           </TabsContent>
         </Tabs>

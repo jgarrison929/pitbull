@@ -591,6 +591,7 @@ export interface ChangeOrder {
   rejectedBy?: string | null;
   rejectionReason?: string | null;
   referenceNumber?: string | null;
+  originatingRfiId?: string | null;
   createdAt: string;
   updatedAt?: string | null;
 }

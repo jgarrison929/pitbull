@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -20,13 +21,15 @@ import {
   CheckCircle,
   FileText,
   Calendar,
+  Plus,
 } from "lucide-react";
 import api from "@/lib/api";
-import type { RfiCostImpact } from "@/lib/types";
+import type { RfiCostImpact, Rfi } from "@/lib/types";
 
 interface RfiCostImpactSectionProps {
   projectId: string;
   rfiId: string;
+  rfi?: Rfi;
 }
 
 function formatCurrency(amount: number) {
@@ -63,6 +66,7 @@ function changeOrderStatusBadge(status: string) {
 export function RfiCostImpactSection({
   projectId,
   rfiId,
+  rfi,
 }: RfiCostImpactSectionProps) {
   const [costImpact, setCostImpact] = useState<RfiCostImpact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -197,6 +201,28 @@ export function RfiCostImpactSection({
           </div>
         </CardContent>
       </Card>
+
+      {/* Create Change Order Button - Show when RFI has cost impact or is closed */}
+      {rfi && (rfi.hasCostImpact || rfi.status === 2) && (
+        <Card>
+          <CardContent className="py-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium">Create Change Order from RFI</p>
+                <p className="text-xs text-muted-foreground">
+                  Link a new change order to this RFI to track cost impact
+                </p>
+              </div>
+              <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]">
+                <Link href={`/contracts?fromRfi=${rfiId}&rfiNumber=${costImpact?.rfiNumber || rfi.number}&rfiSubject=${encodeURIComponent(rfi.subject)}`}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Change Order
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Linked Change Orders */}
       {hasChangeOrders && (
