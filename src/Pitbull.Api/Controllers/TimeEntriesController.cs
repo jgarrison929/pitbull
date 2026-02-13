@@ -1,17 +1,12 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
-using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
-using Pitbull.TimeTracking.Features.GetTimeEntry;
-using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
-using Pitbull.TimeTracking.Features.ListTimeEntries;
-using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
-using static Pitbull.TimeTracking.Features.GetLaborCostReport.GetLaborCostReportQuery;
+using Pitbull.TimeTracking.Features.UpdateTimeEntry;
+using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Api.Controllers;
 
@@ -25,7 +20,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Time Entries")]
-public class TimeEntriesController(IMediator mediator) : ControllerBase
+public class TimeEntriesController(ITimeEntryService timeEntryService) : ControllerBase
 {
     /// <summary>
     /// Create a new time entry for an employee
@@ -74,7 +69,7 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
             request.Description
         );
 
-        var result = await mediator.Send(command);
+        var result = await timeEntryService.CreateTimeEntryAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -102,7 +97,7 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await mediator.Send(new GetTimeEntryQuery(id));
+        var result = await timeEntryService.GetTimeEntryAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
                 ? NotFound(new { error = result.Error })
@@ -142,13 +137,9 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25)
     {
-        var query = new ListTimeEntriesQuery(projectId, employeeId, startDate, endDate, status)
-        {
-            Page = page,
-            PageSize = pageSize
-        };
-
-        var result = await mediator.Send(query);
+        var result = await timeEntryService.ListTimeEntriesAsync(
+            projectId, employeeId, startDate, endDate, status, page, pageSize);
+        
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -194,7 +185,7 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
             ApproverNotes: request.ApproverNotes
         );
 
-        var result = await mediator.Send(command);
+        var result = await timeEntryService.UpdateTimeEntryAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -240,7 +231,7 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
             ApproverNotes: request.Comments
         );
 
-        var result = await mediator.Send(command);
+        var result = await timeEntryService.UpdateTimeEntryAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -286,7 +277,7 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
             ApproverNotes: request.Reason
         );
 
-        var result = await mediator.Send(command);
+        var result = await timeEntryService.UpdateTimeEntryAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -332,8 +323,8 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
         [FromQuery] DateOnly? endDate,
         [FromQuery] bool approvedOnly = true)
     {
-        var query = new GetLaborCostReportQuery(projectId, startDate, endDate, approvedOnly);
-        var result = await mediator.Send(query);
+        var result = await timeEntryService.GetLaborCostReportAsync(
+            projectId, startDate, endDate, approvedOnly);
 
         if (!result.IsSuccess)
         {
@@ -378,14 +369,9 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
-        var query = new GetTimeEntriesByProjectQuery(
-            projectId, startDate, endDate, status, includeSummary)
-        {
-            Page = page,
-            PageSize = pageSize
-        };
-
-        var result = await mediator.Send(query);
+        var result = await timeEntryService.GetTimeEntriesByProjectAsync(
+            projectId, startDate, endDate, status, includeSummary, page, pageSize);
+        
         if (!result.IsSuccess)
         {
             return result.ErrorCode == "NOT_FOUND"
@@ -433,8 +419,7 @@ public class TimeEntriesController(IMediator mediator) : ControllerBase
         [FromQuery] DateOnly endDate,
         [FromQuery] Guid? projectId = null)
     {
-        var query = new ExportVistaTimesheetQuery(startDate, endDate, projectId);
-        var result = await mediator.Send(query);
+        var result = await timeEntryService.ExportVistaTimesheetAsync(startDate, endDate, projectId);
 
         if (!result.IsSuccess)
         {
