@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,9 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Search } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Rfi, Project, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
@@ -90,6 +91,11 @@ export default function RfisPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingRfis, setIsLoadingRfis] = useState(false);
 
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+
   // Load projects on mount
   useEffect(() => {
     async function fetchProjects() {
@@ -134,7 +140,45 @@ export default function RfisPage() {
     fetchRfis();
   }, [selectedProjectId]);
 
+  // Filter RFIs based on search and filters
+  const filteredRfis = useMemo(() => {
+    return rfis.filter((rfi) => {
+      // Search filter - check subject and question
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSubject = rfi.subject.toLowerCase().includes(query);
+        const matchesQuestion = rfi.question?.toLowerCase().includes(query);
+        if (!matchesSubject && !matchesQuestion) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (statusFilter !== "all") {
+        if (rfi.status !== parseInt(statusFilter)) {
+          return false;
+        }
+      }
+
+      // Priority filter
+      if (priorityFilter !== "all") {
+        if (rfi.priority !== parseInt(priorityFilter)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [rfis, searchQuery, statusFilter, priorityFilter]);
+
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
+
+  // Reset filters when project changes
+  useEffect(() => {
+    setSearchQuery("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+  }, [selectedProjectId]);
 
   return (
     <div className="space-y-6">
@@ -183,6 +227,59 @@ export default function RfisPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Search and Filter Controls */}
+          {selectedProjectId && !isLoading && !isLoadingRfis && rfis.length > 0 && (
+            <div className="mb-6 space-y-4">
+              {/* Search input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by subject or question..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              
+              {/* Filter dropdowns */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 sm:max-w-[200px]">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="0">Open</SelectItem>
+                      <SelectItem value="1">Answered</SelectItem>
+                      <SelectItem value="2">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 sm:max-w-[200px]">
+                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Priorities</SelectItem>
+                      <SelectItem value="0">Low</SelectItem>
+                      <SelectItem value="1">Normal</SelectItem>
+                      <SelectItem value="2">High</SelectItem>
+                      <SelectItem value="3">Urgent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {/* Show result count when filters are active */}
+                {(searchQuery || statusFilter !== "all" || priorityFilter !== "all") && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    Showing {filteredRfis.length} of {rfis.length} RFIs
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {isLoading || isLoadingRfis ? (
             <>
               <CardListSkeleton rows={5} />
@@ -214,11 +311,28 @@ export default function RfisPage() {
               actionLabel="+ Create First RFI"
               actionHref={`/rfis/new?projectId=${selectedProjectId}`}
             />
+          ) : filteredRfis.length === 0 ? (
+            <div className="py-12 text-center">
+              <p className="text-muted-foreground">
+                No RFIs match your search criteria
+              </p>
+              <Button
+                variant="link"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                  setPriorityFilter("all");
+                }}
+                className="mt-2"
+              >
+                Clear filters
+              </Button>
+            </div>
           ) : (
             <>
               {/* Mobile card layout */}
               <div className="sm:hidden space-y-3">
-                {rfis.map((rfi) => (
+                {filteredRfis.map((rfi) => (
                   <div key={rfi.id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -286,7 +400,7 @@ export default function RfisPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rfis.map((rfi) => (
+                    {filteredRfis.map((rfi) => (
                       <TableRow key={rfi.id}>
                         <TableCell className="font-mono text-sm">
                           RFI-{String(rfi.number).padStart(3, "0")}
