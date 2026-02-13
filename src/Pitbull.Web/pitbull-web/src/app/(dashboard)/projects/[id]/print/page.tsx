@@ -2,13 +2,14 @@
 
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Printer } from "lucide-react";
+import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
 import {
   projectStatusLabel,
   projectTypeLabel,
 } from "@/lib/projects";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import type {
   Project,
   RfiCostSummary,
@@ -238,12 +239,13 @@ export default function ProjectPrintPage({
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Action Bar - Hidden in print */}
         <div className="no-print flex items-center justify-between mb-6">
-          <Button asChild variant="ghost" size="sm">
-            <Link href={`/projects/${id}`}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Project
-            </Link>
-          </Button>
+          <Breadcrumbs
+            items={[
+              { label: "Projects", href: "/projects" },
+              { label: project.name, href: `/projects/${id}` },
+              { label: "Print" },
+            ]}
+          />
           <Button onClick={handlePrint} className="gap-2">
             <Printer className="h-4 w-4" />
             Print Summary

@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, FileText, Receipt, AlertCircle } from "lucide-react";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { FileText, Receipt, AlertCircle } from "lucide-react";
 import api from "@/lib/api";
 import type { Subcontract, ChangeOrder, PaymentApplication, PagedResult } from "@/lib/types";
 import {
@@ -71,13 +72,12 @@ export default function SubcontractDetailPage() {
   if (!subcontract) {
     return (
       <div className="space-y-6">
-        <Link
-          href="/contracts"
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Contracts
-        </Link>
+        <Breadcrumbs
+          items={[
+            { label: "Contracts", href: "/contracts" },
+            { label: "Not Found" },
+          ]}
+        />
         <Card>
           <CardContent className="py-12 text-center">
             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -97,13 +97,12 @@ export default function SubcontractDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link
-        href="/contracts"
-        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Contracts
-      </Link>
+      <Breadcrumbs
+        items={[
+          { label: "Contracts", href: "/contracts" },
+          { label: subcontract.subcontractorName },
+        ]}
+      />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">

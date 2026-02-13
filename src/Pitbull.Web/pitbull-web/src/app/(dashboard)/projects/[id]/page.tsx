@@ -14,6 +14,7 @@ import api from "@/lib/api";
 import { ProjectLaborSummary } from "@/components/projects/project-labor-summary";
 import { RfiCostWidget } from "@/components/rfis";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import type { AiProjectSummary, Project } from "@/lib/types";
 import {
   projectStatusBadgeClass,
@@ -109,6 +110,13 @@ export default function ProjectDetailPage({
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Projects", href: "/projects" },
+          { label: project.name },
+        ]}
+      />
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">

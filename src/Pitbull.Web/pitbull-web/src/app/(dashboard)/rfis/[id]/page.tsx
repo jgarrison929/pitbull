@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { RfiCostImpactSection } from "@/components/rfis";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import type { Rfi, UpdateRfiCommand, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
@@ -221,6 +222,13 @@ export default function RfiDetailPage({
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "RFIs", href: "/rfis" },
+          { label: `RFI #${String(rfi.number).padStart(3, "0")}` },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
