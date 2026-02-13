@@ -166,7 +166,8 @@ public class ArchitectureTests
     {
         // Projects module should not depend on Bids or other business modules
         // It can depend on Core (shared kernel)
-        var forbiddenDeps = new[] { "Pitbull.Bids", "Pitbull.Contracts", "Pitbull.Documents", "Pitbull.Billing", "Pitbull.Portal" };
+        // Exception: Contracts is allowed for RFI cost tracking (change orders linked to RFIs)
+        var forbiddenDeps = new[] { "Pitbull.Bids", "Pitbull.Documents", "Pitbull.Billing", "Pitbull.Portal" };
         foreach (var dep in forbiddenDeps)
         {
             var result = Types.InAssembly(_projectsAssembly)
