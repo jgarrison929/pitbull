@@ -1,5 +1,5 @@
-using Pitbull.Bids.Features.Shared;
 using Pitbull.Bids.Domain;
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Core.CQRS;
 
 namespace Pitbull.Bids.Features.CreateBid;

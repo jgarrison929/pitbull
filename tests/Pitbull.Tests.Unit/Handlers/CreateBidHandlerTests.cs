@@ -53,12 +53,12 @@ public class CreateBidHandlerTests
             DueDate: null,
             Owner: null,
             Description: null,
-            Items: new List<CreateBidItemDto>
-            {
+            Items:
+            [
                 new("Concrete Work", BidItemCategory.Material, 100m, 50m),
                 new("Framing Labor", BidItemCategory.Labor, 200m, 75m),
                 new("Electrical Sub", BidItemCategory.Subcontractor, 1m, 25_000m)
-            }
+            ]
         );
 
         // Act
@@ -113,7 +113,7 @@ public class CreateBidHandlerTests
             Number: "BID-EMPTY-001",
             EstimatedValue: 50_000m,
             BidDate: null, DueDate: null, Owner: null, Description: null,
-            Items: new List<CreateBidItemDto>()
+            Items: []
         );
 
         // Act

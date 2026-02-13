@@ -2,8 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
-using Pitbull.Bids.Features.Shared;
 using Pitbull.Bids.Features.CreateBid;
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Tests.Integration.Infrastructure;
 
@@ -55,14 +55,14 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
             DueDate: DateTime.UtcNow.Date.AddDays(7),
             Owner: "Estimator",
             Description: "created by integration test",
-            Items: new List<CreateBidItemDto>
-            {
+            Items:
+            [
                 new(
                     Description: "Concrete",
                     Category: BidItemCategory.Material,
                     Quantity: 10,
                     UnitCost: 12.34m)
-            });
+            ]);
 
         var createResp = await client.PostAsJsonAsync("/api/bids", create);
         if (createResp.StatusCode != HttpStatusCode.Created)

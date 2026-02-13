@@ -1,7 +1,7 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Npgsql;
 using Pitbull.Core.MultiTenancy;
-using System.Data.Common;
 
 namespace Pitbull.Core.Data;
 

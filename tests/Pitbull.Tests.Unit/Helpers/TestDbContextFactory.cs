@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Pitbull.Core.Data;
-using Pitbull.Core.MultiTenancy;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
+using Pitbull.Core.Data;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;

@@ -1,7 +1,7 @@
-using Pitbull.Bids.Features.Shared;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Bids.Domain;
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 
@@ -26,9 +26,9 @@ public sealed class ListBidsHandler(PitbullDbContext db)
         {
             var search = request.Search.ToLower();
             query = query.Where(b =>
-                b.Name.ToLower().Contains(search) ||
+                b.Name.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
                 b.Number.ToLower().Contains(search) ||
-                (b.Owner != null && b.Owner.ToLower().Contains(search)));
+                (b.Owner != null && b.Owner.Contains(search, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

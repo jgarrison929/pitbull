@@ -17,7 +17,7 @@ namespace Pitbull.Api.Controllers;
 public class AdminCompanyController : ControllerBase
 {
     // In-memory storage until DB migration is done
-    private static readonly Dictionary<Guid, CompanySettingsDto> _settings = new();
+    private static readonly Dictionary<Guid, CompanySettingsDto> _settings = [];
 
     /// <summary>
     /// Get company settings for current tenant

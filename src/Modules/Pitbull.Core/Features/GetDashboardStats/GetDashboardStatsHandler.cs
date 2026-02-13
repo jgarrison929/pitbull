@@ -1,8 +1,8 @@
+using System.Reflection;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
-using System.Reflection;
 
 namespace Pitbull.Core.Features.GetDashboardStats;
 
@@ -73,8 +73,7 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
             if (setMethod == null)
                 return (0, 0);
 
-            var dbSet = setMethod.Invoke(db, null) as IQueryable;
-            if (dbSet == null)
+            if (setMethod.Invoke(db, null) is not IQueryable dbSet)
                 return (0, 0);
 
             // Get count
@@ -105,8 +104,7 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
             if (setMethod == null)
                 return (0, 0);
 
-            var dbSet = setMethod.Invoke(db, null) as IQueryable;
-            if (dbSet == null)
+            if (setMethod.Invoke(db, null) is not IQueryable dbSet)
                 return (0, 0);
 
             // Get count
@@ -298,10 +296,9 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
             }
 
             // Sort by timestamp descending and take top 8
-            return activities
+            return [.. activities
                 .OrderByDescending(a => a.Timestamp)
-                .Take(8)
-                .ToList();
+                .Take(8)];
         }
         catch
         {

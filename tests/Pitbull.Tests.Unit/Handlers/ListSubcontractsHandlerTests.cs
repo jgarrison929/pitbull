@@ -8,7 +8,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class ListSubcontractsHandlerTests
 {
-    private async Task SeedSubcontracts(PitbullDbContext db, Guid projectId, int count)
+    private static async Task SeedSubcontracts(PitbullDbContext db, Guid projectId, int count)
     {
         for (int i = 1; i <= count; i++)
         {

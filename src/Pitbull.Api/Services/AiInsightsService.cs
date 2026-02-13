@@ -10,27 +10,19 @@ namespace Pitbull.Api.Services;
 /// <summary>
 /// AI-powered insights service using Claude for project analysis.
 /// </summary>
-public class AiInsightsService : IAiInsightsService
+public class AiInsightsService(
+    PitbullDbContext db,
+    IConfiguration configuration,
+    ILogger<AiInsightsService> logger,
+    IHttpClientFactory httpClientFactory) : IAiInsightsService
 {
-    private readonly PitbullDbContext _db;
-    private readonly IConfiguration _configuration;
-    private readonly ILogger<AiInsightsService> _logger;
-    private readonly HttpClient _httpClient;
+    private readonly PitbullDbContext _db = db;
+    private readonly IConfiguration _configuration = configuration;
+    private readonly ILogger<AiInsightsService> _logger = logger;
+    private readonly HttpClient _httpClient = httpClientFactory.CreateClient("Anthropic");
 
     private const string AnthropicApiUrl = "https://api.anthropic.com/v1/messages";
     private const string ModelId = "claude-sonnet-4-20250514";
-
-    public AiInsightsService(
-        PitbullDbContext db,
-        IConfiguration configuration,
-        ILogger<AiInsightsService> logger,
-        IHttpClientFactory httpClientFactory)
-    {
-        _db = db;
-        _configuration = configuration;
-        _logger = logger;
-        _httpClient = httpClientFactory.CreateClient("Anthropic");
-    }
 
     public async Task<AiProjectSummaryResult> GetProjectSummaryAsync(Guid projectId, CancellationToken cancellationToken = default)
     {
@@ -114,7 +106,7 @@ public class AiInsightsService : IAiInsightsService
             .Where(t => t.Status == TimeEntryStatus.Submitted)
             .Count(t => t.CreatedAt < DateTime.UtcNow.AddDays(-7));
 
-        var daysActive = timeEntries.Any()
+        var daysActive = timeEntries.Count != 0
             ? (int)(timeEntries.Max(t => t.Date).ToDateTime(TimeOnly.MinValue) -
                     timeEntries.Min(t => t.Date).ToDateTime(TimeOnly.MinValue)).TotalDays + 1
             : 0;
@@ -173,7 +165,7 @@ public class AiInsightsService : IAiInsightsService
             HoursByCostCode = hoursByCostCode.ToDictionary(x => x.Name, x => x.Hours),
             OldPendingApprovals = oldPendingApprovals,
             HoursTrendPercent = hoursTrend,
-            AssignedEmployeeNames = assignments.Select(a => $"{a.Employee.FullName} ({a.Role})").ToList()
+            AssignedEmployeeNames = [.. assignments.Select(a => $"{a.Employee.FullName} ({a.Role})")]
         };
     }
 

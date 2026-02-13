@@ -6,29 +6,21 @@ using Pitbull.Core.Data;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features;
 using Pitbull.RFIs.Features.CreateRfi;
-using Pitbull.RFIs.Features.UpdateRfi;
 using Pitbull.RFIs.Features.ListRfis;
+using Pitbull.RFIs.Features.UpdateRfi;
 
 namespace Pitbull.RFIs.Services;
 
-public class RfiService : IRfiService
+public class RfiService(
+    PitbullDbContext db,
+    IValidator<CreateRfiCommand> createValidator,
+    IValidator<UpdateRfiCommand> updateValidator,
+    ILogger<RfiService> logger) : IRfiService
 {
-    private readonly PitbullDbContext _db;
-    private readonly IValidator<CreateRfiCommand> _createValidator;
-    private readonly IValidator<UpdateRfiCommand> _updateValidator;
-    private readonly ILogger<RfiService> _logger;
-
-    public RfiService(
-        PitbullDbContext db,
-        IValidator<CreateRfiCommand> createValidator,
-        IValidator<UpdateRfiCommand> updateValidator,
-        ILogger<RfiService> logger)
-    {
-        _db = db;
-        _createValidator = createValidator;
-        _updateValidator = updateValidator;
-        _logger = logger;
-    }
+    private readonly PitbullDbContext _db = db;
+    private readonly IValidator<CreateRfiCommand> _createValidator = createValidator;
+    private readonly IValidator<UpdateRfiCommand> _updateValidator = updateValidator;
+    private readonly ILogger<RfiService> _logger = logger;
 
     public async Task<Result<RfiDto>> GetRfiAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -58,7 +50,7 @@ public class RfiService : IRfiService
         {
             var searchTerm = query.Search.ToLower();
             dbQuery = dbQuery.Where(r =>
-                r.Subject.ToLower().Contains(searchTerm) ||
+                r.Subject.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
                 r.Question.ToLower().Contains(searchTerm));
         }
 

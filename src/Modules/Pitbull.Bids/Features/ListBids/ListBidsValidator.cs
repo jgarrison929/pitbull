@@ -1,5 +1,5 @@
-using Pitbull.Bids.Features.Shared;
 using FluentValidation;
+using Pitbull.Bids.Features.Shared;
 
 namespace Pitbull.Bids.Features.ListBids;
 

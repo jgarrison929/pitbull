@@ -1,9 +1,9 @@
 using FluentAssertions;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
+using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
-using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 
@@ -387,7 +387,7 @@ public class ListTimeEntriesHandlerTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Items.First().EmployeeName.Should().Be("John Worker");
+        result.Value!.Items[0].EmployeeName.Should().Be("John Worker");
     }
 
     #region Helper Methods

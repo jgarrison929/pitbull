@@ -178,8 +178,5 @@ public sealed class UpdateTimeEntryHandler(PitbullDbContext db)
         };
     }
 
-    private static bool CanEditHours(TimeEntryStatus status)
-    {
-        return status == TimeEntryStatus.Draft || status == TimeEntryStatus.Submitted;
-    }
+    private static bool CanEditHours(TimeEntryStatus status) => status == TimeEntryStatus.Draft || status == TimeEntryStatus.Submitted;
 }

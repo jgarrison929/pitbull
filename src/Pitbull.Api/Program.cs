@@ -1,3 +1,14 @@
+using FluentValidation;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Server.IIS;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Pitbull.Api.Configuration;
 using Pitbull.Api.Demo;
 using Pitbull.Api.Features.SeedData;
@@ -5,25 +16,14 @@ using Pitbull.Api.Infrastructure;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
-using Pitbull.RFIs.Features.CreateRfi;
-using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Server.IIS;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-using HealthChecks.UI.Client;
+using Pitbull.RFIs.Features.CreateRfi;
+using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Serilog;
-using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -240,7 +240,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("Production", policy =>
         policy.WithOrigins(
                 builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? Array.Empty<string>())
+                ?? [])
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());

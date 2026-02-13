@@ -1,6 +1,6 @@
-using Pitbull.Bids.Features.Shared;
 using MediatR;
 using Pitbull.Bids.Domain;
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 

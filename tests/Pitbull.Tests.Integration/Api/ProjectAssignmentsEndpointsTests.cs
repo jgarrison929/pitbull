@@ -3,9 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Tests.Integration.Infrastructure;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
-using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
 
@@ -31,7 +31,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
 
     private static CreateProjectCommand CreateTestProjectCommand(string suffix) => new(
         Name: $"Test Project {suffix}",
-        Number: $"PRJ-{Guid.NewGuid():N}".Substring(0, 15),
+        Number: $"PRJ-{Guid.NewGuid():N}"[..15],
         Description: "Integration test project",
         Type: ProjectType.Commercial,
         Address: null,
@@ -114,7 +114,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
         // Create an employee
         var employeeResp = await client.PostAsJsonAsync("/api/employees", new
         {
-            employeeNumber = $"PA-{Guid.NewGuid():N}".Substring(0, 15),
+            employeeNumber = $"PA-{Guid.NewGuid():N}"[..15],
             firstName = "Assignment",
             lastName = "Test",
             classification = (int)EmployeeClassification.Hourly,
@@ -181,7 +181,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
         // Create employee
         var employeeResp = await client.PostAsJsonAsync("/api/employees", new
         {
-            employeeNumber = $"RM-{Guid.NewGuid():N}".Substring(0, 15),
+            employeeNumber = $"RM-{Guid.NewGuid():N}"[..15],
             firstName = "Remove",
             lastName = "Test",
             classification = (int)EmployeeClassification.Hourly,
@@ -253,7 +253,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
         // Create a valid employee
         var employeeResp = await client.PostAsJsonAsync("/api/employees", new
         {
-            employeeNumber = $"NP-{Guid.NewGuid():N}".Substring(0, 15),
+            employeeNumber = $"NP-{Guid.NewGuid():N}"[..15],
             firstName = "No",
             lastName = "Project",
             classification = (int)EmployeeClassification.Hourly,

@@ -1,8 +1,8 @@
 using FluentAssertions;
-using Pitbull.Api.Extensions;
-using Pitbull.Api.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Pitbull.Api.Extensions;
+using Pitbull.Api.Models;
 using Xunit;
 
 namespace Pitbull.Tests.Unit.Api;
@@ -29,8 +29,8 @@ public class ErrorResponseTests
         // Arrange
         var details = new Dictionary<string, string[]>
         {
-            ["Email"] = new[] { "Email is required" },
-            ["Password"] = new[] { "Password too weak", "Password must be 8+ chars" }
+            ["Email"] = ["Email is required"],
+            ["Password"] = ["Password too weak", "Password must be 8+ chars"]
         };
 
         // Act

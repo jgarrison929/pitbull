@@ -139,8 +139,10 @@ public class PitbullDbContext(
         {
             try
             {
+                // Convert GUID to string - set_config() requires text parameters
+                var tenantIdString = tenantContext.TenantId.ToString();
                 await Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT set_config('app.current_tenant', {tenantContext.TenantId.ToString()}, false);",
+                    $"SELECT set_config('app.current_tenant', {tenantIdString}, false);",
                     cancellationToken);
             }
             catch (Exception ex)

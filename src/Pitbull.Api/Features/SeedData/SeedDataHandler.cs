@@ -1350,47 +1350,47 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         if (title.Contains("superintendent") || title.Contains("foreman"))
         {
-            return laborCostCodes.Where(c =>
+            return [.. laborCostCodes.Where(c =>
                 c.Code.StartsWith("01-") // General conditions/supervision
-            ).ToList();
+            )];
         }
 
         if (title.Contains("carpenter"))
         {
-            return laborCostCodes.Where(c =>
+            return [.. laborCostCodes.Where(c =>
                 c.Code.StartsWith("06-") || // Carpentry
                 c.Code.StartsWith("03-")    // Concrete formwork
-            ).ToList();
+            )];
         }
 
         if (title.Contains("ironworker"))
         {
-            return laborCostCodes.Where(c =>
+            return [.. laborCostCodes.Where(c =>
                 c.Code.StartsWith("05-") || // Metals
                 c.Code.StartsWith("03-2")   // Rebar
-            ).ToList();
+            )];
         }
 
         if (title.Contains("operator"))
         {
-            return laborCostCodes.Where(c =>
+            return [.. laborCostCodes.Where(c =>
                 c.Code.StartsWith("02-") // Site work
-            ).ToList();
+            )];
         }
 
         if (title.Contains("finisher"))
         {
-            return laborCostCodes.Where(c =>
+            return [.. laborCostCodes.Where(c =>
                 c.Code.StartsWith("03-") // Concrete
-            ).ToList();
+            )];
         }
 
         // Laborers and apprentices can do various work
-        return laborCostCodes.Where(c =>
+        return [.. laborCostCodes.Where(c =>
             c.Code.StartsWith("02-") || // Site work
             c.Code.StartsWith("03-") || // Concrete
             c.Code.StartsWith("06-")    // Carpentry
-        ).ToList();
+        )];
     }
 
     /// <summary>
@@ -1401,21 +1401,21 @@ public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConf
         var descriptions = costCode.Code switch
         {
             "01-100" => new[] { "Project coordination and meetings", "Safety walk and documentation", "Subcontractor coordination" },
-            "01-200" => new[] { "Crew supervision and layout", "Quality inspection", "Schedule coordination" },
-            "01-300" => new[] { "Trade coordination", "Material staging", "Daily planning" },
-            "02-100" => new[] { "Excavation for footings", "Grading and compaction", "Utility trench work" },
-            "02-200" => new[] { "Utility trenching", "Pipe laying", "Backfill operations" },
-            "02-300" => new[] { "Backfill and compaction", "Grade work", "Site cleanup" },
-            "03-100" => new[] { "Formwork installation", "Form stripping", "Form preparation" },
-            "03-200" => new[] { "Rebar installation", "Rebar tying", "Dowel installation" },
-            "03-300" => new[] { "Concrete placement", "Pump setup and pour", "Vibrating and finishing" },
-            "03-400" => new[] { "Slab finishing", "Trowel work", "Curing application" },
-            "05-100" => new[] { "Steel erection", "Beam installation", "Connection work" },
-            "05-200" => new[] { "Misc metals installation", "Handrail work", "Embed plates" },
-            "06-100" => new[] { "Wall framing", "Blocking installation", "Sheathing work" },
-            "06-200" => new[] { "Trim installation", "Door hanging", "Cabinet install" },
-            "06-300" => new[] { "Floor framing", "Truss setting", "Deck installation" },
-            _ => new[] { "General work", "Site activities", "Project support" }
+            "01-200" => ["Crew supervision and layout", "Quality inspection", "Schedule coordination"],
+            "01-300" => ["Trade coordination", "Material staging", "Daily planning"],
+            "02-100" => ["Excavation for footings", "Grading and compaction", "Utility trench work"],
+            "02-200" => ["Utility trenching", "Pipe laying", "Backfill operations"],
+            "02-300" => ["Backfill and compaction", "Grade work", "Site cleanup"],
+            "03-100" => ["Formwork installation", "Form stripping", "Form preparation"],
+            "03-200" => ["Rebar installation", "Rebar tying", "Dowel installation"],
+            "03-300" => ["Concrete placement", "Pump setup and pour", "Vibrating and finishing"],
+            "03-400" => ["Slab finishing", "Trowel work", "Curing application"],
+            "05-100" => ["Steel erection", "Beam installation", "Connection work"],
+            "05-200" => ["Misc metals installation", "Handrail work", "Embed plates"],
+            "06-100" => ["Wall framing", "Blocking installation", "Sheathing work"],
+            "06-200" => ["Trim installation", "Door hanging", "Cabinet install"],
+            "06-300" => ["Floor framing", "Truss setting", "Deck installation"],
+            _ => ["General work", "Site activities", "Project support"]
         };
 
         return descriptions[random.Next(descriptions.Length)];

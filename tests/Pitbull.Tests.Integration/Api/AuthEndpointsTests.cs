@@ -39,8 +39,7 @@ public sealed class AuthEndpointsTests(PostgresFixture db) : IAsyncLifetime
     public async Task Get_me_returns_user_profile()
     {
         await db.ResetAsync();
-
-        var (client, userId, tenantId) = await _factory.CreateAuthenticatedClientAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/api/auth/me");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);

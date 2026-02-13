@@ -27,14 +27,14 @@ public class ArchitectureTests
     private readonly Assembly _rfisAssembly = typeof(CreateRfiCommand).Assembly;
     private readonly Assembly _timeTrackingAssembly = typeof(CreateTimeEntryCommand).Assembly;
 
-    private Assembly[] GetAllModuleAssemblies() => new[]
-    {
+    private Assembly[] GetAllModuleAssemblies() =>
+    [
         _projectsAssembly,
         _bidsAssembly,
         _contractsAssembly,
         _rfisAssembly,
         _timeTrackingAssembly
-    };
+    ];
 
     [Fact]
     public void Controllers_ShouldAll_HaveAuthorizeAttribute()

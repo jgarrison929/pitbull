@@ -8,7 +8,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class GetPaymentApplicationHandlerTests
 {
-    private async Task<PaymentApplication> CreateTestPaymentApplication(PitbullDbContext db)
+    private static async Task<PaymentApplication> CreateTestPaymentApplication(PitbullDbContext db)
     {
         var payApp = new PaymentApplication
         {

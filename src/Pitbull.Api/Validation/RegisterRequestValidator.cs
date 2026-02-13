@@ -37,6 +37,6 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 
         RuleFor(x => x.TenantId)
             .NotEqual(Guid.Empty).WithMessage("Invalid tenant ID")
-            .When(x => x.TenantId != default(Guid));
+            .When(x => x.TenantId != default);
     }
 }

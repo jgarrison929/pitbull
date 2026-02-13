@@ -28,7 +28,7 @@ public sealed class ListSubcontractsHandler(PitbullDbContext db)
         {
             var search = request.Search.ToLower();
             query = query.Where(s =>
-                s.SubcontractorName.ToLower().Contains(search) ||
+                s.SubcontractorName.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
                 s.SubcontractNumber.ToLower().Contains(search));
         }
 

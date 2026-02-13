@@ -159,7 +159,7 @@ public class AuthController(
                 await transaction.CommitAsync();
 
                 var token = await GenerateJwtTokenAsync(user);
-                actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
+                actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, [.. roles]));
             }
             catch
             {
@@ -223,7 +223,7 @@ public class AuthController(
         var roles = await roleSeeder.GetUserRolesAsync(user);
 
         var token = await GenerateJwtTokenAsync(user);
-        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
+        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, [.. roles]));
     }
 
     /// <summary>
@@ -323,7 +323,7 @@ public class AuthController(
             FirstName: user.FirstName,
             LastName: user.LastName,
             FullName: user.FullName,
-            Roles: roles.ToArray(),
+            Roles: [.. roles],
             TenantId: user.TenantId,
             TenantName: tenant?.Name ?? "Unknown",
             CreatedAt: user.CreatedAt,

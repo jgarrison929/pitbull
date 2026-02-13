@@ -5,7 +5,7 @@ namespace Pitbull.Api.Middleware;
 
 public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<RequestResponseLoggingMiddleware> logger)
 {
-    private static readonly string[] SensitiveFields = { "password", "token", "secret", "key" };
+    private static readonly string[] SensitiveFields = ["password", "token", "secret", "key"];
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -55,8 +55,8 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         var request = context.Request;
         var logData = new
         {
-            Method = request.Method,
-            Path = request.Path,
+            request.Method,
+            request.Path,
             QueryString = request.QueryString.ToString(),
             Headers = GetSafeHeaders(request.Headers),
             Body = await GetSafeRequestBodyAsync(request)
@@ -73,7 +73,7 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
 
         var logData = new
         {
-            StatusCode = context.Response.StatusCode,
+            context.Response.StatusCode,
             Headers = GetSafeHeaders(context.Response.Headers),
             Body = responseBody
         };
@@ -153,7 +153,7 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         return result;
     }
 
-    private Dictionary<string, string> GetSafeHeaders(IHeaderDictionary headers)
+    private static Dictionary<string, string> GetSafeHeaders(IHeaderDictionary headers)
     {
         var result = new Dictionary<string, string>();
         foreach (var header in headers)

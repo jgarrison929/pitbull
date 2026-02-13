@@ -1,7 +1,7 @@
 using FluentAssertions;
+using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.ListEmployees;
-using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 
@@ -133,7 +133,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(1);
-        result.Value.Items.First().FirstName.Should().Be("Alice");
+        result.Value.Items[0].FirstName.Should().Be("Alice");
     }
 
     [Fact]
@@ -154,7 +154,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(1);
-        result.Value.Items.First().LastName.Should().Be("Smith");
+        result.Value.Items[0].LastName.Should().Be("Smith");
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(1);
-        result.Value.Items.First().EmployeeNumber.Should().Be("EMP-003");
+        result.Value.Items[0].EmployeeNumber.Should().Be("EMP-003");
     }
 
     [Fact]
@@ -196,7 +196,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(1);
-        result.Value.Items.First().Email.Should().Contain("jane.smith");
+        result.Value.Items[0].Email.Should().Contain("jane.smith");
     }
 
     [Fact]
@@ -219,7 +219,7 @@ public class ListEmployeesHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(1);
-        result.Value.Items.First().FirstName.Should().Be("Alice");
+        result.Value.Items[0].FirstName.Should().Be("Alice");
     }
 
     [Fact]
@@ -374,8 +374,8 @@ public class ListEmployeesHandlerTests
 
     private static List<Employee> CreateTestEmployees()
     {
-        return new List<Employee>
-        {
+        return
+        [
             new Employee
             {
                 EmployeeNumber = "EMP-001",
@@ -432,6 +432,6 @@ public class ListEmployeesHandlerTests
                 Email = "charlie.brown@example.com",
                 IsActive = false
             }
-        };
+        ];
     }
 }

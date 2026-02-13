@@ -9,13 +9,13 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class CreatePaymentApplicationHandlerTests
 {
-    private async Task<Subcontract> CreateTestSubcontract(PitbullDbContext db, decimal value = 100000m, decimal retainagePercent = 10m)
+    private static async Task<Subcontract> CreateTestSubcontract(PitbullDbContext db, decimal value = 100000m, decimal retainagePercent = 10m)
     {
         var subcontract = new Subcontract
         {
             Id = Guid.NewGuid(),
             ProjectId = Guid.NewGuid(),
-            SubcontractNumber = $"SC-TEST-{Guid.NewGuid():N}".Substring(0, 20),
+            SubcontractNumber = $"SC-TEST-{Guid.NewGuid():N}"[..20],
             SubcontractorName = "Test Subcontractor",
             ScopeOfWork = "Test scope",
             OriginalValue = value,

@@ -1,36 +1,28 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Pitbull.Core.CQRS;
-using Pitbull.Core.Data;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
-using Pitbull.Bids.Features.Shared;
-using Pitbull.Bids.Features.CreateBid;
-using Pitbull.Bids.Features.UpdateBid;
-using Pitbull.Bids.Features.ListBids;
 using Pitbull.Bids.Features.ConvertBidToProject;
+using Pitbull.Bids.Features.CreateBid;
+using Pitbull.Bids.Features.ListBids;
+using Pitbull.Bids.Features.Shared;
+using Pitbull.Bids.Features.UpdateBid;
+using Pitbull.Core.CQRS;
+using Pitbull.Core.Data;
 
 namespace Pitbull.Bids.Services;
 
-public class BidService : IBidService
+public class BidService(
+    PitbullDbContext db,
+    IValidator<CreateBidCommand> createValidator,
+    IValidator<UpdateBidCommand> updateValidator,
+    ILogger<BidService> logger) : IBidService
 {
-    private readonly PitbullDbContext _db;
-    private readonly IValidator<CreateBidCommand> _createValidator;
-    private readonly IValidator<UpdateBidCommand> _updateValidator;
-    private readonly ILogger<BidService> _logger;
-
-    public BidService(
-        PitbullDbContext db,
-        IValidator<CreateBidCommand> createValidator,
-        IValidator<UpdateBidCommand> updateValidator,
-        ILogger<BidService> logger)
-    {
-        _db = db;
-        _createValidator = createValidator;
-        _updateValidator = updateValidator;
-        _logger = logger;
-    }
+    private readonly PitbullDbContext _db = db;
+    private readonly IValidator<CreateBidCommand> _createValidator = createValidator;
+    private readonly IValidator<UpdateBidCommand> _updateValidator = updateValidator;
+    private readonly ILogger<BidService> _logger = logger;
 
     public async Task<Result<BidDto>> GetBidAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -57,7 +49,7 @@ public class BidService : IBidService
         {
             var searchTerm = query.Search.ToLower();
             dbQuery = dbQuery.Where(b =>
-                b.Name.ToLower().Contains(searchTerm) ||
+                b.Name.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
                 b.Number.ToLower().Contains(searchTerm));
         }
 
@@ -241,7 +233,7 @@ public class BidService : IBidService
                 item.Quantity,
                 item.UnitCost,
                 item.TotalCost
-            )).ToArray() ?? Array.Empty<BidItemDto>(),
+            )).ToArray() ?? [],
             bid.CreatedAt
         );
     }

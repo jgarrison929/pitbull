@@ -8,7 +8,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class UpdatePaymentApplicationHandlerTests
 {
-    private async Task<(Subcontract subcontract, PaymentApplication payApp)> CreateTestData(PitbullDbContext db)
+    private static async Task<(Subcontract subcontract, PaymentApplication payApp)> CreateTestData(PitbullDbContext db)
     {
         var subcontract = new Subcontract
         {

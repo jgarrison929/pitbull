@@ -75,8 +75,7 @@ public sealed class AdminUsersEndpointsTests(PostgresFixture db) : IAsyncLifetim
     public async Task Get_user_by_nonexistent_id_returns_404()
     {
         await db.ResetAsync();
-
-        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var nonExistentId = Guid.NewGuid();
         var resp = await client.GetAsync($"/api/admin/users/{nonExistentId}");
@@ -88,8 +87,7 @@ public sealed class AdminUsersEndpointsTests(PostgresFixture db) : IAsyncLifetim
     public async Task Get_roles_returns_available_roles()
     {
         await db.ResetAsync();
-
-        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/api/admin/users/roles");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
@@ -103,8 +101,7 @@ public sealed class AdminUsersEndpointsTests(PostgresFixture db) : IAsyncLifetim
     public async Task List_users_supports_search_filter()
     {
         await db.ResetAsync();
-
-        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         // Search for non-existent user
         var resp = await client.GetAsync("/api/admin/users?search=NONEXISTENT12345");

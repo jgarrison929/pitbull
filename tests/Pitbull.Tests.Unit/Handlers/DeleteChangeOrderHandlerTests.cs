@@ -9,7 +9,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class DeleteChangeOrderHandlerTests
 {
-    private async Task<(Subcontract sub, ChangeOrder co)> CreateTestData(PitbullDbContext db, ChangeOrderStatus status = ChangeOrderStatus.Pending)
+    private static async Task<(Subcontract sub, ChangeOrder co)> CreateTestData(PitbullDbContext db, ChangeOrderStatus status = ChangeOrderStatus.Pending)
     {
         var subcontract = new Subcontract
         {

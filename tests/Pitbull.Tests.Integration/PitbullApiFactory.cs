@@ -1,7 +1,7 @@
-using Testcontainers.PostgreSql;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Testcontainers.PostgreSql;
 
 namespace Pitbull.Tests.Integration;
 
@@ -33,10 +33,7 @@ public sealed class PitbullTestContainersFactory : WebApplicationFactory<Program
         });
     }
 
-    public async Task InitializeAsync()
-    {
-        await _dbContainer.StartAsync();
-    }
+    public async Task InitializeAsync() => await _dbContainer.StartAsync();
 
     public new async Task DisposeAsync()
     {

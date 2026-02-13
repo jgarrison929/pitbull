@@ -25,8 +25,10 @@ public class TenantMiddleware(RequestDelegate next, ILogger<TenantMiddleware> lo
 
             // Set PostgreSQL session variable for RLS.
             // NOTE: Using set_config() avoids issues with parameterizing SET statements.
+            // The tenant ID must be converted to string since set_config() requires text parameters.
+            var tenantIdString = tenantId.Value.ToString();
             await db.Database.ExecuteSqlInterpolatedAsync(
-                $"SELECT set_config('app.current_tenant', {tenantId.Value.ToString()}, false);");
+                $"SELECT set_config('app.current_tenant', {tenantIdString}, false);");
 
             logger.LogDebug("Tenant resolved: {TenantId}", tenantId.Value);
         }

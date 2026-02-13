@@ -29,8 +29,8 @@ public sealed class ListChangeOrdersHandler(PitbullDbContext db)
         {
             var search = request.Search.ToLower();
             query = query.Where(co =>
-                co.Title.ToLower().Contains(search) ||
-                co.ChangeOrderNumber.ToLower().Contains(search));
+                co.Title.Contains(search, StringComparison.CurrentCultureIgnoreCase) ||
+                co.ChangeOrderNumber.Contains(search, StringComparison.CurrentCultureIgnoreCase));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);

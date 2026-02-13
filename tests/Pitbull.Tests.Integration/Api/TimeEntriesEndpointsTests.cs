@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Pitbull.Tests.Integration.Infrastructure;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
-using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
 
@@ -54,7 +54,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         // Create an employee
         var createEmployee = new
         {
-            employeeNumber = $"EMP-{Guid.NewGuid():N}".Substring(0, 15),
+            employeeNumber = $"EMP-{Guid.NewGuid():N}"[..15],
             firstName = "Integration",
             lastName = "Worker",
             email = "worker@test.com",
@@ -93,7 +93,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         // First create an employee
         var employeeResp = await client.PostAsJsonAsync("/api/employees", new
         {
-            employeeNumber = $"TE-{Guid.NewGuid():N}".Substring(0, 15),
+            employeeNumber = $"TE-{Guid.NewGuid():N}"[..15],
             firstName = "Time",
             lastName = "Worker",
             classification = (int)EmployeeClassification.Hourly,
@@ -106,7 +106,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         var projectResp = await client.PostAsJsonAsync("/api/projects", new
         {
             name = "Time Entry Test Project",
-            number = $"PRJ-{Guid.NewGuid():N}".Substring(0, 15),
+            number = $"PRJ-{Guid.NewGuid():N}"[..15],
             type = 0, // Commercial
             contractAmount = 100000m
         });
@@ -158,7 +158,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         // Parse cost code ID from response
         var costCodeStart = costCodesJson.IndexOf("\"id\":\"") + 6;
         var costCodeEnd = costCodesJson.IndexOf("\"", costCodeStart);
-        costCodeId = Guid.Parse(costCodesJson.Substring(costCodeStart, costCodeEnd - costCodeStart));
+        costCodeId = Guid.Parse(costCodesJson[costCodeStart..costCodeEnd]);
 
         // Create time entry
         var createEntry = new
@@ -200,7 +200,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         // Create employee in Tenant A
         var createResp = await clientTenantA.PostAsJsonAsync("/api/employees", new
         {
-            employeeNumber = $"ISO-{Guid.NewGuid():N}".Substring(0, 15),
+            employeeNumber = $"ISO-{Guid.NewGuid():N}"[..15],
             firstName = "Isolated",
             lastName = "Employee",
             classification = (int)EmployeeClassification.Hourly,
@@ -222,7 +222,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
 
         var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
-        var employeeNumber = $"DUP-{Guid.NewGuid():N}".Substring(0, 15);
+        var employeeNumber = $"DUP-{Guid.NewGuid():N}"[..15];
 
         // Create first employee
         var resp1 = await client.PostAsJsonAsync("/api/employees", new
@@ -320,7 +320,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         var projectResp = await client.PostAsJsonAsync("/api/projects", new
         {
             name = "ByProject Test Project",
-            number = $"BPT-{Guid.NewGuid():N}".Substring(0, 15),
+            number = $"BPT-{Guid.NewGuid():N}"[..15],
             type = 0,
             contractAmount = 50000m
         });

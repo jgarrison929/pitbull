@@ -10,9 +10,9 @@ using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Projects.Features.DeleteProject;
 using Pitbull.Projects.Features.GetProject;
+using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
-using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Services;
 
 namespace Pitbull.Api.Controllers;

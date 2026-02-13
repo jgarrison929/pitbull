@@ -1,9 +1,9 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Projects.Domain;
+using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.RemoveEmployeeFromProject;
-using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 

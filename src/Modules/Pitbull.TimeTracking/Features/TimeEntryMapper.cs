@@ -35,8 +35,5 @@ public static class TimeEntryMapper
         );
     }
 
-    public static List<TimeEntryDto> ToDto(IEnumerable<TimeEntry> timeEntries)
-    {
-        return timeEntries.Select(ToDto).ToList();
-    }
+    public static List<TimeEntryDto> ToDto(IEnumerable<TimeEntry> timeEntries) => [.. timeEntries.Select(ToDto)];
 }

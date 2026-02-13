@@ -109,10 +109,9 @@ public sealed class RoleSeeder(
         var roles = await userManager.GetRolesAsync(user);
         var prefix = $"{user.TenantId}:";
 
-        return roles
+        return [.. roles
             .Where(r => r.StartsWith(prefix))
-            .Select(r => r[prefix.Length..])
-            .ToList();
+            .Select(r => r[prefix.Length..])];
     }
 
     /// <summary>

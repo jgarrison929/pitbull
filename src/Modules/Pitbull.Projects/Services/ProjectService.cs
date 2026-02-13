@@ -16,27 +16,18 @@ namespace Pitbull.Projects.Services;
 /// Direct service implementation for project operations, replacing MediatR handlers.
 /// Provides clean, testable methods for all project-related business logic.
 /// </summary>
-public class ProjectService : IProjectService
+public class ProjectService(
+    PitbullDbContext db,
+    IValidator<CreateProjectCommand> createValidator,
+    IValidator<UpdateProjectCommand> updateValidator,
+    IHttpContextAccessor? httpContextAccessor,
+    ILogger<ProjectService> logger) : IProjectService
 {
-    private readonly PitbullDbContext _db;
-    private readonly IValidator<CreateProjectCommand> _createValidator;
-    private readonly IValidator<UpdateProjectCommand> _updateValidator;
-    private readonly IHttpContextAccessor? _httpContextAccessor;
-    private readonly ILogger<ProjectService> _logger;
-
-    public ProjectService(
-        PitbullDbContext db,
-        IValidator<CreateProjectCommand> createValidator,
-        IValidator<UpdateProjectCommand> updateValidator,
-        IHttpContextAccessor? httpContextAccessor,
-        ILogger<ProjectService> logger)
-    {
-        _db = db;
-        _createValidator = createValidator;
-        _updateValidator = updateValidator;
-        _httpContextAccessor = httpContextAccessor;
-        _logger = logger;
-    }
+    private readonly PitbullDbContext _db = db;
+    private readonly IValidator<CreateProjectCommand> _createValidator = createValidator;
+    private readonly IValidator<UpdateProjectCommand> _updateValidator = updateValidator;
+    private readonly IHttpContextAccessor? _httpContextAccessor = httpContextAccessor;
+    private readonly ILogger<ProjectService> _logger = logger;
 
     private string GetCurrentUserId()
     {
@@ -75,9 +66,9 @@ public class ProjectService : IProjectService
         {
             var searchTerm = listQuery.Search.ToLower();
             dbQuery = dbQuery.Where(p =>
-                p.Name.ToLower().Contains(searchTerm) ||
+                p.Name.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase) ||
                 p.Number.ToLower().Contains(searchTerm) ||
-                (p.ClientName != null && p.ClientName.ToLower().Contains(searchTerm)));
+                (p.ClientName != null && p.ClientName.Contains(searchTerm, StringComparison.CurrentCultureIgnoreCase)));
         }
 
         if (listQuery.Status.HasValue)

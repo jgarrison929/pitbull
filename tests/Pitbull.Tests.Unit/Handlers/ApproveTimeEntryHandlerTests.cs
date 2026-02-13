@@ -1,9 +1,9 @@
 using FluentAssertions;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
+using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.ApproveTimeEntry;
-using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 

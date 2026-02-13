@@ -1,5 +1,5 @@
-using Pitbull.Bids.Features.Shared;
 using FluentValidation;
+using Pitbull.Bids.Features.Shared;
 
 namespace Pitbull.Bids.Features.UpdateBid;
 
@@ -59,6 +59,6 @@ public class UpdateBidValidator : AbstractValidator<UpdateBidCommand>
 
             item.RuleFor(i => i.UnitCost)
                 .GreaterThanOrEqualTo(0).WithMessage("Unit cost cannot be negative");
-        }).When(x => x.Items != null && x.Items.Any());
+        }).When(x => x.Items != null && x.Items.Count != 0);
     }
 }

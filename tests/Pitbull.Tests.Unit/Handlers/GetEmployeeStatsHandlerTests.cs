@@ -1,6 +1,6 @@
 using FluentAssertions;
-using Pitbull.TimeTracking.Features.GetEmployeeStats;
 using Pitbull.Tests.Unit.Helpers;
+using Pitbull.TimeTracking.Features.GetEmployeeStats;
 
 namespace Pitbull.Tests.Unit.Handlers;
 

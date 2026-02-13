@@ -93,7 +93,7 @@ public sealed class UpdateBidValidatorTests
     [Fact]
     public void Validate_WithAllStatuses_ShouldNotHaveError()
     {
-        foreach (BidStatus status in Enum.GetValues(typeof(BidStatus)))
+        foreach (BidStatus status in Enum.GetValues<BidStatus>())
         {
             var command = CreateValidCommand(status: status);
             var result = _validator.TestValidate(command);

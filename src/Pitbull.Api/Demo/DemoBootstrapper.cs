@@ -42,9 +42,11 @@ public sealed class DemoBootstrapper(
         // Ensure it is set on the same connection used for the seed operation.
         // Use set_config() instead of SET LOCAL because it supports parameterized queries.
         // Third param 'true' makes it transaction-local (same as SET LOCAL).
+        // Convert GUID to string - set_config() requires text parameters.
+        var tenantIdString = tenant.Id.ToString();
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT set_config('app.current_tenant', {tenant.Id.ToString()}, true)",
+            $"SELECT set_config('app.current_tenant', {tenantIdString}, true)",
             cancellationToken);
 
         // Seed domain data (projects/bids/etc). This is idempotent per tenant.

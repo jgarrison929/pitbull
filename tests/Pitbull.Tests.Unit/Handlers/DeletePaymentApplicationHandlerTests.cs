@@ -9,7 +9,7 @@ namespace Pitbull.Tests.Unit.Handlers;
 
 public class DeletePaymentApplicationHandlerTests
 {
-    private async Task<(Subcontract sub, PaymentApplication pa)> CreateTestData(PitbullDbContext db, PaymentApplicationStatus status = PaymentApplicationStatus.Draft)
+    private static async Task<(Subcontract sub, PaymentApplication pa)> CreateTestData(PitbullDbContext db, PaymentApplicationStatus status = PaymentApplicationStatus.Draft)
     {
         var subcontract = new Subcontract
         {

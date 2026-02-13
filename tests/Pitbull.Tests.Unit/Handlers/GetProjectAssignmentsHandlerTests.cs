@@ -1,10 +1,10 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Projects.Domain;
-using Pitbull.TimeTracking.Domain;
-using Pitbull.TimeTracking.Features.GetProjectAssignments;
-using Pitbull.TimeTracking.Features.GetEmployeeProjects;
 using Pitbull.Tests.Unit.Helpers;
+using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Features.GetEmployeeProjects;
+using Pitbull.TimeTracking.Features.GetProjectAssignments;
 
 namespace Pitbull.Tests.Unit.Handlers;
 

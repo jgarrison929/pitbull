@@ -94,7 +94,7 @@ public class ListRfisHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().BeInDescendingOrder(r => r.Number);
-        result.Value.Items.First().Number.Should().Be(3);
+        result.Value.Items[0].Number.Should().Be(3);
     }
 
     [Fact]
@@ -268,8 +268,8 @@ public class ListRfisHandlerTests
         result.Value.Page.Should().Be(2);
         result.Value.PageSize.Should().Be(5);
         // Since ordered by Number descending: 15,14,13,12,11 on page 1, then 10,9,8,7,6 on page 2
-        result.Value.Items.First().Number.Should().Be(10);
-        result.Value.Items.Last().Number.Should().Be(6);
+        result.Value.Items[0].Number.Should().Be(10);
+        result.Value.Items[result.Value.Items.Count - 1].Number.Should().Be(6);
     }
 
     [Fact]
@@ -303,7 +303,7 @@ public class ListRfisHandlerTests
         // Assert
         result.IsSuccess.Should().BeTrue();
         result.Value!.TotalCount.Should().Be(1);
-        result.Value.Items.First().Subject.Should().Be("Concrete foundation");
+        result.Value.Items[0].Subject.Should().Be("Concrete foundation");
     }
 
     [Fact]

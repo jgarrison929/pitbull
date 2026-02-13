@@ -6,11 +6,11 @@ using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
-using Pitbull.TimeTracking.Features.GetTimeEntry;
+using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
+using Pitbull.TimeTracking.Features.GetTimeEntry;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
-using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using static Pitbull.TimeTracking.Features.GetLaborCostReport.GetLaborCostReportQuery;
 
 namespace Pitbull.Api.Controllers;
