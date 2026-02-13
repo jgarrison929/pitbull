@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -66,13 +67,16 @@ export default function TimeTrackingApprovalPage() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
+  // Selection for bulk actions
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // Selection and actions
   const [selectedEntry, setSelectedEntry] = useState<TimeEntry | null>(null);
   const [approverId, setApproverId] = useState<string>("");
   const [rejectReason, setRejectReason] = useState<string>("");
   const [approvalComment, setApprovalComment] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [dialogMode, setDialogMode] = useState<"approve" | "reject" | null>(
+  const [dialogMode, setDialogMode] = useState<"approve" | "reject" | "bulk-approve" | "bulk-reject" | null>(
     null
   );
 
@@ -90,6 +94,8 @@ export default function TimeTrackingApprovalPage() {
         `/api/time-entries?${params.toString()}`
       );
       setEntries(result.items);
+      // Clear selection when entries change
+      setSelectedIds(new Set());
     } catch {
       toast.error("Failed to load time entries");
     } finally {
@@ -125,6 +131,32 @@ export default function TimeTrackingApprovalPage() {
     fetchEntries();
   }, [fetchEntries]);
 
+  // Selection handlers
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === entries.length) {
+      // Deselect all
+      setSelectedIds(new Set());
+    } else {
+      // Select all
+      setSelectedIds(new Set(entries.map((e) => e.id)));
+    }
+  };
+
+  const isAllSelected = entries.length > 0 && selectedIds.size === entries.length;
+  const isSomeSelected = selectedIds.size > 0 && selectedIds.size < entries.length;
+
   const openApproveDialog = (entry: TimeEntry) => {
     setSelectedEntry(entry);
     setApprovalComment("");
@@ -135,6 +167,16 @@ export default function TimeTrackingApprovalPage() {
     setSelectedEntry(entry);
     setRejectReason("");
     setDialogMode("reject");
+  };
+
+  const openBulkApproveDialog = () => {
+    setApprovalComment("");
+    setDialogMode("bulk-approve");
+  };
+
+  const openBulkRejectDialog = () => {
+    setRejectReason("");
+    setDialogMode("bulk-reject");
   };
 
   const closeDialog = () => {
@@ -193,8 +235,82 @@ export default function TimeTrackingApprovalPage() {
     }
   };
 
+  const handleBulkApprove = async () => {
+    if (!approverId || selectedIds.size === 0) return;
+    setIsSubmitting(true);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        await api(`/api/time-entries/${id}/approve`, {
+          method: "POST",
+          body: {
+            approverId,
+            comments: approvalComment || undefined,
+          },
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Approved ${successCount} time ${successCount === 1 ? "entry" : "entries"}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to approve ${failCount} ${failCount === 1 ? "entry" : "entries"}`);
+    }
+
+    closeDialog();
+    fetchEntries();
+    setIsSubmitting(false);
+  };
+
+  const handleBulkReject = async () => {
+    if (!approverId || selectedIds.size === 0 || !rejectReason.trim()) {
+      toast.error("Rejection reason is required");
+      return;
+    }
+    setIsSubmitting(true);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        await api(`/api/time-entries/${id}/reject`, {
+          method: "POST",
+          body: {
+            approverId,
+            reason: rejectReason,
+          },
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Rejected ${successCount} time ${successCount === 1 ? "entry" : "entries"}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to reject ${failCount} ${failCount === 1 ? "entry" : "entries"}`);
+    }
+
+    closeDialog();
+    fetchEntries();
+    setIsSubmitting(false);
+  };
+
   // Calculate totals
   const totalHours = entries.reduce((sum, e) => sum + e.totalHours, 0);
+  const selectedHours = entries
+    .filter((e) => selectedIds.has(e.id))
+    .reduce((sum, e) => sum + e.totalHours, 0);
 
   return (
     <div className="space-y-6">
@@ -302,6 +418,43 @@ export default function TimeTrackingApprovalPage() {
         </div>
       )}
 
+      {/* Bulk Actions Bar */}
+      {!isLoading && entries.length > 0 && selectedIds.size > 0 && (
+        <Card className="bg-muted/50">
+          <CardContent className="py-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="text-sm">
+                <span className="font-medium">{selectedIds.size}</span>{" "}
+                {selectedIds.size === 1 ? "entry" : "entries"} selected
+                <span className="text-muted-foreground ml-2">
+                  ({formatHours(selectedHours)} hours)
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={openBulkApproveDialog}
+                  disabled={!approverId}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Approve Selected
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={openBulkRejectDialog}
+                  disabled={!approverId}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Reject Selected
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Pending Entries Table */}
       <Card>
         <CardHeader>
@@ -314,6 +467,7 @@ export default function TimeTrackingApprovalPage() {
               <div className="hidden sm:block">
                 <TableSkeleton
                   headers={[
+                    "",
                     "Date",
                     "Employee",
                     "Project",
@@ -338,70 +492,81 @@ export default function TimeTrackingApprovalPage() {
                 {entries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="border rounded-lg p-4 space-y-3"
+                    className={`border rounded-lg p-4 space-y-3 ${
+                      selectedIds.has(entry.id) ? "border-primary bg-primary/5" : ""
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <Checkbox
+                        checked={selectedIds.has(entry.id)}
+                        onCheckedChange={() => toggleSelection(entry.id)}
+                        className="mt-1"
+                      />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">
-                          {entry.employeeName}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(entry.date)}
-                        </p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">
+                              {entry.employeeName}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(entry.date)}
+                            </p>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className={`${timeEntryStatusBadgeClass(entry.status)} text-xs shrink-0`}
+                          >
+                            {timeEntryStatusLabel(entry.status)}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                          <div>
+                            <span className="text-muted-foreground text-xs">
+                              Project
+                            </span>
+                            <p className="font-medium truncate">
+                              {entry.projectNumber}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground text-xs">
+                              Hours
+                            </span>
+                            <p className="font-medium font-mono">
+                              {formatHours(entry.totalHours)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-2">
+                          {entry.costCodeDescription}
+                        </div>
+                        {entry.description && (
+                          <p className="text-xs text-muted-foreground italic mt-1">
+                            {entry.description}
+                          </p>
+                        )}
+                        <div className="flex gap-2 pt-3">
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => openApproveDialog(entry)}
+                            disabled={!approverId}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="flex-1"
+                            onClick={() => openRejectDialog(entry)}
+                            disabled={!approverId}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </Button>
+                        </div>
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className={`${timeEntryStatusBadgeClass(entry.status)} text-xs shrink-0`}
-                      >
-                        {timeEntryStatusLabel(entry.status)}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground text-xs">
-                          Project
-                        </span>
-                        <p className="font-medium truncate">
-                          {entry.projectNumber}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs">
-                          Hours
-                        </span>
-                        <p className="font-medium font-mono">
-                          {formatHours(entry.totalHours)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {entry.costCodeDescription}
-                    </div>
-                    {entry.description && (
-                      <p className="text-xs text-muted-foreground italic">
-                        {entry.description}
-                      </p>
-                    )}
-                    <div className="flex gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => openApproveDialog(entry)}
-                        disabled={!approverId}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="flex-1"
-                        onClick={() => openRejectDialog(entry)}
-                        disabled={!approverId}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -412,6 +577,18 @@ export default function TimeTrackingApprovalPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-[40px]">
+                        <Checkbox
+                          checked={isAllSelected}
+                          ref={(el) => {
+                            if (el) {
+                              (el as HTMLButtonElement & { indeterminate?: boolean }).indeterminate = isSomeSelected;
+                            }
+                          }}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Employee</TableHead>
                       <TableHead>Project</TableHead>
@@ -423,7 +600,17 @@ export default function TimeTrackingApprovalPage() {
                   </TableHeader>
                   <TableBody>
                     {entries.map((entry) => (
-                      <TableRow key={entry.id}>
+                      <TableRow
+                        key={entry.id}
+                        className={selectedIds.has(entry.id) ? "bg-primary/5" : ""}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            checked={selectedIds.has(entry.id)}
+                            onCheckedChange={() => toggleSelection(entry.id)}
+                            aria-label={`Select time entry for ${entry.employeeName}`}
+                          />
+                        </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {formatDate(entry.date)}
                         </TableCell>
@@ -476,7 +663,7 @@ export default function TimeTrackingApprovalPage() {
         </CardContent>
       </Card>
 
-      {/* Approve Dialog */}
+      {/* Approve Dialog (single) */}
       <Dialog
         open={dialogMode === "approve"}
         onOpenChange={(open) => !open && closeDialog()}
@@ -539,7 +726,7 @@ export default function TimeTrackingApprovalPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reject Dialog */}
+      {/* Reject Dialog (single) */}
       <Dialog
         open={dialogMode === "reject"}
         onOpenChange={(open) => !open && closeDialog()}
@@ -599,6 +786,116 @@ export default function TimeTrackingApprovalPage() {
               loadingText="Rejecting..."
             >
               Reject
+            </LoadingButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Approve Dialog */}
+      <Dialog
+        open={dialogMode === "bulk-approve"}
+        onOpenChange={(open) => !open && closeDialog()}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve {selectedIds.size} Time {selectedIds.size === 1 ? "Entry" : "Entries"}</DialogTitle>
+            <DialogDescription>
+              This will approve all selected time entries.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg bg-muted p-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Entries:</span>
+                <span className="font-medium">{selectedIds.size}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Hours:</span>
+                <span className="font-mono font-medium">
+                  {formatHours(selectedHours)}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bulkApprovalComment">
+                Comment (optional, applies to all)
+              </Label>
+              <Textarea
+                id="bulkApprovalComment"
+                value={approvalComment}
+                onChange={(e) => setApprovalComment(e.target.value)}
+                placeholder="Add any notes about this approval..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <LoadingButton
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleBulkApprove}
+              loading={isSubmitting}
+              loadingText="Approving..."
+            >
+              Approve All
+            </LoadingButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Reject Dialog */}
+      <Dialog
+        open={dialogMode === "bulk-reject"}
+        onOpenChange={(open) => !open && closeDialog()}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject {selectedIds.size} Time {selectedIds.size === 1 ? "Entry" : "Entries"}</DialogTitle>
+            <DialogDescription>
+              This will reject all selected time entries.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="rounded-lg bg-muted p-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Entries:</span>
+                <span className="font-medium">{selectedIds.size}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Hours:</span>
+                <span className="font-mono font-medium">
+                  {formatHours(selectedHours)}
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bulkRejectReason">
+                Reason for rejection * (applies to all)
+              </Label>
+              <Textarea
+                id="bulkRejectReason"
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Explain why these entries are being rejected..."
+                rows={3}
+                required
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <LoadingButton
+              variant="destructive"
+              onClick={handleBulkReject}
+              disabled={!rejectReason.trim()}
+              loading={isSubmitting}
+              loadingText="Rejecting..."
+            >
+              Reject All
             </LoadingButton>
           </DialogFooter>
         </DialogContent>
