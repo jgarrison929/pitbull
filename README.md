@@ -19,11 +19,11 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export
 - 📋 **Next:** Documentation polish, UAT preparation
 
-**Recent Wins (Feb 12, 2026):**
-- **🚀 v0.10.18:** Security hardening release with rate limiting on all admin controllers
-- **🔒 Security Docs:** Updated SECURITY.md with comprehensive implemented features
-- **📚 Best Practices:** Reorganized Known Issues section (Open/Resolved tracking)
-- **🧹 Code Quality:** ESLint warnings resolved, codebase clean
+**Recent Wins (Feb 13, 2026):**
+- **🚀 v0.10.21:** DemoBootstrapper fix for PostgreSQL SET LOCAL issue
+- **📚 Documentation:** Known Issues section clarified (domain events infrastructure complete)
+- **🔧 Code Quality:** BidDto/BidMapper moved to Features/Shared for consistency
+- **🔒 Security:** Rate limiting on all 19 controllers, request size limits enforced
 
 ## Stack
 
