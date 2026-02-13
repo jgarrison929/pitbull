@@ -24,10 +24,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### 🏗️ Infrastructure
 
-- **Architecture:** Removed MediatR from 7 controllers (Contracts, Bids, RFIs, Projects, Employees)
+- **Architecture:** 🎉 **MediatR removal COMPLETE** - Entire codebase is now MediatR-free!
+  - Removed MediatR from ALL 12 controllers (Issue #118)
+  - Final batch: DashboardController, RfisController, TimeEntriesController, ProjectAssignmentsController, PayPeriodsController
+  - TimeEntriesController: 9 handler usages consolidated into TimeEntryService
+  - ProjectAssignmentsController: -307 lines of code
+  - PayPeriodsController: 7 handlers deleted
   - Direct service injection improves testability and debugging
   - Preserves CQRS patterns without message bus overhead
-  - 58% of controller migration complete (7/12)
   - New `IEmployeeService` with full CRUD + stats operations
 
 - **Demo Environment:** Fixed PostgreSQL session variable handling
