@@ -1,5 +1,6 @@
-using Pitbull.Core.CQRS;
-
 namespace Pitbull.RFIs.Features.GetRfi;
 
-public record GetRfiQuery(Guid ProjectId, Guid Id) : IQuery<RfiDto>;
+/// <summary>
+/// Query parameters for retrieving a single RFI. Used by RfiService.
+/// </summary>
+public record GetRfiQuery(Guid ProjectId, Guid Id);

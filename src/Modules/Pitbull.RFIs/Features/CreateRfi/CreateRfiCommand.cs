@@ -1,8 +1,10 @@
-using Pitbull.Core.CQRS;
 using Pitbull.RFIs.Domain;
 
 namespace Pitbull.RFIs.Features.CreateRfi;
 
+/// <summary>
+/// Command for creating a new RFI. Used by RfiService.
+/// </summary>
 public record CreateRfiCommand(
     Guid ProjectId,
     string Subject,
@@ -14,4 +16,4 @@ public record CreateRfiCommand(
     Guid? BallInCourtUserId,
     string? BallInCourtName,
     string? CreatedByName
-) : ICommand<RfiDto>;
+);

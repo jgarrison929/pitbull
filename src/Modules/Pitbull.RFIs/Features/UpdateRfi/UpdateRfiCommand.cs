@@ -1,8 +1,10 @@
-using Pitbull.Core.CQRS;
 using Pitbull.RFIs.Domain;
 
 namespace Pitbull.RFIs.Features.UpdateRfi;
 
+/// <summary>
+/// Command for updating an existing RFI. Used by RfiService.
+/// </summary>
 public record UpdateRfiCommand(
     Guid Id,
     Guid ProjectId,
@@ -16,4 +18,4 @@ public record UpdateRfiCommand(
     string? AssignedToName,
     Guid? BallInCourtUserId,
     string? BallInCourtName
-) : ICommand<RfiDto>;
+);
