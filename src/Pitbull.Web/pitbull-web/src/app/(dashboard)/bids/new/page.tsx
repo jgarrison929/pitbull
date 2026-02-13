@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { FormField, TextareaField } from "@/components/ui/form-field";
 import {
   Select,
   SelectContent,
@@ -24,29 +24,148 @@ import {
 import api from "@/lib/api";
 import type { Bid, CreateBidCommand, BidStatus } from "@/lib/types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+type FormErrors = Partial<
+  Record<"bidNumber" | "name" | "estimatedValue" | "dates", string>
+>;
+
+const MAX_NAME_LENGTH = 150;
+const MAX_DESCRIPTION_LENGTH = 1000;
+const MAX_NOTES_LENGTH = 500;
 
 export default function NewBidPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<BidStatus>("Draft");
 
+  // Controlled form fields for validation
+  const [bidNumber, setBidNumber] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [estimatedValue, setEstimatedValue] = useState("");
+  const [notes, setNotes] = useState("");
+  const [bidDate, setBidDate] = useState("");
+  const [dueDate, setDueDate] = useState("");
+
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Mark field as touched on blur
+  const handleBlur = useCallback((field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  }, []);
+
+  // Validate a single field
+  const validateField = useCallback((field: string, value: string): string | undefined => {
+    switch (field) {
+      case "bidNumber":
+        if (!value.trim()) return "Bid number is required";
+        break;
+      case "name":
+        if (!value.trim()) return "Bid name is required";
+        if (value.length > MAX_NAME_LENGTH) return `Name must be ${MAX_NAME_LENGTH} characters or less`;
+        break;
+      case "estimatedValue":
+        if (value && (isNaN(Number(value)) || Number(value) < 0)) {
+          return "Bid value must be 0 or greater";
+        }
+        break;
+    }
+    return undefined;
+  }, []);
+
+  // Validate dates together
+  const validateDates = useCallback((): string | undefined => {
+    if (bidDate && dueDate) {
+      const bid = new Date(bidDate);
+      const due = new Date(dueDate);
+      if (!isNaN(bid.getTime()) && !isNaN(due.getTime()) && due < bid) {
+        return "Due date must be on or after bid date";
+      }
+    }
+    return undefined;
+  }, [bidDate, dueDate]);
+
+  // Check if form is valid
+  const isFormValid = useMemo(() => {
+    if (!bidNumber.trim()) return false;
+    if (!name.trim()) return false;
+    if (name.length > MAX_NAME_LENGTH) return false;
+    if (description.length > MAX_DESCRIPTION_LENGTH) return false;
+    if (notes.length > MAX_NOTES_LENGTH) return false;
+    if (estimatedValue && (isNaN(Number(estimatedValue)) || Number(estimatedValue) < 0)) return false;
+    if (validateDates()) return false;
+    return true;
+  }, [bidNumber, name, description, notes, estimatedValue, validateDates]);
+
+  // Update errors when fields change (only for touched fields)
+  const updateFieldError = useCallback((field: keyof FormErrors, value: string) => {
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setErrors(prev => {
+        const next = { ...prev };
+        if (error) {
+          next[field] = error;
+        } else {
+          delete next[field];
+        }
+        return next;
+      });
+    }
+  }, [touched, validateField]);
+
+  // Validate all fields on submit
+  function validateAll(): FormErrors {
+    const next: FormErrors = {};
+
+    const bidNumberError = validateField("bidNumber", bidNumber);
+    if (bidNumberError) next.bidNumber = bidNumberError;
+
+    const nameError = validateField("name", name);
+    if (nameError) next.name = nameError;
+
+    const valueError = validateField("estimatedValue", estimatedValue);
+    if (valueError) next.estimatedValue = valueError;
+
+    const datesError = validateDates();
+    if (datesError) next.dates = datesError;
+
+    return next;
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+
+    // Mark all fields as touched
+    setTouched({
+      bidNumber: true,
+      name: true,
+      estimatedValue: true,
+      dates: true,
+    });
+
+    const nextErrors = validateAll();
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error("Please fix the highlighted fields");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
     const command: CreateBidCommand = {
-      bidNumber: formData.get("bidNumber") as string,
-      name: formData.get("name") as string,
-      description: (formData.get("description") as string) || undefined,
+      bidNumber,
+      name,
+      description: description || undefined,
       status,
       clientName: (formData.get("clientName") as string) || undefined,
-      estimatedValue: formData.get("estimatedValue")
-        ? Number(formData.get("estimatedValue"))
-        : undefined,
-      bidDate: (formData.get("bidDate") as string) || undefined,
-      dueDate: (formData.get("dueDate") as string) || undefined,
-      notes: (formData.get("notes") as string) || undefined,
+      estimatedValue: estimatedValue ? Number(estimatedValue) : undefined,
+      bidDate: bidDate || undefined,
+      dueDate: dueDate || undefined,
+      notes: notes || undefined,
     };
 
     try {
@@ -83,15 +202,19 @@ export default function NewBidPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <fieldset disabled={isSubmitting} className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="bidNumber">Bid Number</Label>
-                <Input
-                  id="bidNumber"
-                  name="bidNumber"
-                  placeholder="B-2024-015"
-                  required
-                />
-              </div>
+              <FormField
+                label="Bid Number"
+                name="bidNumber"
+                placeholder="B-2024-015"
+                required
+                value={bidNumber}
+                onChange={(e) => {
+                  setBidNumber(e.target.value);
+                  updateFieldError("bidNumber", e.target.value);
+                }}
+                onBlur={() => handleBlur("bidNumber")}
+                error={touched.bidNumber ? errors.bidNumber : undefined}
+              />
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
                 <Select
@@ -110,36 +233,47 @@ export default function NewBidPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="name">Bid Name / Project</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="e.g. City Hall HVAC Upgrade"
-                required
-              />
-            </div>
+            <FormField
+              label="Bid Name / Project"
+              name="name"
+              placeholder="e.g. City Hall HVAC Upgrade"
+              required
+              maxLength={MAX_NAME_LENGTH}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                updateFieldError("name", e.target.value);
+              }}
+              onBlur={() => handleBlur("name")}
+              error={touched.name ? errors.name : undefined}
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Scope of Work</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Describe the scope of work for this bid..."
-                rows={3}
-              />
-            </div>
+            <TextareaField
+              label="Scope of Work"
+              name="description"
+              placeholder="Describe the scope of work for this bid..."
+              rows={3}
+              maxLength={MAX_DESCRIPTION_LENGTH}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="estimatedValue">Bid Value ($)</Label>
-                <Input
-                  id="estimatedValue"
-                  name="estimatedValue"
-                  type="number"
-                  placeholder="0.00"
-                />
-              </div>
+              <FormField
+                label="Bid Value ($)"
+                name="estimatedValue"
+                type="number"
+                placeholder="0.00"
+                min={0}
+                step={0.01}
+                value={estimatedValue}
+                onChange={(e) => {
+                  setEstimatedValue(e.target.value);
+                  updateFieldError("estimatedValue", e.target.value);
+                }}
+                onBlur={() => handleBlur("estimatedValue")}
+                error={touched.estimatedValue ? errors.estimatedValue : undefined}
+              />
               <div className="space-y-2">
                 <Label htmlFor="clientName">Client / Owner</Label>
                 <Input
@@ -153,31 +287,54 @@ export default function NewBidPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="bidDate">Bid Date</Label>
-                <Input id="bidDate" name="bidDate" type="date" />
+                <Input 
+                  id="bidDate" 
+                  name="bidDate" 
+                  type="date"
+                  value={bidDate}
+                  onChange={(e) => setBidDate(e.target.value)}
+                  onBlur={() => handleBlur("dates")}
+                  className={cn(touched.dates && errors.dates && "border-destructive")}
+                  aria-invalid={!!(touched.dates && errors.dates)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dueDate">Due Date</Label>
-                <Input id="dueDate" name="dueDate" type="date" />
+                <Input 
+                  id="dueDate" 
+                  name="dueDate" 
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  onBlur={() => handleBlur("dates")}
+                  className={cn(touched.dates && errors.dates && "border-destructive")}
+                  aria-invalid={!!(touched.dates && errors.dates)}
+                />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                name="notes"
-                placeholder="Any additional notes..."
-                rows={2}
-              />
-            </div>
+            {touched.dates && errors.dates && (
+              <p className="text-sm text-destructive" role="alert">{errors.dates}</p>
+            )}
+
+            <TextareaField
+              label="Notes"
+              name="notes"
+              placeholder="Any additional notes..."
+              rows={2}
+              maxLength={MAX_NOTES_LENGTH}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
             </fieldset>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <LoadingButton
                 type="submit"
-                className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
+                className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] disabled:opacity-50"
                 loading={isSubmitting}
                 loadingText="Creating..."
+                disabled={!isFormValid}
               >
                 Create Bid
               </LoadingButton>

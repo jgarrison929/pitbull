@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
+import { FormField, TextareaField } from "@/components/ui/form-field";
 import {
   Select,
   SelectContent,
@@ -25,6 +25,14 @@ import {
 import api from "@/lib/api";
 import type { Rfi, CreateRfiCommand, RfiPriority, Project, PagedResult } from "@/lib/types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+
+type FormErrors = Partial<
+  Record<"project" | "subject" | "question", string>
+>;
+
+const MAX_SUBJECT_LENGTH = 150;
+const MAX_QUESTION_LENGTH = 2000;
 
 export default function NewRfiPage() {
   const router = useRouter();
@@ -37,8 +45,64 @@ export default function NewRfiPage() {
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [priority, setPriority] = useState<RfiPriority>(1); // Normal
 
+  // Controlled form fields for validation
+  const [subject, setSubject] = useState("");
+  const [question, setQuestion] = useState("");
+
   // Cost impact state
   const [hasCostImpact, setHasCostImpact] = useState(false);
+
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  // Mark field as touched on blur
+  const handleBlur = useCallback((field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  }, []);
+
+  // Validate a single field
+  const validateField = useCallback((field: string, value: string): string | undefined => {
+    switch (field) {
+      case "project":
+        if (!value) return "Please select a project";
+        break;
+      case "subject":
+        if (!value.trim()) return "Subject is required";
+        if (value.length > MAX_SUBJECT_LENGTH) return `Subject must be ${MAX_SUBJECT_LENGTH} characters or less`;
+        break;
+      case "question":
+        if (!value.trim()) return "Question is required";
+        if (value.length > MAX_QUESTION_LENGTH) return `Question must be ${MAX_QUESTION_LENGTH} characters or less`;
+        break;
+    }
+    return undefined;
+  }, []);
+
+  // Check if form is valid
+  const isFormValid = useMemo(() => {
+    if (!selectedProjectId) return false;
+    if (!subject.trim()) return false;
+    if (subject.length > MAX_SUBJECT_LENGTH) return false;
+    if (!question.trim()) return false;
+    if (question.length > MAX_QUESTION_LENGTH) return false;
+    return true;
+  }, [selectedProjectId, subject, question]);
+
+  // Update errors when fields change (only for touched fields)
+  const updateFieldError = useCallback((field: keyof FormErrors, value: string) => {
+    if (touched[field]) {
+      const error = validateField(field, value);
+      setErrors(prev => {
+        const next = { ...prev };
+        if (error) {
+          next[field] = error;
+        } else {
+          delete next[field];
+        }
+        return next;
+      });
+    }
+  }, [touched, validateField]);
 
   useEffect(() => {
     async function fetchProjects() {
@@ -60,11 +124,44 @@ export default function NewRfiPage() {
     fetchProjects();
   }, [initialProjectId]);
 
+  // Validate project when it changes
+  useEffect(() => {
+    if (touched.project) {
+      updateFieldError("project", selectedProjectId);
+    }
+  }, [selectedProjectId, touched.project, updateFieldError]);
+
+  // Validate all fields on submit
+  function validateAll(): FormErrors {
+    const next: FormErrors = {};
+
+    const projectError = validateField("project", selectedProjectId);
+    if (projectError) next.project = projectError;
+
+    const subjectError = validateField("subject", subject);
+    if (subjectError) next.subject = subjectError;
+
+    const questionError = validateField("question", question);
+    if (questionError) next.question = questionError;
+
+    return next;
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!selectedProjectId) {
-      toast.error("Please select a project");
+    // Mark all fields as touched
+    setTouched({
+      project: true,
+      subject: true,
+      question: true,
+    });
+
+    const nextErrors = validateAll();
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      toast.error("Please fix the highlighted fields");
       return;
     }
 
@@ -83,8 +180,8 @@ export default function NewRfiPage() {
     const estimatedDelayStr = formData.get("estimatedDelayDays") as string;
 
     const command: CreateRfiCommand = {
-      subject: formData.get("subject") as string,
-      question: formData.get("question") as string,
+      subject,
+      question,
       priority,
       dueDate: (formData.get("dueDate") as string) || undefined,
       ballInCourtName: (formData.get("ballInCourtName") as string) || undefined,
@@ -143,12 +240,28 @@ export default function NewRfiPage() {
               className="space-y-4"
             >
               <div className="space-y-2">
-                <Label htmlFor="project">Project</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="project">
+                    Project
+                    <span className="text-destructive ml-1" aria-hidden="true">*</span>
+                  </Label>
+                </div>
                 <Select
                   value={selectedProjectId}
-                  onValueChange={setSelectedProjectId}
+                  onValueChange={(value) => {
+                    setSelectedProjectId(value);
+                    if (touched.project) {
+                      updateFieldError("project", value);
+                    }
+                  }}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger 
+                    className={cn(
+                      touched.project && errors.project && "border-destructive"
+                    )}
+                    aria-invalid={!!(touched.project && errors.project)}
+                    onBlur={() => handleBlur("project")}
+                  >
                     <SelectValue placeholder="Select a project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -159,33 +272,46 @@ export default function NewRfiPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedProject && (
+                {touched.project && errors.project && (
+                  <p className="text-sm text-destructive" role="alert">{errors.project}</p>
+                )}
+                {selectedProject && !errors.project && (
                   <p className="text-xs text-muted-foreground">
                     RFI will be added to: {selectedProject.name}
                   </p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  name="subject"
-                  placeholder="e.g. Foundation Depth Clarification"
-                  required
-                />
-              </div>
+              <FormField
+                label="Subject"
+                name="subject"
+                placeholder="e.g. Foundation Depth Clarification"
+                required
+                maxLength={MAX_SUBJECT_LENGTH}
+                value={subject}
+                onChange={(e) => {
+                  setSubject(e.target.value);
+                  updateFieldError("subject", e.target.value);
+                }}
+                onBlur={() => handleBlur("subject")}
+                error={touched.subject ? errors.subject : undefined}
+              />
 
-              <div className="space-y-2">
-                <Label htmlFor="question">Question</Label>
-                <Textarea
-                  id="question"
-                  name="question"
-                  placeholder="Describe what you need clarification on..."
-                  rows={5}
-                  required
-                />
-              </div>
+              <TextareaField
+                label="Question"
+                name="question"
+                placeholder="Describe what you need clarification on..."
+                rows={5}
+                required
+                maxLength={MAX_QUESTION_LENGTH}
+                value={question}
+                onChange={(e) => {
+                  setQuestion(e.target.value);
+                  updateFieldError("question", e.target.value);
+                }}
+                onBlur={() => handleBlur("question")}
+                error={touched.question ? errors.question : undefined}
+              />
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -309,10 +435,10 @@ export default function NewRfiPage() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <LoadingButton
                 type="submit"
-                className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
+                className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] disabled:opacity-50"
                 loading={isSubmitting}
                 loadingText="Creating..."
-                disabled={!selectedProjectId}
+                disabled={!isFormValid}
               >
                 Create RFI
               </LoadingButton>
