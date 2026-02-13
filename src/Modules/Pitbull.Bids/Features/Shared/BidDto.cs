@@ -1,6 +1,6 @@
 using Pitbull.Bids.Domain;
 
-namespace Pitbull.Bids.Features;
+namespace Pitbull.Bids.Features.Shared;
 
 public record BidDto(
     Guid Id,

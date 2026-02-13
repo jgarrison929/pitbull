@@ -642,5 +642,3 @@ await strategy.ExecuteAsync(async () =>
 ## Known Issues
 
 1. **Subdomain tenant resolution not implemented:** `TenantMiddleware` has a placeholder for subdomain-based tenant lookup but returns null. Will need a tenant lookup service.
-
-2. **BidDto/BidMapper at Features root:** `BidDto.cs` and `BidMapper.cs` sit in `Pitbull.Bids/Features/` at the root level instead of in a shared subfolder. Consider moving to `Pitbull.Bids/Features/Shared/` or a `Mapping/` folder for consistency with the per-feature folder pattern.
