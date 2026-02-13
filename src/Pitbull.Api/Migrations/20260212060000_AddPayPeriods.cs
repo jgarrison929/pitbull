@@ -135,7 +135,7 @@ namespace Pitbull.Api.Migrations
 
                 -- Create tenant isolation policy
                 CREATE POLICY pay_periods_tenant_isolation ON pay_periods
-                    USING (tenant_id::text = current_setting('app.current_tenant', true));
+                    USING (""TenantId""::text = current_setting('app.current_tenant', true));
 
                 -- Enable RLS on pay_period_configurations
                 ALTER TABLE pay_period_configurations ENABLE ROW LEVEL SECURITY;
@@ -146,7 +146,7 @@ namespace Pitbull.Api.Migrations
 
                 -- Create tenant isolation policy
                 CREATE POLICY pay_period_configurations_tenant_isolation ON pay_period_configurations
-                    USING (tenant_id::text = current_setting('app.current_tenant', true));
+                    USING (""TenantId""::text = current_setting('app.current_tenant', true));
             ");
         }
 

@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.GetProjectRfiCostSummary;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features;
 using Pitbull.Tests.Integration.Infrastructure;
@@ -280,4 +282,120 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         });
         Assert.Equal(HttpStatusCode.NotFound, updateResp.StatusCode);
     }
+
+    #region Cost Impact Tests
+
+    [Fact]
+    public async Task Get_rfi_cost_impact_returns_analysis_for_existing_rfi()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        // Create an RFI with cost impact fields
+        var createRequest = new
+        {
+            Subject = "Structural Change Required",
+            Question = "Foundation requires additional reinforcement per engineer review",
+            Priority = RfiPriority.Urgent,
+            DueDate = DateTime.UtcNow.AddDays(3)
+        };
+
+        var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", createRequest);
+        createResp.EnsureSuccessStatusCode();
+        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>();
+
+        // Get cost impact
+        var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi!.Id}/cost-impact");
+        Assert.Equal(HttpStatusCode.OK, costImpactResp.StatusCode);
+
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+        Assert.NotNull(impact);
+        Assert.Equal(rfi.Id, impact.RfiId);
+        Assert.Equal(rfi.Number, impact.RfiNumber);
+        Assert.Equal("Structural Change Required", impact.Subject);
+        Assert.Equal("Open", impact.Status);
+        Assert.True(impact.DaysOpen >= 0);
+        Assert.NotNull(impact.ChangeOrders);
+        Assert.NotNull(impact.Timeline);
+        Assert.Contains(impact.Timeline, t => t.Event == "RFI Created");
+    }
+
+    [Fact]
+    public async Task Get_rfi_cost_impact_returns_404_for_nonexistent_rfi()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{Guid.NewGuid()}/cost-impact");
+        Assert.Equal(HttpStatusCode.NotFound, costImpactResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_rfi_cost_impact_calculates_days_open_correctly()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        var createRequest = new
+        {
+            Subject = "Clarification Needed",
+            Question = "Please clarify drawing detail",
+            Priority = RfiPriority.Normal
+        };
+
+        var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", createRequest);
+        createResp.EnsureSuccessStatusCode();
+        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>();
+
+        var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi!.Id}/cost-impact");
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+
+        // Should be 0 or 1 days open (just created)
+        Assert.True(impact!.DaysOpen >= 0 && impact.DaysOpen <= 1);
+        Assert.Null(impact.AnsweredAt);  // Still open
+        Assert.Null(impact.ClosedAt);
+    }
+
+    [Fact]
+    public async Task Get_project_rfi_cost_summary_returns_aggregated_data()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        // Create multiple RFIs
+        for (int i = 0; i < 3; i++)
+        {
+            var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
+            {
+                Subject = $"RFI #{i + 1} for testing",
+                Question = $"Question {i + 1}",
+                Priority = i == 0 ? RfiPriority.Urgent : RfiPriority.Normal
+            });
+            createResp.EnsureSuccessStatusCode();
+        }
+
+        // Get project summary
+        var summaryResp = await client.GetAsync($"/api/projects/{projectId}/rfi-cost-summary");
+        Assert.Equal(HttpStatusCode.OK, summaryResp.StatusCode);
+
+        var summary = await summaryResp.Content.ReadFromJsonAsync<ProjectRfiCostSummaryDto>();
+        Assert.NotNull(summary);
+        Assert.Equal(projectId, summary.ProjectId);
+        Assert.Equal(3, summary.TotalRfis);
+        Assert.Equal(3, summary.OpenRfis);  // All are open
+        Assert.True(summary.TotalCost >= 0);
+        Assert.NotNull(summary.TopCostlyRfis);
+    }
+
+    [Fact]
+    public async Task Get_project_rfi_cost_summary_returns_404_for_nonexistent_project()
+    {
+        await db.ResetAsync();
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        var summaryResp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/rfi-cost-summary");
+        Assert.Equal(HttpStatusCode.NotFound, summaryResp.StatusCode);
+    }
+
+    #endregion
 }
