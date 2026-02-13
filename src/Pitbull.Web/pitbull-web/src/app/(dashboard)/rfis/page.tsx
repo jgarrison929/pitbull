@@ -25,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
-import { HelpCircle, Search } from "lucide-react";
+import { Download, HelpCircle, Search } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Rfi, Project, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
@@ -193,6 +193,72 @@ export default function RfisPage() {
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
+  // Export filtered RFIs to CSV
+  const exportToCsv = useCallback(() => {
+    if (!filteredRfis.length || !selectedProject) return;
+
+    // CSV header
+    const headers = [
+      "RFI Number",
+      "Subject",
+      "Status",
+      "Priority",
+      "Due Date",
+      "Created Date",
+      "Has Cost Impact",
+      "Estimated Cost",
+    ];
+
+    // Helper to escape CSV values
+    const escapeCSV = (value: string | number | boolean | null | undefined): string => {
+      if (value === null || value === undefined) return "";
+      const str = String(value);
+      // Escape quotes and wrap in quotes if contains comma, quote, or newline
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Build CSV rows
+    const rows = filteredRfis.map((rfi) => [
+      `RFI-${String(rfi.number).padStart(3, "0")}`,
+      escapeCSV(rfi.subject),
+      statusLabel(rfi.status),
+      priorityLabel(rfi.priority),
+      rfi.dueDate ? new Date(rfi.dueDate).toLocaleDateString() : "",
+      rfi.createdAt ? new Date(rfi.createdAt).toLocaleDateString() : "",
+      rfi.hasCostImpact ? "Yes" : "No",
+      rfi.estimatedCostImpact != null ? rfi.estimatedCostImpact.toFixed(2) : "",
+    ]);
+
+    // Combine header and rows
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.join(",")),
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    // Generate filename with project name and date
+    const projectName = selectedProject.name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
+    const date = new Date().toISOString().split("T")[0];
+    link.setAttribute("download", `rfis-${projectName}-${date}.csv`);
+    link.setAttribute("href", url);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success("Export complete", {
+      description: `Exported ${filteredRfis.length} RFIs to CSV`,
+    });
+  }, [filteredRfis, selectedProject]);
+
   // Reset filters when project changes
   useEffect(() => {
     setSearchQuery("");
@@ -297,6 +363,19 @@ export default function RfisPage() {
                     Showing {filteredRfis.length} of {rfis.length} RFIs
                   </div>
                 )}
+                {/* Export button */}
+                <div className="flex-1 sm:flex-none sm:ml-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={exportToCsv}
+                    disabled={filteredRfis.length === 0}
+                    className="w-full sm:w-auto"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export to CSV
+                  </Button>
+                </div>
               </div>
             </div>
           )}
