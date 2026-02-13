@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AppSidebarMobile } from "./app-sidebar-mobile";
+import { NotificationCenter } from "./notification-center";
 
 function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -78,6 +79,9 @@ export function AppHeader() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Notifications */}
+      <NotificationCenter />
 
       {/* User dropdown */}
       <DropdownMenu>
