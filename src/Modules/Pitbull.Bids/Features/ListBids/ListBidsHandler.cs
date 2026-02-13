@@ -1,3 +1,4 @@
+using Pitbull.Bids.Features.Shared;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Bids.Domain;

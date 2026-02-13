@@ -1,3 +1,4 @@
+using Pitbull.Bids.Features.Shared;
 using MediatR;
 using Pitbull.Bids.Domain;
 using Pitbull.Core.CQRS;

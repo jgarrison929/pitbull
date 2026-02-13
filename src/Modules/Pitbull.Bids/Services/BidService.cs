@@ -5,6 +5,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
+using Pitbull.Bids.Features.Shared;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Bids.Features.ListBids;
