@@ -3,8 +3,6 @@ using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateChangeOrder;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.CreateSubcontract;
-using Pitbull.Contracts.Features.DeletePaymentApplication;
-using Pitbull.Contracts.Features.GetPaymentApplication;
 using Pitbull.Contracts.Features.ListChangeOrders;
 using Pitbull.Contracts.Features.ListPaymentApplications;
 using Pitbull.Contracts.Features.ListSubcontracts;
@@ -321,32 +319,209 @@ public class ContractsService(PitbullDbContext db) : IContractsService
     // Payment Applications
     public async Task<Result<PaymentApplicationDto>> GetPaymentApplicationAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var handler = new GetPaymentApplicationHandler(db);
-        return await handler.Handle(new GetPaymentApplicationQuery(id), cancellationToken);
+        var payApp = await db.Set<PaymentApplication>()
+            .FirstOrDefaultAsync(pa => pa.Id == id && !pa.IsDeleted, cancellationToken);
+
+        if (payApp is null)
+            return Result.Failure<PaymentApplicationDto>("Payment application not found", "NOT_FOUND");
+
+        return Result.Success(MapPaymentApplicationToDto(payApp));
     }
 
     public async Task<Result<PagedResult<PaymentApplicationDto>>> ListPaymentApplicationsAsync(ListPaymentApplicationsQuery query, CancellationToken cancellationToken = default)
     {
-        var handler = new ListPaymentApplicationsHandler(db);
-        return await handler.Handle(query, cancellationToken);
+        var dbQuery = db.Set<PaymentApplication>().Where(pa => !pa.IsDeleted).AsQueryable();
+
+        if (query.SubcontractId.HasValue)
+            dbQuery = dbQuery.Where(pa => pa.SubcontractId == query.SubcontractId.Value);
+
+        if (query.Status.HasValue)
+            dbQuery = dbQuery.Where(pa => pa.Status == query.Status.Value);
+
+        var totalCount = await dbQuery.CountAsync(cancellationToken);
+
+        var items = await dbQuery
+            .OrderByDescending(pa => pa.ApplicationNumber)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken);
+
+        var dtos = items.Select(MapPaymentApplicationToDto).ToList();
+
+        return Result.Success(
+            new PagedResult<PaymentApplicationDto>(dtos, totalCount, query.Page, query.PageSize));
     }
 
     public async Task<Result<PaymentApplicationDto>> CreatePaymentApplicationAsync(CreatePaymentApplicationCommand command, CancellationToken cancellationToken = default)
     {
-        var handler = new CreatePaymentApplicationHandler(db);
-        return await handler.Handle(command, cancellationToken);
+        // Get subcontract
+        var subcontract = await db.Set<Subcontract>()
+            .FirstOrDefaultAsync(s => s.Id == command.SubcontractId, cancellationToken);
+        
+        if (subcontract is null)
+            return Result.Failure<PaymentApplicationDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
+
+        // Get previous applications to calculate running totals
+        var previousApps = await db.Set<PaymentApplication>()
+            .Where(pa => pa.SubcontractId == command.SubcontractId)
+            .OrderByDescending(pa => pa.ApplicationNumber)
+            .ToListAsync(cancellationToken);
+
+        var lastApp = previousApps.FirstOrDefault();
+        var nextNumber = (lastApp?.ApplicationNumber ?? 0) + 1;
+
+        // Calculate amounts
+        var workCompletedPrevious = lastApp?.WorkCompletedToDate ?? 0m;
+        var workCompletedToDate = workCompletedPrevious + command.WorkCompletedThisPeriod;
+        var totalCompletedAndStored = workCompletedToDate + command.StoredMaterials;
+        
+        var retainagePercent = subcontract.RetainagePercent;
+        var retainageThisPeriod = command.WorkCompletedThisPeriod * (retainagePercent / 100m);
+        var retainagePrevious = lastApp?.TotalRetainage ?? 0m;
+        var totalRetainage = retainagePrevious + retainageThisPeriod;
+        
+        var totalEarnedLessRetainage = totalCompletedAndStored - totalRetainage;
+        var lessPreviousCertificates = lastApp?.TotalEarnedLessRetainage ?? 0m;
+        var currentPaymentDue = totalEarnedLessRetainage - lessPreviousCertificates;
+
+        var payApp = new PaymentApplication
+        {
+            SubcontractId = command.SubcontractId,
+            ApplicationNumber = nextNumber,
+            PeriodStart = command.PeriodStart,
+            PeriodEnd = command.PeriodEnd,
+            ScheduledValue = subcontract.CurrentValue,
+            WorkCompletedPrevious = workCompletedPrevious,
+            WorkCompletedThisPeriod = command.WorkCompletedThisPeriod,
+            WorkCompletedToDate = workCompletedToDate,
+            StoredMaterials = command.StoredMaterials,
+            TotalCompletedAndStored = totalCompletedAndStored,
+            RetainagePercent = retainagePercent,
+            RetainageThisPeriod = retainageThisPeriod,
+            RetainagePrevious = retainagePrevious,
+            TotalRetainage = totalRetainage,
+            TotalEarnedLessRetainage = totalEarnedLessRetainage,
+            LessPreviousCertificates = lessPreviousCertificates,
+            CurrentPaymentDue = currentPaymentDue,
+            Status = PaymentApplicationStatus.Draft,
+            InvoiceNumber = command.InvoiceNumber,
+            Notes = command.Notes
+        };
+
+        db.Set<PaymentApplication>().Add(payApp);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(MapPaymentApplicationToDto(payApp));
     }
 
     public async Task<Result<PaymentApplicationDto>> UpdatePaymentApplicationAsync(UpdatePaymentApplicationCommand command, CancellationToken cancellationToken = default)
     {
-        var handler = new UpdatePaymentApplicationHandler(db);
-        return await handler.Handle(command, cancellationToken);
+        var payApp = await db.Set<PaymentApplication>()
+            .FirstOrDefaultAsync(pa => pa.Id == command.Id, cancellationToken);
+
+        if (payApp is null)
+            return Result.Failure<PaymentApplicationDto>("Payment application not found", "NOT_FOUND");
+
+        // Get subcontract for retainage calculation
+        var subcontract = await db.Set<Subcontract>()
+            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId, cancellationToken);
+
+        if (subcontract is null)
+            return Result.Failure<PaymentApplicationDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
+
+        // Track status transitions
+        var oldStatus = payApp.Status;
+        var newStatus = command.Status;
+
+        // Recalculate amounts if work changed
+        if (payApp.WorkCompletedThisPeriod != command.WorkCompletedThisPeriod || 
+            payApp.StoredMaterials != command.StoredMaterials)
+        {
+            payApp.WorkCompletedThisPeriod = command.WorkCompletedThisPeriod;
+            payApp.StoredMaterials = command.StoredMaterials;
+            payApp.WorkCompletedToDate = payApp.WorkCompletedPrevious + command.WorkCompletedThisPeriod;
+            payApp.TotalCompletedAndStored = payApp.WorkCompletedToDate + command.StoredMaterials;
+            
+            payApp.RetainageThisPeriod = command.WorkCompletedThisPeriod * (payApp.RetainagePercent / 100m);
+            payApp.TotalRetainage = payApp.RetainagePrevious + payApp.RetainageThisPeriod;
+            
+            payApp.TotalEarnedLessRetainage = payApp.TotalCompletedAndStored - payApp.TotalRetainage;
+            payApp.CurrentPaymentDue = payApp.TotalEarnedLessRetainage - payApp.LessPreviousCertificates;
+        }
+
+        // Track old amounts for delta calculation on Paid apps
+        var oldApprovedAmount = payApp.ApprovedAmount ?? 0m;
+
+        // Update fields
+        payApp.Status = command.Status;
+        payApp.ApprovedBy = command.ApprovedBy;
+        payApp.ApprovedAmount = command.ApprovedAmount;
+        payApp.InvoiceNumber = command.InvoiceNumber;
+        payApp.CheckNumber = command.CheckNumber;
+        payApp.Notes = command.Notes;
+        var oldCurrentPaymentDue = payApp.CurrentPaymentDue;
+
+        // Set dates on status transitions
+        if (oldStatus != newStatus)
+        {
+            switch (newStatus)
+            {
+                case PaymentApplicationStatus.Submitted when !payApp.SubmittedDate.HasValue:
+                    payApp.SubmittedDate = DateTime.UtcNow;
+                    break;
+                case PaymentApplicationStatus.UnderReview when !payApp.ReviewedDate.HasValue:
+                    payApp.ReviewedDate = DateTime.UtcNow;
+                    break;
+                case PaymentApplicationStatus.Approved or PaymentApplicationStatus.PartiallyApproved 
+                    when !payApp.ApprovedDate.HasValue:
+                    payApp.ApprovedDate = DateTime.UtcNow;
+                    break;
+                case PaymentApplicationStatus.Paid when !payApp.PaidDate.HasValue:
+                    payApp.PaidDate = DateTime.UtcNow;
+                    // Update subcontract billing totals
+                    subcontract.BilledToDate += payApp.CurrentPaymentDue;
+                    subcontract.PaidToDate += command.ApprovedAmount ?? payApp.CurrentPaymentDue;
+                    subcontract.RetainageHeld = payApp.TotalRetainage;
+                    break;
+            }
+        }
+        else if (newStatus == PaymentApplicationStatus.Paid)
+        {
+            // Already Paid - sync amount changes as deltas
+            var newApprovedAmount = command.ApprovedAmount ?? payApp.CurrentPaymentDue;
+            var billedDelta = payApp.CurrentPaymentDue - oldCurrentPaymentDue;
+            var paidDelta = newApprovedAmount - oldApprovedAmount;
+            
+            if (billedDelta != 0)
+                subcontract.BilledToDate += billedDelta;
+            if (paidDelta != 0)
+                subcontract.PaidToDate += paidDelta;
+            subcontract.RetainageHeld = payApp.TotalRetainage;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(MapPaymentApplicationToDto(payApp));
     }
 
     public async Task<Result> DeletePaymentApplicationAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var handler = new DeletePaymentApplicationHandler(db);
-        return await handler.Handle(new DeletePaymentApplicationCommand(id), cancellationToken);
+        var payApp = await db.Set<PaymentApplication>()
+            .FirstOrDefaultAsync(pa => pa.Id == id, cancellationToken);
+
+        if (payApp is null)
+            return Result.Failure("Payment application not found", "NOT_FOUND");
+
+        // Only allow deleting draft applications
+        if (payApp.Status != PaymentApplicationStatus.Draft)
+            return Result.Failure("Only draft payment applications can be deleted", "INVALID_STATUS");
+
+        // Hard delete for draft applications
+        db.Set<PaymentApplication>().Remove(payApp);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
     }
 
     // Private mapping methods
@@ -397,5 +572,37 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         co.RejectionReason,
         co.ReferenceNumber,
         co.CreatedAt
+    );
+
+    private static PaymentApplicationDto MapPaymentApplicationToDto(PaymentApplication pa) => new(
+        pa.Id,
+        pa.SubcontractId,
+        pa.ApplicationNumber,
+        pa.PeriodStart,
+        pa.PeriodEnd,
+        pa.ScheduledValue,
+        pa.WorkCompletedPrevious,
+        pa.WorkCompletedThisPeriod,
+        pa.WorkCompletedToDate,
+        pa.StoredMaterials,
+        pa.TotalCompletedAndStored,
+        pa.RetainagePercent,
+        pa.RetainageThisPeriod,
+        pa.RetainagePrevious,
+        pa.TotalRetainage,
+        pa.TotalEarnedLessRetainage,
+        pa.LessPreviousCertificates,
+        pa.CurrentPaymentDue,
+        pa.Status,
+        pa.SubmittedDate,
+        pa.ReviewedDate,
+        pa.ApprovedDate,
+        pa.PaidDate,
+        pa.ApprovedBy,
+        pa.ApprovedAmount,
+        pa.Notes,
+        pa.InvoiceNumber,
+        pa.CheckNumber,
+        pa.CreatedAt
     );
 }
