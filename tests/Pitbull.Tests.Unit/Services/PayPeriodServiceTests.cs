@@ -1,4 +1,6 @@
 using FluentAssertions;
+using Moq;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Services;
 
@@ -279,8 +281,8 @@ public class PayPeriodServiceTests
     /// </summary>
     private static PayPeriodService CreateServiceWithoutDb()
     {
-        // PayPeriodService uses db only for async methods, not for calculations
-        return new PayPeriodService(null!);
+        // PayPeriodService uses db and tenantContext only for async methods, not for calculations
+        return new PayPeriodService(null!, Mock.Of<ITenantContext>());
     }
 
     #endregion

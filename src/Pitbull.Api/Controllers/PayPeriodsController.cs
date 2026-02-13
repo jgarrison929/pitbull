@@ -1,17 +1,10 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Extensions;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
-using Pitbull.TimeTracking.Features.GeneratePayPeriods;
-using Pitbull.TimeTracking.Features.GetCurrentPayPeriod;
-using Pitbull.TimeTracking.Features.GetPayPeriodConfiguration;
-using Pitbull.TimeTracking.Features.ListPayPeriods;
-using Pitbull.TimeTracking.Features.LockPayPeriod;
-using Pitbull.TimeTracking.Features.UnlockPayPeriod;
-using Pitbull.TimeTracking.Features.UpdatePayPeriodConfiguration;
+using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Api.Controllers;
 
@@ -25,7 +18,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Pay Periods")]
-public class PayPeriodsController(IMediator mediator) : ControllerBase
+public class PayPeriodsController(IPayPeriodService payPeriodService) : ControllerBase
 {
     /// <summary>
     /// List all pay periods with optional filtering
@@ -52,13 +45,9 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25)
     {
-        var query = new ListPayPeriodsQuery(status, startDateFrom, startDateTo)
-        {
-            Page = page,
-            PageSize = pageSize
-        };
+        var result = await payPeriodService.ListPayPeriodsAsync(
+            status, startDateFrom, startDateTo, page, pageSize);
 
-        var result = await mediator.Send(query);
         if (!result.IsSuccess)
             return this.BadRequestError(result.Error ?? "Request failed");
 
@@ -82,8 +71,7 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetCurrent([FromQuery] DateOnly? date)
     {
-        var query = new GetCurrentPayPeriodQuery(date);
-        var result = await mediator.Send(query);
+        var result = await payPeriodService.GetCurrentPayPeriodAsync(date);
         
         if (!result.IsSuccess)
             return this.BadRequestError(result.Error ?? "Request failed");
@@ -116,8 +104,8 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Lock(Guid id, [FromBody] LockPayPeriodRequest request)
     {
-        var command = new LockPayPeriodCommand(id, request.LockedById, request.Notes);
-        var result = await mediator.Send(command);
+        var result = await payPeriodService.LockPayPeriodAsync(
+            id, request.LockedById, request.Notes);
 
         if (!result.IsSuccess)
         {
@@ -156,8 +144,8 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Unlock(Guid id, [FromBody] UnlockPayPeriodRequest request)
     {
-        var command = new UnlockPayPeriodCommand(id, request.UnlockedById, request.Reason);
-        var result = await mediator.Send(command);
+        var result = await payPeriodService.UnlockPayPeriodAsync(
+            id, request.UnlockedById, request.Reason);
 
         if (!result.IsSuccess)
         {
@@ -192,8 +180,7 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetConfiguration()
     {
-        var query = new GetPayPeriodConfigurationQuery();
-        var result = await mediator.Send(query);
+        var result = await payPeriodService.GetConfigurationAsync();
 
         if (!result.IsSuccess)
             return this.BadRequestError(result.Error ?? "Request failed");
@@ -228,7 +215,7 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> UpdateConfiguration([FromBody] UpdatePayPeriodConfigurationRequest request)
     {
-        var command = new UpdatePayPeriodConfigurationCommand(
+        var result = await payPeriodService.UpdateConfigurationAsync(
             request.Type,
             request.WeekStartDay,
             request.SemiMonthlyFirstDay,
@@ -239,8 +226,6 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
             request.BiWeeklyReferenceDate,
             request.EnforcementEnabled
         );
-
-        var result = await mediator.Send(command);
 
         if (!result.IsSuccess)
             return this.BadRequestError(result.Error ?? "Request failed");
@@ -274,8 +259,8 @@ public class PayPeriodsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Generate([FromBody] GeneratePayPeriodsRequest request)
     {
-        var command = new GeneratePayPeriodsCommand(request.FromDate, request.PeriodsToGenerate);
-        var result = await mediator.Send(command);
+        var result = await payPeriodService.GeneratePayPeriodsAsync(
+            request.FromDate, request.PeriodsToGenerate);
 
         if (!result.IsSuccess)
         {
