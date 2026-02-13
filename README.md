@@ -29,14 +29,14 @@ Loyal. Tenacious. Won't let go. 🐕
 - 📋 **Next:** Documentation polish, UAT preparation
 
 **Recent Wins (Feb 10, 2026):**
-- **🚀 v0.10.17:** Released to production with edge case integration tests
+- **🚀 v0.11.0:** MediatR removal complete - direct service injection across all controllers
 - **🎯 1000+ Tests:** Crossed milestone with 1017 tests (834 unit + 183 integration)
 - **🐛 Bug Fixes:** V2 soft-delete filter, stats endpoint SqlQueryRaw scalar mapping
 - **📋 Test Coverage:** Bids/Subcontracts edge cases, Contracts validators, security middleware
 
 ## Stack
 
-- **Backend:** .NET 9 / ASP.NET Core (modular monolith, CQRS with MediatR)
+- **Backend:** .NET 9 / ASP.NET Core (modular monolith, CQRS with direct services)
 - **Frontend:** Next.js 15 + React 19 + Tailwind CSS + shadcn/ui
 - **Database:** PostgreSQL 17 (multi-tenant with Row-Level Security)
 - **Cache:** Redis 7

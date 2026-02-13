@@ -14,10 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentValidation" Version="12.1.1" />
-    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
-    <PackageReference Include="MediatR" Version="14.0.0" />
-    <PackageReference Include="Mapster" Version="7.4.0" />
+    <!-- FluentValidation, MediatR, and Mapster come from Pitbull.Core transitively -->
   </ItemGroup>
 
 </Project>
