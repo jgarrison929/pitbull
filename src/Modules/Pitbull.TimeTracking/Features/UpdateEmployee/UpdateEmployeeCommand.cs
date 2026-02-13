@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -26,7 +25,7 @@ public record UpdateEmployeeCommand(
 ) : ICommand<EmployeeDto>;
 
 public sealed class UpdateEmployeeHandler(PitbullDbContext db)
-    : IRequestHandler<UpdateEmployeeCommand, Result<EmployeeDto>>
+    : ICommandHandler<UpdateEmployeeCommand, EmployeeDto>
 {
     public async Task<Result<EmployeeDto>> Handle(
         UpdateEmployeeCommand request, CancellationToken cancellationToken)

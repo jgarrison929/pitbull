@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -16,7 +15,7 @@ public record RejectTimeEntryCommand(
 ) : ICommand<TimeEntryDto>;
 
 public sealed class RejectTimeEntryHandler(PitbullDbContext db)
-    : IRequestHandler<RejectTimeEntryCommand, Result<TimeEntryDto>>
+    : ICommandHandler<RejectTimeEntryCommand, TimeEntryDto>
 {
     public async Task<Result<TimeEntryDto>> Handle(
         RejectTimeEntryCommand request, CancellationToken cancellationToken)

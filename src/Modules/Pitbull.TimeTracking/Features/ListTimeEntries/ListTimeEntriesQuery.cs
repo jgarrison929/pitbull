@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -28,7 +27,7 @@ public record ListTimeEntriesResult(
     int TotalPages);
 
 public sealed class ListTimeEntriesHandler(PitbullDbContext db)
-    : IRequestHandler<ListTimeEntriesQuery, Result<ListTimeEntriesResult>>
+    : IQueryHandler<ListTimeEntriesQuery, ListTimeEntriesResult>
 {
     public async Task<Result<ListTimeEntriesResult>> Handle(
         ListTimeEntriesQuery request, CancellationToken cancellationToken)

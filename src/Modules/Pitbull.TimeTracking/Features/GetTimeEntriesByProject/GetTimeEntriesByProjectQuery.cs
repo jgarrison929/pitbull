@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -53,7 +52,7 @@ public record ProjectTimeSummary(
 );
 
 public sealed class GetTimeEntriesByProjectHandler(PitbullDbContext db)
-    : IRequestHandler<GetTimeEntriesByProjectQuery, Result<ProjectTimeEntriesResult>>
+    : IQueryHandler<GetTimeEntriesByProjectQuery, ProjectTimeEntriesResult>
 {
     public async Task<Result<ProjectTimeEntriesResult>> Handle(
         GetTimeEntriesByProjectQuery request, CancellationToken cancellationToken)

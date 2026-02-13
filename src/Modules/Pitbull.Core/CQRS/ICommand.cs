@@ -15,6 +15,24 @@ public interface ICommand<TResponse> : IRequest<Result<TResponse>> { }
 public interface IQuery<TResponse> : IRequest<Result<TResponse>> { }
 
 /// <summary>
+/// Handler for commands without a response value.
+/// </summary>
+public interface ICommandHandler<TCommand> : IRequestHandler<TCommand, Result>
+    where TCommand : ICommand { }
+
+/// <summary>
+/// Handler for commands that return a value.
+/// </summary>
+public interface ICommandHandler<TCommand, TResponse> : IRequestHandler<TCommand, Result<TResponse>>
+    where TCommand : ICommand<TResponse> { }
+
+/// <summary>
+/// Handler for queries.
+/// </summary>
+public interface IQueryHandler<TQuery, TResponse> : IRequestHandler<TQuery, Result<TResponse>>
+    where TQuery : IQuery<TResponse> { }
+
+/// <summary>
 /// Result type for all CQRS operations. No exceptions for business logic.
 /// </summary>
 public class Result

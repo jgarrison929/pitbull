@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -12,7 +11,7 @@ namespace Pitbull.TimeTracking.Features.GetTimeEntry;
 public record GetTimeEntryQuery(Guid TimeEntryId) : IQuery<TimeEntryDto>;
 
 public sealed class GetTimeEntryHandler(PitbullDbContext db)
-    : IRequestHandler<GetTimeEntryQuery, Result<TimeEntryDto>>
+    : IQueryHandler<GetTimeEntryQuery, TimeEntryDto>
 {
     public async Task<Result<TimeEntryDto>> Handle(
         GetTimeEntryQuery request, CancellationToken cancellationToken)

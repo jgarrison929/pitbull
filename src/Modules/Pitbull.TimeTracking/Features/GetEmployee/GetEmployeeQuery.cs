@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -12,7 +11,7 @@ namespace Pitbull.TimeTracking.Features.GetEmployee;
 public record GetEmployeeQuery(Guid EmployeeId) : IQuery<EmployeeDto>;
 
 public sealed class GetEmployeeHandler(PitbullDbContext db)
-    : IRequestHandler<GetEmployeeQuery, Result<EmployeeDto>>
+    : IQueryHandler<GetEmployeeQuery, EmployeeDto>
 {
     public async Task<Result<EmployeeDto>> Handle(
         GetEmployeeQuery request, CancellationToken cancellationToken)

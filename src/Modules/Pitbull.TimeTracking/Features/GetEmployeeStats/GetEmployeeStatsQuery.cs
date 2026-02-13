@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -34,7 +33,7 @@ public record EmployeeStatsResponse(
 /// Handler for getting employee statistics
 /// </summary>
 public sealed class GetEmployeeStatsHandler(PitbullDbContext db)
-    : IRequestHandler<GetEmployeeStatsQuery, Result<EmployeeStatsResponse>>
+    : IQueryHandler<GetEmployeeStatsQuery, EmployeeStatsResponse>
 {
     public async Task<Result<EmployeeStatsResponse>> Handle(
         GetEmployeeStatsQuery request,
