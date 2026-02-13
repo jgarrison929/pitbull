@@ -17,12 +17,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - AI assistance fields for future answer suggestions
   - *"This RFI cost us $45K in delays"* - now trackable end-to-end
 
+- **RFI Cost Impact API** (Phase 2) - New endpoints for cost analysis
+  - `GET /api/projects/{id}/rfis/{rfiId}/cost-impact` - Single RFI cost breakdown with linked change orders and timeline
+  - `GET /api/projects/{id}/rfi-cost-summary` - Project-level aggregates: total costs, delay days, top 5 costly RFIs
+  - Enables dashboards and reports showing true RFI financial impact
+
 ### 🏗️ Infrastructure
 
-- **Architecture:** Removed MediatR from 6 controllers (Contracts, Bids, RFIs, Projects)
+- **Architecture:** Removed MediatR from 7 controllers (Contracts, Bids, RFIs, Projects, Employees)
   - Direct service injection improves testability and debugging
   - Preserves CQRS patterns without message bus overhead
-  - 50% of controller migration complete (6/12)
+  - 58% of controller migration complete (7/12)
+  - New `IEmployeeService` with full CRUD + stats operations
 
 - **Demo Environment:** Fixed PostgreSQL session variable handling
   - `SET LOCAL` replaced with `set_config()` function for parameterized queries
@@ -37,6 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **EF Core LINQ:** Fixed `StringComparison.CurrentCultureIgnoreCase` translation errors across 12 files
 - **Web UI:** Added missing `date-fns` package and `Switch` component for pay periods page
 - **Web UI:** Fixed CostCode import paths in crew entry components
+- **Migrations:** Added missing Designer.cs files for PayPeriods and RFI Cost Impact migrations
+- **RLS Policies:** Fixed column references from snake_case to PascalCase (`TenantId`)
 
 ### Planned
 
