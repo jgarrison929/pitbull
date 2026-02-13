@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import api from "@/lib/api";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import type { Bid, Project } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -87,12 +88,20 @@ export default function BidDetailPage({
   const [convertOpen, setConvertOpen] = useState(false);
   const [projectNumber, setProjectNumber] = useState("");
   const [isConverting, setIsConverting] = useState(false);
+  const { addRecentItem } = useRecentlyViewed();
 
   useEffect(() => {
     async function fetchBid() {
       try {
         const data = await api<Bid>(`/api/bids/${id}`);
         setBid(data);
+        // Track for recently viewed (dashboard widget)
+        addRecentItem({
+          id: data.id,
+          type: "bid",
+          name: data.name,
+          identifier: data.bidNumber,
+        });
       } catch {
         setError("Failed to load bid");
         toast.error("Failed to load bid");
@@ -101,7 +110,7 @@ export default function BidDetailPage({
       }
     }
     fetchBid();
-  }, [id]);
+  }, [id, addRecentItem]);
 
   async function handleConvertToProject() {
     if (!projectNumber.trim()) {

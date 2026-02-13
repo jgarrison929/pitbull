@@ -14,6 +14,7 @@ import api from "@/lib/api";
 import { ProjectLaborSummary } from "@/components/projects/project-labor-summary";
 import { RfiCostWidget } from "@/components/rfis";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
+import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import type { AiProjectSummary, Project } from "@/lib/types";
 import {
@@ -55,17 +56,25 @@ export default function ProjectDetailPage({
   const [showAiInsights, setShowAiInsights] = useState(false);
 
   const { addRecentProject } = useRecentProjects();
+  const { addRecentItem } = useRecentlyViewed();
 
   useEffect(() => {
     async function fetchProject() {
       try {
         const data = await api<Project>(`/api/projects/${id}`);
         setProject(data);
-        // Track this project as recently viewed
+        // Track this project as recently viewed (for project switcher)
         addRecentProject({
           id: data.id,
           name: data.name,
           number: data.number,
+        });
+        // Track for general recently viewed (dashboard widget)
+        addRecentItem({
+          id: data.id,
+          type: "project",
+          name: data.name,
+          identifier: data.number,
         });
       } catch {
         setError("Failed to load project");
@@ -75,7 +84,7 @@ export default function ProjectDetailPage({
       }
     }
     fetchProject();
-  }, [id, addRecentProject]);
+  }, [id, addRecentProject, addRecentItem]);
 
   const fetchAiInsights = useCallback(async () => {
     setAiLoading(true);

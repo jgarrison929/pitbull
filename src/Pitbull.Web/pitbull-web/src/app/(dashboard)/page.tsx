@@ -20,6 +20,7 @@ import {
 import { GettingStarted } from "@/components/ui/getting-started";
 import { WeeklyHoursChart } from "@/components/dashboard/weekly-hours-chart";
 import { RfisNeedingAttention } from "@/components/dashboard/rfis-needing-attention";
+import { RecentlyViewed } from "@/components/dashboard/recently-viewed";
 import api from "@/lib/api";
 import type { DashboardStats, RecentActivityItem } from "@/lib/types";
 import { toast } from "sonner";
@@ -347,9 +348,10 @@ export default function DashboardPage() {
             </Card>
           </div>
 
-          {/* RFIs Needing Attention + Weekly Hours Chart */}
+          {/* Recently Viewed + RFIs Needing Attention */}
           <div className="grid gap-6 lg:grid-cols-3">
-            <div className="lg:col-span-1">
+            <div className="lg:col-span-1 space-y-6">
+              <RecentlyViewed />
               <RfisNeedingAttention />
             </div>
             <div className="lg:col-span-2">

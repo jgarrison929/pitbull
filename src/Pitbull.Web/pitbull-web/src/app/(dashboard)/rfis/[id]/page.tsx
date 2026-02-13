@@ -24,6 +24,7 @@ import {
 import { RfiCostImpactSection } from "@/components/rfis";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
+import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import type { Rfi, UpdateRfiCommand, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -116,6 +117,8 @@ export default function RfiDetailPage({
   const [editEstimatedCostImpact, setEditEstimatedCostImpact] = useState("");
   const [editEstimatedDelayDays, setEditEstimatedDelayDays] = useState("");
 
+  const { addRecentItem } = useRecentlyViewed();
+
   useEffect(() => {
     if (!projectId) {
       setError("Project ID is required");
@@ -143,6 +146,15 @@ export default function RfiDetailPage({
         setEditHasCostImpact(data.hasCostImpact);
         setEditEstimatedCostImpact(data.estimatedCostImpact?.toString() || "");
         setEditEstimatedDelayDays(data.estimatedDelayDays?.toString() || "");
+
+        // Track for recently viewed (dashboard widget)
+        addRecentItem({
+          id: data.id,
+          type: "rfi",
+          name: data.subject,
+          identifier: `RFI-${String(data.number).padStart(3, "0")}`,
+          projectId: projectId ?? undefined,
+        });
       } catch {
         setError("Failed to load RFI");
         toast.error("Failed to load RFI");
@@ -151,7 +163,7 @@ export default function RfiDetailPage({
       }
     }
     fetchRfi();
-  }, [id, projectId]);
+  }, [id, projectId, addRecentItem]);
 
   async function handleSave() {
     if (!rfi || !projectId) return;
