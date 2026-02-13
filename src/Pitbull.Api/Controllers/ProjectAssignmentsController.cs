@@ -1,13 +1,9 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
-using Pitbull.TimeTracking.Features.AssignEmployeeToProject;
-using Pitbull.TimeTracking.Features.GetEmployeeProjects;
-using Pitbull.TimeTracking.Features.GetProjectAssignments;
-using Pitbull.TimeTracking.Features.RemoveEmployeeFromProject;
+using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Api.Controllers;
 
@@ -26,7 +22,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Project Assignments")]
-public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
+public class ProjectAssignmentsController(IProjectAssignmentService projectAssignmentService) : ControllerBase
 {
     /// <summary>
     /// Assign an employee to a project
@@ -57,7 +53,7 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Assign([FromBody] AssignEmployeeRequest request)
     {
-        var command = new AssignEmployeeToProjectCommand(
+        var result = await projectAssignmentService.AssignEmployeeToProjectAsync(
             request.EmployeeId,
             request.ProjectId,
             request.Role,
@@ -66,7 +62,6 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
             request.Notes
         );
 
-        var result = await mediator.Send(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -103,8 +98,7 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
         Guid projectId,
         [FromQuery] bool activeOnly = true)
     {
-        var query = new GetProjectAssignmentsQuery(projectId, activeOnly);
-        var result = await mediator.Send(query);
+        var result = await projectAssignmentService.GetProjectAssignmentsAsync(projectId, activeOnly);
 
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
@@ -141,8 +135,7 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
         [FromQuery] bool activeOnly = true,
         [FromQuery] DateOnly? asOfDate = null)
     {
-        var query = new GetEmployeeProjectsQuery(employeeId, activeOnly, asOfDate);
-        var result = await mediator.Send(query);
+        var result = await projectAssignmentService.GetEmployeeProjectsAsync(employeeId, activeOnly, asOfDate);
 
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
@@ -176,8 +169,7 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
         Guid assignmentId,
         [FromQuery] DateOnly? endDate = null)
     {
-        var command = new RemoveEmployeeFromProjectCommand(assignmentId, endDate);
-        var result = await mediator.Send(command);
+        var result = await projectAssignmentService.RemoveAssignmentAsync(assignmentId, endDate);
 
         if (!result.IsSuccess)
         {
@@ -217,8 +209,7 @@ public class ProjectAssignmentsController(IMediator mediator) : ControllerBase
         [FromQuery] Guid projectId,
         [FromQuery] DateOnly? endDate = null)
     {
-        var command = new RemoveEmployeeFromProjectByIdsCommand(employeeId, projectId, endDate);
-        var result = await mediator.Send(command);
+        var result = await projectAssignmentService.RemoveAssignmentByIdsAsync(employeeId, projectId, endDate);
 
         if (!result.IsSuccess)
         {

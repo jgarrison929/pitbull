@@ -2,7 +2,6 @@ using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
 using Pitbull.TimeTracking.Features.GetEmployee;
-using Pitbull.TimeTracking.Features.GetEmployeeProjects;
 using Pitbull.TimeTracking.Features.GetEmployeeStats;
 using Pitbull.TimeTracking.Features.ListEmployees;
 using Pitbull.TimeTracking.Features.UpdateEmployee;
