@@ -56,7 +56,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
     /// <response code="200">System is healthy</response>
     /// <response code="503">System or dependencies are unhealthy</response>
     [HttpGet("health")]
-    [ProducesResponseType(typeof(HealthReport), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(HealthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> GetHealth()
     {
@@ -66,7 +66,23 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
             ? StatusCodes.Status200OK
             : StatusCodes.Status503ServiceUnavailable;
 
-        return StatusCode(statusCode, health);
+        // Map to a serializable DTO (HealthReport has IReadOnlyDictionary<string, object> which doesn't serialize cleanly)
+        var response = new HealthResponse(
+            Status: health.Status.ToString(),
+            TotalDuration: health.TotalDuration,
+            Entries: health.Entries.ToDictionary(
+                kvp => kvp.Key,
+                kvp => new HealthEntryResponse(
+                    Status: kvp.Value.Status.ToString(),
+                    Description: kvp.Value.Description,
+                    Duration: kvp.Value.Duration,
+                    Exception: kvp.Value.Exception?.Message,
+                    Tags: kvp.Value.Tags.ToList()
+                )
+            )
+        );
+
+        return StatusCode(statusCode, response);
     }
 
     /// <summary>
@@ -148,3 +164,29 @@ public record SecurityStatus(
     bool SecurityHeadersEnabled,
     bool AuthenticationEnabled,
     bool RequestSizeLimitsEnabled);
+
+/// <summary>
+/// Health check response
+/// </summary>
+/// <param name="Status">Overall health status (Healthy, Degraded, Unhealthy)</param>
+/// <param name="TotalDuration">Total time taken to run all health checks</param>
+/// <param name="Entries">Individual health check results</param>
+public record HealthResponse(
+    string Status,
+    TimeSpan TotalDuration,
+    Dictionary<string, HealthEntryResponse> Entries);
+
+/// <summary>
+/// Individual health check entry
+/// </summary>
+/// <param name="Status">Health status (Healthy, Degraded, Unhealthy)</param>
+/// <param name="Description">Optional description</param>
+/// <param name="Duration">Time taken for this check</param>
+/// <param name="Exception">Exception message if check failed</param>
+/// <param name="Tags">Tags associated with this health check</param>
+public record HealthEntryResponse(
+    string Status,
+    string? Description,
+    TimeSpan Duration,
+    string? Exception,
+    List<string> Tags);
