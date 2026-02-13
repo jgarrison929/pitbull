@@ -24,7 +24,7 @@ export function CrewEntryHeader({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
+        <Button variant="ghost" size="icon" asChild title="Back to Time Tracking">
           <Link href="/time-tracking">
             <ArrowLeft className="h-4 w-4" />
           </Link>

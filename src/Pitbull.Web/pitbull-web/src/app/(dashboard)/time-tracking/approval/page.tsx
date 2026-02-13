@@ -639,6 +639,7 @@ export default function TimeTrackingApprovalPage() {
                               className="text-green-600 hover:text-green-700 hover:bg-green-50"
                               onClick={() => openApproveDialog(entry)}
                               disabled={!approverId}
+                              title="Approve entry"
                             >
                               <CheckCircle className="h-4 w-4" />
                             </Button>
@@ -648,6 +649,7 @@ export default function TimeTrackingApprovalPage() {
                               className="text-red-600 hover:text-red-700 hover:bg-red-50"
                               onClick={() => openRejectDialog(entry)}
                               disabled={!approverId}
+                              title="Reject entry"
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>

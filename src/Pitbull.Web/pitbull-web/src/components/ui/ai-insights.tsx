@@ -92,6 +92,7 @@ export function AiInsights({
             size="sm"
             onClick={onRefresh}
             className="h-8 w-8 p-0"
+            title="Refresh insights"
           >
             <RefreshCw className="h-4 w-4" />
             <span className="sr-only">Refresh insights</span>

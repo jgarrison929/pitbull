@@ -44,7 +44,7 @@ export function CrewEntryMobileCards({
     <div className="space-y-4">
       {/* Navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="outline" size="icon" onClick={goToPrevious}>
+        <Button variant="outline" size="icon" onClick={goToPrevious} title="Previous employee">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <div className="text-center">
@@ -53,7 +53,7 @@ export function CrewEntryMobileCards({
             {currentIndex + 1} of {entries.length}
           </div>
         </div>
-        <Button variant="outline" size="icon" onClick={goToNext}>
+        <Button variant="outline" size="icon" onClick={goToNext} title="Next employee">
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
