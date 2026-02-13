@@ -117,7 +117,7 @@ public class SoftDeleteService(PitbullDbContext db)
 }
 ```
 
-Also fix the `ProjectsController.Delete` endpoint which currently is a no-op (Known Issue #3 from BEST-PRACTICES.md).
+Note: The `ProjectsController.Delete` endpoint has been fixed and now properly performs soft deletes.
 
 **Priority:** P1 -- implement in v0.1.0
 

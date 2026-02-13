@@ -33,7 +33,7 @@
 - CI pipeline (GitHub Actions: build + lint)
 
 **What needs to happen for v0.1.0 tag:**
-- [ ] Fix known issues from BEST-PRACTICES.md (delete endpoint no-op, PagedResult location, CreatedBy/UpdatedBy)
+- [x] Fix known issues from BEST-PRACTICES.md (delete endpoint ✅, CreatedBy/UpdatedBy ✅, PagedResult location deferred)
 - [ ] Health check tests DB connectivity (#24 infrastructure)
 - [ ] Request logging middleware with correlation IDs
 - [ ] Rate limiting on auth endpoints

@@ -226,10 +226,8 @@ API documentation: `http://localhost:5000/swagger`
 
 ## Known Issues
 
-1. **Domain events not dispatched** - Events collected but `IMediator.Publish()` not called
-2. **CreatedBy/UpdatedBy not populated** - Audit fields exist but not auto-set
-3. **Delete endpoint is no-op** - Soft delete not fully implemented
-4. **PagedResult in wrong location** - Lives in Projects module, should be in Core
+1. **Subdomain tenant resolution not implemented** - TenantMiddleware placeholder returns null
+2. **PagedResult in wrong location** - Lives in Projects module, should be in Core
 
 ## Testing
 
