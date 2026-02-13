@@ -321,7 +321,7 @@ public abstract record DomainEventBase : IDomainEvent
 }
 ```
 
-**Current status:** Domain events are now fully implemented. The `DispatchDomainEvents()` method collects and dispatches events via MediatR after SaveChanges. Events are dispatched asynchronously using fire-and-forget pattern to avoid blocking the main transaction.
+**Current status:** Domain events infrastructure is fully implemented. The `DispatchDomainEvents()` method collects and dispatches events via MediatR after SaveChanges. Events are dispatched asynchronously (fire-and-forget) to avoid blocking the main transaction. No entities currently raise domain events - add them as needed for cross-module communication.
 
 ### Controller Conventions
 
@@ -645,9 +645,9 @@ await strategy.ExecuteAsync(async () =>
 
 ### Open Issues
 
-1. **Domain events not dispatched:** `PitbullDbContext.DispatchDomainEvents()` collects events but doesn't call `IMediator.Publish()`. Needs `IMediator` injected into the DbContext (or use a separate dispatcher service to avoid the circular dependency).
+1. **Subdomain tenant resolution not implemented:** `TenantMiddleware` has a placeholder for subdomain-based tenant lookup but returns null. Will need a tenant lookup service.
 
-2. **Subdomain tenant resolution not implemented:** `TenantMiddleware` has a placeholder for subdomain-based tenant lookup but returns null. Will need a tenant lookup service.
+2. **No domain events are raised yet:** The domain events infrastructure is fully implemented (`DispatchDomainEvents()` publishes via MediatR), but no entities currently raise domain events. When adding domain events, use `entity.AddDomainEvent(new SomethingHappenedEvent(...))` before SaveChanges.
 
 ### Resolved Issues
 
