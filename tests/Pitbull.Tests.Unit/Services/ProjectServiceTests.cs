@@ -5,11 +5,13 @@ using FluentValidation.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Pitbull.Contracts.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
 using Pitbull.Projects.Services;
+using Pitbull.RFIs.Domain;
 using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Services;
@@ -475,6 +477,281 @@ public class ProjectServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    #endregion
+
+    #region GetProjectRfiCostSummaryAsync
+
+    [Fact]
+    public async Task GetProjectRfiCostSummaryAsync_ExistingProject_ReturnsSummary()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "Cost Summary Test",
+            Number = "PRJ-COST-001",
+            Status = ProjectStatus.Active,
+            Type = ProjectType.Commercial,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(project);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetProjectRfiCostSummaryAsync(project.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.ProjectId.Should().Be(project.Id);
+        result.Value.ProjectName.Should().Be("Cost Summary Test");
+        result.Value.TotalRfis.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetProjectRfiCostSummaryAsync_NonExistentProject_ReturnsNotFound()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetProjectRfiCostSummaryAsync(Guid.NewGuid());
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("PROJECT_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task GetProjectRfiCostSummaryAsync_WithRfis_CountsCorrectly()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "RFI Test Project",
+            Number = "PRJ-RFI-001",
+            Status = ProjectStatus.Active,
+            Type = ProjectType.Commercial,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(project);
+
+        // Add RFIs in different statuses
+        db.Set<Rfi>().Add(new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "Open RFI 1",
+            Question = "Question",
+            Status = RfiStatus.Open,
+            Priority = RfiPriority.Normal,
+            ProjectId = project.Id,
+            CreatedAt = DateTime.UtcNow
+        });
+        db.Set<Rfi>().Add(new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 2,
+            Subject = "Open RFI 2",
+            Question = "Question",
+            Status = RfiStatus.Open,
+            Priority = RfiPriority.High,
+            ProjectId = project.Id,
+            DueDate = DateTime.UtcNow.AddDays(-5), // Overdue
+            CreatedAt = DateTime.UtcNow.AddDays(-10)
+        });
+        db.Set<Rfi>().Add(new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 3,
+            Subject = "Closed RFI",
+            Question = "Question",
+            Status = RfiStatus.Closed,
+            Priority = RfiPriority.Normal,
+            ProjectId = project.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-20),
+            ClosedAt = DateTime.UtcNow.AddDays(-10)
+        });
+
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetProjectRfiCostSummaryAsync(project.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalRfis.Should().Be(3);
+        result.Value.OpenRfis.Should().Be(2);
+        result.Value.OverdueRfis.Should().Be(1); // Only the one with past due date
+    }
+
+    [Fact]
+    public async Task GetProjectRfiCostSummaryAsync_WithChangeOrders_CalculatesCostsCorrectly()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "CO Test Project",
+            Number = "PRJ-CO-001",
+            Status = ProjectStatus.Active,
+            Type = ProjectType.Commercial,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(project);
+
+        // Create a subcontract for change orders
+        var subcontract = new Subcontract
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = project.Id,
+            SubcontractNumber = "SC-001",
+            SubcontractorName = "Test Contractor",
+            ScopeOfWork = "Test work",
+            OriginalValue = 100000m,
+            CurrentValue = 100000m,
+            Status = SubcontractStatus.Executed,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Subcontract>().Add(subcontract);
+
+        var rfi1 = new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "RFI with cost impact",
+            Question = "Question",
+            Status = RfiStatus.Closed,
+            Priority = RfiPriority.High,
+            ProjectId = project.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-30),
+            ClosedAt = DateTime.UtcNow.AddDays(-20)
+        };
+        db.Set<Rfi>().Add(rfi1);
+
+        var rfi2 = new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 2,
+            Subject = "RFI without cost impact",
+            Question = "Question",
+            Status = RfiStatus.Open,
+            Priority = RfiPriority.Normal,
+            ProjectId = project.Id,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Rfi>().Add(rfi2);
+
+        // Add change orders linked to rfi1
+        db.Set<ChangeOrder>().Add(new ChangeOrder
+        {
+            Id = Guid.NewGuid(),
+            SubcontractId = subcontract.Id,
+            ChangeOrderNumber = "CO-001",
+            Title = "Foundation change",
+            Amount = 25000m,
+            DelayDays = 5,
+            DelayCost = 10000m,
+            Status = ChangeOrderStatus.Approved,
+            OriginatingRfiId = rfi1.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-25)
+        });
+        db.Set<ChangeOrder>().Add(new ChangeOrder
+        {
+            Id = Guid.NewGuid(),
+            SubcontractId = subcontract.Id,
+            ChangeOrderNumber = "CO-002",
+            Title = "Additional work",
+            Amount = 15000m,
+            DelayDays = 3,
+            DelayCost = 5000m,
+            Status = ChangeOrderStatus.Approved,
+            OriginatingRfiId = rfi1.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-20)
+        });
+
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetProjectRfiCostSummaryAsync(project.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalRfis.Should().Be(2);
+        result.Value.RfisWithCostImpact.Should().Be(1); // Only rfi1 has linked COs
+        result.Value.TotalDirectCost.Should().Be(40000m); // 25000 + 15000
+        result.Value.TotalDelayCost.Should().Be(15000m); // 10000 + 5000
+        result.Value.TotalCost.Should().Be(55000m);
+        result.Value.TotalDelayDays.Should().Be(8); // 5 + 3
+        result.Value.TopCostlyRfis.Should().HaveCount(1);
+        result.Value.TopCostlyRfis[0].TotalCost.Should().Be(55000m);
+    }
+
+    [Fact]
+    public async Task GetProjectRfiCostSummaryAsync_CalculatesAverageResolutionDays()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "Resolution Test",
+            Number = "PRJ-RES-001",
+            Status = ProjectStatus.Active,
+            Type = ProjectType.Commercial,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(project);
+
+        // Add closed RFIs with different resolution times
+        db.Set<Rfi>().Add(new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "Quick RFI",
+            Question = "Question",
+            Status = RfiStatus.Closed,
+            Priority = RfiPriority.Normal,
+            ProjectId = project.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-10),
+            ClosedAt = DateTime.UtcNow.AddDays(-5) // 5 days to resolve
+        });
+        db.Set<Rfi>().Add(new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 2,
+            Subject = "Slow RFI",
+            Question = "Question",
+            Status = RfiStatus.Closed,
+            Priority = RfiPriority.Normal,
+            ProjectId = project.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-25),
+            ClosedAt = DateTime.UtcNow.AddDays(-10) // 15 days to resolve
+        });
+
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetProjectRfiCostSummaryAsync(project.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.AverageResolutionDays.Should().Be(10.0); // (5 + 15) / 2
     }
 
     #endregion

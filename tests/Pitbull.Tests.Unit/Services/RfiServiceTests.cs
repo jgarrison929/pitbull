@@ -3,6 +3,7 @@ using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Pitbull.Contracts.Domain;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.ListRfis;
@@ -525,6 +526,251 @@ public class RfiServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    #endregion
+
+    #region GetRfiCostImpactAsync
+
+    [Fact]
+    public async Task GetRfiCostImpactAsync_ExistingRfi_ReturnsImpactAnalysis()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var projectId = Guid.NewGuid();
+        var rfi = new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "Foundation Change",
+            Question = "What is the required depth?",
+            Status = RfiStatus.Open,
+            Priority = RfiPriority.High,
+            ProjectId = projectId,
+            CreatedAt = DateTime.UtcNow.AddDays(-5),
+            CreatedByName = "John Foreman"
+        };
+        db.Set<Rfi>().Add(rfi);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetRfiCostImpactAsync(rfi.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().NotBeNull();
+        result.Value!.RfiId.Should().Be(rfi.Id);
+        result.Value.RfiNumber.Should().Be(1);
+        result.Value.Subject.Should().Be("Foundation Change");
+        result.Value.Status.Should().Be("Open");
+        result.Value.DaysOpen.Should().BeGreaterThan(3);
+        result.Value.ChangeOrders.Should().BeEmpty();
+        result.Value.Timeline.Should().NotBeEmpty();
+        result.Value.Timeline.Should().Contain(t => t.Event == "RFI Created");
+    }
+
+    [Fact]
+    public async Task GetRfiCostImpactAsync_NonExistentRfi_ReturnsNotFound()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetRfiCostImpactAsync(Guid.NewGuid());
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task GetRfiCostImpactAsync_WithLinkedChangeOrders_CalculatesCosts()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var projectId = Guid.NewGuid();
+        var rfi = new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "Structural Change",
+            Question = "Please clarify detail",
+            Status = RfiStatus.Closed,
+            Priority = RfiPriority.High,
+            ProjectId = projectId,
+            CreatedAt = DateTime.UtcNow.AddDays(-30),
+            AnsweredAt = DateTime.UtcNow.AddDays(-25),
+            ClosedAt = DateTime.UtcNow.AddDays(-20)
+        };
+        db.Set<Rfi>().Add(rfi);
+
+        // Create a subcontract for change orders
+        var subcontract = new Subcontract
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = projectId,
+            SubcontractNumber = "SC-001",
+            SubcontractorName = "Test Contractor",
+            ScopeOfWork = "Test work",
+            OriginalValue = 100000m,
+            CurrentValue = 100000m,
+            Status = SubcontractStatus.Executed,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Subcontract>().Add(subcontract);
+
+        // Add linked change orders
+        db.Set<ChangeOrder>().Add(new ChangeOrder
+        {
+            Id = Guid.NewGuid(),
+            SubcontractId = subcontract.Id,
+            ChangeOrderNumber = "CO-001",
+            Title = "Additional work",
+            Amount = 25000m,
+            DelayDays = 5,
+            DelayCost = 8000m,
+            Status = ChangeOrderStatus.Approved,
+            OriginatingRfiId = rfi.Id,
+            ApprovedDate = DateTime.UtcNow.AddDays(-15),
+            ApprovedBy = "PM Smith",
+            CreatedAt = DateTime.UtcNow.AddDays(-20)
+        });
+        db.Set<ChangeOrder>().Add(new ChangeOrder
+        {
+            Id = Guid.NewGuid(),
+            SubcontractId = subcontract.Id,
+            ChangeOrderNumber = "CO-002",
+            Title = "Delay compensation",
+            Amount = 10000m,
+            DelayDays = 3,
+            DelayCost = 5000m,
+            Status = ChangeOrderStatus.Pending,
+            OriginatingRfiId = rfi.Id,
+            CreatedAt = DateTime.UtcNow.AddDays(-18)
+        });
+
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetRfiCostImpactAsync(rfi.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.DirectCost.Should().Be(35000m); // 25000 + 10000
+        result.Value.DelayCost.Should().Be(13000m); // 8000 + 5000
+        result.Value.TotalCost.Should().Be(48000m);
+        result.Value.ChangeOrders.Should().HaveCount(2);
+        result.Value.ChangeOrders.Should().Contain(co => co.ChangeOrderNumber == "CO-001");
+        result.Value.ChangeOrders.Should().Contain(co => co.ChangeOrderNumber == "CO-002");
+    }
+
+    [Fact]
+    public async Task GetRfiCostImpactAsync_WithDueDate_CalculatesResponseDelay()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var projectId = Guid.NewGuid();
+        var rfi = new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "Overdue RFI",
+            Question = "Question",
+            Status = RfiStatus.Answered,
+            Priority = RfiPriority.High,
+            ProjectId = projectId,
+            CreatedAt = DateTime.UtcNow.AddDays(-20),
+            DueDate = DateTime.UtcNow.AddDays(-15), // Due 15 days ago
+            AnsweredAt = DateTime.UtcNow.AddDays(-10) // Answered 10 days ago (5 days late)
+        };
+        db.Set<Rfi>().Add(rfi);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetRfiCostImpactAsync(rfi.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ResponseDelayDays.Should().Be(5); // 5 days past due when answered
+        result.Value.DueDate.Should().NotBeNull();
+        result.Value.AnsweredAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task GetRfiCostImpactAsync_AnsweredOnTime_NoResponseDelay()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var projectId = Guid.NewGuid();
+        var rfi = new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "On-Time RFI",
+            Question = "Question",
+            Status = RfiStatus.Answered,
+            Priority = RfiPriority.Normal,
+            ProjectId = projectId,
+            CreatedAt = DateTime.UtcNow.AddDays(-10),
+            DueDate = DateTime.UtcNow.AddDays(-3), // Due 3 days ago
+            AnsweredAt = DateTime.UtcNow.AddDays(-5) // Answered 5 days ago (2 days early)
+        };
+        db.Set<Rfi>().Add(rfi);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetRfiCostImpactAsync(rfi.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ResponseDelayDays.Should().BeNull(); // No delay, answered before due
+    }
+
+    [Fact]
+    public async Task GetRfiCostImpactAsync_BuildsTimelineCorrectly()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var projectId = Guid.NewGuid();
+        var rfi = new Rfi
+        {
+            Id = Guid.NewGuid(),
+            Number = 1,
+            Subject = "Timeline Test RFI",
+            Question = "Question",
+            Status = RfiStatus.Closed,
+            Priority = RfiPriority.Normal,
+            ProjectId = projectId,
+            CreatedAt = DateTime.UtcNow.AddDays(-20),
+            DueDate = DateTime.UtcNow.AddDays(-15),
+            AnsweredAt = DateTime.UtcNow.AddDays(-10),
+            ClosedAt = DateTime.UtcNow.AddDays(-5),
+            CreatedByName = "John Doe"
+        };
+        db.Set<Rfi>().Add(rfi);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetRfiCostImpactAsync(rfi.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Timeline.Should().HaveCount(4);
+        result.Value.Timeline.Should().Contain(t => t.Event == "RFI Created" && t.Actor == "John Doe");
+        result.Value.Timeline.Should().Contain(t => t.Event == "Due Date");
+        result.Value.Timeline.Should().Contain(t => t.Event == "Answer Received");
+        result.Value.Timeline.Should().Contain(t => t.Event == "RFI Closed");
     }
 
     #endregion
