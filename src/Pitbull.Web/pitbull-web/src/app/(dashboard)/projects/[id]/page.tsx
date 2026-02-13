@@ -12,6 +12,7 @@ import { AiInsights } from "@/components/ui/ai-insights";
 import { HealthScoreBadge } from "@/components/ui/health-score-gauge";
 import api from "@/lib/api";
 import { ProjectLaborSummary } from "@/components/projects/project-labor-summary";
+import { RfiCostWidget } from "@/components/rfis";
 import type { AiProjectSummary, Project } from "@/lib/types";
 import {
   projectStatusBadgeClass,
@@ -128,6 +129,9 @@ export default function ProjectDetailPage({
 
       {/* Labor Summary */}
       <ProjectLaborSummary projectId={id} />
+
+      {/* RFI Cost Impact Widget */}
+      <RfiCostWidget projectId={id} />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

@@ -715,3 +715,54 @@ export interface UpdateRfiCommand {
   estimatedCostImpact?: number | null;
   estimatedDelayDays?: number | null;
 }
+
+// RFI Cost Impact Types
+export interface RfiCostImpactTimelineEvent {
+  date: string;
+  event: string;
+  actor?: string | null;
+  daysLate?: number | null;
+  coNumber?: string | null;
+}
+
+export interface RfiCostImpactChangeOrder {
+  id: string;
+  number: string;
+  amount: number;
+  status: string;
+}
+
+export interface RfiCostImpact {
+  rfiId: string;
+  rfiNumber: number;
+  subject: string;
+  status: string;
+  daysOpen: number;
+  responseDelayDays?: number | null;
+  directCost: number;
+  delayCost: number;
+  totalCost: number;
+  changeOrders: RfiCostImpactChangeOrder[];
+  timeline: RfiCostImpactTimelineEvent[];
+}
+
+export interface RfiCostSummaryTopRfi {
+  number: number;
+  subject: string;
+  totalCost: number;
+}
+
+export interface RfiCostSummary {
+  projectId: string;
+  projectName: string;
+  totalRfis: number;
+  openRfis: number;
+  rfisWithCostImpact: number;
+  totalDirectCost: number;
+  totalDelayCost: number;
+  totalCost: number;
+  totalDelayDays: number;
+  topCostlyRfis: RfiCostSummaryTopRfi[];
+  averageResolutionDays: number;
+  overdueRfis: number;
+}

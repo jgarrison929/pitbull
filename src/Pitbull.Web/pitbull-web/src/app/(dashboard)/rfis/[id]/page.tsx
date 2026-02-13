@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { RfiCostImpactSection } from "@/components/rfis";
 import api from "@/lib/api";
 import type { Rfi, UpdateRfiCommand, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
@@ -455,160 +457,180 @@ export default function RfiDetailPage({
         </Card>
       ) : (
         /* View Mode */
-        <>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">RFI Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Priority</span>
-                  <span>
-                    <Badge
-                      variant="secondary"
-                      className={priorityColor(rfi.priority)}
-                    >
-                      {priorityLabel(rfi.priority)}
-                    </Badge>
-                  </span>
-                  <span className="text-muted-foreground">Due Date</span>
-                  <span className="font-medium">
-                    {rfi.dueDate
-                      ? new Date(rfi.dueDate).toLocaleDateString()
-                      : "Not set"}
-                  </span>
-                  <span className="text-muted-foreground">Ball In Court</span>
-                  <span className="font-medium">
-                    {rfi.ballInCourtName || "—"}
-                  </span>
-                  <span className="text-muted-foreground">Assigned To</span>
-                  <span className="font-medium">
-                    {rfi.assignedToName || "—"}
-                  </span>
-                  <span className="text-muted-foreground">Created By</span>
-                  <span className="font-medium">
-                    {rfi.createdByName || "—"}
-                  </span>
-                  <span className="text-muted-foreground">Created</span>
-                  <span className="font-medium">
-                    {new Date(rfi.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Timeline</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Answered At</span>
-                  <span className="font-medium">
-                    {rfi.answeredAt
-                      ? new Date(rfi.answeredAt).toLocaleDateString()
-                      : "Not yet answered"}
-                  </span>
-                  <span className="text-muted-foreground">Closed At</span>
-                  <span className="font-medium">
-                    {rfi.closedAt
-                      ? new Date(rfi.closedAt).toLocaleDateString()
-                      : "Not yet closed"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Question</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {rfi.question}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Answer</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {rfi.answer ? (
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                  {rfi.answer}
-                </p>
-              ) : (
-                <div className="py-4 text-center">
-                  <p className="text-muted-foreground text-sm">
-                    No answer provided yet.
-                  </p>
-                </div>
+        <Tabs defaultValue="details" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="cost-impact" className="gap-1">
+              💰 Cost Impact
+              {rfi.hasCostImpact && (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] px-1 py-0 ml-1">
+                  $
+                </Badge>
               )}
-            </CardContent>
-          </Card>
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Document References & Cost Impact Card */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Document References</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <span className="text-muted-foreground">Spec Section</span>
-                  <span className="font-medium">
-                    {rfi.specSection || "—"}
-                  </span>
-                  <span className="text-muted-foreground">Drawings</span>
-                  <span className="font-medium">
-                    {rfi.drawingReferences && rfi.drawingReferences.length > 0
-                      ? rfi.drawingReferences.join(", ")
-                      : "—"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  Cost Impact
-                  {rfi.hasCostImpact && (
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                      Has Impact
-                    </Badge>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {rfi.hasCostImpact ? (
+          <TabsContent value="details" className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">RFI Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <span className="text-muted-foreground">Estimated Cost</span>
-                    <span className="font-medium text-amber-700">
-                      {rfi.estimatedCostImpact != null
-                        ? `$${rfi.estimatedCostImpact.toLocaleString()}`
-                        : "—"}
+                    <span className="text-muted-foreground">Priority</span>
+                    <span>
+                      <Badge
+                        variant="secondary"
+                        className={priorityColor(rfi.priority)}
+                      >
+                        {priorityLabel(rfi.priority)}
+                      </Badge>
                     </span>
-                    <span className="text-muted-foreground">Estimated Delay</span>
-                    <span className="font-medium text-amber-700">
-                      {rfi.estimatedDelayDays != null
-                        ? `${rfi.estimatedDelayDays} day${rfi.estimatedDelayDays !== 1 ? "s" : ""}`
-                        : "—"}
+                    <span className="text-muted-foreground">Due Date</span>
+                    <span className="font-medium">
+                      {rfi.dueDate
+                        ? new Date(rfi.dueDate).toLocaleDateString()
+                        : "Not set"}
+                    </span>
+                    <span className="text-muted-foreground">Ball In Court</span>
+                    <span className="font-medium">
+                      {rfi.ballInCourtName || "—"}
+                    </span>
+                    <span className="text-muted-foreground">Assigned To</span>
+                    <span className="font-medium">
+                      {rfi.assignedToName || "—"}
+                    </span>
+                    <span className="text-muted-foreground">Created By</span>
+                    <span className="font-medium">
+                      {rfi.createdByName || "—"}
+                    </span>
+                    <span className="text-muted-foreground">Created</span>
+                    <span className="font-medium">
+                      {new Date(rfi.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No cost impact identified
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Timeline</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <span className="text-muted-foreground">Answered At</span>
+                    <span className="font-medium">
+                      {rfi.answeredAt
+                        ? new Date(rfi.answeredAt).toLocaleDateString()
+                        : "Not yet answered"}
+                    </span>
+                    <span className="text-muted-foreground">Closed At</span>
+                    <span className="font-medium">
+                      {rfi.closedAt
+                        ? new Date(rfi.closedAt).toLocaleDateString()
+                        : "Not yet closed"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Question</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {rfi.question}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Answer</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {rfi.answer ? (
+                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {rfi.answer}
                   </p>
+                ) : (
+                  <div className="py-4 text-center">
+                    <p className="text-muted-foreground text-sm">
+                      No answer provided yet.
+                    </p>
+                  </div>
                 )}
               </CardContent>
             </Card>
-          </div>
-        </>
+
+            {/* Document References & Estimated Cost Impact Card */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Document References</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <span className="text-muted-foreground">Spec Section</span>
+                    <span className="font-medium">
+                      {rfi.specSection || "—"}
+                    </span>
+                    <span className="text-muted-foreground">Drawings</span>
+                    <span className="font-medium">
+                      {rfi.drawingReferences && rfi.drawingReferences.length > 0
+                        ? rfi.drawingReferences.join(", ")
+                        : "—"}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    Estimated Cost Impact
+                    {rfi.hasCostImpact && (
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                        Has Impact
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {rfi.hasCostImpact ? (
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-muted-foreground">Estimated Cost</span>
+                      <span className="font-medium text-amber-700">
+                        {rfi.estimatedCostImpact != null
+                          ? `$${rfi.estimatedCostImpact.toLocaleString()}`
+                          : "—"}
+                      </span>
+                      <span className="text-muted-foreground">Estimated Delay</span>
+                      <span className="font-medium text-amber-700">
+                        {rfi.estimatedDelayDays != null
+                          ? `${rfi.estimatedDelayDays} day${rfi.estimatedDelayDays !== 1 ? "s" : ""}`
+                          : "—"}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No cost impact identified
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="cost-impact">
+            {projectId && (
+              <RfiCostImpactSection projectId={projectId} rfiId={id} />
+            )}
+          </TabsContent>
+        </Tabs>
       )}
 
       <Separator />
