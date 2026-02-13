@@ -1,10 +1,8 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
-using Pitbull.Core.Features.GetDashboardStats;
-using Pitbull.Core.Features.GetWeeklyHours;
+using Pitbull.Core.Features.Dashboard;
 
 namespace Pitbull.Api.Controllers;
 
@@ -18,7 +16,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Dashboard")]
-public class DashboardController(IMediator mediator) : ControllerBase
+public class DashboardController(IDashboardService dashboardService) : ControllerBase
 {
     /// <summary>
     /// Get dashboard statistics for the current tenant
@@ -51,8 +49,7 @@ public class DashboardController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetStats()
     {
-        var query = new GetDashboardStatsQuery();
-        var result = await mediator.Send(query);
+        var result = await dashboardService.GetStatsAsync();
         
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
@@ -96,8 +93,7 @@ public class DashboardController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetWeeklyHours([FromQuery] int weeks = 8)
     {
-        var query = new GetWeeklyHoursQuery(weeks);
-        var result = await mediator.Send(query);
+        var result = await dashboardService.GetWeeklyHoursAsync(weeks);
         
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });

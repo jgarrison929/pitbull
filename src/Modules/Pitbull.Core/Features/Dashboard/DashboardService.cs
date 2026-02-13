@@ -1,20 +1,16 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
-using System.Reflection;
 
-namespace Pitbull.Core.Features.GetDashboardStats;
+namespace Pitbull.Core.Features.Dashboard;
 
 /// <summary>
-/// Handler for getting dashboard statistics
+/// Service for dashboard analytics and statistics
 /// </summary>
-public sealed class GetDashboardStatsHandler(PitbullDbContext db) 
-    : IRequestHandler<GetDashboardStatsQuery, Result<DashboardStatsResponse>>
+public sealed class DashboardService(PitbullDbContext db) : IDashboardService
 {
-    public async Task<Result<DashboardStatsResponse>> Handle(
-        GetDashboardStatsQuery request, 
-        CancellationToken cancellationToken)
+    /// <inheritdoc />
+    public async Task<Result<DashboardStatsResponse>> GetStatsAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -59,6 +55,83 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
                 $"Failed to retrieve dashboard statistics: {ex.Message}",
                 "DASHBOARD_STATS_ERROR");
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<Result<WeeklyHoursResponse>> GetWeeklyHoursAsync(int weeks = 8, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            weeks = Math.Clamp(weeks, 1, 52);
+            var endDate = DateOnly.FromDateTime(DateTime.Today);
+            var startDate = endDate.AddDays(-7 * weeks);
+
+            // Get weekly aggregated hours using raw SQL
+            // Note: Column name is "DoubletimeHours" (lowercase 't') per migration
+            // Note: Aliases must match DTO property names exactly (EF Core raw SQL mapping)
+            var sql = $@"
+                SELECT 
+                    DATE_TRUNC('week', ""Date""::timestamp)::date as ""WeekStart"",
+                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
+                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
+                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours""
+                FROM time_entries
+                WHERE ""IsDeleted"" = false
+                  AND ""Date"" >= '{startDate:yyyy-MM-dd}'
+                  AND ""Date"" <= '{endDate:yyyy-MM-dd}'
+                GROUP BY DATE_TRUNC('week', ""Date""::timestamp)
+                ORDER BY ""WeekStart""";
+
+            var rawData = await db.Database.SqlQueryRaw<WeeklyHoursRow>(sql)
+                .ToListAsync(cancellationToken);
+
+            // Build complete week list (fill in zeros for missing weeks)
+            var dataPoints = new List<WeeklyHoursDataPoint>();
+            var currentWeek = GetMondayOfWeek(startDate);
+            var lastWeek = GetMondayOfWeek(endDate);
+
+            while (currentWeek <= lastWeek)
+            {
+                var weekData = rawData.FirstOrDefault(r => 
+                    DateOnly.FromDateTime(r.WeekStart) == currentWeek);
+
+                var regular = weekData?.RegularHours ?? 0;
+                var ot = weekData?.OvertimeHours ?? 0;
+                var dt = weekData?.DoubleTimeHours ?? 0;
+
+                dataPoints.Add(new WeeklyHoursDataPoint(
+                    WeekLabel: currentWeek.ToString("MMM d"),
+                    WeekStart: currentWeek,
+                    RegularHours: regular,
+                    OvertimeHours: ot,
+                    DoubleTimeHours: dt,
+                    TotalHours: regular + ot + dt
+                ));
+
+                currentWeek = currentWeek.AddDays(7);
+            }
+
+            var totalHours = dataPoints.Sum(d => d.TotalHours);
+            var avgHours = dataPoints.Count > 0 ? totalHours / dataPoints.Count : 0;
+
+            return Result.Success(new WeeklyHoursResponse(
+                Data: dataPoints,
+                TotalHours: totalHours,
+                AverageHoursPerWeek: avgHours
+            ));
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<WeeklyHoursResponse>(
+                $"Failed to retrieve weekly hours: {ex.Message}",
+                "WEEKLY_HOURS_ERROR");
+        }
+    }
+
+    private static DateOnly GetMondayOfWeek(DateOnly date)
+    {
+        var diff = (7 + (date.DayOfWeek - DayOfWeek.Monday)) % 7;
+        return date.AddDays(-diff);
     }
 
     private async Task<(int count, decimal totalValue)> GetProjectStats(CancellationToken cancellationToken)
@@ -205,7 +278,7 @@ public sealed class GetDashboardStatsHandler(PitbullDbContext db)
 
         try
         {
-            // Get recent projects (last 5)
+            // Get recent projects (last 3)
             var projectsSql = @"
                 SELECT ""Id"", ""Name"", ""Number"", ""CreatedAt""
                 FROM projects
@@ -326,3 +399,4 @@ internal record ProjectActivityRow(Guid Id, string Name, string Number, DateTime
 internal record BidActivityRow(Guid Id, string Name, string Number, DateTime CreatedAt);
 internal record EmployeeActivityRow(Guid Id, string FirstName, string LastName, string EmployeeNumber, DateTime CreatedAt);
 internal record SubcontractActivityRow(Guid Id, string SubcontractNumber, string SubcontractorName, DateTime CreatedAt);
+internal record WeeklyHoursRow(DateTime WeekStart, decimal RegularHours, decimal OvertimeHours, decimal DoubleTimeHours);

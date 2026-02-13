@@ -1,45 +1,43 @@
 using FluentAssertions;
-using Pitbull.Core.Features.GetDashboardStats;
+using Pitbull.Core.Features.Dashboard;
 using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 
 /// <summary>
-/// Tests for GetDashboardStatsHandler.
-/// Note: The handler uses raw SQL (SqlQueryRaw) and reflection-based entity resolution,
-/// which don't work with the EF InMemory provider. These tests verify that the handler
+/// Tests for DashboardService.GetStatsAsync.
+/// Note: The service uses raw SQL (SqlQueryRaw) and reflection-based entity resolution,
+/// which don't work with the EF InMemory provider. These tests verify that the service
 /// gracefully handles failures (returns zero stats) rather than crashing.
 /// Full integration tests with a real PostgreSQL database should cover the happy path.
 /// </summary>
-public class GetDashboardStatsHandlerTests
+public class DashboardServiceStatsTests
 {
     [Fact]
-    public async Task Handle_WhenDatabaseEmpty_ReturnsZeroStats()
+    public async Task GetStatsAsync_WhenDatabaseEmpty_ReturnsZeroStats()
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        var handler = new GetDashboardStatsHandler(db);
-        var query = new GetDashboardStatsQuery();
+        var service = new DashboardService(db);
 
         // Act
-        var result = await handler.Handle(query, CancellationToken.None);
+        var result = await service.GetStatsAsync();
 
-        // Assert - handler catches exceptions and returns zero stats gracefully
+        // Assert - service catches exceptions and returns zero stats gracefully
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value!.PendingChangeOrders.Should().Be(0);
     }
 
     [Fact]
-    public async Task Handle_ReturnsResponseWithAllFields()
+    public async Task GetStatsAsync_ReturnsResponseWithAllFields()
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        var handler = new GetDashboardStatsHandler(db);
-        var query = new GetDashboardStatsQuery();
+        var service = new DashboardService(db);
 
         // Act
-        var result = await handler.Handle(query, CancellationToken.None);
+        var result = await service.GetStatsAsync();
 
         // Assert - verify the response shape is correct even when data is zero
         result.IsSuccess.Should().BeTrue();
@@ -68,13 +66,5 @@ public class GetDashboardStatsHandlerTests
         // Assert - record value equality
         stats1.Should().Be(stats2);
         stats1.Should().NotBe(stats3);
-    }
-
-    [Fact]
-    public void GetDashboardStatsQuery_IsParameterless()
-    {
-        // Verify the query has no parameters (it gets stats for the current tenant via context)
-        var query = new GetDashboardStatsQuery();
-        query.Should().NotBeNull();
     }
 }

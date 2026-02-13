@@ -1,40 +1,29 @@
 using FluentAssertions;
-using Pitbull.Core.Features.GetWeeklyHours;
+using Pitbull.Core.Features.Dashboard;
 using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 
 /// <summary>
-/// Tests for GetWeeklyHoursHandler.
-/// Note: The handler uses raw SQL which doesn't work with EF InMemory provider.
+/// Tests for DashboardService.GetWeeklyHoursAsync.
+/// Note: The service uses raw SQL which doesn't work with EF InMemory provider.
 /// These tests verify graceful handling and response structure.
 /// </summary>
-public sealed class GetWeeklyHoursHandlerTests
+public sealed class DashboardServiceWeeklyHoursTests
 {
     [Fact]
-    public async Task Handle_WhenDatabaseEmpty_ReturnsSuccessWithEmptyData()
+    public async Task GetWeeklyHoursAsync_WhenDatabaseEmpty_ReturnsSuccessWithEmptyData()
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        var handler = new GetWeeklyHoursHandler(db);
-        var query = new GetWeeklyHoursQuery(4);
+        var service = new DashboardService(db);
 
         // Act
-        var result = await handler.Handle(query, CancellationToken.None);
+        var result = await service.GetWeeklyHoursAsync(4);
 
-        // Assert - handler may fail with InMemory but should return a result
+        // Assert - service may fail with InMemory but should return a result
         // In production with real DB, this would succeed with empty data
         result.Should().NotBeNull();
-    }
-
-    [Fact]
-    public void Handle_WithDefaultWeeks_UsesEightWeeks()
-    {
-        // Arrange
-        var query = new GetWeeklyHoursQuery();
-
-        // Assert - default constructor should set weeks to 8
-        query.Weeks.Should().Be(8);
     }
 
     [Theory]
@@ -43,13 +32,17 @@ public sealed class GetWeeklyHoursHandlerTests
     [InlineData(8)]
     [InlineData(12)]
     [InlineData(52)]
-    public void Query_AcceptsValidWeekRanges(int weeks)
+    public async Task GetWeeklyHoursAsync_AcceptsValidWeekRanges(int weeks)
     {
-        // Arrange & Act
-        var query = new GetWeeklyHoursQuery(weeks);
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var service = new DashboardService(db);
 
-        // Assert
-        query.Weeks.Should().Be(weeks);
+        // Act
+        var result = await service.GetWeeklyHoursAsync(weeks);
+
+        // Assert - should not throw for valid week ranges
+        result.Should().NotBeNull();
     }
 
     [Fact]
@@ -89,15 +82,5 @@ public sealed class GetWeeklyHoursHandlerTests
         dataPoint.OvertimeHours.Should().Be(8m);
         dataPoint.DoubleTimeHours.Should().Be(4m);
         dataPoint.TotalHours.Should().Be(52m);
-    }
-
-    [Fact]
-    public void GetWeeklyHoursQuery_CanBeCreatedWithCustomWeeks()
-    {
-        // Arrange & Act
-        var query = new GetWeeklyHoursQuery(12);
-
-        // Assert
-        query.Weeks.Should().Be(12);
     }
 }
