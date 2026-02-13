@@ -47,9 +47,10 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembl
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
 
-// Demo bootstrap (optional)
+// Demo bootstrap and seed data (optional)
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
 builder.Services.AddScoped<DemoBootstrapper>();
+builder.Services.AddScoped<Pitbull.Api.Features.SeedData.ISeedDataService, Pitbull.Api.Features.SeedData.SeedDataService>();
 
 // Configure forwarded headers for reverse proxy (Railway, Docker, etc.)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -83,9 +84,6 @@ builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator
 // TimeTracking scoped services (require DbContext)
 builder.Services.AddScoped<Pitbull.TimeTracking.Services.IPayPeriodService, Pitbull.TimeTracking.Services.PayPeriodService>();
 builder.Services.AddScoped<Pitbull.TimeTracking.Services.IEmployeeService, Pitbull.TimeTracking.Services.EmployeeService>();
-
-// Seed data handler (lives in Api assembly)
-builder.Services.AddPitbullModule<SeedDataCommand>();
 
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

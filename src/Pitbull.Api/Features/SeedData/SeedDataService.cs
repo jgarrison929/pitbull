@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Bids.Domain;
 using Pitbull.Contracts.Domain;
@@ -13,15 +12,14 @@ namespace Pitbull.Api.Features.SeedData;
 /// <summary>
 /// Seeds realistic construction demo data.
 ///
-/// This handler is used by:
+/// This service is used by:
 /// - The dev-only HTTP endpoint (SeedDataController)
 /// - The public demo bootstrapper (when explicitly enabled via configuration)
 /// </summary>
-public class SeedDataHandler(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration)
-    : IRequestHandler<SeedDataCommand, Result<SeedDataResult>>
+public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration)
+    : ISeedDataService
 {
-    public async Task<Result<SeedDataResult>> Handle(
-        SeedDataCommand request, CancellationToken cancellationToken)
+    public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default)
     {
         var allowNonDev = configuration.GetValue<bool>("SeedData:AllowInNonDevelopment")
                           || configuration.GetValue<bool>("Demo:Enabled");

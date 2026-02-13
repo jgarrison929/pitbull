@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -17,7 +16,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Development")]
-public class SeedDataController(IMediator mediator, IWebHostEnvironment env) : ControllerBase
+public class SeedDataController(ISeedDataService seedDataService, IWebHostEnvironment env) : ControllerBase
 {
     /// <summary>
     /// Seed the database with demo construction data
@@ -49,7 +48,7 @@ public class SeedDataController(IMediator mediator, IWebHostEnvironment env) : C
         if (!env.IsDevelopment())
             return NotFound(); // Hide endpoint entirely in non-dev environments
 
-        var result = await mediator.Send(new SeedDataCommand());
+        var result = await seedDataService.SeedAsync();
 
         if (!result.IsSuccess)
         {
