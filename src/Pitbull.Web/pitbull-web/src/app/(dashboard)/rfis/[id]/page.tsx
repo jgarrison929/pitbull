@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Link2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
@@ -233,6 +234,18 @@ export default function RfiDetailPage({
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">{rfi.subject}</h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success("Link copied to clipboard");
+              }}
+              title="Copy link"
+            >
+              <Link2 className="h-4 w-4" />
+            </Button>
             <Badge variant="secondary" className={statusColor(rfi.status)}>
               {statusLabel(rfi.status)}
             </Badge>

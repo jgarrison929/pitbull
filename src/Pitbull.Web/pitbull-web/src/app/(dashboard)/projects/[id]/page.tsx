@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Link2, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,6 +104,18 @@ export default function ProjectDetailPage({
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                toast.success("Link copied to clipboard");
+              }}
+              title="Copy link"
+            >
+              <Link2 className="h-4 w-4" />
+            </Button>
             <Badge
               variant="secondary"
               className={projectStatusBadgeClass(project.status)}
