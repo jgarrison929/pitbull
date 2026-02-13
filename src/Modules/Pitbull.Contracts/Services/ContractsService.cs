@@ -235,6 +235,7 @@ public class ContractsService(PitbullDbContext db) : IContractsService
             Amount = command.Amount,
             DaysExtension = command.DaysExtension,
             ReferenceNumber = command.ReferenceNumber,
+            OriginatingRfiId = command.OriginatingRfiId,
             Status = ChangeOrderStatus.Pending,
             SubmittedDate = DateTime.UtcNow
         };

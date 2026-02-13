@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Pitbull.Contracts.Domain;
+using Pitbull.Contracts.Features.CreateChangeOrder;
+using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Projects.Features.GetProjectRfiCostSummary;
@@ -49,6 +52,31 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var project = await createResp.Content.ReadFromJsonAsync<ProjectDto>();
 
         return (client, project!.Id);
+    }
+
+    private async Task<Guid> CreateSubcontractForProjectAsync(HttpClient client, Guid projectId)
+    {
+        var subcontractCmd = new CreateSubcontractCommand(
+            ProjectId: projectId,
+            SubcontractNumber: $"SC-{Guid.NewGuid():N}",
+            SubcontractorName: "Test Subcontractor",
+            SubcontractorContact: null,
+            SubcontractorEmail: null,
+            SubcontractorPhone: null,
+            SubcontractorAddress: null,
+            ScopeOfWork: "Test scope of work",
+            TradeCode: null,
+            OriginalValue: 100_000m,
+            RetainagePercent: 10m,
+            StartDate: null,
+            CompletionDate: null,
+            LicenseNumber: null,
+            Notes: null);
+
+        var resp = await client.PostAsJsonAsync("/api/subcontracts", subcontractCmd);
+        resp.EnsureSuccessStatusCode();
+        var subcontract = await resp.Content.ReadFromJsonAsync<SubcontractDto>();
+        return subcontract!.Id;
     }
 
     [Fact]
@@ -395,6 +423,174 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var summaryResp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/rfi-cost-summary");
         Assert.Equal(HttpStatusCode.NotFound, summaryResp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Get_rfi_cost_impact_returns_linked_change_orders()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        // Create an RFI
+        var createRfiResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
+        {
+            Subject = "Structural Change Required",
+            Question = "Foundation requires additional reinforcement per engineer review",
+            Priority = RfiPriority.Urgent,
+            DueDate = DateTime.UtcNow.AddDays(3)
+        });
+        createRfiResp.EnsureSuccessStatusCode();
+        var rfi = await createRfiResp.Content.ReadFromJsonAsync<RfiDto>();
+
+        // Create a subcontract
+        var subcontractId = await CreateSubcontractForProjectAsync(client, projectId);
+
+        // Create change orders linked to this RFI
+        var co1Cmd = new CreateChangeOrderCommand(
+            SubcontractId: subcontractId,
+            ChangeOrderNumber: $"CO-001-{Guid.NewGuid():N}",
+            Title: "Additional Foundation Reinforcement",
+            Description: "Per RFI structural requirement",
+            Reason: "RFI-directed change",
+            Amount: 15_000m,
+            DaysExtension: 5,
+            ReferenceNumber: null,
+            OriginatingRfiId: rfi!.Id
+        );
+        var co1Resp = await client.PostAsJsonAsync("/api/changeorders", co1Cmd);
+        co1Resp.EnsureSuccessStatusCode();
+
+        var co2Cmd = new CreateChangeOrderCommand(
+            SubcontractId: subcontractId,
+            ChangeOrderNumber: $"CO-002-{Guid.NewGuid():N}",
+            Title: "Engineering Review Fees",
+            Description: "Additional engineering review required",
+            Reason: "RFI-directed change",
+            Amount: 5_000m,
+            DaysExtension: null,
+            ReferenceNumber: null,
+            OriginatingRfiId: rfi.Id
+        );
+        var co2Resp = await client.PostAsJsonAsync("/api/changeorders", co2Cmd);
+        co2Resp.EnsureSuccessStatusCode();
+
+        // Get cost impact - should show linked change orders
+        var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi.Id}/cost-impact");
+        Assert.Equal(HttpStatusCode.OK, costImpactResp.StatusCode);
+
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+        Assert.NotNull(impact);
+        Assert.Equal(rfi.Id, impact.RfiId);
+        Assert.Equal(2, impact.ChangeOrders.Count);
+        Assert.Equal(20_000m, impact.DirectCost); // 15000 + 5000
+        Assert.Contains(impact.ChangeOrders, co => co.Title == "Additional Foundation Reinforcement" && co.Amount == 15_000m);
+        Assert.Contains(impact.ChangeOrders, co => co.Title == "Engineering Review Fees" && co.Amount == 5_000m);
+    }
+
+    [Fact]
+    public async Task Get_project_rfi_cost_summary_includes_linked_change_order_costs()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        // Create a subcontract
+        var subcontractId = await CreateSubcontractForProjectAsync(client, projectId);
+
+        // Create first RFI with linked change order
+        var rfi1Resp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
+        {
+            Subject = "RFI #1 with costs",
+            Question = "Question 1",
+            Priority = RfiPriority.Urgent
+        });
+        rfi1Resp.EnsureSuccessStatusCode();
+        var rfi1 = await rfi1Resp.Content.ReadFromJsonAsync<RfiDto>();
+
+        var co1Cmd = new CreateChangeOrderCommand(
+            SubcontractId: subcontractId,
+            ChangeOrderNumber: $"CO-A-{Guid.NewGuid():N}",
+            Title: "Change Order for RFI 1",
+            Description: "Linked to first RFI",
+            Reason: null,
+            Amount: 10_000m,
+            DaysExtension: 3,
+            ReferenceNumber: null,
+            OriginatingRfiId: rfi1!.Id
+        );
+        await client.PostAsJsonAsync("/api/changeorders", co1Cmd);
+
+        // Create second RFI with linked change order
+        var rfi2Resp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
+        {
+            Subject = "RFI #2 with costs",
+            Question = "Question 2",
+            Priority = RfiPriority.Normal
+        });
+        rfi2Resp.EnsureSuccessStatusCode();
+        var rfi2 = await rfi2Resp.Content.ReadFromJsonAsync<RfiDto>();
+
+        var co2Cmd = new CreateChangeOrderCommand(
+            SubcontractId: subcontractId,
+            ChangeOrderNumber: $"CO-B-{Guid.NewGuid():N}",
+            Title: "Change Order for RFI 2",
+            Description: "Linked to second RFI",
+            Reason: null,
+            Amount: 25_000m,
+            DaysExtension: 7,
+            ReferenceNumber: null,
+            OriginatingRfiId: rfi2!.Id
+        );
+        await client.PostAsJsonAsync("/api/changeorders", co2Cmd);
+
+        // Create third RFI with NO linked change order
+        var rfi3Resp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
+        {
+            Subject = "RFI #3 no costs",
+            Question = "Question 3",
+            Priority = RfiPriority.Normal
+        });
+        rfi3Resp.EnsureSuccessStatusCode();
+
+        // Get project summary - should aggregate all costs
+        var summaryResp = await client.GetAsync($"/api/projects/{projectId}/rfi-cost-summary");
+        Assert.Equal(HttpStatusCode.OK, summaryResp.StatusCode);
+
+        var summary = await summaryResp.Content.ReadFromJsonAsync<ProjectRfiCostSummaryDto>();
+        Assert.NotNull(summary);
+        Assert.Equal(projectId, summary.ProjectId);
+        Assert.Equal(3, summary.TotalRfis);
+        Assert.Equal(3, summary.OpenRfis);
+        Assert.Equal(2, summary.RfisWithCostImpact);  // 2 RFIs have linked COs
+        Assert.Equal(35_000m, summary.TotalDirectCost); // 10000 + 25000
+        Assert.Equal(35_000m, summary.TotalCost); // Same as DirectCost when no delay costs
+    }
+
+    [Fact]
+    public async Task Get_rfi_cost_impact_without_linked_change_orders_returns_zero_costs()
+    {
+        await db.ResetAsync();
+        var (client, projectId) = await CreateAuthenticatedClientWithProjectAsync();
+
+        // Create an RFI with no linked change orders
+        var createRfiResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
+        {
+            Subject = "RFI without cost impact",
+            Question = "This RFI has no associated change orders",
+            Priority = RfiPriority.Normal
+        });
+        createRfiResp.EnsureSuccessStatusCode();
+        var rfi = await createRfiResp.Content.ReadFromJsonAsync<RfiDto>();
+
+        // Get cost impact
+        var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi!.Id}/cost-impact");
+        Assert.Equal(HttpStatusCode.OK, costImpactResp.StatusCode);
+
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+        Assert.NotNull(impact);
+        Assert.Equal(rfi.Id, impact.RfiId);
+        Assert.Empty(impact.ChangeOrders);
+        Assert.Equal(0m, impact.DirectCost);
+        Assert.Equal(0m, impact.TotalCost);
     }
 
     #endregion

@@ -11,7 +11,8 @@ public record CreateChangeOrderCommand(
     string? Reason,
     decimal Amount,
     int? DaysExtension,
-    string? ReferenceNumber
+    string? ReferenceNumber,
+    Guid? OriginatingRfiId = null
 ) : ICommand<ChangeOrderDto>;
 
 public record ChangeOrderDto(
