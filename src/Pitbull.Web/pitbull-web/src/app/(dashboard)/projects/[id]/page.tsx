@@ -13,6 +13,7 @@ import { HealthScoreBadge } from "@/components/ui/health-score-gauge";
 import api from "@/lib/api";
 import { ProjectLaborSummary } from "@/components/projects/project-labor-summary";
 import { RfiCostWidget } from "@/components/rfis";
+import { useRecentProjects } from "@/hooks/use-recent-projects";
 import type { AiProjectSummary, Project } from "@/lib/types";
 import {
   projectStatusBadgeClass,
@@ -52,11 +53,19 @@ export default function ProjectDetailPage({
   const [aiError, setAiError] = useState<string | null>(null);
   const [showAiInsights, setShowAiInsights] = useState(false);
 
+  const { addRecentProject } = useRecentProjects();
+
   useEffect(() => {
     async function fetchProject() {
       try {
         const data = await api<Project>(`/api/projects/${id}`);
         setProject(data);
+        // Track this project as recently viewed
+        addRecentProject({
+          id: data.id,
+          name: data.name,
+          number: data.number,
+        });
       } catch {
         setError("Failed to load project");
         toast.error("Failed to load project");
@@ -65,7 +74,7 @@ export default function ProjectDetailPage({
       }
     }
     fetchProject();
-  }, [id]);
+  }, [id, addRecentProject]);
 
   const fetchAiInsights = useCallback(async () => {
     setAiLoading(true);

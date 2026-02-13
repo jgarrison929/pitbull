@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { ProjectSwitcher } from "./project-switcher";
 
 const navItems = [
   { label: "Dashboard", href: "/", icon: "📊" },
@@ -47,6 +48,11 @@ export function AppSidebar() {
       </div>
 
       <Separator className="bg-white/10" />
+
+      {/* Quick Project Switcher */}
+      <div className="px-3 pt-4">
+        <ProjectSwitcher />
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
