@@ -641,7 +641,7 @@ await strategy.ExecuteAsync(async () =>
 
 ## Known Issues
 
-> **Last reviewed:** Feb 12, 2026
+> **Last reviewed:** Feb 13, 2026
 
 ### Open Issues
 
@@ -649,10 +649,9 @@ await strategy.ExecuteAsync(async () =>
 
 2. **Subdomain tenant resolution not implemented:** `TenantMiddleware` has a placeholder for subdomain-based tenant lookup but returns null. Will need a tenant lookup service.
 
-3. **BidDto/BidMapper at Features root:** `BidDto.cs` and `BidMapper.cs` sit in `Pitbull.Bids/Features/` at the root level instead of in a shared subfolder. Consider moving to `Pitbull.Bids/Features/Shared/` or a `Mapping/` folder for consistency with the per-feature folder pattern.
-
 ### Resolved Issues
 
+- ✅ **BidDto/BidMapper at Features root** - Fixed Feb 13, 2026. Moved to `Pitbull.Bids/Features/Shared/` for consistency with per-feature folder pattern.
 - ✅ **CreatedBy/UpdatedBy not populated** - Fixed Feb 2026. `SaveChangesAsync` now sets audit fields from `IHttpContextAccessor`.
 - ✅ **Delete endpoint is a no-op** - Fixed Feb 2026. Proper soft-delete implemented via `DeleteProjectCommand`.
 - ✅ **PagedResult defined in Projects module** - Fixed Feb 2026. Moved to `Pitbull.Core.CQRS`.
