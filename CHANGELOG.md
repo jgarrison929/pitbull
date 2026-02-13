@@ -6,6 +6,57 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.1] - 2026-02-13
+
+### 🚀 Features
+
+- **RFI Management UI** - Complete RFI workflow in the web interface
+  - List view with search, status/priority filters, and result count
+  - Detail view with tabbed interface (Details + Cost Impact)
+  - Create/edit forms with all fields
+  - "Create Change Order" button links directly to CO creation
+
+- **RFI → Change Order Workflow** - Seamless cost tracking
+  - One-click to create a Change Order from an RFI
+  - Pre-fills description with RFI context
+  - Automatically links CO back to originating RFI
+  - Full traceability: RFI → Change Order → Cost Impact
+
+- **RFIs Needing Attention Dashboard Widget** - Never miss critical RFIs
+  - Shows overdue RFIs and those assigned to you
+  - Sorted by urgency (overdue first)
+  - Direct links to RFI detail pages
+
+- **Bulk Time Entry Actions** - Faster supervisor approval workflow
+  - Checkbox selection on individual entries
+  - "Select All" with indeterminate state
+  - Bulk approve/reject with confirmation dialogs
+  - Shows success/failure counts
+
+- **RFI Cost Impact UI** - Visual cost tracking
+  - Tabbed detail view with cost breakdown
+  - Linked change orders table with status badges
+  - Timeline of events showing RFI lifecycle
+  - Project dashboard widget with top costly RFIs
+
+### 🐛 Bug Fixes
+
+- Fixed flaky health check integration test (non-serializable HealthReport)
+
+### 🧪 Testing
+
+- 19 unit tests for RfisNeedingAttention endpoint
+- 8 integration tests for RFI cost impact endpoints
+- 683 unit tests, 198 integration tests total
+
+### 🏗️ Code Quality
+
+- Formatted 138 files with `dotnet format`
+- Removed 5 stale "Known Issues" from documentation
+- Moved BidDto/BidMapper to Features/Shared folder
+
+---
+
 ## [0.11.0] - 2026-02-13
 
 ### 🚀 Features
