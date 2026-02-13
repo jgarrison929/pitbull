@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/layout/app-header";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 import { CommandPalette } from "@/components/command-palette";
+import { QuickActionFAB } from "@/components/layout/quick-action-fab";
 
 export default function DashboardLayout({
   children,
@@ -51,6 +52,7 @@ export default function DashboardLayout({
       </div>
       <KeyboardShortcutsHelp />
       <CommandPalette />
+      <QuickActionFAB />
     </KeyboardShortcutsProvider>
   );
 }
