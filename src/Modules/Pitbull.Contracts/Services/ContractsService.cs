@@ -5,10 +5,8 @@ using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Contracts.Features.DeleteChangeOrder;
 using Pitbull.Contracts.Features.DeletePaymentApplication;
-using Pitbull.Contracts.Features.DeleteSubcontract;
 using Pitbull.Contracts.Features.GetChangeOrder;
 using Pitbull.Contracts.Features.GetPaymentApplication;
-using Pitbull.Contracts.Features.GetSubcontract;
 using Pitbull.Contracts.Features.ListChangeOrders;
 using Pitbull.Contracts.Features.ListPaymentApplications;
 using Pitbull.Contracts.Features.ListSubcontracts;
@@ -74,20 +72,95 @@ public class ContractsService(PitbullDbContext db) : IContractsService
 
     public async Task<Result<SubcontractDto>> CreateSubcontractAsync(CreateSubcontractCommand command, CancellationToken cancellationToken = default)
     {
-        var handler = new CreateSubcontractHandler(db);
-        return await handler.Handle(command, cancellationToken);
+        // Check for duplicate subcontract number within same project
+        var exists = await db.Set<Subcontract>()
+            .AnyAsync(s => s.ProjectId == command.ProjectId 
+                && s.SubcontractNumber == command.SubcontractNumber, cancellationToken);
+        
+        if (exists)
+        {
+            return Result.Failure<SubcontractDto>(
+                $"Subcontract number '{command.SubcontractNumber}' already exists for this project.",
+                "DUPLICATE_NUMBER");
+        }
+
+        var subcontract = new Subcontract
+        {
+            ProjectId = command.ProjectId,
+            SubcontractNumber = command.SubcontractNumber,
+            SubcontractorName = command.SubcontractorName,
+            SubcontractorContact = command.SubcontractorContact,
+            SubcontractorEmail = command.SubcontractorEmail,
+            SubcontractorPhone = command.SubcontractorPhone,
+            SubcontractorAddress = command.SubcontractorAddress,
+            ScopeOfWork = command.ScopeOfWork,
+            TradeCode = command.TradeCode,
+            OriginalValue = command.OriginalValue,
+            CurrentValue = command.OriginalValue, // Initially same as original
+            RetainagePercent = command.RetainagePercent,
+            StartDate = command.StartDate,
+            CompletionDate = command.CompletionDate,
+            LicenseNumber = command.LicenseNumber,
+            Notes = command.Notes,
+            Status = SubcontractStatus.Draft
+        };
+
+        db.Set<Subcontract>().Add(subcontract);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(MapSubcontractToDto(subcontract));
     }
 
     public async Task<Result<SubcontractDto>> UpdateSubcontractAsync(UpdateSubcontractCommand command, CancellationToken cancellationToken = default)
     {
-        var handler = new UpdateSubcontractHandler(db);
-        return await handler.Handle(command, cancellationToken);
+        var subcontract = await db.Set<Subcontract>()
+            .FirstOrDefaultAsync(s => s.Id == command.Id, cancellationToken);
+
+        if (subcontract is null)
+            return Result.Failure<SubcontractDto>("Subcontract not found", "NOT_FOUND");
+
+        subcontract.SubcontractNumber = command.SubcontractNumber;
+        subcontract.SubcontractorName = command.SubcontractorName;
+        subcontract.SubcontractorContact = command.SubcontractorContact;
+        subcontract.SubcontractorEmail = command.SubcontractorEmail;
+        subcontract.SubcontractorPhone = command.SubcontractorPhone;
+        subcontract.SubcontractorAddress = command.SubcontractorAddress;
+        subcontract.ScopeOfWork = command.ScopeOfWork;
+        subcontract.TradeCode = command.TradeCode;
+        subcontract.OriginalValue = command.OriginalValue;
+        subcontract.RetainagePercent = command.RetainagePercent;
+        subcontract.ExecutionDate = command.ExecutionDate;
+        subcontract.StartDate = command.StartDate;
+        subcontract.CompletionDate = command.CompletionDate;
+        subcontract.Status = command.Status;
+        subcontract.InsuranceExpirationDate = command.InsuranceExpirationDate;
+        subcontract.InsuranceCurrent = command.InsuranceCurrent;
+        subcontract.LicenseNumber = command.LicenseNumber;
+        subcontract.Notes = command.Notes;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(MapSubcontractToDto(subcontract));
     }
 
     public async Task<Result> DeleteSubcontractAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var handler = new DeleteSubcontractHandler(db);
-        return await handler.Handle(new DeleteSubcontractCommand(id), cancellationToken);
+        var subcontract = await db.Set<Subcontract>()
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+
+        if (subcontract is null)
+            return Result.Failure("Subcontract not found", "NOT_FOUND");
+
+        // Can only delete Draft subcontracts
+        if (subcontract.Status != SubcontractStatus.Draft)
+            return Result.Failure("Cannot delete subcontract that is not in Draft status", "CANNOT_DELETE");
+
+        // Hard delete for Draft status
+        db.Set<Subcontract>().Remove(subcontract);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
     }
 
     // Change Orders
