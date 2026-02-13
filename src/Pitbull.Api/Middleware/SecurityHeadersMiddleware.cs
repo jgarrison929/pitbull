@@ -29,6 +29,15 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
         context.Response.Headers.Append("Permissions-Policy",
             "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()");
 
+        // Strict-Transport-Security (HSTS): Force HTTPS for 1 year
+        // Note: Only send on HTTPS or when X-Forwarded-Proto indicates HTTPS (reverse proxy)
+        var forwardedProto = context.Request.Headers["X-Forwarded-Proto"].FirstOrDefault();
+        if (context.Request.IsHttps || string.Equals(forwardedProto, "https", StringComparison.OrdinalIgnoreCase))
+        {
+            // max-age=31536000 (1 year), includeSubDomains for comprehensive coverage
+            context.Response.Headers.Append("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+        }
+
         // Remove server headers that reveal implementation details
         context.Response.Headers.Remove("Server");
         context.Response.Headers.Remove("X-Powered-By");
