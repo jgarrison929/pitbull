@@ -4,7 +4,7 @@
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-15-000000)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-1017%20passing-success)](tests/)
+[![Tests](https://img.shields.io/badge/tests-847%20passing-success)](tests/)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
 **Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
@@ -18,7 +18,7 @@ Loyal. Tenacious. Won't let go. 🐕
 **🚧 Alpha 0 Development** (Target: Feb 21, 2026)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 1017 tests passing (834 unit + 183 integration)
+- ✅ **Testing:** 847 tests passing (653 unit + 194 integration)
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts with full CRUD
 - ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
@@ -28,9 +28,9 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export
 - 📋 **Next:** Documentation polish, UAT preparation
 
-**Recent Wins (Feb 10, 2026):**
+**Recent Wins (Feb 13, 2026):**
 - **🚀 v0.11.0:** MediatR removal complete - direct service injection across all controllers
-- **🎯 1000+ Tests:** Crossed milestone with 1017 tests (834 unit + 183 integration)
+- **🧹 Handler Cleanup:** Removed dead MediatR handlers, streamlined test suite to 847 tests (653 unit + 194 integration)
 - **🐛 Bug Fixes:** V2 soft-delete filter, stats endpoint SqlQueryRaw scalar mapping
 - **📋 Test Coverage:** Bids/Subcontracts edge cases, Contracts validators, security middleware
 
