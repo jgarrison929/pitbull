@@ -80,8 +80,8 @@ public static class PayPeriodMapper
             Status = period.Status,
             LockedAt = period.LockedAt,
             LockedById = period.LockedById,
-            LockedByName = period.LockedBy != null 
-                ? $"{period.LockedBy.FirstName} {period.LockedBy.LastName}" 
+            LockedByName = period.LockedBy != null
+                ? $"{period.LockedBy.FirstName} {period.LockedBy.LastName}"
                 : null,
             Notes = period.Notes,
             ProcessedAt = period.ProcessedAt,

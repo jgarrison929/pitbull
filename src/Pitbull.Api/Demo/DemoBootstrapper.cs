@@ -125,7 +125,7 @@ public sealed class DemoBootstrapper(
 
         var user = await userManager.FindByEmailAsync(demo.UserEmail);
         var userExisted = user is not null;
-        
+
         if (user is null)
         {
             if (string.IsNullOrWhiteSpace(demo.UserPassword))
@@ -160,7 +160,7 @@ public sealed class DemoBootstrapper(
 
         // Always ensure demo user has Admin role
         await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin, ct);
-        
+
         if (userExisted)
             logger.LogInformation("Ensured demo user {Email} has Admin role", demo.UserEmail);
     }

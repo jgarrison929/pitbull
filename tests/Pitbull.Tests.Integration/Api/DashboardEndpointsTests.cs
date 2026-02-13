@@ -46,7 +46,7 @@ public sealed class DashboardEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Should contain expected fields (camelCase from JSON serialization)
         Assert.Contains("projectCount", json);
         Assert.Contains("bidCount", json);
@@ -70,12 +70,12 @@ public sealed class DashboardEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var statsA = await clientA.GetAsync("/api/dashboard/stats");
         statsA.EnsureSuccessStatusCode();
         var jsonA = await statsA.Content.ReadAsStringAsync();
-        
+
         // Tenant B should NOT see tenant A's project in their stats
         var statsB = await clientB.GetAsync("/api/dashboard/stats");
         statsB.EnsureSuccessStatusCode();
         var jsonB = await statsB.Content.ReadAsStringAsync();
-        
+
         // Both should return valid stats (not throw errors)
         Assert.Contains("projectCount", jsonA);
         Assert.Contains("projectCount", jsonB);
@@ -103,7 +103,7 @@ public sealed class DashboardEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Should contain expected fields
         Assert.Contains("data", json);
         Assert.Contains("totalHours", json);

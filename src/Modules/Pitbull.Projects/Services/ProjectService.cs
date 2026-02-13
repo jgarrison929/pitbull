@@ -47,7 +47,7 @@ public class ProjectService : IProjectService
         var user = _httpContextAccessor?.HttpContext?.User;
         if (user?.Identity?.IsAuthenticated == true)
         {
-            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier) 
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)
                         ?? user.FindFirstValue("sub");
             if (!string.IsNullOrEmpty(userId))
                 return userId;
@@ -78,7 +78,7 @@ public class ProjectService : IProjectService
         if (!string.IsNullOrWhiteSpace(listQuery.Search))
         {
             var searchTerm = listQuery.Search.ToLower();
-            dbQuery = dbQuery.Where(p => 
+            dbQuery = dbQuery.Where(p =>
                 p.Name.ToLower().Contains(searchTerm.ToLower()) ||
                 p.Number.ToLower().Contains(searchTerm) ||
                 (p.ClientName != null && p.ClientName.ToLower().Contains(searchTerm.ToLower())));
@@ -373,7 +373,7 @@ public class ProjectService : IProjectService
         var totalRfis = rfis.Count;
         var openRfis = rfis.Count(r => r.Status == RfiStatus.Open);
         var overdueRfis = rfis.Count(r => r.Status == RfiStatus.Open && r.DueDate.HasValue && r.DueDate < now);
-        
+
         // RFIs with cost impact = RFIs that have linked change orders
         var rfiIdsWithCOs = changeOrders.Where(co => co.OriginatingRfiId.HasValue)
             .Select(co => co.OriginatingRfiId!.Value)

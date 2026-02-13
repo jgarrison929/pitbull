@@ -207,7 +207,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         };
 
         var resp = await client.PutAsJsonAsync($"/api/bids/{created.Id}", update);
-        
+
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
 
@@ -290,11 +290,11 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Items: null);
 
         var resp2 = await client.PostAsJsonAsync("/api/bids", create2);
-        
+
         // Should be rejected - DB constraint enforces uniqueness
         // Ideally returns 400, but may return 500 if constraint hits DB layer
         Assert.True(
-            resp2.StatusCode == HttpStatusCode.BadRequest || 
+            resp2.StatusCode == HttpStatusCode.BadRequest ||
             resp2.StatusCode == HttpStatusCode.InternalServerError ||
             resp2.StatusCode == HttpStatusCode.Conflict,
             $"Expected rejection but got {resp2.StatusCode}");
@@ -394,7 +394,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         // Convert to project
         var projectNumber = $"PRJ-{Guid.NewGuid():N}";
         var convertResp = await client.PostAsJsonAsync($"/api/bids/{created.Id}/convert-to-project", new { projectNumber });
-        
+
         if (convertResp.StatusCode != HttpStatusCode.OK)
         {
             var body = await convertResp.Content.ReadAsStringAsync();

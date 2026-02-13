@@ -152,7 +152,7 @@ public class AuthController(
 
                 // Ensure roles exist and auto-promote first user to Admin
                 await roleSeeder.EnsureTenantHasAdminAsync(tenantId);
-                
+
                 // Get user's roles for JWT
                 var roles = await roleSeeder.GetUserRolesAsync(user);
 
@@ -263,9 +263,9 @@ public class AuthController(
         if (request.NewPassword.Length < 8)
             return this.BadRequestError("New password must be at least 8 characters");
 
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        
+
         if (string.IsNullOrEmpty(userId))
             return this.UnauthorizedError("User not found");
 
@@ -302,9 +302,9 @@ public class AuthController(
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> GetProfile()
     {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value 
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
             ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
-        
+
         if (string.IsNullOrEmpty(userId))
             return this.UnauthorizedError("User not found");
 
@@ -347,7 +347,7 @@ public class AuthController(
             new("full_name", user.FullName),
             new("user_type", user.Type.ToString())
         };
-        
+
         // Add role claims - use ClaimTypes.Role for ASP.NET Core authorization
         foreach (var role in roles)
         {

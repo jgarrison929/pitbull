@@ -139,7 +139,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService) : Control
     {
         var result = await timeEntryService.ListTimeEntriesAsync(
             projectId, employeeId, startDate, endDate, status, page, pageSize);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -371,7 +371,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService) : Control
     {
         var result = await timeEntryService.GetTimeEntriesByProjectAsync(
             projectId, startDate, endDate, status, includeSummary, page, pageSize);
-        
+
         if (!result.IsSuccess)
         {
             return result.ErrorCode == "NOT_FOUND"

@@ -122,7 +122,7 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     {
         var query = new ListChangeOrdersQuery(subcontractId, status, search, page, pageSize);
         var result = await contractsService.ListChangeOrdersAsync(query);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -189,8 +189,8 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     {
         var result = await contractsService.DeleteChangeOrderAsync(id);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" 
-                ? this.NotFoundError(result.Error ?? "Change order not found") 
+            return result.ErrorCode == "NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "Change order not found")
                 : this.BadRequestError(result.Error ?? "Delete failed");
 
         return NoContent();

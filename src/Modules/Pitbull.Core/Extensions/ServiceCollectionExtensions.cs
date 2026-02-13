@@ -33,7 +33,7 @@ public static class ServiceCollectionExtensions
         // - "Pooling=true" - enables connection reuse (default)
         // See appsettings.Production.json for recommended production values.
         var isDevelopment = environment?.IsDevelopment() ?? false;
-        
+
         services.AddDbContext<PitbullDbContext>((serviceProvider, options) =>
         {
             options.UseNpgsql(
@@ -51,7 +51,7 @@ public static class ServiceCollectionExtensions
                 options.EnableDetailedErrors();
                 options.EnableSensitiveDataLogging();
             }
-            
+
             // Suppress PendingModelChangesWarning - we have orphaned migrations from 
             // removed HR/Payroll modules that will be cleaned up in a future migration squash.
             // This is safe because we're not actively developing those modules.
@@ -95,10 +95,10 @@ public static class ServiceCollectionExtensions
     {
         // Auto-register all services implementing interfaces in the assembly
         var assembly = typeof(TAssemblyMarker).Assembly;
-        
+
         var serviceTypes = assembly.GetTypes()
             .Where(type => type.IsClass && !type.IsAbstract)
-            .Where(type => type.GetInterfaces().Any(i => 
+            .Where(type => type.GetInterfaces().Any(i =>
                 i.Name.EndsWith("Service") && i.IsPublic))
             .ToArray();
 
@@ -115,7 +115,7 @@ public static class ServiceCollectionExtensions
 
         // Still register validators - needed for the service implementations
         services.AddValidatorsFromAssemblyContaining<TAssemblyMarker>();
-        
+
         return services;
     }
 }

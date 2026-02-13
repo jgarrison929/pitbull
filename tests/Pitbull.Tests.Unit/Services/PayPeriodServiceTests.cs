@@ -147,7 +147,7 @@ public class PayPeriodServiceTests
 
         // Assert
         periods.Should().HaveCount(5); // Current + 4 future
-        
+
         // Verify first period (contains fromDate)
         periods[0].StartDate.Should().Be(DateOnly.Parse("2026-02-08")); // Sunday
         periods[0].EndDate.Should().Be(DateOnly.Parse("2026-02-14")); // Saturday
@@ -172,19 +172,19 @@ public class PayPeriodServiceTests
 
         // Assert
         periods.Should().HaveCount(4);
-        
+
         // Feb 2026
         periods[0].StartDate.Should().Be(DateOnly.Parse("2026-02-01"));
         periods[0].EndDate.Should().Be(DateOnly.Parse("2026-02-28"));
-        
+
         // Mar 2026
         periods[1].StartDate.Should().Be(DateOnly.Parse("2026-03-01"));
         periods[1].EndDate.Should().Be(DateOnly.Parse("2026-03-31"));
-        
+
         // Apr 2026
         periods[2].StartDate.Should().Be(DateOnly.Parse("2026-04-01"));
         periods[2].EndDate.Should().Be(DateOnly.Parse("2026-04-30"));
-        
+
         // May 2026
         periods[3].StartDate.Should().Be(DateOnly.Parse("2026-05-01"));
         periods[3].EndDate.Should().Be(DateOnly.Parse("2026-05-31"));
@@ -204,7 +204,7 @@ public class PayPeriodServiceTests
 
         // Assert
         periods.Should().HaveCount(3);
-        
+
         // Verify all periods are 14 days
         foreach (var period in periods)
         {
@@ -258,7 +258,7 @@ public class PayPeriodServiceTests
     #region Helper Methods
 
     private static PayPeriodConfiguration CreateConfig(
-        PayPeriodType type, 
+        PayPeriodType type,
         DayOfWeek weekStart = DayOfWeek.Sunday,
         int semiMonthlyFirstDay = 1,
         int semiMonthlySecondDay = 16)

@@ -66,7 +66,7 @@ public sealed class SeedDataEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         // First seed
         var resp1 = await client.PostAsync("/api/seeddata", null);
-        
+
         // Might already have data from other tests, or succeed
         if (resp1.StatusCode == HttpStatusCode.OK)
         {

@@ -21,7 +21,7 @@ public interface IProjectAssignmentService
         DateOnly? endDate = null,
         string? notes = null,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get all employees assigned to a specific project
     /// </summary>
@@ -29,7 +29,7 @@ public interface IProjectAssignmentService
         Guid projectId,
         bool activeOnly = true,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Get all projects an employee is assigned to
     /// </summary>
@@ -38,7 +38,7 @@ public interface IProjectAssignmentService
         bool activeOnly = true,
         DateOnly? asOfDate = null,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Remove an employee's assignment from a project by assignment ID.
     /// This deactivates the assignment rather than deleting it (preserving history).
@@ -47,7 +47,7 @@ public interface IProjectAssignmentService
         Guid assignmentId,
         DateOnly? endDate = null,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     /// Remove an employee's assignment from a project by employee and project IDs.
     /// This deactivates the assignment rather than deleting it (preserving history).

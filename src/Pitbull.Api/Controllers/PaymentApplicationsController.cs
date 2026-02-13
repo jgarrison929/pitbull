@@ -119,7 +119,7 @@ public class PaymentApplicationsController(IContractsService contractsService) :
     {
         var query = new ListPaymentApplicationsQuery(subcontractId, status, page, pageSize);
         var result = await contractsService.ListPaymentApplicationsAsync(query);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 

@@ -17,7 +17,7 @@ public sealed class CreatePaymentApplicationValidatorTests
     {
         var start = periodStart ?? new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
         var end = periodEnd ?? new DateTime(2026, 2, 28, 0, 0, 0, DateTimeKind.Utc);
-        
+
         return new CreatePaymentApplicationCommand(
             SubcontractId: subcontractId ?? Guid.NewGuid(),
             PeriodStart: start,

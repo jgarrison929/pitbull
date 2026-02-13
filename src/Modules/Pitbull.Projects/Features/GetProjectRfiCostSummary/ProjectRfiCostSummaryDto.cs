@@ -7,22 +7,22 @@ public record ProjectRfiCostSummaryDto(
     Guid ProjectId,
     string ProjectName,
     string ProjectNumber,
-    
+
     // RFI counts
     int TotalRfis,
     int OpenRfis,
     int RfisWithCostImpact,
     int OverdueRfis,
-    
+
     // Cost totals
     decimal TotalDirectCost,
     decimal TotalDelayCost,
     decimal TotalCost,
-    
+
     // Time metrics
     int TotalDelayDays,
     double AverageResolutionDays,
-    
+
     // Top costly RFIs
     List<TopCostlyRfiDto> TopCostlyRfis
 );

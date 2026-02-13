@@ -80,7 +80,7 @@ namespace Pitbull.Api.Migrations
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS {table.ToLower()}_tenant_isolation_insert ON \"{table}\";");
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS {table.ToLower()}_tenant_isolation_update ON \"{table}\";");
                 migrationBuilder.Sql($"DROP POLICY IF EXISTS {table.ToLower()}_tenant_isolation_delete ON \"{table}\";");
-                
+
                 // Disable RLS
                 migrationBuilder.Sql($"ALTER TABLE \"{table}\" DISABLE ROW LEVEL SECURITY;");
             }

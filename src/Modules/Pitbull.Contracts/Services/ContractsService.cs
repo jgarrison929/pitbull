@@ -70,9 +70,9 @@ public class ContractsService(PitbullDbContext db) : IContractsService
     {
         // Check for duplicate subcontract number within same project
         var exists = await db.Set<Subcontract>()
-            .AnyAsync(s => s.ProjectId == command.ProjectId 
+            .AnyAsync(s => s.ProjectId == command.ProjectId
                 && s.SubcontractNumber == command.SubcontractNumber, cancellationToken);
-        
+
         if (exists)
         {
             return Result.Failure<SubcontractDto>(
@@ -187,7 +187,7 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.ToLower();
-            dbQuery = dbQuery.Where(co => 
+            dbQuery = dbQuery.Where(co =>
                 co.Title.ToLower().Contains(search.ToLower()) ||
                 co.ChangeOrderNumber.ToLower().Contains(search.ToLower()));
         }
@@ -210,19 +210,19 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         // Verify subcontract exists
         var subcontractExists = await db.Set<Subcontract>()
             .AnyAsync(s => s.Id == command.SubcontractId, cancellationToken);
-        
+
         if (!subcontractExists)
             return Result.Failure<ChangeOrderDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
 
         // Check for duplicate CO number on this subcontract
         var duplicateExists = await db.Set<ChangeOrder>()
-            .AnyAsync(co => co.SubcontractId == command.SubcontractId 
-                         && co.ChangeOrderNumber == command.ChangeOrderNumber, 
+            .AnyAsync(co => co.SubcontractId == command.SubcontractId
+                         && co.ChangeOrderNumber == command.ChangeOrderNumber,
                      cancellationToken);
-        
+
         if (duplicateExists)
             return Result.Failure<ChangeOrderDto>(
-                "Change order number already exists for this subcontract", 
+                "Change order number already exists for this subcontract",
                 "DUPLICATE_CO_NUMBER");
 
         var changeOrder = new ChangeOrder
@@ -257,14 +257,14 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         if (changeOrder.ChangeOrderNumber != command.ChangeOrderNumber)
         {
             var duplicateExists = await db.Set<ChangeOrder>()
-                .AnyAsync(co => co.SubcontractId == changeOrder.SubcontractId 
+                .AnyAsync(co => co.SubcontractId == changeOrder.SubcontractId
                              && co.ChangeOrderNumber == command.ChangeOrderNumber
-                             && co.Id != command.Id, 
+                             && co.Id != command.Id,
                          cancellationToken);
-            
+
             if (duplicateExists)
                 return Result.Failure<ChangeOrderDto>(
-                    "Change order number already exists for this subcontract", 
+                    "Change order number already exists for this subcontract",
                     "DUPLICATE_CO_NUMBER");
         }
 
@@ -357,7 +357,7 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         // Get subcontract
         var subcontract = await db.Set<Subcontract>()
             .FirstOrDefaultAsync(s => s.Id == command.SubcontractId, cancellationToken);
-        
+
         if (subcontract is null)
             return Result.Failure<PaymentApplicationDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
 
@@ -374,12 +374,12 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         var workCompletedPrevious = lastApp?.WorkCompletedToDate ?? 0m;
         var workCompletedToDate = workCompletedPrevious + command.WorkCompletedThisPeriod;
         var totalCompletedAndStored = workCompletedToDate + command.StoredMaterials;
-        
+
         var retainagePercent = subcontract.RetainagePercent;
         var retainageThisPeriod = command.WorkCompletedThisPeriod * (retainagePercent / 100m);
         var retainagePrevious = lastApp?.TotalRetainage ?? 0m;
         var totalRetainage = retainagePrevious + retainageThisPeriod;
-        
+
         var totalEarnedLessRetainage = totalCompletedAndStored - totalRetainage;
         var lessPreviousCertificates = lastApp?.TotalEarnedLessRetainage ?? 0m;
         var currentPaymentDue = totalEarnedLessRetainage - lessPreviousCertificates;
@@ -434,17 +434,17 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         var newStatus = command.Status;
 
         // Recalculate amounts if work changed
-        if (payApp.WorkCompletedThisPeriod != command.WorkCompletedThisPeriod || 
+        if (payApp.WorkCompletedThisPeriod != command.WorkCompletedThisPeriod ||
             payApp.StoredMaterials != command.StoredMaterials)
         {
             payApp.WorkCompletedThisPeriod = command.WorkCompletedThisPeriod;
             payApp.StoredMaterials = command.StoredMaterials;
             payApp.WorkCompletedToDate = payApp.WorkCompletedPrevious + command.WorkCompletedThisPeriod;
             payApp.TotalCompletedAndStored = payApp.WorkCompletedToDate + command.StoredMaterials;
-            
+
             payApp.RetainageThisPeriod = command.WorkCompletedThisPeriod * (payApp.RetainagePercent / 100m);
             payApp.TotalRetainage = payApp.RetainagePrevious + payApp.RetainageThisPeriod;
-            
+
             payApp.TotalEarnedLessRetainage = payApp.TotalCompletedAndStored - payApp.TotalRetainage;
             payApp.CurrentPaymentDue = payApp.TotalEarnedLessRetainage - payApp.LessPreviousCertificates;
         }
@@ -472,7 +472,7 @@ public class ContractsService(PitbullDbContext db) : IContractsService
                 case PaymentApplicationStatus.UnderReview when !payApp.ReviewedDate.HasValue:
                     payApp.ReviewedDate = DateTime.UtcNow;
                     break;
-                case PaymentApplicationStatus.Approved or PaymentApplicationStatus.PartiallyApproved 
+                case PaymentApplicationStatus.Approved or PaymentApplicationStatus.PartiallyApproved
                     when !payApp.ApprovedDate.HasValue:
                     payApp.ApprovedDate = DateTime.UtcNow;
                     break;
@@ -491,7 +491,7 @@ public class ContractsService(PitbullDbContext db) : IContractsService
             var newApprovedAmount = command.ApprovedAmount ?? payApp.CurrentPaymentDue;
             var billedDelta = payApp.CurrentPaymentDue - oldCurrentPaymentDue;
             var paidDelta = newApprovedAmount - oldApprovedAmount;
-            
+
             if (billedDelta != 0)
                 subcontract.BilledToDate += billedDelta;
             if (paidDelta != 0)

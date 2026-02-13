@@ -46,7 +46,7 @@ public sealed class TenantsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Should contain tenant fields
         Assert.Contains("id", json);
         Assert.Contains("name", json);
@@ -133,7 +133,7 @@ public sealed class TenantsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var tenantName = $"Duplicate Test {Guid.NewGuid():N}";
-        
+
         // Create first tenant
         var resp1 = await client.PostAsJsonAsync("/api/tenants", new { name = tenantName });
         Assert.Equal(HttpStatusCode.Created, resp1.StatusCode);

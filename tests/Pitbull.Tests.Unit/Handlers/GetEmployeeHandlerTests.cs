@@ -1,7 +1,7 @@
 using FluentAssertions;
+using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.GetEmployee;
-using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 
@@ -65,7 +65,7 @@ public class GetEmployeeHandlerTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        
+
         var supervisor = new Employee
         {
             EmployeeNumber = "EMP-000",
@@ -75,7 +75,7 @@ public class GetEmployeeHandlerTests
         };
         db.Set<Employee>().Add(supervisor);
         await db.SaveChangesAsync();
-        
+
         var employee = new Employee
         {
             EmployeeNumber = "EMP-001",

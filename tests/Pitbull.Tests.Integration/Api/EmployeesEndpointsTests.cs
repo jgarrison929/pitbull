@@ -1,9 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Pitbull.Tests.Integration.Infrastructure;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
-using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
 
@@ -18,7 +18,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
     {
         PropertyNameCaseInsensitive = true
     };
-    
+
     private PitbullApiFactory _factory = null!;
 
     public async Task InitializeAsync()
@@ -447,13 +447,13 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             firstName = "Stats",
             lastName = "Employee"
         });
-        
+
         if (createResp.StatusCode != HttpStatusCode.Created)
         {
             var body = await createResp.Content.ReadAsStringAsync();
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
-        
+
         var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
         // Get stats
@@ -500,7 +500,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
             firstName = "ProjectsTest",
             lastName = "Employee"
         });
-        
+
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
         var employee = (await createResp.Content.ReadFromJsonAsync<EmployeeDto>(JsonOptions))!;
 
@@ -511,7 +511,7 @@ public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var projectsJson = await projectsResp.Content.ReadAsStringAsync();
         // Response should be a valid JSON array/object
-        Assert.True(projectsJson.StartsWith("[") || projectsJson.StartsWith("{"), 
+        Assert.True(projectsJson.StartsWith("[") || projectsJson.StartsWith("{"),
             $"Expected JSON array or object, got: {projectsJson}");
     }
 

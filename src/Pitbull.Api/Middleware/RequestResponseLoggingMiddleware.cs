@@ -10,7 +10,7 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
     public async Task InvokeAsync(HttpContext context)
     {
         var correlationId = context.Items[CorrelationIdMiddleware.CorrelationIdItemName]?.ToString();
-        
+
         // Only log for API endpoints (not static files, health checks, etc.)
         if (!context.Request.Path.StartsWithSegments("/api"))
         {
@@ -147,7 +147,7 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         {
             var key = property.Name;
             var isSensitive = SensitiveFields.Any(field => key.Contains(field, StringComparison.OrdinalIgnoreCase));
-            
+
             result[key] = isSensitive ? "[REDACTED]" : SanitizeJsonElement(property.Value);
         }
         return result;
@@ -159,9 +159,9 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         foreach (var header in headers)
         {
             var key = header.Key;
-            var isSensitive = SensitiveFields.Any(field => key.Contains(field, StringComparison.OrdinalIgnoreCase)) 
+            var isSensitive = SensitiveFields.Any(field => key.Contains(field, StringComparison.OrdinalIgnoreCase))
                              || key.Equals("Authorization", StringComparison.OrdinalIgnoreCase);
-            
+
             result[key] = isSensitive ? "[REDACTED]" : header.Value.ToString();
         }
         return result;

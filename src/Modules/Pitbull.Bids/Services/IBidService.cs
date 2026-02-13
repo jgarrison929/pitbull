@@ -1,9 +1,9 @@
-using Pitbull.Core.CQRS;
 using Pitbull.Bids.Features;
-using Pitbull.Bids.Features.CreateBid;
-using Pitbull.Bids.Features.UpdateBid;
-using Pitbull.Bids.Features.ListBids;
 using Pitbull.Bids.Features.ConvertBidToProject;
+using Pitbull.Bids.Features.CreateBid;
+using Pitbull.Bids.Features.ListBids;
+using Pitbull.Bids.Features.UpdateBid;
+using Pitbull.Core.CQRS;
 
 namespace Pitbull.Bids.Services;
 
@@ -21,7 +21,7 @@ public interface IBidService
     Task<Result<BidDto>> CreateBidAsync(CreateBidCommand command, CancellationToken cancellationToken = default);
     Task<Result<BidDto>> UpdateBidAsync(UpdateBidCommand command, CancellationToken cancellationToken = default);
     Task<Result> DeleteBidAsync(Guid id, CancellationToken cancellationToken = default);
-    
+
     // Special operations
     Task<Result<ConvertBidToProjectResult>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default);
 }

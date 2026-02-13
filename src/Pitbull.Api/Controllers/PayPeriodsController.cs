@@ -72,7 +72,7 @@ public class PayPeriodsController(IPayPeriodService payPeriodService) : Controll
     public async Task<IActionResult> GetCurrent([FromQuery] DateOnly? date)
     {
         var result = await payPeriodService.GetCurrentPayPeriodAsync(date);
-        
+
         if (!result.IsSuccess)
             return this.BadRequestError(result.Error ?? "Request failed");
 

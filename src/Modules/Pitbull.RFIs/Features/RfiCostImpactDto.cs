@@ -8,7 +8,7 @@ public record RfiCostImpactDto(
     int RfiNumber,
     string Subject,
     string Status,
-    
+
     // Time metrics
     int DaysOpen,
     int? ResponseDelayDays,  // Days past due date when answered
@@ -16,12 +16,12 @@ public record RfiCostImpactDto(
     DateTime? DueDate,
     DateTime? AnsweredAt,
     DateTime? ClosedAt,
-    
+
     // Cost totals
     decimal DirectCost,      // Sum of linked change order amounts
     decimal DelayCost,       // Sum of linked change order delay costs
     decimal TotalCost,       // DirectCost + DelayCost
-    
+
     // Linked entities
     List<LinkedChangeOrderDto> ChangeOrders,
     List<RfiTimelineEventDto> Timeline

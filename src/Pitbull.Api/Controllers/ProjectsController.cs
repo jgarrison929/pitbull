@@ -93,8 +93,8 @@ public class ProjectsController(
     {
         var result = await projectService.GetProjectAsync(id);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" 
-                ? this.NotFoundError(result.Error ?? "Project not found") 
+            return result.ErrorCode == "NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "Project not found")
                 : this.BadRequestError(result.Error ?? "Request failed");
 
         return Ok(result.Value);
@@ -135,7 +135,7 @@ public class ProjectsController(
             Page = page,
             PageSize = pageSize
         };
-        
+
         var result = await projectService.GetProjectsAsync(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
@@ -171,7 +171,7 @@ public class ProjectsController(
         // Ensure ID consistency between route and body
         var commandWithId = command with { Id = id };
         var result = await projectService.UpdateProjectAsync(commandWithId);
-        
+
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -207,8 +207,8 @@ public class ProjectsController(
     {
         var result = await projectService.DeleteProjectAsync(id);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" 
-                ? this.NotFoundError(result.Error ?? "Project not found") 
+            return result.ErrorCode == "NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "Project not found")
                 : this.BadRequestError(result.Error ?? "Delete failed");
 
         return NoContent();
@@ -249,15 +249,15 @@ public class ProjectsController(
     public async Task<IActionResult> GetAiSummary(Guid id)
     {
         var result = await aiInsightsService.GetProjectSummaryAsync(id);
-        
+
         if (!result.Success)
         {
             if (result.Error?.Contains("not found", StringComparison.OrdinalIgnoreCase) == true)
                 return this.NotFoundError(result.Error);
-            
+
             if (result.Error?.Contains("not configured", StringComparison.OrdinalIgnoreCase) == true)
                 return StatusCode(503, new { error = result.Error, code = "AI_NOT_CONFIGURED" });
-            
+
             return StatusCode(503, new { error = result.Error, code = "AI_ERROR" });
         }
 
@@ -291,7 +291,7 @@ public class ProjectsController(
     public async Task<IActionResult> GetStats(Guid id)
     {
         var result = await projectService.GetProjectStatsAsync(id);
-        
+
         if (!result.IsSuccess)
         {
             return result.ErrorCode == "PROJECT_NOT_FOUND"
@@ -330,7 +330,7 @@ public class ProjectsController(
     public async Task<IActionResult> GetRfiCostSummary(Guid id)
     {
         var result = await projectService.GetProjectRfiCostSummaryAsync(id);
-        
+
         if (!result.IsSuccess)
         {
             return result.ErrorCode == "PROJECT_NOT_FOUND"

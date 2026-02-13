@@ -1,3 +1,14 @@
+using FluentValidation;
+using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Server.IIS;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Pitbull.Api.Configuration;
 using Pitbull.Api.Demo;
 using Pitbull.Api.Features.SeedData;
@@ -5,25 +16,14 @@ using Pitbull.Api.Infrastructure;
 using Pitbull.Api.Middleware;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
-using Pitbull.RFIs.Features.CreateRfi;
-using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.AspNetCore.Server.IIS;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-using HealthChecks.UI.Client;
+using Pitbull.RFIs.Features.CreateRfi;
+using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Serilog;
-using FluentValidation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -181,7 +181,7 @@ builder.Services.AddRequestTimeouts(options =>
         Timeout = TimeSpan.FromSeconds(30),
         TimeoutStatusCode = 408
     };
-    
+
     // Longer timeout for seed data operations (development only)
     options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
     {
@@ -261,7 +261,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromHours(1);
         opt.QueueLimit = 0;
     });
-    
+
     // Login: 10 requests per minute (allows for typos/retries)
     options.AddFixedWindowLimiter("login", opt =>
     {
@@ -269,7 +269,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
     });
-    
+
     // General auth fallback (currently unused but could be applied broadly)
     options.AddFixedWindowLimiter("auth", opt =>
     {
@@ -277,7 +277,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
     });
-    
+
     // API endpoints: 60 requests per minute
     options.AddFixedWindowLimiter("api", opt =>
     {
@@ -285,7 +285,7 @@ builder.Services.AddRateLimiter(options =>
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 2;
     });
-    
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = 429;
@@ -300,7 +300,7 @@ builder.Services.AddHealthChecks()
         builder.Configuration.GetConnectionString("PitbullDb")!,
         name: "postgresql",
         tags: new[] { "db", "ready" })
-    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), 
+    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"),
         tags: new[] { "live" });
 
 // Response compression for better bandwidth utilization

@@ -46,7 +46,7 @@ public sealed class AuthEndpointsTests(PostgresFixture db) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        
+
         // Should contain profile fields
         Assert.Contains("id", json);
         Assert.Contains("email", json);

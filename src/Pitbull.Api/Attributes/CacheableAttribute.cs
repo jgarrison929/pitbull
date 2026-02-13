@@ -14,13 +14,13 @@ public class CacheableAttribute : ActionFilterAttribute
     /// Cache duration in seconds. Default: 5 minutes (300 seconds).
     /// </summary>
     public int DurationSeconds { get; set; } = 300;
-    
+
     /// <summary>
     /// Whether the response can be cached by intermediate proxies (CDNs, etc.).
     /// Default: false (private cache only - browser cache only).
     /// </summary>
     public bool IsPublic { get; set; } = false;
-    
+
     /// <summary>
     /// Whether the cache must revalidate with the origin server when stale.
     /// Default: true (ensures data consistency).
@@ -32,39 +32,39 @@ public class CacheableAttribute : ActionFilterAttribute
         if (context.Result is ObjectResult objectResult && objectResult.StatusCode == 200)
         {
             var headers = context.HttpContext.Response.Headers;
-            
+
             // Build cache-control directive
             var cacheControl = new List<string>();
-            
+
             if (IsPublic)
                 cacheControl.Add("public");
             else
                 cacheControl.Add("private");
-                
+
             cacheControl.Add($"max-age={DurationSeconds}");
-            
+
             if (MustRevalidate)
                 cacheControl.Add("must-revalidate");
-            
+
             headers.Append("Cache-Control", string.Join(", ", cacheControl));
-            
+
             // Add ETag based on response content hash (for conditional requests)
             if (objectResult.Value != null)
             {
                 var contentHash = GenerateETag(objectResult.Value);
                 headers.Append("ETag", $"\"{contentHash}\"");
             }
-            
+
             // Add Vary header for tenant-scoped endpoints (different tenants = different content)
             if (context.HttpContext.User.Identity?.IsAuthenticated == true)
             {
                 headers.Append("Vary", "Authorization");
             }
         }
-        
+
         base.OnActionExecuted(context);
     }
-    
+
     private static string GenerateETag(object content)
     {
         var json = System.Text.Json.JsonSerializer.Serialize(content);

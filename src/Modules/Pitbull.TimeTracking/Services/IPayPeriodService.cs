@@ -21,8 +21,8 @@ public interface IPayPeriodService
     /// Generate pay periods up to a specified number of periods ahead
     /// </summary>
     List<(DateOnly StartDate, DateOnly EndDate)> GenerateFuturePeriods(
-        PayPeriodConfiguration config, 
-        DateOnly fromDate, 
+        PayPeriodConfiguration config,
+        DateOnly fromDate,
         int periodsAhead);
 
     // ============ Query Methods ============

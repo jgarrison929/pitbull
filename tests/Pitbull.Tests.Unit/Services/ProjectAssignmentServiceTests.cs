@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
+using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Services;
-using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Services;
 
@@ -123,7 +123,7 @@ public class ProjectAssignmentServiceTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (_, project) = await SetupTestData(db);
-        
+
         // Create inactive employee
         var inactiveEmployee = new Employee
         {
@@ -134,7 +134,7 @@ public class ProjectAssignmentServiceTests
         };
         db.Set<Employee>().Add(inactiveEmployee);
         await db.SaveChangesAsync();
-        
+
         var service = CreateService(db);
 
         // Act
@@ -241,7 +241,7 @@ public class ProjectAssignmentServiceTests
         };
         db.Set<Project>().Add(project);
         await db.SaveChangesAsync();
-        
+
         var service = CreateService(db);
 
         // Act
@@ -277,7 +277,7 @@ public class ProjectAssignmentServiceTests
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
-        
+
         var employee = new Employee
         {
             EmployeeNumber = "E001",
@@ -309,7 +309,7 @@ public class ProjectAssignmentServiceTests
         };
         db.Set<ProjectAssignment>().Add(assignment);
         await db.SaveChangesAsync();
-        
+
         var service = CreateService(db);
 
         // Act - Query for date within range
@@ -327,7 +327,7 @@ public class ProjectAssignmentServiceTests
         // Assert
         resultInRange.IsSuccess.Should().BeTrue();
         resultInRange.Value.Should().HaveCount(1);
-        
+
         resultOutOfRange.IsSuccess.Should().BeTrue();
         resultOutOfRange.Value.Should().BeEmpty();
     }
@@ -349,7 +349,7 @@ public class ProjectAssignmentServiceTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        
+
         var updated = await db.Set<ProjectAssignment>()
             .IgnoreQueryFilters()
             .FirstAsync(a => a.Id == assignment.Id);
@@ -364,7 +364,7 @@ public class ProjectAssignmentServiceTests
         using var db = TestDbContextFactory.Create();
         var assignment = await SetupAssignmentTestData(db);
         var service = CreateService(db);
-        
+
         var endDate = new DateOnly(2026, 6, 30);
 
         // Act
@@ -372,7 +372,7 @@ public class ProjectAssignmentServiceTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        
+
         var updated = await db.Set<ProjectAssignment>()
             .IgnoreQueryFilters()
             .FirstAsync(a => a.Id == assignment.Id);
@@ -401,11 +401,11 @@ public class ProjectAssignmentServiceTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var assignment = await SetupAssignmentTestData(db);
-        
+
         // Deactivate the assignment
         assignment.IsActive = false;
         await db.SaveChangesAsync();
-        
+
         var service = CreateService(db);
 
         // Act
@@ -436,7 +436,7 @@ public class ProjectAssignmentServiceTests
 
         // Assert
         result.IsSuccess.Should().BeTrue();
-        
+
         var updated = await db.Set<ProjectAssignment>()
             .IgnoreQueryFilters()
             .FirstAsync(a => a.Id == assignment.Id);

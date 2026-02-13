@@ -228,7 +228,7 @@ public class TimeEntryService : ITimeEntryService
             // Verify project exists
             var projectExists = await _db.Set<Project>()
                 .AnyAsync(p => p.Id == projectId.Value, cancellationToken);
-            
+
             if (!projectExists)
                 return Result.Failure<LaborCostReportResponse>("Project not found", "NOT_FOUND");
 
@@ -421,7 +421,7 @@ public class TimeEntryService : ITimeEntryService
 
         // Validate employee is assigned to this project
         var hasAssignment = await _db.Set<ProjectAssignment>()
-            .AnyAsync(pa => pa.EmployeeId == command.EmployeeId 
+            .AnyAsync(pa => pa.EmployeeId == command.EmployeeId
                          && pa.ProjectId == command.ProjectId
                          && pa.IsActive
                          && pa.StartDate <= command.Date
@@ -442,10 +442,10 @@ public class TimeEntryService : ITimeEntryService
 
         // Check for duplicate time entry on the same date
         var existingEntry = await _db.Set<TimeEntry>()
-            .AnyAsync(te => te.Date == command.Date 
-                         && te.EmployeeId == command.EmployeeId 
+            .AnyAsync(te => te.Date == command.Date
+                         && te.EmployeeId == command.EmployeeId
                          && te.ProjectId == command.ProjectId
-                         && te.CostCodeId == command.CostCodeId, 
+                         && te.CostCodeId == command.CostCodeId,
                       cancellationToken);
 
         if (existingEntry)
@@ -475,7 +475,7 @@ public class TimeEntryService : ITimeEntryService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create time entry for employee {EmployeeId} on {Date}", 
+            _logger.LogError(ex, "Failed to create time entry for employee {EmployeeId} on {Date}",
                 command.EmployeeId, command.Date);
             return Result.Failure<TimeEntryDto>("Failed to create time entry", "DATABASE_ERROR");
         }
@@ -503,7 +503,7 @@ public class TimeEntryService : ITimeEntryService
         {
             var transitionResult = await ValidateAndApplyStatusTransition(
                 timeEntry, command, cancellationToken);
-            
+
             if (!transitionResult.IsSuccess)
                 return Result.Failure<TimeEntryDto>(transitionResult.Error!, transitionResult.ErrorCode);
         }
@@ -513,17 +513,17 @@ public class TimeEntryService : ITimeEntryService
         {
             if (command.RegularHours.HasValue)
                 timeEntry.RegularHours = command.RegularHours.Value;
-            
+
             if (command.OvertimeHours.HasValue)
                 timeEntry.OvertimeHours = command.OvertimeHours.Value;
-            
+
             if (command.DoubletimeHours.HasValue)
                 timeEntry.DoubletimeHours = command.DoubletimeHours.Value;
-            
+
             if (command.Description != null)
                 timeEntry.Description = command.Description;
         }
-        else if (command.RegularHours.HasValue || command.OvertimeHours.HasValue || 
+        else if (command.RegularHours.HasValue || command.OvertimeHours.HasValue ||
                  command.DoubletimeHours.HasValue)
         {
             return Result.Failure<TimeEntryDto>(
@@ -552,8 +552,8 @@ public class TimeEntryService : ITimeEntryService
     #region Private Helpers
 
     private async Task<Result> ValidateAndApplyStatusTransition(
-        TimeEntry timeEntry, 
-        UpdateTimeEntryCommand command, 
+        TimeEntry timeEntry,
+        UpdateTimeEntryCommand command,
         CancellationToken cancellationToken)
     {
         var currentStatus = timeEntry.Status;
@@ -578,7 +578,7 @@ public class TimeEntryService : ITimeEntryService
             }
 
             var hasPermission = await ValidateApproverPermission(
-                command.ApproverId.Value, 
+                command.ApproverId.Value,
                 timeEntry.EmployeeId,
                 cancellationToken);
 
@@ -616,7 +616,7 @@ public class TimeEntryService : ITimeEntryService
     }
 
     private async Task<bool> ValidateApproverPermission(
-        Guid approverId, 
+        Guid approverId,
         Guid employeeId,
         CancellationToken cancellationToken)
     {
@@ -651,22 +651,22 @@ public class TimeEntryService : ITimeEntryService
         {
             // Draft can go to Submitted
             (TimeEntryStatus.Draft, TimeEntryStatus.Submitted) => true,
-            
+
             // Submitted can go to Approved, Rejected, or back to Draft
             (TimeEntryStatus.Submitted, TimeEntryStatus.Approved) => true,
             (TimeEntryStatus.Submitted, TimeEntryStatus.Rejected) => true,
             (TimeEntryStatus.Submitted, TimeEntryStatus.Draft) => true,
-            
+
             // Rejected can go back to Draft (for corrections) or resubmitted
             (TimeEntryStatus.Rejected, TimeEntryStatus.Draft) => true,
             (TimeEntryStatus.Rejected, TimeEntryStatus.Submitted) => true,
-            
+
             // Approved entries generally shouldn't change, but allow reverting if needed
             (TimeEntryStatus.Approved, TimeEntryStatus.Submitted) => true,
-            
+
             // Same status is a no-op, allow it
             var (f, t) when f == t => true,
-            
+
             _ => false
         };
     }

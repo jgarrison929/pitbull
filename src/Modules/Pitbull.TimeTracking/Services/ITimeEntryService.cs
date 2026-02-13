@@ -18,7 +18,7 @@ public interface ITimeEntryService
 {
     // Query operations
     Task<Result<TimeEntryDto>> GetTimeEntryAsync(Guid id, CancellationToken cancellationToken = default);
-    
+
     Task<Result<ListTimeEntriesResult>> ListTimeEntriesAsync(
         Guid? projectId,
         Guid? employeeId,
@@ -28,7 +28,7 @@ public interface ITimeEntryService
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
-    
+
     Task<Result<ProjectTimeEntriesResult>> GetTimeEntriesByProjectAsync(
         Guid projectId,
         DateOnly? startDate,
@@ -38,14 +38,14 @@ public interface ITimeEntryService
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
-    
+
     Task<Result<LaborCostReportResponse>> GetLaborCostReportAsync(
         Guid? projectId,
         DateOnly? startDate,
         DateOnly? endDate,
         bool approvedOnly,
         CancellationToken cancellationToken = default);
-    
+
     Task<Result<VistaExportResult>> ExportVistaTimesheetAsync(
         DateOnly startDate,
         DateOnly endDate,
@@ -54,6 +54,6 @@ public interface ITimeEntryService
 
     // Command operations
     Task<Result<TimeEntryDto>> CreateTimeEntryAsync(CreateTimeEntryCommand command, CancellationToken cancellationToken = default);
-    
+
     Task<Result<TimeEntryDto>> UpdateTimeEntryAsync(UpdateTimeEntryCommand command, CancellationToken cancellationToken = default);
 }

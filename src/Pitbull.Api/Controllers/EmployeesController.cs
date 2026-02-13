@@ -279,7 +279,7 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     public async Task<IActionResult> GetStats(Guid id)
     {
         var result = await employeeService.GetEmployeeStatsAsync(id);
-        
+
         if (!result.IsSuccess)
         {
             return result.ErrorCode == "EMPLOYEE_NOT_FOUND"

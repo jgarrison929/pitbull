@@ -1,7 +1,7 @@
-using Testcontainers.PostgreSql;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Testcontainers.PostgreSql;
 
 namespace Pitbull.Tests.Integration;
 

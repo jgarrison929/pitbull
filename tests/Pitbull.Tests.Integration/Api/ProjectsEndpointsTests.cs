@@ -447,7 +447,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         // Accept either 200 (success) or 503 (AI not configured in test env)
         Assert.True(
-            summaryResp.StatusCode == HttpStatusCode.OK || 
+            summaryResp.StatusCode == HttpStatusCode.OK ||
             summaryResp.StatusCode == HttpStatusCode.ServiceUnavailable,
             $"Expected 200 or 503 but got {(int)summaryResp.StatusCode}");
 

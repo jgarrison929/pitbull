@@ -380,7 +380,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
             Notes: null);
 
         var resp = await client.PutAsJsonAsync($"/api/subcontracts/{created.Id}", updateCmd);
-        
+
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
 

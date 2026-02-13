@@ -54,10 +54,10 @@ public class ProjectAssignmentService : IProjectAssignmentService
 
         // Check for existing active assignment to the same project
         var existingAssignment = await _db.Set<ProjectAssignment>()
-            .AnyAsync(pa => pa.EmployeeId == employeeId 
+            .AnyAsync(pa => pa.EmployeeId == employeeId
                         && pa.ProjectId == projectId
                         && pa.IsActive
-                        && (pa.EndDate == null || pa.EndDate >= effectiveStartDate), 
+                        && (pa.EndDate == null || pa.EndDate >= effectiveStartDate),
                       cancellationToken);
 
         if (existingAssignment)
@@ -148,7 +148,7 @@ public class ProjectAssignmentService : IProjectAssignmentService
         if (asOfDate.HasValue)
         {
             var asOf = asOfDate.Value;
-            query = query.Where(pa => pa.StartDate <= asOf 
+            query = query.Where(pa => pa.StartDate <= asOf
                                    && (pa.EndDate == null || pa.EndDate >= asOf));
         }
 
@@ -179,10 +179,10 @@ public class ProjectAssignmentService : IProjectAssignmentService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            
+
             _logger.LogInformation("Removed assignment {AssignmentId} with end date {EndDate}",
                 assignmentId, assignment.EndDate);
-            
+
             return Result.Success();
         }
         catch (Exception ex)
@@ -200,9 +200,9 @@ public class ProjectAssignmentService : IProjectAssignmentService
         CancellationToken cancellationToken = default)
     {
         var assignment = await _db.Set<ProjectAssignment>()
-            .FirstOrDefaultAsync(pa => pa.EmployeeId == employeeId 
+            .FirstOrDefaultAsync(pa => pa.EmployeeId == employeeId
                                     && pa.ProjectId == projectId
-                                    && pa.IsActive, 
+                                    && pa.IsActive,
                                  cancellationToken);
 
         if (assignment == null)
@@ -215,10 +215,10 @@ public class ProjectAssignmentService : IProjectAssignmentService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            
+
             _logger.LogInformation("Removed assignment for employee {EmployeeId} from project {ProjectId}",
                 employeeId, projectId);
-            
+
             return Result.Success();
         }
         catch (Exception ex)

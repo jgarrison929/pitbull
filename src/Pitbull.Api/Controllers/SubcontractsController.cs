@@ -122,7 +122,7 @@ public class SubcontractsController(IContractsService contractsService) : Contro
     {
         var query = new ListSubcontractsQuery(projectId, status, search, page, pageSize);
         var result = await contractsService.ListSubcontractsAsync(query);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -193,8 +193,8 @@ public class SubcontractsController(IContractsService contractsService) : Contro
     {
         var result = await contractsService.DeleteSubcontractAsync(id);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" 
-                ? this.NotFoundError(result.Error ?? "Subcontract not found") 
+            return result.ErrorCode == "NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "Subcontract not found")
                 : this.BadRequestError(result.Error ?? "Delete failed");
 
         return NoContent();

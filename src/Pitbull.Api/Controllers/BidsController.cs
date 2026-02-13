@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
-using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.ConvertBidToProject;
+using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.ListBids;
 using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Bids.Services;
@@ -136,7 +136,7 @@ public class BidsController(IBidService bidService) : ControllerBase
             Page = page,
             PageSize = pageSize
         };
-        
+
         var result = await bidService.GetBidsAsync(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });

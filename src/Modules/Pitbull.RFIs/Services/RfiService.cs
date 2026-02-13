@@ -7,8 +7,8 @@ using Pitbull.Core.Data;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features;
 using Pitbull.RFIs.Features.CreateRfi;
-using Pitbull.RFIs.Features.UpdateRfi;
 using Pitbull.RFIs.Features.ListRfis;
+using Pitbull.RFIs.Features.UpdateRfi;
 
 namespace Pitbull.RFIs.Services;
 
@@ -211,7 +211,7 @@ public class RfiService : IRfiService
         var now = DateTime.UtcNow;
         var closedOrNow = rfi.ClosedAt ?? now;
         var daysOpen = (int)(closedOrNow - rfi.CreatedAt).TotalDays;
-        
+
         int? responseDelayDays = null;
         if (rfi.DueDate.HasValue && rfi.AnsweredAt.HasValue)
         {
@@ -277,7 +277,7 @@ public class RfiService : IRfiService
         foreach (var co in changeOrders)
         {
             events.Add(new(co.CreatedAt, "Change Order Created", null, $"{co.ChangeOrderNumber}: {co.Title}"));
-            
+
             if (co.ApprovedDate.HasValue)
             {
                 events.Add(new(co.ApprovedDate.Value, "Change Order Approved", co.ApprovedBy, co.ChangeOrderNumber));

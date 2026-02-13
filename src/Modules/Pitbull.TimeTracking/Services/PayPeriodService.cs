@@ -34,7 +34,7 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext)
         int periodsAhead)
     {
         var periods = new List<(DateOnly StartDate, DateOnly EndDate)>();
-        
+
         // Get the period containing fromDate
         var (currentStart, currentEnd) = CalculatePeriodBoundaries(fromDate, config);
         periods.Add((currentStart, currentEnd));
@@ -78,7 +78,7 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext)
 
         // Check if date falls in a locked period
         var period = await GetPayPeriodForDateAsync(date, cancellationToken);
-        
+
         if (period != null && period.IsLocked)
         {
             return $"Time entries cannot be modified for locked pay period ({period.StartDate:MMM d} - {period.EndDate:MMM d, yyyy})";
@@ -446,50 +446,50 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext)
         var daysToSubtract = ((int)date.DayOfWeek - (int)weekStartDay + 7) % 7;
         var startDate = date.AddDays(-daysToSubtract);
         var endDate = startDate.AddDays(6);
-        
+
         return (startDate, endDate);
     }
 
     private static (DateOnly StartDate, DateOnly EndDate) CalculateBiWeeklyPeriod(
-        DateOnly date, 
-        DayOfWeek weekStartDay, 
+        DateOnly date,
+        DayOfWeek weekStartDay,
         DateOnly? referenceDate)
     {
         // Use reference date or default to a known Sunday (Jan 1, 2024 was a Monday, so use Dec 31, 2023)
         var reference = referenceDate ?? new DateOnly(2023, 12, 31);
-        
+
         // Adjust reference to start on the correct weekStartDay
         var refDaysToSubtract = ((int)reference.DayOfWeek - (int)weekStartDay + 7) % 7;
         reference = reference.AddDays(-refDaysToSubtract);
-        
+
         // Calculate days since reference
         var daysSinceReference = date.DayNumber - reference.DayNumber;
-        
+
         // Find which bi-weekly period we're in
         var periodNumber = daysSinceReference / 14;
         if (daysSinceReference < 0)
             periodNumber--; // Adjust for dates before reference
-            
+
         var startDate = reference.AddDays(periodNumber * 14);
         var endDate = startDate.AddDays(13);
-        
+
         return (startDate, endDate);
     }
 
     private static (DateOnly StartDate, DateOnly EndDate) CalculateSemiMonthlyPeriod(
-        DateOnly date, 
-        int firstDay, 
+        DateOnly date,
+        int firstDay,
         int secondDay)
     {
         var year = date.Year;
         var month = date.Month;
         var day = date.Day;
-        
+
         // Ensure days are valid (handle month-end scenarios)
         var daysInMonth = DateTime.DaysInMonth(year, month);
         var actualSecondDay = Math.Min(secondDay, daysInMonth);
         var firstEndDay = actualSecondDay - 1;
-        
+
         if (day < actualSecondDay)
         {
             // First half of month
@@ -511,7 +511,7 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext)
         var startDate = new DateOnly(date.Year, date.Month, 1);
         var daysInMonth = DateTime.DaysInMonth(date.Year, date.Month);
         var endDate = new DateOnly(date.Year, date.Month, daysInMonth);
-        
+
         return (startDate, endDate);
     }
 }

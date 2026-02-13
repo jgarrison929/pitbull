@@ -10,40 +10,40 @@ public class ChangeOrder : BaseEntity
 {
     public Guid SubcontractId { get; set; }
     public string ChangeOrderNumber { get; set; } = string.Empty; // e.g. "CO-001"
-    
+
     // Description
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string? Reason { get; set; } // Owner request, field condition, design change, etc.
-    
+
     // Financial impact
     public decimal Amount { get; set; } // Can be positive (add) or negative (deduct)
     public int? DaysExtension { get; set; } // Schedule impact
-    
+
     // Status
     public ChangeOrderStatus Status { get; set; } = ChangeOrderStatus.Pending;
-    
+
     // Dates
     public DateTime? SubmittedDate { get; set; }
     public DateTime? ApprovedDate { get; set; }
     public DateTime? RejectedDate { get; set; }
-    
+
     // Approval
     public string? ApprovedBy { get; set; }
     public string? RejectedBy { get; set; }
     public string? RejectionReason { get; set; }
-    
+
     // Reference
     public string? ReferenceNumber { get; set; } // Owner's CO number if applicable
-    
+
     // RFI Linkage - Track cost impact back to originating RFI
     public Guid? OriginatingRfiId { get; set; }
-    
+
     // Delay cost tracking (separate from direct Amount)
     public int? DelayDays { get; set; }           // Days of delay caused
     public decimal? DelayCost { get; set; }       // Standby, acceleration costs
     public string? DelayDescription { get; set; } // "Crew standby waiting for clarification"
-    
+
     // Navigation
     public Subcontract? Subcontract { get; set; }
 }

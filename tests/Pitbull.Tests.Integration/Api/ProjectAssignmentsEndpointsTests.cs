@@ -3,9 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Tests.Integration.Infrastructure;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
-using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
 

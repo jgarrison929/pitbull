@@ -50,7 +50,7 @@ public class DashboardController(IDashboardService dashboardService) : Controlle
     public async Task<IActionResult> GetStats()
     {
         var result = await dashboardService.GetStatsAsync();
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
@@ -94,7 +94,7 @@ public class DashboardController(IDashboardService dashboardService) : Controlle
     public async Task<IActionResult> GetWeeklyHours([FromQuery] int weeks = 8)
     {
         var result = await dashboardService.GetWeeklyHoursAsync(weeks);
-        
+
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 

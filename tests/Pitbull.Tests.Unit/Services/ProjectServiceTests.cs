@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
@@ -10,7 +11,6 @@ using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
 using Pitbull.Projects.Services;
 using Pitbull.Tests.Unit.Helpers;
-using System.Security.Claims;
 
 namespace Pitbull.Tests.Unit.Services;
 

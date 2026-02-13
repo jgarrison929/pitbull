@@ -1,9 +1,9 @@
 using FluentAssertions;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
+using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.GetTimeEntry;
-using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Handlers;
 
@@ -174,7 +174,7 @@ public class GetTimeEntryHandlerTests
         // Arrange
         using var db = TestDbContextFactory.Create();
         var (employee, project, costCode) = await SetupTestData(db);
-        
+
         var timeEntry = new TimeEntry
         {
             Date = new DateOnly(2026, 2, 5),

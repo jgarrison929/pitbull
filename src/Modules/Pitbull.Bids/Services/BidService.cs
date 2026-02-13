@@ -1,14 +1,14 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Pitbull.Core.CQRS;
-using Pitbull.Core.Data;
 using Pitbull.Bids.Domain;
 using Pitbull.Bids.Features;
-using Pitbull.Bids.Features.CreateBid;
-using Pitbull.Bids.Features.UpdateBid;
-using Pitbull.Bids.Features.ListBids;
 using Pitbull.Bids.Features.ConvertBidToProject;
+using Pitbull.Bids.Features.CreateBid;
+using Pitbull.Bids.Features.ListBids;
+using Pitbull.Bids.Features.UpdateBid;
+using Pitbull.Core.CQRS;
+using Pitbull.Core.Data;
 
 namespace Pitbull.Bids.Services;
 
@@ -21,7 +21,7 @@ public class BidService : IBidService
 
     public BidService(
         PitbullDbContext db,
-        IValidator<CreateBidCommand> createValidator, 
+        IValidator<CreateBidCommand> createValidator,
         IValidator<UpdateBidCommand> updateValidator,
         ILogger<BidService> logger)
     {

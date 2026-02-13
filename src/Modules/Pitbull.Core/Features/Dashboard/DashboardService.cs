@@ -92,7 +92,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
 
             while (currentWeek <= lastWeek)
             {
-                var weekData = rawData.FirstOrDefault(r => 
+                var weekData = rawData.FirstOrDefault(r =>
                     DateOnly.FromDateTime(r.WeekStart) == currentWeek);
 
                 var regular = weekData?.RegularHours ?? 0;
@@ -285,7 +285,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
                 WHERE ""IsDeleted"" = false
                 ORDER BY ""CreatedAt"" DESC
                 LIMIT 3";
-            
+
             var projects = await db.Database.SqlQueryRaw<ProjectActivityRow>(projectsSql)
                 .ToListAsync(cancellationToken);
 

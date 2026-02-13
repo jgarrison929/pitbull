@@ -1,10 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Pitbull.Tests.Integration.Infrastructure;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
-using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
 
@@ -15,7 +15,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
     {
         PropertyNameCaseInsensitive = true
     };
-    
+
     private PitbullApiFactory _factory = null!;
 
     public async Task InitializeAsync()
@@ -121,7 +121,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             role = 0, // Worker
             startDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)).ToString("yyyy-MM-dd")
         });
-        
+
         if (assignResp.StatusCode != HttpStatusCode.Created && assignResp.StatusCode != HttpStatusCode.OK)
         {
             var body = await assignResp.Content.ReadAsStringAsync();
@@ -132,7 +132,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         var costCodesResp = await client.GetAsync("/api/cost-codes?pageSize=1");
         costCodesResp.EnsureSuccessStatusCode();
         var costCodesJson = await costCodesResp.Content.ReadAsStringAsync();
-        
+
         // If no cost codes exist, create one
         Guid costCodeId;
         if (costCodesJson.Contains("\"items\":[]") || !costCodesJson.Contains("\"id\""))
