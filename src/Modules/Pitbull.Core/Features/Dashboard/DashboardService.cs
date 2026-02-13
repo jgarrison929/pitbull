@@ -392,6 +392,134 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         }
         return null;
     }
+
+    /// <inheritdoc />
+    public async Task<Result<RfisNeedingAttentionResponse>> GetRfisNeedingAttentionAsync(Guid? userId = null, int limit = 5, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            limit = Math.Clamp(limit, 1, 20);
+            var today = DateTime.UtcNow.Date;
+
+            // Build the SQL query to get RFIs needing attention
+            // Status = 'Open' (0) - only open RFIs need attention
+            // Either overdue (DueDate < today) or ball-in-court = current user
+            var userFilter = userId.HasValue
+                ? $@"OR ""BallInCourtUserId"" = '{userId.Value}'"
+                : "";
+
+            var sql = $@"
+                SELECT 
+                    r.""Id"",
+                    r.""Number"",
+                    r.""Subject"",
+                    r.""ProjectId"",
+                    p.""Name"" as ""ProjectName"",
+                    p.""Number"" as ""ProjectNumber"",
+                    r.""Priority"",
+                    r.""DueDate"",
+                    r.""BallInCourtUserId"",
+                    r.""BallInCourtName""
+                FROM rfis r
+                INNER JOIN projects p ON r.""ProjectId"" = p.""Id""
+                WHERE r.""IsDeleted"" = false
+                  AND p.""IsDeleted"" = false
+                  AND r.""Status"" = 'Open'
+                  AND (
+                      (r.""DueDate"" IS NOT NULL AND r.""DueDate"" < '{today:yyyy-MM-dd}'::timestamp)
+                      {userFilter}
+                  )
+                ORDER BY 
+                    CASE WHEN r.""DueDate"" IS NOT NULL AND r.""DueDate"" < '{today:yyyy-MM-dd}'::timestamp THEN 0 ELSE 1 END,
+                    r.""DueDate"" ASC NULLS LAST,
+                    r.""Priority"" DESC,
+                    r.""CreatedAt"" DESC
+                LIMIT {limit}";
+
+            var rawData = await db.Database.SqlQueryRaw<RfiAttentionRow>(sql)
+                .ToListAsync(cancellationToken);
+
+            var items = rawData.Select(r =>
+            {
+                var isOverdue = r.DueDate.HasValue && r.DueDate.Value.Date < today;
+                var daysOverdue = isOverdue ? (int)(today - r.DueDate!.Value.Date).TotalDays : 0;
+                var isBallInCourt = userId.HasValue && r.BallInCourtUserId == userId.Value;
+
+                return new RfiAttentionItem(
+                    Id: r.Id,
+                    Number: r.Number,
+                    Subject: r.Subject,
+                    ProjectId: r.ProjectId.ToString(),
+                    ProjectName: r.ProjectName,
+                    ProjectNumber: r.ProjectNumber,
+                    Priority: r.Priority,
+                    DueDate: r.DueDate,
+                    DaysOverdue: daysOverdue,
+                    IsOverdue: isOverdue,
+                    IsBallInCourt: isBallInCourt,
+                    BallInCourtName: r.BallInCourtName
+                );
+            }).ToList();
+
+            // Get counts
+            var overdueCount = await GetOverdueRfiCount(today, cancellationToken);
+            var ballInCourtCount = userId.HasValue
+                ? await GetBallInCourtRfiCount(userId.Value, cancellationToken)
+                : 0;
+
+            return Result.Success(new RfisNeedingAttentionResponse(
+                OverdueCount: overdueCount,
+                BallInCourtCount: ballInCourtCount,
+                TotalCount: items.Count,
+                Items: items
+            ));
+        }
+        catch (Exception ex)
+        {
+            return Result.Failure<RfisNeedingAttentionResponse>(
+                $"Failed to retrieve RFIs needing attention: {ex.Message}",
+                "RFIS_ATTENTION_ERROR");
+        }
+    }
+
+    private async Task<int> GetOverdueRfiCount(DateTime today, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count = await db.Database.SqlQueryRaw<int>(
+                $@"SELECT COALESCE(COUNT(*), 0) AS Value 
+                   FROM rfis 
+                   WHERE ""IsDeleted"" = false 
+                     AND ""Status"" = 'Open' 
+                     AND ""DueDate"" IS NOT NULL 
+                     AND ""DueDate"" < '{today:yyyy-MM-dd}'::timestamp"
+            ).FirstAsync(cancellationToken);
+            return count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private async Task<int> GetBallInCourtRfiCount(Guid userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count = await db.Database.SqlQueryRaw<int>(
+                $@"SELECT COALESCE(COUNT(*), 0) AS Value 
+                   FROM rfis 
+                   WHERE ""IsDeleted"" = false 
+                     AND ""Status"" = 'Open' 
+                     AND ""BallInCourtUserId"" = '{userId}'"
+            ).FirstAsync(cancellationToken);
+            return count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
 }
 
 // Helper DTOs for raw SQL queries
@@ -400,3 +528,4 @@ internal record BidActivityRow(Guid Id, string Name, string Number, DateTime Cre
 internal record EmployeeActivityRow(Guid Id, string FirstName, string LastName, string EmployeeNumber, DateTime CreatedAt);
 internal record SubcontractActivityRow(Guid Id, string SubcontractNumber, string SubcontractorName, DateTime CreatedAt);
 internal record WeeklyHoursRow(DateTime WeekStart, decimal RegularHours, decimal OvertimeHours, decimal DoubleTimeHours);
+internal record RfiAttentionRow(Guid Id, int Number, string Subject, Guid ProjectId, string ProjectName, string ProjectNumber, string Priority, DateTime? DueDate, Guid? BallInCourtUserId, string? BallInCourtName);

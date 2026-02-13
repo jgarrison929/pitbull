@@ -17,6 +17,13 @@ public interface IDashboardService
     /// </summary>
     /// <param name="weeks">Number of weeks to retrieve (1-52)</param>
     Task<Result<WeeklyHoursResponse>> GetWeeklyHoursAsync(int weeks = 8, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get RFIs that need attention (overdue or assigned to user)
+    /// </summary>
+    /// <param name="userId">Optional user ID to filter by ball-in-court assignment</param>
+    /// <param name="limit">Maximum number of RFIs to return</param>
+    Task<Result<RfisNeedingAttentionResponse>> GetRfisNeedingAttentionAsync(Guid? userId = null, int limit = 5, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -65,4 +72,32 @@ public record WeeklyHoursDataPoint(
     decimal OvertimeHours,
     decimal DoubleTimeHours,
     decimal TotalHours
+);
+
+/// <summary>
+/// Response containing RFIs that need attention
+/// </summary>
+public record RfisNeedingAttentionResponse(
+    int OverdueCount,
+    int BallInCourtCount,
+    int TotalCount,
+    List<RfiAttentionItem> Items
+);
+
+/// <summary>
+/// An RFI item that needs attention
+/// </summary>
+public record RfiAttentionItem(
+    Guid Id,
+    int Number,
+    string Subject,
+    string ProjectId,
+    string ProjectName,
+    string ProjectNumber,
+    string Priority,
+    DateTime? DueDate,
+    int DaysOverdue,
+    bool IsOverdue,
+    bool IsBallInCourt,
+    string? BallInCourtName
 );

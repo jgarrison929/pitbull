@@ -767,3 +767,26 @@ export interface RfiCostSummary {
   averageResolutionDays: number;
   overdueRfis: number;
 }
+
+// Dashboard RFIs Needing Attention Types
+export interface RfisNeedingAttentionResponse {
+  overdueCount: number;
+  ballInCourtCount: number;
+  totalCount: number;
+  items: RfiAttentionItem[];
+}
+
+export interface RfiAttentionItem {
+  id: string;
+  number: number;
+  subject: string;
+  projectId: string;
+  projectName: string;
+  projectNumber: string;
+  priority: string;
+  dueDate: string | null;
+  daysOverdue: number;
+  isOverdue: boolean;
+  isBallInCourt: boolean;
+  ballInCourtName: string | null;
+}

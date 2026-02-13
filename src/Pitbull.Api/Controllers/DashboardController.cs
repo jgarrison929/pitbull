@@ -100,4 +100,63 @@ public class DashboardController(IDashboardService dashboardService) : Controlle
 
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Get RFIs needing attention (overdue or assigned to current user)
+    /// </summary>
+    /// <remarks>
+    /// Returns RFIs that require attention, prioritized by urgency:
+    /// - Overdue RFIs (past due date)
+    /// - RFIs where the current user is "ball in court"
+    ///
+    /// Sample response:
+    ///
+    ///     {
+    ///         "overdueCount": 3,
+    ///         "ballInCourtCount": 2,
+    ///         "totalCount": 5,
+    ///         "items": [
+    ///             {
+    ///                 "id": "...",
+    ///                 "number": 42,
+    ///                 "subject": "Foundation depth clarification",
+    ///                 "projectId": "...",
+    ///                 "projectName": "Office Building",
+    ///                 "projectNumber": "P-2026-001",
+    ///                 "priority": "High",
+    ///                 "dueDate": "2026-02-10",
+    ///                 "daysOverdue": 3,
+    ///                 "isOverdue": true,
+    ///                 "isBallInCourt": false,
+    ///                 "ballInCourtName": "John Architect"
+    ///             }
+    ///         ]
+    ///     }
+    ///
+    /// </remarks>
+    /// <param name="limit">Maximum number of RFIs to return (1-20, default: 5)</param>
+    /// <returns>RFIs needing attention</returns>
+    /// <response code="200">Returns RFIs needing attention</response>
+    /// <response code="401">Not authenticated</response>
+    [HttpGet("rfis-needing-attention")]
+    [Cacheable(DurationSeconds = 60)] // Cache for 1 minute
+    [ProducesResponseType(typeof(RfisNeedingAttentionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetRfisNeedingAttention([FromQuery] int limit = 5)
+    {
+        // Get current user ID from claims if available
+        Guid? userId = null;
+        var userIdClaim = User.FindFirst("sub") ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var parsedUserId))
+        {
+            userId = parsedUserId;
+        }
+
+        var result = await dashboardService.GetRfisNeedingAttentionAsync(userId, limit);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return Ok(result.Value);
+    }
 }
