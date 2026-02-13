@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -19,7 +18,7 @@ public sealed class DemoBootstrapper(
     TenantContext tenantContext,
     UserManager<AppUser> userManager,
     RoleSeeder roleSeeder,
-    IMediator mediator,
+    ISeedDataService seedDataService,
     IOptions<DemoOptions> options,
     ILogger<DemoBootstrapper> logger)
 {
@@ -48,7 +47,7 @@ public sealed class DemoBootstrapper(
             cancellationToken);
 
         // Seed domain data (projects/bids/etc). This is idempotent per tenant.
-        var result = await mediator.Send(new SeedDataCommand(), cancellationToken);
+        var result = await seedDataService.SeedAsync(cancellationToken);
 
         if (result.IsSuccess)
         {

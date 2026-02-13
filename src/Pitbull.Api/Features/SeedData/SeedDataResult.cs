@@ -1,11 +1,4 @@
-using Pitbull.Core.CQRS;
-
 namespace Pitbull.Api.Features.SeedData;
-
-/// <summary>
-/// Command to seed the database with sample data for testing and demos
-/// </summary>
-public record SeedDataCommand : ICommand<SeedDataResult>;
 
 /// <summary>
 /// Result of seed data operation
