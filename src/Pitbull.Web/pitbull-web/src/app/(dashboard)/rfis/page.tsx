@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useRegisterShortcut } from "@/contexts/keyboard-shortcuts-context";
 import {
   Table,
   TableBody,
@@ -85,16 +87,34 @@ function priorityLabel(priority: RfiPriority) {
 }
 
 export default function RfisPage() {
+  const router = useRouter();
   const [rfis, setRfis] = useState<Rfi[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingRfis, setIsLoadingRfis] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
+
+  // Register keyboard shortcuts
+  const handleNew = useCallback(() => {
+    if (selectedProjectId) {
+      router.push(`/rfis/new?projectId=${selectedProjectId}`);
+    }
+  }, [router, selectedProjectId]);
+
+  const handleSearch = useCallback(() => {
+    searchInputRef.current?.focus();
+  }, []);
+
+  useRegisterShortcut("n", "Create new RFI", handleNew, {
+    enabled: !!selectedProjectId,
+  });
+  useRegisterShortcut("/", "Focus search", handleSearch);
 
   // Load projects on mount
   useEffect(() => {
@@ -234,6 +254,7 @@ export default function RfisPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
+                  ref={searchInputRef}
                   placeholder="Search by subject or question..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}

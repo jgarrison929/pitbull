@@ -3,9 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { KeyboardShortcutsProvider } from "@/contexts/keyboard-shortcuts-context";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { AppHeader } from "@/components/layout/app-header";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 
 export default function DashboardLayout({
   children,
@@ -34,16 +36,19 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
-      <AppSidebar />
-      <div className="flex-1 flex flex-col">
-        <AppHeader />
-        <main className="flex-1 p-4 lg:p-6 bg-neutral-50">
-          <ErrorBoundary section="Dashboard">
-            {children}
-          </ErrorBoundary>
-        </main>
+    <KeyboardShortcutsProvider>
+      <div className="flex min-h-screen">
+        <AppSidebar />
+        <div className="flex-1 flex flex-col">
+          <AppHeader />
+          <main className="flex-1 p-4 lg:p-6 bg-neutral-50">
+            <ErrorBoundary section="Dashboard">
+              {children}
+            </ErrorBoundary>
+          </main>
+        </div>
       </div>
-    </div>
+      <KeyboardShortcutsHelp />
+    </KeyboardShortcutsProvider>
   );
 }

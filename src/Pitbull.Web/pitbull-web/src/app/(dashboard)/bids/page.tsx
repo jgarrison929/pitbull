@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNewShortcut } from "@/hooks/use-page-shortcuts";
 import {
   Table,
   TableBody,
@@ -63,6 +64,9 @@ function formatCurrency(amount: number) {
 export default function BidsPage() {
   const [bids, setBids] = useState<Bid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Register "n" shortcut to create new bid
+  useNewShortcut("/bids/new");
 
   useEffect(() => {
     async function fetchBids() {

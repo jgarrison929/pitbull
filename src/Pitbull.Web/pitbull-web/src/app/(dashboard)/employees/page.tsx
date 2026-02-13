@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useNewShortcut, useSearchShortcut } from "@/hooks/use-page-shortcuts";
 import {
   Select,
   SelectContent,
@@ -69,11 +70,16 @@ export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
   const [search, setSearch] = useState("");
   const [classificationFilter, setClassificationFilter] = useState<string>(ALL_VALUE);
   const [activeFilter, setActiveFilter] = useState<string>("true");
+
+  // Register keyboard shortcuts
+  useNewShortcut("/employees/new");
+  useSearchShortcut(searchInputRef);
 
   const fetchEmployees = useCallback(async () => {
     setIsLoading(true);
@@ -137,6 +143,7 @@ export default function EmployeesPage() {
             <div className="space-y-2">
               <Label>Search</Label>
               <Input
+                ref={searchInputRef}
                 placeholder="Name, number, or email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
