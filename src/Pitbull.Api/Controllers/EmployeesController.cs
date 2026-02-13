@@ -1,4 +1,3 @@
-using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -6,11 +5,10 @@ using Pitbull.Api.Attributes;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
-using Pitbull.TimeTracking.Features.GetEmployee;
-using Pitbull.TimeTracking.Features.GetEmployeeProjects;
 using Pitbull.TimeTracking.Features.GetEmployeeStats;
 using Pitbull.TimeTracking.Features.ListEmployees;
 using Pitbull.TimeTracking.Features.UpdateEmployee;
+using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Api.Controllers;
 
@@ -24,7 +22,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Employees")]
-public class EmployeesController(IMediator mediator) : ControllerBase
+public class EmployeesController(IEmployeeService employeeService) : ControllerBase
 {
     /// <summary>
     /// Create a new employee
@@ -83,7 +81,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
             Notes: request.Notes
         );
 
-        var result = await mediator.Send(command);
+        var result = await employeeService.CreateEmployeeAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -117,7 +115,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var result = await mediator.Send(new GetEmployeeQuery(id));
+        var result = await employeeService.GetEmployeeAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
                 ? NotFound(new { error = result.Error })
@@ -159,7 +157,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
             PageSize = pageSize
         };
 
-        var result = await mediator.Send(query);
+        var result = await employeeService.GetEmployeesAsync(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
@@ -189,7 +187,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
         Guid id,
         [FromQuery] bool activeOnly = true)
     {
-        var result = await mediator.Send(new GetEmployeeProjectsQuery(id, activeOnly));
+        var result = await employeeService.GetEmployeeProjectsAsync(id, activeOnly);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
                 ? NotFound(new { error = result.Error })
@@ -241,7 +239,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
             request.Notes
         );
 
-        var result = await mediator.Send(command);
+        var result = await employeeService.UpdateEmployeeAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -280,7 +278,7 @@ public class EmployeesController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetStats(Guid id)
     {
-        var result = await mediator.Send(new GetEmployeeStatsQuery(id));
+        var result = await employeeService.GetEmployeeStatsAsync(id);
         
         if (!result.IsSuccess)
         {

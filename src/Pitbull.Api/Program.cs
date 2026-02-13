@@ -82,6 +82,7 @@ builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator
 
 // TimeTracking scoped services (require DbContext)
 builder.Services.AddScoped<Pitbull.TimeTracking.Services.IPayPeriodService, Pitbull.TimeTracking.Services.PayPeriodService>();
+builder.Services.AddScoped<Pitbull.TimeTracking.Services.IEmployeeService, Pitbull.TimeTracking.Services.EmployeeService>();
 
 // Seed data handler (lives in Api assembly)
 builder.Services.AddPitbullModule<SeedDataCommand>();
