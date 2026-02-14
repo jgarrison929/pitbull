@@ -54,11 +54,9 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     /// <response code="201">Employee created successfully</response>
     /// <response code="400">Validation error</response>
     /// <response code="401">Not authenticated</response>
-    /// <response code="403">Not Admin, Manager, or Supervisor role</response>
     /// <response code="409">Duplicate employee number</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager,Supervisor")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
