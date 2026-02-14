@@ -1,10 +1,10 @@
 # Pitbull Construction Solutions
 
-[![CI](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml/badge.svg)](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml)
+[![CI](https://github.com/jgarrison929/pitbull-private/actions/workflows/ci.yml/badge.svg)](https://github.com/jgarrison929/pitbull-private/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-15-000000)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-847%20passing-success)](tests/)
+[![Tests](https://img.shields.io/badge/tests-956%20passing-success)](tests/)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
 **Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
@@ -15,42 +15,45 @@ Loyal. Tenacious. Won't let go. 🐕
 
 ## Current Status
 
-**🚧 Alpha 0 Development** (Target: Feb 21, 2026)
-- ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture
-- ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies  
-- ✅ **Testing:** 847 tests passing (653 unit + 194 integration)
-- ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds
-- ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts with full CRUD
-- ✅ **Frontend:** Next.js dashboard with Projects, Bids, Time Tracking, Reports UI
-- ✅ **Deployment:** Railway production deployment, health checks passing
+**Alpha 1 "Field Usable"** (Target: March 15, 2026)
+- ✅ **Alpha 0 Complete** (Feb 7, 2026 - 14 days early)
+- ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture, direct service injection
+- ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies, HSTS, security headers
+- ✅ **Testing:** 956 tests passing (758 unit + 198 integration)
+- ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds, vulnerability scanning
+- ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts, Equipment
+- ✅ **Multi-Company:** Single tenant, multiple legal entities with compound RLS (TenantId + CompanyId)
+- ✅ **Frontend:** Next.js 16 dashboard with charts, print views, dark mode, command palette
+- ✅ **Deployment:** Railway auto-deploy from main, health checks, response compression
 - ✅ **RBAC:** Role-based access control with Admin, Manager, Supervisor, User roles
 - ✅ **AI Insights:** Claude-powered project health analysis 🤖
-- ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export
-- 📋 **Next:** Documentation polish, UAT preparation
+- ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export, phase tracking
+- 📋 **Next:** Mobile-first time entry, foreman batch entry, pay period workflows
 
-**Recent Wins (Feb 13, 2026):**
-- **🚀 v0.11.0:** MediatR removal complete - direct service injection across all controllers
-- **🧹 Handler Cleanup:** Removed dead MediatR handlers, streamlined test suite to 847 tests (653 unit + 194 integration)
-- **🐛 Bug Fixes:** V2 soft-delete filter, stats endpoint SqlQueryRaw scalar mapping
-- **📋 Test Coverage:** Bids/Subcontracts edge cases, Contracts validators, security middleware
+**Recent Wins (Feb 13-14, 2026):**
+- **🏢 Multi-Company:** Full multi-company architecture (ICompanyScoped, company switcher, 13 entities scoped)
+- **⏱️ Phase/Equipment Tracking:** PhaseId on time entries, Equipment entity with hourly/billing rates
+- **🎨 Frontend Overhaul:** 15 polish passes (charts, print views, dark mode, onboarding, command palette)
+- **🧹 MediatR Removed:** All controllers use direct service injection
+- **📊 RFI Cost Impact:** End-to-end pipeline from RFI to cost tracking
 
 ## Stack
 
 - **Backend:** .NET 9 / ASP.NET Core (modular monolith, CQRS with direct services)
-- **Frontend:** Next.js 15 + React 19 + Tailwind CSS + shadcn/ui
-- **Database:** PostgreSQL 17 (multi-tenant with Row-Level Security)
+- **Frontend:** Next.js 16 + React 19 + Tailwind CSS + shadcn/ui
+- **Database:** PostgreSQL 17 (multi-tenant with Row-Level Security + compound company isolation)
 - **Cache:** Redis 7
 - **Auth:** ASP.NET Identity + JWT (cloud-native, multi-tenant)
 
 ## Modules
 
-### Alpha 0 (Implemented)
-- **Core** - Multi-tenancy, auth, shared kernel
-- **Projects** - Project management, cost codes, budgets
+### Shipped (Alpha 0 + Alpha 1 WIP)
+- **Core** - Multi-tenancy, multi-company, auth, shared kernel, equipment tracking
+- **Projects** - Project management, cost codes, budgets, phases
 - **Bids** - Opportunity tracking, bid management, win/loss analytics
-- **TimeTracking** - Labor hours, approval workflow, employee-project assignments
+- **TimeTracking** - Labor hours, phase/equipment tracking, approval workflow, pay periods
 - **Employees** - Employee management, project assignments
-- **Reports** - Labor cost reports, Vista/Viewpoint CSV export
+- **Reports** - Labor cost reports, Vista/Viewpoint CSV export, RFI cost impact
 - **Contracts** - Subcontracts, change orders, AIA G702 payment applications
 
 ### MVP (Planned)
@@ -83,13 +86,15 @@ pitbull/
 │   ├── Pitbull.Api/              # ASP.NET Core host
 │   ├── Pitbull.Web/              # Next.js frontend
 │   ├── Modules/
-│   │   ├── Pitbull.Core/         # Shared kernel
-│   │   ├── Pitbull.Projects/     # Project management
-│   │   ├── Pitbull.Bids/         # Bid management
-│   │   ├── Pitbull.Contracts/    # Subcontracts & COs
-│   │   ├── Pitbull.Documents/    # Document management
-│   │   ├── Pitbull.Portal/       # Sub portal
-│   │   └── Pitbull.Billing/      # Billing & pay apps
+│   │   ├── Pitbull.Core/         # Shared kernel, multi-tenancy, equipment
+│   │   ├── Pitbull.Projects/     # Project management, phases, budgets
+│   │   ├── Pitbull.Bids/         # Bid management, win/loss analytics
+│   │   ├── Pitbull.RFIs/         # RFI tracking, cost impact
+│   │   ├── Pitbull.TimeTracking/ # Labor hours, approvals, pay periods
+│   │   ├── Pitbull.Contracts/    # Subcontracts, change orders, pay apps
+│   │   ├── Pitbull.Documents/    # Document management (planned)
+│   │   ├── Pitbull.Portal/       # Sub portal (planned)
+│   │   └── Pitbull.Billing/      # Billing & invoicing (planned)
 │   └── Infrastructure/
 │       ├── Pitbull.Email/
 │       ├── Pitbull.Storage/
