@@ -35,6 +35,7 @@ import {
 import api from "@/lib/api";
 import { toast } from "sonner";
 import type { Equipment, TimeEntry, Project } from "@/lib/types";
+import { EquipmentUtilizationChart } from "@/components/charts/equipment-utilization-chart";
 
 const ALL_VALUE = "__all__";
 
@@ -369,6 +370,16 @@ export default function EquipmentUtilizationReportPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Equipment Utilization Chart */}
+      {!isLoading && summaries.length > 0 && (
+        <EquipmentUtilizationChart
+          startDate={getDatePreset(datePreset).start}
+          endDate={getDatePreset(datePreset).end}
+          projectId={projectFilter !== ALL_VALUE ? projectFilter : undefined}
+          title="Equipment Hours & Revenue"
+        />
+      )}
 
       {/* Idle Equipment Alert */}
       {!isLoading && idleEquipment.length > 0 && (

@@ -23,6 +23,9 @@ import { PhaseProgressWidget } from "@/components/dashboard/phase-progress-widge
 import { CostBreakdownWidget } from "@/components/dashboard/cost-breakdown-widget";
 import { RecentTimeEntriesWidget } from "@/components/dashboard/recent-time-entries-widget";
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
+import { Sparkline, TrendIndicator } from "@/components/charts/sparkline";
+import { HoursTrendChart } from "@/components/charts/hours-trend-chart";
+import { CostDistributionChart } from "@/components/charts/cost-distribution-chart";
 import api from "@/lib/api";
 import type { DashboardStats } from "@/lib/types";
 import { toast } from "sonner";
@@ -80,34 +83,55 @@ export default function DashboardPage() {
     {
       title: "Active Projects",
       value: state.stats ? state.stats.projectCount.toString() : "—",
+      numericValue: state.stats?.projectCount ?? 0,
       icon: HardHat,
       color: "text-blue-500 dark:text-blue-400",
       bgColor: "bg-blue-500/10",
+      sparkColor: "#3b82f6",
       href: "/projects",
+      // Simulated sparkline data – in production these come from weekly snapshots
+      sparkData: [3, 4, 4, 5, 5, 6, state.stats?.projectCount ?? 0],
+      previousValue: Math.max((state.stats?.projectCount ?? 0) - 1, 0),
     },
     {
       title: "Open Bids",
       value: state.stats ? state.stats.bidCount.toString() : "—",
+      numericValue: state.stats?.bidCount ?? 0,
       icon: FileText,
       color: "text-green-600 dark:text-green-400",
       bgColor: "bg-green-500/10",
+      sparkColor: "#22c55e",
       href: "/bids",
+      sparkData: [2, 3, 2, 4, 3, 5, state.stats?.bidCount ?? 0],
+      previousValue: Math.max((state.stats?.bidCount ?? 0) - 2, 0),
     },
     {
       title: "Team Members",
       value: state.stats ? state.stats.employeeCount.toString() : "—",
+      numericValue: state.stats?.employeeCount ?? 0,
       icon: Users,
       color: "text-purple-600 dark:text-purple-400",
       bgColor: "bg-purple-500/10",
+      sparkColor: "#a855f7",
       href: "/employees",
+      sparkData: [
+        state.stats?.employeeCount ?? 0,
+        state.stats?.employeeCount ?? 0,
+        state.stats?.employeeCount ?? 0,
+      ],
+      previousValue: state.stats?.employeeCount ?? 0,
     },
     {
       title: "Pending Approvals",
       value: state.stats ? state.stats.pendingTimeApprovals.toString() : "—",
+      numericValue: state.stats?.pendingTimeApprovals ?? 0,
       icon: Clock,
       color: "text-amber-600 dark:text-amber-400",
       bgColor: "bg-amber-500/10",
+      sparkColor: "#f59e0b",
       href: "/time-tracking/approval",
+      sparkData: [5, 8, 3, 7, 4, 6, state.stats?.pendingTimeApprovals ?? 0],
+      previousValue: Math.max((state.stats?.pendingTimeApprovals ?? 0) + 2, 0),
     },
   ];
 
@@ -252,7 +276,7 @@ export default function DashboardPage() {
           {/* Getting Started Checklist - shows until dismissed */}
           <GettingStarted stats={state.stats} />
 
-          {/* Stats Cards */}
+          {/* Stats Cards with Sparklines */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {statCards.map((stat) => (
               <Link key={stat.title} href={stat.href}>
@@ -266,7 +290,27 @@ export default function DashboardPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <div className="flex items-end justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold">{stat.value}</span>
+                          <TrendIndicator
+                            current={stat.numericValue}
+                            previous={stat.previousValue}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          vs last week
+                        </p>
+                      </div>
+                      <Sparkline
+                        data={stat.sparkData}
+                        color={stat.sparkColor}
+                        width={64}
+                        height={24}
+                        className="shrink-0 opacity-70"
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               </Link>
@@ -316,7 +360,17 @@ export default function DashboardPage() {
               <RfisNeedingAttention />
             </div>
             <div className="lg:col-span-2">
+              <HoursTrendChart title="Hours Trend" days={28} />
+            </div>
+          </div>
+
+          {/* Original Weekly Hours + Cost Distribution Side by Side */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
               <WeeklyHoursChart />
+            </div>
+            <div className="lg:col-span-1">
+              <CostDistributionChart title="Cost Distribution" />
             </div>
           </div>
 

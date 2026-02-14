@@ -15,6 +15,9 @@ import { ProjectLaborSummary } from "@/components/projects/project-labor-summary
 import { ProjectPhasesTable } from "@/components/projects/project-phases-table";
 import { ProjectEquipmentSummary } from "@/components/projects/project-equipment-summary";
 import { RfiCostWidget } from "@/components/rfis";
+import { HoursTrendChart } from "@/components/charts/hours-trend-chart";
+import { CostDistributionChart } from "@/components/charts/cost-distribution-chart";
+import { PhaseProgressChart } from "@/components/charts/phase-progress-chart";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
@@ -167,10 +170,21 @@ export default function ProjectDetailPage({
         </Button>
       </div>
 
+      {/* Visual Charts: Hours Trend + Cost Distribution */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <HoursTrendChart projectId={id} title="Project Hours Trend" days={42} />
+        </div>
+        <CostDistributionChart projectId={id} title="Project Costs" />
+      </div>
+
+      {/* Phase Progress Chart */}
+      <PhaseProgressChart projectId={id} title="Phase Progress & Budget" />
+
       {/* Labor Summary */}
       <ProjectLaborSummary projectId={id} />
 
-      {/* Phase Progress & Budget Tracking */}
+      {/* Phase Progress & Budget Tracking (Table) */}
       <ProjectPhasesTable projectId={id} />
 
       {/* Equipment Hours + RFI Cost Impact */}

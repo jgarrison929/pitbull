@@ -30,6 +30,8 @@ import api from "@/lib/api";
 import type { Employee, TimeEntry, ProjectAssignment, ListTimeEntriesResult } from "@/lib/types";
 import { toast } from "sonner";
 import { EmployeeHoursSummary } from "@/components/employees/employee-hours-summary";
+import { HoursTrendChart } from "@/components/charts/hours-trend-chart";
+import { WeeklyTimesheetGrid } from "@/components/charts/weekly-timesheet-grid";
 
 const classificationLabels: Record<number, string> = {
   0: "Hourly",
@@ -318,6 +320,20 @@ export default function EmployeeDetailPage({
 
           {/* Hours Summary */}
           <EmployeeHoursSummary employeeId={resolvedParams.id} />
+
+          {/* Timesheet Heatmap */}
+          <WeeklyTimesheetGrid
+            employeeId={resolvedParams.id}
+            title="Timesheet"
+            weeks={4}
+          />
+
+          {/* Hours Trend Chart */}
+          <HoursTrendChart
+            employeeId={resolvedParams.id}
+            title="Hours Trend"
+            days={28}
+          />
 
           {/* Recent Time Entries */}
           <Card>
