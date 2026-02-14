@@ -30,7 +30,7 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     /// <remarks>
     /// Creates an employee within the current tenant.
     /// Employee number must be unique within the tenant.
-    /// Requires Admin or Manager role.
+    /// Requires Admin, Manager, or Supervisor role.
     ///
     /// Sample request:
     ///
@@ -54,11 +54,11 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     /// <response code="201">Employee created successfully</response>
     /// <response code="400">Validation error</response>
     /// <response code="401">Not authenticated</response>
-    /// <response code="403">Not Admin or Manager role</response>
+    /// <response code="403">Not Admin, Manager, or Supervisor role</response>
     /// <response code="409">Duplicate employee number</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,Supervisor")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -200,7 +200,7 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     /// Update an existing employee
     /// </summary>
     /// <remarks>
-    /// Updates employee details. Requires Admin or Manager role.
+    /// Updates employee details. Requires Admin, Manager, or Supervisor role.
     /// Setting isActive to false will deactivate the employee.
     /// Terminated employees cannot log new time entries.
     /// </remarks>
@@ -210,11 +210,11 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     /// <response code="200">Employee updated</response>
     /// <response code="400">Validation error or invalid supervisor</response>
     /// <response code="401">Not authenticated</response>
-    /// <response code="403">Not Admin or Manager role</response>
+    /// <response code="403">Not Admin, Manager, or Supervisor role</response>
     /// <response code="404">Employee not found</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Roles = "Admin,Manager,Supervisor")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
