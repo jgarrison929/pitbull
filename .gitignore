@@ -40,3 +40,9 @@ appsettings.Production.json
 .env.local
 .env.production
 docs/josh-built-cover-letter.txt
+
+# Agent prompts (used locally for AI coding agents)
+prompts/
+
+# Root package-lock (not a Node project at root level)
+/package-lock.json
