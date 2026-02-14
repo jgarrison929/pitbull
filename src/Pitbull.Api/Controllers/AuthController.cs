@@ -287,6 +287,62 @@ public class AuthController(
     }
 
     /// <summary>
+    /// Bootstrap admin role for demo user (temporary endpoint)
+    /// </summary>
+    /// <remarks>
+    /// This endpoint is only available in demo mode and allows the demo user
+    /// to self-assign Admin role. This is needed when the demo user was created
+    /// before role assignment logic was added.
+    /// 
+    /// **Demo mode only.** Returns 404 otherwise.
+    /// </remarks>
+    /// <returns>Updated auth response with new token containing Admin role</returns>
+    /// <response code="200">Admin role assigned, returns new JWT token</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="403">Not the demo user or demo mode disabled</response>
+    /// <response code="404">Demo mode not enabled</response>
+    [HttpPost("bootstrap-admin")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> BootstrapAdmin()
+    {
+        // Only available in demo mode
+        if (!demoOptions.Value.Enabled)
+            return NotFound();
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return this.UnauthorizedError("User not found");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null)
+            return this.UnauthorizedError("User not found");
+
+        // Only allow for demo user email (if configured)
+        if (!string.IsNullOrWhiteSpace(demoOptions.Value.UserEmail) && 
+            !string.Equals(user.Email, demoOptions.Value.UserEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return this.ForbiddenError("This endpoint is only available for the demo user");
+        }
+
+        // Ensure roles exist and assign Admin
+        await roleSeeder.EnsureRolesForTenantAsync(user.TenantId);
+        await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin);
+
+        // Generate new token with updated roles
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+        var token = await GenerateJwtTokenAsync(user);
+
+        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
+    }
+
+    /// <summary>
     /// Get the current user's profile
     /// </summary>
     /// <remarks>

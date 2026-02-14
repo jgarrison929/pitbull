@@ -118,10 +118,14 @@ public sealed class DemoBootstrapper(
     private async Task EnsureDemoUserAsync(DemoOptions demo, Guid tenantId, CancellationToken ct)
     {
         // Always ensure roles exist for the tenant
+        logger.LogInformation("Ensuring roles exist for tenant {TenantId}", tenantId);
         await roleSeeder.EnsureRolesForTenantAsync(tenantId, ct);
 
         if (string.IsNullOrWhiteSpace(demo.UserEmail))
+        {
+            logger.LogWarning("Demo user email not configured; skipping demo user setup");
             return;
+        }
 
         var user = await userManager.FindByEmailAsync(demo.UserEmail);
         var userExisted = user is not null;
@@ -157,11 +161,26 @@ public sealed class DemoBootstrapper(
 
             logger.LogInformation("Created demo user {Email}", demo.UserEmail);
         }
+        else
+        {
+            logger.LogInformation("Demo user {Email} already exists (ID: {UserId}, TenantId: {TenantId})", 
+                demo.UserEmail, user.Id, user.TenantId);
+        }
 
-        // Always ensure demo user has Admin role
+        // Always ensure demo user has Admin role (even if user already existed)
+        logger.LogInformation("Assigning Admin role to demo user {Email} (TenantId: {TenantId})", 
+            demo.UserEmail, user.TenantId);
         await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin, ct);
-
-        if (userExisted)
-            logger.LogInformation("Ensured demo user {Email} has Admin role", demo.UserEmail);
+        
+        // Verify the role was actually assigned
+        var hasAdminRole = await roleSeeder.UserHasRoleAsync(user, RoleSeeder.Roles.Admin);
+        if (hasAdminRole)
+        {
+            logger.LogInformation("✓ Demo user {Email} confirmed to have Admin role", demo.UserEmail);
+        }
+        else
+        {
+            logger.LogError("✗ Demo user {Email} FAILED to get Admin role - check RoleSeeder logs", demo.UserEmail);
+        }
     }
 }
