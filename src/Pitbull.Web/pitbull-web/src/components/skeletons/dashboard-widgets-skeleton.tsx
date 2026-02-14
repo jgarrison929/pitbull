@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Skeleton for the Weekly Hours Chart widget on the dashboard
  */
 export function WeeklyHoursChartSkeleton() {
+  const barHeights = [48, 72, 96, 84, 112, 68, 88];
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -14,12 +16,9 @@ export function WeeklyHoursChartSkeleton() {
       <CardContent>
         {/* Chart area skeleton */}
         <div className="h-[200px] flex items-end justify-between gap-2 px-4">
-          {[...Array(7)].map((_, i) => (
+          {barHeights.map((height, i) => (
             <div key={i} className="flex flex-col items-center gap-2 flex-1">
-              <Skeleton 
-                className="w-full rounded-t" 
-                style={{ height: `${Math.random() * 120 + 40}px` }} 
-              />
+              <Skeleton className="w-full rounded-t" style={{ height: `${height}px` }} />
               <Skeleton className="h-3 w-8" />
             </div>
           ))}

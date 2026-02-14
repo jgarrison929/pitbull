@@ -1,6 +1,6 @@
 // Types for the Crew Batch Entry feature
 
-import { CostCode, TimeEntryStatus } from "@/lib/types";
+import { CostCode } from "@/lib/types";
 
 // API Response Types
 export interface MyCrewResult {

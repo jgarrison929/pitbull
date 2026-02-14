@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Bell, Check, AlertCircle, Clock, FileText, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { Bell, AlertCircle, Clock, FileText, CheckCircle2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,7 +126,7 @@ export function NotificationCenter() {
     markAsRead(notification.id);
     // Navigation would happen via href if using Link, or router.push
     if (notification.href) {
-      window.location.href = notification.href;
+      window.location.assign(notification.href);
     }
     setIsOpen(false);
   };

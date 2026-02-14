@@ -490,13 +490,13 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
     {
         try
         {
-            var count = await db.Database.SqlQueryRaw<int>(
-                $@"SELECT COALESCE(COUNT(*), 0) AS ""Value"" 
-                   FROM rfis 
-                   WHERE ""IsDeleted"" = false 
-                     AND ""Status"" = 'Open' 
-                     AND ""DueDate"" IS NOT NULL 
-                     AND ""DueDate"" < '{today:yyyy-MM-dd}'::timestamp"
+            var count = await db.Database.SqlQuery<int>(
+                $@"SELECT COALESCE(COUNT(*), 0) AS ""Value""
+                   FROM rfis
+                   WHERE ""IsDeleted"" = false
+                     AND ""Status"" = 'Open'
+                     AND ""DueDate"" IS NOT NULL
+                     AND ""DueDate"" < {today}"
             ).FirstAsync(cancellationToken);
             return count;
         }
@@ -510,12 +510,12 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
     {
         try
         {
-            var count = await db.Database.SqlQueryRaw<int>(
-                $@"SELECT COALESCE(COUNT(*), 0) AS ""Value"" 
-                   FROM rfis 
-                   WHERE ""IsDeleted"" = false 
-                     AND ""Status"" = 'Open' 
-                     AND ""BallInCourtUserId"" = '{userId}'"
+            var count = await db.Database.SqlQuery<int>(
+                $@"SELECT COALESCE(COUNT(*), 0) AS ""Value""
+                   FROM rfis
+                   WHERE ""IsDeleted"" = false
+                     AND ""Status"" = 'Open'
+                     AND ""BallInCourtUserId"" = {userId}"
             ).FirstAsync(cancellationToken);
             return count;
         }

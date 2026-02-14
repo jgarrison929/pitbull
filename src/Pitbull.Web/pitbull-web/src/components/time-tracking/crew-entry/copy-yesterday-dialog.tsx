@@ -28,7 +28,7 @@ export function CopyYesterdayDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Copy className="h-5 w-5" />
-            Copy Yesterday's Entries
+            Copy Yesterday&apos;s Entries
           </DialogTitle>
           <DialogDescription>
             This will copy hours from yesterday for all crew members who had time

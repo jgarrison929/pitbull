@@ -248,6 +248,11 @@ public class ProjectsController(
     [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> GetAiSummary(Guid id)
     {
+        // Preserve 404 semantics even when AI service is unavailable.
+        var projectResult = await projectService.GetProjectAsync(id);
+        if (!projectResult.IsSuccess)
+            return this.NotFoundError(projectResult.Error ?? "Project not found");
+
         var result = await aiInsightsService.GetProjectSummaryAsync(id);
 
         if (!result.Success)

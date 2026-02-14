@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 const STORAGE_KEY = "pitbull-recent-projects";
 const MAX_RECENT_PROJECTS = 5;
@@ -17,21 +17,18 @@ export interface RecentProject {
  * Persists the last 5 projects the user visited.
  */
 export function useRecentProjects() {
-  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
-
-  // Load from localStorage on mount
-  useEffect(() => {
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as RecentProject[];
-        setRecentProjects(parsed);
+        return JSON.parse(stored) as RecentProject[];
       }
     } catch {
       // Invalid data, clear it
       localStorage.removeItem(STORAGE_KEY);
     }
-  }, []);
+    return [];
+  });
 
   // Add a project to recent history
   const addRecentProject = useCallback(

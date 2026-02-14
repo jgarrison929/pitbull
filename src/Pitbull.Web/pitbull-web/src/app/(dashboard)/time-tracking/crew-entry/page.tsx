@@ -136,7 +136,7 @@ export default function CrewEntryPage() {
               <Users className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Crew Assigned</h3>
               <p className="text-muted-foreground max-w-md">
-                You don't have any crew members assigned to you yet. Contact your
+                You don&apos;t have any crew members assigned to you yet. Contact your
                 administrator to assign employees to your supervision.
               </p>
               <Button asChild className="mt-6">

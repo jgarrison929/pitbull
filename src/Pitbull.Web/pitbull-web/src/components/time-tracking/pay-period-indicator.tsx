@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, AlertTriangle, Lock, Clock } from "lucide-react";
 import { getCurrentPayPeriod } from "@/lib/pay-periods-api";
 import type { PayPeriod } from "@/types/pay-period.types";
-import { PayPeriodStatus, getStatusColor, getStatusLabel } from "@/types/pay-period.types";
+import { getStatusColor, getStatusLabel } from "@/types/pay-period.types";
 
 interface PayPeriodIndicatorProps {
   date?: string;

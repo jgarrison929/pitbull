@@ -33,7 +33,6 @@ import {
   Settings,
   Calendar,
   AlertCircle,
-  CheckCircle2,
   Clock,
 } from "lucide-react";
 import {

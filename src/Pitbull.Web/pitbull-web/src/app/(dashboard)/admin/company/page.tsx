@@ -185,7 +185,7 @@ export default function CompanySettingsPage() {
     setErrorMessage(null);
     
     try {
-      const updatedSettings = await api<CompanySettings>("/api/admin/company", {
+      await api<CompanySettings>("/api/admin/company", {
         method: "PUT",
         body: form,
       });

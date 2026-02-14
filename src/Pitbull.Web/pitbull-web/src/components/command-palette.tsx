@@ -66,19 +66,19 @@ export function CommandPalette() {
     return () => unregisterShortcut("⌘K");
   }, [registerShortcut, unregisterShortcut]);
 
-  // Focus input when opened
-  useEffect(() => {
-    if (isOpen) {
-      setSearch("");
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 0);
-    }
-  }, [isOpen]);
-
   const close = useCallback(() => {
     setIsOpen(false);
     setSearch("");
     setSelectedIndex(0);
+  }, []);
+
+  const handleOpenChange = useCallback((open: boolean) => {
+    setIsOpen(open);
+    if (open) {
+      setSearch("");
+      setSelectedIndex(0);
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
   }, []);
 
   // Define all commands
@@ -325,11 +325,6 @@ export function CommandPalette() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, filteredCommands, selectedIndex, close]);
 
-  // Reset selection when search changes
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [search]);
-
   // Calculate flat index for a command
   const getFlatIndex = (category: string, indexInCategory: number): number => {
     let offset = 0;
@@ -348,7 +343,7 @@ export function CommandPalette() {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent
         className="sm:max-w-xl p-0 gap-0 overflow-hidden"
         showCloseButton={false}
@@ -358,11 +353,14 @@ export function CommandPalette() {
         {/* Search input */}
         <div className="flex items-center border-b px-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <Input
-            ref={inputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search commands, projects, bids, RFIs..."
+            <Input
+              ref={inputRef}
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setSelectedIndex(0);
+              }}
+              placeholder="Search commands, projects, bids, RFIs..."
             className="border-0 shadow-none focus-visible:ring-0 h-12"
           />
           <kbd className="hidden sm:inline-flex pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">

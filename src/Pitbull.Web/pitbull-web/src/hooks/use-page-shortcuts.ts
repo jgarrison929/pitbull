@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useKeyboardShortcuts, useRegisterShortcut } from "@/contexts/keyboard-shortcuts-context";
+import { useRegisterShortcut } from "@/contexts/keyboard-shortcuts-context";
 
 /**
  * Hook to add common shortcuts for a list page with a "New" action
@@ -28,7 +28,7 @@ export function useSearchShortcut(searchInputRef: React.RefObject<HTMLInputEleme
   }, [searchInputRef]);
 
   useRegisterShortcut("/", "Focus search", handleSearch, {
-    enabled: !!searchInputRef.current,
+    enabled: true,
   });
 }
 

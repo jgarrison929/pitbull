@@ -29,21 +29,14 @@ function getStoredTheme(): Theme {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("system");
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
-  const [mounted, setMounted] = useState(false);
-
-  // Initialize theme from localStorage on mount
-  useEffect(() => {
-    const stored = getStoredTheme();
-    setThemeState(stored);
-    setMounted(true);
-  }, []);
+  const [theme, setThemeState] = useState<Theme>(() => getStoredTheme());
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
+    const initialTheme = getStoredTheme();
+    return initialTheme === "system" ? getSystemTheme() : initialTheme;
+  });
 
   // Apply theme to document and update resolved theme
   useEffect(() => {
-    if (!mounted) return;
-
     const applyTheme = () => {
       const resolved = theme === "system" ? getSystemTheme() : theme;
       setResolvedTheme(resolved);
@@ -65,7 +58,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       mediaQuery.addEventListener("change", handler);
       return () => mediaQuery.removeEventListener("change", handler);
     }
-  }, [theme, mounted]);
+  }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

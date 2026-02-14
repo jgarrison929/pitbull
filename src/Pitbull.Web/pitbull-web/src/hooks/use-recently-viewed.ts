@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 const STORAGE_KEY = "pitbull-recently-viewed";
 const MAX_RECENT_ITEMS = 5;
@@ -23,21 +23,18 @@ export interface RecentlyViewedItem {
  * Persists the last 5 items the user visited across all types.
  */
 export function useRecentlyViewed() {
-  const [recentItems, setRecentItems] = useState<RecentlyViewedItem[]>([]);
-
-  // Load from localStorage on mount
-  useEffect(() => {
+  const [recentItems, setRecentItems] = useState<RecentlyViewedItem[]>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored) as RecentlyViewedItem[];
-        setRecentItems(parsed);
+        return JSON.parse(stored) as RecentlyViewedItem[];
       }
     } catch {
       // Invalid data, clear it
       localStorage.removeItem(STORAGE_KEY);
     }
-  }, []);
+    return [];
+  });
 
   // Add an item to recent history
   const addRecentItem = useCallback(

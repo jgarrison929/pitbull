@@ -65,10 +65,30 @@ interface KeyboardShortcutsProviderProps {
 export function KeyboardShortcutsProvider({
   children,
 }: KeyboardShortcutsProviderProps) {
-  const [shortcuts, setShortcuts] = useState<Map<string, KeyboardShortcut>>(
-    () => new Map()
-  );
   const [isHelpOpen, setHelpOpen] = useState(false);
+  const [shortcuts, setShortcuts] = useState<Map<string, KeyboardShortcut>>(
+    () =>
+      new Map([
+        [
+          "?",
+          {
+            key: "?",
+            description: "Show keyboard shortcuts help",
+            action: () => setHelpOpen(true),
+            global: false,
+          },
+        ],
+        [
+          "Escape",
+          {
+            key: "Escape",
+            description: "Close modal/dialog",
+            action: () => setHelpOpen(false),
+            global: true,
+          },
+        ],
+      ])
+  );
 
   const registerShortcut = useCallback((shortcut: KeyboardShortcut) => {
     setShortcuts((prev) => {
@@ -85,28 +105,6 @@ export function KeyboardShortcutsProvider({
       return next;
     });
   }, []);
-
-  // Register the help shortcut
-  useEffect(() => {
-    registerShortcut({
-      key: "?",
-      description: "Show keyboard shortcuts help",
-      action: () => setHelpOpen(true),
-      global: false,
-    });
-
-    registerShortcut({
-      key: "Escape",
-      description: "Close modal/dialog",
-      action: () => setHelpOpen(false),
-      global: true,
-    });
-
-    return () => {
-      unregisterShortcut("?");
-      unregisterShortcut("Escape");
-    };
-  }, [registerShortcut, unregisterShortcut]);
 
   // Global keydown listener
   useEffect(() => {
