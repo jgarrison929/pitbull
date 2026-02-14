@@ -188,5 +188,13 @@ public sealed class DemoBootstrapper(
         {
             logger.LogError("✗ Demo user {Email} FAILED to get Admin role - check RoleSeeder logs", demo.UserEmail);
         }
+
+        // Also ensure Josh's account has Admin
+        var joshUser = await userManager.FindByEmailAsync("jgarrison929@gmail.com");
+        if (joshUser != null)
+        {
+            await roleSeeder.AssignRoleToUserAsync(joshUser, RoleSeeder.Roles.Admin, ct);
+            logger.LogInformation("Ensured jgarrison929@gmail.com has Admin role");
+        }
     }
 }
