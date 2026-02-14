@@ -147,7 +147,7 @@ namespace Pitbull.Api.Migrations
                 INSERT INTO companies (""Id"", ""TenantId"", ""Code"", ""Name"", ""IsDefault"", ""IsActive"",
                     ""SortOrder"", ""Currency"", ""Timezone"", ""DateFormat"", ""FiscalYearStartMonth"",
                     ""Settings"", ""CreatedAt"", ""CreatedBy"", ""IsDeleted"")
-                SELECT gen_random_uuid(), t.""Id"", '01', t.""Name"", true, true,
+                SELECT gen_random_uuid(), t.""Id"", '01', LEFT(t.""Name"", 200), true, true,
                     0, 'USD', 'America/Los_Angeles', 'MM/dd/yyyy', 1,
                     '{}', NOW(), 'migration', false
                 FROM tenants t
