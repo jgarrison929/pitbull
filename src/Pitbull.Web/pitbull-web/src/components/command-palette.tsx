@@ -20,6 +20,10 @@ import {
   FileText,
   Settings,
   ChevronRight,
+  Clock,
+  Truck,
+  History,
+  ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,17 +32,62 @@ interface CommandItem {
   title: string;
   subtitle?: string;
   icon: React.ReactNode;
-  category: "navigation" | "action" | "search";
+  category: "recent" | "search" | "action" | "navigation" | "create";
   action: () => void;
   keywords?: string[];
+}
+
+const RECENT_SEARCHES_KEY = "pitbull:recent-searches";
+const MAX_RECENT = 5;
+
+// Entity prefix search patterns
+const ENTITY_PREFIXES: Record<string, { label: string; path: string; icon: React.ReactNode }> = {
+  "emp:": { label: "Employees", path: "/employees", icon: <Users className="h-4 w-4" /> },
+  "proj:": { label: "Projects", path: "/projects", icon: <FolderKanban className="h-4 w-4" /> },
+  "eq:": { label: "Equipment", path: "/equipment", icon: <Truck className="h-4 w-4" /> },
+  "bid:": { label: "Bids", path: "/bids", icon: <FileSpreadsheet className="h-4 w-4" /> },
+  "rfi:": { label: "RFIs", path: "/rfis", icon: <HelpCircle className="h-4 w-4" /> },
+  "con:": { label: "Contracts", path: "/contracts", icon: <FileText className="h-4 w-4" /> },
+};
+
+function getRecentSearches(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addRecentSearch(query: string) {
+  try {
+    const recent = getRecentSearches().filter((r) => r !== query);
+    recent.unshift(query);
+    localStorage.setItem(
+      RECENT_SEARCHES_KEY,
+      JSON.stringify(recent.slice(0, MAX_RECENT))
+    );
+  } catch {
+    // localStorage may be unavailable
+  }
+}
+
+function clearRecentSearches() {
+  try {
+    localStorage.removeItem(RECENT_SEARCHES_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const { registerShortcut, unregisterShortcut } = useKeyboardShortcuts();
 
   // Register Ctrl/Cmd+K shortcut
@@ -77,170 +126,113 @@ export function CommandPalette() {
     if (open) {
       setSearch("");
       setSelectedIndex(0);
+      setRecentSearches(getRecentSearches());
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, []);
 
+  // Check for entity prefix
+  const entityPrefix = useMemo(() => {
+    const lower = search.toLowerCase();
+    for (const prefix of Object.keys(ENTITY_PREFIXES)) {
+      if (lower.startsWith(prefix)) {
+        return {
+          prefix,
+          query: search.slice(prefix.length).trim(),
+          ...ENTITY_PREFIXES[prefix]!,
+        };
+      }
+    }
+    return null;
+  }, [search]);
+
   // Define all commands
   const commands = useMemo<CommandItem[]>(() => {
-    const items: CommandItem[] = [
-      // Quick Actions
-      {
-        id: "new-project",
-        title: "New Project",
-        subtitle: "Create a new construction project",
-        icon: <Plus className="h-4 w-4" />,
-        category: "action",
-        action: () => {
-          router.push("/projects/new");
-          close();
-        },
-        keywords: ["create", "add"],
-      },
-      {
-        id: "new-bid",
-        title: "New Bid",
-        subtitle: "Create a new bid proposal",
-        icon: <Plus className="h-4 w-4" />,
-        category: "action",
-        action: () => {
-          router.push("/bids/new");
-          close();
-        },
-        keywords: ["create", "add", "proposal"],
-      },
-      {
-        id: "new-rfi",
-        title: "New RFI",
-        subtitle: "Create a new request for information",
-        icon: <Plus className="h-4 w-4" />,
-        category: "action",
-        action: () => {
-          router.push("/rfis/new");
-          close();
-        },
-        keywords: ["create", "add", "request"],
-      },
-      {
-        id: "new-employee",
-        title: "New Employee",
-        subtitle: "Add a new team member",
-        icon: <Plus className="h-4 w-4" />,
-        category: "action",
-        action: () => {
-          router.push("/employees/new");
-          close();
-        },
-        keywords: ["create", "add", "hire", "team"],
-      },
+    const items: CommandItem[] = [];
 
-      // Navigation
-      {
-        id: "nav-dashboard",
-        title: "Dashboard",
-        subtitle: "Go to dashboard overview",
-        icon: <Building2 className="h-4 w-4" />,
-        category: "navigation",
-        action: () => {
-          router.push("/");
-          close();
-        },
-        keywords: ["home", "overview"],
-      },
-      {
-        id: "nav-projects",
-        title: "Projects",
-        subtitle: "View all projects",
-        icon: <FolderKanban className="h-4 w-4" />,
-        category: "navigation",
-        action: () => {
-          router.push("/projects");
-          close();
-        },
-        keywords: ["list", "construction"],
-      },
-      {
-        id: "nav-bids",
-        title: "Bids",
-        subtitle: "View all bids",
-        icon: <FileSpreadsheet className="h-4 w-4" />,
-        category: "navigation",
-        action: () => {
-          router.push("/bids");
-          close();
-        },
-        keywords: ["list", "proposals", "estimates"],
-      },
-      {
-        id: "nav-rfis",
-        title: "RFIs",
-        subtitle: "View all requests for information",
-        icon: <HelpCircle className="h-4 w-4" />,
-        category: "navigation",
-        action: () => {
-          router.push("/rfis");
-          close();
-        },
-        keywords: ["list", "requests", "questions"],
-      },
-      {
-        id: "nav-contracts",
-        title: "Contracts",
-        subtitle: "View subcontracts",
-        icon: <FileText className="h-4 w-4" />,
-        category: "navigation",
-        action: () => {
-          router.push("/contracts");
-          close();
-        },
-        keywords: ["subcontracts", "agreements"],
-      },
-      {
-        id: "nav-employees",
-        title: "Employees",
-        subtitle: "View team members",
-        icon: <Users className="h-4 w-4" />,
-        category: "navigation",
-        action: () => {
-          router.push("/employees");
-          close();
-        },
-        keywords: ["team", "staff", "workers"],
-      },
-      {
-        id: "nav-settings",
-        title: "Settings",
-        subtitle: "Application settings",
-        icon: <Settings className="h-4 w-4" />,
-        category: "navigation",
-        action: () => {
-          router.push("/settings");
-          close();
-        },
-        keywords: ["preferences", "config"],
-      },
-    ];
+    // Recent searches (only when no query typed)
+    if (!search.trim() && recentSearches.length > 0) {
+      recentSearches.forEach((recent, i) => {
+        items.push({
+          id: `recent-${i}`,
+          title: recent,
+          icon: <History className="h-4 w-4" />,
+          category: "recent",
+          action: () => {
+            setSearch(recent);
+          },
+        });
+      });
+    }
 
-    // If there's a search query, add search navigation options
-    if (search.trim()) {
+    // Entity-specific search results
+    if (entityPrefix && entityPrefix.query) {
+      const searchParam = encodeURIComponent(entityPrefix.query);
+      items.push({
+        id: `entity-search-${entityPrefix.prefix}`,
+        title: `Search ${entityPrefix.label} for "${entityPrefix.query}"`,
+        subtitle: `Filter by ${entityPrefix.label.toLowerCase()}`,
+        icon: entityPrefix.icon,
+        category: "search",
+        action: () => {
+          addRecentSearch(search);
+          router.push(`${entityPrefix.path}?search=${searchParam}`);
+          close();
+        },
+      });
+    }
+
+    // General search actions (when there's a search query and no prefix)
+    if (search.trim() && !entityPrefix) {
       const searchParam = encodeURIComponent(search.trim());
-      items.unshift(
+
+      // "See all results" link
+      items.push({
+        id: "search-all",
+        title: `See all results for "${search}"`,
+        subtitle: "Search across all entities",
+        icon: <Search className="h-4 w-4" />,
+        category: "search",
+        action: () => {
+          addRecentSearch(search.trim());
+          router.push(`/search?q=${searchParam}`);
+          close();
+        },
+      });
+
+      items.push(
         {
           id: "search-projects",
           title: `Search projects for "${search}"`,
-          icon: <Search className="h-4 w-4" />,
+          subtitle: "Project name, number, or client",
+          icon: <FolderKanban className="h-4 w-4" />,
           category: "search",
           action: () => {
+            addRecentSearch(search.trim());
             router.push(`/projects?search=${searchParam}`);
+            close();
+          },
+        },
+        {
+          id: "search-employees",
+          title: `Search employees for "${search}"`,
+          subtitle: "Name, number, title, or email",
+          icon: <Users className="h-4 w-4" />,
+          category: "search",
+          action: () => {
+            addRecentSearch(search.trim());
+            router.push(`/employees?search=${searchParam}`);
             close();
           },
         },
         {
           id: "search-bids",
           title: `Search bids for "${search}"`,
-          icon: <Search className="h-4 w-4" />,
+          subtitle: "Bid number, name, or client",
+          icon: <FileSpreadsheet className="h-4 w-4" />,
           category: "search",
           action: () => {
+            addRecentSearch(search.trim());
             router.push(`/bids?search=${searchParam}`);
             close();
           },
@@ -248,25 +240,186 @@ export function CommandPalette() {
         {
           id: "search-rfis",
           title: `Search RFIs for "${search}"`,
-          icon: <Search className="h-4 w-4" />,
+          subtitle: "Subject, number, or assignee",
+          icon: <HelpCircle className="h-4 w-4" />,
           category: "search",
           action: () => {
+            addRecentSearch(search.trim());
             router.push(`/rfis?search=${searchParam}`);
+            close();
+          },
+        },
+        {
+          id: "search-equipment",
+          title: `Search equipment for "${search}"`,
+          subtitle: "Equipment code, name, or serial number",
+          icon: <Truck className="h-4 w-4" />,
+          category: "search",
+          action: () => {
+            addRecentSearch(search.trim());
+            router.push(`/equipment?search=${searchParam}`);
             close();
           },
         }
       );
     }
 
+    // Navigation items
+    items.push(
+      {
+        id: "nav-dashboard",
+        title: "Dashboard",
+        subtitle: "Go to dashboard overview",
+        icon: <Building2 className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/"); close(); },
+        keywords: ["home", "overview"],
+      },
+      {
+        id: "nav-projects",
+        title: "Projects",
+        subtitle: "View all construction projects",
+        icon: <FolderKanban className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/projects"); close(); },
+        keywords: ["list", "construction", "jobs"],
+      },
+      {
+        id: "nav-bids",
+        title: "Bids",
+        subtitle: "View all bid proposals",
+        icon: <FileSpreadsheet className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/bids"); close(); },
+        keywords: ["list", "proposals", "estimates"],
+      },
+      {
+        id: "nav-rfis",
+        title: "RFIs",
+        subtitle: "View requests for information",
+        icon: <HelpCircle className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/rfis"); close(); },
+        keywords: ["list", "requests", "questions"],
+      },
+      {
+        id: "nav-contracts",
+        title: "Contracts",
+        subtitle: "View subcontracts & change orders",
+        icon: <FileText className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/contracts"); close(); },
+        keywords: ["subcontracts", "agreements"],
+      },
+      {
+        id: "nav-employees",
+        title: "Employees",
+        subtitle: "View team directory",
+        icon: <Users className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/employees"); close(); },
+        keywords: ["team", "staff", "workers", "workforce"],
+      },
+      {
+        id: "nav-equipment",
+        title: "Equipment",
+        subtitle: "View equipment inventory",
+        icon: <Truck className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/equipment"); close(); },
+        keywords: ["machines", "vehicles", "tools", "inventory"],
+      },
+      {
+        id: "nav-time",
+        title: "Time Tracking",
+        subtitle: "View time entries & approvals",
+        icon: <Clock className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/time-tracking"); close(); },
+        keywords: ["hours", "timesheet", "labor"],
+      },
+      {
+        id: "nav-settings",
+        title: "Settings",
+        subtitle: "Application settings",
+        icon: <Settings className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/settings"); close(); },
+        keywords: ["preferences", "config"],
+      }
+    );
+
+    // Create new actions
+    items.push(
+      {
+        id: "create-time-entry",
+        title: "New Time Entry",
+        subtitle: "Log hours for an employee",
+        icon: <Plus className="h-4 w-4" />,
+        category: "create",
+        action: () => { router.push("/time-tracking/new"); close(); },
+        keywords: ["create", "add", "hours", "timesheet"],
+      },
+      {
+        id: "create-project",
+        title: "New Project",
+        subtitle: "Create a construction project",
+        icon: <Plus className="h-4 w-4" />,
+        category: "create",
+        action: () => { router.push("/projects/new"); close(); },
+        keywords: ["create", "add", "job"],
+      },
+      {
+        id: "create-employee",
+        title: "New Employee",
+        subtitle: "Add a team member",
+        icon: <Plus className="h-4 w-4" />,
+        category: "create",
+        action: () => { router.push("/employees/new"); close(); },
+        keywords: ["create", "add", "hire"],
+      },
+      {
+        id: "create-bid",
+        title: "New Bid",
+        subtitle: "Create a bid proposal",
+        icon: <Plus className="h-4 w-4" />,
+        category: "create",
+        action: () => { router.push("/bids/new"); close(); },
+        keywords: ["create", "add", "estimate", "proposal"],
+      },
+      {
+        id: "create-rfi",
+        title: "New RFI",
+        subtitle: "Submit a request for information",
+        icon: <Plus className="h-4 w-4" />,
+        category: "create",
+        action: () => { router.push("/rfis/new"); close(); },
+        keywords: ["create", "add", "question"],
+      }
+    );
+
     return items;
-  }, [router, close, search]);
+  }, [router, close, search, entityPrefix, recentSearches]);
 
   // Filter commands based on search
   const filteredCommands = useMemo(() => {
     if (!search.trim()) return commands;
 
+    // Entity prefix filtering - only show entity search + relevant nav
+    if (entityPrefix) {
+      return commands.filter(
+        (cmd) =>
+          cmd.category === "search" ||
+          (cmd.category === "navigation" &&
+            cmd.title.toLowerCase().includes(entityPrefix.label.toLowerCase()))
+      );
+    }
+
     const query = search.toLowerCase();
     return commands.filter((cmd) => {
+      // Always show search category items (they already match the query)
+      if (cmd.category === "search") return true;
+
       const searchableText = [
         cmd.title,
         cmd.subtitle || "",
@@ -277,18 +430,21 @@ export function CommandPalette() {
 
       return searchableText.includes(query);
     });
-  }, [commands, search]);
+  }, [commands, search, entityPrefix]);
 
   // Group commands by category
+  const categoryOrder = ["recent", "search", "navigation", "create"] as const;
+
   const groupedCommands = useMemo(() => {
     const groups: Record<string, CommandItem[]> = {
+      recent: [],
       search: [],
-      action: [],
       navigation: [],
+      create: [],
     };
 
     filteredCommands.forEach((cmd) => {
-      groups[cmd.category].push(cmd);
+      groups[cmd.category]?.push(cmd);
     });
 
     return groups;
@@ -302,11 +458,26 @@ export function CommandPalette() {
       switch (e.key) {
         case "ArrowDown":
           e.preventDefault();
-          setSelectedIndex((i) => Math.min(i + 1, filteredCommands.length - 1));
+          setSelectedIndex((i) => {
+            const next = Math.min(i + 1, filteredCommands.length - 1);
+            // Scroll selected item into view
+            setTimeout(() => {
+              const el = listRef.current?.querySelector(`[data-index="${next}"]`);
+              el?.scrollIntoView({ block: "nearest" });
+            }, 0);
+            return next;
+          });
           break;
         case "ArrowUp":
           e.preventDefault();
-          setSelectedIndex((i) => Math.max(i - 1, 0));
+          setSelectedIndex((i) => {
+            const next = Math.max(i - 1, 0);
+            setTimeout(() => {
+              const el = listRef.current?.querySelector(`[data-index="${next}"]`);
+              el?.scrollIntoView({ block: "nearest" });
+            }, 0);
+            return next;
+          });
           break;
         case "Enter":
           e.preventDefault();
@@ -328,18 +499,18 @@ export function CommandPalette() {
   // Calculate flat index for a command
   const getFlatIndex = (category: string, indexInCategory: number): number => {
     let offset = 0;
-    const categoryOrder = ["search", "action", "navigation"];
     for (const cat of categoryOrder) {
       if (cat === category) break;
-      offset += groupedCommands[cat].length;
+      offset += groupedCommands[cat]?.length ?? 0;
     }
     return offset + indexInCategory;
   };
 
   const categoryLabels: Record<string, string> = {
+    recent: "Recent Searches",
     search: "Search",
-    action: "Quick Actions",
     navigation: "Navigation",
+    create: "Create New...",
   };
 
   return (
@@ -353,14 +524,14 @@ export function CommandPalette() {
         {/* Search input */}
         <div className="flex items-center border-b px-3">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <Input
-              ref={inputRef}
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setSelectedIndex(0);
-              }}
-              placeholder="Search commands, projects, bids, RFIs..."
+          <Input
+            ref={inputRef}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setSelectedIndex(0);
+            }}
+            placeholder="Search or type a command... (emp: proj: eq: bid: rfi:)"
             className="border-0 shadow-none focus-visible:ring-0 h-12"
           />
           <kbd className="hidden sm:inline-flex pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
@@ -368,22 +539,54 @@ export function CommandPalette() {
           </kbd>
         </div>
 
+        {/* Entity prefix indicator */}
+        {entityPrefix && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50/50 dark:bg-amber-950/20 border-b">
+            {entityPrefix.icon}
+            <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+              Searching {entityPrefix.label}
+            </span>
+            {entityPrefix.query && (
+              <span className="text-xs text-muted-foreground">
+                for &ldquo;{entityPrefix.query}&rdquo;
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Results */}
-        <div className="max-h-[300px] overflow-y-auto py-2">
+        <div ref={listRef} className="max-h-[350px] overflow-y-auto py-2">
           {filteredCommands.length === 0 ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              No results found.
+            <div className="py-6 text-center">
+              <p className="text-sm text-muted-foreground">No results found.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try a different search or use prefixes: emp: proj: eq: bid: rfi:
+              </p>
             </div>
           ) : (
             <>
-              {(["search", "action", "navigation"] as const).map((category) => {
-                const items = groupedCommands[category];
+              {categoryOrder.map((category) => {
+                const items = groupedCommands[category] ?? [];
                 if (items.length === 0) return null;
 
                 return (
                   <div key={category}>
-                    <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                      {categoryLabels[category]}
+                    <div className="flex items-center justify-between px-3 py-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {categoryLabels[category]}
+                      </span>
+                      {category === "recent" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearRecentSearches();
+                            setRecentSearches([]);
+                          }}
+                          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                     {items.map((cmd, indexInCategory) => {
                       const flatIndex = getFlatIndex(category, indexInCategory);
@@ -392,6 +595,7 @@ export function CommandPalette() {
                       return (
                         <button
                           key={cmd.id}
+                          data-index={flatIndex}
                           onClick={cmd.action}
                           onMouseEnter={() => setSelectedIndex(flatIndex)}
                           className={cn(
@@ -411,20 +615,29 @@ export function CommandPalette() {
                           >
                             {cmd.icon}
                           </div>
-                          <div className="flex-1 truncate">
-                            <div className="font-medium">{cmd.title}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{cmd.title}</div>
                             {cmd.subtitle && (
                               <div className="text-xs text-muted-foreground truncate">
                                 {cmd.subtitle}
                               </div>
                             )}
                           </div>
-                          <ChevronRight
-                            className={cn(
-                              "h-4 w-4 shrink-0 transition-opacity",
-                              isSelected ? "opacity-100" : "opacity-0"
-                            )}
-                          />
+                          {category === "search" ? (
+                            <ArrowRight
+                              className={cn(
+                                "h-4 w-4 shrink-0 transition-opacity",
+                                isSelected ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                          ) : (
+                            <ChevronRight
+                              className={cn(
+                                "h-4 w-4 shrink-0 transition-opacity",
+                                isSelected ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                          )}
                         </button>
                       );
                     })}
@@ -437,7 +650,7 @@ export function CommandPalette() {
 
         {/* Footer hints */}
         <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <kbd className="rounded border bg-muted px-1 font-mono">↑↓</kbd>
               navigate
@@ -445,6 +658,11 @@ export function CommandPalette() {
             <span className="flex items-center gap-1">
               <kbd className="rounded border bg-muted px-1 font-mono">↵</kbd>
               select
+            </span>
+            <span className="hidden sm:flex items-center gap-1">
+              <kbd className="rounded border bg-muted px-1 font-mono">emp:</kbd>
+              <kbd className="rounded border bg-muted px-1 font-mono">proj:</kbd>
+              filter
             </span>
           </div>
           <span className="flex items-center gap-1">

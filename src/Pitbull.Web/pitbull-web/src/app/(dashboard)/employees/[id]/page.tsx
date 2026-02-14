@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import {
   ArrowLeft,
   Pencil,
@@ -118,6 +119,10 @@ export default function EmployeeDetailPage({
   if (isLoading) {
     return (
       <div className="space-y-6">
+        <Breadcrumbs items={[
+          { label: "Employees", href: "/employees" },
+          { label: "Loading..." },
+        ]} />
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/employees">
@@ -146,6 +151,10 @@ export default function EmployeeDetailPage({
   if (error || !employee) {
     return (
       <div className="space-y-6">
+        <Breadcrumbs items={[
+          { label: "Employees", href: "/employees" },
+          { label: "Not Found" },
+        ]} />
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
             <Link href="/employees">
@@ -169,6 +178,11 @@ export default function EmployeeDetailPage({
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[
+        { label: "Employees", href: "/employees" },
+        { label: employee.fullName },
+      ]} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
