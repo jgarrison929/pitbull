@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -12,11 +12,57 @@ import { CrewEntryGrid } from "@/components/time-tracking/crew-entry/crew-entry-
 import { CrewEntryMobileCards } from "@/components/time-tracking/crew-entry/crew-entry-mobile-cards";
 import { BatchSubmitSummary } from "@/components/time-tracking/crew-entry/batch-submit-summary";
 import { CopyYesterdayDialog } from "@/components/time-tracking/crew-entry/copy-yesterday-dialog";
+import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
+import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeft, Users } from "lucide-react";
+import { AlertCircle, ArrowLeft, Users, CalendarDays } from "lucide-react";
+import { getTodayISO } from "@/lib/time-tracking";
+import { toast } from "sonner";
 
 // For demo purposes - in production this would come from auth context
 const DEMO_SUPERVISOR_ID = "00000000-0000-0000-0000-000000000001";
+
+const CREW_TEMPLATE_STORAGE_KEY = "pitbull_crew_templates";
+
+interface CrewTemplate {
+  name: string;
+  entries: {
+    employeeId: string;
+    costCodeId: string;
+    phaseId: string;
+    equipmentId: string;
+  }[];
+  savedAt: number;
+}
+
+function loadCrewTemplates(): CrewTemplate[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = localStorage.getItem(CREW_TEMPLATE_STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as CrewTemplate[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveCrewTemplate(template: CrewTemplate) {
+  if (typeof window === "undefined") return;
+  try {
+    const templates = loadCrewTemplates();
+    // Keep max 5 templates, replace if same name
+    const filtered = templates.filter((t) => t.name !== template.name);
+    filtered.unshift(template);
+    localStorage.setItem(CREW_TEMPLATE_STORAGE_KEY, JSON.stringify(filtered.slice(0, 5)));
+  } catch {
+    // ignore
+  }
+}
+
+function getYesterdayISO(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split("T")[0]!;
+}
 
 export default function CrewEntryPage() {
   const router = useRouter();
@@ -27,6 +73,7 @@ export default function CrewEntryPage() {
     crew,
     projects,
     costCodes,
+    equipmentList,
     isLoading: dataLoading,
     error: dataError,
     loadCrew,
@@ -57,7 +104,6 @@ export default function CrewEntryPage() {
 
   // Load crew on mount
   useEffect(() => {
-    // In production, get supervisorId from auth context
     loadCrew(DEMO_SUPERVISOR_ID);
   }, [loadCrew]);
 
@@ -70,6 +116,31 @@ export default function CrewEntryPage() {
     setShowSummary(false);
     await submit();
   };
+
+  // Set all regular hours to 8
+  const handleSetAllRegular8 = useCallback(() => {
+    formData.entries.forEach((entry) => {
+      updateEntry(entry.employeeId, "regularHours", "8");
+    });
+    toast.success(`Set all ${formData.entries.length} crew to 8 regular hours`);
+  }, [formData.entries, updateEntry]);
+
+  // Save crew template
+  const handleSaveTemplate = useCallback(() => {
+    const name = `Crew Setup - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+    const template: CrewTemplate = {
+      name,
+      entries: formData.entries.map((e) => ({
+        employeeId: e.employeeId,
+        costCodeId: e.costCodeId,
+        phaseId: e.phaseId,
+        equipmentId: e.equipmentId,
+      })),
+      savedAt: Date.now(),
+    };
+    saveCrewTemplate(template);
+    toast.success("Crew template saved! It will be available next time.");
+  }, [formData.entries]);
 
   // Loading state
   if (dataLoading) {
@@ -93,7 +164,7 @@ export default function CrewEntryPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild title="Back to Time Tracking">
+          <Button variant="ghost" size="icon" asChild title="Back to Time Tracking" className="min-h-[44px] min-w-[44px]">
             <Link href="/time-tracking">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -120,7 +191,7 @@ export default function CrewEntryPage() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" asChild title="Back to Time Tracking">
+          <Button variant="ghost" size="icon" asChild title="Back to Time Tracking" className="min-h-[44px] min-w-[44px]">
             <Link href="/time-tracking">
               <ArrowLeft className="h-4 w-4" />
             </Link>
@@ -139,7 +210,7 @@ export default function CrewEntryPage() {
                 You don&apos;t have any crew members assigned to you yet. Contact your
                 administrator to assign employees to your supervision.
               </p>
-              <Button asChild className="mt-6">
+              <Button asChild className="mt-6 min-h-[48px] touch-manipulation">
                 <Link href="/time-tracking">Back to Time Tracking</Link>
               </Button>
             </div>
@@ -151,15 +222,22 @@ export default function CrewEntryPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      <OfflineIndicator />
+
+      {/* Header with Copy Previous Day, progress, templates */}
       <CrewEntryHeader
         crewCount={crew.length}
         totalHours={getTotalHours()}
         entryCount={getEntryCount()}
         onCopyYesterday={() => setShowCopyDialog(true)}
         onReset={reset}
+        onSetAllRegular8={handleSetAllRegular8}
+        onSaveTemplate={handleSaveTemplate}
         isDirty={isDirty}
       />
+
+      {/* Pay Period Indicator */}
+      <PayPeriodIndicator date={formData.date} compact />
 
       {/* Date/Project Selection */}
       <Card>
@@ -175,13 +253,36 @@ export default function CrewEntryPage() {
               <label htmlFor="date" className="text-sm font-medium">
                 Date
               </label>
-              <input
-                id="date"
-                type="date"
-                value={formData.date}
-                onChange={(e) => updateDate(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => updateDate(e.target.value)}
+                  className="flex min-h-[48px] sm:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation"
+                />
+                <div className="flex gap-1 shrink-0">
+                  <Button
+                    type="button"
+                    variant={formData.date === getTodayISO() ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => updateDate(getTodayISO())}
+                    className="min-h-[48px] sm:min-h-[36px] px-2.5 text-xs touch-manipulation"
+                  >
+                    <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                    Today
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.date === getYesterdayISO() ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => updateDate(getYesterdayISO())}
+                    className="min-h-[48px] sm:min-h-[36px] px-2.5 text-xs touch-manipulation"
+                  >
+                    Yest.
+                  </Button>
+                </div>
+              </div>
               {errors.date && (
                 <p className="text-sm text-destructive">{errors.date}</p>
               )}
@@ -194,7 +295,7 @@ export default function CrewEntryPage() {
                 id="project"
                 value={formData.projectId}
                 onChange={(e) => updateProject(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex min-h-[48px] sm:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation"
               >
                 <option value="">Select a project...</option>
                 {projects.map((project) => (
@@ -216,6 +317,7 @@ export default function CrewEntryPage() {
         <CrewEntryGrid
           entries={formData.entries}
           costCodes={costCodes}
+          equipmentList={equipmentList}
           onUpdateEntry={updateEntry}
         />
       </div>
@@ -225,21 +327,22 @@ export default function CrewEntryPage() {
         <CrewEntryMobileCards
           entries={formData.entries}
           costCodes={costCodes}
+          equipmentList={equipmentList}
           onUpdateEntry={updateEntry}
         />
       </div>
 
-      {/* Submit Button */}
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" asChild>
+      {/* Submit Button - Large and prominent */}
+      <div className="flex flex-col sm:flex-row justify-end gap-3">
+        <Button variant="outline" asChild className="min-h-[48px] touch-manipulation">
           <Link href="/time-tracking">Cancel</Link>
         </Button>
         <Button
           onClick={() => setShowSummary(true)}
           disabled={getEntryCount() === 0 || !formData.projectId}
-          className="bg-amber-500 hover:bg-amber-600 text-white"
+          className="bg-amber-500 hover:bg-amber-600 text-white min-h-[56px] sm:min-h-[48px] text-lg sm:text-base font-semibold touch-manipulation"
         >
-          Review & Submit ({getEntryCount()} entries)
+          Review &amp; Submit ({getEntryCount()} entries)
         </Button>
       </div>
 

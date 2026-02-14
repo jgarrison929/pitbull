@@ -260,9 +260,9 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
     {
         try
         {
-            // Status = 0 is "Pending", Status = 1 is "UnderReview" - both are pending approval
+            // Status is stored as string (HasConversion<string>) - use string values
             var count = await db.Database.SqlQueryRaw<int>(
-                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM change_orders WHERE \"IsDeleted\" = false AND \"Status\" IN (0, 1)"
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM change_orders WHERE \"IsDeleted\" = false AND \"Status\" IN ('Pending', 'UnderReview')"
             ).FirstAsync(cancellationToken);
             return count;
         }

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -15,7 +16,20 @@ import {
 import { LoadingButton } from "@/components/ui/loading-button";
 import { FormSkeleton } from "@/components/skeletons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Building2, MapPin, Phone, Globe, Percent, Calendar, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Building2,
+  MapPin,
+  Phone,
+  Globe,
+  Percent,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Wrench,
+  Image,
+  FileText,
+} from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import type { CompanySettings, UpdateCompanySettingsCommand } from "@/lib/types";
@@ -99,6 +113,47 @@ const TIME_ZONES = [
   { value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
 ];
 
+const COST_CODE_TYPES = [
+  { value: "csi", label: "CSI MasterFormat" },
+  { value: "custom", label: "Custom / Company" },
+  { value: "uniformat", label: "UniFormat" },
+];
+
+const LOCAL_SETTINGS_KEY = "pitbull-company-extended-settings";
+
+interface ExtendedSettings {
+  defaultCostCodeType: string;
+  defaultRegularHours: number;
+  requireDescription: boolean;
+  requirePhase: boolean;
+  equipmentMarkupPercent: number;
+}
+
+function loadExtendedSettings(): ExtendedSettings {
+  if (typeof window === "undefined") {
+    return {
+      defaultCostCodeType: "csi",
+      defaultRegularHours: 8,
+      requireDescription: false,
+      requirePhase: false,
+      equipmentMarkupPercent: 15,
+    };
+  }
+  try {
+    const stored = localStorage.getItem(LOCAL_SETTINGS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {
+    // ignore
+  }
+  return {
+    defaultCostCodeType: "csi",
+    defaultRegularHours: 8,
+    requireDescription: false,
+    requirePhase: false,
+    equipmentMarkupPercent: 15,
+  };
+}
+
 export default function CompanySettingsPage() {
   const router = useRouter();
   const { isAdmin } = useAuth();
@@ -108,7 +163,7 @@ export default function CompanySettingsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Form state
+  // Core form state (API-backed)
   const [form, setForm] = useState<UpdateCompanySettingsCommand>({
     name: "",
     legalName: "",
@@ -125,7 +180,9 @@ export default function CompanySettingsPage() {
     timeZone: "America/Los_Angeles",
   });
 
-  // Check admin access
+  // Extended settings (localStorage)
+  const [extSettings, setExtSettings] = useState<ExtendedSettings>(loadExtendedSettings);
+
   useEffect(() => {
     if (!isAdmin) {
       router.push("/");
@@ -166,7 +223,21 @@ export default function CompanySettingsPage() {
   }, [isAdmin, fetchSettings]);
 
   const updateForm = (field: keyof UpdateCompanySettingsCommand, value: string | number | null) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setHasChanges(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+  };
+
+  const updateExtSetting = <K extends keyof ExtendedSettings>(
+    key: K,
+    value: ExtendedSettings[K]
+  ) => {
+    setExtSettings((prev) => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(next));
+      return next;
+    });
     setHasChanges(true);
     setSuccessMessage(null);
     setErrorMessage(null);
@@ -174,7 +245,7 @@ export default function CompanySettingsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!form.name?.trim()) {
       setErrorMessage("Company name is required");
       return;
@@ -183,13 +254,13 @@ export default function CompanySettingsPage() {
     setIsSaving(true);
     setSuccessMessage(null);
     setErrorMessage(null);
-    
+
     try {
       await api<CompanySettings>("/api/admin/company", {
         method: "PUT",
         body: form,
       });
-      
+      // Extended settings already saved to localStorage on change
       setHasChanges(false);
       setSuccessMessage("Company settings saved successfully!");
       toast.success("Company settings saved");
@@ -202,9 +273,7 @@ export default function CompanySettingsPage() {
     }
   };
 
-  if (!isAdmin) {
-    return null;
-  }
+  if (!isAdmin) return null;
 
   if (isLoading) {
     return (
@@ -236,7 +305,6 @@ export default function CompanySettingsPage() {
         )}
       </div>
 
-      {/* Success/Error Messages */}
       {successMessage && (
         <Alert className="bg-green-50 border-green-200">
           <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -245,7 +313,7 @@ export default function CompanySettingsPage() {
           </AlertDescription>
         </Alert>
       )}
-      
+
       {errorMessage && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -308,9 +376,7 @@ export default function CompanySettingsPage() {
               <MapPin className="h-5 w-5" />
               Address
             </CardTitle>
-            <CardDescription>
-              Company headquarters location
-            </CardDescription>
+            <CardDescription>Company headquarters location</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -334,15 +400,15 @@ export default function CompanySettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="state">State</Label>
-                <Select 
-                  value={form.state || ""} 
+                <Select
+                  value={form.state || ""}
                   onValueChange={(value) => updateForm("state", value || null)}
                 >
                   <SelectTrigger id="state">
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent>
-                    {US_STATES.map(state => (
+                    {US_STATES.map((state) => (
                       <SelectItem key={state.value} value={state.value}>
                         {state.label}
                       </SelectItem>
@@ -435,26 +501,33 @@ export default function CompanySettingsPage() {
                   max="100"
                   step="0.5"
                   value={form.defaultRetainagePercent ?? 10}
-                  onChange={(e) => updateForm("defaultRetainagePercent", parseFloat(e.target.value) || 0)}
+                  onChange={(e) =>
+                    updateForm("defaultRetainagePercent", parseFloat(e.target.value) || 0)
+                  }
                 />
                 <p className="text-xs text-muted-foreground">
                   Applied to new subcontracts by default
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fiscalYearStartMonth" className="flex items-center gap-1">
+                <Label
+                  htmlFor="fiscalYearStartMonth"
+                  className="flex items-center gap-1"
+                >
                   <Calendar className="h-3 w-3" />
                   Fiscal Year Start
                 </Label>
-                <Select 
-                  value={String(form.fiscalYearStartMonth ?? 1)} 
-                  onValueChange={(value) => updateForm("fiscalYearStartMonth", parseInt(value))}
+                <Select
+                  value={String(form.fiscalYearStartMonth ?? 1)}
+                  onValueChange={(value) =>
+                    updateForm("fiscalYearStartMonth", parseInt(value))
+                  }
                 >
                   <SelectTrigger id="fiscalYearStartMonth">
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MONTHS.map(month => (
+                    {MONTHS.map((month) => (
                       <SelectItem key={month.value} value={month.value}>
                         {month.label}
                       </SelectItem>
@@ -463,16 +536,19 @@ export default function CompanySettingsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="timeZone">Time Zone</Label>
-                <Select 
-                  value={form.timeZone || "America/Los_Angeles"} 
+                <Label htmlFor="timeZone">
+                  <Clock className="h-3 w-3 inline mr-1" />
+                  Time Zone
+                </Label>
+                <Select
+                  value={form.timeZone || "America/Los_Angeles"}
                   onValueChange={(value) => updateForm("timeZone", value)}
                 >
                   <SelectTrigger id="timeZone">
                     <SelectValue placeholder="Select time zone" />
                   </SelectTrigger>
                   <SelectContent>
-                    {TIME_ZONES.map(tz => (
+                    {TIME_ZONES.map((tz) => (
                       <SelectItem key={tz.value} value={tz.value}>
                         {tz.label}
                       </SelectItem>
@@ -480,6 +556,162 @@ export default function CompanySettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Cost Codes & Time Entry Defaults */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Time Entry Defaults
+            </CardTitle>
+            <CardDescription>
+              Default values applied to new time entries across the system
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Default Cost Code System</Label>
+                <Select
+                  value={extSettings.defaultCostCodeType}
+                  onValueChange={(v) => updateExtSetting("defaultCostCodeType", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COST_CODE_TYPES.map((ct) => (
+                      <SelectItem key={ct.value} value={ct.value}>
+                        {ct.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="defaultHours">Default Regular Hours</Label>
+                <Input
+                  id="defaultHours"
+                  type="number"
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  value={extSettings.defaultRegularHours}
+                  onChange={(e) =>
+                    updateExtSetting(
+                      "defaultRegularHours",
+                      parseFloat(e.target.value) || 8
+                    )
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pre-filled for new time entries
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Require Description</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Workers must describe work performed
+                  </p>
+                </div>
+                <Switch
+                  checked={extSettings.requireDescription}
+                  onCheckedChange={(checked) =>
+                    updateExtSetting("requireDescription", checked)
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>Require Phase</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Phase selection mandatory on time entries
+                  </p>
+                </div>
+                <Switch
+                  checked={extSettings.requirePhase}
+                  onCheckedChange={(checked) =>
+                    updateExtSetting("requirePhase", checked)
+                  }
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Equipment Billing */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              Equipment Billing
+            </CardTitle>
+            <CardDescription>
+              Default markup applied when generating equipment billing rates
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="equipMarkup">Default Billing Rate Markup %</Label>
+                <Input
+                  id="equipMarkup"
+                  type="number"
+                  min={0}
+                  max={200}
+                  step={1}
+                  value={extSettings.equipmentMarkupPercent}
+                  onChange={(e) =>
+                    updateExtSetting(
+                      "equipmentMarkupPercent",
+                      parseFloat(e.target.value) || 15
+                    )
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Billing rate = internal rate × (1 + markup%). Default: 15%
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Logo / Branding */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Image className="h-5 w-5" />
+              Logo &amp; Branding
+            </CardTitle>
+            <CardDescription>
+              Company logo for reports, invoices, and the application
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-8 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-amber-500/10 mb-4">
+                <Building2 className="h-8 w-8 text-amber-500" />
+              </div>
+              <p className="text-sm font-medium">Company Logo</p>
+              <p className="text-xs text-muted-foreground mb-4">
+                Drag &amp; drop or click to upload (PNG, SVG, JPG — max 2MB)
+              </p>
+              <label className="cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml"
+                  className="hidden"
+                  onChange={() => toast.info("Logo upload coming soon")}
+                />
+                Choose File
+              </label>
             </div>
           </CardContent>
         </Card>

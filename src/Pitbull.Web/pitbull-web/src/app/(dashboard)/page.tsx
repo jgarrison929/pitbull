@@ -21,6 +21,10 @@ import { GettingStarted } from "@/components/ui/getting-started";
 import { WeeklyHoursChart } from "@/components/dashboard/weekly-hours-chart";
 import { RfisNeedingAttention } from "@/components/dashboard/rfis-needing-attention";
 import { RecentlyViewed } from "@/components/dashboard/recently-viewed";
+import { EquipmentUtilizationWidget } from "@/components/dashboard/equipment-utilization-widget";
+import { PhaseProgressWidget } from "@/components/dashboard/phase-progress-widget";
+import { CostBreakdownWidget } from "@/components/dashboard/cost-breakdown-widget";
+import { RecentTimeEntriesWidget } from "@/components/dashboard/recent-time-entries-widget";
 import api from "@/lib/api";
 import type { DashboardStats, RecentActivityItem } from "@/lib/types";
 import { toast } from "sonner";
@@ -362,6 +366,16 @@ export default function DashboardPage() {
               <WeeklyHoursChart />
             </div>
           </div>
+
+          {/* Intelligence Widgets: Equipment, Phases, Costs, Recent Entries */}
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <EquipmentUtilizationWidget />
+            <PhaseProgressWidget />
+            <CostBreakdownWidget />
+          </div>
+
+          {/* Recent Time Entries */}
+          <RecentTimeEntriesWidget />
 
           {/* Portfolio Summary */}
           <div className="grid gap-4 sm:grid-cols-2">

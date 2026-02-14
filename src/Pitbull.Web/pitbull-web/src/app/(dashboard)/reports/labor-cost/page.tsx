@@ -36,7 +36,9 @@ import {
   FileSpreadsheet,
   RefreshCw,
   AlertCircle,
+  Download,
 } from "lucide-react";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -210,8 +212,98 @@ export default function LaborCostReportPage() {
     setExpandedProjects(new Set());
   };
 
+  const exportCsv = () => {
+    if (!report) return;
+
+    const rows = [
+      [
+        "Project Number",
+        "Project Name",
+        "Cost Code",
+        "Cost Code Name",
+        "Total Hours",
+        "Regular Hours",
+        "OT Hours",
+        "DT Hours",
+        "Base Wages",
+        "Burden",
+        "Total Cost",
+      ].join(","),
+    ];
+
+    for (const project of report.byProject) {
+      for (const cc of project.byCostCode) {
+        rows.push(
+          [
+            project.projectNumber ?? "",
+            `"${project.projectName}"`,
+            cc.costCodeNumber,
+            `"${cc.costCodeName}"`,
+            cc.cost.totalHours.toFixed(1),
+            cc.cost.regularHours.toFixed(1),
+            cc.cost.overtimeHours.toFixed(1),
+            cc.cost.doubletimeHours.toFixed(1),
+            cc.cost.baseWageCost.toFixed(2),
+            cc.cost.burdenCost.toFixed(2),
+            cc.cost.totalCost.toFixed(2),
+          ].join(",")
+        );
+      }
+      // Project subtotal row
+      rows.push(
+        [
+          project.projectNumber ?? "",
+          `"${project.projectName} - SUBTOTAL"`,
+          "",
+          "",
+          project.cost.totalHours.toFixed(1),
+          project.cost.regularHours.toFixed(1),
+          project.cost.overtimeHours.toFixed(1),
+          project.cost.doubletimeHours.toFixed(1),
+          project.cost.baseWageCost.toFixed(2),
+          project.cost.burdenCost.toFixed(2),
+          project.cost.totalCost.toFixed(2),
+        ].join(",")
+      );
+    }
+
+    // Grand total
+    rows.push(
+      [
+        "",
+        "GRAND TOTAL",
+        "",
+        "",
+        report.totalCost.totalHours.toFixed(1),
+        report.totalCost.regularHours.toFixed(1),
+        report.totalCost.overtimeHours.toFixed(1),
+        report.totalCost.doubletimeHours.toFixed(1),
+        report.totalCost.baseWageCost.toFixed(2),
+        report.totalCost.burdenCost.toFixed(2),
+        report.totalCost.totalCost.toFixed(2),
+      ].join(",")
+    );
+
+    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    const dateRange = getDatePreset(datePreset);
+    a.download = `labor-cost-report-${dateRange.start}-to-${dateRange.end}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported successfully");
+  };
+
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Reports", href: "/reports/labor-cost" },
+          { label: "Labor Cost" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -221,6 +313,15 @@ export default function LaborCostReportPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportCsv}
+            disabled={isLoading || !report}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
           <Button variant="outline" size="sm" onClick={fetchReport}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh

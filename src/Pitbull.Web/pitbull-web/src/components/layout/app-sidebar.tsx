@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { CompanySwitcher } from "./company-switcher";
 import { ProjectSwitcher } from "./project-switcher";
 
-const navItems = [
+const mainNavItems = [
   { label: "Dashboard", href: "/", icon: "📊" },
   { label: "Projects", href: "/projects", icon: "🏗️" },
   { label: "Bids", href: "/bids", icon: "📋" },
@@ -16,21 +16,77 @@ const navItems = [
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
   { label: "Employees", href: "/employees", icon: "👷" },
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
-  { label: "Labor Cost Report", href: "/reports/labor-cost", icon: "💰" },
-  { label: "Vista Export", href: "/reports/vista-export", icon: "📤" },
+  { label: "Equipment", href: "/equipment", icon: "🚜" },
   { label: "Contracts", href: "/contracts", icon: "📄" },
-  { label: "Settings", href: "/settings", icon: "⚙️" },
   { label: "Documents", href: "#", icon: "📁", disabled: true },
 ];
 
-// HR module removed - employees are in TimeTracking module at /employees
+const reportItems = [
+  { label: "Labor Cost", href: "/reports/labor-cost", icon: "💰" },
+  { label: "Equipment Utilization", href: "/reports/equipment", icon: "🔧" },
+  { label: "Vista Export", href: "/reports/vista-export", icon: "📤" },
+];
+
+const settingsItems = [
+  { label: "Preferences", href: "/settings", icon: "⚙️" },
+  { label: "Overtime Rules", href: "/settings/overtime", icon: "⏰" },
+];
 
 const adminItems = [
+  { label: "Company Settings", href: "/admin/company", icon: "🏢" },
   { label: "Users", href: "/admin/users", icon: "👥" },
-  { label: "Companies", href: "/admin/companies", icon: "🏢" },
+  { label: "Pay Periods", href: "/admin/pay-periods", icon: "📅" },
+  { label: "Companies", href: "/admin/companies", icon: "🏛️" },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜" },
-  { label: "Company Settings", href: "/admin/company", icon: "⚙️" },
 ];
+
+function NavItem({
+  item,
+  pathname,
+}: {
+  item: { label: string; href: string; icon: string; disabled?: boolean };
+  pathname: string;
+}) {
+  const isActive =
+    item.href === "/"
+      ? pathname === "/"
+      : item.href === "/settings"
+      ? pathname === "/settings"
+      : pathname.startsWith(item.href);
+
+  return (
+    <Link
+      href={item.disabled ? "#" : item.href}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        item.disabled
+          ? "text-sidebar-foreground/40 cursor-not-allowed"
+          : isActive
+            ? "bg-sidebar-accent text-amber-400"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+      )}
+      onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+    >
+      <span className="text-base">{item.icon}</span>
+      {item.label}
+      {item.disabled && (
+        <span className="ml-auto text-[10px] uppercase tracking-wider text-sidebar-foreground/50 bg-sidebar-accent px-1.5 py-0.5 rounded">
+          Soon
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function SectionHeader({ label }: { label: string }) {
+  return (
+    <div className="pt-4 pb-2">
+      <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+        {label}
+      </span>
+    </div>
+  );
+}
 
 export function AppSidebar() {
   const pathname = usePathname();
@@ -64,67 +120,31 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        {/* Main nav */}
+        {mainNavItems.map((item) => (
+          <NavItem key={item.label} item={item} pathname={pathname} />
+        ))}
 
-          return (
-            <Link
-              key={item.label}
-              href={item.disabled ? "#" : item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                item.disabled
-                  ? "text-sidebar-foreground/40 cursor-not-allowed"
-                  : isActive
-                    ? "bg-sidebar-accent text-amber-400"
-                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              )}
-              onClick={item.disabled ? (e) => e.preventDefault() : undefined}
-            >
-              <span className="text-base">{item.icon}</span>
-              {item.label}
-              {item.disabled && (
-                <span className="ml-auto text-[10px] uppercase tracking-wider text-sidebar-foreground/50 bg-sidebar-accent px-1.5 py-0.5 rounded">
-                  Soon
-                </span>
-              )}
-            </Link>
-          );
-        })}
+        {/* Reports Section */}
+        <SectionHeader label="Reports" />
+        {reportItems.map((item) => (
+          <NavItem key={item.label} item={item} pathname={pathname} />
+        ))}
 
-        {/* HR Section removed - employees are in TimeTracking module */}
+        {/* Settings Section */}
+        <SectionHeader label="Settings" />
+        {settingsItems.map((item) => (
+          <NavItem key={item.label} item={item} pathname={pathname} />
+        ))}
 
         {/* Admin Section - Only visible to admins */}
         {user?.roles?.includes("Admin") && (
           <>
-            <div className="pt-4 pb-2">
-              <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-                Admin
-              </span>
-            </div>
-            {adminItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-
-              return (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    isActive
-                      ? "bg-sidebar-accent text-amber-400"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  )}
-                >
-                  <span className="text-base">{item.icon}</span>
-                  {item.label}
-                </Link>
-              );
-            })}
+            <SectionHeader label="Admin" />
+            {adminItems.map((item) => (
+              <NavItem key={item.label} item={item} pathname={pathname} />
+            ))}
           </>
         )}
       </nav>
@@ -139,7 +159,9 @@ export function AppSidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || ""}</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">
+              {user?.email || ""}
+            </p>
           </div>
           <button
             onClick={logout}

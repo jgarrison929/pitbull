@@ -239,6 +239,12 @@ export interface TimeEntry {
   projectNumber: string;
   costCodeId: string;
   costCodeDescription: string;
+  phaseId?: string | null;
+  phaseName?: string | null;
+  equipmentId?: string | null;
+  equipmentName?: string | null;
+  equipmentCode?: string | null;
+  equipmentHours: number;
   regularHours: number;
   overtimeHours: number;
   doubletimeHours: number;
@@ -280,6 +286,9 @@ export interface CreateTimeEntryCommand {
   overtimeHours?: number;
   doubletimeHours?: number;
   description?: string;
+  phaseId?: string;
+  equipmentId?: string;
+  equipmentHours?: number;
 }
 
 export interface ListEmployeesResult {
@@ -861,6 +870,89 @@ export interface RfiCostSummary {
   topCostlyRfis: RfiCostSummaryTopRfi[];
   averageResolutionDays: number;
   overdueRfis: number;
+}
+
+// ============================================
+// Equipment Types
+// ============================================
+
+export enum EquipmentType {
+  HeavyEquipment = 0,
+  LightEquipment = 1,
+  Vehicles = 2,
+  Tools = 3,
+  Other = 4,
+}
+
+export interface Equipment {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  type: EquipmentType;
+  typeName: string;
+  hourlyRate: number;
+  billingRate?: number | null;
+  isActive: boolean;
+  serialNumber?: string | null;
+  licensePlate?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface CreateEquipmentCommand {
+  code: string;
+  name: string;
+  description?: string;
+  type: EquipmentType;
+  hourlyRate: number;
+  billingRate?: number;
+  serialNumber?: string;
+  licensePlate?: string;
+}
+
+export interface UpdateEquipmentCommand {
+  code?: string;
+  name?: string;
+  description?: string | null;
+  type?: EquipmentType;
+  hourlyRate?: number;
+  billingRate?: number | null;
+  isActive?: boolean;
+  serialNumber?: string | null;
+  licensePlate?: string | null;
+}
+
+export interface ListEquipmentResult {
+  items: Equipment[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+// ============================================
+// Phase Types
+// ============================================
+
+export enum PhaseStatus {
+  NotStarted = 0,
+  InProgress = 1,
+  Completed = 2,
+  OnHold = 3,
+}
+
+export interface Phase {
+  id: string;
+  projectId: string;
+  name: string;
+  costCode: string;
+  description?: string | null;
+  sortOrder: number;
+  budgetAmount: number;
+  actualCost: number;
+  percentComplete: number;
+  status: PhaseStatus;
 }
 
 // Dashboard RFIs Needing Attention Types

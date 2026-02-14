@@ -1,6 +1,6 @@
 // Types for the Crew Batch Entry feature
 
-import { CostCode } from "@/lib/types";
+import { CostCode, Equipment } from "@/lib/types";
 
 // API Response Types
 export interface MyCrewResult {
@@ -74,6 +74,9 @@ export interface BatchTimeEntryItemRequest {
   overtimeHours?: number;
   doubletimeHours?: number;
   description?: string;
+  phaseId?: string;
+  equipmentId?: string;
+  equipmentHours?: number;
 }
 
 export interface BatchCreateTimeEntriesResult {
@@ -105,6 +108,9 @@ export interface CrewMemberEntryData {
   employeeName: string;
   employeeNumber: string;
   costCodeId: string;
+  phaseId: string;
+  equipmentId: string;
+  equipmentHours: string;
   regularHours: string;
   overtimeHours: string;
   doubletimeHours: string;
@@ -124,6 +130,7 @@ export interface UseCrewEntryDataReturn {
   crew: CrewMemberDto[];
   projects: CrewMemberProjectDto[];
   costCodes: CostCode[];
+  equipmentList: Equipment[];
   isLoading: boolean;
   error: string | null;
   supervisorId: string | null;

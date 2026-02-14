@@ -9,7 +9,7 @@ import type {
   CrewMemberProjectDto,
   UseCrewEntryDataReturn,
 } from "@/types/crew-entry.types";
-import type { CostCode } from "@/lib/types";
+import type { CostCode, Equipment, ListEquipmentResult } from "@/lib/types";
 
 interface CostCodeListResult {
   items: CostCode[];
@@ -27,23 +27,26 @@ export function useCrewEntryData(): UseCrewEntryDataReturn {
   const [crew, setCrew] = useState<CrewMemberDto[]>([]);
   const [projects, setProjects] = useState<CrewMemberProjectDto[]>([]);
   const [costCodes, setCostCodes] = useState<CostCode[]>([]);
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [supervisorId, setSupervisorId] = useState<string | null>(null);
 
-  // Load cost codes on mount
+  // Load cost codes and equipment on mount
   useEffect(() => {
-    async function loadCostCodes() {
+    async function loadOptions() {
       try {
-        const costCodesRes = await api<CostCodeListResult>(
-          "/api/cost-codes?costType=1&pageSize=200"
-        );
+        const [costCodesRes, equipmentRes] = await Promise.all([
+          api<CostCodeListResult>("/api/cost-codes?costType=1&pageSize=200"),
+          api<ListEquipmentResult>("/api/equipment?isActive=true&pageSize=200"),
+        ]);
         setCostCodes(costCodesRes.items);
+        setEquipmentList(equipmentRes.items);
       } catch {
-        console.error("Failed to load cost codes");
+        console.error("Failed to load cost codes or equipment");
       }
     }
-    loadCostCodes();
+    loadOptions();
   }, []);
 
   const loadCrew = useCallback(async (supId: string) => {
@@ -91,6 +94,7 @@ export function useCrewEntryData(): UseCrewEntryDataReturn {
     crew,
     projects,
     costCodes,
+    equipmentList,
     isLoading,
     error,
     supervisorId,

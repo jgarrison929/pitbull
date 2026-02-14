@@ -49,8 +49,8 @@ public class CostCodeConfiguration : IEntityTypeConfiguration<CostCode>
             .IsUnique()
             .HasDatabaseName("IX_CostCodes_TenantId_Code");
 
-        // Soft delete
-        builder.HasQueryFilter(cc => !cc.IsDeleted);
+        // Note: Global tenant+soft-delete filter is applied in PitbullDbContext for all BaseEntity types.
+        // Do not add a local HasQueryFilter here as it would be overridden by the global one.
 
         // Optimistic concurrency using PostgreSQL xmin (prevents concurrent edit conflicts)
         builder.Property<uint>("xmin")

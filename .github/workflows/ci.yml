@@ -73,8 +73,10 @@ jobs:
             DANGEROUS_PATTERNS=1
           fi
           
-          # Check for Sql() with DROP or TRUNCATE (manual SQL that destroys data)
-          if grep -rE 'Sql\s*\(\s*"[^"]*\b(DROP|TRUNCATE)\b' src/Pitbull.Api/Migrations/*.cs 2>/dev/null; then
+          # Check for Sql() with DROP TABLE/TRUNCATE (destructive to data)
+          # Excludes safe operations: DROP POLICY, DROP INDEX, DROP CONSTRAINT (RLS/schema management)
+          if grep -rE 'Sql\s*\(\s*"[^"]*\b(DROP|TRUNCATE)\b' src/Pitbull.Api/Migrations/*.cs 2>/dev/null \
+             | grep -vE 'DROP (POLICY|INDEX|CONSTRAINT)' ; then
             echo "::error::Manual DROP/TRUNCATE SQL detected - review carefully!"
             DANGEROUS_PATTERNS=1
           fi

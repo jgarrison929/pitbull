@@ -204,7 +204,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         {
             name = "Test Project",
             number = "PRJ-001",
-            type = "Commercial"
+            type = 0
         });
 
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
@@ -231,7 +231,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         {
             name = "Company One Project",
             number = "PRJ-C1-001",
-            type = "Commercial"
+            type = 0
         });
         Assert.Equal(HttpStatusCode.Created, createResp1.StatusCode);
 
@@ -245,7 +245,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         {
             name = "Company Two Project",
             number = "PRJ-C2-001",
-            type = "Commercial"
+            type = 0
         });
         Assert.Equal(HttpStatusCode.Created, createResp2.StatusCode);
 
@@ -302,7 +302,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         {
             name = "Company 1 Project",
             number = "PRJ-001",
-            type = "Commercial"
+            type = 0
         });
 
         // Use X-Company-Id header to switch context to Company 2
@@ -315,7 +315,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         {
             name = "Company 2 Project",
             number = "PRJ-002",
-            type = "Residential"
+            type = 1
         });
         Assert.Equal(HttpStatusCode.Created, createC2.StatusCode);
 
@@ -340,7 +340,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         {
             name = "Single Company Project",
             number = "PRJ-SC-001",
-            type = "Commercial"
+            type = 0
         });
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
 

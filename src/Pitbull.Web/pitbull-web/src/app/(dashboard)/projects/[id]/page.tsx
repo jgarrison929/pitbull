@@ -12,6 +12,8 @@ import { AiInsights } from "@/components/ui/ai-insights";
 import { HealthScoreBadge } from "@/components/ui/health-score-gauge";
 import api from "@/lib/api";
 import { ProjectLaborSummary } from "@/components/projects/project-labor-summary";
+import { ProjectPhasesTable } from "@/components/projects/project-phases-table";
+import { ProjectEquipmentSummary } from "@/components/projects/project-equipment-summary";
 import { RfiCostWidget } from "@/components/rfis";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
@@ -168,8 +170,14 @@ export default function ProjectDetailPage({
       {/* Labor Summary */}
       <ProjectLaborSummary projectId={id} />
 
-      {/* RFI Cost Impact Widget */}
-      <RfiCostWidget projectId={id} />
+      {/* Phase Progress & Budget Tracking */}
+      <ProjectPhasesTable projectId={id} />
+
+      {/* Equipment Hours + RFI Cost Impact */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ProjectEquipmentSummary projectId={id} />
+        <RfiCostWidget projectId={id} />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

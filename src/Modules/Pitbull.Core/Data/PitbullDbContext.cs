@@ -122,6 +122,16 @@ public class PitbullDbContext(
             e.HasIndex(r => new { r.TenantId, r.Name });
         });
 
+        // Apply module-specific configurations FIRST so all entity types are registered
+        // before we apply global query filters. Entities discovered only through
+        // IEntityTypeConfiguration (e.g., Equipment) would be missed by the filter
+        // loop if configurations are applied after it.
+        builder.ApplyConfigurationsFromAssembly(typeof(PitbullDbContext).Assembly);
+        foreach (var assembly in _moduleAssemblies)
+        {
+            builder.ApplyConfigurationsFromAssembly(assembly);
+        }
+
         // Apply global query filters for all entities inheriting BaseEntity
         foreach (var entityType in builder.Model.GetEntityTypes())
         {
@@ -148,13 +158,6 @@ public class PitbullDbContext(
                 builder.Entity(entityType.ClrType)
                     .HasIndex("TenantId");
             }
-        }
-
-        // Apply module-specific configurations
-        builder.ApplyConfigurationsFromAssembly(typeof(PitbullDbContext).Assembly);
-        foreach (var assembly in _moduleAssemblies)
-        {
-            builder.ApplyConfigurationsFromAssembly(assembly);
         }
     }
 

@@ -32,7 +32,8 @@ public class AuthController(
     IConfiguration configuration,
     IOptions<DemoOptions> demoOptions,
     IValidator<RegisterRequest> registerValidator,
-    IValidator<LoginRequest> loginValidator) : ControllerBase
+    IValidator<LoginRequest> loginValidator,
+    Pitbull.Core.MultiTenancy.TenantContext tenantContext) : ControllerBase
 {
     /// <summary>
     /// Register a new user account
@@ -127,6 +128,17 @@ public class AuthController(
                     }
                     tenantId = request.TenantId;
                 }
+
+                // Set the tenant context for this request scope so that:
+                // 1. The TenantConnectionInterceptor sets app.current_tenant on new connections
+                // 2. EF Core query filters match the new tenant
+                // 3. RLS policies allow inserts into companies/user_company_access
+                tenantContext.TenantId = tenantId;
+
+                // Also set on the current connection for immediate RLS compliance
+                await db.Database.ExecuteSqlRawAsync(
+                    "SELECT set_config('app.current_tenant', @p0, false)",
+                    tenantId.ToString());
 
                 var user = new AppUser
                 {
