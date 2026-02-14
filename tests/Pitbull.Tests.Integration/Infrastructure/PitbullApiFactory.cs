@@ -16,7 +16,15 @@ public sealed class PitbullApiFactory(string connectionString) : WebApplicationF
         {
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["ConnectionStrings:PitbullDb"] = connectionString
+                ["ConnectionStrings:PitbullDb"] = connectionString,
+                // Suppress verbose EF SQL logging in integration tests to prevent
+                // GitHub Actions log buffer overflow (25K+ lines of SQL trace).
+                // Must override the specific Database.Command namespace because
+                // appsettings.Development.json sets it to Information (more specific wins).
+                ["Serilog:MinimumLevel:Override:Microsoft.EntityFrameworkCore"] = "Warning",
+                ["Serilog:MinimumLevel:Override:Microsoft.EntityFrameworkCore.Database.Command"] = "Warning",
+                ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Warning",
+                ["Serilog:MinimumLevel:Default"] = "Warning"
             });
         });
     }

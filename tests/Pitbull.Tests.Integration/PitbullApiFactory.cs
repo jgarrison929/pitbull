@@ -26,7 +26,14 @@ public sealed class PitbullTestContainersFactory : WebApplicationFactory<Program
             {
                 ["ConnectionStrings:PitbullDb"] = ConnectionString,
                 // Keep JWT deterministic for tests (still uses real signing).
-                ["Jwt:Key"] = "TEST-ONLY-CHANGE-ME-minimum-32-characters-long"
+                ["Jwt:Key"] = "TEST-ONLY-CHANGE-ME-minimum-32-characters-long",
+                // Suppress verbose EF SQL logging to prevent CI log buffer overflow.
+                // Must override the specific Database.Command namespace because
+                // appsettings.Development.json sets it to Information (more specific wins).
+                ["Serilog:MinimumLevel:Override:Microsoft.EntityFrameworkCore"] = "Warning",
+                ["Serilog:MinimumLevel:Override:Microsoft.EntityFrameworkCore.Database.Command"] = "Warning",
+                ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Warning",
+                ["Serilog:MinimumLevel:Default"] = "Warning"
             };
 
             config.AddInMemoryCollection(overrides);
