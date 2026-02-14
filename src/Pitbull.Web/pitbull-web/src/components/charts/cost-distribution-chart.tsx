@@ -336,7 +336,7 @@ export function CostDistributionChart({
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                formatter={(value: number) => [formatCurrency(value)]}
+                formatter={(value?: number) => [formatCurrency(value ?? 0)]}
               />
               <Legend
                 wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}

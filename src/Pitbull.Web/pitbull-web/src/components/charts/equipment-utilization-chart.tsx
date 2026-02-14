@@ -224,9 +224,9 @@ export function EquipmentUtilizationChart({
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                formatter={(value: number, name: string) => [
-                  formatCurrency(value),
-                  name,
+                formatter={(value?: number, name?: string) => [
+                  formatCurrency(value ?? 0),
+                  name ?? "",
                 ]}
                 labelFormatter={(label) => {
                   const item = chartData.find((d) => d.code === label);

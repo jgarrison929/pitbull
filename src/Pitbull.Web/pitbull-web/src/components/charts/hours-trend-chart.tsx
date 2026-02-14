@@ -258,9 +258,9 @@ export function HoursTrendChart({
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value: number, name: string) => [
-                      `${value.toFixed(1)} hrs`,
-                      name,
+                    formatter={(value?: number, name?: string) => [
+                      `${(value ?? 0).toFixed(1)} hrs`,
+                      name ?? "",
                     ]}
                   />
                   <Legend
