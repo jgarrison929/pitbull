@@ -185,7 +185,7 @@ export function NotificationCenter() {
                 key={notification.id}
                 className={cn(
                   "flex cursor-pointer flex-col items-start gap-1 px-3 py-3",
-                  !notification.read && "bg-blue-50/50"
+                  !notification.read && "bg-primary/5 dark:bg-primary/10"
                 )}
                 onClick={() => handleNotificationClick(notification)}
               >
