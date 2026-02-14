@@ -1,9 +1,9 @@
 name: Sync to Public Repository
 
+# Disabled: public repo has diverged from private. Re-enable after
+# reconciling histories or switching to force-push strategy.
+# See: https://github.com/jgarrison929/pitbull-private/pull/48
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
