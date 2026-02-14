@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Pitbull.Core.Domain;
+using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
 
 namespace Pitbull.TimeTracking.Data;
@@ -32,6 +34,11 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasPrecision(5, 2)
             .HasComment("Double-time hours worked (max 99.99)");
 
+        builder.Property(te => te.EquipmentHours)
+            .HasPrecision(5, 2)
+            .HasDefaultValue(0m)
+            .HasComment("Equipment hours used (may differ from labor hours)");
+
         builder.Property(te => te.Description)
             .HasMaxLength(500)
             .HasComment("Optional description of work performed");
@@ -55,7 +62,8 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasDatabaseName("IX_time_entries_status");
 
         // Unique constraint to prevent duplicate time entries
-        builder.HasIndex(te => new { te.Date, te.EmployeeId, te.ProjectId, te.CostCodeId })
+        // Updated to include PhaseId - allows same employee to log to different phases on same day
+        builder.HasIndex(te => new { te.Date, te.EmployeeId, te.ProjectId, te.CostCodeId, te.PhaseId })
             .IsUnique()
             .HasDatabaseName("IX_time_entries_unique_daily_entry");
 
@@ -90,6 +98,20 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasForeignKey(te => te.ApprovedById)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_time_entries_approved_by");
+
+        // Navigation to Phase (from Projects module) - optional
+        builder.HasOne(te => te.Phase)
+            .WithMany()
+            .HasForeignKey(te => te.PhaseId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_time_entries_phases");
+
+        // Navigation to Equipment (from Core module) - optional
+        builder.HasOne(te => te.Equipment)
+            .WithMany()
+            .HasForeignKey(te => te.EquipmentId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_time_entries_equipment");
 
         // Optimistic concurrency using PostgreSQL xmin (prevents concurrent edit conflicts)
         builder.Property<uint>("xmin")

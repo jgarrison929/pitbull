@@ -31,6 +31,24 @@ public class TimeEntry : BaseEntity, ICompanyScoped
     public Guid CostCodeId { get; set; }
 
     /// <summary>
+    /// Optional: Which project phase this time entry is for.
+    /// Allows breakdown of labor by phase within a project.
+    /// </summary>
+    public Guid? PhaseId { get; set; }
+
+    /// <summary>
+    /// Optional: Equipment used during this time entry.
+    /// Used for job costing equipment hours to projects.
+    /// </summary>
+    public Guid? EquipmentId { get; set; }
+
+    /// <summary>
+    /// Hours the equipment was used (may differ from labor hours).
+    /// E.g., a crew of 4 might use one excavator for 6 hours while each works 8.
+    /// </summary>
+    public decimal EquipmentHours { get; set; }
+
+    /// <summary>
     /// Number of regular hours worked (8 hours = normal day)
     /// </summary>
     public decimal RegularHours { get; set; }
@@ -85,6 +103,8 @@ public class TimeEntry : BaseEntity, ICompanyScoped
     public Project Project { get; set; } = null!;
     public CostCode CostCode { get; set; } = null!;
     public Employee? ApprovedBy { get; set; }
+    public Phase? Phase { get; set; }
+    public Equipment? Equipment { get; set; }
 }
 
 /// <summary>

@@ -16,7 +16,10 @@ public sealed class CreateTimeEntryValidatorTests
         decimal regularHours = 8m,
         decimal overtimeHours = 0m,
         decimal doubletimeHours = 0m,
-        string? description = null)
+        string? description = null,
+        Guid? phaseId = null,
+        Guid? equipmentId = null,
+        decimal equipmentHours = 0m)
     {
         return new CreateTimeEntryCommand(
             Date: date ?? DateOnly.FromDateTime(DateTime.UtcNow),
@@ -26,7 +29,10 @@ public sealed class CreateTimeEntryValidatorTests
             RegularHours: regularHours,
             OvertimeHours: overtimeHours,
             DoubletimeHours: doubletimeHours,
-            Description: description
+            Description: description,
+            PhaseId: phaseId,
+            EquipmentId: equipmentId,
+            EquipmentHours: equipmentHours
         );
     }
 
@@ -185,4 +191,71 @@ public sealed class CreateTimeEntryValidatorTests
         var result = _validator.TestValidate(command);
         result.Errors.Should().NotContain(e => e.ErrorMessage == "Total hours cannot exceed 24 per day");
     }
+
+    #region Equipment Hours Validation
+
+    [Fact]
+    public void Validate_WithNegativeEquipmentHours_ShouldHaveError()
+    {
+        var command = CreateValidCommand(equipmentHours: -1m);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.EquipmentHours)
+            .WithErrorMessage("Equipment hours cannot be negative");
+    }
+
+    [Fact]
+    public void Validate_WithEquipmentHoursExceeding24_ShouldHaveError()
+    {
+        var command = CreateValidCommand(equipmentId: Guid.NewGuid(), equipmentHours: 25m);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.EquipmentHours)
+            .WithErrorMessage("Equipment hours cannot exceed 24");
+    }
+
+    [Fact]
+    public void Validate_WithEquipmentHoursButNoEquipmentId_ShouldHaveError()
+    {
+        var command = CreateValidCommand(equipmentId: null, equipmentHours: 6m);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.EquipmentId)
+            .WithErrorMessage("Equipment ID is required when equipment hours are specified");
+    }
+
+    [Fact]
+    public void Validate_WithEquipmentHoursAndEquipmentId_ShouldNotHaveError()
+    {
+        var command = CreateValidCommand(equipmentId: Guid.NewGuid(), equipmentHours: 6m);
+        var result = _validator.TestValidate(command);
+        result.ShouldNotHaveValidationErrorFor(x => x.EquipmentId);
+        result.ShouldNotHaveValidationErrorFor(x => x.EquipmentHours);
+    }
+
+    [Fact]
+    public void Validate_WithZeroEquipmentHoursAndNoEquipmentId_ShouldNotHaveError()
+    {
+        var command = CreateValidCommand(equipmentId: null, equipmentHours: 0m);
+        var result = _validator.TestValidate(command);
+        result.ShouldNotHaveValidationErrorFor(x => x.EquipmentId);
+        result.ShouldNotHaveValidationErrorFor(x => x.EquipmentHours);
+    }
+
+    [Fact]
+    public void Validate_WithEquipmentIdButZeroHours_ShouldNotHaveError()
+    {
+        // Equipment ID can be set without hours (tracking equipment assignment without logging hours)
+        var command = CreateValidCommand(equipmentId: Guid.NewGuid(), equipmentHours: 0m);
+        var result = _validator.TestValidate(command);
+        result.ShouldNotHaveValidationErrorFor(x => x.EquipmentId);
+        result.ShouldNotHaveValidationErrorFor(x => x.EquipmentHours);
+    }
+
+    [Fact]
+    public void Validate_WithOptionalPhaseId_ShouldNotHaveError()
+    {
+        var command = CreateValidCommand(phaseId: Guid.NewGuid());
+        var result = _validator.TestValidate(command);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    #endregion
 }

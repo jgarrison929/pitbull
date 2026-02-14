@@ -35,5 +35,17 @@ public record UpdateTimeEntryCommand(
     /// <summary>
     /// Comments from approver (for approval/rejection)
     /// </summary>
-    string? ApproverNotes = null
+    string? ApproverNotes = null,
+    /// <summary>
+    /// Optional: update phase ID (only allowed in Draft/Submitted status)
+    /// </summary>
+    Guid? PhaseId = null,
+    /// <summary>
+    /// Optional: update equipment ID (only allowed in Draft/Submitted status)
+    /// </summary>
+    Guid? EquipmentId = null,
+    /// <summary>
+    /// Optional: update equipment hours (only allowed in Draft/Submitted status)
+    /// </summary>
+    decimal? EquipmentHours = null
 ) : ICommand<TimeEntryDto>;

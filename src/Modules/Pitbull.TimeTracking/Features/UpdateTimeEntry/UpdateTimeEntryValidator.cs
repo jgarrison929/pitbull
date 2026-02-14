@@ -41,5 +41,11 @@ public class UpdateTimeEntryValidator : AbstractValidator<UpdateTimeEntryCommand
         RuleFor(x => x.ApproverId)
             .NotEmpty().WithMessage("Approver ID is required when approving or rejecting")
             .When(x => x.NewStatus == TimeEntryStatus.Approved || x.NewStatus == TimeEntryStatus.Rejected);
+
+        // Equipment hours validation
+        RuleFor(x => x.EquipmentHours)
+            .GreaterThanOrEqualTo(0).WithMessage("Equipment hours cannot be negative")
+            .LessThanOrEqualTo(24).WithMessage("Equipment hours cannot exceed 24")
+            .When(x => x.EquipmentHours.HasValue);
     }
 }

@@ -75,6 +75,28 @@ public record ProjectCostSummary
     public required string? ProjectNumber { get; init; }
     public required LaborCostSummary Cost { get; init; }
     public required IReadOnlyList<CostCodeCostSummary> ByCostCode { get; init; }
+    public required IReadOnlyList<PhaseCostSummary> ByPhase { get; init; }
+}
+
+/// <summary>
+/// Cost summary for a single phase within a project
+/// </summary>
+public record PhaseCostSummary
+{
+    public required Guid? PhaseId { get; init; }
+    public required string? PhaseName { get; init; }
+    public required string? PhaseCostCode { get; init; }
+    public required LaborCostSummary LaborCost { get; init; }
+    public required EquipmentCostSummary EquipmentCost { get; init; }
+}
+
+/// <summary>
+/// Equipment cost summary
+/// </summary>
+public record EquipmentCostSummary
+{
+    public decimal TotalHours { get; init; }
+    public decimal TotalCost { get; init; }
 }
 
 /// <summary>

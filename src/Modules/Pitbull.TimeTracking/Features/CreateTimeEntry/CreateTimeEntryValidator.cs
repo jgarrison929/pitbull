@@ -43,5 +43,15 @@ public class CreateTimeEntryValidator : AbstractValidator<CreateTimeEntryCommand
         RuleFor(x => x.Description)
             .MaximumLength(500).WithMessage("Description cannot exceed 500 characters")
             .When(x => !string.IsNullOrEmpty(x.Description));
+
+        // Equipment hours validation
+        RuleFor(x => x.EquipmentHours)
+            .GreaterThanOrEqualTo(0).WithMessage("Equipment hours cannot be negative")
+            .LessThanOrEqualTo(24).WithMessage("Equipment hours cannot exceed 24");
+
+        // If EquipmentHours > 0, EquipmentId is required
+        RuleFor(x => x.EquipmentId)
+            .NotEmpty().WithMessage("Equipment ID is required when equipment hours are specified")
+            .When(x => x.EquipmentHours > 0);
     }
 }

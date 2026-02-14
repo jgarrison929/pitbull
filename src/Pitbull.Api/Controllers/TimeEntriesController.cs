@@ -66,7 +66,10 @@ public class TimeEntriesController(ITimeEntryService timeEntryService) : Control
             request.RegularHours,
             request.OvertimeHours,
             request.DoubletimeHours,
-            request.Description
+            request.Description,
+            request.PhaseId,
+            request.EquipmentId,
+            request.EquipmentHours
         );
 
         var result = await timeEntryService.CreateTimeEntryAsync(command);
@@ -182,7 +185,10 @@ public class TimeEntriesController(ITimeEntryService timeEntryService) : Control
             Description: request.Description,
             NewStatus: request.NewStatus,
             ApproverId: request.ApproverId,
-            ApproverNotes: request.ApproverNotes
+            ApproverNotes: request.ApproverNotes,
+            PhaseId: request.PhaseId,
+            EquipmentId: request.EquipmentId,
+            EquipmentHours: request.EquipmentHours
         );
 
         var result = await timeEntryService.UpdateTimeEntryAsync(command);
@@ -464,7 +470,10 @@ public record CreateTimeEntryRequest(
     decimal RegularHours,
     decimal OvertimeHours = 0,
     decimal DoubletimeHours = 0,
-    string? Description = null
+    string? Description = null,
+    Guid? PhaseId = null,
+    Guid? EquipmentId = null,
+    decimal EquipmentHours = 0
 );
 
 public record UpdateTimeEntryRequest(
@@ -474,7 +483,10 @@ public record UpdateTimeEntryRequest(
     string? Description = null,
     TimeEntryStatus? NewStatus = null,
     Guid? ApproverId = null,
-    string? ApproverNotes = null
+    string? ApproverNotes = null,
+    Guid? PhaseId = null,
+    Guid? EquipmentId = null,
+    decimal? EquipmentHours = null
 );
 
 public record ApproveTimeEntryRequest(

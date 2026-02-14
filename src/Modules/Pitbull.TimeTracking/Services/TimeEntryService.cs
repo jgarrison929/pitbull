@@ -15,6 +15,8 @@ using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
+using Equipment = Pitbull.Core.Domain.Equipment;
+using Phase = Pitbull.Projects.Domain.Phase;
 
 namespace Pitbull.TimeTracking.Services;
 
@@ -40,6 +42,8 @@ public class TimeEntryService : ITimeEntryService
         "WorkDate",
         "ProjectNumber",
         "ProjectName",
+        "PhaseCode",
+        "PhaseName",
         "CostCode",
         "CostCodeDescription",
         "RegularHours",
@@ -51,6 +55,11 @@ public class TimeEntryService : ITimeEntryService
         "OvertimeAmount",
         "DoubletimeAmount",
         "TotalAmount",
+        "EquipmentCode",
+        "EquipmentName",
+        "EquipmentHours",
+        "EquipmentRate",
+        "EquipmentAmount",
         "ApprovalStatus",
         "ApprovedBy",
         "ApprovedDate"
@@ -76,6 +85,8 @@ public class TimeEntryService : ITimeEntryService
     {
         var timeEntry = await _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Phase)
+            .Include(te => te.Equipment)
             .FirstOrDefaultAsync(te => te.Id == id && !te.IsDeleted, cancellationToken);
 
         if (timeEntry == null)
@@ -96,6 +107,8 @@ public class TimeEntryService : ITimeEntryService
     {
         var query = _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Phase)
+            .Include(te => te.Equipment)
             .Where(te => !te.IsDeleted)
             .AsQueryable();
 
@@ -153,6 +166,8 @@ public class TimeEntryService : ITimeEntryService
         var query = _db.Set<TimeEntry>()
             .Include(te => te.Employee)
             .Include(te => te.ApprovedBy)
+            .Include(te => te.Phase)
+            .Include(te => te.Equipment)
             .Where(te => te.ProjectId == projectId);
 
         // Apply filters
@@ -220,6 +235,8 @@ public class TimeEntryService : ITimeEntryService
             .Include(te => te.Employee)
             .Include(te => te.Project)
             .Include(te => te.CostCode)
+            .Include(te => te.Phase)
+            .Include(te => te.Equipment)
             .AsQueryable();
 
         // Apply filters
@@ -258,7 +275,7 @@ public class TimeEntryService : ITimeEntryService
             });
         }
 
-        // Group by project and cost code
+        // Group by project, cost code, and phase
         var projectGroups = timeEntries
             .GroupBy(te => new { te.ProjectId, te.Project.Name, te.Project.Number })
             .Select(projectGroup =>
@@ -281,6 +298,33 @@ public class TimeEntryService : ITimeEntryService
                     .OrderBy(cc => cc.CostCodeNumber)
                     .ToList();
 
+                // Group by phase within project
+                var phaseSummaries = projectGroup
+                    .GroupBy(te => new { te.PhaseId, PhaseName = te.Phase?.Name, PhaseCostCode = te.Phase?.CostCode })
+                    .Select(phaseGroup =>
+                    {
+                        var phaseEntries = phaseGroup.ToList();
+                        var phaseCost = _costCalculator.CalculateTotalCost(phaseEntries);
+                        var equipmentHours = phaseEntries.Sum(te => te.EquipmentHours);
+                        var equipmentCost = phaseEntries.Sum(te =>
+                            te.Equipment != null ? te.EquipmentHours * te.Equipment.HourlyRate : 0);
+
+                        return new PhaseCostSummary
+                        {
+                            PhaseId = phaseGroup.Key.PhaseId,
+                            PhaseName = phaseGroup.Key.PhaseName ?? "(No Phase)",
+                            PhaseCostCode = phaseGroup.Key.PhaseCostCode,
+                            LaborCost = ToLaborCostSummary(phaseCost, phaseEntries),
+                            EquipmentCost = new EquipmentCostSummary
+                            {
+                                TotalHours = equipmentHours,
+                                TotalCost = equipmentCost
+                            }
+                        };
+                    })
+                    .OrderBy(p => p.PhaseName)
+                    .ToList();
+
                 var projectEntries = projectGroup.ToList();
                 var projectCost = _costCalculator.CalculateTotalCost(projectEntries);
 
@@ -290,7 +334,8 @@ public class TimeEntryService : ITimeEntryService
                     ProjectName = projectGroup.Key.Name,
                     ProjectNumber = projectGroup.Key.Number,
                     Cost = ToLaborCostSummary(projectCost, projectEntries),
-                    ByCostCode = costCodeSummaries
+                    ByCostCode = costCodeSummaries,
+                    ByPhase = phaseSummaries
                 };
             })
             .OrderBy(p => p.ProjectNumber)
@@ -337,6 +382,8 @@ public class TimeEntryService : ITimeEntryService
             .Include(te => te.Project)
             .Include(te => te.CostCode)
             .Include(te => te.ApprovedBy)
+            .Include(te => te.Phase)
+            .Include(te => te.Equipment)
             .Where(te => te.Status == TimeEntryStatus.Approved)
             .Where(te => te.Date >= startDate && te.Date <= endDate);
 
@@ -440,17 +487,45 @@ public class TimeEntryService : ITimeEntryService
         if (costCode == null)
             return Result.Failure<TimeEntryDto>("Cost code not found or inactive", "COSTCODE_NOT_FOUND");
 
-        // Check for duplicate time entry on the same date
+        // Validate PhaseId if provided - must belong to the same project
+        if (command.PhaseId.HasValue)
+        {
+            var phase = await _db.Set<Phase>()
+                .FirstOrDefaultAsync(p => p.Id == command.PhaseId.Value, cancellationToken);
+
+            if (phase == null)
+                return Result.Failure<TimeEntryDto>("Phase not found", "PHASE_NOT_FOUND");
+
+            if (phase.ProjectId != command.ProjectId)
+                return Result.Failure<TimeEntryDto>(
+                    "Phase does not belong to the specified project",
+                    "PHASE_PROJECT_MISMATCH");
+        }
+
+        // Validate EquipmentId if provided - must exist and be active
+        if (command.EquipmentId.HasValue)
+        {
+            var equipment = await _db.Set<Equipment>()
+                .FirstOrDefaultAsync(e => e.Id == command.EquipmentId.Value && e.IsActive, cancellationToken);
+
+            if (equipment == null)
+                return Result.Failure<TimeEntryDto>(
+                    "Equipment not found or inactive",
+                    "EQUIPMENT_NOT_FOUND");
+        }
+
+        // Check for duplicate time entry on the same date (now includes PhaseId)
         var existingEntry = await _db.Set<TimeEntry>()
             .AnyAsync(te => te.Date == command.Date
                          && te.EmployeeId == command.EmployeeId
                          && te.ProjectId == command.ProjectId
-                         && te.CostCodeId == command.CostCodeId,
+                         && te.CostCodeId == command.CostCodeId
+                         && te.PhaseId == command.PhaseId,
                       cancellationToken);
 
         if (existingEntry)
             return Result.Failure<TimeEntryDto>(
-                "Time entry already exists for this employee, project, and cost code on this date",
+                "Time entry already exists for this employee, project, cost code, and phase on this date",
                 "DUPLICATE_ENTRY");
 
         var timeEntry = new TimeEntry
@@ -459,6 +534,9 @@ public class TimeEntryService : ITimeEntryService
             EmployeeId = command.EmployeeId,
             ProjectId = command.ProjectId,
             CostCodeId = command.CostCodeId,
+            PhaseId = command.PhaseId,
+            EquipmentId = command.EquipmentId,
+            EquipmentHours = command.EquipmentHours,
             RegularHours = command.RegularHours,
             OvertimeHours = command.OvertimeHours,
             DoubletimeHours = command.DoubletimeHours,
@@ -493,6 +571,8 @@ public class TimeEntryService : ITimeEntryService
         // Fetch the time entry
         var timeEntry = await _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Phase)
+            .Include(te => te.Equipment)
             .FirstOrDefaultAsync(te => te.Id == command.TimeEntryId, cancellationToken);
 
         if (timeEntry == null)
@@ -508,7 +588,7 @@ public class TimeEntryService : ITimeEntryService
                 return Result.Failure<TimeEntryDto>(transitionResult.Error!, transitionResult.ErrorCode);
         }
 
-        // Update hours only if entry is in Draft or Submitted status
+        // Update hours and fields only if entry is in Draft or Submitted status
         if (CanEditHours(timeEntry.Status))
         {
             if (command.RegularHours.HasValue)
@@ -522,12 +602,47 @@ public class TimeEntryService : ITimeEntryService
 
             if (command.Description != null)
                 timeEntry.Description = command.Description;
+
+            // Phase update - validate belongs to project
+            if (command.PhaseId.HasValue)
+            {
+                var phase = await _db.Set<Phase>()
+                    .FirstOrDefaultAsync(p => p.Id == command.PhaseId.Value, cancellationToken);
+
+                if (phase == null)
+                    return Result.Failure<TimeEntryDto>("Phase not found", "PHASE_NOT_FOUND");
+
+                if (phase.ProjectId != timeEntry.ProjectId)
+                    return Result.Failure<TimeEntryDto>(
+                        "Phase does not belong to the specified project",
+                        "PHASE_PROJECT_MISMATCH");
+
+                timeEntry.PhaseId = command.PhaseId.Value;
+            }
+
+            // Equipment update - validate exists and is active
+            if (command.EquipmentId.HasValue)
+            {
+                var equipment = await _db.Set<Equipment>()
+                    .FirstOrDefaultAsync(e => e.Id == command.EquipmentId.Value && e.IsActive, cancellationToken);
+
+                if (equipment == null)
+                    return Result.Failure<TimeEntryDto>(
+                        "Equipment not found or inactive",
+                        "EQUIPMENT_NOT_FOUND");
+
+                timeEntry.EquipmentId = command.EquipmentId.Value;
+            }
+
+            if (command.EquipmentHours.HasValue)
+                timeEntry.EquipmentHours = command.EquipmentHours.Value;
         }
         else if (command.RegularHours.HasValue || command.OvertimeHours.HasValue ||
-                 command.DoubletimeHours.HasValue)
+                 command.DoubletimeHours.HasValue || command.PhaseId.HasValue ||
+                 command.EquipmentId.HasValue || command.EquipmentHours.HasValue)
         {
             return Result.Failure<TimeEntryDto>(
-                "Cannot modify hours on approved or rejected time entries",
+                "Cannot modify hours, phase, or equipment on approved or rejected time entries",
                 "INVALID_STATUS");
         }
 
@@ -735,6 +850,10 @@ public class TimeEntryService : ITimeEntryService
         var doubletimeAmount = entry.DoubletimeHours * hourlyRate * doubletimeMultiplier;
         var totalAmount = regularAmount + overtimeAmount + doubletimeAmount;
 
+        // Equipment cost calculation
+        var equipmentRate = entry.Equipment?.HourlyRate ?? 0;
+        var equipmentAmount = entry.EquipmentHours * equipmentRate;
+
         return
         [
             entry.Employee.EmployeeNumber,
@@ -742,6 +861,8 @@ public class TimeEntryService : ITimeEntryService
             entry.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             entry.Project.Number ?? string.Empty,
             entry.Project.Name,
+            entry.Phase?.CostCode ?? string.Empty,
+            entry.Phase?.Name ?? string.Empty,
             entry.CostCode.Code,
             entry.CostCode.Description,
             entry.RegularHours.ToString("F2", CultureInfo.InvariantCulture),
@@ -753,6 +874,11 @@ public class TimeEntryService : ITimeEntryService
             overtimeAmount.ToString("F2", CultureInfo.InvariantCulture),
             doubletimeAmount.ToString("F2", CultureInfo.InvariantCulture),
             totalAmount.ToString("F2", CultureInfo.InvariantCulture),
+            entry.Equipment?.Code ?? string.Empty,
+            entry.Equipment?.Name ?? string.Empty,
+            entry.EquipmentHours.ToString("F2", CultureInfo.InvariantCulture),
+            equipmentRate.ToString("F2", CultureInfo.InvariantCulture),
+            equipmentAmount.ToString("F2", CultureInfo.InvariantCulture),
             entry.Status.ToString(),
             entry.ApprovedBy?.FullName ?? string.Empty,
             entry.ApprovedAt?.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) ?? string.Empty

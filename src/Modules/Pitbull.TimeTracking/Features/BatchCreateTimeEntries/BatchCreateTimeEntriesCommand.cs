@@ -22,7 +22,10 @@ public record BatchTimeEntryItem(
     decimal RegularHours,
     decimal OvertimeHours = 0,
     decimal DoubletimeHours = 0,
-    string? Description = null
+    string? Description = null,
+    Guid? PhaseId = null,
+    Guid? EquipmentId = null,
+    decimal EquipmentHours = 0
 );
 
 /// <summary>
