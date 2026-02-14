@@ -155,7 +155,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
 
             // Get total contract amount using raw SQL to avoid complex reflection
             var totalValue = await db.Database.SqlQueryRaw<decimal>(
-                "SELECT COALESCE(SUM(\"ContractAmount\"), 0) AS Value FROM projects WHERE \"IsDeleted\" = false"
+                "SELECT COALESCE(SUM(\"ContractAmount\"), 0) AS \"Value\" FROM projects WHERE \"IsDeleted\" = false"
             ).FirstAsync(cancellationToken);
 
             return (count, totalValue);
@@ -187,7 +187,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
 
             // Get total estimated value using raw SQL to avoid complex reflection
             var totalValue = await db.Database.SqlQueryRaw<decimal>(
-                "SELECT COALESCE(SUM(\"EstimatedValue\"), 0) AS Value FROM bids WHERE \"IsDeleted\" = false"
+                "SELECT COALESCE(SUM(\"EstimatedValue\"), 0) AS \"Value\" FROM bids WHERE \"IsDeleted\" = false"
             ).FirstAsync(cancellationToken);
 
             return (count, totalValue);
@@ -206,7 +206,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         {
             // Use raw SQL to get the latest activity across both projects and bids
             var sql = @"
-                SELECT MAX(latest_date) AS Value FROM (
+                SELECT MAX(latest_date) AS ""Value"" FROM (
                     SELECT MAX(COALESCE(""UpdatedAt"", ""CreatedAt"")) as latest_date 
                     FROM projects 
                     WHERE ""IsDeleted"" = false
@@ -230,7 +230,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         try
         {
             var count = await db.Database.SqlQueryRaw<int>(
-                "SELECT COALESCE(COUNT(*), 0) AS Value FROM employees WHERE \"IsDeleted\" = false AND \"IsActive\" = true"
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM employees WHERE \"IsDeleted\" = false AND \"IsActive\" = true"
             ).FirstAsync(cancellationToken);
             return count;
         }
@@ -246,7 +246,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         {
             // Status = 0 is "Submitted" (pending approval)
             var count = await db.Database.SqlQueryRaw<int>(
-                "SELECT COALESCE(COUNT(*), 0) AS Value FROM time_entries WHERE \"IsDeleted\" = false AND \"Status\" = 0"
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM time_entries WHERE \"IsDeleted\" = false AND \"Status\" = 0"
             ).FirstAsync(cancellationToken);
             return count;
         }
@@ -262,7 +262,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         {
             // Status = 0 is "Pending", Status = 1 is "UnderReview" - both are pending approval
             var count = await db.Database.SqlQueryRaw<int>(
-                "SELECT COALESCE(COUNT(*), 0) AS Value FROM change_orders WHERE \"IsDeleted\" = false AND \"Status\" IN (0, 1)"
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM change_orders WHERE \"IsDeleted\" = false AND \"Status\" IN (0, 1)"
             ).FirstAsync(cancellationToken);
             return count;
         }
@@ -491,7 +491,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         try
         {
             var count = await db.Database.SqlQueryRaw<int>(
-                $@"SELECT COALESCE(COUNT(*), 0) AS Value 
+                $@"SELECT COALESCE(COUNT(*), 0) AS ""Value"" 
                    FROM rfis 
                    WHERE ""IsDeleted"" = false 
                      AND ""Status"" = 'Open' 
@@ -511,7 +511,7 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         try
         {
             var count = await db.Database.SqlQueryRaw<int>(
-                $@"SELECT COALESCE(COUNT(*), 0) AS Value 
+                $@"SELECT COALESCE(COUNT(*), 0) AS ""Value"" 
                    FROM rfis 
                    WHERE ""IsDeleted"" = false 
                      AND ""Status"" = 'Open' 
