@@ -103,7 +103,7 @@ export default function NewRfiPage() {
     assignedToName, createdByName, dueDate, specSection, drawingReferences,
     hasCostImpact, estimatedCostImpact, estimatedDelayDays]);
 
-  const { loadDraft, clearDraft, hasDraft } = useFormAutosave("rfi-new", formData, {
+  const { loadDraft, clearDraft } = useFormAutosave("rfi-new", formData, {
     enabled: isDirty,
   });
 

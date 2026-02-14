@@ -9,7 +9,10 @@ import { useEffect, useCallback, useRef } from "react";
  */
 export function useUnsavedChanges(hasChanges: boolean) {
   const hasChangesRef = useRef(hasChanges);
-  hasChangesRef.current = hasChanges;
+
+  useEffect(() => {
+    hasChangesRef.current = hasChanges;
+  }, [hasChanges]);
 
   const handleBeforeUnload = useCallback((e: BeforeUnloadEvent) => {
     if (hasChangesRef.current) {

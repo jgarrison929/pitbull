@@ -115,11 +115,16 @@ export function GettingStarted({ stats }: GettingStartedProps) {
   // Celebrate when all complete
   useEffect(() => {
     if (allComplete && !isDismissed) {
-      setShowCelebration(true);
-      const timer = setTimeout(() => {
+      const showTimer = setTimeout(() => {
+        setShowCelebration(true);
+      }, 0);
+      const hideTimer = setTimeout(() => {
         setShowCelebration(false);
       }, 4000);
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
     }
   }, [allComplete, isDismissed]);
 

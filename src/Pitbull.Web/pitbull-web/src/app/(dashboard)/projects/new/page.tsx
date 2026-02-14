@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
-  Info,
   Users,
   Layers,
   MapPin,

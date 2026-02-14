@@ -131,7 +131,7 @@ export function FileDropZone({
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            !disabled && inputRef.current?.click();
+            if (!disabled) inputRef.current?.click();
           }
         }}
         className={cn(
