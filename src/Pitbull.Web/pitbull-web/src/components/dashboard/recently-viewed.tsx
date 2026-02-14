@@ -32,7 +32,7 @@ function getItemIcon(type: RecentItemType) {
     case "rfi":
       return <HelpCircle className="h-4 w-4 text-purple-600" />;
     default:
-      return <History className="h-4 w-4 text-gray-600" />;
+      return <History className="h-4 w-4 text-gray-600 dark:text-gray-400" />;
   }
 }
 

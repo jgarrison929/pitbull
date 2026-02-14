@@ -25,15 +25,15 @@ import { useCompany } from "@/contexts/company-context";
 function statusColor(status: string) {
   switch (status) {
     case "Submitted":
-      return "bg-blue-100 text-blue-700 hover:bg-blue-100";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100";
     case "Draft":
       return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
     case "InProgress":
-      return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
+      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 hover:bg-yellow-100";
     case "Won":
-      return "bg-green-100 text-green-700 hover:bg-green-100";
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100";
     case "Lost":
-      return "bg-red-100 text-red-600 hover:bg-red-100";
+      return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100";
     case "NoDecision":
       return "bg-neutral-100 text-neutral-500 hover:bg-neutral-100";
     case "Withdrawn":

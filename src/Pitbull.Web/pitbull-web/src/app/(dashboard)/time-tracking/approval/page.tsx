@@ -687,7 +687,7 @@ export default function TimeTrackingApprovalPage() {
 
       {/* Undo Action Bar */}
       {undoAction && (
-        <Card className="bg-amber-50 border-amber-200 sticky bottom-4 z-10">
+        <Card className="bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800 sticky bottom-4 z-10">
           <CardContent className="py-3">
             <div className="flex items-center justify-between">
               <span className="text-sm">
@@ -801,13 +801,13 @@ export default function TimeTrackingApprovalPage() {
                         {/* Phase & Equipment info */}
                         <div className="flex flex-wrap gap-2 mt-1.5">
                           {entry.phaseName && (
-                            <span className="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full">
                               <Layers className="h-3 w-3" />
                               {entry.phaseName}
                             </span>
                           )}
                           {entry.equipmentName && (
-                            <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
+                            <span className="inline-flex items-center gap-1 text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
                               <Wrench className="h-3 w-3" />
                               {entry.equipmentCode || entry.equipmentName}
                               {entry.equipmentHours > 0 && ` (${entry.equipmentHours.toFixed(1)}h)`}
@@ -904,7 +904,7 @@ export default function TimeTrackingApprovalPage() {
                         </TableCell>
                         <TableCell>
                           {entry.phaseName ? (
-                            <span className="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">
+                            <span className="inline-flex items-center gap-1 text-xs bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">
                               {entry.phaseName}
                             </span>
                           ) : (
@@ -913,7 +913,7 @@ export default function TimeTrackingApprovalPage() {
                         </TableCell>
                         <TableCell>
                           {entry.equipmentName ? (
-                            <span className="inline-flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded">
+                            <span className="inline-flex items-center gap-1 text-xs bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded">
                               {entry.equipmentCode || entry.equipmentName}
                               {entry.equipmentHours > 0 && ` ${entry.equipmentHours.toFixed(1)}h`}
                             </span>
@@ -932,7 +932,7 @@ export default function TimeTrackingApprovalPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-900/20"
                               onClick={() => openApproveDialog(entry)}
                               disabled={!approverId}
                               title="Approve entry"
@@ -942,7 +942,7 @@ export default function TimeTrackingApprovalPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
                               onClick={() => openRejectDialog(entry)}
                               disabled={!approverId}
                               title="Reject entry"

@@ -257,9 +257,9 @@ export function CrewEntryMobileCards({
               entry.error
                 ? "border-destructive"
                 : complete
-                ? "border-green-300 bg-green-50/30"
+                ? "border-green-300 bg-green-50/30 dark:bg-green-900/15"
                 : missingReq
-                ? "border-amber-300 bg-amber-50/30"
+                ? "border-amber-300 bg-amber-50/30 dark:bg-amber-900/15"
                 : ""
             }`}
             onTouchStart={(e) => handleTouchStart(e, entry.employeeId)}

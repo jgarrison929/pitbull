@@ -41,17 +41,17 @@ import type { AdminUser, AdminListUsersResult, RoleInfo, UserStatus } from "@/li
 import { toast } from "sonner";
 
 const statusBadgeClass: Record<string, string> = {
-  Active: "bg-green-100 text-green-800",
-  Inactive: "bg-gray-100 text-gray-600",
-  Locked: "bg-red-100 text-red-800",
-  Invited: "bg-blue-100 text-blue-800",
+  Active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
+  Inactive: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+  Locked: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200",
+  Invited: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
 };
 
 const roleBadgeClass: Record<string, string> = {
-  Admin: "bg-red-100 text-red-800",
-  Manager: "bg-purple-100 text-purple-800",
-  Supervisor: "bg-amber-100 text-amber-800",
-  User: "bg-blue-100 text-blue-800",
+  Admin: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200",
+  Manager: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
+  Supervisor: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
+  User: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
 };
 
 const statusOptions: UserStatus[] = ["Active", "Inactive", "Locked", "Invited"];

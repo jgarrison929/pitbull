@@ -46,11 +46,11 @@ const costTypeLabels: Record<CostType, string> = {
 };
 
 const costTypeBadgeClass: Record<CostType, string> = {
-  1: "bg-blue-100 text-blue-800",
-  2: "bg-green-100 text-green-800",
-  3: "bg-amber-100 text-amber-800",
-  4: "bg-purple-100 text-purple-800",
-  5: "bg-gray-100 text-gray-800",
+  1: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
+  2: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
+  3: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
+  4: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
+  5: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
 };
 
 const costTypeIcons: Record<CostType, React.ComponentType<{ className?: string }>> = {
@@ -276,8 +276,8 @@ export default function CostCodesPage() {
                           variant={code.isActive ? "default" : "secondary"}
                           className={
                             code.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
                           }
                         >
                           {code.isActive ? "Active" : "Inactive"}
@@ -331,8 +331,8 @@ export default function CostCodesPage() {
                           variant={code.isActive ? "default" : "secondary"}
                           className={
                             code.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                              : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
                           }
                         >
                           {code.isActive ? "Active" : "Inactive"}

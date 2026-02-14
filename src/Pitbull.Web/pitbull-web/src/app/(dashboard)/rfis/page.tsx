@@ -34,9 +34,9 @@ import { useCompany } from "@/contexts/company-context";
 function statusColor(status: RfiStatus) {
   switch (status) {
     case 0: // Open
-      return "bg-blue-100 text-blue-700 hover:bg-blue-100";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100";
     case 1: // Answered
-      return "bg-green-100 text-green-700 hover:bg-green-100";
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100";
     case 2: // Closed
       return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
     default:
@@ -62,11 +62,11 @@ function priorityColor(priority: RfiPriority) {
     case 0: // Low
       return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
     case 1: // Normal
-      return "bg-blue-100 text-blue-700 hover:bg-blue-100";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100";
     case 2: // High
       return "bg-orange-100 text-orange-700 hover:bg-orange-100";
     case 3: // Urgent
-      return "bg-red-100 text-red-700 hover:bg-red-100";
+      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-100";
     default:
       return "";
   }

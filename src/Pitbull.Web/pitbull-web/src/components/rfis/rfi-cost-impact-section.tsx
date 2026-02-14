@@ -52,12 +52,12 @@ function formatDate(dateStr: string) {
 function changeOrderStatusBadge(status: string) {
   switch (status.toLowerCase()) {
     case "approved":
-      return "bg-green-100 text-green-700";
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
     case "pending":
     case "underreview":
-      return "bg-amber-100 text-amber-700";
+      return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300";
     case "rejected":
-      return "bg-red-100 text-red-700";
+      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
     default:
       return "bg-neutral-100 text-neutral-600";
   }
@@ -298,7 +298,7 @@ export function RfiCostImpactSection({
                     <div
                       className={`absolute -left-6 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center ${
                         isOverdue
-                          ? "border-amber-500 bg-amber-50"
+                          ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-400"
                           : "border-primary bg-background"
                       }`}
                     >

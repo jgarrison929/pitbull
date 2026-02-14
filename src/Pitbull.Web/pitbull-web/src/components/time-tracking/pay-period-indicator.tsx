@@ -82,7 +82,7 @@ export function PayPeriodIndicator({
             variant="outline"
             className={`${
               isPeriodEnding
-                ? "text-amber-600 border-amber-300 bg-amber-50"
+                ? "text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20"
                 : "text-muted-foreground"
             }`}
           >
@@ -101,7 +101,7 @@ export function PayPeriodIndicator({
         )}
 
         {isDateOutsidePeriod && (
-          <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 gap-1">
+          <Badge variant="outline" className="text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 gap-1">
             <AlertTriangle className="h-3 w-3" />
             Outside period
           </Badge>

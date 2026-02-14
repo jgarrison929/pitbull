@@ -225,7 +225,7 @@ function MobileSelectSheet({
                   type="button"
                   onClick={() => { onSelect(item.id); onOpenChange(false); }}
                   className={`w-full text-left px-3 py-3.5 rounded-lg flex items-center justify-between touch-manipulation transition-colors ${
-                    value === item.id ? "bg-amber-50 border border-amber-200" : "hover:bg-muted active:bg-muted/80"
+                    value === item.id ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800" : "hover:bg-muted active:bg-muted/80"
                   }`}
                 >
                   <div>
@@ -250,7 +250,7 @@ function MobileSelectSheet({
                 type="button"
                 onClick={() => { onSelect(item.id); onOpenChange(false); }}
                 className={`w-full text-left px-3 py-3.5 rounded-lg flex items-center justify-between touch-manipulation transition-colors ${
-                  value === item.id ? "bg-amber-50 border border-amber-200" : "hover:bg-muted active:bg-muted/80"
+                  value === item.id ? "bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800" : "hover:bg-muted active:bg-muted/80"
                 }`}
               >
                 <div>
@@ -1183,7 +1183,7 @@ export default function NewTimeEntryPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="min-h-[56px] sm:min-h-[44px] text-lg sm:text-sm font-semibold border-amber-300 text-amber-700 hover:bg-amber-50 flex-1"
+                    className="min-h-[56px] sm:min-h-[44px] text-lg sm:text-sm font-semibold border-amber-300 text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20 flex-1"
                     onClick={() => doSubmit(true)}
                     disabled={isSubmitting}
                   >

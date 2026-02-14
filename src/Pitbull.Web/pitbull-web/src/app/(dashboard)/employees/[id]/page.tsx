@@ -39,11 +39,11 @@ const classificationLabels: Record<number, string> = {
 };
 
 const classificationBadgeClass: Record<number, string> = {
-  0: "bg-blue-100 text-blue-800",
-  1: "bg-purple-100 text-purple-800",
-  2: "bg-orange-100 text-orange-800",
-  3: "bg-green-100 text-green-800",
-  4: "bg-amber-100 text-amber-800",
+  0: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
+  1: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
+  2: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200",
+  3: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
+  4: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
 };
 
 function formatCurrency(value: number): string {
@@ -186,7 +186,7 @@ export default function EmployeeDetailPage({
         <div className="flex items-center gap-2">
           <Badge
             variant="secondary"
-            className={employee.isActive ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}
+            className={employee.isActive ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200" : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"}
           >
             {employee.isActive ? "Active" : "Inactive"}
           </Badge>
@@ -340,10 +340,10 @@ export default function EmployeeDetailPage({
                           variant="secondary"
                           className={
                             entry.status === 0
-                              ? "bg-yellow-100 text-yellow-800"
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"
                               : entry.status === 1
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                              : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
                           }
                         >
                           {entry.status === 0 ? "Pending" : entry.status === 1 ? "Approved" : "Rejected"}
@@ -389,7 +389,7 @@ export default function EmployeeDetailPage({
                       <div className="flex items-center gap-2 text-xs">
                         <Badge variant="outline">{assignment.role}</Badge>
                         {assignment.isActive && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200">
                             Active
                           </Badge>
                         )}

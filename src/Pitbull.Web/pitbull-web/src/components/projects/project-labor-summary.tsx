@@ -217,7 +217,7 @@ export function ProjectLaborSummary({ projectId }: ProjectLaborSummaryProps) {
               {stats.pendingEntryCount > 0 && (
                 <Badge
                   variant="secondary"
-                  className="text-[10px] px-1 py-0 bg-amber-100 text-amber-800"
+                  className="text-[10px] px-1 py-0 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
                 >
                   <AlertCircle className="h-2.5 w-2.5 mr-0.5" />
                   {stats.pendingEntryCount}
@@ -226,7 +226,7 @@ export function ProjectLaborSummary({ projectId }: ProjectLaborSummaryProps) {
               {stats.approvedEntryCount > 0 && (
                 <Badge
                   variant="secondary"
-                  className="text-[10px] px-1 py-0 bg-green-100 text-green-800"
+                  className="text-[10px] px-1 py-0 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
                 >
                   <CheckCircle className="h-2.5 w-2.5 mr-0.5" />
                   {stats.approvedEntryCount}

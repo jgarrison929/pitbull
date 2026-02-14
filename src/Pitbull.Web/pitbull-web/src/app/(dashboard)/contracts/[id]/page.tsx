@@ -188,9 +188,9 @@ export default function SubcontractDetailPage() {
               <span className="text-muted-foreground">Insurance</span>
               <span>
                 {subcontract.insuranceCurrent ? (
-                  <Badge variant="secondary" className="bg-green-100 text-green-700">Current</Badge>
+                  <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">Current</Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-red-100 text-red-700">Expired</Badge>
+                  <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">Expired</Badge>
                 )}
                 {subcontract.insuranceExpirationDate && (
                   <span className="ml-2 text-xs text-muted-foreground">

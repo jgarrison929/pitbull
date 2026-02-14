@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+// Alert/AlertDescription available for future use via @/components/ui/alert
 import {
   User,
   Shield,

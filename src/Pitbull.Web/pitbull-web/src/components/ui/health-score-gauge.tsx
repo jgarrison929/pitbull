@@ -24,7 +24,7 @@ function getScoreColor(score: number): { ring: string; text: string; bg: string;
     return {
       ring: "stroke-amber-500",
       text: "text-amber-600",
-      bg: "bg-amber-50",
+      bg: "bg-amber-50 dark:bg-amber-900/20",
       label: "Good",
     };
   }
@@ -32,14 +32,14 @@ function getScoreColor(score: number): { ring: string; text: string; bg: string;
     return {
       ring: "stroke-orange-500",
       text: "text-orange-600",
-      bg: "bg-orange-50",
+      bg: "bg-orange-50 dark:bg-orange-900/20",
       label: "At Risk",
     };
   }
   return {
     ring: "stroke-red-500",
     text: "text-red-600",
-    bg: "bg-red-50",
+    bg: "bg-red-50 dark:bg-red-900/20",
     label: "Critical",
   };
 }

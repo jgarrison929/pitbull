@@ -580,6 +580,7 @@ export default function PayPeriodsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setCalendarMonth(addMonths(calendarMonth, -1))}
+                  aria-label="Previous month"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -594,6 +595,7 @@ export default function PayPeriodsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
+                  aria-label="Next month"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -814,7 +816,7 @@ export default function PayPeriodsPage() {
                   key={i}
                   className={`flex items-center justify-between p-3 rounded-lg border ${
                     isCurrentPreview
-                      ? "border-amber-500 bg-amber-50 dark:bg-amber-900/10"
+                      ? "border-amber-500 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-400 dark:bg-amber-900/10"
                       : "border-border"
                   }`}
                 >

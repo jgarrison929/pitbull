@@ -72,7 +72,7 @@ const equipmentTypeBadgeClass: Record<EquipmentType, string> = {
   [EquipmentType.LightEquipment]: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   [EquipmentType.Vehicles]: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
   [EquipmentType.Tools]: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  [EquipmentType.Other]: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300",
+  [EquipmentType.Other]: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300",
 };
 
 const equipmentTypeIcons: Record<EquipmentType, React.ComponentType<{ className?: string }>> = {
@@ -513,7 +513,7 @@ export default function EquipmentPage() {
                             className={
                               eq.isActive
                                 ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
                             }
                           >
                             {eq.isActive ? "Active" : "Inactive"}
@@ -525,7 +525,7 @@ export default function EquipmentPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => openEditDialog(eq)}
-                              title="Edit equipment"
+                              title="Edit equipment" aria-label="Edit equipment"
                               className="min-h-[44px] min-w-[44px]"
                             >
                               <Pencil className="h-4 w-4" />
@@ -534,7 +534,7 @@ export default function EquipmentPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => openDeleteDialog(eq)}
-                              title="Delete equipment"
+                              title="Delete equipment" aria-label="Delete equipment"
                               className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -589,7 +589,7 @@ export default function EquipmentPage() {
                               className={
                                 eq.isActive
                                   ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300"
+                                  : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
                               }
                             >
                               {eq.isActive ? "Active" : "Inactive"}
@@ -624,7 +624,7 @@ export default function EquipmentPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditDialog(eq)}
-                            title="Edit"
+                            title="Edit" aria-label="Edit"
                             className="min-h-[44px] min-w-[44px]"
                           >
                             <Pencil className="h-4 w-4" />
@@ -633,7 +633,7 @@ export default function EquipmentPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => openDeleteDialog(eq)}
-                            title="Delete"
+                            title="Delete" aria-label="Delete"
                             className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
                           >
                             <Trash2 className="h-4 w-4" />

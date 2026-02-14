@@ -372,7 +372,7 @@ export default function EquipmentUtilizationReportPage() {
 
       {/* Idle Equipment Alert */}
       {!isLoading && idleEquipment.length > 0 && (
-        <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+        <Card className="border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/20 dark:bg-amber-950/20">
           <CardContent className="pt-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />

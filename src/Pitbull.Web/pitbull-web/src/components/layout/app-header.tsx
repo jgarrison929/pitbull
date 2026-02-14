@@ -161,7 +161,7 @@ export function AppHeader() {
             className="gap-2 min-h-[44px] min-w-[44px]"
             aria-label="User menu"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 text-xs font-medium" aria-hidden="true">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-xs font-medium" aria-hidden="true">
               {user?.name?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <span className="hidden sm:inline text-sm">{user?.name || "User"}</span>

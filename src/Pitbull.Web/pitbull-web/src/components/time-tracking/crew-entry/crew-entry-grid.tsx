@@ -187,8 +187,8 @@ export function CrewEntryGrid({
                     className={`border-b transition-colors ${
                       index % 2 === 0 ? "" : "bg-muted/30"
                     } ${entry.error ? "bg-destructive/5" : ""} ${
-                      complete ? "bg-green-50/50" : ""
-                    } ${missingRequired ? "bg-amber-50/50" : ""}`}
+                      complete ? "bg-green-50/50 dark:bg-green-900/20" : ""
+                    } ${missingRequired ? "bg-amber-50/50 dark:bg-amber-900/20" : ""}`}
                   >
                     {/* Status indicator */}
                     <td className="px-2 py-3 text-center">

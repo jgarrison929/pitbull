@@ -204,7 +204,7 @@ function MetricCard({
   return (
     <div className={cn(
       "rounded-lg border p-3 text-center transition-colors",
-      highlight ? "border-orange-300 bg-orange-50" : "bg-background/60"
+      highlight ? "border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20" : "bg-background/60"
     )}>
       <Icon className={cn(
         "h-4 w-4 mx-auto mb-1",
@@ -240,12 +240,12 @@ function InsightSection({
       dot: "bg-emerald-500",
     },
     warning: {
-      container: "bg-amber-50/50 border-amber-200",
+      container: "bg-amber-50/50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800",
       icon: "text-amber-600",
       dot: "bg-amber-500",
     },
     info: {
-      container: "bg-blue-50/50 border-blue-200",
+      container: "bg-blue-50/50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800",
       icon: "text-blue-600",
       dot: "bg-blue-500",
     },

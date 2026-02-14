@@ -442,7 +442,7 @@ export default function CompaniesPage() {
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="secondary"
-                            className="font-mono text-xs bg-amber-100 text-amber-700 border-amber-200"
+                            className="font-mono text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200"
                           >
                             {company.code}
                           </Badge>
@@ -461,8 +461,8 @@ export default function CompaniesPage() {
                         variant="secondary"
                         className={
                           company.isActive
-                            ? "bg-green-100 text-green-800"
-                            : "bg-gray-100 text-gray-600"
+                            ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                            : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                         }
                       >
                         {company.isActive ? "Active" : "Inactive"}
@@ -517,7 +517,7 @@ export default function CompaniesPage() {
                         <TableCell>
                           <Badge
                             variant="secondary"
-                            className="font-mono text-xs bg-amber-100 text-amber-700 border-amber-200"
+                            className="font-mono text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200"
                           >
                             {company.code}
                           </Badge>
@@ -547,8 +547,8 @@ export default function CompaniesPage() {
                             variant="secondary"
                             className={
                               company.isActive
-                                ? "bg-green-100 text-green-800"
-                                : "bg-gray-100 text-gray-600"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
                             }
                           >
                             {company.isActive ? "Active" : "Inactive"}
@@ -573,7 +573,7 @@ export default function CompaniesPage() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20"
                                 onClick={() => setDeleteTarget(company)}
                               >
                                 <Trash2 className="h-4 w-4" />

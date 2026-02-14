@@ -78,13 +78,14 @@ function ErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
       <div className="w-full max-w-md mx-auto text-center space-y-4">
         {/* Icon */}
         <div className="flex justify-center">
-          <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
             <svg
-              className="w-6 h-6 text-red-600"
+              className="w-6 h-6 text-red-600 dark:text-red-400"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={1.5}
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -97,10 +98,10 @@ function ErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
 
         {/* Message */}
         <div className="space-y-2">
-          <h3 className="text-lg font-semibold text-neutral-900">
+          <h3 className="text-lg font-semibold text-foreground">
             Something went wrong
           </h3>
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-muted-foreground">
             An unexpected error occurred. You can try again or go back to the
             dashboard.
           </p>
@@ -108,10 +109,10 @@ function ErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
 
         {/* Error details (collapsible for debugging) */}
         <details className="text-left">
-          <summary className="text-xs text-neutral-400 cursor-pointer hover:text-neutral-600">
+          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
             Error details
           </summary>
-          <pre className="mt-2 p-3 bg-neutral-100 rounded-md text-xs text-neutral-600 overflow-auto max-h-32 whitespace-pre-wrap break-words">
+          <pre className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground overflow-auto max-h-32 whitespace-pre-wrap break-words">
             {error.message}
           </pre>
         </details>
@@ -120,13 +121,13 @@ function ErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
         <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
           <button
             onClick={reset}
-            className="inline-flex items-center justify-center rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+            className="inline-flex items-center justify-center rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background hover:opacity-90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           >
             Try again
           </button>
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           >
             Go to dashboard
           </Link>
@@ -152,13 +153,14 @@ export function PageErrorFallback({
       <div className="w-full max-w-md mx-auto text-center space-y-6">
         {/* Icon */}
         <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
             <svg
-              className="w-8 h-8 text-red-600"
+              className="w-8 h-8 text-red-600 dark:text-red-400"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={1.5}
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -171,10 +173,10 @@ export function PageErrorFallback({
 
         {/* Message */}
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold text-neutral-900">
+          <h2 className="text-xl font-semibold text-foreground">
             Something went wrong
           </h2>
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-muted-foreground">
             The application encountered an unexpected error. Please try
             refreshing the page.
           </p>
@@ -182,10 +184,10 @@ export function PageErrorFallback({
 
         {/* Error details */}
         <details className="text-left">
-          <summary className="text-xs text-neutral-400 cursor-pointer hover:text-neutral-600">
+          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
             Error details
           </summary>
-          <pre className="mt-2 p-3 bg-neutral-100 rounded-md text-xs text-neutral-600 overflow-auto max-h-32 whitespace-pre-wrap break-words">
+          <pre className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground overflow-auto max-h-32 whitespace-pre-wrap break-words">
             {error.message}
           </pre>
         </details>
@@ -194,13 +196,13 @@ export function PageErrorFallback({
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
           <button
             onClick={reset}
-            className="inline-flex items-center justify-center rounded-md bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-neutral-800 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+            className="inline-flex items-center justify-center rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background hover:opacity-90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           >
             Try again
           </button>
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           >
             Refresh page
           </button>

@@ -27,7 +27,7 @@ import {
   AlertCircle,
   Clock,
   Wrench,
-  Image,
+  ImageIcon,
   FileText,
 } from "lucide-react";
 import api from "@/lib/api";
@@ -306,9 +306,9 @@ export default function CompanySettingsPage() {
       </div>
 
       {successMessage && (
-        <Alert className="bg-green-50 border-green-200">
-          <CheckCircle2 className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
+        <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-200">
             {successMessage}
           </AlertDescription>
         </Alert>
@@ -687,7 +687,7 @@ export default function CompanySettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Image className="h-5 w-5" />
+              <ImageIcon className="h-5 w-5" />
               Logo &amp; Branding
             </CardTitle>
             <CardDescription>

@@ -31,19 +31,19 @@ import type { AuditLog, AuditLogListResult } from "@/lib/types";
 import { toast } from "sonner";
 
 const actionBadgeClass: Record<string, string> = {
-  Create: "bg-green-100 text-green-800",
-  Update: "bg-blue-100 text-blue-800",
-  Delete: "bg-red-100 text-red-800",
-  Login: "bg-purple-100 text-purple-800",
-  Logout: "bg-gray-100 text-gray-600",
-  Export: "bg-amber-100 text-amber-800",
+  Create: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
+  Update: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
+  Delete: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200",
+  Login: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
+  Logout: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+  Export: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
   Import: "bg-cyan-100 text-cyan-800",
 };
 
 const resourceBadgeClass: Record<string, string> = {
   User: "bg-indigo-100 text-indigo-800",
   Project: "bg-emerald-100 text-emerald-800",
-  Employee: "bg-orange-100 text-orange-800",
+  Employee: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200",
   TimeEntry: "bg-violet-100 text-violet-800",
   Contract: "bg-rose-100 text-rose-800",
   Bid: "bg-sky-100 text-sky-800",

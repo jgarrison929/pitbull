@@ -61,7 +61,7 @@ export function CompanySwitcher({ variant = "sidebar" }: CompanySwitcherProps) {
               "font-mono text-[10px] px-1.5 py-0 shrink-0",
               variant === "sidebar"
                 ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                : "bg-amber-100 text-amber-700 border-amber-200"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200"
             )}
           >
             {activeCompany.code}
@@ -111,7 +111,7 @@ export function CompanySwitcher({ variant = "sidebar" }: CompanySwitcherProps) {
                   "font-mono text-[10px] px-1.5 py-0 shrink-0",
                   variant === "sidebar"
                     ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                    : "bg-amber-100 text-amber-700 border-amber-200"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200"
                 )}
               >
                 {activeCompany.code}
@@ -170,7 +170,7 @@ export function CompanySwitcher({ variant = "sidebar" }: CompanySwitcherProps) {
                         ? "bg-amber-500/30 text-amber-400 border-amber-500/40"
                         : "bg-white/10 text-neutral-400 border-white/10"
                       : isActive
-                        ? "bg-amber-100 text-amber-700 border-amber-200"
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200"
                         : "bg-muted text-muted-foreground"
                   )}
                 >

@@ -140,7 +140,7 @@ export default function ProjectDetailPage({
                 navigator.clipboard.writeText(window.location.href);
                 toast.success("Link copied to clipboard");
               }}
-              title="Copy link"
+              title="Copy link" aria-label="Copy link"
             >
               <Link2 className="h-4 w-4" />
             </Button>

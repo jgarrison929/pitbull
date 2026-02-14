@@ -46,15 +46,15 @@ function formatCurrency(amount: number) {
 function statusColor(status: string) {
   switch (status) {
     case "Submitted":
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
     case "Draft":
       return "bg-neutral-100 text-neutral-600";
     case "InProgress":
-      return "bg-yellow-100 text-yellow-700";
+      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300";
     case "Won":
-      return "bg-green-100 text-green-700";
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
     case "Lost":
-      return "bg-red-100 text-red-600";
+      return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
     case "NoDecision":
       return "bg-neutral-100 text-neutral-500";
     case "Withdrawn":
@@ -187,7 +187,7 @@ export default function BidDetailPage({
                 navigator.clipboard.writeText(window.location.href);
                 toast.success("Link copied to clipboard");
               }}
-              title="Copy link"
+              title="Copy link" aria-label="Copy link"
             >
               <Link2 className="h-4 w-4" />
             </Button>

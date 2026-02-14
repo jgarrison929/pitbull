@@ -31,9 +31,9 @@ import { toast } from "sonner";
 function statusColor(status: RfiStatus) {
   switch (status) {
     case 0: // Open
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
     case 1: // Answered
-      return "bg-green-100 text-green-700";
+      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
     case 2: // Closed
       return "bg-neutral-100 text-neutral-600";
     default:
@@ -74,11 +74,11 @@ function priorityColor(priority: RfiPriority) {
     case 0: // Low
       return "bg-neutral-100 text-neutral-600";
     case 1: // Normal
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
     case 2: // High
       return "bg-orange-100 text-orange-700";
     case 3: // Urgent
-      return "bg-red-100 text-red-700";
+      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
     default:
       return "";
   }
@@ -253,7 +253,7 @@ export default function RfiDetailPage({
                 navigator.clipboard.writeText(window.location.href);
                 toast.success("Link copied to clipboard");
               }}
-              title="Copy link"
+              title="Copy link" aria-label="Copy link"
             >
               <Link2 className="h-4 w-4" />
             </Button>
@@ -487,7 +487,7 @@ export default function RfiDetailPage({
             <TabsTrigger value="cost-impact" className="gap-1">
               💰 Cost Impact
               {rfi.hasCostImpact && (
-                <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] px-1 py-0 ml-1">
+                <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-[10px] px-1 py-0 ml-1">
                   $
                 </Badge>
               )}
@@ -617,7 +617,7 @@ export default function RfiDetailPage({
                   <CardTitle className="text-base flex items-center gap-2">
                     Estimated Cost Impact
                     {rfi.hasCostImpact && (
-                      <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
                         Has Impact
                       </Badge>
                     )}

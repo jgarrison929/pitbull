@@ -40,7 +40,7 @@ export function CrewEntryHeader({
     <div className="flex flex-col gap-4">
       {/* Title Row */}
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild title="Back to Time Tracking" className="min-h-[44px] min-w-[44px]">
+        <Button variant="ghost" size="icon" asChild title="Back to Time Tracking" aria-label="Back to Time Tracking" className="min-h-[44px] min-w-[44px]">
           <Link href="/time-tracking">
             <ArrowLeft className="h-4 w-4" />
           </Link>

@@ -20,11 +20,11 @@ function priorityColor(priority: string) {
     case "low":
       return "bg-neutral-100 text-neutral-600";
     case "normal":
-      return "bg-blue-100 text-blue-700";
+      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
     case "high":
       return "bg-orange-100 text-orange-700";
     case "urgent":
-      return "bg-red-100 text-red-700";
+      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
     default:
       return "bg-neutral-100 text-neutral-600";
   }

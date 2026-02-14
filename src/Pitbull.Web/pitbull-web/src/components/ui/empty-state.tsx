@@ -30,7 +30,7 @@ function EmptyState({
         className
       )}
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 mb-4">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/30 mb-4">
         <Icon className="h-8 w-8 text-amber-500" />
       </div>
       <h3 className="text-lg font-semibold tracking-tight mb-1">{title}</h3>

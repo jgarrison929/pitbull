@@ -84,7 +84,7 @@ function getNotificationIcon(type: NotificationType) {
     case "change_order":
       return <FileText className="h-4 w-4 text-blue-500" />;
     default:
-      return <Bell className="h-4 w-4 text-gray-500" />;
+      return <Bell className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
   }
 }
 
