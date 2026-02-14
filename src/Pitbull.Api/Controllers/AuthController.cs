@@ -478,41 +478,6 @@ public class AuthController(
         ));
     }
 
-    /// <summary>
-    /// Debug endpoint to check user roles in token vs database
-    /// </summary>
-    /// <remarks>
-    /// Returns detailed information about the authenticated user's claims and roles.
-    /// Useful for debugging authorization issues (403 errors).
-    /// Shows both the roles embedded in the JWT token and the roles stored in the database.
-    /// </remarks>
-    /// <returns>Debug info including token roles, database roles, and all claims</returns>
-    /// <response code="200">Returns debug information</response>
-    /// <response code="401">Not authenticated</response>
-    [HttpGet("me/debug")]
-    [Microsoft.AspNetCore.Authorization.Authorize]
-    [EnableRateLimiting("api")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> DebugMe()
-    {
-        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
-        var roles = User.Claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value).ToList();
-        var allClaims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
-        
-        var user = userId != null ? await userManager.FindByIdAsync(userId) : null;
-        var dbRoles = user != null ? await userManager.GetRolesAsync(user) : new List<string>();
-        
-        return Ok(new {
-            userId,
-            email,
-            tokenRoles = roles,
-            databaseRoles = dbRoles,
-            allClaims
-        });
-    }
-
     private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {
         var key = new SymmetricSecurityKey(
