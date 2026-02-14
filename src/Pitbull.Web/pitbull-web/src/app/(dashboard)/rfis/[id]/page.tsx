@@ -1,9 +1,9 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Link2 } from "lucide-react";
+import { Link2, FileText, DollarSign, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,10 @@ import { Separator } from "@/components/ui/separator";
 import { RfiDetailSkeleton } from "@/components/skeletons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { TextareaField, FormField } from "@/components/ui/form-field";
+import { FormSection } from "@/components/ui/form-section";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
+import { AvatarSelector } from "@/components/ui/avatar-selector";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -23,18 +26,26 @@ import {
 } from "@/components/ui/select";
 import { RfiCostImpactSection } from "@/components/rfis";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import api from "@/lib/api";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import type { Rfi, UpdateRfiCommand, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
 
+interface FileItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+}
+
 function statusColor(status: RfiStatus) {
   switch (status) {
-    case 0: // Open
+    case 0:
       return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-    case 1: // Answered
+    case 1:
       return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
-    case 2: // Closed
+    case 2:
       return "bg-neutral-100 text-neutral-600";
     default:
       return "";
@@ -43,46 +54,41 @@ function statusColor(status: RfiStatus) {
 
 function statusLabel(status: RfiStatus) {
   switch (status) {
-    case 0:
-      return "Open";
-    case 1:
-      return "Answered";
-    case 2:
-      return "Closed";
-    default:
-      return "Unknown";
+    case 0: return "Open";
+    case 1: return "Answered";
+    case 2: return "Closed";
+    default: return "Unknown";
   }
 }
 
 function priorityLabel(priority: RfiPriority) {
   switch (priority) {
-    case 0:
-      return "Low";
-    case 1:
-      return "Normal";
-    case 2:
-      return "High";
-    case 3:
-      return "Urgent";
-    default:
-      return "Unknown";
+    case 0: return "Low";
+    case 1: return "Normal";
+    case 2: return "High";
+    case 3: return "Urgent";
+    default: return "Unknown";
   }
 }
 
 function priorityColor(priority: RfiPriority) {
   switch (priority) {
-    case 0: // Low
-      return "bg-neutral-100 text-neutral-600";
-    case 1: // Normal
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-    case 2: // High
-      return "bg-orange-100 text-orange-700";
-    case 3: // Urgent
-      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
-    default:
-      return "";
+    case 0: return "bg-neutral-100 text-neutral-600";
+    case 1: return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
+    case 2: return "bg-orange-100 text-orange-700";
+    case 3: return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
+    default: return "";
   }
 }
+
+// Mock team members for avatar selector
+const TEAM_MEMBERS = [
+  { id: "1", name: "John Smith" },
+  { id: "2", name: "Demo User" },
+  { id: "3", name: "Mike Davis" },
+  { id: "4", name: "Emily Wilson" },
+  { id: "5", name: "Robert Brown" },
+];
 
 export default function RfiDetailPage({
   params,
@@ -108,13 +114,26 @@ export default function RfiDetailPage({
   const [editDueDate, setEditDueDate] = useState("");
   const [editBallInCourtName, setEditBallInCourtName] = useState("");
   const [editAssignedToName, setEditAssignedToName] = useState("");
-
-  // Cost impact fields
   const [editSpecSection, setEditSpecSection] = useState("");
   const [editDrawingReferences, setEditDrawingReferences] = useState("");
   const [editHasCostImpact, setEditHasCostImpact] = useState(false);
   const [editEstimatedCostImpact, setEditEstimatedCostImpact] = useState("");
   const [editEstimatedDelayDays, setEditEstimatedDelayDays] = useState("");
+  const [editAttachments, setEditAttachments] = useState<FileItem[]>([]);
+
+  // Track unsaved changes in edit mode
+  const isDirty = useMemo(() => {
+    if (!isEditing || !rfi) return false;
+    return (
+      editSubject !== rfi.subject ||
+      editQuestion !== rfi.question ||
+      editAnswer !== (rfi.answer || "") ||
+      editStatus !== rfi.status ||
+      editPriority !== rfi.priority
+    );
+  }, [isEditing, rfi, editSubject, editQuestion, editAnswer, editStatus, editPriority]);
+
+  useUnsavedChanges(isDirty);
 
   const { addRecentItem } = useRecentlyViewed();
 
@@ -138,15 +157,12 @@ export default function RfiDetailPage({
         setEditDueDate(data.dueDate ? data.dueDate.split("T")[0] : "");
         setEditBallInCourtName(data.ballInCourtName || "");
         setEditAssignedToName(data.assignedToName || "");
-
-        // Cost impact fields
         setEditSpecSection(data.specSection || "");
         setEditDrawingReferences(data.drawingReferences?.join(", ") || "");
         setEditHasCostImpact(data.hasCostImpact);
         setEditEstimatedCostImpact(data.estimatedCostImpact?.toString() || "");
         setEditEstimatedDelayDays(data.estimatedDelayDays?.toString() || "");
 
-        // Track for recently viewed (dashboard widget)
         addRecentItem({
           id: data.id,
           type: "rfi",
@@ -169,7 +185,6 @@ export default function RfiDetailPage({
 
     setIsSaving(true);
     try {
-      // Parse drawing references from comma-separated string
       const drawingRefs = editDrawingReferences
         .split(",")
         .map((s) => s.trim())
@@ -184,8 +199,6 @@ export default function RfiDetailPage({
         dueDate: editDueDate || null,
         ballInCourtName: editBallInCourtName || null,
         assignedToName: editAssignedToName || null,
-
-        // Cost impact fields
         specSection: editSpecSection || null,
         drawingReferences: drawingRefs.length > 0 ? drawingRefs : undefined,
         hasCostImpact: editHasCostImpact,
@@ -199,10 +212,7 @@ export default function RfiDetailPage({
 
       const updated = await api<Rfi>(
         `/api/projects/${projectId}/rfis/${id}`,
-        {
-          method: "PUT",
-          body: command,
-        }
+        { method: "PUT", body: command }
       );
       setRfi(updated);
       setIsEditing(false);
@@ -253,7 +263,8 @@ export default function RfiDetailPage({
                 navigator.clipboard.writeText(window.location.href);
                 toast.success("Link copied to clipboard");
               }}
-              title="Copy link" aria-label="Copy link"
+              title="Copy link"
+              aria-label="Copy link"
             >
               <Link2 className="h-4 w-4" />
             </Button>
@@ -278,23 +289,25 @@ export default function RfiDetailPage({
       </div>
 
       {isEditing ? (
-        /* Edit Mode */
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Edit RFI</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <fieldset disabled={isSaving} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject</Label>
-                  <Input
-                    id="subject"
-                    value={editSubject}
-                    onChange={(e) => setEditSubject(e.target.value)}
-                    required
-                  />
-                </div>
+        /* Edit Mode - Accordion Sections */
+        <div className="space-y-4">
+          <fieldset disabled={isSaving} className="space-y-4">
+            {/* Details Section */}
+            <FormSection
+              title="RFI Details"
+              description="Subject, question, answer, and assignment"
+              icon={<Info className="h-4 w-4" />}
+              defaultOpen={true}
+            >
+              <div className="space-y-4">
+                <FormField
+                  label="Subject"
+                  name="subject"
+                  value={editSubject}
+                  onChange={(e) => setEditSubject(e.target.value)}
+                  required
+                  maxLength={150}
+                />
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
@@ -307,9 +320,9 @@ export default function RfiDetailPage({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="0">Open</SelectItem>
-                        <SelectItem value="1">Answered</SelectItem>
-                        <SelectItem value="2">Closed</SelectItem>
+                        <SelectItem value="0">🔵 Open</SelectItem>
+                        <SelectItem value="1">🟢 Answered</SelectItem>
+                        <SelectItem value="2">⚫ Closed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -317,44 +330,41 @@ export default function RfiDetailPage({
                     <Label htmlFor="priority">Priority</Label>
                     <Select
                       value={String(editPriority)}
-                      onValueChange={(v) =>
-                        setEditPriority(Number(v) as RfiPriority)
-                      }
+                      onValueChange={(v) => setEditPriority(Number(v) as RfiPriority)}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="0">Low</SelectItem>
-                        <SelectItem value="1">Normal</SelectItem>
-                        <SelectItem value="2">High</SelectItem>
-                        <SelectItem value="3">Urgent</SelectItem>
+                        <SelectItem value="0">🟢 Low</SelectItem>
+                        <SelectItem value="1">🔵 Normal</SelectItem>
+                        <SelectItem value="2">🟠 High</SelectItem>
+                        <SelectItem value="3">🔴 Urgent</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="question">Question</Label>
-                  <Textarea
-                    id="question"
-                    value={editQuestion}
-                    onChange={(e) => setEditQuestion(e.target.value)}
-                    rows={4}
-                    required
-                  />
-                </div>
+                <TextareaField
+                  label="Question"
+                  name="question"
+                  value={editQuestion}
+                  onChange={(e) => setEditQuestion(e.target.value)}
+                  rows={5}
+                  required
+                  maxLength={2000}
+                  helpText="Be specific about location, specification, and drawing references."
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="answer">Answer</Label>
-                  <Textarea
-                    id="answer"
-                    value={editAnswer}
-                    onChange={(e) => setEditAnswer(e.target.value)}
-                    rows={4}
-                    placeholder="Response to the RFI..."
-                  />
-                </div>
+                <TextareaField
+                  label="Answer"
+                  name="answer"
+                  value={editAnswer}
+                  onChange={(e) => setEditAnswer(e.target.value)}
+                  rows={5}
+                  placeholder="Response to the RFI..."
+                  helpText="Enter the official response. Changing status to Answered will timestamp this."
+                />
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
@@ -367,29 +377,35 @@ export default function RfiDetailPage({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="ballInCourt">Ball In Court</Label>
-                    <Input
-                      id="ballInCourt"
+                    <Label>Ball In Court</Label>
+                    <AvatarSelector
+                      options={TEAM_MEMBERS}
                       value={editBallInCourtName}
-                      onChange={(e) => setEditBallInCourtName(e.target.value)}
+                      onChange={setEditBallInCourtName}
                       placeholder="Who needs to act?"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="assignedTo">Assigned To</Label>
-                    <Input
-                      id="assignedTo"
+                    <Label>Assigned To</Label>
+                    <AvatarSelector
+                      options={TEAM_MEMBERS}
                       value={editAssignedToName}
-                      onChange={(e) => setEditAssignedToName(e.target.value)}
+                      onChange={setEditAssignedToName}
                       placeholder="Responsible party"
                     />
                   </div>
                 </div>
+              </div>
+            </FormSection>
 
-                {/* Document References */}
-                <Separator className="my-4" />
-                <h3 className="text-sm font-semibold text-muted-foreground">Document References</h3>
-
+            {/* Document References Section */}
+            <FormSection
+              title="Document References"
+              description="Spec sections, drawings, and attachments"
+              icon={<FileText className="h-4 w-4" />}
+              defaultOpen={false}
+            >
+              <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="specSection">Spec Section</Label>
@@ -411,13 +427,36 @@ export default function RfiDetailPage({
                   </div>
                 </div>
 
-                {/* Cost Impact */}
-                <Separator className="my-4" />
-                <h3 className="text-sm font-semibold text-muted-foreground">Cost Impact</h3>
+                <div className="space-y-2">
+                  <Label>Attachments</Label>
+                  <FileDropZone
+                    files={editAttachments}
+                    onFilesChange={setEditAttachments}
+                    placeholder="Drop additional files here"
+                    maxFiles={10}
+                  />
+                </div>
+              </div>
+            </FormSection>
 
+            {/* Cost Impact Section */}
+            <FormSection
+              title="Cost Impact"
+              description="Estimated cost and schedule impact"
+              icon={<DollarSign className="h-4 w-4" />}
+              defaultOpen={false}
+              badge={
+                editHasCostImpact ? (
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 text-[10px] ml-2">
+                    Has Impact
+                  </Badge>
+                ) : null
+              }
+            >
+              <div className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
-                    <Label htmlFor="hasCostImpact">Has Cost Impact</Label>
+                    <Label>Has Cost Impact</Label>
                     <Select
                       value={editHasCostImpact ? "true" : "false"}
                       onValueChange={(v) => setEditHasCostImpact(v === "true")}
@@ -432,9 +471,8 @@ export default function RfiDetailPage({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="estimatedCostImpact">Estimated Cost ($)</Label>
+                    <Label>Estimated Cost ($)</Label>
                     <Input
-                      id="estimatedCostImpact"
                       type="number"
                       step="0.01"
                       value={editEstimatedCostImpact}
@@ -444,9 +482,8 @@ export default function RfiDetailPage({
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="estimatedDelayDays">Estimated Delay (days)</Label>
+                    <Label>Estimated Delay (days)</Label>
                     <Input
-                      id="estimatedDelayDays"
                       type="number"
                       value={editEstimatedDelayDays}
                       onChange={(e) => setEditEstimatedDelayDays(e.target.value)}
@@ -455,30 +492,30 @@ export default function RfiDetailPage({
                     />
                   </div>
                 </div>
-              </fieldset>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                <LoadingButton
-                  onClick={handleSave}
-                  className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-                  loading={isSaving}
-                  loadingText="Saving..."
-                >
-                  Save Changes
-                </LoadingButton>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-[44px]"
-                  onClick={() => setIsEditing(false)}
-                  disabled={isSaving}
-                >
-                  Cancel
-                </Button>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </FormSection>
+          </fieldset>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <LoadingButton
+              onClick={handleSave}
+              className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
+              loading={isSaving}
+              loadingText="Saving..."
+            >
+              Save Changes
+            </LoadingButton>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-[44px]"
+              onClick={() => setIsEditing(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
       ) : (
         /* View Mode */
         <Tabs defaultValue="details" className="space-y-4">
@@ -504,35 +541,22 @@ export default function RfiDetailPage({
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <span className="text-muted-foreground">Priority</span>
                     <span>
-                      <Badge
-                        variant="secondary"
-                        className={priorityColor(rfi.priority)}
-                      >
+                      <Badge variant="secondary" className={priorityColor(rfi.priority)}>
                         {priorityLabel(rfi.priority)}
                       </Badge>
                     </span>
                     <span className="text-muted-foreground">Due Date</span>
                     <span className="font-medium">
-                      {rfi.dueDate
-                        ? new Date(rfi.dueDate).toLocaleDateString()
-                        : "Not set"}
+                      {rfi.dueDate ? new Date(rfi.dueDate).toLocaleDateString() : "Not set"}
                     </span>
                     <span className="text-muted-foreground">Ball In Court</span>
-                    <span className="font-medium">
-                      {rfi.ballInCourtName || "—"}
-                    </span>
+                    <span className="font-medium">{rfi.ballInCourtName || "—"}</span>
                     <span className="text-muted-foreground">Assigned To</span>
-                    <span className="font-medium">
-                      {rfi.assignedToName || "—"}
-                    </span>
+                    <span className="font-medium">{rfi.assignedToName || "—"}</span>
                     <span className="text-muted-foreground">Created By</span>
-                    <span className="font-medium">
-                      {rfi.createdByName || "—"}
-                    </span>
+                    <span className="font-medium">{rfi.createdByName || "—"}</span>
                     <span className="text-muted-foreground">Created</span>
-                    <span className="font-medium">
-                      {new Date(rfi.createdAt).toLocaleDateString()}
-                    </span>
+                    <span className="font-medium">{new Date(rfi.createdAt).toLocaleDateString()}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -545,15 +569,11 @@ export default function RfiDetailPage({
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <span className="text-muted-foreground">Answered At</span>
                     <span className="font-medium">
-                      {rfi.answeredAt
-                        ? new Date(rfi.answeredAt).toLocaleDateString()
-                        : "Not yet answered"}
+                      {rfi.answeredAt ? new Date(rfi.answeredAt).toLocaleDateString() : "Not yet answered"}
                     </span>
                     <span className="text-muted-foreground">Closed At</span>
                     <span className="font-medium">
-                      {rfi.closedAt
-                        ? new Date(rfi.closedAt).toLocaleDateString()
-                        : "Not yet closed"}
+                      {rfi.closedAt ? new Date(rfi.closedAt).toLocaleDateString() : "Not yet closed"}
                     </span>
                   </div>
                 </CardContent>
@@ -582,15 +602,12 @@ export default function RfiDetailPage({
                   </p>
                 ) : (
                   <div className="py-4 text-center">
-                    <p className="text-muted-foreground text-sm">
-                      No answer provided yet.
-                    </p>
+                    <p className="text-muted-foreground text-sm">No answer provided yet.</p>
                   </div>
                 )}
               </CardContent>
             </Card>
 
-            {/* Document References & Estimated Cost Impact Card */}
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -599,9 +616,7 @@ export default function RfiDetailPage({
                 <CardContent className="space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <span className="text-muted-foreground">Spec Section</span>
-                    <span className="font-medium">
-                      {rfi.specSection || "—"}
-                    </span>
+                    <span className="font-medium">{rfi.specSection || "—"}</span>
                     <span className="text-muted-foreground">Drawings</span>
                     <span className="font-medium">
                       {rfi.drawingReferences && rfi.drawingReferences.length > 0
@@ -640,9 +655,7 @@ export default function RfiDetailPage({
                       </span>
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No cost impact identified
-                    </p>
+                    <p className="text-sm text-muted-foreground">No cost impact identified</p>
                   )}
                 </CardContent>
               </Card>
