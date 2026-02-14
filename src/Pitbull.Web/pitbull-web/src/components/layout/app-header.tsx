@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AppSidebarMobile } from "./app-sidebar-mobile";
 import { NotificationCenter } from "./notification-center";
+import { ConnectionStatus } from "./connection-status";
 import { Sun, Moon, Monitor, Building2 } from "lucide-react";
 import {
   Tooltip,
@@ -130,6 +131,9 @@ export function AppHeader() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Connection status */}
+      <ConnectionStatus />
 
       {/* Theme toggle */}
       <Tooltip>

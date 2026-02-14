@@ -12,7 +12,6 @@ import {
   Plus,
   ArrowRight,
   TrendingUp,
-  CheckCircle,
   Sparkles,
 } from "lucide-react";
 import { GettingStarted } from "@/components/ui/getting-started";
@@ -23,8 +22,9 @@ import { EquipmentUtilizationWidget } from "@/components/dashboard/equipment-uti
 import { PhaseProgressWidget } from "@/components/dashboard/phase-progress-widget";
 import { CostBreakdownWidget } from "@/components/dashboard/cost-breakdown-widget";
 import { RecentTimeEntriesWidget } from "@/components/dashboard/recent-time-entries-widget";
+import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import api from "@/lib/api";
-import type { DashboardStats, RecentActivityItem } from "@/lib/types";
+import type { DashboardStats } from "@/lib/types";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { useCompany } from "@/contexts/company-context";
@@ -66,21 +66,6 @@ export default function DashboardPage() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
-  };
-
-  const formatTimeAgo = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return date.toLocaleDateString();
   };
 
   const hasNoData =
@@ -156,34 +141,6 @@ export default function DashboardPage() {
       color: "text-amber-600 dark:text-amber-400",
     },
   ];
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case "project":
-        return <HardHat className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
-      case "bid":
-        return <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />;
-      case "employee":
-        return <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />;
-      case "timeentry":
-        return <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />;
-      default:
-        return <CheckCircle className="h-4 w-4 text-muted-foreground" />;
-    }
-  };
-
-  const getActivityLink = (item: RecentActivityItem) => {
-    switch (item.type) {
-      case "project":
-        return `/projects/${item.id}`;
-      case "bid":
-        return `/bids/${item.id}`;
-      case "employee":
-        return `/employees/${item.id}`;
-      default:
-        return "#";
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -346,49 +303,10 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            {/* Recent Activity */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg">Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {state.stats?.recentActivity &&
-                state.stats.recentActivity.length > 0 ? (
-                  <div className="space-y-4">
-                    {state.stats.recentActivity.map((item, index) => (
-                      <Link
-                        key={`${item.type}-${item.id}-${index}`}
-                        href={getActivityLink(item)}
-                      >
-                        <div className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted transition-colors cursor-pointer">
-                          <div className="mt-0.5 p-1.5 rounded-full bg-muted">
-                            {getActivityIcon(item.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">
-                              {item.title}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {item.description}
-                            </p>
-                          </div>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatTimeAgo(item.timestamp)}
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">
-                      No recent activity yet. Start by creating a project or
-                      bid!
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {/* Activity Feed */}
+            <div className="lg:col-span-2">
+              <ActivityFeed />
+            </div>
           </div>
 
           {/* Recently Viewed + RFIs Needing Attention */}
