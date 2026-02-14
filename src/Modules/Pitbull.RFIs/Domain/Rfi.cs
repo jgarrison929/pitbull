@@ -5,8 +5,9 @@ namespace Pitbull.RFIs.Domain;
 /// <summary>
 /// Request for Information (RFI) - formal question about construction documents
 /// </summary>
-public class Rfi : BaseEntity
+public class Rfi : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public int Number { get; set; }
     public string Subject { get; set; } = string.Empty;
     public string Question { get; set; } = string.Empty;

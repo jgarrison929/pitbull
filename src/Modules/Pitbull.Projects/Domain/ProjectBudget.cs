@@ -6,8 +6,9 @@ namespace Pitbull.Projects.Domain;
 /// Overall project budget summary. One-to-one with Project.
 /// Tracks original contract, change orders, and current budget.
 /// </summary>
-public class ProjectBudget : BaseEntity
+public class ProjectBudget : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public Guid ProjectId { get; set; }
 
     public decimal OriginalContractAmount { get; set; }

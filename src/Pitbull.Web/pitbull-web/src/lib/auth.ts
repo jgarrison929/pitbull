@@ -24,6 +24,8 @@ interface JwtPayload {
   name: string;
   roles: string[];
   tenantId: string;
+  companyId?: string;
+  companyIds?: string[];
   exp: number;
   [key: string]: unknown;
 }
@@ -45,12 +47,22 @@ export function decodeToken(token: string): JwtPayload | null {
       roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
     }
     
+    // Parse company_ids if present (comma-separated string)
+    let companyIds: string[] = [];
+    if (raw.company_ids) {
+      companyIds = typeof raw.company_ids === "string"
+        ? raw.company_ids.split(",").filter(Boolean)
+        : Array.isArray(raw.company_ids) ? raw.company_ids : [];
+    }
+
     // Map API claim names to frontend expected names
     return {
       ...raw,
       name: raw.full_name ?? raw.name ?? "",
       roles,
       tenantId: raw.tenant_id ?? raw.tenantId ?? "",
+      companyId: raw.company_id ?? raw.companyId ?? undefined,
+      companyIds,
     } as JwtPayload;
   } catch {
     return null;

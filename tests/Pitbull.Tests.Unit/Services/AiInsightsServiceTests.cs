@@ -16,6 +16,7 @@ public class AiInsightsServiceTests
         var mockDb = new Mock<PitbullDbContext>(
             new Microsoft.EntityFrameworkCore.DbContextOptions<PitbullDbContext>(),
             Mock.Of<Pitbull.Core.MultiTenancy.ITenantContext>(),
+            Mock.Of<Pitbull.Core.MultiTenancy.ICompanyContext>(),
             null!, null!);
 
         var emptyConfig = new ConfigurationBuilder().Build();

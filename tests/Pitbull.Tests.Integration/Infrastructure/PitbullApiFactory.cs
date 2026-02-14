@@ -66,4 +66,53 @@ public sealed class PitbullApiFactory(string connectionString) : WebApplicationF
 
         return tenantId;
     }
+
+    /// <summary>
+    /// Extracts the company_id claim from a JWT token.
+    /// </summary>
+    public static Guid? ExtractCompanyId(string jwt)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var token = handler.ReadJwtToken(jwt);
+        var claim = token.Claims.FirstOrDefault(c => c.Type == "company_id")?.Value;
+
+        if (string.IsNullOrEmpty(claim) || !Guid.TryParse(claim, out var companyId))
+            return null;
+
+        return companyId;
+    }
+
+    /// <summary>
+    /// Extracts the company_ids claim (comma-separated) from a JWT token.
+    /// </summary>
+    public static List<Guid> ExtractCompanyIds(string jwt)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var token = handler.ReadJwtToken(jwt);
+        var claim = token.Claims.FirstOrDefault(c => c.Type == "company_ids")?.Value;
+
+        if (string.IsNullOrEmpty(claim))
+            return [];
+
+        return claim.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => Guid.TryParse(s, out var id) ? id : Guid.Empty)
+            .Where(id => id != Guid.Empty)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Creates an HttpClient with X-Company-Id header set.
+    /// </summary>
+    public HttpClient CreateClientWithCompanyHeader(HttpClient existingClient, Guid companyId)
+    {
+        // Clone headers to a new client
+        var newClient = CreateClient();
+        foreach (var header in existingClient.DefaultRequestHeaders)
+        {
+            if (header.Key != "X-Company-Id")
+                newClient.DefaultRequestHeaders.TryAddWithoutValidation(header.Key, header.Value);
+        }
+        newClient.DefaultRequestHeaders.Add("X-Company-Id", companyId.ToString());
+        return newClient;
+    }
 }

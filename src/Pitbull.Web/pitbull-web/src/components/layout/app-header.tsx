@@ -14,12 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AppSidebarMobile } from "./app-sidebar-mobile";
 import { NotificationCenter } from "./notification-center";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, Building2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
+import { useCompany } from "@/contexts/company-context";
 
 function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -51,6 +53,7 @@ export function AppHeader() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
+  const { activeCompany } = useCompany();
   const breadcrumbs = getBreadcrumbs(pathname);
 
   const cycleTheme = () => {
@@ -108,6 +111,22 @@ export function AppHeader() {
           </span>
         ))}
       </nav>
+
+      {/* Active Company Indicator (visible on desktop, hidden on mobile - sidebar has switcher) */}
+      {activeCompany && (
+        <div className="hidden lg:flex items-center gap-1.5 ml-2">
+          <Building2 className="h-3.5 w-3.5 text-amber-500" />
+          <Badge
+            variant="secondary"
+            className="bg-amber-50 text-amber-700 border-amber-200 font-mono text-[10px] px-1.5 py-0 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
+          >
+            {activeCompany.code}
+          </Badge>
+          <span className="text-xs text-muted-foreground max-w-[160px] truncate">
+            {activeCompany.shortName || activeCompany.name}
+          </span>
+        </div>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />

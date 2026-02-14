@@ -20,6 +20,7 @@ import { FileText } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Bid } from "@/lib/types";
 import { toast } from "sonner";
+import { useCompany } from "@/contexts/company-context";
 
 function statusColor(status: string) {
   switch (status) {
@@ -62,6 +63,7 @@ function formatCurrency(amount: number) {
 }
 
 export default function BidsPage() {
+  const { activeCompany } = useCompany();
   const [bids, setBids] = useState<Bid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -70,6 +72,7 @@ export default function BidsPage() {
 
   useEffect(() => {
     async function fetchBids() {
+      setIsLoading(true);
       try {
         const result = await api<PagedResult<Bid>>(
           "/api/bids?pageSize=50"
@@ -82,7 +85,8 @@ export default function BidsPage() {
       }
     }
     fetchBids();
-  }, []);
+    // Re-fetch when the active company changes
+  }, [activeCompany?.id]);
 
   return (
     <div className="space-y-6">

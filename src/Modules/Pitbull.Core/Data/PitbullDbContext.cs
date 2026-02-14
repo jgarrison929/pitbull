@@ -12,19 +12,25 @@ namespace Pitbull.Core.Data;
 /// <summary>
 /// Main EF Core DbContext for Pitbull.
 /// Inherits from IdentityDbContext for ASP.NET Identity support.
-/// Applies global query filters for multi-tenancy and soft deletes.
+/// Applies global query filters for multi-tenancy, company isolation, and soft deletes.
 /// </summary>
 public class PitbullDbContext(
     DbContextOptions<PitbullDbContext> options,
     ITenantContext tenantContext,
+    ICompanyContext companyContext,
     IHttpContextAccessor? httpContextAccessor = null,
     IMediator? mediator = null)
     : IdentityDbContext<AppUser, AppRole, Guid>(options)
 {
+    // Explicit fields for Expression.Field() access in query filters.
+    // Primary constructor parameters generate compiler-mangled backing fields
+    // that can't be found by name via reflection, so we need these.
+    private readonly ITenantContext _tenantContext = tenantContext;
+    private readonly ICompanyContext _companyContext = companyContext;
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
-    // TODO: Add after EF migration tools are working
-    // public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    // public DbSet<CompanySettings> CompanySettings => Set<CompanySettings>();
+    public DbSet<Company> Companies => Set<Company>();
+    public DbSet<UserCompanyAccess> UserCompanyAccess => Set<UserCompanyAccess>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
@@ -57,6 +63,48 @@ public class PitbullDbContext(
             e.Property(t => t.Settings).HasColumnType("jsonb");
         });
 
+        // Company configuration
+        builder.Entity<Company>(e =>
+        {
+            e.ToTable("companies");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Code).HasMaxLength(20).IsRequired();
+            e.Property(c => c.Name).HasMaxLength(200).IsRequired();
+            e.Property(c => c.ShortName).HasMaxLength(50);
+            e.Property(c => c.TaxId).HasMaxLength(50);
+            e.Property(c => c.Address).HasMaxLength(500);
+            e.Property(c => c.City).HasMaxLength(100);
+            e.Property(c => c.State).HasMaxLength(50);
+            e.Property(c => c.ZipCode).HasMaxLength(20);
+            e.Property(c => c.Phone).HasMaxLength(50);
+            e.Property(c => c.Website).HasMaxLength(200);
+            e.Property(c => c.Email).HasMaxLength(200);
+            e.Property(c => c.LogoUrl).HasMaxLength(500);
+            e.Property(c => c.PrimaryColor).HasMaxLength(20);
+            e.Property(c => c.Currency).HasMaxLength(10).HasDefaultValue("USD");
+            e.Property(c => c.Timezone).HasMaxLength(50).HasDefaultValue("America/Los_Angeles");
+            e.Property(c => c.DateFormat).HasMaxLength(20).HasDefaultValue("MM/dd/yyyy");
+            e.Property(c => c.Settings).HasColumnType("jsonb").HasDefaultValue("{}");
+            e.HasIndex(c => new { c.TenantId, c.Code }).IsUnique();
+        });
+
+        // UserCompanyAccess configuration
+        builder.Entity<UserCompanyAccess>(e =>
+        {
+            e.ToTable("user_company_access");
+            e.HasKey(uca => uca.Id);
+            e.HasOne(uca => uca.User)
+                .WithMany()
+                .HasForeignKey(uca => uca.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(uca => uca.Company)
+                .WithMany()
+                .HasForeignKey(uca => uca.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.Property(uca => uca.CompanyRole).HasMaxLength(50);
+            e.HasIndex(uca => new { uca.TenantId, uca.UserId, uca.CompanyId }).IsUnique();
+        });
+
         // AppUser configuration
         builder.Entity<AppUser>(e =>
         {
@@ -79,9 +127,22 @@ public class PitbullDbContext(
         {
             if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
             {
-                // Combined tenant isolation + soft delete filter (defense in depth)
-                builder.Entity(entityType.ClrType)
-                    .HasQueryFilter(CreateTenantAndSoftDeleteFilter(entityType.ClrType));
+                if (typeof(ICompanyScoped).IsAssignableFrom(entityType.ClrType))
+                {
+                    // Company-scoped: TenantId + CompanyId + IsDeleted filter
+                    builder.Entity(entityType.ClrType)
+                        .HasQueryFilter(CreateTenantCompanyAndSoftDeleteFilter(entityType.ClrType));
+
+                    // CompanyId index on company-scoped entity tables
+                    builder.Entity(entityType.ClrType)
+                        .HasIndex("CompanyId");
+                }
+                else
+                {
+                    // Tenant-scoped only: TenantId + IsDeleted filter (existing)
+                    builder.Entity(entityType.ClrType)
+                        .HasQueryFilter(CreateTenantAndSoftDeleteFilter(entityType.ClrType));
+                }
 
                 // Tenant index on every BaseEntity table
                 builder.Entity(entityType.ClrType)
@@ -111,10 +172,19 @@ public class PitbullDbContext(
             {
                 case EntityState.Added:
                     // Skip tenant ID assignment for special cases during system operations
-                    if (tenantContext.TenantId != Guid.Empty)
+                    if (_tenantContext.TenantId != Guid.Empty)
                     {
-                        entry.Entity.TenantId = tenantContext.TenantId;
+                        entry.Entity.TenantId = _tenantContext.TenantId;
                     }
+
+                    // Auto-set CompanyId for company-scoped entities from session context
+                    if (entry.Entity is ICompanyScoped companyScoped
+                        && companyScoped.CompanyId == Guid.Empty
+                        && _companyContext.IsResolved)
+                    {
+                        companyScoped.CompanyId = _companyContext.CompanyId;
+                    }
+
                     // Only set CreatedAt if not explicitly set (default DateTime is DateTime.MinValue)
                     if (entry.Entity.CreatedAt == default)
                         entry.Entity.CreatedAt = now;
@@ -134,13 +204,21 @@ public class PitbullDbContext(
             }
         }
 
-        // Ensure PostgreSQL session variable is set for RLS before save operations
-        if (tenantContext.TenantId != Guid.Empty)
+        // Ensure PostgreSQL session variables are set for RLS before save operations
+        if (_tenantContext.TenantId != Guid.Empty)
         {
             try
             {
                 await Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT set_config('app.current_tenant', {tenantContext.TenantId.ToString()}, false);",
+                    $"SELECT set_config('app.current_tenant', {_tenantContext.TenantId.ToString()}, false);",
+                    cancellationToken);
+
+                // Set company session variable for RLS
+                var companyIdStr = _companyContext.IsResolved
+                    ? _companyContext.CompanyId.ToString()
+                    : "";
+                await Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT set_config('app.current_company', {companyIdStr}, false);",
                     cancellationToken);
             }
             catch (Exception ex)
@@ -188,8 +266,6 @@ public class PitbullDbContext(
         {
             foreach (var domainEvent in domainEvents)
             {
-                // Fire-and-forget: we don't await domain event handlers to avoid blocking the SaveChanges
-                // This assumes domain event handlers are fast and don't need to participate in the transaction
                 _ = Task.Run(async () =>
                 {
                     try
@@ -198,9 +274,6 @@ public class PitbullDbContext(
                     }
                     catch (Exception ex)
                     {
-                        // Log domain event handling failures but don't fail the main operation.
-                        // Note: Console.WriteLine is intentional here as DbContext doesn't inject ILogger
-                        // to keep the constructor simple. Domain events are fire-and-forget anyway.
                         Console.WriteLine($"[PitbullDbContext] Domain event handling failed: {ex.GetType().Name}: {ex.Message}");
                     }
                 });
@@ -210,30 +283,83 @@ public class PitbullDbContext(
 
     /// <summary>
     /// Creates a query filter that enforces both tenant isolation and soft delete.
-    /// This provides defense-in-depth security alongside PostgreSQL RLS policies.
+    /// Used for tenant-scoped entities (NOT company-scoped).
     /// </summary>
     private System.Linq.Expressions.LambdaExpression CreateTenantAndSoftDeleteFilter(Type entityType)
     {
         var parameter = System.Linq.Expressions.Expression.Parameter(entityType, "e");
 
-        // Condition 1: IsDeleted == false (soft delete)
         var isDeletedProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
         var notDeletedCondition = System.Linq.Expressions.Expression.Equal(
             isDeletedProperty,
             System.Linq.Expressions.Expression.Constant(false));
 
-        // Condition 2: TenantId == Current Tenant (tenant isolation)
         var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.TenantId));
         var currentTenantCondition = System.Linq.Expressions.Expression.Equal(
             tenantIdProperty,
             System.Linq.Expressions.Expression.Property(
-                System.Linq.Expressions.Expression.Field(null, typeof(PitbullDbContext), nameof(tenantContext)),
+                System.Linq.Expressions.Expression.Field(System.Linq.Expressions.Expression.Constant(this), nameof(_tenantContext)),
                 nameof(ITenantContext.TenantId)));
 
-        // Combine both conditions with AND
         var combinedCondition = System.Linq.Expressions.Expression.AndAlso(
             notDeletedCondition,
             currentTenantCondition);
+
+        return System.Linq.Expressions.Expression.Lambda(combinedCondition, parameter);
+    }
+
+    /// <summary>
+    /// Creates a query filter that enforces tenant + company isolation + soft delete.
+    /// When CompanyContext.CompanyId == Guid.Empty, allows all companies within tenant.
+    /// </summary>
+    private System.Linq.Expressions.LambdaExpression CreateTenantCompanyAndSoftDeleteFilter(Type entityType)
+    {
+        var parameter = System.Linq.Expressions.Expression.Parameter(entityType, "e");
+
+        // !IsDeleted
+        var isDeletedProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+        var notDeletedCondition = System.Linq.Expressions.Expression.Equal(
+            isDeletedProperty,
+            System.Linq.Expressions.Expression.Constant(false));
+
+        // TenantId == tenantContext.TenantId
+        var tenantIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(BaseEntity.TenantId));
+        var currentTenantCondition = System.Linq.Expressions.Expression.Equal(
+            tenantIdProperty,
+            System.Linq.Expressions.Expression.Property(
+                System.Linq.Expressions.Expression.Field(System.Linq.Expressions.Expression.Constant(this), nameof(_tenantContext)),
+                nameof(ITenantContext.TenantId)));
+
+        // companyContext.CompanyId
+        var companyContextField = System.Linq.Expressions.Expression.Field(System.Linq.Expressions.Expression.Constant(this), nameof(_companyContext));
+        var companyContextCompanyId = System.Linq.Expressions.Expression.Property(
+            companyContextField,
+            nameof(ICompanyContext.CompanyId));
+
+        // CompanyId (on entity)
+        var companyIdProperty = System.Linq.Expressions.Expression.Property(parameter, nameof(ICompanyScoped.CompanyId));
+
+        // companyContext.CompanyId == Guid.Empty (means: no company filter, show all)
+        var noCompanyFilter = System.Linq.Expressions.Expression.Equal(
+            companyContextCompanyId,
+            System.Linq.Expressions.Expression.Constant(Guid.Empty));
+
+        // entity.CompanyId == companyContext.CompanyId
+        var companyMatch = System.Linq.Expressions.Expression.Equal(
+            companyIdProperty,
+            companyContextCompanyId);
+
+        // (no filter) OR (match)
+        var companyCondition = System.Linq.Expressions.Expression.OrElse(
+            noCompanyFilter,
+            companyMatch);
+
+        // !IsDeleted AND TenantId match AND (no company filter OR CompanyId match)
+        var combinedCondition = System.Linq.Expressions.Expression.AndAlso(
+            System.Linq.Expressions.Expression.AndAlso(
+                notDeletedCondition,
+                currentTenantCondition),
+            companyCondition);
 
         return System.Linq.Expressions.Expression.Lambda(combinedCondition, parameter);
     }

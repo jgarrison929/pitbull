@@ -6,8 +6,9 @@ namespace Pitbull.TimeTracking.Domain;
 /// Represents a pay period for time entry locking.
 /// Once a pay period is locked, time entries within that period cannot be modified.
 /// </summary>
-public class PayPeriod : BaseEntity
+public class PayPeriod : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     /// <summary>
     /// Start date of the pay period (inclusive)
     /// </summary>

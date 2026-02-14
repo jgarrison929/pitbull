@@ -6,8 +6,9 @@ namespace Pitbull.Contracts.Domain;
 /// Change order modifying a subcontract's scope and/or value.
 /// Requires approval workflow before impacting contract value.
 /// </summary>
-public class ChangeOrder : BaseEntity
+public class ChangeOrder : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public Guid SubcontractId { get; set; }
     public string ChangeOrderNumber { get; set; } = string.Empty; // e.g. "CO-001"
 

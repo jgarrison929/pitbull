@@ -6,8 +6,9 @@ namespace Pitbull.Bids.Domain;
 /// A bid/estimate for a potential construction project.
 /// Can be converted to a Project when won.
 /// </summary>
-public class Bid : BaseEntity
+public class Bid : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Number { get; set; } = string.Empty; // e.g. "BID-2026-001"
     public BidStatus Status { get; set; } = BidStatus.Draft;

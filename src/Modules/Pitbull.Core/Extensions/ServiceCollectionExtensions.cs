@@ -24,6 +24,11 @@ public static class ServiceCollectionExtensions
         // Multi-tenancy
         services.AddScoped<TenantContext>();
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+
+        // Multi-company
+        services.AddScoped<CompanyContext>();
+        services.AddScoped<ICompanyContext>(sp => sp.GetRequiredService<CompanyContext>());
+
         services.AddScoped<TenantConnectionInterceptor>();
 
         // PostgreSQL + EF Core with tenant isolation interceptor

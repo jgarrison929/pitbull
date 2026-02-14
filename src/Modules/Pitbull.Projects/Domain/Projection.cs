@@ -6,8 +6,9 @@ namespace Pitbull.Projects.Domain;
 /// Monthly/periodic financial projection for a project.
 /// Used for cash flow forecasting and earned value analysis.
 /// </summary>
-public class Projection : BaseEntity
+public class Projection : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public Guid ProjectId { get; set; }
     public DateTime PeriodStart { get; set; }
     public DateTime PeriodEnd { get; set; }

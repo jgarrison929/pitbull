@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "./config";
 import { getToken, removeToken } from "./auth";
 
+const ACTIVE_COMPANY_KEY = "pitbull_active_company_id";
+
 interface ApiOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
 }
@@ -27,6 +29,14 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   const token = getToken();
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  // Include active company ID in every request
+  if (typeof window !== "undefined") {
+    const activeCompanyId = localStorage.getItem(ACTIVE_COMPANY_KEY);
+    if (activeCompanyId) {
+      headers["X-Company-Id"] = activeCompanyId;
+    }
   }
 
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {

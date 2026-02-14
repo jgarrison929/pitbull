@@ -16,6 +16,7 @@ namespace Pitbull.Api.Demo;
 public sealed class DemoBootstrapper(
     PitbullDbContext db,
     TenantContext tenantContext,
+    CompanyContext companyContext,
     UserManager<AppUser> userManager,
     RoleSeeder roleSeeder,
     ISeedDataService seedDataService,
@@ -31,11 +32,18 @@ public sealed class DemoBootstrapper(
         logger.LogInformation("Demo bootstrap enabled; ensuring demo tenant + seed data");
 
         var tenant = await EnsureTenantAsync(demo, cancellationToken);
-        await EnsureDemoUserAsync(demo, tenant.Id, cancellationToken);
+        var company = await EnsureDefaultCompanyAsync(tenant.Id, tenant.Name, cancellationToken);
+        await EnsureDemoUserAsync(demo, tenant.Id, company.Id, cancellationToken);
 
         // Establish tenant context for EF audit fields.
         tenantContext.TenantId = tenant.Id;
         tenantContext.TenantName = tenant.Name;
+
+        // Establish company context for EF auto-set of CompanyId on ICompanyScoped entities.
+        companyContext.CompanyId = company.Id;
+        companyContext.CompanyCode = company.Code;
+        companyContext.CompanyName = company.Name;
+        companyContext.SetAccessibleCompanies([company.Id]);
 
         // IMPORTANT: app.current_tenant is a connection/session setting (used by Postgres RLS).
         // Ensure it is set on the same connection used for the seed operation.
@@ -49,6 +57,8 @@ public sealed class DemoBootstrapper(
             // The 'true' argument makes it local to the current transaction.
             await db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT set_config('app.current_tenant', {tenant.Id.ToString()}, true)");
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_company', {company.Id.ToString()}, true)");
 
             // Seed domain data (projects/bids/etc). This is idempotent per tenant.
             var result = await seedDataService.SeedAsync(cancellationToken);
@@ -70,6 +80,40 @@ public sealed class DemoBootstrapper(
 
             logger.LogWarning("Demo seed failed: {Code} {Message}", result.ErrorCode, result.Error);
         });
+    }
+
+    /// <summary>
+    /// Ensures a default company exists for the tenant.
+    /// This is required for multi-company support - all company-scoped entities need a CompanyId.
+    /// </summary>
+    private async Task<Company> EnsureDefaultCompanyAsync(Guid tenantId, string tenantName, CancellationToken ct)
+    {
+        var company = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.IsDefault && !c.IsDeleted, ct);
+
+        if (company is not null)
+        {
+            logger.LogInformation("Default company already exists for tenant {TenantId}: {CompanyName}", tenantId, company.Name);
+            return company;
+        }
+
+        company = new Company
+        {
+            TenantId = tenantId,
+            Code = "01",
+            Name = tenantName,
+            IsDefault = true,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "system"
+        };
+
+        db.Set<Company>().Add(company);
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Created default company {CompanyId} ({Code}) for tenant {TenantId}", company.Id, company.Code, tenantId);
+        return company;
     }
 
     private async Task<Tenant> EnsureTenantAsync(DemoOptions demo, CancellationToken ct)
@@ -121,7 +165,7 @@ public sealed class DemoBootstrapper(
         return tenant;
     }
 
-    private async Task EnsureDemoUserAsync(DemoOptions demo, Guid tenantId, CancellationToken ct)
+    private async Task EnsureDemoUserAsync(DemoOptions demo, Guid tenantId, Guid companyId, CancellationToken ct)
     {
         // Always ensure roles exist for the tenant
         logger.LogInformation("Ensuring roles exist for tenant {TenantId}", tenantId);
@@ -134,7 +178,6 @@ public sealed class DemoBootstrapper(
         }
 
         var user = await userManager.FindByEmailAsync(demo.UserEmail);
-        var userExisted = user is not null;
 
         if (user is null)
         {
@@ -169,32 +212,67 @@ public sealed class DemoBootstrapper(
         }
         else
         {
-            logger.LogInformation("Demo user {Email} already exists (ID: {UserId}, TenantId: {TenantId})", 
+            logger.LogInformation("Demo user {Email} already exists (ID: {UserId}, TenantId: {TenantId})",
                 demo.UserEmail, user.Id, user.TenantId);
         }
 
+        // Ensure user has access to the default company
+        await EnsureUserCompanyAccessAsync(user.Id, tenantId, companyId, ct);
+
         // Always ensure demo user has Admin role (even if user already existed)
-        logger.LogInformation("Assigning Admin role to demo user {Email} (TenantId: {TenantId})", 
+        logger.LogInformation("Assigning Admin role to demo user {Email} (TenantId: {TenantId})",
             demo.UserEmail, user.TenantId);
         await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin, ct);
-        
+
         // Verify the role was actually assigned
         var hasAdminRole = await roleSeeder.UserHasRoleAsync(user, RoleSeeder.Roles.Admin);
         if (hasAdminRole)
         {
-            logger.LogInformation("✓ Demo user {Email} confirmed to have Admin role", demo.UserEmail);
+            logger.LogInformation("Demo user {Email} confirmed to have Admin role", demo.UserEmail);
         }
         else
         {
-            logger.LogError("✗ Demo user {Email} FAILED to get Admin role - check RoleSeeder logs", demo.UserEmail);
+            logger.LogError("Demo user {Email} FAILED to get Admin role - check RoleSeeder logs", demo.UserEmail);
         }
 
-        // Also ensure Josh's account has Admin
+        // Also ensure Josh's account has Admin and company access
         var joshUser = await userManager.FindByEmailAsync("jgarrison929@gmail.com");
         if (joshUser != null)
         {
+            await EnsureUserCompanyAccessAsync(joshUser.Id, tenantId, companyId, ct);
             await roleSeeder.AssignRoleToUserAsync(joshUser, RoleSeeder.Roles.Admin, ct);
-            logger.LogInformation("Ensured jgarrison929@gmail.com has Admin role");
+            logger.LogInformation("Ensured jgarrison929@gmail.com has Admin role and company access");
         }
+    }
+
+    /// <summary>
+    /// Ensures the user has access to the specified company.
+    /// </summary>
+    private async Task EnsureUserCompanyAccessAsync(Guid userId, Guid tenantId, Guid companyId, CancellationToken ct)
+    {
+        var existingAccess = await db.Set<UserCompanyAccess>()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(uca => uca.UserId == userId && uca.CompanyId == companyId && !uca.IsDeleted, ct);
+
+        if (existingAccess is not null)
+        {
+            logger.LogInformation("User {UserId} already has access to company {CompanyId}", userId, companyId);
+            return;
+        }
+
+        var access = new UserCompanyAccess
+        {
+            TenantId = tenantId,
+            UserId = userId,
+            CompanyId = companyId,
+            IsDefault = true,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "system"
+        };
+
+        db.Set<UserCompanyAccess>().Add(access);
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation("Granted user {UserId} access to company {CompanyId}", userId, companyId);
     }
 }

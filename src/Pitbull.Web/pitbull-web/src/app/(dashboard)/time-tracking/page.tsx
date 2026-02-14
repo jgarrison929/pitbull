@@ -42,10 +42,12 @@ import {
   getTodayISO,
 } from "@/lib/time-tracking";
 import { toast } from "sonner";
+import { useCompany } from "@/contexts/company-context";
 
 const ALL_VALUE = "__all__";
 
 export default function TimeTrackingPage() {
+  const { activeCompany } = useCompany();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -96,11 +98,13 @@ export default function TimeTrackingPage() {
       }
     }
     loadOptions();
-  }, []);
+    // Re-fetch filter options when the active company changes
+  }, [activeCompany?.id]);
 
   useEffect(() => {
     fetchEntries();
-  }, [fetchEntries]);
+    // Re-fetch when the active company changes
+  }, [fetchEntries, activeCompany?.id]);
 
   // Calculate totals
   const totalRegular = entries.reduce((sum, e) => sum + e.regularHours, 0);

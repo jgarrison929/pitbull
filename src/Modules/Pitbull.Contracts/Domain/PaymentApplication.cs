@@ -6,8 +6,9 @@ namespace Pitbull.Contracts.Domain;
 /// Payment application (pay app) submitted by subcontractor for work completed.
 /// Tracks billing progress against subcontract value.
 /// </summary>
-public class PaymentApplication : BaseEntity
+public class PaymentApplication : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public Guid SubcontractId { get; set; }
     public int ApplicationNumber { get; set; } // Sequential: 1, 2, 3...
 

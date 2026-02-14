@@ -25,6 +25,7 @@ import api from "@/lib/api";
 import type { DashboardStats, RecentActivityItem } from "@/lib/types";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
+import { useCompany } from "@/contexts/company-context";
 
 interface DashboardState {
   stats: DashboardStats | null;
@@ -33,6 +34,7 @@ interface DashboardState {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { activeCompany } = useCompany();
   const [state, setState] = useState<DashboardState>({
     stats: null,
     isLoading: true,
@@ -40,6 +42,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchStats() {
+      setState((s) => ({ ...s, isLoading: true }));
       try {
         const stats = await api<DashboardStats>("/api/dashboard/stats");
         setState({
@@ -52,7 +55,8 @@ export default function DashboardPage() {
       }
     }
     fetchStats();
-  }, []);
+    // Re-fetch when the active company changes
+  }, [activeCompany?.id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

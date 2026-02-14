@@ -368,6 +368,7 @@ app.UseRequestTimeouts();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
+app.UseMiddleware<Pitbull.Core.MultiTenancy.CompanyMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 

@@ -6,11 +6,11 @@ using Pitbull.Core.MultiTenancy;
 namespace Pitbull.Core.Data;
 
 /// <summary>
-/// EF Core interceptor that sets the PostgreSQL app.current_tenant session variable
-/// on every database connection to ensure Row-Level Security policies work correctly.
+/// EF Core interceptor that sets the PostgreSQL app.current_tenant and app.current_company
+/// session variables on every database connection to ensure Row-Level Security policies work correctly.
 /// This handles connection pooling scenarios where the session variable might not persist.
 /// </summary>
-public class TenantConnectionInterceptor(ITenantContext tenantContext) : DbConnectionInterceptor
+public class TenantConnectionInterceptor(ITenantContext tenantContext, ICompanyContext? companyContext = null) : DbConnectionInterceptor
 {
     public override async Task ConnectionOpenedAsync(DbConnection connection, ConnectionEndEventData eventData, CancellationToken cancellationToken = default)
     {
@@ -26,13 +26,22 @@ public class TenantConnectionInterceptor(ITenantContext tenantContext) : DbConne
 
         try
         {
-            // Set the session variable on this specific connection
-            await using var command = new NpgsqlCommand(
+            // Set tenant session variable
+            await using var tenantCmd = new NpgsqlCommand(
                 "SELECT set_config('app.current_tenant', @tenantId, false);",
                 npgsqlConn);
-            command.Parameters.AddWithValue("tenantId", tenantContext.TenantId.ToString());
+            tenantCmd.Parameters.AddWithValue("tenantId", tenantContext.TenantId.ToString());
+            await tenantCmd.ExecuteScalarAsync(cancellationToken);
 
-            await command.ExecuteScalarAsync(cancellationToken);
+            // Set company session variable (empty string = all companies in tenant)
+            var companyIdStr = companyContext?.IsResolved == true
+                ? companyContext.CompanyId.ToString()
+                : "";
+            await using var companyCmd = new NpgsqlCommand(
+                "SELECT set_config('app.current_company', @companyId, false);",
+                npgsqlConn);
+            companyCmd.Parameters.AddWithValue("companyId", companyIdStr);
+            await companyCmd.ExecuteScalarAsync(cancellationToken);
         }
         catch (Exception)
         {

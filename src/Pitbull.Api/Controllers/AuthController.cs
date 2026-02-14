@@ -160,6 +160,41 @@ public class AuthController(
                 else
                     await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.User);
 
+                // Ensure a default company exists for this tenant
+                var defaultCompany = await db.Set<Pitbull.Core.Domain.Company>()
+                    .IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.IsDefault && !c.IsDeleted);
+
+                if (defaultCompany is null)
+                {
+                    var companyName = request.CompanyName ?? $"{request.FirstName}'s Company";
+                    defaultCompany = new Pitbull.Core.Domain.Company
+                    {
+                        TenantId = tenantId,
+                        Code = "01",
+                        Name = companyName,
+                        IsDefault = true,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = user.Id.ToString()
+                    };
+                    db.Set<Pitbull.Core.Domain.Company>().Add(defaultCompany);
+                    await db.SaveChangesAsync();
+                }
+
+                // Grant user access to the default company
+                var access = new Pitbull.Core.Domain.UserCompanyAccess
+                {
+                    TenantId = tenantId,
+                    UserId = user.Id,
+                    CompanyId = defaultCompany.Id,
+                    IsDefault = true,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = user.Id.ToString()
+                };
+                db.Set<Pitbull.Core.Domain.UserCompanyAccess>().Add(access);
+                await db.SaveChangesAsync();
+
                 // Get user's roles for JWT
                 var roles = await roleSeeder.GetUserRolesAsync(user);
 
@@ -396,6 +431,23 @@ public class AuthController(
         // Get tenant info
         var tenant = await db.Set<Tenant>().FindAsync(user.TenantId);
 
+        // Get company info
+        var companyAccess = await db.Set<Pitbull.Core.Domain.UserCompanyAccess>()
+            .IgnoreQueryFilters()
+            .Where(uca => uca.TenantId == user.TenantId && uca.UserId == user.Id && !uca.IsDeleted)
+            .Join(db.Set<Pitbull.Core.Domain.Company>().IgnoreQueryFilters().Where(c => !c.IsDeleted),
+                uca => uca.CompanyId,
+                c => c.Id,
+                (uca, c) => new { uca, c })
+            .ToListAsync();
+
+        var activeCompanyId = companyAccess.FirstOrDefault(x => x.uca.IsDefault)?.c
+                              ?? companyAccess.FirstOrDefault()?.c;
+
+        var accessibleCompanies = companyAccess
+            .Select(x => new CompanyBriefResponse(x.c.Id, x.c.Code, x.c.Name))
+            .ToList();
+
         return Ok(new UserProfileResponse(
             Id: user.Id,
             Email: user.Email!,
@@ -406,7 +458,11 @@ public class AuthController(
             TenantId: user.TenantId,
             TenantName: tenant?.Name ?? "Unknown",
             CreatedAt: user.CreatedAt,
-            LastLoginAt: user.LastLoginAt
+            LastLoginAt: user.LastLoginAt,
+            ActiveCompany: activeCompanyId != null
+                ? new CompanyBriefResponse(activeCompanyId.Id, activeCompanyId.Code, activeCompanyId.Name)
+                : null,
+            AccessibleCompanies: accessibleCompanies
         ));
     }
 
@@ -453,14 +509,35 @@ public class AuthController(
 
         var roles = await roleSeeder.GetUserRolesAsync(user);
 
+        // Get user's company access
+        var companyAccess = await db.Set<Pitbull.Core.Domain.UserCompanyAccess>()
+            .IgnoreQueryFilters()
+            .Where(uca => uca.TenantId == user.TenantId && uca.UserId == user.Id && !uca.IsDeleted)
+            .Select(uca => new { uca.CompanyId, uca.IsDefault })
+            .ToListAsync();
+
+        // Determine active company: default company, or first available
+        var defaultCompanyId = companyAccess.FirstOrDefault(c => c.IsDefault)?.CompanyId
+                               ?? companyAccess.FirstOrDefault()?.CompanyId
+                               ?? Guid.Empty;
+
+        var companyIds = companyAccess.Select(c => c.CompanyId).ToList();
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email!),
             new("tenant_id", user.TenantId.ToString()),
             new("full_name", user.FullName),
-            new("user_type", user.Type.ToString())
+            new("user_type", user.Type.ToString()),
         };
+
+        // Add company claims if available
+        if (defaultCompanyId != Guid.Empty)
+        {
+            claims.Add(new Claim("company_id", defaultCompanyId.ToString()));
+            claims.Add(new Claim("company_ids", string.Join(",", companyIds)));
+        }
 
         // Add role claims - use ClaimTypes.Role for ASP.NET Core authorization
         foreach (var role in roles)
@@ -503,7 +580,14 @@ public record UserProfileResponse(
     Guid TenantId,
     string TenantName,
     DateTime CreatedAt,
-    DateTime? LastLoginAt);
+    DateTime? LastLoginAt,
+    CompanyBriefResponse? ActiveCompany = null,
+    List<CompanyBriefResponse>? AccessibleCompanies = null);
+
+public record CompanyBriefResponse(
+    Guid Id,
+    string Code,
+    string Name);
 
 /// <summary>
 /// Registration request with user and optional company details

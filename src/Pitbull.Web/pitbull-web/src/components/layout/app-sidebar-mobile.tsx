@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { CompanySwitcher } from "./company-switcher";
 import { ProjectSwitcher } from "./project-switcher";
 
 const navItems = [
@@ -24,8 +25,9 @@ const navItems = [
 
 const adminItems = [
   { label: "Users", href: "/admin/users", icon: "👥" },
+  { label: "Companies", href: "/admin/companies", icon: "🏢" },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜" },
-  { label: "Company Settings", href: "/admin/company", icon: "🏢" },
+  { label: "Company Settings", href: "/admin/company", icon: "⚙️" },
 ];
 
 export function AppSidebarMobile() {
@@ -46,8 +48,15 @@ export function AppSidebarMobile() {
 
       <Separator className="bg-white/10" />
 
+      {/* Company Switcher */}
+      <div className="px-3 pt-3">
+        <CompanySwitcher variant="sidebar" />
+      </div>
+
+      <Separator className="bg-white/10 mx-3" />
+
       {/* Quick Project Switcher */}
-      <div className="px-3 pt-4">
+      <div className="px-3 pt-2">
         <ProjectSwitcher />
       </div>
 

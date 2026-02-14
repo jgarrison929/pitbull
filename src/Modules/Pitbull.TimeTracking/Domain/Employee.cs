@@ -74,6 +74,13 @@ public class Employee : BaseEntity
     public Guid? SupervisorId { get; set; }
 
     /// <summary>
+    /// Which company issues this employee's paycheck.
+    /// Employee master data is shared across all companies in a tenant,
+    /// but this indicates their "home" company for payroll purposes.
+    /// </summary>
+    public Guid? HomeCompanyId { get; set; }
+
+    /// <summary>
     /// Additional notes about the employee
     /// </summary>
     public string? Notes { get; set; }

@@ -29,6 +29,7 @@ import { Download, HelpCircle, Search } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Rfi, Project, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
+import { useCompany } from "@/contexts/company-context";
 
 function statusColor(status: RfiStatus) {
   switch (status) {
@@ -88,6 +89,7 @@ function priorityLabel(priority: RfiPriority) {
 
 export default function RfisPage() {
   const router = useRouter();
+  const { activeCompany } = useCompany();
   const [rfis, setRfis] = useState<Rfi[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -116,9 +118,10 @@ export default function RfisPage() {
   });
   useRegisterShortcut("/", "Focus search", handleSearch);
 
-  // Load projects on mount
+  // Load projects on mount and when company changes
   useEffect(() => {
     async function fetchProjects() {
+      setIsLoading(true);
       try {
         const result = await api<PagedResult<Project>>(
           "/api/projects?pageSize=100"
@@ -127,6 +130,9 @@ export default function RfisPage() {
         // Auto-select first project if available
         if (result.items.length > 0) {
           setSelectedProjectId(result.items[0].id);
+        } else {
+          setSelectedProjectId("");
+          setRfis([]);
         }
       } catch {
         toast.error("Failed to load projects");
@@ -135,7 +141,7 @@ export default function RfisPage() {
       }
     }
     fetchProjects();
-  }, []);
+  }, [activeCompany?.id]);
 
   // Load RFIs when project changes
   useEffect(() => {

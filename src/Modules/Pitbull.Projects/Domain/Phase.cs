@@ -6,8 +6,9 @@ namespace Pitbull.Projects.Domain;
 /// Project phase with cost code tracking.
 /// Phases break a project into trackable segments (e.g., Foundation, Framing, MEP).
 /// </summary>
-public class Phase : BaseEntity
+public class Phase : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public Guid ProjectId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string CostCode { get; set; } = string.Empty; // e.g. "03-100" (concrete)

@@ -7,8 +7,9 @@ namespace Pitbull.TimeTracking.Domain;
 /// Represents a daily time entry for an employee working on a specific project and cost code.
 /// This is the core entity for tracking labor hours that will be used for job costing.
 /// </summary>
-public class TimeEntry : BaseEntity
+public class TimeEntry : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     /// <summary>
     /// The date this time entry applies to (date only, no time component)
     /// </summary>

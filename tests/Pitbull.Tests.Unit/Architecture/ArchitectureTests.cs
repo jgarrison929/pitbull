@@ -221,6 +221,8 @@ public class ArchitectureTests
                 .And().DoNotHaveName("AdminUsersController")
                 .And().DoNotHaveName("AdminAuditController")
                 .And().DoNotHaveName("AdminCompanyController")
+                .And().DoNotHaveName("CompaniesController")
+                .And().DoNotHaveName("AdminCompaniesController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 

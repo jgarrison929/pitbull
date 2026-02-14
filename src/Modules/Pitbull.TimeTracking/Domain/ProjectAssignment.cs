@@ -7,8 +7,9 @@ namespace Pitbull.TimeTracking.Domain;
 /// Represents an employee's assignment to a project.
 /// Controls which projects an employee can log time to.
 /// </summary>
-public class ProjectAssignment : BaseEntity
+public class ProjectAssignment : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     /// <summary>
     /// The employee being assigned to the project
     /// </summary>

@@ -6,8 +6,9 @@ namespace Pitbull.Contracts.Domain;
 /// Subcontract agreement with a subcontractor for a specific project.
 /// Tracks scope, value, and status of the agreement.
 /// </summary>
-public class Subcontract : BaseEntity
+public class Subcontract : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public Guid ProjectId { get; set; }
     public string SubcontractNumber { get; set; } = string.Empty; // e.g. "SC-2026-001"
 

@@ -26,10 +26,12 @@ import {
 } from "@/lib/contracts";
 import { toast } from "sonner";
 import { ChangeOrderDialog } from "@/components/contracts/change-order-dialog";
+import { useCompany } from "@/contexts/company-context";
 
 export default function ContractsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { activeCompany } = useCompany();
   const [subcontracts, setSubcontracts] = useState<Subcontract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -56,6 +58,7 @@ export default function ContractsPage() {
 
   useEffect(() => {
     async function fetchSubcontracts() {
+      setIsLoading(true);
       try {
         const result = await api<PagedResult<Subcontract>>(
           "/api/subcontracts?pageSize=50"
@@ -68,7 +71,8 @@ export default function ContractsPage() {
       }
     }
     fetchSubcontracts();
-  }, []);
+    // Re-fetch when the active company changes
+  }, [activeCompany?.id]);
 
   function handleDialogClose(open: boolean) {
     setShowChangeOrderDialog(open);

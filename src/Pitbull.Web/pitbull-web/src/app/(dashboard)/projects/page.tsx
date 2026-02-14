@@ -21,6 +21,7 @@ import api from "@/lib/api";
 import type { PagedResult, Project } from "@/lib/types";
 import { projectStatusBadgeClass, projectStatusLabel } from "@/lib/projects";
 import { toast } from "sonner";
+import { useCompany } from "@/contexts/company-context";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -31,6 +32,7 @@ function formatCurrency(amount: number) {
 }
 
 export default function ProjectsPage() {
+  const { activeCompany } = useCompany();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -39,6 +41,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     async function fetchProjects() {
+      setIsLoading(true);
       try {
         const result = await api<PagedResult<Project>>("/api/projects?pageSize=50");
         setProjects(result.items);
@@ -49,7 +52,8 @@ export default function ProjectsPage() {
       }
     }
     fetchProjects();
-  }, []);
+    // Re-fetch when the active company changes
+  }, [activeCompany?.id]);
 
   return (
     <div className="space-y-6">

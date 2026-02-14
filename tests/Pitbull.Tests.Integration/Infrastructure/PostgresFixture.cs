@@ -72,6 +72,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO pitbull_app;
         await conn.OpenAsync();
 
         await conn.ExecuteNonQueryAsync("RESET app.current_tenant;");
+        await conn.ExecuteNonQueryAsync("RESET app.current_company;");
 
         _respawner ??= await Respawner.CreateAsync(conn, new RespawnerOptions
         {

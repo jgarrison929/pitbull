@@ -482,6 +482,101 @@ export interface UpdateCompanySettingsCommand {
   timeZone?: string | null;
 }
 
+// ============================================
+// Multi-Company Types
+// ============================================
+
+export interface Company {
+  id: string;
+  code: string;
+  name: string;
+  shortName?: string | null;
+  taxId?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  email?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
+  currency: string;
+  timezone: string;
+  dateFormat: string;
+  fiscalYearStartMonth: number;
+  isActive: boolean;
+  sortOrder: number;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface CompanyAccessible {
+  id: string;
+  code: string;
+  name: string;
+  shortName?: string | null;
+  isDefault: boolean;
+}
+
+export interface CreateCompanyCommand {
+  code: string;
+  name: string;
+  shortName?: string;
+  taxId?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
+  website?: string;
+  email?: string;
+  primaryColor?: string;
+  currency?: string;
+  timezone?: string;
+  dateFormat?: string;
+  fiscalYearStartMonth?: number;
+  sortOrder?: number;
+  isDefault?: boolean;
+}
+
+export interface UpdateCompanyCommand {
+  code?: string;
+  name?: string;
+  shortName?: string | null;
+  taxId?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  email?: string | null;
+  primaryColor?: string | null;
+  currency?: string;
+  timezone?: string;
+  dateFormat?: string;
+  fiscalYearStartMonth?: number;
+  isActive?: boolean;
+  sortOrder?: number;
+  isDefault?: boolean;
+}
+
+export interface CompanyUserAccess {
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  companyRole?: string | null;
+  isDefault: boolean;
+}
+
+export interface GrantCompanyAccessCommand {
+  userId: string;
+  companyRole?: string;
+  isDefault?: boolean;
+}
+
 // AI Insights Types
 export interface AiProjectSummary {
   success: boolean;

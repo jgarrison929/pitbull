@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased] - Multi-Company Architecture (feature/multi-company)
+
+### 🚀 Features
+
+- **Multi-Company Support** - Single tenant, multiple legal entities
+  - Company entity with code, name, tax ID, address, fiscal year, branding
+  - Vista-style company switcher in navigation - switch without page reload
+  - Company admin page with full CRUD (create, edit, deactivate companies)
+  - Per-user company access controls with optional role overrides
+  - X-Company-Id header on every API request for company-scoped data filtering
+  - Auto-creates default company for existing tenants (zero-friction migration)
+  - Single-company tenants see no UI changes - fully transparent
+
+### 🏗️ Infrastructure
+
+- **1,184-line architecture design document** covering industry research (Vista, Sage 300, NetSuite), data model, RLS changes, migration strategy, and phased implementation plan
+- **ICompanyScoped interface** - clean separation between company-scoped and tenant-scoped entities
+- **13 entities upgraded** with CompanyId (Projects, Bids, Subcontracts, Change Orders, Payment Applications, RFIs, Time Entries, Pay Periods, Phases, Projections, Project Budgets, Project Assignments, Bid Items)
+- **8 entities remain tenant-scoped** (Employees, Cost Codes, Users - shared across companies)
+- CompanyMiddleware, CompanyContext service, and EF Core migration
+
+---
+
 ## [0.11.1] - 2026-02-13
 
 ### 🚀 RFI Management
@@ -142,6 +165,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🐛 Bug Fixes
 
 - Fixed flaky health check integration test (non-serializable HealthReport)
+- **Role auto-assignment** - New users now automatically get roles on registration (Admin for first user, User for subsequent). Existing users without roles get backfilled on login.
+- **Employee form submission** - Fixed double-quoting bug in request logging middleware that made form data appear corrupted
+- **PostgreSQL case sensitivity** - Fixed raw SQL column aliases being lowercased (quote aliases to preserve case)
+- **Dark mode consistency** - Improved text contrast and notification center styling in dark theme
+- **Database resilience** - Wrapped transactions in execution strategy for Npgsql retry support
 
 ### 🧪 Testing
 

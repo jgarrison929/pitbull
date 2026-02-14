@@ -5,8 +5,9 @@ namespace Pitbull.Bids.Domain;
 /// <summary>
 /// Line item on a bid with cost categorization.
 /// </summary>
-public class BidItem : BaseEntity
+public class BidItem : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public Guid BidId { get; set; }
     public string Description { get; set; } = string.Empty;
     public BidItemCategory Category { get; set; } = BidItemCategory.Other;

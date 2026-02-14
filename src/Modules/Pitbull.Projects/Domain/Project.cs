@@ -5,8 +5,9 @@ namespace Pitbull.Projects.Domain;
 /// <summary>
 /// Core project entity. The hub that everything else connects to.
 /// </summary>
-public class Project : BaseEntity
+public class Project : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Number { get; set; } = string.Empty; // e.g. "PRJ-2026-001"
     public string? Description { get; set; }
