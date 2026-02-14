@@ -1,28 +1,26 @@
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-
-export default function Loading() {
+export default function AuthLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-3">
-          <Skeleton className="mx-auto h-12 w-12 rounded-lg" />
-          <Skeleton className="mx-auto h-7 w-48" />
-          <Skeleton className="mx-auto h-4 w-40" />
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-16" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-          <Skeleton className="h-11 w-full" />
-          <Skeleton className="h-4 w-56 mx-auto" />
-        </CardContent>
-      </Card>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center space-y-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-white font-bold text-xl shadow-md animate-pulse">
+          P
+        </div>
+        <div className="w-32 h-1 bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-amber-500 rounded-full"
+            style={{
+              animation: "authLoadingBar 1.5s ease-in-out infinite",
+            }}
+          />
+        </div>
+      </div>
+      <style jsx global>{`
+        @keyframes authLoadingBar {
+          0% { width: 0%; margin-left: 0%; }
+          50% { width: 60%; margin-left: 20%; }
+          100% { width: 0%; margin-left: 100%; }
+        }
+      `}</style>
     </div>
   );
 }

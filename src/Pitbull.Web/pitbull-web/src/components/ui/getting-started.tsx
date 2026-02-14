@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
   HardHat,
-  FileText,
   Users,
   Clock,
   Check,
   ChevronRight,
   X,
   Rocket,
+  Settings,
+  Calendar,
+  PartyPopper,
 } from "lucide-react";
 import type { DashboardStats } from "@/lib/types";
 
@@ -27,83 +29,150 @@ interface ChecklistItem {
   description: string;
   href: string;
   icon: typeof HardHat;
-  isComplete: (stats: DashboardStats | null) => boolean;
+  isComplete: (stats: DashboardStats | null, manualCompleted: string[]) => boolean;
 }
 
 const CHECKLIST_ITEMS: ChecklistItem[] = [
   {
     id: "project",
     title: "Create your first project",
-    description: "Start tracking a construction project",
+    description: "Start tracking a construction project with budgets and timelines",
     href: "/projects/new",
     icon: HardHat,
     isComplete: (stats) => (stats?.projectCount ?? 0) > 0,
   },
   {
     id: "employee",
-    title: "Add a team member",
-    description: "Set up employees for time tracking",
+    title: "Add employees",
+    description: "Set up your team members for time tracking and assignments",
     href: "/employees/new",
     icon: Users,
     isComplete: (stats) => (stats?.employeeCount ?? 0) > 0,
   },
   {
-    id: "bid",
-    title: "Create a bid",
-    description: "Build your first estimate",
-    href: "/bids/new",
-    icon: FileText,
-    isComplete: (stats) => (stats?.bidCount ?? 0) > 0,
-  },
-  {
     id: "time",
-    title: "Log your first time entry",
-    description: "Track hours on a project",
+    title: "Enter your first time entry",
+    description: "Log hours against a project to start tracking labor costs",
     href: "/time-tracking/new",
     icon: Clock,
     isComplete: (stats) =>
       stats?.recentActivity?.some((a) => a.type === "timeentry") ?? false,
   },
+  {
+    id: "costcodes",
+    title: "Set up cost codes",
+    description: "Organize project costs with industry-standard codes",
+    href: "/settings",
+    icon: Settings,
+    isComplete: (_stats, manual) => manual.includes("costcodes"),
+  },
+  {
+    id: "payperiods",
+    title: "Configure pay periods",
+    description: "Define weekly, bi-weekly, or monthly pay cycles",
+    href: "/settings",
+    icon: Calendar,
+    isComplete: (_stats, manual) => manual.includes("payperiods"),
+  },
 ];
 
 const STORAGE_KEY = "pitbull_getting_started_dismissed";
+const MANUAL_COMPLETE_KEY = "pitbull_onboarding_completed";
 
 export function GettingStarted({ stats }: GettingStartedProps) {
-  // Initialize from localStorage synchronously to prevent flash
   const [isDismissed, setIsDismissed] = useState(() => {
-    if (typeof window === "undefined") return true; // SSR: hide by default
+    if (typeof window === "undefined") return true;
     return localStorage.getItem(STORAGE_KEY) === "true";
   });
 
+  const [manualCompleted, setManualCompleted] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return JSON.parse(localStorage.getItem(MANUAL_COMPLETE_KEY) || "[]");
+    } catch {
+      return [];
+    }
+  });
+
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+
   const completedCount = CHECKLIST_ITEMS.filter((item) =>
-    item.isComplete(stats)
+    item.isComplete(stats, manualCompleted)
   ).length;
   const totalCount = CHECKLIST_ITEMS.length;
   const progress = (completedCount / totalCount) * 100;
   const allComplete = completedCount === totalCount;
 
-  const handleDismiss = () => {
+  // Animate progress bar
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedProgress(progress);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [progress]);
+
+  // Celebrate when all complete
+  useEffect(() => {
+    if (allComplete && !isDismissed) {
+      setShowCelebration(true);
+      const timer = setTimeout(() => {
+        setShowCelebration(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [allComplete, isDismissed]);
+
+  const handleDismiss = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, "true");
     setIsDismissed(true);
-  };
+  }, []);
 
-  // Don't show if dismissed or all items complete
-  if (isDismissed || allComplete) {
+  const toggleManualComplete = useCallback((id: string) => {
+    setManualCompleted((prev) => {
+      const next = prev.includes(id)
+        ? prev.filter((x) => x !== id)
+        : [...prev, id];
+      localStorage.setItem(MANUAL_COMPLETE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  if (isDismissed) {
     return null;
   }
 
   return (
-    <Card className="border-amber-200 dark:border-amber-900 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50">
+    <Card className="relative border-amber-200 dark:border-amber-900 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 overflow-hidden">
+      {/* Celebration overlay */}
+      {showCelebration && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-br from-amber-500/90 to-orange-500/90 backdrop-blur-sm animate-[fadeIn_0.5s_ease-out]">
+          <div className="text-center text-white space-y-3 animate-[bounceIn_0.6s_ease-out]">
+            <PartyPopper className="h-12 w-12 mx-auto animate-bounce" />
+            <h3 className="text-2xl font-bold">All done! 🎉</h3>
+            <p className="text-amber-100">You&apos;re all set up and ready to build.</p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleDismiss}
+              className="mt-2"
+            >
+              Close checklist
+            </Button>
+          </div>
+        </div>
+      )}
+
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/50 shadow-sm">
               <Rocket className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
               <CardTitle className="text-lg text-foreground">Getting Started</CardTitle>
               <p className="text-sm text-muted-foreground">
-                {completedCount} of {totalCount} complete
+                {completedCount} of {totalCount} steps complete
               </p>
             </div>
           </div>
@@ -117,55 +186,99 @@ export function GettingStarted({ stats }: GettingStartedProps) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <Progress value={progress} className="h-2 mt-3" />
+        <div className="mt-3">
+          <Progress value={animatedProgress} className="h-2" />
+        </div>
       </CardHeader>
       <CardContent className="pt-0">
         <div className="space-y-2">
           {CHECKLIST_ITEMS.map((item) => {
-            const isComplete = item.isComplete(stats);
+            const isComplete = item.isComplete(stats, manualCompleted);
+            const isManualItem = item.id === "costcodes" || item.id === "payperiods";
+
             return (
-              <Link
+              <div
                 key={item.id}
-                href={isComplete ? "#" : item.href}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
                   isComplete
-                    ? "bg-green-50 dark:bg-green-950/50 cursor-default"
-                    : "bg-white dark:bg-neutral-800/50 hover:bg-amber-50 dark:hover:bg-amber-900/30 border border-amber-100 dark:border-amber-900/50"
+                    ? "bg-green-50/80 dark:bg-green-950/30"
+                    : "bg-white dark:bg-neutral-800/50 hover:bg-amber-50/80 dark:hover:bg-amber-900/30 border border-amber-100 dark:border-amber-900/50 hover:shadow-sm"
                 }`}
               >
-                <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
-                    isComplete
-                      ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
-                      : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
-                  }`}
+                {/* Completion toggle for manual items */}
+                {isManualItem ? (
+                  <button
+                    onClick={() => toggleManualComplete(item.id)}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 transition-all duration-200 ${
+                      isComplete
+                        ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
+                        : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/50"
+                    }`}
+                    title={isComplete ? "Mark as incomplete" : "Mark as complete"}
+                  >
+                    {isComplete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <item.icon className="h-4 w-4" />
+                    )}
+                  </button>
+                ) : (
+                  <div
+                    className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 transition-all duration-200 ${
+                      isComplete
+                        ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
+                        : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
+                    }`}
+                  >
+                    {isComplete ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <item.icon className="h-4 w-4" />
+                    )}
+                  </div>
+                )}
+
+                <Link
+                  href={isComplete ? "#" : item.href}
+                  className="flex-1 min-w-0"
+                  tabIndex={isComplete ? -1 : 0}
                 >
-                  {isComplete ? (
-                    <Check className="h-4 w-4" />
-                  ) : (
-                    <item.icon className="h-4 w-4" />
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
                   <p
-                    className={`text-sm font-medium ${
-                      isComplete ? "text-green-700 dark:text-green-400 line-through" : "text-foreground"
+                    className={`text-sm font-medium transition-colors ${
+                      isComplete
+                        ? "text-green-700 dark:text-green-400 line-through opacity-75"
+                        : "text-foreground"
                     }`}
                   >
                     {item.title}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground line-clamp-1">
                     {item.description}
                   </p>
-                </div>
+                </Link>
                 {!isComplete && (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <Link href={item.href}>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </Link>
                 )}
-              </Link>
+              </div>
             );
           })}
         </div>
       </CardContent>
+
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes bounceIn {
+          0% { opacity: 0; transform: scale(0.3); }
+          50% { transform: scale(1.05); }
+          70% { transform: scale(0.9); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </Card>
   );
 }

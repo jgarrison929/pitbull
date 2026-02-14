@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { DashboardStatsSkeleton, DashboardActivitySkeleton } from "@/components/skeletons";
 import {
-  LayoutDashboard,
   HardHat,
   FileText,
   Users,
@@ -16,6 +13,7 @@ import {
   ArrowRight,
   TrendingUp,
   CheckCircle,
+  Sparkles,
 } from "lucide-react";
 import { GettingStarted } from "@/components/ui/getting-started";
 import { WeeklyHoursChart } from "@/components/dashboard/weekly-hours-chart";
@@ -59,7 +57,6 @@ export default function DashboardPage() {
       }
     }
     fetchStats();
-    // Re-fetch when the active company changes
   }, [activeCompany?.id]);
 
   const formatCurrency = (amount: number) => {
@@ -89,7 +86,10 @@ export default function DashboardPage() {
   const hasNoData =
     state.stats !== null &&
     state.stats.projectCount === 0 &&
+    state.stats.employeeCount === 0 &&
     state.stats.bidCount === 0;
+
+  const firstName = user?.name?.split(" ")[0] ?? "";
 
   const statCards = [
     {
@@ -191,10 +191,12 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {user ? `Welcome back, ${user.name.split(" ")[0]}` : "Dashboard"}
+            {firstName ? `Welcome back, ${firstName}` : "Dashboard"}
           </h1>
           <p className="text-muted-foreground">
-            Here&apos;s what&apos;s happening with your projects today.
+            {hasNoData
+              ? "Let's get your workspace set up."
+              : "Here's what's happening with your projects today."}
           </p>
         </div>
         {state.stats && state.stats.totalProjectValue > 0 && (
@@ -208,58 +210,91 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Getting Started Checklist - shows for new users until dismissed */}
-      {!state.isLoading && <GettingStarted stats={state.stats} />}
-
       {state.isLoading ? (
         <>
           <DashboardStatsSkeleton />
           <DashboardActivitySkeleton />
         </>
       ) : hasNoData ? (
-        <Card>
-          <CardContent className="p-0">
-            <EmptyState
-              icon={LayoutDashboard}
-              title="Welcome to Pitbull"
-              description="Your dashboard will light up once you start adding projects and bids. Let's get building."
-            />
-            <div className="grid gap-4 sm:grid-cols-2 px-6 pb-8">
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center py-6 text-center">
-                  <HardHat className="h-8 w-8 text-amber-500 mb-3" />
-                  <h4 className="font-semibold mb-1">Start a Project</h4>
+        /* ═══════ Welcome State (No Data) ═══════ */
+        <div className="space-y-6">
+          {/* Getting Started Checklist - prominent */}
+          <GettingStarted stats={state.stats} />
+
+          {/* Welcome Banner */}
+          <Card className="border-dashed border-2 bg-gradient-to-br from-background to-muted/30">
+            <CardContent className="py-8 text-center">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/50 mb-4">
+                <Sparkles className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Welcome to Pitbull, {firstName || "there"}!</h2>
+              <p className="text-muted-foreground max-w-md mx-auto mb-6">
+                Your construction management platform is ready. Start by creating
+                a project or adding your team members.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Quick Action Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Link href="/projects/new" className="group">
+              <Card className="h-full hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all duration-200 cursor-pointer">
+                <CardContent className="flex flex-col items-center py-8 text-center">
+                  <div className="p-3 rounded-xl bg-blue-100 dark:bg-blue-900/30 mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <HardHat className="h-7 w-7 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h4 className="font-semibold mb-1">Create a Project</h4>
                   <p className="text-sm text-muted-foreground mb-4">
                     Track scope, budgets, and timelines
                   </p>
-                  <Button
-                    asChild
-                    className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-                  >
-                    <Link href="/projects/new">+ New Project</Link>
-                  </Button>
+                  <span className="text-sm font-medium text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                    Get started <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
                 </CardContent>
               </Card>
-              <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center py-6 text-center">
-                  <FileText className="h-8 w-8 text-amber-500 mb-3" />
-                  <h4 className="font-semibold mb-1">Create a Bid</h4>
+            </Link>
+
+            <Link href="/employees/new" className="group">
+              <Card className="h-full hover:shadow-md hover:border-purple-300 dark:hover:border-purple-800 transition-all duration-200 cursor-pointer">
+                <CardContent className="flex flex-col items-center py-8 text-center">
+                  <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/30 mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <Users className="h-7 w-7 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <h4 className="font-semibold mb-1">Add Employees</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Estimate jobs and win more work
+                    Set up your team for tracking
                   </p>
-                  <Button
-                    asChild
-                    className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-                  >
-                    <Link href="/bids/new">+ New Bid</Link>
-                  </Button>
+                  <span className="text-sm font-medium text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                    Get started <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
                 </CardContent>
               </Card>
-            </div>
-          </CardContent>
-        </Card>
+            </Link>
+
+            <Link href="/time-tracking/new" className="group">
+              <Card className="h-full hover:shadow-md hover:border-amber-300 dark:hover:border-amber-800 transition-all duration-200 cursor-pointer">
+                <CardContent className="flex flex-col items-center py-8 text-center">
+                  <div className="p-3 rounded-xl bg-amber-100 dark:bg-amber-900/30 mb-4 group-hover:scale-110 transition-transform duration-200">
+                    <Clock className="h-7 w-7 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <h4 className="font-semibold mb-1">Enter Time</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Log work hours on projects
+                  </p>
+                  <span className="text-sm font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    Get started <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </div>
       ) : (
+        /* ═══════ Normal Dashboard (Has Data) ═══════ */
         <>
+          {/* Getting Started Checklist - shows until dismissed */}
+          <GettingStarted stats={state.stats} />
+
           {/* Stats Cards */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {statCards.map((stat) => (
