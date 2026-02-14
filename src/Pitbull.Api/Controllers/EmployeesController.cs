@@ -307,7 +307,7 @@ public record UpdateEmployeeRequest(
 
 // Request DTOs
 public record CreateEmployeeRequest(
-    string EmployeeNumber,
+    string? EmployeeNumber,
     string FirstName,
     string LastName,
     string? Email = null,

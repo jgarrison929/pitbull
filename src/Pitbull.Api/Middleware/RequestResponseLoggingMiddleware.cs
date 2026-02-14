@@ -136,6 +136,11 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         {
             JsonValueKind.Object => SanitizeJsonObject(element),
             JsonValueKind.Array => element.EnumerateArray().Select(SanitizeJsonElement).ToArray(),
+            JsonValueKind.String => element.GetString() ?? string.Empty,
+            JsonValueKind.Number => element.GetRawText(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            JsonValueKind.Null => null!,
             _ => element.GetRawText()
         };
     }
