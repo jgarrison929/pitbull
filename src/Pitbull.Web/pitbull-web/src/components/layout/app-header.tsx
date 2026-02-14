@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { useTheme } from "@/contexts/theme-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { AppSidebarMobile } from "./app-sidebar-mobile";
 import { NotificationCenter } from "./notification-center";
+import { Sun, Moon, Monitor } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
   const segments = pathname.split("/").filter(Boolean);
@@ -43,10 +50,35 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
 export function AppHeader() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const breadcrumbs = getBreadcrumbs(pathname);
 
+  const cycleTheme = () => {
+    // Cycle: light → dark → system → light
+    if (theme === "light") {
+      setTheme("dark");
+    } else if (theme === "dark") {
+      setTheme("system");
+    } else {
+      setTheme("light");
+    }
+  };
+
+  const getThemeIcon = () => {
+    if (theme === "system") {
+      return <Monitor className="h-4 w-4" />;
+    }
+    return resolvedTheme === "dark" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />;
+  };
+
+  const getThemeLabel = () => {
+    if (theme === "light") return "Light mode";
+    if (theme === "dark") return "Dark mode";
+    return "System theme";
+  };
+
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-white px-4 lg:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-white dark:bg-neutral-900 px-4 lg:px-6">
       {/* Mobile menu */}
       <Sheet>
         <SheetTrigger asChild>
@@ -79,6 +111,24 @@ export function AppHeader() {
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Theme toggle */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 p-0"
+            onClick={cycleTheme}
+            aria-label={`Current: ${getThemeLabel()}. Click to change.`}
+          >
+            {getThemeIcon()}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{getThemeLabel()}</p>
+        </TooltipContent>
+      </Tooltip>
 
       {/* Notifications */}
       <NotificationCenter />

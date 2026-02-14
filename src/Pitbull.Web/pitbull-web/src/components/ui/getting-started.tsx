@@ -93,15 +93,15 @@ export function GettingStarted({ stats }: GettingStartedProps) {
   }
 
   return (
-    <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50">
+    <Card className="border-amber-200 dark:border-amber-900 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-amber-100">
-              <Rocket className="h-5 w-5 text-amber-600" />
+            <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/50">
+              <Rocket className="h-5 w-5 text-amber-600 dark:text-amber-400" />
             </div>
             <div>
-              <CardTitle className="text-lg">Getting Started</CardTitle>
+              <CardTitle className="text-lg text-foreground">Getting Started</CardTitle>
               <p className="text-sm text-muted-foreground">
                 {completedCount} of {totalCount} complete
               </p>
@@ -129,15 +129,15 @@ export function GettingStarted({ stats }: GettingStartedProps) {
                 href={isComplete ? "#" : item.href}
                 className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
                   isComplete
-                    ? "bg-green-50 cursor-default"
-                    : "bg-white hover:bg-amber-50 border border-amber-100"
+                    ? "bg-green-50 dark:bg-green-950/50 cursor-default"
+                    : "bg-white dark:bg-neutral-800/50 hover:bg-amber-50 dark:hover:bg-amber-900/30 border border-amber-100 dark:border-amber-900/50"
                 }`}
               >
                 <div
                   className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
                     isComplete
-                      ? "bg-green-100 text-green-600"
-                      : "bg-amber-100 text-amber-600"
+                      ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
+                      : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
                   }`}
                 >
                   {isComplete ? (
@@ -149,7 +149,7 @@ export function GettingStarted({ stats }: GettingStartedProps) {
                 <div className="flex-1 min-w-0">
                   <p
                     className={`text-sm font-medium ${
-                      isComplete ? "text-green-700 line-through" : ""
+                      isComplete ? "text-green-700 dark:text-green-400 line-through" : "text-foreground"
                     }`}
                   >
                     {item.title}
