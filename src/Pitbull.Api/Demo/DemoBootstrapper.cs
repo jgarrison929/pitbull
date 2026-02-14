@@ -39,31 +39,37 @@ public sealed class DemoBootstrapper(
 
         // IMPORTANT: app.current_tenant is a connection/session setting (used by Postgres RLS).
         // Ensure it is set on the same connection used for the seed operation.
-        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
-        // Use set_config() which supports parameters (unlike SET LOCAL which doesn't).
-        // The 'true' argument makes it local to the current transaction.
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT set_config('app.current_tenant', {tenant.Id.ToString()}, true)");
-
-        // Seed domain data (projects/bids/etc). This is idempotent per tenant.
-        var result = await seedDataService.SeedAsync(cancellationToken);
-
-        if (result.IsSuccess)
+        // When using NpgsqlRetryingExecutionStrategy, we must wrap user-initiated transactions
+        // in an execution strategy to allow for retries on transient failures.
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            await tx.CommitAsync(cancellationToken);
-            logger.LogInformation("Demo seed complete: {Summary}", result.Value!.Summary);
-            return;
-        }
+            await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+            // Use set_config() which supports parameters (unlike SET LOCAL which doesn't).
+            // The 'true' argument makes it local to the current transaction.
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenant.Id.ToString()}, true)");
 
-        // Treat already-seeded as success for bootstrap runs
-        if (result.ErrorCode == "ALREADY_EXISTS")
-        {
-            await tx.CommitAsync(cancellationToken);
-            logger.LogInformation("Demo seed skipped: {Message}", result.Error);
-            return;
-        }
+            // Seed domain data (projects/bids/etc). This is idempotent per tenant.
+            var result = await seedDataService.SeedAsync(cancellationToken);
 
-        logger.LogWarning("Demo seed failed: {Code} {Message}", result.ErrorCode, result.Error);
+            if (result.IsSuccess)
+            {
+                await tx.CommitAsync(cancellationToken);
+                logger.LogInformation("Demo seed complete: {Summary}", result.Value!.Summary);
+                return;
+            }
+
+            // Treat already-seeded as success for bootstrap runs
+            if (result.ErrorCode == "ALREADY_EXISTS")
+            {
+                await tx.CommitAsync(cancellationToken);
+                logger.LogInformation("Demo seed skipped: {Message}", result.Error);
+                return;
+            }
+
+            logger.LogWarning("Demo seed failed: {Code} {Message}", result.ErrorCode, result.Error);
+        });
     }
 
     private async Task<Tenant> EnsureTenantAsync(DemoOptions demo, CancellationToken ct)
