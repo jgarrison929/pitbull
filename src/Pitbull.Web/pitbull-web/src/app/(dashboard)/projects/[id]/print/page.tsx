@@ -17,6 +17,7 @@ import type {
   TimeEntry,
   PagedResult,
   Subcontract,
+  Phase,
 } from "@/lib/types";
 import { ChangeOrderStatus, TimeEntryStatus } from "@/lib/types";
 
@@ -35,6 +36,20 @@ interface ProjectStats {
   assignedEmployeeCount: number;
   firstEntryDate: string | null;
   lastEntryDate: string | null;
+}
+
+interface CostCodeHours {
+  costCode: string;
+  costCodeName: string;
+  hours: number;
+  cost: number;
+}
+
+interface EquipmentUsage {
+  name: string;
+  code: string;
+  hours: number;
+  cost: number;
 }
 
 function formatCurrency(amount: number): string {
@@ -60,6 +75,10 @@ function formatHours(hours: number): string {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
   }).format(hours);
+}
+
+function formatPercent(value: number): string {
+  return `${value.toFixed(1)}%`;
 }
 
 function changeOrderStatusLabel(status: ChangeOrderStatus): string {
@@ -107,6 +126,7 @@ export default function ProjectPrintPage({
   const [rfiSummary, setRfiSummary] = useState<RfiCostSummary | null>(null);
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [phases, setPhases] = useState<Phase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,7 +134,7 @@ export default function ProjectPrintPage({
     async function fetchData() {
       try {
         // Fetch all data in parallel
-        const [projectData, statsData, rfiData, subcontractsData, timeData] =
+        const [projectData, statsData, rfiData, subcontractsData, timeData, phasesData] =
           await Promise.all([
             api<Project>(`/api/projects/${id}`),
             api<ProjectStats>(`/api/projects/${id}/stats`).catch(() => null),
@@ -125,7 +145,10 @@ export default function ProjectPrintPage({
               `/api/subcontracts?projectId=${id}&pageSize=100`
             ).catch(() => null),
             api<PagedResult<TimeEntry>>(
-              `/api/time-entries?projectId=${id}&pageSize=10`
+              `/api/time-entries?projectId=${id}&pageSize=1000`
+            ).catch(() => null),
+            api<PagedResult<Phase>>(
+              `/api/projects/${id}/phases?pageSize=100`
             ).catch(() => null),
           ]);
 
@@ -133,6 +156,7 @@ export default function ProjectPrintPage({
         setStats(statsData);
         setRfiSummary(rfiData);
         setTimeEntries(timeData?.items || []);
+        setPhases(phasesData?.items || []);
 
         // Fetch change orders for each subcontract
         if (subcontractsData?.items?.length) {
@@ -195,47 +219,50 @@ export default function ProjectPrintPage({
     .filter((co) => co.status === ChangeOrderStatus.Approved)
     .reduce((sum, co) => sum + co.amount, 0);
 
+  // Build labor summary by cost code
+  const costCodeMap = new Map<string, CostCodeHours>();
+  for (const entry of timeEntries) {
+    const key = entry.costCodeId || "unassigned";
+    if (!costCodeMap.has(key)) {
+      costCodeMap.set(key, {
+        costCode: entry.costCodeDescription || "Unassigned",
+        costCodeName: entry.costCodeDescription || "Unassigned",
+        hours: 0,
+        cost: 0,
+      });
+    }
+    const cc = costCodeMap.get(key)!;
+    cc.hours += entry.totalHours;
+    // Approximate cost — labor cost if available
+    cc.cost += entry.totalHours * 45; // Default rate estimation
+  }
+  const costCodeSummary = Array.from(costCodeMap.values()).sort(
+    (a, b) => b.hours - a.hours
+  );
+
+  // Build equipment usage summary
+  const equipMap = new Map<string, EquipmentUsage>();
+  for (const entry of timeEntries) {
+    if (entry.equipmentId && entry.equipmentHours > 0) {
+      const key = entry.equipmentId;
+      if (!equipMap.has(key)) {
+        equipMap.set(key, {
+          name: entry.equipmentName || "Unknown",
+          code: entry.equipmentId.slice(0, 8),
+          hours: 0,
+          cost: 0,
+        });
+      }
+      const eq = equipMap.get(key)!;
+      eq.hours += entry.equipmentHours;
+    }
+  }
+  const equipmentSummary = Array.from(equipMap.values()).sort(
+    (a, b) => b.hours - a.hours
+  );
+
   return (
     <>
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          /* Hide non-print elements */
-          .no-print,
-          nav,
-          aside,
-          header,
-          footer,
-          .sidebar {
-            display: none !important;
-          }
-
-          /* Reset page margins */
-          @page {
-            margin: 0.5in;
-            size: letter;
-          }
-
-          /* Ensure content fills page */
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-
-          /* Clean up backgrounds */
-          .print-section {
-            background: white !important;
-            border: 1px solid #e5e5e5 !important;
-            break-inside: avoid;
-          }
-
-          /* Ensure text is readable */
-          * {
-            color: black !important;
-          }
-        }
-      `}</style>
-
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Action Bar - Hidden in print */}
         <div className="no-print flex items-center justify-between mb-6">
@@ -365,6 +392,173 @@ export default function ProjectPrintPage({
           )}
         </div>
 
+        {/* Phase Summary Section */}
+        {phases.length > 0 && (
+          <div className="print-section border rounded-lg p-6 bg-card print-break-avoid">
+            <h2 className="text-lg font-semibold mb-4">Phase Summary</h2>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b-2">
+                  <th className="pb-2 pr-2">Phase</th>
+                  <th className="pb-2 pr-2">Cost Code</th>
+                  <th className="pb-2 text-right pr-2">Budget</th>
+                  <th className="pb-2 text-right pr-2">Actual</th>
+                  <th className="pb-2 text-right pr-2">Variance</th>
+                  <th className="pb-2 text-right">% Complete</th>
+                </tr>
+              </thead>
+              <tbody>
+                {phases.map((phase) => {
+                  const variance = phase.budgetAmount - phase.actualCost;
+                  return (
+                    <tr key={phase.id} className="border-b border-dashed">
+                      <td className="py-2 pr-2 font-medium">{phase.name}</td>
+                      <td className="py-2 pr-2 font-mono text-xs">
+                        {phase.costCode}
+                      </td>
+                      <td className="py-2 text-right pr-2 font-mono">
+                        {formatCurrency(phase.budgetAmount)}
+                      </td>
+                      <td className="py-2 text-right pr-2 font-mono">
+                        {formatCurrency(phase.actualCost)}
+                      </td>
+                      <td
+                        className={`py-2 text-right pr-2 font-mono ${
+                          variance < 0 ? "text-red-600" : "text-green-600"
+                        }`}
+                      >
+                        {variance >= 0 ? "+" : ""}
+                        {formatCurrency(variance)}
+                      </td>
+                      <td className="py-2 text-right font-mono">
+                        {formatPercent(phase.percentComplete)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="font-semibold bg-muted/50">
+                  <td colSpan={2} className="py-2 pr-2">
+                    Phase Totals
+                  </td>
+                  <td className="py-2 text-right pr-2 font-mono">
+                    {formatCurrency(
+                      phases.reduce((s, p) => s + p.budgetAmount, 0)
+                    )}
+                  </td>
+                  <td className="py-2 text-right pr-2 font-mono">
+                    {formatCurrency(
+                      phases.reduce((s, p) => s + p.actualCost, 0)
+                    )}
+                  </td>
+                  <td
+                    className={`py-2 text-right pr-2 font-mono ${
+                      phases.reduce(
+                        (s, p) => s + (p.budgetAmount - p.actualCost),
+                        0
+                      ) < 0
+                        ? "text-red-600"
+                        : "text-green-600"
+                    }`}
+                  >
+                    {formatCurrency(
+                      phases.reduce(
+                        (s, p) => s + (p.budgetAmount - p.actualCost),
+                        0
+                      )
+                    )}
+                  </td>
+                  <td className="py-2 text-right font-mono">
+                    {phases.length > 0
+                      ? formatPercent(
+                          phases.reduce((s, p) => s + p.percentComplete, 0) /
+                            phases.length
+                        )
+                      : "—"}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* Labor Summary by Cost Code */}
+        {costCodeSummary.length > 0 && (
+          <div className="print-section border rounded-lg p-6 bg-card print-break-avoid">
+            <h2 className="text-lg font-semibold mb-4">Labor Summary by Cost Code</h2>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b-2">
+                  <th className="pb-2 pr-2">Cost Code</th>
+                  <th className="pb-2 pr-2">Description</th>
+                  <th className="pb-2 text-right">Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {costCodeSummary.map((cc) => (
+                  <tr key={cc.costCode} className="border-b border-dashed">
+                    <td className="py-1.5 pr-2 font-mono text-xs">
+                      {cc.costCode}
+                    </td>
+                    <td className="py-1.5 pr-2">{cc.costCodeName}</td>
+                    <td className="py-1.5 text-right font-mono font-medium">
+                      {formatHours(cc.hours)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-semibold bg-muted/50">
+                  <td colSpan={2} className="py-2 pr-2 text-right">
+                    Total
+                  </td>
+                  <td className="py-2 text-right font-mono">
+                    {formatHours(
+                      costCodeSummary.reduce((s, c) => s + c.hours, 0)
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {/* Equipment Usage Summary */}
+        {equipmentSummary.length > 0 && (
+          <div className="print-section border rounded-lg p-6 bg-card print-break-avoid">
+            <h2 className="text-lg font-semibold mb-4">Equipment Usage Summary</h2>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="text-left text-muted-foreground border-b-2">
+                  <th className="pb-2 pr-2">Equipment</th>
+                  <th className="pb-2 text-right">Total Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {equipmentSummary.map((eq) => (
+                  <tr key={eq.name} className="border-b border-dashed">
+                    <td className="py-1.5 pr-2">{eq.name}</td>
+                    <td className="py-1.5 text-right font-mono font-medium">
+                      {formatHours(eq.hours)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="font-semibold bg-muted/50">
+                  <td className="py-2 pr-2 text-right">Total</td>
+                  <td className="py-2 text-right font-mono">
+                    {formatHours(
+                      equipmentSummary.reduce((s, e) => s + e.hours, 0)
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
         {/* RFI Summary Section */}
         <div className="print-section border rounded-lg p-6 bg-card">
           <h2 className="text-lg font-semibold mb-4">RFI Summary</h2>
@@ -459,40 +653,51 @@ export default function ProjectPrintPage({
                 </div>
               </div>
 
-              {activeChangeOrders.length > 0 && (
-                <div className="mt-4 pt-4 border-t">
-                  <h3 className="text-sm font-medium mb-2">Active Change Orders</h3>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-muted-foreground border-b">
-                        <th className="pb-2">Number</th>
-                        <th className="pb-2">Title</th>
-                        <th className="pb-2">Status</th>
-                        <th className="pb-2 text-right">Amount</th>
+              {/* Full change orders table */}
+              <div className="mt-4 pt-4 border-t">
+                <h3 className="text-sm font-medium mb-2">All Change Orders</h3>
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="text-left text-muted-foreground border-b-2">
+                      <th className="pb-2 pr-2">Number</th>
+                      <th className="pb-2 pr-2">Title</th>
+                      <th className="pb-2 pr-2">Status</th>
+                      <th className="pb-2 pr-2">Days Ext.</th>
+                      <th className="pb-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {changeOrders.map((co) => (
+                      <tr key={co.id} className="border-b border-dashed">
+                        <td className="py-2 font-mono text-xs pr-2">
+                          {co.changeOrderNumber}
+                        </td>
+                        <td className="py-2 pr-2">{co.title}</td>
+                        <td className="py-2 pr-2">{changeOrderStatusLabel(co.status)}</td>
+                        <td className="py-2 pr-2 text-center">
+                          {co.daysExtension ? `+${co.daysExtension}` : "—"}
+                        </td>
+                        <td className="py-2 text-right font-mono">
+                          {co.amount >= 0 ? "+" : ""}
+                          {formatCurrency(co.amount)}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {activeChangeOrders.slice(0, 10).map((co) => (
-                        <tr key={co.id} className="border-b border-dashed">
-                          <td className="py-2 font-mono text-xs">
-                            {co.changeOrderNumber}
-                          </td>
-                          <td className="py-2">{co.title}</td>
-                          <td className="py-2">{changeOrderStatusLabel(co.status)}</td>
-                          <td className="py-2 text-right font-mono">
-                            {formatCurrency(co.amount)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {activeChangeOrders.length > 10 && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      ... and {activeChangeOrders.length - 10} more
-                    </p>
-                  )}
-                </div>
-              )}
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="font-semibold bg-muted/50">
+                      <td colSpan={4} className="py-2 text-right pr-2">
+                        Net Change
+                      </td>
+                      <td className="py-2 text-right font-mono">
+                        {formatCurrency(
+                          changeOrders.reduce((sum, co) => sum + co.amount, 0)
+                        )}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </>
           ) : (
             <p className="text-muted-foreground text-sm">
@@ -505,23 +710,23 @@ export default function ProjectPrintPage({
         <div className="print-section border rounded-lg p-6 bg-card">
           <h2 className="text-lg font-semibold mb-4">Recent Time Entries</h2>
           {timeEntries.length > 0 ? (
-            <table className="w-full text-sm">
+            <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="text-left text-muted-foreground border-b">
-                  <th className="pb-2">Date</th>
-                  <th className="pb-2">Employee</th>
-                  <th className="pb-2">Cost Code</th>
-                  <th className="pb-2 text-right">Hours</th>
+                <tr className="text-left text-muted-foreground border-b-2">
+                  <th className="pb-2 pr-2">Date</th>
+                  <th className="pb-2 pr-2">Employee</th>
+                  <th className="pb-2 pr-2">Cost Code</th>
+                  <th className="pb-2 text-right pr-2">Hours</th>
                   <th className="pb-2">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {timeEntries.map((entry) => (
+                {timeEntries.slice(0, 20).map((entry) => (
                   <tr key={entry.id} className="border-b border-dashed">
-                    <td className="py-2">{formatDate(entry.date)}</td>
-                    <td className="py-2">{entry.employeeName}</td>
-                    <td className="py-2 text-xs">{entry.costCodeDescription}</td>
-                    <td className="py-2 text-right font-mono">
+                    <td className="py-2 pr-2">{formatDate(entry.date)}</td>
+                    <td className="py-2 pr-2">{entry.employeeName}</td>
+                    <td className="py-2 text-xs pr-2">{entry.costCodeDescription}</td>
+                    <td className="py-2 text-right font-mono pr-2">
                       {formatHours(entry.totalHours)}
                     </td>
                     <td className="py-2">{timeEntryStatusLabel(entry.status)}</td>
@@ -532,6 +737,11 @@ export default function ProjectPrintPage({
           ) : (
             <p className="text-muted-foreground text-sm">
               No time entries recorded for this project.
+            </p>
+          )}
+          {timeEntries.length > 20 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Showing 20 of {timeEntries.length} entries
             </p>
           )}
         </div>

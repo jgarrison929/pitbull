@@ -37,6 +37,7 @@ import {
   RefreshCw,
   AlertCircle,
   Download,
+  Printer,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
@@ -316,6 +317,16 @@ export default function LaborCostReportPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => window.print()}
+            disabled={isLoading || !report}
+            className="no-print"
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={exportCsv}
             disabled={isLoading || !report}
           >
@@ -393,7 +404,7 @@ export default function LaborCostReportPage() {
       )}
 
       {/* Filters */}
-      <Card>
+      <Card className="no-print">
         <CardContent className="pt-6">
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
@@ -447,7 +458,7 @@ export default function LaborCostReportPage() {
       <div className="space-y-4">
         {/* Expand/Collapse controls */}
         {report && report.byProject.length > 0 && (
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 no-print">
             <Button variant="ghost" size="sm" onClick={expandAll}>
               Expand All
             </Button>

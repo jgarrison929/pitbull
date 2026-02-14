@@ -145,3 +145,94 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* =====================================================
+   Global Print Styles
+   ===================================================== */
+@media print {
+  /* Hide non-print UI elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show print-only elements (hidden on screen) */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Reset background and colors */
+  body {
+    background: white !important;
+    color: black !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide sidebar, header, FAB, command palette, and other chrome */
+  aside,
+  nav,
+  header,
+  footer,
+  [data-sidebar],
+  [role="navigation"],
+  .quick-action-fab,
+  [data-command-palette],
+  [data-radix-popper-content-wrapper] {
+    display: none !important;
+  }
+
+  /* Make main content fill page */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: white !important;
+  }
+
+  /* Clean card styling for print */
+  .print-section {
+    break-inside: avoid;
+    border: 1px solid #d1d5db !important;
+    background: white !important;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Page break controls */
+  .print-break-before {
+    break-before: page;
+  }
+
+  .print-break-after {
+    break-after: page;
+  }
+
+  .print-break-avoid {
+    break-inside: avoid;
+  }
+
+  /* Page setup */
+  @page {
+    margin: 0.5in;
+    size: letter;
+  }
+
+  /* Ensure links don't show URLs */
+  a {
+    text-decoration: none !important;
+    color: black !important;
+  }
+
+  /* Tables: clean borders for print */
+  table {
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    border-bottom: 1px solid #d1d5db;
+  }
+}
+
+/* Print-only elements are hidden on screen */
+.print-only {
+  display: none;
+}
