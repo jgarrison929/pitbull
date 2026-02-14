@@ -21,7 +21,7 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body className="min-h-screen bg-neutral-50">
+      <body className="min-h-screen bg-background">
         <div className="min-h-screen flex items-center justify-center p-4">
           <div className="w-full max-w-md mx-auto text-center space-y-6">
             {/* Icon */}
@@ -63,7 +63,7 @@ export default function GlobalError({
               </button>
               <button
                 onClick={() => window.location.reload()}
-                className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-6 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+                className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-6 py-3 text-sm font-medium text-neutral-700 hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
               >
                 Refresh page
               </button>

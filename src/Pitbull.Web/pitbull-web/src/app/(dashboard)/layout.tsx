@@ -43,7 +43,7 @@ export default function DashboardLayout({
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <AppHeader />
-          <main className="flex-1 p-4 lg:p-6 bg-neutral-50">
+          <main className="flex-1 p-4 lg:p-6 bg-muted/30">
             <ErrorBoundary section="Dashboard">
               {children}
             </ErrorBoundary>

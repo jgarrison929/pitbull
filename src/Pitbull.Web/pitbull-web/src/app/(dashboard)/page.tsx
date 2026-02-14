@@ -88,32 +88,32 @@ export default function DashboardPage() {
       title: "Active Projects",
       value: state.stats ? state.stats.projectCount.toString() : "—",
       icon: HardHat,
-      color: "text-blue-600",
-      bgColor: "bg-blue-50",
+      color: "text-blue-500 dark:text-blue-400",
+      bgColor: "bg-blue-500/10",
       href: "/projects",
     },
     {
       title: "Open Bids",
       value: state.stats ? state.stats.bidCount.toString() : "—",
       icon: FileText,
-      color: "text-green-600",
-      bgColor: "bg-green-50",
+      color: "text-green-600 dark:text-green-400",
+      bgColor: "bg-green-500/10",
       href: "/bids",
     },
     {
       title: "Team Members",
       value: state.stats ? state.stats.employeeCount.toString() : "—",
       icon: Users,
-      color: "text-purple-600",
-      bgColor: "bg-purple-50",
+      color: "text-purple-600 dark:text-purple-400",
+      bgColor: "bg-purple-500/10",
       href: "/employees",
     },
     {
       title: "Pending Approvals",
       value: state.stats ? state.stats.pendingTimeApprovals.toString() : "—",
       icon: Clock,
-      color: "text-amber-600",
-      bgColor: "bg-amber-50",
+      color: "text-amber-600 dark:text-amber-400",
+      bgColor: "bg-amber-500/10",
       href: "/time-tracking/approval",
     },
   ];
@@ -124,43 +124,43 @@ export default function DashboardPage() {
       description: "Start tracking a project",
       href: "/projects/new",
       icon: HardHat,
-      color: "text-blue-600",
+      color: "text-blue-500 dark:text-blue-400",
     },
     {
       title: "New Bid",
       description: "Create an estimate",
       href: "/bids/new",
       icon: FileText,
-      color: "text-green-600",
+      color: "text-green-600 dark:text-green-400",
     },
     {
       title: "Add Employee",
       description: "Grow your team",
       href: "/employees/new",
       icon: Users,
-      color: "text-purple-600",
+      color: "text-purple-600 dark:text-purple-400",
     },
     {
       title: "Log Time",
       description: "Record work hours",
       href: "/time-tracking/new",
       icon: Clock,
-      color: "text-amber-600",
+      color: "text-amber-600 dark:text-amber-400",
     },
   ];
 
   const getActivityIcon = (type: string) => {
     switch (type) {
       case "project":
-        return <HardHat className="h-4 w-4 text-blue-600" />;
+        return <HardHat className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
       case "bid":
-        return <FileText className="h-4 w-4 text-green-600" />;
+        return <FileText className="h-4 w-4 text-green-600 dark:text-green-400" />;
       case "employee":
-        return <Users className="h-4 w-4 text-purple-600" />;
+        return <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />;
       case "timeentry":
-        return <Clock className="h-4 w-4 text-amber-600" />;
+        return <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />;
       default:
-        return <CheckCircle className="h-4 w-4 text-gray-600" />;
+        return <CheckCircle className="h-4 w-4 text-muted-foreground" />;
     }
   };
 

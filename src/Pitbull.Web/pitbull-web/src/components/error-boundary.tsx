@@ -126,7 +126,7 @@ function ErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
           </button>
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+            className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
           >
             Go to dashboard
           </Link>
@@ -148,7 +148,7 @@ export function PageErrorFallback({
   reset: () => void;
 }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md mx-auto text-center space-y-6">
         {/* Icon */}
         <div className="flex justify-center">
@@ -200,7 +200,7 @@ export function PageErrorFallback({
           </button>
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
+            className="inline-flex items-center justify-center rounded-md border border-neutral-200 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-background transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-400 focus:ring-offset-2"
           >
             Refresh page
           </button>

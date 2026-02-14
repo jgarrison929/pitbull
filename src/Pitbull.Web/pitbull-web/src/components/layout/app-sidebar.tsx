@@ -35,7 +35,7 @@ export function AppSidebar() {
   const { user, logout } = useAuth();
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-[#1a1a2e] text-white min-h-screen">
+    <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar text-sidebar-foreground min-h-screen">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 font-bold text-lg">
@@ -43,11 +43,11 @@ export function AppSidebar() {
         </div>
         <div>
           <h1 className="font-bold text-lg leading-tight">Pitbull</h1>
-          <p className="text-xs text-neutral-400">Construction Solutions</p>
+          <p className="text-xs text-sidebar-foreground/60">Construction Solutions</p>
         </div>
       </div>
 
-      <Separator className="bg-white/10" />
+      <Separator className="bg-sidebar-border" />
 
       {/* Quick Project Switcher */}
       <div className="px-3 pt-4">
@@ -69,17 +69,17 @@ export function AppSidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                 item.disabled
-                  ? "text-neutral-500 cursor-not-allowed"
+                  ? "text-sidebar-foreground/40 cursor-not-allowed"
                   : isActive
-                    ? "bg-amber-500/15 text-amber-400"
-                    : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                    ? "bg-sidebar-accent text-amber-400"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
               )}
               onClick={item.disabled ? (e) => e.preventDefault() : undefined}
             >
               <span className="text-base">{item.icon}</span>
               {item.label}
               {item.disabled && (
-                <span className="ml-auto text-[10px] uppercase tracking-wider text-neutral-600 bg-white/5 px-1.5 py-0.5 rounded">
+                <span className="ml-auto text-[10px] uppercase tracking-wider text-sidebar-foreground/50 bg-sidebar-accent px-1.5 py-0.5 rounded">
                   Soon
                 </span>
               )}
@@ -93,7 +93,7 @@ export function AppSidebar() {
         {user?.roles?.includes("Admin") && (
           <>
             <div className="pt-4 pb-2">
-              <span className="px-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+              <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
                 Admin
               </span>
             </div>
@@ -107,8 +107,8 @@ export function AppSidebar() {
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-amber-500/15 text-amber-400"
-                      : "text-neutral-300 hover:bg-white/5 hover:text-white"
+                      ? "bg-sidebar-accent text-amber-400"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   )}
                 >
                   <span className="text-base">{item.icon}</span>
@@ -120,7 +120,7 @@ export function AppSidebar() {
         )}
       </nav>
 
-      <Separator className="bg-white/10" />
+      <Separator className="bg-sidebar-border" />
 
       {/* User Info */}
       <div className="px-4 py-4">
@@ -130,11 +130,11 @@ export function AppSidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
-            <p className="text-xs text-neutral-400 truncate">{user?.email || ""}</p>
+            <p className="text-xs text-sidebar-foreground/60 truncate">{user?.email || ""}</p>
           </div>
           <button
             onClick={logout}
-            className="text-neutral-400 hover:text-white text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
+            className="text-sidebar-foreground/60 hover:text-sidebar-foreground text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Sign out"
           >
             ↗
