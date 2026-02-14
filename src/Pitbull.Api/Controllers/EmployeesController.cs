@@ -57,6 +57,7 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     /// <response code="409">Duplicate employee number</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager,Supervisor")]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]

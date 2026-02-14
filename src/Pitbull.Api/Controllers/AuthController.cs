@@ -150,8 +150,15 @@ public class AuthController(
                     return;
                 }
 
-                // Ensure roles exist and auto-promote first user to Admin
-                await roleSeeder.EnsureTenantHasAdminAsync(tenantId);
+                // Ensure roles exist for this tenant
+                await roleSeeder.EnsureRolesForTenantAsync(tenantId);
+
+                // Auto-assign role: first user in tenant gets Admin, others get User
+                var tenantUserCount = await db.Users.CountAsync(u => u.TenantId == tenantId);
+                if (tenantUserCount <= 1)
+                    await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin);
+                else
+                    await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.User);
 
                 // Get user's roles for JWT
                 var roles = await roleSeeder.GetUserRolesAsync(user);
@@ -221,6 +228,22 @@ public class AuthController(
 
         // Get user's roles for JWT and response
         var roles = await roleSeeder.GetUserRolesAsync(user);
+
+        // Backfill: if user has no roles, assign one now
+        if (!roles.Any())
+        {
+            await roleSeeder.EnsureRolesForTenantAsync(user.TenantId);
+
+            // First/only user in tenant gets Admin, others get User
+            var userCount = await db.Users.CountAsync(u => u.TenantId == user.TenantId);
+            if (userCount <= 1)
+                await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin);
+            else
+                await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.User);
+
+            // Re-fetch roles for JWT
+            roles = await roleSeeder.GetUserRolesAsync(user);
+        }
 
         var token = await GenerateJwtTokenAsync(user);
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
