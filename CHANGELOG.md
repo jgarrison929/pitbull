@@ -8,36 +8,136 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.11.1] - 2026-02-13
 
-### 🚀 Features
+### 🚀 RFI Management
 
 - **RFI Management UI** - Complete RFI workflow in the web interface
   - List view with search, status/priority filters, and result count
   - Detail view with tabbed interface (Details + Cost Impact)
   - Create/edit forms with all fields
-  - "Create Change Order" button links directly to CO creation
+  - CSV export for RFI lists
 
-- **RFI → Change Order Workflow** - Seamless cost tracking
-  - One-click to create a Change Order from an RFI
-  - Pre-fills description with RFI context
-  - Automatically links CO back to originating RFI
-  - Full traceability: RFI → Change Order → Cost Impact
+- **RFI Cost Impact Tracking** - Full financial visibility
+  - New database fields: `EstimatedCost`, `ActualCost`, `DelayDays`, `DelayCost`
+  - Document references: `SpecSection`, `DrawingSheet`
+  - AI-ready fields: `SuggestedAnswer`, `AiConfidence`
+  - Link Change Orders to originating RFIs
 
-- **RFIs Needing Attention Dashboard Widget** - Never miss critical RFIs
-  - Shows overdue RFIs and those assigned to you
-  - Sorted by urgency (overdue first)
-  - Direct links to RFI detail pages
-
-- **Bulk Time Entry Actions** - Faster supervisor approval workflow
-  - Checkbox selection on individual entries
-  - "Select All" with indeterminate state
-  - Bulk approve/reject with confirmation dialogs
-  - Shows success/failure counts
+- **RFI Cost Impact API** - New endpoints for cost analysis
+  - `GET /api/projects/{id}/rfis/{rfiId}/cost-impact` - Single RFI cost breakdown with linked change orders and timeline
+  - `GET /api/projects/{id}/rfi-cost-summary` - Project-level aggregates: total costs, delay days, top 5 costly RFIs
 
 - **RFI Cost Impact UI** - Visual cost tracking
   - Tabbed detail view with cost breakdown
   - Linked change orders table with status badges
   - Timeline of events showing RFI lifecycle
-  - Project dashboard widget with top costly RFIs
+
+- **RFI → Change Order Workflow** - Seamless cost tracking
+  - "Create Change Order" button on RFI detail page
+  - Pre-fills description with RFI context
+  - Automatically links CO back to originating RFI
+  - Full traceability: RFI → Change Order → Cost Impact
+
+### 📊 Dashboard Improvements
+
+- **Recently Viewed Section** - Quick access to your recent work
+  - Shows last 5 projects, bids, and RFIs you've viewed
+  - Click to jump back instantly
+  - Persisted in localStorage
+
+- **RFIs Needing Attention Widget** - Never miss critical RFIs
+  - Shows overdue RFIs and those assigned to you
+  - Sorted by urgency (overdue first)
+  - Direct links to RFI detail pages
+  - Color-coded priority badges
+
+- **Notification Center** - Stay informed
+  - Bell icon in header with unread count badge
+  - Dropdown panel with recent notifications
+  - Mark as read/unread functionality
+
+### ⚡ User Experience Improvements
+
+- **Global Command Palette** - Keyboard-first navigation (Cmd/Ctrl+K)
+  - Search projects, bids, RFIs, and employees
+  - Quick actions: create new items, navigate to pages
+  - Fuzzy search with keyboard navigation
+  - Recent searches remembered
+
+- **Keyboard Shortcuts** - Power user productivity
+  - `?` or `Cmd+/` opens help modal with all shortcuts
+  - `g p` - Go to Projects
+  - `g b` - Go to Bids
+  - `g r` - Go to RFIs
+  - `g t` - Go to Time Tracking
+  - `g d` - Go to Dashboard
+  - `c p` - Create new Project
+  - `c b` - Create new Bid
+  - `Esc` - Close modals/dialogs
+
+- **Dark Mode** - Easy on the eyes
+  - Toggle in Settings page
+  - Persists across sessions
+  - Smooth transition animations
+  - Full theme support across all components
+
+- **Breadcrumb Navigation** - Always know where you are
+  - Added to all detail pages (Projects, Bids, RFIs, Employees)
+  - Clickable navigation back to parent lists
+  - Shows current item name
+
+- **Quick Project Switcher** - Fast context switching
+  - Dropdown in sidebar header
+  - Search/filter your projects
+  - One-click to switch active project context
+
+- **Loading Skeletons** - Better perceived performance
+  - Shimmer animations on list pages
+  - Cards and tables show placeholder content
+  - Reduces perceived wait time
+
+- **Copy Link Buttons** - Easy sharing
+  - Added to RFIs, Projects, and Bids detail pages
+  - One-click copy URL to clipboard
+  - Toast confirmation on copy
+
+- **Icon Button Tooltips** - Better accessibility
+  - All icon-only buttons now have descriptive tooltips
+  - Helps new users discover functionality
+  - ARIA labels for screen readers
+
+### 📱 Mobile Improvements
+
+- **Floating Action Button (FAB)** - Quick actions on mobile
+  - Fixed position bottom-right on small screens
+  - Expandable menu with context-aware actions
+  - Create Project, Bid, RFI, Log Time
+  - Smooth animations
+
+### 📄 Reporting & Export
+
+- **Printable Project Summary** - Professional reports
+  - Print-optimized layout at `/projects/{id}/print`
+  - Includes project details, budget, timeline
+  - Clean formatting for client presentations
+
+- **RFI CSV Export** - Data portability
+  - Export filtered RFI list to CSV
+  - Includes all fields and metadata
+  - Compatible with Excel and other tools
+
+### ⏱️ Time Tracking Improvements
+
+- **Bulk Approve/Reject** - Faster supervisor workflow
+  - Checkbox selection on individual entries
+  - "Select All" with indeterminate state
+  - Bulk approve/reject with confirmation dialogs
+  - Shows success/failure counts
+
+- **Improved Form Validation** - Better feedback
+  - Inline validation messages
+  - Required field indicators with asterisks
+  - Real-time validation as you type
+  - Clear error states with recovery hints
 
 ### 🐛 Bug Fixes
 
@@ -47,7 +147,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - 19 unit tests for RfisNeedingAttention endpoint
 - 8 integration tests for RFI cost impact endpoints
-- 683 unit tests, 198 integration tests total
+- **Total: 683 unit tests, 198 integration tests (881 total)**
 
 ### 🏗️ Code Quality
 
