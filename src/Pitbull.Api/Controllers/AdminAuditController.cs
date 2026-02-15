@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -12,6 +13,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/admin/audit-logs")]
 [Authorize(Roles = "Admin")]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - Audit Logs")]
 public class AdminAuditController(PitbullDbContext db) : ControllerBase

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -13,6 +14,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/admin/users")]
 [Authorize(Roles = "Admin")]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - Users")]
 public class AdminUsersController(

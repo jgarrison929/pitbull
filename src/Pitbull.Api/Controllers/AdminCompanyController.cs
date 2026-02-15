@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Pitbull.Api.Controllers;
 
@@ -10,6 +11,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/admin/company")]
 [Authorize(Roles = "Admin")]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - Company Settings")]
 public class AdminCompanyController : ControllerBase
