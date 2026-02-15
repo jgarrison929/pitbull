@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.2] - 2026-02-15
+
+### 🔒 Security
+
+- **Bootstrap-admin privilege escalation fix** - Anonymous endpoint could promote any user to Admin; now guarded so only first-time setup allows unauthenticated access, existing tenants require authenticated Admin caller
+- **Rate limiting on admin and user controllers** - All administrative endpoints now enforce request rate limits to prevent enumeration and abuse
+
+### 🧪 Testing
+
+- **Controller unit test coverage expansion** - Added comprehensive unit tests for 9 of 22 API controllers:
+  - AuthController (37 tests) - login, register, change-password, profile, bootstrap-admin
+  - TimeEntriesController (38 tests) - all 9 endpoints including approval workflows and Vista export
+  - ProjectsController (28 tests) - CRUD, AI summary, stats, RFI cost summary
+  - EmployeesController (27 tests) - CRUD, project assignments, stats
+  - BidsController (29 tests) - CRUD, bid-to-project conversion
+  - RfisController (26 tests) - CRUD with cross-project isolation, cost impact
+  - SubcontractsController (29 tests) - CRUD with status transitions
+  - ChangeOrdersController (34 tests) - CRUD with approval/rejection workflows
+  - Middleware (38 tests) - request/response logging, correlation ID, exception handling
+- **Unit test count:** 1,063 (up from 815)
+- **Total test count:** 1,288 (unit + integration)
+
+---
+
 ## [Unreleased] - Multi-Company Architecture (feature/multi-company)
 
 ### 🚀 Features
