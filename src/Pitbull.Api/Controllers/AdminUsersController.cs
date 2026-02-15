@@ -168,8 +168,10 @@ public class AdminUsersController(
     /// </summary>
     [HttpPost("bootstrap-admin")]
     [AllowAnonymous] // Allow first-time setup
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> BootstrapAdmin([FromBody] BootstrapAdminRequest request)
     {
         // Find the user by email
@@ -179,6 +181,21 @@ public class AdminUsersController(
 
         // Ensure roles exist for the tenant
         var tenantId = user.TenantId;
+
+        // Guard: check if an admin already exists for this tenant
+        var adminRoleNameForCheck = $"{tenantId}:Admin";
+        var existingAdminRole = await roleManager.FindByNameAsync(adminRoleNameForCheck);
+        if (existingAdminRole != null)
+        {
+            var adminExists = await db.UserRoles
+                .AnyAsync(ur => ur.RoleId == existingAdminRole.Id);
+
+            if (adminExists && !(User.Identity?.IsAuthenticated == true))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { error = "Bootstrap is only available when no admin exists for this tenant" });
+            }
+        }
         var adminRoleName = $"{tenantId}:Admin";
 
         // Check if admin role exists
