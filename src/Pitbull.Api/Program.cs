@@ -21,6 +21,8 @@ using Pitbull.Core.Domain;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.AI;
+using Pitbull.AI.Features;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using MassTransit;
@@ -45,6 +47,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
@@ -68,6 +71,7 @@ builder.Services.AddPitbullModule<CreateBidCommand>();
 builder.Services.AddPitbullModule<CreateRfiCommand>();
 builder.Services.AddPitbullModule<CreateTimeEntryCommand>(); // TimeTracking module
 builder.Services.AddPitbullModule<CreateSubcontractCommand>(); // Contracts module
+builder.Services.AddPitbullModule<CreateAiModuleCommand>(); // AI module
 
 // Direct service registrations (MediatR migration)
 builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
@@ -75,9 +79,12 @@ builder.Services.AddPitbullModuleServices<CreateBidCommand>();
 builder.Services.AddPitbullModuleServices<CreateRfiCommand>();
 builder.Services.AddPitbullModuleServices<CreateTimeEntryCommand>(); // TimeTracking module
 builder.Services.AddPitbullModuleServices<CreateSubcontractCommand>(); // Contracts module
+builder.Services.AddPitbullModuleServices<CreateAiModuleCommand>(); // AI module
+
+// AI module registration (providers + HttpClients)
+builder.Services.AddPitbullAiModule(builder.Configuration);
 
 // AI Insights service (uses Claude for project analysis)
-builder.Services.AddHttpClient("Anthropic");
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
 
 // TimeTracking singleton services (don't require DI scope)
