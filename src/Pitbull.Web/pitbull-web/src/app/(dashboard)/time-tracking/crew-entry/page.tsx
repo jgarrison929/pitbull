@@ -15,7 +15,7 @@ import { CopyYesterdayDialog } from "@/components/time-tracking/crew-entry/copy-
 import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeft, Users, CalendarDays } from "lucide-react";
+import { AlertCircle, ArrowLeft, Users, CalendarDays, List } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -113,19 +113,21 @@ export default function CrewEntryPage() {
 
   // Load phases when project changes
   useEffect(() => {
-    if (!formData.projectId) {
-      setPhases([]);
-      return;
-    }
+    let cancelled = false;
     async function fetchPhases() {
+      if (!formData.projectId) {
+        setPhases([]);
+        return;
+      }
       try {
         const result = await api<Phase[]>(`/api/projects/${formData.projectId}/phases`);
-        setPhases(result);
+        if (!cancelled) setPhases(result);
       } catch {
-        setPhases([]);
+        if (!cancelled) setPhases([]);
       }
     }
     fetchPhases();
+    return () => { cancelled = true; };
   }, [formData.projectId]);
 
   const handleCopyYesterday = async () => {
@@ -244,6 +246,24 @@ export default function CrewEntryPage() {
   return (
     <div className="space-y-6">
       <OfflineIndicator />
+
+      {/* View Tabs */}
+      <div className="flex gap-1 border-b">
+        <button
+          type="button"
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 border-amber-500 text-amber-600 transition-colors"
+        >
+          <Users className="h-4 w-4" />
+          Crew Entry
+        </button>
+        <Link
+          href="/time-tracking?view=entries"
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30 transition-colors"
+        >
+          <List className="h-4 w-4" />
+          All Entries
+        </Link>
+      </div>
 
       {/* Header with Copy Previous Day, progress, templates */}
       <CrewEntryHeader

@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.3] - 2026-02-15
+
+### 🚀 Features
+
+- **Crew Timecard Settings** - Company-configurable time entry with daily or weekly modes, detailed or simple weekly entry, default project, and phase/equipment requirements (#67)
+- **Auto-Assign Labor Cost Codes** - Crew grid entries automatically receive the default labor cost code, eliminating manual selection for field workers (#68)
+- **Streamlined Crew Entry Grid** - Removed cost code column, added equipment hours column, and made crew entry the default time tracking view with navigation tabs (#69)
+- **Default Cost Code Seeding** - New tenants receive 7 standard cost codes (LAB, EQP, MAT, SUB-LAB, SUB-MAT, SUB-EQP, OVH) out of the box
+
+### 🐛 Bug Fixes
+
+- **Nullable CostCodeId** - Time entry creation no longer requires an explicit cost code, supporting auto-assignment from crew grid
+- **Enum validation on timecard settings** - Invalid TimecardMode or WeeklyEntryMode values now return clear 400 errors instead of silently accepting bad data
+- **DefaultProjectId validation** - Settings endpoint verifies the referenced project exists before saving
+
+### 🧪 Testing
+
+- **Controller unit test coverage expansion** - Added tests for 4 more controllers (13/22 total):
+  - CostCodesController, DashboardController, EquipmentController, PayPeriodsController
+- **Timecard settings test hardening** - Fixed 4 tests to properly seed project data, added invalid DefaultProjectId test
+- **Unit test count:** 1,189 (up from 1,063)
+- **Total test count:** 1,414 (unit + integration)
+
+---
+
 ## [0.11.2] - 2026-02-15
 
 ### 🔒 Security

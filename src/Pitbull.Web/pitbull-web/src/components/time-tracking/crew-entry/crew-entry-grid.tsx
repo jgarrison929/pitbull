@@ -49,14 +49,6 @@ export function CrewEntryGrid({
     return total > 0;
   }
 
-  function hasHoursEntered(entry: CrewMemberEntryData): boolean {
-    const total =
-      (parseFloat(entry.regularHours) || 0) +
-      (parseFloat(entry.overtimeHours) || 0) +
-      (parseFloat(entry.doubletimeHours) || 0);
-    return total > 0;
-  }
-
   return (
     <Card>
       <CardHeader className="pb-4">

@@ -6,6 +6,7 @@ using Pitbull.Api.Controllers;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Projects.Domain;
 
 namespace Pitbull.Tests.Unit.Api;
 
@@ -24,6 +25,9 @@ public class TimecardSettingsControllerTests : IDisposable
         companyContext.CompanyCode = "TEST";
         companyContext.CompanyName = "Test Company";
         companyContext.SetAccessibleCompanies([TestCompanyId]);
+
+        // Register the Projects module so Project entity is in the model
+        PitbullDbContext.RegisterModuleAssembly(typeof(Project).Assembly);
 
         var options = new DbContextOptionsBuilder<PitbullDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
@@ -49,6 +53,23 @@ public class TimecardSettingsControllerTests : IDisposable
         {
             HttpContext = new DefaultHttpContext()
         };
+    }
+
+    private Guid SeedProject()
+    {
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = TestCompanyId,
+            TenantId = TestTenantId,
+            Name = "Test Project",
+            Number = "PRJ-001",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test"
+        };
+        _db.Set<Project>().Add(project);
+        _db.SaveChanges();
+        return project.Id;
     }
 
     public void Dispose()
@@ -99,7 +120,7 @@ public class TimecardSettingsControllerTests : IDisposable
     [Fact]
     public async Task Update_ReturnsOk_WithUpdatedSettings()
     {
-        var projectId = Guid.NewGuid();
+        var projectId = SeedProject();
         var request = new UpdateTimecardSettingsRequest(
             TimecardMode: TimecardMode.Weekly,
             WeeklyEntryMode: WeeklyEntryMode.Simple,
@@ -121,7 +142,7 @@ public class TimecardSettingsControllerTests : IDisposable
     [Fact]
     public async Task Update_PersistsToDatabase()
     {
-        var projectId = Guid.NewGuid();
+        var projectId = SeedProject();
         var request = new UpdateTimecardSettingsRequest(
             TimecardMode: TimecardMode.Weekly,
             WeeklyEntryMode: WeeklyEntryMode.Simple,
@@ -147,10 +168,11 @@ public class TimecardSettingsControllerTests : IDisposable
     public async Task Update_ClearDefaultProject_SetsToNull()
     {
         // First set a project
+        var seededProjectId = SeedProject();
         var firstRequest = new UpdateTimecardSettingsRequest(
             TimecardMode: TimecardMode.Daily,
             WeeklyEntryMode: WeeklyEntryMode.Detailed,
-            DefaultProjectId: Guid.NewGuid(),
+            DefaultProjectId: seededProjectId,
             RequirePhase: false,
             RequireEquipment: false);
         await _controller.Update(firstRequest);
@@ -194,6 +216,21 @@ public class TimecardSettingsControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Update_InvalidDefaultProjectId_ReturnsBadRequest()
+    {
+        var request = new UpdateTimecardSettingsRequest(
+            TimecardMode: TimecardMode.Daily,
+            WeeklyEntryMode: WeeklyEntryMode.Detailed,
+            DefaultProjectId: Guid.NewGuid(), // not seeded
+            RequirePhase: false,
+            RequireEquipment: false);
+
+        var result = await _controller.Update(request);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public async Task Update_AllEnumValues_AreValid()
     {
         // Test Daily mode
@@ -222,7 +259,7 @@ public class TimecardSettingsControllerTests : IDisposable
     [Fact]
     public async Task Get_AfterUpdate_ReturnsUpdatedValues()
     {
-        var projectId = Guid.NewGuid();
+        var projectId = SeedProject();
         var request = new UpdateTimecardSettingsRequest(
             TimecardMode: TimecardMode.Weekly,
             WeeklyEntryMode: WeeklyEntryMode.Simple,

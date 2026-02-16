@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Projects.Domain;
 
 namespace Pitbull.Api.Controllers;
 
@@ -81,6 +82,20 @@ public class TimecardSettingsController(
 
         if (company is null)
             return NotFound(new { error = "Company not found" });
+
+        // Validate enum values
+        if (!Enum.IsDefined(typeof(TimecardMode), request.TimecardMode))
+            return BadRequest(new { error = $"Invalid TimecardMode value: {(int)request.TimecardMode}" });
+        if (!Enum.IsDefined(typeof(WeeklyEntryMode), request.WeeklyEntryMode))
+            return BadRequest(new { error = $"Invalid WeeklyEntryMode value: {(int)request.WeeklyEntryMode}" });
+
+        // Validate DefaultProjectId exists and belongs to this tenant
+        if (request.DefaultProjectId is not null)
+        {
+            var projectExists = await db.Set<Project>().AnyAsync(p => p.Id == request.DefaultProjectId);
+            if (!projectExists)
+                return BadRequest(new { error = "DefaultProjectId does not refer to a valid project" });
+        }
 
         var settings = company.TimecardSettings;
 

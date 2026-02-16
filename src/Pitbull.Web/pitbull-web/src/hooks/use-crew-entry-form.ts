@@ -48,9 +48,7 @@ function validateEntry(entry: CrewMemberEntryData): string | undefined {
   const dt = parseFloat(entry.doubletimeHours) || 0;
   const total = reg + ot + dt;
 
-  if (total > 0 && !entry.costCodeId) {
-    return "Cost code required";
-  }
+  // costCodeId is no longer required - auto-assigned on the backend
   if (reg < 0 || ot < 0 || dt < 0) {
     return "Hours cannot be negative";
   }
