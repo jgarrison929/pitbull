@@ -6,6 +6,7 @@ using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
 using Pitbull.TimeTracking.Features.GetEmployeeStats;
+using Pitbull.TimeTracking.Features.GetMyCrew;
 using Pitbull.TimeTracking.Features.ListEmployees;
 using Pitbull.TimeTracking.Features.UpdateEmployee;
 
@@ -158,6 +159,51 @@ public class EmployeeService : IEmployeeService
             _logger.LogError(ex, "Failed to retrieve employee statistics for {EmployeeId}", id);
             return Result.Failure<EmployeeStatsResponse>($"Failed to retrieve employee statistics: {ex.Message}", "EMPLOYEE_STATS_ERROR");
         }
+    }
+
+    public async Task<Result<MyCrewResult>> GetMyCrewAsync(Guid supervisorId, CancellationToken cancellationToken = default)
+    {
+        var supervisor = await _db.Set<Employee>()
+            .FirstOrDefaultAsync(e => e.Id == supervisorId && !e.IsDeleted, cancellationToken);
+
+        if (supervisor is null)
+            return Result.Failure<MyCrewResult>("Supervisor not found", "NOT_FOUND");
+
+        var crewMembers = await _db.Set<Employee>()
+            .Include(e => e.ProjectAssignments)
+                .ThenInclude(pa => pa.Project)
+            .Where(e => e.SupervisorId == supervisorId && !e.IsDeleted && e.IsActive)
+            .OrderBy(e => e.LastName)
+            .ThenBy(e => e.FirstName)
+            .ToListAsync(cancellationToken);
+
+        var crewDtos = crewMembers.Select(e => new Features.GetMyCrew.CrewMemberDto(
+            Id: e.Id,
+            EmployeeNumber: e.EmployeeNumber,
+            FirstName: e.FirstName,
+            LastName: e.LastName,
+            FullName: e.FullName,
+            Title: e.Title,
+            Classification: e.Classification,
+            BaseHourlyRate: e.BaseHourlyRate,
+            IsActive: e.IsActive,
+            AssignedProjects: e.ProjectAssignments
+                .Where(pa => !pa.IsDeleted)
+                .Select(pa => new CrewMemberProjectDto(
+                    ProjectId: pa.ProjectId,
+                    ProjectNumber: pa.Project.Number,
+                    ProjectName: pa.Project.Name,
+                    IsActive: pa.IsActive
+                ))
+                .ToList()
+        )).ToList();
+
+        return Result.Success(new MyCrewResult(
+            SupervisorId: supervisorId,
+            SupervisorName: supervisor.FullName,
+            CrewCount: crewDtos.Count,
+            CrewMembers: crewDtos
+        ));
     }
 
     public async Task<Result<EmployeeDto>> CreateEmployeeAsync(CreateEmployeeCommand command, CancellationToken cancellationToken = default)

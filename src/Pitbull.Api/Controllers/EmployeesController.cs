@@ -6,6 +6,7 @@ using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
 using Pitbull.TimeTracking.Features.GetEmployeeStats;
+using Pitbull.TimeTracking.Features.GetMyCrew;
 using Pitbull.TimeTracking.Features.ListEmployees;
 using Pitbull.TimeTracking.Features.UpdateEmployee;
 using Pitbull.TimeTracking.Services;
@@ -92,6 +93,35 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
 
         return CreatedAtAction(nameof(GetById),
             new { id = result.Value!.Id }, result.Value);
+    }
+
+    /// <summary>
+    /// Get crew members assigned to a supervisor
+    /// </summary>
+    /// <remarks>
+    /// Returns all active employees where SupervisorId matches the given supervisor,
+    /// along with their project assignments. Used by the crew entry grid for batch time entry.
+    /// </remarks>
+    /// <param name="supervisorId">Supervisor's employee ID</param>
+    /// <returns>Crew members with project assignments</returns>
+    /// <response code="200">Crew list returned</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Supervisor not found</response>
+    /// <response code="429">Rate limit exceeded</response>
+    [HttpGet("my-crew")]
+    [ProducesResponseType(typeof(MyCrewResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> GetMyCrew([FromQuery] Guid supervisorId)
+    {
+        var result = await employeeService.GetMyCrewAsync(supervisorId);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+
+        return Ok(result.Value);
     }
 
     /// <summary>
