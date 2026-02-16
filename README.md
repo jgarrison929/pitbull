@@ -4,7 +4,7 @@
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-956%20passing-success)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1567%20passing-success)](tests/)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
 **Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
@@ -19,7 +19,7 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Alpha 0 Complete** (Feb 7, 2026 - 14 days early)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture, direct service injection
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies, HSTS, security headers
-- ✅ **Testing:** 956 tests passing (758 unit + 198 integration)
+- ✅ **Testing:** 1,567 tests passing (1,342 unit + 225 integration) — 100% controller coverage
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds, vulnerability scanning
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts, Equipment
 - ✅ **Multi-Company:** Single tenant, multiple legal entities with compound RLS (TenantId + CompanyId)
@@ -30,10 +30,12 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export, phase tracking
 - 📋 **Next:** Mobile-first time entry, foreman batch entry, pay period workflows
 
-**Recent Wins (Feb 13-14, 2026):**
+**Recent Wins (Feb 13-16, 2026):**
+- **⏱️ Crew Timecards:** Company-configurable time entry — daily/weekly modes, auto-assign cost codes, crew batch entry
+- **🧪 100% Controller Coverage:** All 23 API controllers have comprehensive unit tests (1,342 unit tests)
 - **🏢 Multi-Company:** Full multi-company architecture (ICompanyScoped, company switcher, 13 entities scoped)
 - **⏱️ Phase/Equipment Tracking:** PhaseId on time entries, Equipment entity with hourly/billing rates
-- **🎨 Frontend Overhaul:** 15 polish passes (charts, print views, dark mode, onboarding, command palette)
+- **🔒 Security Hardening:** Bootstrap-admin fix, rate limiting on all endpoints, request size limits
 - **🧹 MediatR Removed:** All controllers use direct service injection
 - **📊 RFI Cost Impact:** End-to-end pipeline from RFI to cost tracking
 
