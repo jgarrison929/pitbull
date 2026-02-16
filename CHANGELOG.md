@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.11.4] - 2026-02-16
+
+### 🧪 Testing
+
+- **100% Controller Unit Test Coverage** - All 23 API controllers now have dedicated unit tests
+- **New controller tests** - Added comprehensive unit tests for the remaining 8 untested controllers:
+  - CompaniesController (15 tests) - CRUD, company switching
+  - AdminCompaniesController (15 tests) - admin management operations
+  - ProjectAssignmentsController (22 tests) - assignment CRUD with validation
+  - AdminAuditController (12 tests) - audit log queries and filtering
+  - TenantsController (8 tests) - tenant info and settings
+  - SeedDataController (4 tests) - demo data seeding guards
+  - MonitoringController (4 tests) - health and diagnostics
+  - UsersController (18 tests) - user management and profiles
+- **Weekly Timecard Mode** - Feature-complete weekly entry with daily, detailed weekly, and simple weekly modes (#70)
+- **Codex review fixes** - Applied static analysis findings on crew timecard settings (#71)
+- **Unit test count:** 1,342 (up from 1,189)
+- **Integration test count:** 225
+- **Total test count:** 1,567
+
+---
+
 ## [0.11.3] - 2026-02-15
 
 ### 🚀 Features
