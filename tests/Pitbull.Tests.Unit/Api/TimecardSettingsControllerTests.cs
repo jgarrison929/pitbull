@@ -26,9 +26,7 @@ public class TimecardSettingsControllerTests : IDisposable
         companyContext.CompanyName = "Test Company";
         companyContext.SetAccessibleCompanies([TestCompanyId]);
 
-        // Register the Projects module so Project entity is in the model
-        PitbullDbContext.RegisterModuleAssembly(typeof(Project).Assembly);
-
+        // Module assemblies are registered by ModuleInit at assembly load time.
         var options = new DbContextOptionsBuilder<PitbullDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
