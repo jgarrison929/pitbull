@@ -47,6 +47,7 @@ function formatLocation(project: Project): string {
 const pmNavItems = [
   { label: "Schedule", href: "schedule" },
   { label: "Job Cost", href: "job-cost" },
+  { label: "RFIs", href: "rfis" },
   { label: "Submittals", href: "submittals" },
   { label: "Plans & Specs", href: "plans-specs" },
   { label: "Communications", href: "communications" },
