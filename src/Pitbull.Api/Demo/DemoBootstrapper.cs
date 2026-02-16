@@ -6,6 +6,7 @@ using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.TimeTracking.Domain;
 
 namespace Pitbull.Api.Demo;
 
@@ -63,18 +64,18 @@ public sealed class DemoBootstrapper(
             // Seed domain data (projects/bids/etc). This is idempotent per tenant.
             var result = await seedDataService.SeedAsync(cancellationToken);
 
-            if (result.IsSuccess)
+            if (result.IsSuccess || result.ErrorCode == "ALREADY_EXISTS")
             {
-                await tx.CommitAsync(cancellationToken);
-                logger.LogInformation("Demo seed complete: {Summary}", result.Value!.Summary);
-                return;
-            }
+                // Ensure demo users have Employee records (for /api/employees/my-crew)
+                await EnsureDemoEmployeeRecordsAsync(demo, cancellationToken);
 
-            // Treat already-seeded as success for bootstrap runs
-            if (result.ErrorCode == "ALREADY_EXISTS")
-            {
                 await tx.CommitAsync(cancellationToken);
-                logger.LogInformation("Demo seed skipped: {Message}", result.Error);
+
+                if (result.IsSuccess)
+                    logger.LogInformation("Demo seed complete: {Summary}", result.Value!.Summary);
+                else
+                    logger.LogInformation("Demo seed skipped: {Message}", result.Error);
+
                 return;
             }
 
@@ -243,6 +244,88 @@ public sealed class DemoBootstrapper(
             await roleSeeder.AssignRoleToUserAsync(joshUser, RoleSeeder.Roles.Admin, ct);
             logger.LogInformation("Ensured jgarrison929@gmail.com has Admin role and company access");
         }
+    }
+
+    /// <summary>
+    /// Ensures that demo user emails have corresponding Employee records so
+    /// /api/employees/my-crew can resolve the supervisor by email.
+    /// Must run inside the RLS transaction after seed data exists.
+    /// </summary>
+    private async Task EnsureDemoEmployeeRecordsAsync(DemoOptions demo, CancellationToken ct)
+    {
+        const string joshEmail = "jgarrison929@gmail.com";
+
+        var existingEmployee = await db.Set<Employee>()
+            .FirstOrDefaultAsync(e => e.Email == joshEmail && !e.IsDeleted, ct);
+
+        if (existingEmployee is not null)
+        {
+            logger.LogInformation("Employee record already exists for {Email} (ID: {Id})", joshEmail, existingEmployee.Id);
+            return;
+        }
+
+        // Create a Superintendent employee for Josh
+        var superintendent = new Employee
+        {
+            EmployeeNumber = "DEMO-SUP",
+            FirstName = "Josh",
+            LastName = "Garrison",
+            Email = joshEmail,
+            Phone = "(555) 000-0001",
+            Title = "Superintendent",
+            Classification = EmployeeClassification.Supervisor,
+            BaseHourlyRate = 65.00m,
+            HireDate = new DateOnly(2015, 1, 15),
+            IsActive = true,
+            Notes = "Demo superintendent linked to jgarrison929@gmail.com"
+        };
+
+        db.Set<Employee>().Add(superintendent);
+        await db.SaveChangesAsync(ct);
+
+        // Assign existing hourly/apprentice employees as crew members
+        var crewNumbers = new[] { "DEMO-007", "DEMO-008", "DEMO-009", "DEMO-010", "DEMO-011", "DEMO-012", "DEMO-013", "DEMO-014" };
+        var crewMembers = await db.Set<Employee>()
+            .Where(e => crewNumbers.Contains(e.EmployeeNumber) && !e.IsDeleted)
+            .ToListAsync(ct);
+
+        foreach (var crew in crewMembers)
+        {
+            crew.SupervisorId = superintendent.Id;
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        // Also assign superintendent to the seed projects
+        var projects = await db.Set<Pitbull.Projects.Domain.Project>()
+            .Where(p => !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active)
+            .Take(3)
+            .ToListAsync(ct);
+
+        foreach (var project in projects)
+        {
+            var alreadyAssigned = await db.Set<ProjectAssignment>()
+                .AnyAsync(pa => pa.EmployeeId == superintendent.Id && pa.ProjectId == project.Id && !pa.IsDeleted, ct);
+
+            if (!alreadyAssigned)
+            {
+                db.Set<ProjectAssignment>().Add(new ProjectAssignment
+                {
+                    EmployeeId = superintendent.Id,
+                    ProjectId = project.Id,
+                    StartDate = new DateOnly(2025, 1, 1),
+                    IsActive = true,
+                    Role = AssignmentRole.Supervisor,
+                    Notes = "Demo superintendent"
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation(
+            "Created Employee {EmployeeNumber} ({Email}) as Superintendent with {CrewCount} crew members on {ProjectCount} projects",
+            superintendent.EmployeeNumber, joshEmail, crewMembers.Count, projects.Count);
     }
 
     /// <summary>
