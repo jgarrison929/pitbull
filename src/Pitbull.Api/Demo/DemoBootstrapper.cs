@@ -236,14 +236,8 @@ public sealed class DemoBootstrapper(
             logger.LogError("Demo user {Email} FAILED to get Admin role - check RoleSeeder logs", demo.UserEmail);
         }
 
-        // Also ensure Josh's account has Admin and company access
-        var joshUser = await userManager.FindByEmailAsync("jgarrison929@gmail.com");
-        if (joshUser != null)
-        {
-            await EnsureUserCompanyAccessAsync(joshUser.Id, tenantId, companyId, ct);
-            await roleSeeder.AssignRoleToUserAsync(joshUser, RoleSeeder.Roles.Admin, ct);
-            logger.LogInformation("Ensured jgarrison929@gmail.com has Admin role and company access");
-        }
+        // The demo.UserEmail user was already handled above. If additional
+        // hard-coded accounts are needed, add them via DemoOptions instead.
     }
 
     /// <summary>
@@ -253,55 +247,65 @@ public sealed class DemoBootstrapper(
     /// </summary>
     private async Task EnsureDemoEmployeeRecordsAsync(DemoOptions demo, CancellationToken ct)
     {
-        const string joshEmail = "jgarrison929@gmail.com";
-
-        var existingEmployee = await db.Set<Employee>()
-            .FirstOrDefaultAsync(e => e.Email == joshEmail && !e.IsDeleted, ct);
-
-        if (existingEmployee is not null)
-        {
-            logger.LogInformation("Employee record already exists for {Email} (ID: {Id})", joshEmail, existingEmployee.Id);
+        var demoEmail = demo.UserEmail;
+        if (string.IsNullOrWhiteSpace(demoEmail))
             return;
+
+        var superintendent = await db.Set<Employee>()
+            .FirstOrDefaultAsync(e => e.Email == demoEmail && !e.IsDeleted, ct);
+
+        if (superintendent is not null)
+        {
+            logger.LogInformation("Employee record already exists for {Email} (ID: {Id})", demoEmail, superintendent.Id);
+        }
+        else
+        {
+            superintendent = new Employee
+            {
+                EmployeeNumber = "DEMO-SUP",
+                FirstName = demo.UserFirstName,
+                LastName = demo.UserLastName,
+                Email = demoEmail,
+                Phone = "(555) 000-0001",
+                Title = "Superintendent",
+                Classification = EmployeeClassification.Supervisor,
+                BaseHourlyRate = 65.00m,
+                HireDate = new DateOnly(2015, 1, 15),
+                IsActive = true,
+                Notes = $"Demo superintendent linked to {demoEmail}"
+            };
+
+            db.Set<Employee>().Add(superintendent);
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Created Employee {EmployeeNumber} ({Email})", superintendent.EmployeeNumber, demoEmail);
         }
 
-        // Create a Superintendent employee for Josh
-        var superintendent = new Employee
-        {
-            EmployeeNumber = "DEMO-SUP",
-            FirstName = "Josh",
-            LastName = "Garrison",
-            Email = joshEmail,
-            Phone = "(555) 000-0001",
-            Title = "Superintendent",
-            Classification = EmployeeClassification.Supervisor,
-            BaseHourlyRate = 65.00m,
-            HireDate = new DateOnly(2015, 1, 15),
-            IsActive = true,
-            Notes = "Demo superintendent linked to jgarrison929@gmail.com"
-        };
-
-        db.Set<Employee>().Add(superintendent);
-        await db.SaveChangesAsync(ct);
-
-        // Assign existing hourly/apprentice employees as crew members
+        // Always ensure crew members point to this superintendent
         var crewNumbers = new[] { "DEMO-007", "DEMO-008", "DEMO-009", "DEMO-010", "DEMO-011", "DEMO-012", "DEMO-013", "DEMO-014" };
         var crewMembers = await db.Set<Employee>()
             .Where(e => crewNumbers.Contains(e.EmployeeNumber) && !e.IsDeleted)
             .ToListAsync(ct);
 
+        var crewRepaired = 0;
         foreach (var crew in crewMembers)
         {
-            crew.SupervisorId = superintendent.Id;
+            if (crew.SupervisorId != superintendent.Id)
+            {
+                crew.SupervisorId = superintendent.Id;
+                crewRepaired++;
+            }
         }
 
-        await db.SaveChangesAsync(ct);
+        if (crewRepaired > 0)
+            await db.SaveChangesAsync(ct);
 
-        // Also assign superintendent to the seed projects
+        // Always ensure superintendent is assigned to active seed projects
         var projects = await db.Set<Pitbull.Projects.Domain.Project>()
             .Where(p => !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active)
             .Take(3)
             .ToListAsync(ct);
 
+        var projectsAssigned = 0;
         foreach (var project in projects)
         {
             var alreadyAssigned = await db.Set<ProjectAssignment>()
@@ -318,14 +322,16 @@ public sealed class DemoBootstrapper(
                     Role = AssignmentRole.Supervisor,
                     Notes = "Demo superintendent"
                 });
+                projectsAssigned++;
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        if (projectsAssigned > 0)
+            await db.SaveChangesAsync(ct);
 
         logger.LogInformation(
-            "Created Employee {EmployeeNumber} ({Email}) as Superintendent with {CrewCount} crew members on {ProjectCount} projects",
-            superintendent.EmployeeNumber, joshEmail, crewMembers.Count, projects.Count);
+            "Demo employee {Email}: {CrewCount} crew linked ({Repaired} repaired), {ProjectCount} project assignments ({NewAssigned} new)",
+            demoEmail, crewMembers.Count, crewRepaired, projects.Count, projectsAssigned);
     }
 
     /// <summary>
