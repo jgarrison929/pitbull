@@ -11,30 +11,41 @@ import {
   Clock,
   Save,
   Timer,
+  Calendar,
 } from "lucide-react";
+import type { TimecardMode } from "@/hooks/use-timecard-settings";
 
 interface CrewEntryHeaderProps {
   crewCount: number;
   totalHours: number;
   entryCount: number;
-  onCopyYesterday: () => void;
+  onCopyPrevious: () => void;
   onReset: () => void;
   onSetAllRegular8?: () => void;
   onSaveTemplate?: () => void;
   isDirty: boolean;
+  timecardMode?: TimecardMode;
+  /** @deprecated Use onCopyPrevious instead */
+  onCopyYesterday?: () => void;
 }
 
 export function CrewEntryHeader({
   crewCount,
   totalHours,
   entryCount,
-  onCopyYesterday,
+  onCopyPrevious,
   onReset,
   onSetAllRegular8,
   onSaveTemplate,
   isDirty,
+  timecardMode = "daily",
+  onCopyYesterday,
 }: CrewEntryHeaderProps) {
   const progressPercent = crewCount > 0 ? (entryCount / crewCount) * 100 : 0;
+  const isWeekly = timecardMode === "weekly";
+
+  // Support backward compat
+  const handleCopyPrevious = onCopyPrevious || onCopyYesterday || (() => {});
 
   return (
     <div className="flex flex-col gap-4">
@@ -46,25 +57,35 @@ export function CrewEntryHeader({
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Crew Time Entry</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Crew Time Entry
+            {isWeekly && (
+              <span className="ml-2 text-sm font-normal text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded">
+                <Calendar className="h-3.5 w-3.5 inline mr-1" />
+                Weekly
+              </span>
+            )}
+          </h1>
           <p className="text-muted-foreground">
-            Enter time for your entire crew at once
+            {isWeekly
+              ? "Enter weekly time for your entire crew at once"
+              : "Enter time for your entire crew at once"}
           </p>
         </div>
       </div>
 
-      {/* COPY PREVIOUS DAY - THE most prominent action */}
+      {/* COPY PREVIOUS - THE most prominent action */}
       <Button
-        onClick={onCopyYesterday}
+        onClick={handleCopyPrevious}
         className="w-full min-h-[56px] sm:min-h-[48px] bg-blue-600 hover:bg-blue-700 text-white text-lg sm:text-base font-semibold gap-3 shadow-md touch-manipulation"
       >
         <Copy className="h-5 w-5" />
-        Copy Previous Day
+        {isWeekly ? "Copy Last Week" : "Copy Previous Day"}
       </Button>
 
       {/* Quick Actions Row */}
       <div className="flex flex-wrap gap-2">
-        {onSetAllRegular8 && (
+        {!isWeekly && onSetAllRegular8 && (
           <Button
             variant="outline"
             size="sm"
@@ -124,7 +145,8 @@ export function CrewEntryHeader({
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span>
-              <span className="font-medium">{totalHours.toFixed(1)}</span> total hours
+              <span className="font-medium">{totalHours.toFixed(1)}</span>{" "}
+              {isWeekly ? "weekly hours" : "total hours"}
             </span>
           </div>
         </div>

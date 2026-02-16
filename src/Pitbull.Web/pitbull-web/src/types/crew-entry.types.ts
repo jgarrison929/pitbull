@@ -125,6 +125,90 @@ export interface CrewEntryValidationErrors {
   global?: string;
 }
 
+// ============================================
+// Weekly Mode Types
+// ============================================
+
+/** Days of the week for weekly grid columns */
+export type DayOfWeek = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+export const DAYS_OF_WEEK: DayOfWeek[] = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+];
+
+export const DAY_LABELS: Record<DayOfWeek, string> = {
+  mon: "Mon",
+  tue: "Tue",
+  wed: "Wed",
+  thu: "Thu",
+  fri: "Fri",
+  sat: "Sat",
+  sun: "Sun",
+};
+
+/** Weekly detailed mode: hours per day for one employee */
+export interface WeeklyDayHours {
+  mon: string;
+  tue: string;
+  wed: string;
+  thu: string;
+  fri: string;
+  sat: string;
+  sun: string;
+}
+
+/** One row in the weekly detailed grid */
+export interface WeeklyDetailedEntryData {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  costCodeId: string;
+  phaseId: string;
+  equipmentId: string;
+  equipmentHours: string;
+  dailyHours: WeeklyDayHours;
+  description: string;
+  error?: string;
+  isValid?: boolean;
+}
+
+/** One row in the weekly simple grid (Reg/OT/DT totals only) */
+export interface WeeklySimpleEntryData {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  costCodeId: string;
+  phaseId: string;
+  equipmentId: string;
+  equipmentHours: string;
+  regularHours: string;
+  overtimeHours: string;
+  doubletimeHours: string;
+  description: string;
+  error?: string;
+  isValid?: boolean;
+}
+
+/** Form data for the weekly detailed mode */
+export interface WeeklyDetailedFormData {
+  weekEndingDate: string;
+  projectId: string;
+  entries: WeeklyDetailedEntryData[];
+}
+
+/** Form data for the weekly simple mode */
+export interface WeeklySimpleFormData {
+  weekEndingDate: string;
+  projectId: string;
+  entries: WeeklySimpleEntryData[];
+}
+
 // Hook Return Types
 export interface UseCrewEntryDataReturn {
   crew: CrewMemberDto[];
@@ -146,6 +230,41 @@ export interface UseCrewEntryFormReturn {
   updateProject: (projectId: string) => void;
   updateEntry: (employeeId: string, field: keyof CrewMemberEntryData, value: string) => void;
   copyYesterday: () => Promise<void>;
+  submit: () => Promise<BatchCreateTimeEntriesResult | null>;
+  reset: () => void;
+  getTotalHours: () => number;
+  getEntryCount: () => number;
+}
+
+export interface UseWeeklyDetailedFormReturn {
+  formData: WeeklyDetailedFormData;
+  errors: CrewEntryValidationErrors;
+  isSubmitting: boolean;
+  isDirty: boolean;
+  updateWeekEndingDate: (date: string) => void;
+  updateProject: (projectId: string) => void;
+  updateDayHours: (employeeId: string, day: DayOfWeek, value: string) => void;
+  updateEntryField: (employeeId: string, field: string, value: string) => void;
+  copyLastWeek: () => Promise<void>;
+  submit: () => Promise<BatchCreateTimeEntriesResult | null>;
+  reset: () => void;
+  getTotalHours: () => number;
+  getEntryCount: () => number;
+  getEmployeeDayTotal: (employeeId: string) => number;
+  getEmployeeWeekTotal: (employeeId: string) => number;
+  getDayColumnTotal: (day: DayOfWeek) => number;
+  getGrandTotal: () => number;
+}
+
+export interface UseWeeklySimpleFormReturn {
+  formData: WeeklySimpleFormData;
+  errors: CrewEntryValidationErrors;
+  isSubmitting: boolean;
+  isDirty: boolean;
+  updateWeekEndingDate: (date: string) => void;
+  updateProject: (projectId: string) => void;
+  updateEntry: (employeeId: string, field: keyof WeeklySimpleEntryData, value: string) => void;
+  copyLastWeek: () => Promise<void>;
   submit: () => Promise<BatchCreateTimeEntriesResult | null>;
   reset: () => void;
   getTotalHours: () => number;

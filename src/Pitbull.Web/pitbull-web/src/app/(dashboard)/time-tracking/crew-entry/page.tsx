@@ -7,15 +7,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCrewEntryData } from "@/hooks/use-crew-entry-data";
 import { useCrewEntryForm } from "@/hooks/use-crew-entry-form";
+import { useWeeklyDetailedForm } from "@/hooks/use-weekly-detailed-form";
+import { useWeeklySimpleForm } from "@/hooks/use-weekly-simple-form";
+import { useTimecardSettings } from "@/hooks/use-timecard-settings";
 import { CrewEntryHeader } from "@/components/time-tracking/crew-entry/crew-entry-header";
 import { CrewEntryGrid } from "@/components/time-tracking/crew-entry/crew-entry-grid";
+import { CrewEntryWeeklyGrid } from "@/components/time-tracking/crew-entry/crew-entry-weekly-grid";
+import { CrewEntryWeeklySimpleGrid } from "@/components/time-tracking/crew-entry/crew-entry-weekly-simple-grid";
 import { CrewEntryMobileCards } from "@/components/time-tracking/crew-entry/crew-entry-mobile-cards";
 import { BatchSubmitSummary } from "@/components/time-tracking/crew-entry/batch-submit-summary";
+import { WeeklyBatchSubmitSummary } from "@/components/time-tracking/crew-entry/weekly-batch-submit-summary";
 import { CopyYesterdayDialog } from "@/components/time-tracking/crew-entry/copy-yesterday-dialog";
+import { CopyLastWeekDialog } from "@/components/time-tracking/crew-entry/copy-last-week-dialog";
 import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeft, Users, CalendarDays, List } from "lucide-react";
+import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -51,7 +58,6 @@ function saveCrewTemplate(template: CrewTemplate) {
   if (typeof window === "undefined") return;
   try {
     const templates = loadCrewTemplates();
-    // Keep max 5 templates, replace if same name
     const filtered = templates.filter((t) => t.name !== template.name);
     filtered.unshift(template);
     localStorage.setItem(CREW_TEMPLATE_STORAGE_KEY, JSON.stringify(filtered.slice(0, 5)));
@@ -66,10 +72,23 @@ function getYesterdayISO(): string {
   return d.toISOString().split("T")[0]!;
 }
 
+function formatWeekEndingLabel(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 export default function CrewEntryPage() {
   const router = useRouter();
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+
+  // Load timecard settings from company config
+  const { settings, isLoading: settingsLoading } = useTimecardSettings();
 
   const {
     crew,
@@ -81,20 +100,10 @@ export default function CrewEntryPage() {
     supervisorId,
   } = useCrewEntryData();
 
-  const {
-    formData,
-    errors,
-    isSubmitting,
-    isDirty,
-    updateDate,
-    updateProject,
-    updateEntry,
-    copyYesterday,
-    submit,
-    reset,
-    getTotalHours,
-    getEntryCount,
-  } = useCrewEntryForm({
+  // ──────────────────────────────────────────
+  // Daily mode form
+  // ──────────────────────────────────────────
+  const dailyForm = useCrewEntryForm({
     crew,
     supervisorId,
     onSuccess: () => {
@@ -103,8 +112,44 @@ export default function CrewEntryPage() {
     },
   });
 
+  // ──────────────────────────────────────────
+  // Weekly Detailed mode form
+  // ──────────────────────────────────────────
+  const weeklyDetailedForm = useWeeklyDetailedForm({
+    crew,
+    supervisorId,
+    onSuccess: () => {
+      setShowSummary(false);
+      router.push("/time-tracking");
+    },
+  });
+
+  // ──────────────────────────────────────────
+  // Weekly Simple mode form
+  // ──────────────────────────────────────────
+  const weeklySimpleForm = useWeeklySimpleForm({
+    crew,
+    supervisorId,
+    onSuccess: () => {
+      setShowSummary(false);
+      router.push("/time-tracking");
+    },
+  });
+
+  // Determine the active mode
+  const isWeekly = settings.timecardMode === "weekly";
+  const isWeeklyDetailed = isWeekly && settings.weeklyEntryMode === "detailed";
+  const isWeeklySimple = isWeekly && settings.weeklyEntryMode === "simple";
+
   // Phases for the selected project
   const [phases, setPhases] = useState<Phase[]>([]);
+
+  // Get the active projectId based on mode
+  const activeProjectId = isWeeklyDetailed
+    ? weeklyDetailedForm.formData.projectId
+    : isWeeklySimple
+    ? weeklySimpleForm.formData.projectId
+    : dailyForm.formData.projectId;
 
   // Load crew on mount
   useEffect(() => {
@@ -115,12 +160,12 @@ export default function CrewEntryPage() {
   useEffect(() => {
     let cancelled = false;
     async function fetchPhases() {
-      if (!formData.projectId) {
+      if (!activeProjectId) {
         setPhases([]);
         return;
       }
       try {
-        const result = await api<Phase[]>(`/api/projects/${formData.projectId}/phases`);
+        const result = await api<Phase[]>(`/api/projects/${activeProjectId}/phases`);
         if (!cancelled) setPhases(result);
       } catch {
         if (!cancelled) setPhases([]);
@@ -128,32 +173,105 @@ export default function CrewEntryPage() {
     }
     fetchPhases();
     return () => { cancelled = true; };
-  }, [formData.projectId]);
+  }, [activeProjectId]);
 
-  const handleCopyYesterday = async () => {
+  // ──────────────────────────────────────────
+  // Event handlers
+  // ──────────────────────────────────────────
+
+  const handleCopyPrevious = async () => {
     setShowCopyDialog(false);
-    await copyYesterday();
+    if (isWeeklyDetailed) {
+      await weeklyDetailedForm.copyLastWeek();
+    } else if (isWeeklySimple) {
+      await weeklySimpleForm.copyLastWeek();
+    } else {
+      await dailyForm.copyYesterday();
+    }
   };
 
   const handleSubmit = async () => {
     setShowSummary(false);
-    await submit();
+    if (isWeeklyDetailed) {
+      await weeklyDetailedForm.submit();
+    } else if (isWeeklySimple) {
+      await weeklySimpleForm.submit();
+    } else {
+      await dailyForm.submit();
+    }
   };
 
-  // Set all regular hours to 8
+  const handleReset = () => {
+    if (isWeeklyDetailed) {
+      weeklyDetailedForm.reset();
+    } else if (isWeeklySimple) {
+      weeklySimpleForm.reset();
+    } else {
+      dailyForm.reset();
+    }
+  };
+
+  const handleUpdateProject = (projectId: string) => {
+    if (isWeeklyDetailed) {
+      weeklyDetailedForm.updateProject(projectId);
+    } else if (isWeeklySimple) {
+      weeklySimpleForm.updateProject(projectId);
+    } else {
+      dailyForm.updateProject(projectId);
+    }
+  };
+
+  // Get active form stats
+  const totalHours = isWeeklyDetailed
+    ? weeklyDetailedForm.getTotalHours()
+    : isWeeklySimple
+    ? weeklySimpleForm.getTotalHours()
+    : dailyForm.getTotalHours();
+
+  const entryCount = isWeeklyDetailed
+    ? weeklyDetailedForm.getEntryCount()
+    : isWeeklySimple
+    ? weeklySimpleForm.getEntryCount()
+    : dailyForm.getEntryCount();
+
+  const isDirty = isWeeklyDetailed
+    ? weeklyDetailedForm.isDirty
+    : isWeeklySimple
+    ? weeklySimpleForm.isDirty
+    : dailyForm.isDirty;
+
+  const isSubmitting = isWeeklyDetailed
+    ? weeklyDetailedForm.isSubmitting
+    : isWeeklySimple
+    ? weeklySimpleForm.isSubmitting
+    : dailyForm.isSubmitting;
+
+  const errors = isWeeklyDetailed
+    ? weeklyDetailedForm.errors
+    : isWeeklySimple
+    ? weeklySimpleForm.errors
+    : dailyForm.errors;
+
+  // Set all regular hours to 8 (daily mode only)
   const handleSetAllRegular8 = useCallback(() => {
-    formData.entries.forEach((entry) => {
-      updateEntry(entry.employeeId, "regularHours", "8");
+    dailyForm.formData.entries.forEach((entry) => {
+      dailyForm.updateEntry(entry.employeeId, "regularHours", "8");
     });
-    toast.success(`Set all ${formData.entries.length} crew to 8 regular hours`);
-  }, [formData.entries, updateEntry]);
+    toast.success(`Set all ${dailyForm.formData.entries.length} crew to 8 regular hours`);
+  }, [dailyForm]);
 
   // Save crew template
   const handleSaveTemplate = useCallback(() => {
     const name = `Crew Setup - ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+    const entries = isWeeklyDetailed
+      ? weeklyDetailedForm.formData.entries
+      : isWeeklySimple
+      ? weeklySimpleForm.formData.entries
+      : dailyForm.formData.entries;
+
     const template: CrewTemplate = {
       name,
-      entries: formData.entries.map((e) => ({
+      entries: entries.map((e) => ({
         employeeId: e.employeeId,
         costCodeId: e.costCodeId,
         phaseId: e.phaseId,
@@ -163,10 +281,10 @@ export default function CrewEntryPage() {
     };
     saveCrewTemplate(template);
     toast.success("Crew template saved! It will be available next time.");
-  }, [formData.entries]);
+  }, [isWeeklyDetailed, isWeeklySimple, weeklyDetailedForm.formData.entries, weeklySimpleForm.formData.entries, dailyForm.formData.entries]);
 
   // Loading state
-  if (dataLoading) {
+  if (dataLoading || settingsLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -265,77 +383,131 @@ export default function CrewEntryPage() {
         </Link>
       </div>
 
-      {/* Header with Copy Previous Day, progress, templates */}
+      {/* Header with Copy Previous, progress, templates */}
       <CrewEntryHeader
         crewCount={crew.length}
-        totalHours={getTotalHours()}
-        entryCount={getEntryCount()}
-        onCopyYesterday={() => setShowCopyDialog(true)}
-        onReset={reset}
-        onSetAllRegular8={handleSetAllRegular8}
+        totalHours={totalHours}
+        entryCount={entryCount}
+        onCopyPrevious={() => setShowCopyDialog(true)}
+        onReset={handleReset}
+        onSetAllRegular8={!isWeekly ? handleSetAllRegular8 : undefined}
         onSaveTemplate={handleSaveTemplate}
         isDirty={isDirty}
+        timecardMode={settings.timecardMode}
       />
 
       {/* Pay Period Indicator */}
-      <PayPeriodIndicator date={formData.date} compact />
+      <PayPeriodIndicator
+        date={
+          isWeeklyDetailed
+            ? weeklyDetailedForm.formData.weekEndingDate
+            : isWeeklySimple
+            ? weeklySimpleForm.formData.weekEndingDate
+            : dailyForm.formData.date
+        }
+        compact
+      />
 
       {/* Date/Project Selection */}
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="text-lg">Entry Details</CardTitle>
           <CardDescription>
-            Select the date and project for all time entries
+            {isWeekly
+              ? "Select the week ending date and project for all time entries"
+              : "Select the date and project for all time entries"}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label htmlFor="date" className="text-sm font-medium">
-                Date
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="date"
-                  type="date"
-                  value={formData.date}
-                  onChange={(e) => updateDate(e.target.value)}
-                  className="flex min-h-[48px] sm:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation"
-                />
-                <div className="flex gap-1 shrink-0">
-                  <Button
-                    type="button"
-                    variant={formData.date === getTodayISO() ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateDate(getTodayISO())}
-                    className="min-h-[48px] sm:min-h-[36px] px-2.5 text-xs touch-manipulation"
-                  >
-                    <CalendarDays className="h-3.5 w-3.5 mr-1" />
-                    Today
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={formData.date === getYesterdayISO() ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => updateDate(getYesterdayISO())}
-                    className="min-h-[48px] sm:min-h-[36px] px-2.5 text-xs touch-manipulation"
-                  >
-                    Yest.
-                  </Button>
+            {/* Date picker — different for daily vs weekly */}
+            {isWeekly ? (
+              <div className="space-y-2">
+                <label htmlFor="weekEnding" className="text-sm font-medium flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-amber-600" />
+                  Week Ending
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="weekEnding"
+                    type="date"
+                    value={
+                      isWeeklyDetailed
+                        ? weeklyDetailedForm.formData.weekEndingDate
+                        : weeklySimpleForm.formData.weekEndingDate
+                    }
+                    onChange={(e) => {
+                      if (isWeeklyDetailed) {
+                        weeklyDetailedForm.updateWeekEndingDate(e.target.value);
+                      } else {
+                        weeklySimpleForm.updateWeekEndingDate(e.target.value);
+                      }
+                    }}
+                    className="flex min-h-[48px] sm:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation"
+                  />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Week:{" "}
+                  {formatWeekEndingLabel(
+                    isWeeklyDetailed
+                      ? weeklyDetailedForm.formData.weekEndingDate
+                      : weeklySimpleForm.formData.weekEndingDate
+                  )}
+                </p>
+                {errors.date && (
+                  <p className="text-sm text-destructive">{errors.date}</p>
+                )}
               </div>
-              {errors.date && (
-                <p className="text-sm text-destructive">{errors.date}</p>
-              )}
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <label htmlFor="date" className="text-sm font-medium">
+                  Date
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="date"
+                    type="date"
+                    value={dailyForm.formData.date}
+                    onChange={(e) => dailyForm.updateDate(e.target.value)}
+                    className="flex min-h-[48px] sm:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation"
+                  />
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      type="button"
+                      variant={dailyForm.formData.date === getTodayISO() ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => dailyForm.updateDate(getTodayISO())}
+                      className="min-h-[48px] sm:min-h-[36px] px-2.5 text-xs touch-manipulation"
+                    >
+                      <CalendarDays className="h-3.5 w-3.5 mr-1" />
+                      Today
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={dailyForm.formData.date === getYesterdayISO() ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => dailyForm.updateDate(getYesterdayISO())}
+                      className="min-h-[48px] sm:min-h-[36px] px-2.5 text-xs touch-manipulation"
+                    >
+                      Yest.
+                    </Button>
+                  </div>
+                </div>
+                {errors.date && (
+                  <p className="text-sm text-destructive">{errors.date}</p>
+                )}
+              </div>
+            )}
+
+            {/* Project selector (shared) */}
             <div className="space-y-2">
               <label htmlFor="project" className="text-sm font-medium">
                 Project
               </label>
               <select
                 id="project"
-                value={formData.projectId}
-                onChange={(e) => updateProject(e.target.value)}
+                value={activeProjectId}
+                onChange={(e) => handleUpdateProject(e.target.value)}
                 className="flex min-h-[48px] sm:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation"
               >
                 <option value="">Select a project...</option>
@@ -353,60 +525,135 @@ export default function CrewEntryPage() {
         </CardContent>
       </Card>
 
-      {/* Desktop Grid */}
-      <div className="hidden md:block">
-        <CrewEntryGrid
-          entries={formData.entries}
+      {/* ══════════════════════════════════════════
+          GRID: render based on mode
+          ══════════════════════════════════════════ */}
+
+      {/* DAILY MODE - existing grid */}
+      {!isWeekly && (
+        <>
+          <div className="hidden md:block">
+            <CrewEntryGrid
+              entries={dailyForm.formData.entries}
+              equipmentList={equipmentList}
+              phases={phases}
+              onUpdateEntry={dailyForm.updateEntry}
+            />
+          </div>
+          <div className="md:hidden">
+            <CrewEntryMobileCards
+              entries={dailyForm.formData.entries}
+              equipmentList={equipmentList}
+              phases={phases}
+              onUpdateEntry={dailyForm.updateEntry}
+            />
+          </div>
+        </>
+      )}
+
+      {/* WEEKLY DETAILED MODE - day-by-day grid */}
+      {isWeeklyDetailed && (
+        <div className="overflow-x-auto">
+          <CrewEntryWeeklyGrid
+            entries={weeklyDetailedForm.formData.entries}
+            weekEndingDate={weeklyDetailedForm.formData.weekEndingDate}
+            equipmentList={equipmentList}
+            phases={phases}
+            onUpdateDayHours={weeklyDetailedForm.updateDayHours}
+            onUpdateEntryField={weeklyDetailedForm.updateEntryField}
+            getDayColumnTotal={weeklyDetailedForm.getDayColumnTotal}
+            getGrandTotal={weeklyDetailedForm.getGrandTotal}
+          />
+        </div>
+      )}
+
+      {/* WEEKLY SIMPLE MODE - Reg/OT/DT totals */}
+      {isWeeklySimple && (
+        <CrewEntryWeeklySimpleGrid
+          entries={weeklySimpleForm.formData.entries}
           equipmentList={equipmentList}
           phases={phases}
-          onUpdateEntry={updateEntry}
+          onUpdateEntry={weeklySimpleForm.updateEntry}
         />
-      </div>
+      )}
 
-      {/* Mobile Cards */}
-      <div className="md:hidden">
-        <CrewEntryMobileCards
-          entries={formData.entries}
-          equipmentList={equipmentList}
-          phases={phases}
-          onUpdateEntry={updateEntry}
-        />
-      </div>
-
-      {/* Submit Button - Large and prominent */}
+      {/* Submit Button */}
       <div className="flex flex-col sm:flex-row justify-end gap-3">
         <Button variant="outline" asChild className="min-h-[48px] touch-manipulation">
           <Link href="/time-tracking">Cancel</Link>
         </Button>
         <Button
           onClick={() => setShowSummary(true)}
-          disabled={getEntryCount() === 0 || !formData.projectId}
+          disabled={entryCount === 0 || !activeProjectId}
           className="bg-amber-500 hover:bg-amber-600 text-white min-h-[56px] sm:min-h-[48px] text-lg sm:text-base font-semibold touch-manipulation"
         >
-          Review &amp; Submit ({getEntryCount()} entries)
+          Review &amp; Submit ({entryCount} {isWeekly ? "weekly " : ""}entries)
         </Button>
       </div>
 
-      {/* Copy Yesterday Dialog */}
-      <CopyYesterdayDialog
-        open={showCopyDialog}
-        onOpenChange={setShowCopyDialog}
-        onConfirm={handleCopyYesterday}
-      />
+      {/* ══════════════════════════════════════════
+          DIALOGS
+          ══════════════════════════════════════════ */}
 
-      {/* Submit Summary Dialog */}
-      <BatchSubmitSummary
-        open={showSummary}
-        onOpenChange={setShowSummary}
-        entries={formData.entries}
-        date={formData.date}
-        projectName={
-          projects.find((p) => p.projectId === formData.projectId)?.projectName ||
-          ""
-        }
-        isSubmitting={isSubmitting}
-        onSubmit={handleSubmit}
-      />
+      {/* Copy Dialog - mode-specific */}
+      {isWeekly ? (
+        <CopyLastWeekDialog
+          open={showCopyDialog}
+          onOpenChange={setShowCopyDialog}
+          onConfirm={handleCopyPrevious}
+        />
+      ) : (
+        <CopyYesterdayDialog
+          open={showCopyDialog}
+          onOpenChange={setShowCopyDialog}
+          onConfirm={handleCopyPrevious}
+        />
+      )}
+
+      {/* Submit Summary Dialog - mode-specific */}
+      {!isWeekly && (
+        <BatchSubmitSummary
+          open={showSummary}
+          onOpenChange={setShowSummary}
+          entries={dailyForm.formData.entries}
+          date={dailyForm.formData.date}
+          projectName={
+            projects.find((p) => p.projectId === activeProjectId)?.projectName || ""
+          }
+          isSubmitting={isSubmitting}
+          onSubmit={handleSubmit}
+        />
+      )}
+
+      {isWeeklyDetailed && (
+        <WeeklyBatchSubmitSummary
+          open={showSummary}
+          onOpenChange={setShowSummary}
+          weekEndingDate={weeklyDetailedForm.formData.weekEndingDate}
+          projectName={
+            projects.find((p) => p.projectId === activeProjectId)?.projectName || ""
+          }
+          isSubmitting={isSubmitting}
+          onSubmit={handleSubmit}
+          mode="detailed"
+          detailedEntries={weeklyDetailedForm.formData.entries}
+        />
+      )}
+
+      {isWeeklySimple && (
+        <WeeklyBatchSubmitSummary
+          open={showSummary}
+          onOpenChange={setShowSummary}
+          weekEndingDate={weeklySimpleForm.formData.weekEndingDate}
+          projectName={
+            projects.find((p) => p.projectId === activeProjectId)?.projectName || ""
+          }
+          isSubmitting={isSubmitting}
+          onSubmit={handleSubmit}
+          mode="simple"
+          simpleEntries={weeklySimpleForm.formData.entries}
+        />
+      )}
     </div>
   );
 }
