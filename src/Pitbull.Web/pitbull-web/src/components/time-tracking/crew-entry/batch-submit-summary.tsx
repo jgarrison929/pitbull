@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Clock, User, Calendar, Building } from "lucide-react";
 import type { CrewMemberEntryData } from "@/types/crew-entry.types";
-import type { CostCode } from "@/lib/types";
 
 interface BatchSubmitSummaryProps {
   open: boolean;
@@ -19,7 +18,6 @@ interface BatchSubmitSummaryProps {
   entries: CrewMemberEntryData[];
   date: string;
   projectName: string;
-  costCodes: CostCode[];
   isSubmitting: boolean;
   onSubmit: () => void;
 }
@@ -30,7 +28,6 @@ export function BatchSubmitSummary({
   entries,
   date,
   projectName,
-  costCodes,
   isSubmitting,
   onSubmit,
 }: BatchSubmitSummaryProps) {
@@ -52,10 +49,9 @@ export function BatchSubmitSummary({
     );
   }, 0);
 
-  const getCostCodeName = (id: string) => {
-    const cc = costCodes.find((c) => c.id === id);
-    return cc ? `${cc.code}` : "—";
-  };
+  const totalEquipmentHours = entriesToSubmit.reduce((sum, entry) => {
+    return sum + (parseFloat(entry.equipmentHours) || 0);
+  }, 0);
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + "T00:00:00");
@@ -93,7 +89,14 @@ export function BatchSubmitSummary({
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>{totalHours.toFixed(1)} total hours</span>
+            <span>
+              {totalHours.toFixed(1)} total hours
+              {totalEquipmentHours > 0 && (
+                <span className="text-amber-600 ml-1">
+                  ({totalEquipmentHours.toFixed(1)} equip)
+                </span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -103,11 +106,11 @@ export function BatchSubmitSummary({
             <thead className="bg-muted/50 sticky top-0">
               <tr>
                 <th className="text-left px-3 py-2 font-medium">Employee</th>
-                <th className="text-center px-3 py-2 font-medium">Code</th>
                 <th className="text-center px-3 py-2 font-medium">Reg</th>
                 <th className="text-center px-3 py-2 font-medium">OT</th>
                 <th className="text-center px-3 py-2 font-medium">DT</th>
                 <th className="text-center px-3 py-2 font-medium">Total</th>
+                <th className="text-center px-3 py-2 font-medium">Equip</th>
               </tr>
             </thead>
             <tbody>
@@ -116,6 +119,7 @@ export function BatchSubmitSummary({
                 const ot = parseFloat(entry.overtimeHours) || 0;
                 const dt = parseFloat(entry.doubletimeHours) || 0;
                 const total = reg + ot + dt;
+                const equipHrs = parseFloat(entry.equipmentHours) || 0;
 
                 return (
                   <tr
@@ -124,9 +128,6 @@ export function BatchSubmitSummary({
                   >
                     <td className="px-3 py-2">
                       <div className="font-medium">{entry.employeeName}</div>
-                    </td>
-                    <td className="px-3 py-2 text-center text-muted-foreground">
-                      {getCostCodeName(entry.costCodeId)}
                     </td>
                     <td className="px-3 py-2 text-center">{reg.toFixed(1)}</td>
                     <td className="px-3 py-2 text-center">
@@ -137,6 +138,9 @@ export function BatchSubmitSummary({
                     </td>
                     <td className="px-3 py-2 text-center font-medium">
                       {total.toFixed(1)}
+                    </td>
+                    <td className="px-3 py-2 text-center text-amber-600">
+                      {equipHrs > 0 ? equipHrs.toFixed(1) : "—"}
                     </td>
                   </tr>
                 );

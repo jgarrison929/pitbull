@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -25,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { Clock, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Clock, ArrowUpDown, ArrowUp, ArrowDown, Users, List } from "lucide-react";
 import api from "@/lib/api";
 import type {
   ListTimeEntriesResult,
@@ -46,14 +47,27 @@ import {
 } from "@/lib/time-tracking";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
+import { Suspense } from "react";
 
 const ALL_VALUE = "__all__";
 
 type SortField = "date" | "employee" | "project" | "phase" | "equipment" | "hours" | "status";
 type SortDirection = "asc" | "desc";
 
-export default function TimeTrackingPage() {
+function TimeTrackingContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { activeCompany } = useCompany();
+
+  // Default behavior: redirect to crew entry unless ?view=entries
+  const viewParam = searchParams.get("view");
+
+  useEffect(() => {
+    if (viewParam !== "entries") {
+      router.replace("/time-tracking/crew-entry");
+    }
+  }, [viewParam, router]);
+
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -116,8 +130,10 @@ export default function TimeTrackingPage() {
   }, [activeCompany?.id]);
 
   useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries, activeCompany?.id]);
+    if (viewParam === "entries") {
+      fetchEntries();
+    }
+  }, [fetchEntries, activeCompany?.id, viewParam]);
 
   // Client-side filtering for phase and equipment (not supported by API params)
   const filteredEntries = useMemo(() => {
@@ -204,6 +220,11 @@ export default function TimeTrackingPage() {
   const totalHours = filteredEntries.reduce((sum, e) => sum + e.totalHours, 0);
   const totalEquipmentHours = filteredEntries.reduce((sum, e) => sum + (e.equipmentHours || 0), 0);
 
+  // If not viewing entries, show nothing (redirect is happening)
+  if (viewParam !== "entries") {
+    return null;
+  }
+
   return (
     <ErrorBoundary label="time tracking">
       <div className="space-y-6">
@@ -229,6 +250,24 @@ export default function TimeTrackingPage() {
               <Link href="/time-tracking/new">+ New Entry</Link>
             </Button>
           </div>
+        </div>
+
+        {/* View Tabs */}
+        <div className="flex gap-1 border-b">
+          <Link
+            href="/time-tracking/crew-entry"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30 transition-colors"
+          >
+            <Users className="h-4 w-4" />
+            Crew Entry
+          </Link>
+          <button
+            type="button"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 border-amber-500 text-amber-600 transition-colors"
+          >
+            <List className="h-4 w-4" />
+            All Entries
+          </button>
         </div>
 
         {/* Filters */}
@@ -423,7 +462,6 @@ export default function TimeTrackingPage() {
                       "Date",
                       "Employee",
                       "Project",
-                      "Cost Code",
                       "Phase",
                       "Equipment",
                       "Hours",
@@ -483,9 +521,6 @@ export default function TimeTrackingPage() {
                             {formatHours(entry.totalHours)}
                           </p>
                         </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {entry.costCodeDescription}
                       </div>
                       {(entry.phaseName || entry.equipmentCode) && (
                         <div className="flex flex-wrap gap-2 text-xs">
@@ -565,7 +600,6 @@ export default function TimeTrackingPage() {
                         >
                           Project <SortIcon field="project" />
                         </TableHead>
-                        <TableHead>Cost Code</TableHead>
                         <TableHead
                           className="cursor-pointer select-none hover:text-foreground"
                           onClick={() => toggleSort("phase")}
@@ -612,9 +646,6 @@ export default function TimeTrackingPage() {
                             <span className="text-muted-foreground text-xs">
                               {entry.projectName}
                             </span>
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {entry.costCodeDescription}
                           </TableCell>
                           <TableCell className="text-xs">
                             {entry.phaseName ? (
@@ -689,5 +720,13 @@ export default function TimeTrackingPage() {
         </Card>
       </div>
     </ErrorBoundary>
+  );
+}
+
+export default function TimeTrackingPage() {
+  return (
+    <Suspense>
+      <TimeTrackingContent />
+    </Suspense>
   );
 }

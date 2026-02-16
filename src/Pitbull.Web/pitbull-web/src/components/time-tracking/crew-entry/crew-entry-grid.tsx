@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { AlertCircle, CopyCheck, CheckCircle2 } from "lucide-react";
 import type { CrewMemberEntryData } from "@/types/crew-entry.types";
-import type { CostCode, Equipment, Phase } from "@/lib/types";
+import type { Equipment, Phase } from "@/lib/types";
 
 interface CrewEntryGridProps {
   entries: CrewMemberEntryData[];
-  costCodes: CostCode[];
   equipmentList?: Equipment[];
   phases?: Phase[];
   onUpdateEntry: (
@@ -22,7 +21,6 @@ interface CrewEntryGridProps {
 
 export function CrewEntryGrid({
   entries,
-  costCodes,
   equipmentList = [],
   phases = [],
   onUpdateEntry,
@@ -40,9 +38,6 @@ export function CrewEntryGrid({
   function applyEquipmentToAll() {
     entries.forEach((entry) => {
       onUpdateEntry(entry.employeeId, "equipmentId", applyEquipmentId);
-      if (applyEquipmentId) {
-        onUpdateEntry(entry.employeeId, "equipmentHours", entry.regularHours);
-      }
     });
   }
 
@@ -51,15 +46,15 @@ export function CrewEntryGrid({
       (parseFloat(entry.regularHours) || 0) +
       (parseFloat(entry.overtimeHours) || 0) +
       (parseFloat(entry.doubletimeHours) || 0);
-    return total > 0 && !!entry.costCodeId;
+    return total > 0;
   }
 
-  function isEntryMissingRequired(entry: CrewMemberEntryData): boolean {
+  function hasHoursEntered(entry: CrewMemberEntryData): boolean {
     const total =
       (parseFloat(entry.regularHours) || 0) +
       (parseFloat(entry.overtimeHours) || 0) +
       (parseFloat(entry.doubletimeHours) || 0);
-    return total > 0 && !entry.costCodeId;
+    return total > 0;
   }
 
   return (
@@ -141,9 +136,6 @@ export function CrewEntryGrid({
                 <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground w-48">
                   Employee
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground w-48">
-                  Cost Code
-                </th>
                 {phases.length > 0 && (
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground w-40">
                     Phase
@@ -152,6 +144,11 @@ export function CrewEntryGrid({
                 {equipmentList.length > 0 && (
                   <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground w-44">
                     Equipment
+                  </th>
+                )}
+                {equipmentList.length > 0 && (
+                  <th className="px-4 py-3 text-center text-sm font-medium text-amber-600 w-24">
+                    Equip Hrs
                   </th>
                 )}
                 <th className="px-4 py-3 text-center text-sm font-medium text-blue-600 w-24">
@@ -179,7 +176,6 @@ export function CrewEntryGrid({
                   (parseFloat(entry.doubletimeHours) || 0);
 
                 const complete = isEntryComplete(entry);
-                const missingRequired = isEntryMissingRequired(entry);
 
                 return (
                   <tr
@@ -188,15 +184,12 @@ export function CrewEntryGrid({
                       index % 2 === 0 ? "" : "bg-muted/30"
                     } ${entry.error ? "bg-destructive/5" : ""} ${
                       complete ? "bg-green-50/50 dark:bg-green-900/20" : ""
-                    } ${missingRequired ? "bg-amber-50/50 dark:bg-amber-900/20" : ""}`}
+                    }`}
                   >
                     {/* Status indicator */}
                     <td className="px-2 py-3 text-center">
                       {complete && (
                         <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto" />
-                      )}
-                      {missingRequired && (
-                        <AlertCircle className="h-5 w-5 text-amber-500 mx-auto" />
                       )}
                       {entry.error && (
                         <AlertCircle className="h-5 w-5 text-red-500 mx-auto" />
@@ -209,24 +202,6 @@ export function CrewEntryGrid({
                           {entry.employeeNumber}
                         </div>
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <select
-                        value={entry.costCodeId}
-                        onChange={(e) =>
-                          onUpdateEntry(entry.employeeId, "costCodeId", e.target.value)
-                        }
-                        className={`w-full h-9 rounded-md border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
-                          missingRequired ? "border-amber-400" : "border-input"
-                        }`}
-                      >
-                        <option value="">Select...</option>
-                        {costCodes.map((cc) => (
-                          <option key={cc.id} value={cc.id}>
-                            {cc.code} - {cc.description}
-                          </option>
-                        ))}
-                      </select>
                     </td>
                     {phases.length > 0 && (
                       <td className="px-4 py-3">
@@ -253,9 +228,7 @@ export function CrewEntryGrid({
                           onChange={(e) => {
                             const newEquipmentId = e.target.value;
                             onUpdateEntry(entry.employeeId, "equipmentId", newEquipmentId);
-                            if (newEquipmentId) {
-                              onUpdateEntry(entry.employeeId, "equipmentHours", entry.regularHours);
-                            } else {
+                            if (!newEquipmentId) {
                               onUpdateEntry(entry.employeeId, "equipmentHours", "0");
                             }
                           }}
@@ -268,6 +241,24 @@ export function CrewEntryGrid({
                             </option>
                           ))}
                         </select>
+                      </td>
+                    )}
+                    {equipmentList.length > 0 && (
+                      <td className="px-4 py-3">
+                        <input
+                          type="number"
+                          min="0"
+                          max="24"
+                          step="0.5"
+                          value={entry.equipmentHours}
+                          onChange={(e) =>
+                            onUpdateEntry(entry.employeeId, "equipmentHours", e.target.value)
+                          }
+                          disabled={!entry.equipmentId}
+                          className={`w-20 h-9 rounded-md border border-input bg-background px-2 text-center text-sm font-medium text-amber-600 focus:outline-none focus:ring-2 focus:ring-ring ${
+                            !entry.equipmentId ? "opacity-50 cursor-not-allowed" : ""
+                          }`}
+                        />
                       </td>
                     )}
                     <td className="px-4 py-3">

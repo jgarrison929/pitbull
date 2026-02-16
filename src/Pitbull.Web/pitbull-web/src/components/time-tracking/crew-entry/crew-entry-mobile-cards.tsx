@@ -13,11 +13,10 @@ import {
   Plus,
 } from "lucide-react";
 import type { CrewMemberEntryData } from "@/types/crew-entry.types";
-import type { CostCode, Equipment, Phase } from "@/lib/types";
+import type { Equipment, Phase } from "@/lib/types";
 
 interface CrewEntryMobileCardsProps {
   entries: CrewMemberEntryData[];
-  costCodes: CostCode[];
   equipmentList?: Equipment[];
   phases?: Phase[];
   onUpdateEntry: (
@@ -33,11 +32,13 @@ function MiniHoursStepper({
   value,
   onChange,
   colorClass,
+  disabled,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   colorClass: string;
+  disabled?: boolean;
 }) {
   const numVal = parseFloat(value) || 0;
   const step = (delta: number) => {
@@ -48,11 +49,12 @@ function MiniHoursStepper({
   return (
     <div className="space-y-1">
       <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <div className="flex items-center gap-0.5">
+      <div className={`flex items-center gap-0.5 ${disabled ? "opacity-50" : ""}`}>
         <button
           type="button"
           onClick={() => step(-0.5)}
-          className="flex items-center justify-center w-10 h-10 rounded-l-md border border-input bg-background hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation"
+          disabled={disabled}
+          className="flex items-center justify-center w-10 h-10 rounded-l-md border border-input bg-background hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={`Decrease ${label}`}
         >
           <Minus className="h-3.5 w-3.5" />
@@ -65,12 +67,14 @@ function MiniHoursStepper({
           step="0.5"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-14 h-10 border-y border-input bg-background text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-ring ${colorClass}`}
+          disabled={disabled}
+          className={`w-14 h-10 border-y border-input bg-background text-center text-lg font-bold focus:outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed ${colorClass}`}
         />
         <button
           type="button"
           onClick={() => step(0.5)}
-          className="flex items-center justify-center w-10 h-10 rounded-r-md border border-input bg-background hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation"
+          disabled={disabled}
+          className="flex items-center justify-center w-10 h-10 rounded-r-md border border-input bg-background hover:bg-muted active:bg-muted/80 transition-colors touch-manipulation disabled:cursor-not-allowed disabled:opacity-50"
           aria-label={`Increase ${label}`}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -82,7 +86,6 @@ function MiniHoursStepper({
 
 export function CrewEntryMobileCards({
   entries,
-  costCodes,
   equipmentList = [],
   phases = [],
   onUpdateEntry,
@@ -116,9 +119,6 @@ export function CrewEntryMobileCards({
   function applyEquipmentToAll() {
     entries.forEach((e) => {
       onUpdateEntry(e.employeeId, "equipmentId", applyEquipmentId);
-      if (applyEquipmentId) {
-        onUpdateEntry(e.employeeId, "equipmentHours", e.regularHours);
-      }
     });
     setShowApplyAll(false);
   }
@@ -128,15 +128,7 @@ export function CrewEntryMobileCards({
       (parseFloat(entry.regularHours) || 0) +
       (parseFloat(entry.overtimeHours) || 0) +
       (parseFloat(entry.doubletimeHours) || 0);
-    return total > 0 && !!entry.costCodeId;
-  }
-
-  function isEntryMissingRequired(entry: CrewMemberEntryData): boolean {
-    const total =
-      (parseFloat(entry.regularHours) || 0) +
-      (parseFloat(entry.overtimeHours) || 0) +
-      (parseFloat(entry.doubletimeHours) || 0);
-    return total > 0 && !entry.costCodeId;
+    return total > 0;
   }
 
   // Swipe handling for mark complete
@@ -248,7 +240,6 @@ export function CrewEntryMobileCards({
           (parseFloat(entry.doubletimeHours) || 0);
         const isExpanded = expandedIds.has(entry.employeeId);
         const complete = isEntryComplete(entry);
-        const missingReq = isEntryMissingRequired(entry);
 
         return (
           <Card
@@ -258,8 +249,6 @@ export function CrewEntryMobileCards({
                 ? "border-destructive"
                 : complete
                 ? "border-green-300 bg-green-50/30 dark:bg-green-900/15"
-                : missingReq
-                ? "border-amber-300 bg-amber-50/30 dark:bg-amber-900/15"
                 : ""
             }`}
             onTouchStart={(e) => handleTouchStart(e, entry.employeeId)}
@@ -275,8 +264,6 @@ export function CrewEntryMobileCards({
                 {/* Status icon */}
                 {complete ? (
                   <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-                ) : missingReq ? (
-                  <AlertCircle className="h-5 w-5 text-amber-500 shrink-0" />
                 ) : entry.error ? (
                   <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
                 ) : (
@@ -313,27 +300,6 @@ export function CrewEntryMobileCards({
                   </div>
                 )}
 
-                {/* Cost Code */}
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Cost Code <span className="text-destructive">*</span></label>
-                  <select
-                    value={entry.costCodeId}
-                    onChange={(e) =>
-                      onUpdateEntry(entry.employeeId, "costCodeId", e.target.value)
-                    }
-                    className={`w-full min-h-[48px] rounded-md border bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation ${
-                      missingReq ? "border-amber-400" : "border-input"
-                    }`}
-                  >
-                    <option value="">Select cost code...</option>
-                    {costCodes.map((cc) => (
-                      <option key={cc.id} value={cc.id}>
-                        {cc.code} - {cc.description}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 {/* Phase & Equipment */}
                 <div className="grid gap-3 grid-cols-1 min-[480px]:grid-cols-2">
                   {phases.length > 0 && (
@@ -363,9 +329,7 @@ export function CrewEntryMobileCards({
                         onChange={(e) => {
                           const newEquipmentId = e.target.value;
                           onUpdateEntry(entry.employeeId, "equipmentId", newEquipmentId);
-                          if (newEquipmentId) {
-                            onUpdateEntry(entry.employeeId, "equipmentHours", entry.regularHours);
-                          } else {
+                          if (!newEquipmentId) {
                             onUpdateEntry(entry.employeeId, "equipmentHours", "0");
                           }
                         }}
@@ -381,6 +345,17 @@ export function CrewEntryMobileCards({
                     </div>
                   )}
                 </div>
+
+                {/* Equipment Hours (shown when equipment is available) */}
+                {equipmentList.length > 0 && (
+                  <MiniHoursStepper
+                    label="Equipment Hrs"
+                    value={entry.equipmentHours}
+                    onChange={(v) => onUpdateEntry(entry.employeeId, "equipmentHours", v)}
+                    colorClass="text-amber-600"
+                    disabled={!entry.equipmentId}
+                  />
+                )}
 
                 {/* Hours with Steppers */}
                 <div className="grid grid-cols-3 gap-2">
@@ -427,7 +402,6 @@ export function CrewEntryMobileCards({
       <div className="flex justify-center gap-2 flex-wrap py-2">
         {entries.map((entry) => {
           const complete = isEntryComplete(entry);
-          const missingReq = isEntryMissingRequired(entry);
           const hasError = !!entry.error;
 
           return (
@@ -449,8 +423,6 @@ export function CrewEntryMobileCards({
                   ? "bg-red-500"
                   : complete
                   ? "bg-green-500"
-                  : missingReq
-                  ? "bg-amber-500"
                   : "bg-muted-foreground/30"
               }`}
               aria-label={`${entry.employeeName} - ${complete ? "complete" : "incomplete"}`}

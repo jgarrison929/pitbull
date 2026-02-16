@@ -18,6 +18,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, ArrowLeft, Users, CalendarDays } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
 import { toast } from "sonner";
+import api from "@/lib/api";
+import type { Phase } from "@/lib/types";
 
 // For demo purposes - in production this would come from auth context
 const DEMO_SUPERVISOR_ID = "00000000-0000-0000-0000-000000000001";
@@ -72,7 +74,6 @@ export default function CrewEntryPage() {
   const {
     crew,
     projects,
-    costCodes,
     equipmentList,
     isLoading: dataLoading,
     error: dataError,
@@ -102,10 +103,30 @@ export default function CrewEntryPage() {
     },
   });
 
+  // Phases for the selected project
+  const [phases, setPhases] = useState<Phase[]>([]);
+
   // Load crew on mount
   useEffect(() => {
     loadCrew(DEMO_SUPERVISOR_ID);
   }, [loadCrew]);
+
+  // Load phases when project changes
+  useEffect(() => {
+    if (!formData.projectId) {
+      setPhases([]);
+      return;
+    }
+    async function fetchPhases() {
+      try {
+        const result = await api<Phase[]>(`/api/projects/${formData.projectId}/phases`);
+        setPhases(result);
+      } catch {
+        setPhases([]);
+      }
+    }
+    fetchPhases();
+  }, [formData.projectId]);
 
   const handleCopyYesterday = async () => {
     setShowCopyDialog(false);
@@ -316,8 +337,8 @@ export default function CrewEntryPage() {
       <div className="hidden md:block">
         <CrewEntryGrid
           entries={formData.entries}
-          costCodes={costCodes}
           equipmentList={equipmentList}
+          phases={phases}
           onUpdateEntry={updateEntry}
         />
       </div>
@@ -326,8 +347,8 @@ export default function CrewEntryPage() {
       <div className="md:hidden">
         <CrewEntryMobileCards
           entries={formData.entries}
-          costCodes={costCodes}
           equipmentList={equipmentList}
+          phases={phases}
           onUpdateEntry={updateEntry}
         />
       </div>
@@ -363,7 +384,6 @@ export default function CrewEntryPage() {
           projects.find((p) => p.projectId === formData.projectId)?.projectName ||
           ""
         }
-        costCodes={costCodes}
         isSubmitting={isSubmitting}
         onSubmit={handleSubmit}
       />
