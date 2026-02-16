@@ -5,6 +5,7 @@ using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 using Pitbull.TimeTracking.Services;
@@ -259,6 +260,7 @@ public sealed class AutoCostCodeAssignmentTests
             db,
             new CreateTimeEntryValidator(),
             new UpdateTimeEntryValidator(),
+            new BatchCreateTimeEntriesValidator(),
             new LaborCostCalculator(),
             NullLogger<TimeEntryService>.Instance
         );

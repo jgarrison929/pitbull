@@ -49,21 +49,21 @@ export function useCrewEntryData(): UseCrewEntryDataReturn {
     loadOptions();
   }, []);
 
-  const loadCrew = useCallback(async (supId: string) => {
-    if (!supId) {
-      setError("Supervisor ID is required");
-      return;
-    }
-
+  const loadCrew = useCallback(async (supId?: string) => {
     setIsLoading(true);
     setError(null);
-    setSupervisorId(supId);
+    if (supId) setSupervisorId(supId);
 
     try {
-      const result = await api<MyCrewResult>(
-        `/api/employees/my-crew?supervisorId=${supId}`
-      );
+      // When supId is provided, pass it as a query param (admin/impersonation).
+      // When omitted, the backend resolves the supervisor from the JWT email claim.
+      const url = supId
+        ? `/api/employees/my-crew?supervisorId=${supId}`
+        : `/api/employees/my-crew`;
+      const result = await api<MyCrewResult>(url);
 
+      // Always set supervisorId from response (backend resolves it when omitted)
+      setSupervisorId(result.supervisorId);
       setCrew(result.crewMembers);
 
       // Collect unique projects from all crew members

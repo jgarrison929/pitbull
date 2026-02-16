@@ -303,7 +303,7 @@ export function useWeeklyDetailedForm({
     }).length;
   }, [formData.entries]);
 
-  const submit = useCallback(async (): Promise<BatchCreateTimeEntriesResult | null> => {
+  const submitEntries = useCallback(async (isDraft: boolean): Promise<BatchCreateTimeEntriesResult | null> => {
     // Validate
     const newErrors: CrewEntryValidationErrors = {};
     if (!formData.weekEndingDate) newErrors.date = "Week ending date is required";
@@ -321,18 +321,25 @@ export function useWeeklyDetailedForm({
 
     formData.entries.forEach((entry) => {
       const weekTotal = getEmployeeWeekTotal(entry);
-      if (weekTotal <= 0) return;
+
+      // For drafts: include entries even with 0 hours if employee has any meaningful data
+      // For submits: skip employees with no hours
+      if (!isDraft && weekTotal <= 0) return;
+      if (isDraft && weekTotal <= 0 && entry.costCodeId === "" && entry.description === "") return;
 
       DAYS_OF_WEEK.forEach((day) => {
         const hours = parseFloat(entry.dailyHours[day]) || 0;
-        if (hours <= 0) return;
+        // For drafts: include day entries even if hours are 0 (when employee has some data)
+        // For submits: skip days with 0 hours
+        if (!isDraft && hours <= 0) return;
+        if (isDraft && hours <= 0) return; // Still skip zero-hour days for drafts to avoid noise
 
         // For v1, put all hours as regular. OT calculation is server-side.
         entriesToSubmit.push({
           date: weekDates[day],
           employeeId: entry.employeeId,
           projectId: formData.projectId,
-          costCodeId: entry.costCodeId,
+          costCodeId: entry.costCodeId || undefined,
           regularHours: hours,
           overtimeHours: 0,
           doubletimeHours: 0,
@@ -347,7 +354,11 @@ export function useWeeklyDetailedForm({
     });
 
     if (entriesToSubmit.length === 0) {
-      toast.error("No entries to submit - enter hours for at least one employee");
+      if (isDraft) {
+        toast.error("No entries to save - modify at least one employee's data");
+      } else {
+        toast.error("No entries to submit - enter hours for at least one employee");
+      }
       return null;
     }
 
@@ -357,6 +368,8 @@ export function useWeeklyDetailedForm({
       const request: BatchCreateTimeEntriesRequest = {
         entries: entriesToSubmit,
         allowPartialSuccess: false,
+        isDraft,
+        submittedById: supervisorId || undefined,
       };
 
       const result = await api<BatchCreateTimeEntriesResult>(
@@ -365,11 +378,17 @@ export function useWeeklyDetailedForm({
       );
 
       if (result.failureCount === 0) {
-        toast.success(
-          `Successfully created ${result.successCount} time entries for the week`
-        );
+        if (isDraft) {
+          toast.success("Draft saved - you can continue editing later");
+        } else {
+          toast.success(
+            `Successfully submitted ${result.successCount} time entries for PM review`
+          );
+        }
         setIsDirty(false);
-        onSuccess?.();
+        if (!isDraft) {
+          onSuccess?.();
+        }
       } else if (result.successCount > 0) {
         toast.warning(
           `Created ${result.successCount} entries, ${result.failureCount} failed`
@@ -405,7 +424,10 @@ export function useWeeklyDetailedForm({
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, onSuccess]);
+  }, [formData, onSuccess, supervisorId]);
+
+  const submit = useCallback(() => submitEntries(false), [submitEntries]);
+  const saveDraft = useCallback(() => submitEntries(true), [submitEntries]);
 
   const reset = useCallback(() => {
     setFormData({
@@ -428,6 +450,7 @@ export function useWeeklyDetailedForm({
     updateEntryField,
     copyLastWeek,
     submit,
+    saveDraft,
     reset,
     getTotalHours,
     getEntryCount,

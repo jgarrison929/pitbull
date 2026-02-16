@@ -1,6 +1,8 @@
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
+using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
+using Pitbull.TimeTracking.Features.BulkSubmitTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
@@ -56,4 +58,8 @@ public interface ITimeEntryService
     Task<Result<TimeEntryDto>> CreateTimeEntryAsync(CreateTimeEntryCommand command, CancellationToken cancellationToken = default);
 
     Task<Result<TimeEntryDto>> UpdateTimeEntryAsync(UpdateTimeEntryCommand command, CancellationToken cancellationToken = default);
+
+    Task<Result<BatchCreateTimeEntriesResult>> BatchCreateTimeEntriesAsync(BatchCreateTimeEntriesCommand command, CancellationToken cancellationToken = default);
+
+    Task<Result<BulkSubmitTimeEntriesResult>> BulkSubmitTimeEntriesAsync(BulkSubmitTimeEntriesCommand command, CancellationToken cancellationToken = default);
 }

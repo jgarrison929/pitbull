@@ -1,7 +1,10 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
+using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
@@ -101,8 +104,11 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     /// <remarks>
     /// Returns all active employees where SupervisorId matches the given supervisor,
     /// along with their project assignments. Used by the crew entry grid for batch time entry.
+    ///
+    /// When supervisorId is omitted, the endpoint resolves the current user's Employee
+    /// record by matching the JWT email claim to Employee.Email.
     /// </remarks>
-    /// <param name="supervisorId">Supervisor's employee ID</param>
+    /// <param name="supervisorId">Supervisor's employee ID (optional — resolved from JWT if omitted)</param>
     /// <returns>Crew members with project assignments</returns>
     /// <response code="200">Crew list returned</response>
     /// <response code="401">Not authenticated</response>
@@ -113,9 +119,25 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> GetMyCrew([FromQuery] Guid supervisorId)
+    public async Task<IActionResult> GetMyCrew([FromQuery] Guid? supervisorId = null)
     {
-        var result = await employeeService.GetMyCrewAsync(supervisorId);
+        Result<MyCrewResult> result;
+
+        if (supervisorId.HasValue)
+        {
+            result = await employeeService.GetMyCrewAsync(supervisorId.Value);
+        }
+        else
+        {
+            var email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value
+                        ?? User.FindFirst(ClaimTypes.Email)?.Value;
+
+            if (string.IsNullOrEmpty(email))
+                return BadRequest(new { error = "Cannot resolve identity: no email claim in token", code = "MISSING_EMAIL_CLAIM" });
+
+            result = await employeeService.GetMyCrewByEmailAsync(email);
+        }
+
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
                 ? NotFound(new { error = result.Error })

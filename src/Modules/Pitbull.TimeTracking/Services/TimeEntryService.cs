@@ -9,6 +9,8 @@ using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
+using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
+using Pitbull.TimeTracking.Features.BulkSubmitTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
@@ -29,6 +31,7 @@ public class TimeEntryService : ITimeEntryService
     private readonly PitbullDbContext _db;
     private readonly IValidator<CreateTimeEntryCommand> _createValidator;
     private readonly IValidator<UpdateTimeEntryCommand> _updateValidator;
+    private readonly IValidator<BatchCreateTimeEntriesCommand> _batchValidator;
     private readonly ILaborCostCalculator _costCalculator;
     private readonly ILogger<TimeEntryService> _logger;
 
@@ -69,12 +72,14 @@ public class TimeEntryService : ITimeEntryService
         PitbullDbContext db,
         IValidator<CreateTimeEntryCommand> createValidator,
         IValidator<UpdateTimeEntryCommand> updateValidator,
+        IValidator<BatchCreateTimeEntriesCommand> batchValidator,
         ILaborCostCalculator costCalculator,
         ILogger<TimeEntryService> logger)
     {
         _db = db;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
+        _batchValidator = batchValidator;
         _costCalculator = costCalculator;
         _logger = logger;
     }
@@ -87,6 +92,7 @@ public class TimeEntryService : ITimeEntryService
             .Include(te => te.Employee)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
+            .Include(te => te.SubmittedBy)
             .FirstOrDefaultAsync(te => te.Id == id && !te.IsDeleted, cancellationToken);
 
         if (timeEntry == null)
@@ -109,6 +115,7 @@ public class TimeEntryService : ITimeEntryService
             .Include(te => te.Employee)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
+            .Include(te => te.SubmittedBy)
             .Where(te => !te.IsDeleted)
             .AsQueryable();
 
@@ -168,6 +175,7 @@ public class TimeEntryService : ITimeEntryService
             .Include(te => te.ApprovedBy)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
+            .Include(te => te.SubmittedBy)
             .Where(te => te.ProjectId == projectId);
 
         // Apply filters
@@ -585,6 +593,164 @@ public class TimeEntryService : ITimeEntryService
         }
     }
 
+    public async Task<Result<BatchCreateTimeEntriesResult>> BatchCreateTimeEntriesAsync(
+        BatchCreateTimeEntriesCommand command, CancellationToken cancellationToken = default)
+    {
+        var validationResult = await _batchValidator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
+            return Result.Failure<BatchCreateTimeEntriesResult>(errors, "VALIDATION_ERROR");
+        }
+
+        var results = new List<BatchEntryResult>();
+        var entriesToAdd = new List<TimeEntry>();
+
+        for (var i = 0; i < command.Entries.Count; i++)
+        {
+            var item = command.Entries[i];
+            var upsertResult = await ValidateAndBuildTimeEntry(item, command.IsDraft, cancellationToken);
+
+            if (!upsertResult.IsSuccess)
+            {
+                results.Add(new BatchEntryResult(i, null, item.EmployeeId, "Unknown",
+                    false, upsertResult.Error, upsertResult.ErrorCode));
+
+                if (!command.AllowPartialSuccess)
+                {
+                    return Result.Failure<BatchCreateTimeEntriesResult>(
+                        $"Entry {i}: {upsertResult.Error}", upsertResult.ErrorCode!);
+                }
+                continue;
+            }
+
+            var upsert = upsertResult.Value!;
+            var timeEntry = upsert.TimeEntry;
+            timeEntry.Status = command.IsDraft ? TimeEntryStatus.Draft : TimeEntryStatus.Submitted;
+
+            if (!command.IsDraft)
+            {
+                timeEntry.SubmittedAt = DateTime.UtcNow;
+                timeEntry.SubmittedById = command.SubmittedById;
+            }
+            else
+            {
+                timeEntry.SubmittedAt = null;
+                timeEntry.SubmittedById = null;
+            }
+
+            if (upsert.IsNew)
+                entriesToAdd.Add(timeEntry);
+
+            results.Add(new BatchEntryResult(i, timeEntry.Id, item.EmployeeId,
+                timeEntry.Employee?.FullName ?? "Unknown", true, null, null));
+        }
+
+        if (entriesToAdd.Count > 0)
+            _db.Set<TimeEntry>().AddRange(entriesToAdd);
+
+        if (results.Any(r => r.Success))
+        {
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save batch time entries");
+                return Result.Failure<BatchCreateTimeEntriesResult>(
+                    "Failed to save time entries", "DATABASE_ERROR");
+            }
+        }
+
+        return Result.Success(new BatchCreateTimeEntriesResult(
+            command.Entries.Count,
+            results.Count(r => r.Success),
+            results.Count(r => !r.Success),
+            results));
+    }
+
+    public async Task<Result<BulkSubmitTimeEntriesResult>> BulkSubmitTimeEntriesAsync(
+        BulkSubmitTimeEntriesCommand command, CancellationToken cancellationToken = default)
+    {
+        if (command.TimeEntryIds.Count > 500)
+            return Result.Failure<BulkSubmitTimeEntriesResult>(
+                "Maximum 500 entries per bulk submit", "VALIDATION_ERROR");
+
+        if (command.TimeEntryIds.Count == 0)
+            return Result.Failure<BulkSubmitTimeEntriesResult>(
+                "At least one time entry ID is required", "VALIDATION_ERROR");
+
+        var entries = await _db.Set<TimeEntry>()
+            .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Where(te => command.TimeEntryIds.Contains(te.Id))
+            .ToListAsync(cancellationToken);
+
+        var results = new List<BulkSubmitEntryResult>();
+
+        foreach (var entryId in command.TimeEntryIds)
+        {
+            var entry = entries.FirstOrDefault(e => e.Id == entryId);
+
+            if (entry == null || entry.IsDeleted)
+            {
+                results.Add(new BulkSubmitEntryResult(entryId, false,
+                    "Time entry not found", "NOT_FOUND"));
+                continue;
+            }
+
+            if (!IsValidTransition(entry.Status, TimeEntryStatus.Submitted) || entry.Status != TimeEntryStatus.Draft)
+            {
+                results.Add(new BulkSubmitEntryResult(entryId, false,
+                    $"Cannot submit entry in {entry.Status} status", "INVALID_TRANSITION"));
+                continue;
+            }
+
+            // Validate employee still active at submit time
+            if (!entry.Employee.IsActive)
+            {
+                results.Add(new BulkSubmitEntryResult(entryId, false,
+                    "Employee is no longer active", "EMPLOYEE_INACTIVE"));
+                continue;
+            }
+
+            // Validate project not completed/closed at submit time
+            if (entry.Project.Status == ProjectStatus.Completed || entry.Project.Status == ProjectStatus.Closed)
+            {
+                results.Add(new BulkSubmitEntryResult(entryId, false,
+                    "Project is completed or closed", "PROJECT_INACTIVE"));
+                continue;
+            }
+
+            entry.Status = TimeEntryStatus.Submitted;
+            entry.SubmittedAt = DateTime.UtcNow;
+            entry.SubmittedById = command.SubmittedById;
+
+            results.Add(new BulkSubmitEntryResult(entryId, true, null, null));
+        }
+
+        if (results.Any(r => r.Success))
+        {
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save bulk submit");
+                return Result.Failure<BulkSubmitTimeEntriesResult>(
+                    "Failed to save submissions", "DATABASE_ERROR");
+            }
+        }
+
+        return Result.Success(new BulkSubmitTimeEntriesResult(
+            command.TimeEntryIds.Count,
+            results.Count(r => r.Success),
+            results.Count(r => !r.Success),
+            results));
+    }
+
     public async Task<Result<TimeEntryDto>> UpdateTimeEntryAsync(UpdateTimeEntryCommand command, CancellationToken cancellationToken = default)
     {
         var validationResult = await _updateValidator.ValidateAsync(command, cancellationToken);
@@ -599,6 +765,7 @@ public class TimeEntryService : ITimeEntryService
             .Include(te => te.Employee)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
+            .Include(te => te.SubmittedBy)
             .FirstOrDefaultAsync(te => te.Id == command.TimeEntryId, cancellationToken);
 
         if (timeEntry == null)
@@ -692,6 +859,156 @@ public class TimeEntryService : ITimeEntryService
 
     #region Private Helpers
 
+    private sealed record BatchTimeEntryUpsert(TimeEntry TimeEntry, bool IsNew);
+
+    private async Task<Result<BatchTimeEntryUpsert>> ValidateAndBuildTimeEntry(
+        BatchTimeEntryItem item, bool isDraft, CancellationToken cancellationToken)
+    {
+        // Validate employee exists and is active
+        var employee = await _db.Set<Employee>()
+            .FirstOrDefaultAsync(e => e.Id == item.EmployeeId && e.IsActive, cancellationToken);
+
+        if (employee == null)
+            return Result.Failure<BatchTimeEntryUpsert>("Employee not found or inactive", "EMPLOYEE_NOT_FOUND");
+
+        // Validate project exists
+        var project = await _db.Set<Project>()
+            .FirstOrDefaultAsync(p => p.Id == item.ProjectId, cancellationToken);
+
+        if (project == null)
+            return Result.Failure<BatchTimeEntryUpsert>("Project not found", "PROJECT_NOT_FOUND");
+
+        // For non-draft: validate project is not Completed/Closed
+        if (!isDraft && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed))
+            return Result.Failure<BatchTimeEntryUpsert>(
+                "Cannot log time to a completed or closed project", "PROJECT_INACTIVE");
+
+        // Validate employee is assigned to this project
+        var hasAssignment = await _db.Set<ProjectAssignment>()
+            .AnyAsync(pa => pa.EmployeeId == item.EmployeeId
+                         && pa.ProjectId == item.ProjectId
+                         && pa.IsActive
+                         && pa.StartDate <= item.Date
+                         && (pa.EndDate == null || pa.EndDate >= item.Date),
+                      cancellationToken);
+
+        if (!hasAssignment)
+            return Result.Failure<BatchTimeEntryUpsert>(
+                "Employee is not assigned to this project", "NOT_ASSIGNED_TO_PROJECT");
+
+        // Auto-assign cost code if not provided
+        var effectiveCostCodeId = item.CostCodeId;
+        if (effectiveCostCodeId == Guid.Empty)
+        {
+            var laborCostCode = await _db.Set<CostCode>()
+                .FirstOrDefaultAsync(cc => cc.Code == "LAB" && cc.IsActive, cancellationToken);
+
+            if (laborCostCode != null)
+            {
+                effectiveCostCodeId = laborCostCode.Id;
+            }
+            else
+            {
+                return Result.Failure<BatchTimeEntryUpsert>(
+                    "No cost code specified and no default labor cost code (LAB) found",
+                    "COSTCODE_NOT_FOUND");
+            }
+        }
+
+        // Validate cost code exists and is active
+        var costCode = await _db.Set<CostCode>()
+            .FirstOrDefaultAsync(cc => cc.Id == effectiveCostCodeId && cc.IsActive, cancellationToken);
+
+        if (costCode == null)
+            return Result.Failure<BatchTimeEntryUpsert>("Cost code not found or inactive", "COSTCODE_NOT_FOUND");
+
+        // Validate PhaseId if provided
+        if (item.PhaseId.HasValue)
+        {
+            var phase = await _db.Set<Phase>()
+                .FirstOrDefaultAsync(p => p.Id == item.PhaseId.Value, cancellationToken);
+
+            if (phase == null)
+                return Result.Failure<BatchTimeEntryUpsert>("Phase not found", "PHASE_NOT_FOUND");
+
+            if (phase.ProjectId != item.ProjectId)
+                return Result.Failure<BatchTimeEntryUpsert>(
+                    "Phase does not belong to the specified project", "PHASE_PROJECT_MISMATCH");
+        }
+
+        // Validate EquipmentId if provided
+        if (item.EquipmentId.HasValue)
+        {
+            var equipment = await _db.Set<Equipment>()
+                .FirstOrDefaultAsync(e => e.Id == item.EquipmentId.Value && e.IsActive, cancellationToken);
+
+            if (equipment == null)
+                return Result.Failure<BatchTimeEntryUpsert>("Equipment not found or inactive", "EQUIPMENT_NOT_FOUND");
+        }
+
+        // Resolve existing entry by explicit ID when provided, otherwise by unique key.
+        var existingEntry = await _db.Set<TimeEntry>()
+            .Include(te => te.Employee)
+            .FirstOrDefaultAsync(te =>
+                item.TimeEntryId.HasValue
+                    ? te.Id == item.TimeEntryId.Value
+                    : te.Date == item.Date
+                      && te.EmployeeId == item.EmployeeId
+                      && te.ProjectId == item.ProjectId
+                      && te.CostCodeId == effectiveCostCodeId
+                      && te.PhaseId == item.PhaseId,
+                cancellationToken);
+
+        if (existingEntry != null)
+        {
+            if (existingEntry.IsDeleted)
+                return Result.Failure<BatchTimeEntryUpsert>("Time entry not found", "NOT_FOUND");
+
+            if (item.TimeEntryId.HasValue && existingEntry.EmployeeId != item.EmployeeId)
+                return Result.Failure<BatchTimeEntryUpsert>(
+                    "TimeEntryId does not belong to the specified employee",
+                    "EMPLOYEE_MISMATCH");
+
+            if (existingEntry.Status != TimeEntryStatus.Draft)
+                return Result.Failure<BatchTimeEntryUpsert>(
+                    "Time entry already exists for this employee, project, cost code, and phase on this date",
+                    "DUPLICATE_ENTRY");
+
+            existingEntry.Date = item.Date;
+            existingEntry.EmployeeId = item.EmployeeId;
+            existingEntry.ProjectId = item.ProjectId;
+            existingEntry.CostCodeId = effectiveCostCodeId;
+            existingEntry.PhaseId = item.PhaseId;
+            existingEntry.EquipmentId = item.EquipmentId;
+            existingEntry.EquipmentHours = item.EquipmentHours;
+            existingEntry.RegularHours = item.RegularHours;
+            existingEntry.OvertimeHours = item.OvertimeHours;
+            existingEntry.DoubletimeHours = item.DoubletimeHours;
+            existingEntry.Description = item.Description;
+            existingEntry.Employee = employee;
+
+            return Result.Success(new BatchTimeEntryUpsert(existingEntry, IsNew: false));
+        }
+
+        var timeEntry = new TimeEntry
+        {
+            Date = item.Date,
+            EmployeeId = item.EmployeeId,
+            ProjectId = item.ProjectId,
+            CostCodeId = effectiveCostCodeId,
+            PhaseId = item.PhaseId,
+            EquipmentId = item.EquipmentId,
+            EquipmentHours = item.EquipmentHours,
+            RegularHours = item.RegularHours,
+            OvertimeHours = item.OvertimeHours,
+            DoubletimeHours = item.DoubletimeHours,
+            Description = item.Description,
+            Employee = employee
+        };
+
+        return Result.Success(new BatchTimeEntryUpsert(timeEntry, IsNew: true));
+    }
+
     private async Task<Result> ValidateAndApplyStatusTransition(
         TimeEntry timeEntry,
         UpdateTimeEntryCommand command,
@@ -750,6 +1067,12 @@ public class TimeEntryService : ITimeEntryService
                 timeEntry.RejectionReason = command.ApproverNotes;
                 timeEntry.ApprovalComments = null;
             }
+        }
+
+        if (currentStatus == TimeEntryStatus.Draft && newStatus == TimeEntryStatus.Submitted)
+        {
+            timeEntry.SubmittedAt = DateTime.UtcNow;
+            timeEntry.SubmittedById = command.SubmittedById;
         }
 
         timeEntry.Status = newStatus;

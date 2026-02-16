@@ -23,6 +23,8 @@ using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
+using MassTransit;
+using Pitbull.Core.Messaging;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -167,6 +169,18 @@ builder.Services.Configure<IISServerOptions>(options =>
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
     options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
+});
+
+// MassTransit - in-memory transport for Phase 1 (upgrade to RabbitMQ in Phase 2)
+builder.Services.AddMassTransit(x =>
+{
+    x.AddConsumers(typeof(CreateTimeEntryCommand).Assembly);
+    x.UsingInMemory((context, cfg) =>
+    {
+        cfg.UseConsumeFilter(typeof(TenantConsumeFilter<>), context);
+        cfg.UsePublishFilter(typeof(TenantPublishFilter<>), context);
+        cfg.ConfigureEndpoints(context);
+    });
 });
 
 // API

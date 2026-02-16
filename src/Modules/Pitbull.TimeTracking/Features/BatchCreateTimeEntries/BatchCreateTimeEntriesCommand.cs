@@ -8,7 +8,9 @@ namespace Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
 /// </summary>
 public record BatchCreateTimeEntriesCommand(
     List<BatchTimeEntryItem> Entries,
-    bool AllowPartialSuccess = false
+    bool AllowPartialSuccess = false,
+    bool IsDraft = false,
+    Guid? SubmittedById = null
 ) : ICommand<BatchCreateTimeEntriesResult>;
 
 /// <summary>
@@ -27,7 +29,8 @@ public record BatchTimeEntryItem(
     string? Description = null,
     Guid? PhaseId = null,
     Guid? EquipmentId = null,
-    decimal EquipmentHours = 0
+    decimal EquipmentHours = 0,
+    Guid? TimeEntryId = null
 );
 
 /// <summary>

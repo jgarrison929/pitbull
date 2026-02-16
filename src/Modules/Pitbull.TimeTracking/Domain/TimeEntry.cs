@@ -98,7 +98,18 @@ public class TimeEntry : BaseEntity, ICompanyScoped
     /// </summary>
     public string? RejectionReason { get; set; }
 
+    /// <summary>
+    /// When this time entry was submitted (if submitted from Draft)
+    /// </summary>
+    public DateTime? SubmittedAt { get; set; }
+
+    /// <summary>
+    /// Who submitted this time entry (foreman who clicked Submit)
+    /// </summary>
+    public Guid? SubmittedById { get; set; }
+
     // Navigation properties
+    public Employee? SubmittedBy { get; set; }
     public Employee Employee { get; set; } = null!;
     public Project Project { get; set; } = null!;
     public CostCode CostCode { get; set; } = null!;

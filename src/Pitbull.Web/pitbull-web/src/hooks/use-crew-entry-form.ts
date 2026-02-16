@@ -192,7 +192,7 @@ export function useCrewEntryForm({
     }).length;
   }, [formData.entries]);
 
-  const submit = useCallback(async (): Promise<BatchCreateTimeEntriesResult | null> => {
+  const submitEntries = useCallback(async (isDraft: boolean): Promise<BatchCreateTimeEntriesResult | null> => {
     // Validate global fields
     const newErrors: CrewEntryValidationErrors = {};
     if (!formData.date) newErrors.date = "Date is required";
@@ -213,16 +213,34 @@ export function useCrewEntryForm({
       return null;
     }
 
-    // Filter to entries with hours > 0
-    const entriesToSubmit = validatedEntries.filter((entry) => {
-      const reg = parseFloat(entry.regularHours) || 0;
-      const ot = parseFloat(entry.overtimeHours) || 0;
-      const dt = parseFloat(entry.doubletimeHours) || 0;
-      return reg + ot + dt > 0;
-    });
+    // For drafts: include entries that have any meaningful data (even 0 hours)
+    // For submits: filter to entries with hours > 0
+    const entriesToSubmit = isDraft
+      ? validatedEntries.filter((entry) => {
+          // Include entries where any field has been modified from defaults
+          return (
+            entry.costCodeId !== "" ||
+            entry.description !== "" ||
+            entry.phaseId !== "" ||
+            entry.equipmentId !== "" ||
+            parseFloat(entry.regularHours) !== 0 ||
+            parseFloat(entry.overtimeHours) !== 0 ||
+            parseFloat(entry.doubletimeHours) !== 0
+          );
+        })
+      : validatedEntries.filter((entry) => {
+          const reg = parseFloat(entry.regularHours) || 0;
+          const ot = parseFloat(entry.overtimeHours) || 0;
+          const dt = parseFloat(entry.doubletimeHours) || 0;
+          return reg + ot + dt > 0;
+        });
 
     if (entriesToSubmit.length === 0) {
-      toast.error("No entries to submit - enter hours for at least one employee");
+      if (isDraft) {
+        toast.error("No entries to save - modify at least one employee's data");
+      } else {
+        toast.error("No entries to submit - enter hours for at least one employee");
+      }
       return null;
     }
 
@@ -231,10 +249,11 @@ export function useCrewEntryForm({
     try {
       const request: BatchCreateTimeEntriesRequest = {
         entries: entriesToSubmit.map((entry) => ({
+          timeEntryId: entry.timeEntryId,
           date: formData.date,
           employeeId: entry.employeeId,
           projectId: formData.projectId,
-          costCodeId: entry.costCodeId,
+          costCodeId: entry.costCodeId || undefined,
           regularHours: parseFloat(entry.regularHours) || 0,
           overtimeHours: parseFloat(entry.overtimeHours) || 0,
           doubletimeHours: parseFloat(entry.doubletimeHours) || 0,
@@ -244,6 +263,8 @@ export function useCrewEntryForm({
           equipmentHours: entry.equipmentId ? (parseFloat(entry.equipmentHours) || 0) : undefined,
         })),
         allowPartialSuccess: false,
+        isDraft,
+        submittedById: supervisorId || undefined,
       };
 
       const result = await api<BatchCreateTimeEntriesResult>(
@@ -252,11 +273,17 @@ export function useCrewEntryForm({
       );
 
       if (result.failureCount === 0) {
-        toast.success(
-          `Successfully created ${result.successCount} time entries`
-        );
+        if (isDraft) {
+          toast.success("Draft saved - you can continue editing later");
+        } else {
+          toast.success(
+            `Successfully submitted ${result.successCount} time entries for PM review`
+          );
+        }
         setIsDirty(false);
-        onSuccess?.();
+        if (!isDraft) {
+          onSuccess?.();
+        }
       } else if (result.successCount > 0) {
         toast.warning(
           `Created ${result.successCount} entries, ${result.failureCount} failed`
@@ -289,7 +316,43 @@ export function useCrewEntryForm({
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, onSuccess]);
+  }, [formData, onSuccess, supervisorId]);
+
+  const submit = useCallback(() => submitEntries(false), [submitEntries]);
+  const saveDraft = useCallback(() => submitEntries(true), [submitEntries]);
+
+  const loadDrafts = useCallback((entries: Array<{
+    timeEntryId?: string;
+    employeeId: string;
+    regularHours: number;
+    overtimeHours: number;
+    doubletimeHours: number;
+    costCodeId: string;
+    description: string | null;
+    phaseId: string | null;
+    equipmentId: string | null;
+    equipmentHours: number;
+  }>) => {
+    setFormData(prev => ({
+      ...prev,
+      entries: prev.entries.map(entry => {
+        const draft = entries.find(d => d.employeeId === entry.employeeId);
+        if (!draft) return entry;
+        return {
+          ...entry,
+          timeEntryId: draft.timeEntryId,
+          regularHours: draft.regularHours.toString(),
+          overtimeHours: draft.overtimeHours.toString(),
+          doubletimeHours: draft.doubletimeHours.toString(),
+          costCodeId: draft.costCodeId || entry.costCodeId,
+          description: draft.description || "",
+          phaseId: draft.phaseId || "",
+          equipmentId: draft.equipmentId || "",
+          equipmentHours: draft.equipmentHours.toString(),
+        };
+      }),
+    }));
+  }, []);
 
   const reset = useCallback(() => {
     setFormData({
@@ -311,6 +374,8 @@ export function useCrewEntryForm({
     updateEntry,
     copyYesterday,
     submit,
+    saveDraft,
+    loadDrafts,
     reset,
     getTotalHours,
     getEntryCount,

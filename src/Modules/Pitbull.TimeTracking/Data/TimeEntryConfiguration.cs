@@ -61,8 +61,14 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
         builder.HasIndex(te => te.Status)
             .HasDatabaseName("IX_time_entries_status");
 
-        // Unique constraint to prevent duplicate time entries
-        // Updated to include PhaseId - allows same employee to log to different phases on same day
+        // Unique constraint to prevent duplicate time entries.
+        // Includes PhaseId so the same employee can log to different phases on the same day.
+        //
+        // KNOWN GAP: PostgreSQL treats NULL != NULL in B-tree unique indexes, so this
+        // index does NOT prevent duplicates when PhaseId is NULL. The service layer
+        // (TimeEntryService.CreateTimeEntryAsync / BatchCreateTimeEntriesAsync) enforces
+        // the duplicate check correctly for NULL PhaseId via an explicit query. A future
+        // migration should replace this with partial indexes for full DB-level enforcement.
         builder.HasIndex(te => new { te.Date, te.EmployeeId, te.ProjectId, te.CostCodeId, te.PhaseId })
             .IsUnique()
             .HasDatabaseName("IX_time_entries_unique_daily_entry");
@@ -98,6 +104,15 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasForeignKey(te => te.ApprovedById)
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_time_entries_approved_by");
+
+        builder.Property(te => te.SubmittedAt)
+            .HasComment("When this entry was submitted (from Draft to Submitted)");
+
+        builder.HasOne(te => te.SubmittedBy)
+            .WithMany()
+            .HasForeignKey(te => te.SubmittedById)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_time_entries_submitted_by");
 
         // Navigation to Phase (from Projects module) - optional
         builder.HasOne(te => te.Phase)

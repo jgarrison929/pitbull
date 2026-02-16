@@ -21,6 +21,7 @@ public interface IEmployeeService
     Task<Result<IEnumerable<ProjectAssignmentDto>>> GetEmployeeProjectsAsync(Guid employeeId, bool activeOnly = true, CancellationToken cancellationToken = default);
     Task<Result<EmployeeStatsResponse>> GetEmployeeStatsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result<MyCrewResult>> GetMyCrewAsync(Guid supervisorId, CancellationToken cancellationToken = default);
+    Task<Result<MyCrewResult>> GetMyCrewByEmailAsync(string email, CancellationToken cancellationToken = default);
 
     // Command operations
     Task<Result<EmployeeDto>> CreateEmployeeAsync(CreateEmployeeCommand command, CancellationToken cancellationToken = default);

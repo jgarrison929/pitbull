@@ -210,7 +210,7 @@ export function useWeeklySimpleForm({
     }).length;
   }, [formData.entries]);
 
-  const submit = useCallback(async (): Promise<BatchCreateTimeEntriesResult | null> => {
+  const submitEntries = useCallback(async (isDraft: boolean): Promise<BatchCreateTimeEntriesResult | null> => {
     const newErrors: CrewEntryValidationErrors = {};
     if (!formData.weekEndingDate) newErrors.date = "Week ending date is required";
     if (!formData.projectId) newErrors.projectId = "Project is required";
@@ -244,17 +244,34 @@ export function useWeeklySimpleForm({
       return null;
     }
 
-    // Filter entries with hours
-    const entriesToSubmit = validatedEntries.filter((entry) => {
-      const total =
-        (parseFloat(entry.regularHours) || 0) +
-        (parseFloat(entry.overtimeHours) || 0) +
-        (parseFloat(entry.doubletimeHours) || 0);
-      return total > 0;
-    });
+    // For drafts: include entries with any meaningful data (even 0 hours)
+    // For submits: filter to entries with hours > 0
+    const entriesToSubmit = isDraft
+      ? validatedEntries.filter((entry) => {
+          return (
+            entry.costCodeId !== "" ||
+            entry.description !== "" ||
+            entry.phaseId !== "" ||
+            entry.equipmentId !== "" ||
+            parseFloat(entry.regularHours) !== 0 ||
+            parseFloat(entry.overtimeHours) !== 0 ||
+            parseFloat(entry.doubletimeHours) !== 0
+          );
+        })
+      : validatedEntries.filter((entry) => {
+          const total =
+            (parseFloat(entry.regularHours) || 0) +
+            (parseFloat(entry.overtimeHours) || 0) +
+            (parseFloat(entry.doubletimeHours) || 0);
+          return total > 0;
+        });
 
     if (entriesToSubmit.length === 0) {
-      toast.error("No entries to submit - enter hours for at least one employee");
+      if (isDraft) {
+        toast.error("No entries to save - modify at least one employee's data");
+      } else {
+        toast.error("No entries to submit - enter hours for at least one employee");
+      }
       return null;
     }
 
@@ -267,7 +284,7 @@ export function useWeeklySimpleForm({
           date: formData.weekEndingDate,
           employeeId: entry.employeeId,
           projectId: formData.projectId,
-          costCodeId: entry.costCodeId,
+          costCodeId: entry.costCodeId || undefined,
           regularHours: parseFloat(entry.regularHours) || 0,
           overtimeHours: parseFloat(entry.overtimeHours) || 0,
           doubletimeHours: parseFloat(entry.doubletimeHours) || 0,
@@ -279,6 +296,8 @@ export function useWeeklySimpleForm({
             : undefined,
         })),
         allowPartialSuccess: false,
+        isDraft,
+        submittedById: supervisorId || undefined,
       };
 
       const result = await api<BatchCreateTimeEntriesResult>(
@@ -287,11 +306,17 @@ export function useWeeklySimpleForm({
       );
 
       if (result.failureCount === 0) {
-        toast.success(
-          `Successfully created ${result.successCount} weekly time entries`
-        );
+        if (isDraft) {
+          toast.success("Draft saved - you can continue editing later");
+        } else {
+          toast.success(
+            `Successfully submitted ${result.successCount} weekly time entries for PM review`
+          );
+        }
         setIsDirty(false);
-        onSuccess?.();
+        if (!isDraft) {
+          onSuccess?.();
+        }
       } else if (result.successCount > 0) {
         toast.warning(
           `Created ${result.successCount} entries, ${result.failureCount} failed`
@@ -323,7 +348,10 @@ export function useWeeklySimpleForm({
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, onSuccess]);
+  }, [formData, onSuccess, supervisorId]);
+
+  const submit = useCallback(() => submitEntries(false), [submitEntries]);
+  const saveDraft = useCallback(() => submitEntries(true), [submitEntries]);
 
   const reset = useCallback(() => {
     setFormData({
@@ -345,6 +373,7 @@ export function useWeeklySimpleForm({
     updateEntry,
     copyLastWeek,
     submit,
+    saveDraft,
     reset,
     getTotalHours,
     getEntryCount,

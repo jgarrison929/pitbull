@@ -1,11 +1,15 @@
+using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
+using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
+using Pitbull.TimeTracking.Features.BulkSubmitTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
+using Pitbull.TimeTracking.Messages;
 using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Api.Controllers;
@@ -20,7 +24,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Time Entries")]
-public class TimeEntriesController(ITimeEntryService timeEntryService) : ControllerBase
+public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus) : ControllerBase
 {
     /// <summary>
     /// Create a new time entry for an employee
@@ -186,6 +190,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService) : Control
             NewStatus: request.NewStatus,
             ApproverId: request.ApproverId,
             ApproverNotes: request.ApproverNotes,
+            SubmittedById: request.SubmittedById,
             PhaseId: request.PhaseId,
             EquipmentId: request.EquipmentId,
             EquipmentHours: request.EquipmentHours
@@ -389,6 +394,123 @@ public class TimeEntriesController(ITimeEntryService timeEntryService) : Control
     }
 
     /// <summary>
+    /// Create multiple time entries in a single batch (draft or submitted)
+    /// </summary>
+    /// <remarks>
+    /// Creates time entries for multiple employees at once. Used by foremen to enter
+    /// time for their entire crew. Supports both draft saves and direct submissions.
+    /// </remarks>
+    /// <param name="request">Batch of time entries to create</param>
+    /// <returns>Batch creation results with per-entry status</returns>
+    /// <response code="201">Batch created successfully</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="429">Rate limit exceeded</response>
+    [HttpPost("batch")]
+    [ProducesResponseType(typeof(BatchCreateTimeEntriesResult), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> BatchCreate([FromBody] BatchCreateRequest request)
+    {
+        var command = new BatchCreateTimeEntriesCommand(
+            request.Entries.Select(e => new BatchTimeEntryItem(
+                e.Date, e.EmployeeId, e.ProjectId, e.CostCodeId ?? Guid.Empty,
+                e.RegularHours, e.OvertimeHours, e.DoubletimeHours,
+                e.Description, e.PhaseId, e.EquipmentId, e.EquipmentHours, e.TimeEntryId
+            )).ToList(),
+            request.AllowPartialSuccess,
+            request.IsDraft,
+            request.SubmittedById
+        );
+
+        var result = await timeEntryService.BatchCreateTimeEntriesAsync(command);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        var batchResult = result.Value!;
+
+        // Publish event
+        if (request.IsDraft)
+        {
+            await bus.Publish(new TimeEntriesDraftSaved
+            {
+                BatchId = Guid.NewGuid(),
+                SavedById = request.SubmittedById ?? Guid.Empty,
+                Count = batchResult.SuccessCount,
+                SavedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            await bus.Publish(new TimeEntriesSubmitted
+            {
+                BatchId = Guid.NewGuid(),
+                SubmittedById = request.SubmittedById ?? Guid.Empty,
+                TimeEntryIds = batchResult.Results
+                    .Where(r => r.Success && r.TimeEntryId.HasValue)
+                    .Select(r => r.TimeEntryId!.Value).ToList(),
+                Count = batchResult.SuccessCount,
+                SubmittedAt = DateTime.UtcNow
+            });
+        }
+
+        return StatusCode(StatusCodes.Status201Created, batchResult);
+    }
+
+    /// <summary>
+    /// Submit draft time entries in bulk
+    /// </summary>
+    /// <remarks>
+    /// Transitions multiple draft time entries to Submitted status.
+    /// Validates that all entries are in Draft status and that employees/projects are still valid.
+    /// </remarks>
+    /// <param name="request">Time entry IDs to submit</param>
+    /// <returns>Per-entry submission results</returns>
+    /// <response code="200">Submission results</response>
+    /// <response code="400">Validation error</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="429">Rate limit exceeded</response>
+    [HttpPost("submit")]
+    [ProducesResponseType(typeof(BulkSubmitTimeEntriesResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> BulkSubmit([FromBody] BulkSubmitRequest request)
+    {
+        if (request.TimeEntryIds.Count > 500)
+            return BadRequest(new { error = "Maximum 500 entries per bulk submit", code = "VALIDATION_ERROR" });
+
+        var command = new BulkSubmitTimeEntriesCommand(
+            request.TimeEntryIds,
+            request.SubmittedById
+        );
+
+        var result = await timeEntryService.BulkSubmitTimeEntriesAsync(command);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        var submitResult = result.Value!;
+
+        // Publish event for successful submissions
+        if (submitResult.SuccessCount > 0)
+        {
+            await bus.Publish(new TimeEntriesSubmitted
+            {
+                BatchId = Guid.NewGuid(),
+                SubmittedById = request.SubmittedById,
+                TimeEntryIds = submitResult.Results
+                    .Where(r => r.Success)
+                    .Select(r => r.TimeEntryId).ToList(),
+                Count = submitResult.SuccessCount,
+                SubmittedAt = DateTime.UtcNow
+            });
+        }
+
+        return Ok(submitResult);
+    }
+
+    /// <summary>
     /// Export approved time entries in Vista/Viewpoint compatible CSV format
     /// </summary>
     /// <remarks>
@@ -484,6 +606,7 @@ public record UpdateTimeEntryRequest(
     TimeEntryStatus? NewStatus = null,
     Guid? ApproverId = null,
     string? ApproverNotes = null,
+    Guid? SubmittedById = null,
     Guid? PhaseId = null,
     Guid? EquipmentId = null,
     decimal? EquipmentHours = null
@@ -497,4 +620,31 @@ public record ApproveTimeEntryRequest(
 public record RejectTimeEntryRequest(
     Guid ApproverId,
     string Reason
+);
+
+public record BatchCreateRequest(
+    List<BatchCreateItemRequest> Entries,
+    bool AllowPartialSuccess = false,
+    bool IsDraft = false,
+    Guid? SubmittedById = null
+);
+
+public record BatchCreateItemRequest(
+    DateOnly Date,
+    Guid EmployeeId,
+    Guid ProjectId,
+    Guid? CostCodeId = null,
+    decimal RegularHours = 0,
+    decimal OvertimeHours = 0,
+    decimal DoubletimeHours = 0,
+    string? Description = null,
+    Guid? PhaseId = null,
+    Guid? EquipmentId = null,
+    decimal EquipmentHours = 0,
+    Guid? TimeEntryId = null
+);
+
+public record BulkSubmitRequest(
+    List<Guid> TimeEntryIds,
+    Guid SubmittedById
 );

@@ -32,6 +32,9 @@ public record TimeEntryDto(
     DateTime? ApprovedAt,
     string? ApprovalComments,
     string? RejectionReason,
+    Guid? SubmittedById,
+    string? SubmittedByName,
+    DateTime? SubmittedAt,
     DateTime CreatedAt,
     DateTime? UpdatedAt
 );

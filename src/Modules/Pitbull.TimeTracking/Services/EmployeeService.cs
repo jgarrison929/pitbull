@@ -206,6 +206,19 @@ public class EmployeeService : IEmployeeService
         ));
     }
 
+    public async Task<Result<MyCrewResult>> GetMyCrewByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var supervisor = await _db.Set<Employee>()
+            .FirstOrDefaultAsync(e => e.Email == email && !e.IsDeleted, cancellationToken);
+
+        if (supervisor is null)
+            return Result.Failure<MyCrewResult>(
+                $"No employee record found for email '{email}'",
+                "NOT_FOUND");
+
+        return await GetMyCrewAsync(supervisor.Id, cancellationToken);
+    }
+
     public async Task<Result<EmployeeDto>> CreateEmployeeAsync(CreateEmployeeCommand command, CancellationToken cancellationToken = default)
     {
         // Auto-generate employee number if not provided

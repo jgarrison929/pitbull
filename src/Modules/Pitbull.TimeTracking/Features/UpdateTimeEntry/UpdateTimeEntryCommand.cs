@@ -37,6 +37,10 @@ public record UpdateTimeEntryCommand(
     /// </summary>
     string? ApproverNotes = null,
     /// <summary>
+    /// User ID of submitter when transitioning Draft -> Submitted
+    /// </summary>
+    Guid? SubmittedById = null,
+    /// <summary>
     /// Optional: update phase ID (only allowed in Draft/Submitted status)
     /// </summary>
     Guid? PhaseId = null,

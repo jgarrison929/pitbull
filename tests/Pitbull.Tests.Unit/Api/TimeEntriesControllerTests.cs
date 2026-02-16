@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
@@ -19,6 +20,7 @@ namespace Pitbull.Tests.Unit.Api;
 public class TimeEntriesControllerTests
 {
     private readonly Mock<ITimeEntryService> _serviceMock;
+    private readonly Mock<IBus> _busMock;
     private readonly TimeEntriesController _controller;
 
     private static readonly Guid TestId = Guid.NewGuid();
@@ -31,7 +33,8 @@ public class TimeEntriesControllerTests
     public TimeEntriesControllerTests()
     {
         _serviceMock = new Mock<ITimeEntryService>();
-        _controller = new TimeEntriesController(_serviceMock.Object);
+        _busMock = new Mock<IBus>();
+        _controller = new TimeEntriesController(_serviceMock.Object, _busMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -67,6 +70,9 @@ public class TimeEntriesControllerTests
         ApprovedAt: null,
         ApprovalComments: null,
         RejectionReason: null,
+        SubmittedById: null,
+        SubmittedByName: null,
+        SubmittedAt: null,
         CreatedAt: DateTime.UtcNow,
         UpdatedAt: null
     );

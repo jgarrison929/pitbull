@@ -22,14 +22,12 @@ import { CopyLastWeekDialog } from "@/components/time-tracking/crew-entry/copy-l
 import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List } from "lucide-react";
+import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List, Save, Send } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import type { Phase } from "@/lib/types";
 
-// For demo purposes - in production this would come from auth context
-const DEMO_SUPERVISOR_ID = "00000000-0000-0000-0000-000000000001";
 
 const CREW_TEMPLATE_STORAGE_KEY = "pitbull_crew_templates";
 
@@ -151,9 +149,9 @@ export default function CrewEntryPage() {
     ? weeklySimpleForm.formData.projectId
     : dailyForm.formData.projectId;
 
-  // Load crew on mount
+  // Load crew on mount — backend resolves the supervisor from the JWT email claim
   useEffect(() => {
-    loadCrew(DEMO_SUPERVISOR_ID);
+    loadCrew();
   }, [loadCrew]);
 
   // Load phases when project changes
@@ -174,6 +172,61 @@ export default function CrewEntryPage() {
     fetchPhases();
     return () => { cancelled = true; };
   }, [activeProjectId]);
+
+  // Load existing drafts when date/project changes
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchDrafts() {
+      if (!activeProjectId) return;
+
+      const activeDate = isWeeklyDetailed
+        ? weeklyDetailedForm.formData.weekEndingDate
+        : isWeeklySimple
+        ? weeklySimpleForm.formData.weekEndingDate
+        : dailyForm.formData.date;
+
+      if (!activeDate) return;
+
+      try {
+        // Status=3 is Draft
+        const result = await api<{ items: Array<{
+          id: string;
+          employeeId: string;
+          regularHours: number;
+          overtimeHours: number;
+          doubletimeHours: number;
+          costCodeId: string;
+          description: string | null;
+          phaseId: string | null;
+          equipmentId: string | null;
+          equipmentHours: number;
+        }> }>(`/api/time-entries?projectId=${activeProjectId}&status=3&startDate=${activeDate}&endDate=${activeDate}&pageSize=100`);
+
+        if (cancelled || !result.items || result.items.length === 0) return;
+
+        // Load drafts into the active form (daily mode only for now)
+        if (!isWeeklyDetailed && !isWeeklySimple) {
+          dailyForm.loadDrafts(result.items.map((entry) => ({
+            timeEntryId: entry.id,
+            employeeId: entry.employeeId,
+            regularHours: entry.regularHours,
+            overtimeHours: entry.overtimeHours,
+            doubletimeHours: entry.doubletimeHours,
+            costCodeId: entry.costCodeId,
+            description: entry.description,
+            phaseId: entry.phaseId,
+            equipmentId: entry.equipmentId,
+            equipmentHours: entry.equipmentHours,
+          })));
+        }
+      } catch {
+        // Silently fail - drafts are a convenience, not critical
+      }
+    }
+    fetchDrafts();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProjectId, dailyForm.formData.date, isWeeklyDetailed, isWeeklySimple]);
 
   // ──────────────────────────────────────────
   // Event handlers
@@ -208,6 +261,16 @@ export default function CrewEntryPage() {
       weeklySimpleForm.reset();
     } else {
       dailyForm.reset();
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (isWeeklyDetailed) {
+      await weeklyDetailedForm.saveDraft();
+    } else if (isWeeklySimple) {
+      await weeklySimpleForm.saveDraft();
+    } else {
+      await dailyForm.saveDraft();
     }
   };
 
@@ -364,6 +427,14 @@ export default function CrewEntryPage() {
   return (
     <div className="space-y-6">
       <OfflineIndicator />
+
+      {/* Draft Status Banner */}
+      {isDirty && (
+        <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          <Save className="h-4 w-4" />
+          <span>Unsaved changes - save as draft or submit for review</span>
+        </div>
+      )}
 
       {/* View Tabs */}
       <div className="flex gap-1 border-b">
@@ -577,17 +648,27 @@ export default function CrewEntryPage() {
         />
       )}
 
-      {/* Submit Button */}
+      {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row justify-end gap-3">
         <Button variant="outline" asChild className="min-h-[48px] touch-manipulation">
           <Link href="/time-tracking">Cancel</Link>
         </Button>
         <Button
+          variant="outline"
+          onClick={handleSaveDraft}
+          disabled={isSubmitting}
+          className="min-h-[48px] touch-manipulation"
+        >
+          <Save className="h-4 w-4 mr-2" />
+          Save Draft
+        </Button>
+        <Button
           onClick={() => setShowSummary(true)}
-          disabled={entryCount === 0 || !activeProjectId}
+          disabled={entryCount === 0 || !activeProjectId || isSubmitting}
           className="bg-amber-500 hover:bg-amber-600 text-white min-h-[56px] sm:min-h-[48px] text-lg sm:text-base font-semibold touch-manipulation"
         >
-          Review &amp; Submit ({entryCount} {isWeekly ? "weekly " : ""}entries)
+          <Send className="h-4 w-4 mr-2" />
+          Submit for Review ({entryCount} {isWeekly ? "weekly " : ""}entries)
         </Button>
       </div>
 

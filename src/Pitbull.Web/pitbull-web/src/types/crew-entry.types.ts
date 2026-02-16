@@ -63,13 +63,16 @@ export interface YesterdayTimeEntryDto {
 export interface BatchCreateTimeEntriesRequest {
   entries: BatchTimeEntryItemRequest[];
   allowPartialSuccess?: boolean;
+  isDraft?: boolean;
+  submittedById?: string;
 }
 
 export interface BatchTimeEntryItemRequest {
+  timeEntryId?: string;
   date: string;
   employeeId: string;
   projectId: string;
-  costCodeId: string;
+  costCodeId?: string;
   regularHours: number;
   overtimeHours?: number;
   doubletimeHours?: number;
@@ -96,6 +99,26 @@ export interface BatchEntryResult {
   errorCode: string | null;
 }
 
+// Bulk Submit Types
+export interface BulkSubmitTimeEntriesRequest {
+  timeEntryIds: string[];
+  submittedById: string;
+}
+
+export interface BulkSubmitTimeEntriesResult {
+  totalRequested: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkSubmitEntryResult[];
+}
+
+export interface BulkSubmitEntryResult {
+  timeEntryId: string;
+  success: boolean;
+  error: string | null;
+  errorCode: string | null;
+}
+
 // Form State Types
 export interface CrewEntryFormData {
   date: string;
@@ -104,6 +127,7 @@ export interface CrewEntryFormData {
 }
 
 export interface CrewMemberEntryData {
+  timeEntryId?: string;
   employeeId: string;
   employeeName: string;
   employeeNumber: string;
@@ -218,7 +242,7 @@ export interface UseCrewEntryDataReturn {
   isLoading: boolean;
   error: string | null;
   supervisorId: string | null;
-  loadCrew: (supervisorId: string) => Promise<void>;
+  loadCrew: (supervisorId?: string) => Promise<void>;
 }
 
 export interface UseCrewEntryFormReturn {
@@ -231,6 +255,19 @@ export interface UseCrewEntryFormReturn {
   updateEntry: (employeeId: string, field: keyof CrewMemberEntryData, value: string) => void;
   copyYesterday: () => Promise<void>;
   submit: () => Promise<BatchCreateTimeEntriesResult | null>;
+  saveDraft: () => Promise<BatchCreateTimeEntriesResult | null>;
+  loadDrafts: (entries: Array<{
+    timeEntryId?: string;
+    employeeId: string;
+    regularHours: number;
+    overtimeHours: number;
+    doubletimeHours: number;
+    costCodeId: string;
+    description: string | null;
+    phaseId: string | null;
+    equipmentId: string | null;
+    equipmentHours: number;
+  }>) => void;
   reset: () => void;
   getTotalHours: () => number;
   getEntryCount: () => number;
@@ -247,6 +284,7 @@ export interface UseWeeklyDetailedFormReturn {
   updateEntryField: (employeeId: string, field: string, value: string) => void;
   copyLastWeek: () => Promise<void>;
   submit: () => Promise<BatchCreateTimeEntriesResult | null>;
+  saveDraft: () => Promise<BatchCreateTimeEntriesResult | null>;
   reset: () => void;
   getTotalHours: () => number;
   getEntryCount: () => number;
@@ -266,6 +304,7 @@ export interface UseWeeklySimpleFormReturn {
   updateEntry: (employeeId: string, field: keyof WeeklySimpleEntryData, value: string) => void;
   copyLastWeek: () => Promise<void>;
   submit: () => Promise<BatchCreateTimeEntriesResult | null>;
+  saveDraft: () => Promise<BatchCreateTimeEntriesResult | null>;
   reset: () => void;
   getTotalHours: () => number;
   getEntryCount: () => number;

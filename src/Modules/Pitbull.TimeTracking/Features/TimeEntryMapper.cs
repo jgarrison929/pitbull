@@ -36,6 +36,9 @@ public static class TimeEntryMapper
             ApprovedAt: timeEntry.ApprovedAt,
             ApprovalComments: timeEntry.ApprovalComments,
             RejectionReason: timeEntry.RejectionReason,
+            SubmittedById: timeEntry.SubmittedById,
+            SubmittedByName: timeEntry.SubmittedBy?.FullName,
+            SubmittedAt: timeEntry.SubmittedAt,
             CreatedAt: timeEntry.CreatedAt,
             UpdatedAt: timeEntry.UpdatedAt
         );
