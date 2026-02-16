@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using Pitbull.AI.Features;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Core.Data;
@@ -27,5 +28,6 @@ internal static class ModuleInit
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectManagementModuleCommand).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
     }
 }

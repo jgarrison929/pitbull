@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Pitbull.AI.Features;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Core.Data;
@@ -29,6 +30,7 @@ public static class TestDbContextFactory
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectManagementModuleCommand).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
     }
 
     public static PitbullDbContext Create(Guid? tenantId = null, string? dbName = null, Guid? companyId = null)
