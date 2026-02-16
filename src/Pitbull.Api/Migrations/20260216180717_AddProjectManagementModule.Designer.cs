@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260216180717_AddProjectManagementModule")]
+    partial class AddProjectManagementModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1404,8 +1407,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("ScheduleActivityId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProgressEntryId", "ScheduleActivityId")
@@ -1571,8 +1572,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("CommunicationId", "DocumentId")
@@ -1641,10 +1640,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("PhaseId");
 
                     b.HasIndex("TenantId");
 
@@ -1745,8 +1740,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("PreparedByUserId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "ReportDate", "ReportType")
@@ -1818,8 +1811,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("DailyReportId");
 
                     b.HasIndex("TenantId");
 
@@ -1895,10 +1886,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DailyReportId");
-
-                    b.HasIndex("RelatedCostCodeId");
-
                     b.HasIndex("TenantId");
 
                     b.ToTable("pm_daily_report_deliveries", (string)null);
@@ -1962,10 +1949,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("DailyReportId");
-
-                    b.HasIndex("EquipmentId");
 
                     b.HasIndex("TenantId");
 
@@ -2040,10 +2023,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("TakenByUserId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("DailyReportId", "DocumentId")
@@ -2099,8 +2078,6 @@ namespace Pitbull.Api.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ChildDailyReportId");
 
                     b.HasIndex("CompanyId");
 
@@ -2174,8 +2151,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DailyReportId");
-
                     b.HasIndex("TenantId");
 
                     b.ToTable("pm_daily_report_safety_incidents", (string)null);
@@ -2246,8 +2221,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("DailyReportId");
 
                     b.HasIndex("TenantId");
 
@@ -2335,8 +2308,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("UploadedByUserId");
-
                     b.HasIndex("ProjectId", "UploadedAt");
 
                     b.ToTable("pm_documents", (string)null);
@@ -2417,8 +2388,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("RecipientUserId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "DocumentType", "ReferenceId");
@@ -2486,8 +2455,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("ParentFolderId");
 
                     b.HasIndex("TenantId");
 
@@ -2649,8 +2616,6 @@ namespace Pitbull.Api.Migrations
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("TenantId");
-
-                    b.HasIndex("UploadedByUserId");
 
                     b.HasIndex("DocumentId", "VersionNumber")
                         .IsUnique();
@@ -2819,14 +2784,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("GeneratedByUserId");
-
-                    b.HasIndex("LetterheadConfigId");
-
-                    b.HasIndex("TemplateId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "DocumentType", "GeneratedAt");
@@ -2920,10 +2877,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("PhaseId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "CostCodeId", "PhaseId", "AsOfDate");
@@ -3010,10 +2963,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("PhaseId");
 
                     b.HasIndex("TenantId");
 
@@ -3109,10 +3058,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("PhaseId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "CostCodeId", "PhaseId", "ReferenceId");
@@ -3203,10 +3148,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("PhaseId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "CostCodeId", "PhaseId", "ForecastPeriod");
@@ -3287,10 +3228,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("PhaseId");
 
                     b.HasIndex("TenantId");
 
@@ -3377,8 +3314,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("LogoDocumentId");
 
                     b.HasIndex("TenantId");
 
@@ -3470,11 +3405,7 @@ namespace Pitbull.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AgendaTemplateId");
-
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("MeetingSeriesId");
 
                     b.HasIndex("TenantId");
 
@@ -3554,8 +3485,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("MeetingId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("AssigneeUserId", "Status", "DueDate");
@@ -3625,8 +3554,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("PresenterUserId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("MeetingId", "ItemNumber")
@@ -3687,8 +3614,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("DocumentId");
 
                     b.HasIndex("TenantId");
 
@@ -3755,8 +3680,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("RecordedByUserId");
 
                     b.HasIndex("TenantId");
 
@@ -3940,10 +3863,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("PreparedByUserId");
-
-                    b.HasIndex("ReviewedByUserId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "ProjectionMonth")
@@ -4098,10 +4017,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("ProjectId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("PlanSetId", "DrawingNumber", "CurrentRevision")
@@ -4175,10 +4090,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
-                    b.HasIndex("IssuedByUserId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("PlanSheetId", "RevisionNumber")
@@ -4246,8 +4157,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("EnteredByUserId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "ProgressDate", "EntryType");
@@ -4306,8 +4215,6 @@ namespace Pitbull.Api.Migrations
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("TenantId");
-
-                    b.HasIndex("TimeEntryId");
 
                     b.HasIndex("ProgressEntryId", "TimeEntryId")
                         .IsUnique();
@@ -4404,10 +4311,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("PreparedByUserId");
-
-                    b.HasIndex("TemplateId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "NarrativeMonth")
@@ -4479,8 +4382,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("RevisedByUserId");
 
                     b.HasIndex("TenantId");
 
@@ -4558,10 +4459,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("PhaseId");
 
                     b.HasIndex("TenantId");
 
@@ -4848,14 +4745,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("ParentActivityId");
-
-                    b.HasIndex("PhaseId");
-
-                    b.HasIndex("ProjectId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ScheduleId", "ActivityCode")
@@ -4931,11 +4820,7 @@ namespace Pitbull.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CapturedByUserId");
-
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("ScheduleId");
 
                     b.HasIndex("TenantId");
 
@@ -5000,8 +4885,6 @@ namespace Pitbull.Api.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ActivityId");
 
                     b.HasIndex("CompanyId");
 
@@ -5136,10 +5019,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("PredecessorActivityId");
-
-                    b.HasIndex("SuccessorActivityId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ScheduleId", "PredecessorActivityId", "SuccessorActivityId")
@@ -5225,10 +5104,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("ImportedByUserId");
-
-                    b.HasIndex("ScheduleId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "ImportedAt");
@@ -5306,12 +5181,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("EmployeeId");
-
-                    b.HasIndex("EquipmentId");
-
-                    b.HasIndex("SubcontractId");
 
                     b.HasIndex("TenantId");
 
@@ -5392,8 +5261,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "SectionCode", "CurrentRevision")
@@ -5463,8 +5330,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("DocumentId");
 
                     b.HasIndex("TenantId");
 
@@ -5568,8 +5433,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("ScheduleActivityId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("ProjectId", "Status", "RequiredByDate");
@@ -5642,8 +5505,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("SubmittalId", "DocumentId")
@@ -5715,8 +5576,6 @@ namespace Pitbull.Api.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ActionByUserId");
 
                     b.HasIndex("CompanyId");
 
@@ -5815,8 +5674,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("AssignedByUserId");
-
                     b.HasIndex("CompanyId");
 
                     b.HasIndex("TenantId");
@@ -5883,8 +5740,6 @@ namespace Pitbull.Api.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("CommentedByUserId");
 
                     b.HasIndex("CompanyId");
 
@@ -5965,8 +5820,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("CompanyId");
 
-                    b.HasIndex("DocumentId");
-
                     b.HasIndex("TenantId");
 
                     b.HasIndex("RfiId", "DocumentId")
@@ -6043,11 +5896,7 @@ namespace Pitbull.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChangeOrderId");
-
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
 
                     b.HasIndex("TenantId");
 
@@ -6124,8 +5973,6 @@ namespace Pitbull.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompanyId");
-
-                    b.HasIndex("RecipientUserId");
 
                     b.HasIndex("TenantId");
 
@@ -7130,13 +6977,6 @@ namespace Pitbull.Api.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasComment("When this entry was submitted (from Draft to Submitted)");
-
-                    b.Property<Guid?>("SubmittedById")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -7168,8 +7008,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_time_entries_status");
-
-                    b.HasIndex("SubmittedById");
 
                     b.HasIndex("TenantId");
 
@@ -7357,928 +7195,6 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmActivityProgress", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmProgressEntry", null)
-                        .WithMany()
-                        .HasForeignKey("ProgressEntryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleActivityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCommunication", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCommunicationAttachment", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmCommunication", null)
-                        .WithMany()
-                        .HasForeignKey("CommunicationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCostCodeProgress", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmProgressEntry", null)
-                        .WithMany()
-                        .HasForeignKey("ProgressEntryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReport", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("PreparedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReportCrew", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("DailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReportDelivery", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("DailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("RelatedCostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReportEquipment", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("DailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.Equipment", null)
-                        .WithMany()
-                        .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReportPhoto", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("DailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("TakenByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReportRollup", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("ChildDailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("ParentDailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReportSafetyIncident", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("DailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDailyReportVisitor", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDailyReport", null)
-                        .WithMany()
-                        .HasForeignKey("DailyReportId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDocument", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("UploadedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDocumentDistribution", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("RecipientUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDocumentFolder", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocumentFolder", null)
-                        .WithMany()
-                        .HasForeignKey("ParentFolderId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmDocumentVersion", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("UploadedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmEarnedValueSnapshot", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmGeneratedDocument", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("GeneratedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmLetterheadConfig", null)
-                        .WithMany()
-                        .HasForeignKey("LetterheadConfigId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocumentTemplate", null)
-                        .WithMany()
-                        .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmJobCostActual", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmJobCostBudget", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmJobCostCommitment", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmJobCostForecast", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmJobCostUnitProgress", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmLetterheadConfig", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("LogoDocumentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmMeeting", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocumentTemplate", null)
-                        .WithMany()
-                        .HasForeignKey("AgendaTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmMeetingSeries", null)
-                        .WithMany()
-                        .HasForeignKey("MeetingSeriesId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmMeetingActionItem", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("AssigneeUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmMeeting", null)
-                        .WithMany()
-                        .HasForeignKey("MeetingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmMeetingAgendaItem", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmMeeting", null)
-                        .WithMany()
-                        .HasForeignKey("MeetingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("PresenterUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmMeetingAttachment", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmMeeting", null)
-                        .WithMany()
-                        .HasForeignKey("MeetingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmMeetingMinute", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmMeeting", null)
-                        .WithMany()
-                        .HasForeignKey("MeetingId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("RecordedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmMeetingSeries", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmMonthlyProjection", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("PreparedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmPlanSet", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmPlanSheet", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmPlanSet", null)
-                        .WithMany()
-                        .HasForeignKey("PlanSetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmPlanSheetRevision", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("IssuedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmPlanSheet", null)
-                        .WithMany()
-                        .HasForeignKey("PlanSheetId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmProgressEntry", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("EnteredByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmProgressTimeEntryLink", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmProgressEntry", null)
-                        .WithMany()
-                        .HasForeignKey("ProgressEntryId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.TimeTracking.Domain.TimeEntry", null)
-                        .WithMany()
-                        .HasForeignKey("TimeEntryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmProjectNarrative", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("PreparedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocumentTemplate", null)
-                        .WithMany()
-                        .HasForeignKey("TemplateId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmProjectNarrativeRevision", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmProjectNarrative", null)
-                        .WithMany()
-                        .HasForeignKey("NarrativeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("RevisedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmProjectionCostCode", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmMonthlyProjection", null)
-                        .WithMany()
-                        .HasForeignKey("MonthlyProjectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmSCurvePoint", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmSchedule", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmScheduleActivity", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("ParentActivityId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Phase", null)
-                        .WithMany()
-                        .HasForeignKey("PhaseId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSchedule", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmScheduleBaseline", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("CapturedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSchedule", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmScheduleBaselineActivity", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleBaseline", null)
-                        .WithMany()
-                        .HasForeignKey("BaselineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmScheduleCalendarException", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSchedule", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmScheduleDependency", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("PredecessorActivityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSchedule", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("SuccessorActivityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmScheduleImportLog", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("ImportedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSchedule", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmScheduleResourceAssignment", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("ActivityId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("EmployeeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Core.Domain.Equipment", null)
-                        .WithMany()
-                        .HasForeignKey("EquipmentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Contracts.Domain.Subcontract", null)
-                        .WithMany()
-                        .HasForeignKey("SubcontractId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmSpecSection", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmSpecSectionRevision", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSpecSection", null)
-                        .WithMany()
-                        .HasForeignKey("SpecSectionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmSubmittal", b =>
-                {
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleActivityId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmSubmittalAttachment", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSubmittal", null)
-                        .WithMany()
-                        .HasForeignKey("SubmittalId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmSubmittalWorkflowEvent", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("ActionByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmSubmittal", null)
-                        .WithMany()
-                        .HasForeignKey("SubmittalId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmTask", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedToUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmTaskComment", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("CommentedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmTask", null)
-                        .WithMany()
-                        .HasForeignKey("TaskId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.RfiAttachment", b =>
-                {
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmDocument", null)
-                        .WithMany()
-                        .HasForeignKey("DocumentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.RFIs.Domain.Rfi", null)
-                        .WithMany()
-                        .HasForeignKey("RfiId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.RfiCostImpactLink", b =>
-                {
-                    b.HasOne("Pitbull.Contracts.Domain.ChangeOrder", null)
-                        .WithMany()
-                        .HasForeignKey("ChangeOrderId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.RFIs.Domain.Rfi", null)
-                        .WithMany()
-                        .HasForeignKey("RfiId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.RfiDistributionRecipient", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.AppUser", null)
-                        .WithMany()
-                        .HasForeignKey("RecipientUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.RFIs.Domain.Rfi", null)
-                        .WithMany()
-                        .HasForeignKey("RfiId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Pitbull.Projects.Domain.Phase", b =>
                 {
                     b.HasOne("Pitbull.Projects.Domain.Project", "Project")
@@ -8404,12 +7320,6 @@ namespace Pitbull.Api.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_time_entries_projects");
 
-                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", "SubmittedBy")
-                        .WithMany()
-                        .HasForeignKey("SubmittedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("FK_time_entries_submitted_by");
-
                     b.Navigation("ApprovedBy");
 
                     b.Navigation("CostCode");
@@ -8421,8 +7331,6 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("Phase");
 
                     b.Navigation("Project");
-
-                    b.Navigation("SubmittedBy");
                 });
 
             modelBuilder.Entity("Pitbull.Bids.Domain.Bid", b =>

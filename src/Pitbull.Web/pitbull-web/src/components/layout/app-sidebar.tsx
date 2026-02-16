@@ -18,6 +18,7 @@ const mainNavItems = [
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
   { label: "Equipment", href: "/equipment", icon: "🚜" },
   { label: "Contracts", href: "/contracts", icon: "📄" },
+  { label: "Project Mgmt", href: "/project-management/tasks/my", icon: "🗂️" },
   { label: "Documents", href: "#", icon: "📁", disabled: true },
 ];
 

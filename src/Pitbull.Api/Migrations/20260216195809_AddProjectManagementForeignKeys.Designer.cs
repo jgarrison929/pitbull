@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260216195809_AddProjectManagementForeignKeys")]
+    partial class AddProjectManagementForeignKeys
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -7130,13 +7133,6 @@ namespace Pitbull.Api.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("SubmittedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasComment("When this entry was submitted (from Draft to Submitted)");
-
-                    b.Property<Guid?>("SubmittedById")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -7168,8 +7164,6 @@ namespace Pitbull.Api.Migrations
 
                     b.HasIndex("Status")
                         .HasDatabaseName("IX_time_entries_status");
-
-                    b.HasIndex("SubmittedById");
 
                     b.HasIndex("TenantId");
 
@@ -8404,12 +8398,6 @@ namespace Pitbull.Api.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_time_entries_projects");
 
-                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", "SubmittedBy")
-                        .WithMany()
-                        .HasForeignKey("SubmittedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("FK_time_entries_submitted_by");
-
                     b.Navigation("ApprovedBy");
 
                     b.Navigation("CostCode");
@@ -8421,8 +8409,6 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("Phase");
 
                     b.Navigation("Project");
-
-                    b.Navigation("SubmittedBy");
                 });
 
             modelBuilder.Entity("Pitbull.Bids.Domain.Bid", b =>

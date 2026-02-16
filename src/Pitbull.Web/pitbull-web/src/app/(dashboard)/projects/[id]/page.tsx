@@ -44,6 +44,21 @@ function formatLocation(project: Project): string {
   return parts.length ? parts.join(", ") : "—";
 }
 
+const pmNavItems = [
+  { label: "Schedule", href: "schedule" },
+  { label: "Job Cost", href: "job-cost" },
+  { label: "Submittals", href: "submittals" },
+  { label: "Plans & Specs", href: "plans-specs" },
+  { label: "Communications", href: "communications" },
+  { label: "Daily Reports", href: "daily-reports" },
+  { label: "Progress", href: "progress" },
+  { label: "Projections", href: "projections" },
+  { label: "Meetings", href: "meetings" },
+  { label: "Documents", href: "documents" },
+  { label: "Tasks", href: "tasks" },
+  { label: "Narratives", href: "narratives" },
+];
+
 export default function ProjectDetailPage({
   params,
 }: {
@@ -253,6 +268,21 @@ export default function ProjectDetailPage({
           onRefresh={fetchAiInsights}
         />
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Project Management</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {pmNavItems.map((item) => (
+              <Button key={item.href} variant="outline" asChild className="justify-start">
+                <Link href={`/projects/${id}/${item.href}`}>{item.label}</Link>
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Separator />
 

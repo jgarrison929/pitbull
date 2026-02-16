@@ -37,6 +37,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.RFIs", "src\Modules
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.TimeTracking", "src\Modules\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj", "{2EF18BF1-6664-44CA-8F34-3933B47354B3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.ProjectManagement", "src\Modules\Pitbull.ProjectManagement\Pitbull.ProjectManagement.csproj", "{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -227,6 +229,18 @@ Global
 		{2EF18BF1-6664-44CA-8F34-3933B47354B3}.Release|x64.Build.0 = Release|Any CPU
 		{2EF18BF1-6664-44CA-8F34-3933B47354B3}.Release|x86.ActiveCfg = Release|Any CPU
 		{2EF18BF1-6664-44CA-8F34-3933B47354B3}.Release|x86.Build.0 = Release|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Debug|x64.Build.0 = Debug|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Debug|x86.Build.0 = Debug|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|x64.ActiveCfg = Release|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|x64.Build.0 = Release|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|x86.ActiveCfg = Release|Any CPU
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -248,5 +262,6 @@ Global
 		{EA22AE97-D4E1-43BD-8577-ED66727D3B38} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 		{6ED705DC-F262-43EE-9126-566324DB1584} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 		{2EF18BF1-6664-44CA-8F34-3933B47354B3} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
+		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 	EndGlobalSection
 EndGlobal

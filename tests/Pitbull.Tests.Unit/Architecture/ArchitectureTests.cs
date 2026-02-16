@@ -22,6 +22,7 @@ public class ArchitectureTests
     {
         var result = Types.InAssembly(_apiAssembly)
             .That().Inherit(typeof(ControllerBase))
+            .And().AreNotAbstract()
             .And().DoNotHaveName("AuthController")
             .Should().HaveCustomAttribute(typeof(AuthorizeAttribute))
             .GetResult();
@@ -53,6 +54,7 @@ public class ArchitectureTests
     {
         var result = Types.InAssembly(_apiAssembly)
             .That().Inherit(typeof(ControllerBase))
+            .And().AreNotAbstract()
             .Should().HaveNameEndingWith("Controller")
             .GetResult();
 
