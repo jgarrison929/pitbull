@@ -188,7 +188,7 @@ public class EmployeeService : IEmployeeService
             BaseHourlyRate: e.BaseHourlyRate,
             IsActive: e.IsActive,
             AssignedProjects: e.ProjectAssignments
-                .Where(pa => !pa.IsDeleted)
+                .Where(pa => !pa.IsDeleted && pa.Project != null)
                 .Select(pa => new CrewMemberProjectDto(
                     ProjectId: pa.ProjectId,
                     ProjectNumber: pa.Project.Number,
