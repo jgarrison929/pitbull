@@ -12,14 +12,16 @@ public record BatchCreateTimeEntriesCommand(
 ) : ICommand<BatchCreateTimeEntriesResult>;
 
 /// <summary>
-/// Individual time entry in a batch submission
+/// Individual time entry in a batch submission.
+/// CostCodeId is optional -- when Guid.Empty, the service auto-assigns the
+/// tenant's default labor cost code (Code="LAB") for crew timecard entries.
 /// </summary>
 public record BatchTimeEntryItem(
     DateOnly Date,
     Guid EmployeeId,
     Guid ProjectId,
-    Guid CostCodeId,
-    decimal RegularHours,
+    Guid CostCodeId = default,
+    decimal RegularHours = 0,
     decimal OvertimeHours = 0,
     decimal DoubletimeHours = 0,
     string? Description = null,

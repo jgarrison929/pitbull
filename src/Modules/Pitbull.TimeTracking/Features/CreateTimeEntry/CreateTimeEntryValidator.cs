@@ -17,8 +17,9 @@ public class CreateTimeEntryValidator : AbstractValidator<CreateTimeEntryCommand
         RuleFor(x => x.ProjectId)
             .NotEmpty().WithMessage("Project is required");
 
-        RuleFor(x => x.CostCodeId)
-            .NotEmpty().WithMessage("Cost code is required");
+        // CostCodeId is optional -- when omitted (Guid.Empty), the service layer
+        // auto-assigns the tenant's default labor cost code (Code="LAB").
+        // This supports crew timecard grid entries where foremen never pick a cost code.
 
         RuleFor(x => x.RegularHours)
             .GreaterThanOrEqualTo(0).WithMessage("Regular hours cannot be negative")

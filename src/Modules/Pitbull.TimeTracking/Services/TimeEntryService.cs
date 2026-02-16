@@ -480,9 +480,35 @@ public class TimeEntryService : ITimeEntryService
                 "Employee is not assigned to this project",
                 "NOT_ASSIGNED_TO_PROJECT");
 
+        // Auto-assign cost code if not provided (crew timecard grid flow).
+        // Look up the tenant's default labor cost code (Code="LAB").
+        var effectiveCostCodeId = command.CostCodeId;
+        if (effectiveCostCodeId == Guid.Empty)
+        {
+            var laborCostCode = await _db.Set<CostCode>()
+                .FirstOrDefaultAsync(cc => cc.Code == "LAB" && cc.IsActive, cancellationToken);
+
+            if (laborCostCode != null)
+            {
+                effectiveCostCodeId = laborCostCode.Id;
+                _logger.LogInformation(
+                    "Auto-assigned labor cost code {CostCodeId} (LAB) for employee {EmployeeId} on {Date}",
+                    laborCostCode.Id, command.EmployeeId, command.Date);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "No active LAB cost code found for tenant; cannot auto-assign cost code for employee {EmployeeId} on {Date}",
+                    command.EmployeeId, command.Date);
+                return Result.Failure<TimeEntryDto>(
+                    "No cost code specified and no default labor cost code (LAB) found",
+                    "COSTCODE_NOT_FOUND");
+            }
+        }
+
         // Validate that cost code exists and is active
         var costCode = await _db.Set<CostCode>()
-            .FirstOrDefaultAsync(cc => cc.Id == command.CostCodeId && cc.IsActive, cancellationToken);
+            .FirstOrDefaultAsync(cc => cc.Id == effectiveCostCodeId && cc.IsActive, cancellationToken);
 
         if (costCode == null)
             return Result.Failure<TimeEntryDto>("Cost code not found or inactive", "COSTCODE_NOT_FOUND");
@@ -519,7 +545,7 @@ public class TimeEntryService : ITimeEntryService
             .AnyAsync(te => te.Date == command.Date
                          && te.EmployeeId == command.EmployeeId
                          && te.ProjectId == command.ProjectId
-                         && te.CostCodeId == command.CostCodeId
+                         && te.CostCodeId == effectiveCostCodeId
                          && te.PhaseId == command.PhaseId,
                       cancellationToken);
 
@@ -533,7 +559,7 @@ public class TimeEntryService : ITimeEntryService
             Date = command.Date,
             EmployeeId = command.EmployeeId,
             ProjectId = command.ProjectId,
-            CostCodeId = command.CostCodeId,
+            CostCodeId = effectiveCostCodeId,
             PhaseId = command.PhaseId,
             EquipmentId = command.EquipmentId,
             EquipmentHours = command.EquipmentHours,

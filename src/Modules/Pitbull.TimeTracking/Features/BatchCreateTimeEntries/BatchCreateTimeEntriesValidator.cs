@@ -26,9 +26,8 @@ public class BatchCreateTimeEntriesValidator : AbstractValidator<BatchCreateTime
                 .NotEmpty()
                 .WithMessage("Project is required");
 
-            entry.RuleFor(e => e.CostCodeId)
-                .NotEmpty()
-                .WithMessage("Cost code is required");
+            // CostCodeId is optional -- when Guid.Empty, the service auto-assigns
+            // the tenant's default labor cost code (Code="LAB").
 
             entry.RuleFor(e => e.RegularHours)
                 .GreaterThanOrEqualTo(0)

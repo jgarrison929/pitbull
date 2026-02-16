@@ -7,12 +7,17 @@ namespace Pitbull.TimeTracking.Features.CreateTimeEntry;
 /// <summary>
 /// Create a new time entry for an employee
 /// </summary>
+/// <summary>
+/// CostCodeId is optional. When null/empty, the service layer auto-assigns the
+/// tenant's default labor cost code (Code="LAB"). This supports crew timecard
+/// grid entries where foremen never pick a cost code.
+/// </summary>
 public record CreateTimeEntryCommand(
     DateOnly Date,
     Guid EmployeeId,
     Guid ProjectId,
-    Guid CostCodeId,
-    decimal RegularHours,
+    Guid CostCodeId = default,
+    decimal RegularHours = 0,
     decimal OvertimeHours = 0,
     decimal DoubletimeHours = 0,
     string? Description = null,

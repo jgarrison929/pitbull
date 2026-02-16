@@ -63,12 +63,14 @@ public sealed class CreateTimeEntryValidatorTests
     }
 
     [Fact]
-    public void Validate_WithEmptyCostCodeId_ShouldHaveError()
+    public void Validate_WithEmptyCostCodeId_ShouldNotHaveError()
     {
+        // CostCodeId is now optional at the validator level.
+        // When Guid.Empty, the service layer auto-assigns the tenant's LAB cost code
+        // (crew timecard grid flow where foremen never pick a cost code).
         var command = CreateValidCommand(costCodeId: Guid.Empty);
         var result = _validator.TestValidate(command);
-        result.ShouldHaveValidationErrorFor(x => x.CostCodeId)
-            .WithErrorMessage("Cost code is required");
+        result.ShouldNotHaveValidationErrorFor(x => x.CostCodeId);
     }
 
     [Fact]
