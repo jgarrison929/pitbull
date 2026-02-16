@@ -86,6 +86,31 @@ public class PitbullDbContext(
             e.Property(c => c.DateFormat).HasMaxLength(20).HasDefaultValue("MM/dd/yyyy");
             e.Property(c => c.Settings).HasColumnType("jsonb").HasDefaultValue("{}");
             e.HasIndex(c => new { c.TenantId, c.Code }).IsUnique();
+
+            // TimecardSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.TimecardSettings, ts =>
+            {
+                ts.Property(t => t.TimecardMode)
+                    .HasColumnName("TimecardMode")
+                    .HasConversion<int>()
+                    .HasDefaultValue(TimecardMode.Daily);
+
+                ts.Property(t => t.WeeklyEntryMode)
+                    .HasColumnName("WeeklyEntryMode")
+                    .HasConversion<int>()
+                    .HasDefaultValue(WeeklyEntryMode.Detailed);
+
+                ts.Property(t => t.DefaultProjectId)
+                    .HasColumnName("DefaultProjectId");
+
+                ts.Property(t => t.RequirePhase)
+                    .HasColumnName("RequirePhase")
+                    .HasDefaultValue(false);
+
+                ts.Property(t => t.RequireEquipment)
+                    .HasColumnName("RequireEquipment")
+                    .HasDefaultValue(false);
+            });
         });
 
         // UserCompanyAccess configuration

@@ -223,6 +223,7 @@ public class ArchitectureTests
                 .And().DoNotHaveName("AdminCompanyController")
                 .And().DoNotHaveName("CompaniesController")
                 .And().DoNotHaveName("AdminCompaniesController")
+                .And().DoNotHaveName("TimecardSettingsController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 

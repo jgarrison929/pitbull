@@ -98,11 +98,24 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// <summary>
     /// Creates standard construction labor cost codes.
     /// These are used for time tracking entries.
+    /// Includes default cost codes for crew timecard auto-assignment
+    /// (LAB, EQP, MAT, SUB-*, OVH) plus detailed CSI division codes.
     /// </summary>
     private static List<CostCode> CreateCostCodes()
     {
         return
         [
+            // === Default Cost Codes (used by crew timecard auto-assignment) ===
+            new CostCode { Code = "LAB", Description = "Labor", CostType = CostType.Labor, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "EQP", Description = "Equipment", CostType = CostType.Equipment, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "MAT", Description = "Material", CostType = CostType.Material, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-LAB", Description = "Subcontract Labor", CostType = CostType.Subcontract, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-MAT", Description = "Subcontract Material", CostType = CostType.Subcontract, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-EQP", Description = "Subcontract Equipment", CostType = CostType.Subcontract, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "OVH", Description = "Overhead", CostType = CostType.Overhead, IsActive = true, IsCompanyStandard = true },
+
+            // === Detailed CSI Division Cost Codes ===
+
             // General Conditions / Supervision
             new CostCode { Code = "01-100", Description = "Project Management", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },
             new CostCode { Code = "01-200", Description = "Supervision - General Foreman", Division = "01", CostType = CostType.Labor, IsCompanyStandard = true },

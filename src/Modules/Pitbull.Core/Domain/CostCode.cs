@@ -38,5 +38,6 @@ public enum CostType
     Material = 2,
     Equipment = 3,
     Subcontract = 4,
-    Other = 5
+    Other = 5,
+    Overhead = 6
 }

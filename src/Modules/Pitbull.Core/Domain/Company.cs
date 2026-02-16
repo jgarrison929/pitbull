@@ -69,4 +69,10 @@ public class Company : BaseEntity
     /// JSONB column for company-specific settings
     /// </summary>
     public string Settings { get; set; } = "{}";
+
+    /// <summary>
+    /// Timecard configuration for crew entry grid.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public TimecardSettings TimecardSettings { get; set; } = new();
 }
