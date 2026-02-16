@@ -13,9 +13,11 @@ using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
 using Pitbull.TimeTracking.Features.BulkSubmitTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
+using Pitbull.TimeTracking.Features.GetReviewQueue;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
+using Pitbull.TimeTracking.Features.ReviewTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 using Equipment = Pitbull.Core.Domain.Equipment;
 using Phase = Pitbull.Projects.Domain.Phase;
@@ -441,6 +443,97 @@ public class TimeEntryService : ITimeEntryService
         });
     }
 
+    public async Task<Result<ReviewQueueResult>> GetReviewQueueAsync(
+        DateOnly? startDate,
+        DateOnly? endDate,
+        Guid? projectId,
+        Guid? supervisorId,
+        Guid currentEmployeeId,
+        CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
+        var effectiveStart = startDate ?? today.AddDays(-daysSinceMonday);
+        var effectiveEnd = endDate ?? effectiveStart.AddDays(6);
+
+        // Get the list of projects this user is authorized to approve for.
+        var approvableProjectIds = await _db.Set<ProjectAssignment>()
+            .Where(pa => pa.EmployeeId == currentEmployeeId &&
+                         pa.IsActive &&
+                         (pa.Role == AssignmentRole.Manager || pa.Role == AssignmentRole.Supervisor))
+            .Select(pa => pa.ProjectId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (approvableProjectIds.Count == 0)
+        {
+            return Result.Success(new ReviewQueueResult(
+                StartDate: effectiveStart,
+                EndDate: effectiveEnd,
+                TotalEntries: 0, TotalProjects: 0, TotalRegularHours: 0, TotalOvertimeHours: 0,
+                TotalDoubletimeHours: 0, TotalHours: 0, Groups: []
+            ));
+        }
+
+        var query = _db.Set<TimeEntry>()
+            .Include(te => te.Employee)
+            .Include(te => te.Phase)
+            .Include(te => te.Equipment)
+            .Where(te => !te.IsDeleted)
+            .Where(te => te.Status == TimeEntryStatus.Submitted)
+            .Where(te => te.Date >= effectiveStart && te.Date <= effectiveEnd)
+            .Where(te => approvableProjectIds.Contains(te.ProjectId)) // Filter by approvable projects
+            .AsQueryable();
+
+        if (projectId.HasValue)
+            query = query.Where(te => te.ProjectId == projectId.Value);
+
+        if (supervisorId.HasValue)
+            query = query.Where(te => te.Employee.SupervisorId == supervisorId.Value);
+
+        var entries = await query
+            .OrderBy(te => te.ProjectId)
+            .ThenByDescending(te => te.Date)
+            .ThenBy(te => te.Employee.LastName)
+            .Select(te => TimeEntryMapper.ToDto(te))
+            .ToListAsync(cancellationToken);
+
+        var groups = entries
+            .GroupBy(e => new { e.ProjectId, e.ProjectNumber, e.ProjectName })
+            .Select(g => new ReviewQueueProjectGroup(
+                ProjectId: g.Key.ProjectId,
+                ProjectNumber: g.Key.ProjectNumber,
+                ProjectName: g.Key.ProjectName,
+                EntryCount: g.Count(),
+                EmployeeCount: g.Select(x => x.EmployeeId).Distinct().Count(),
+                TotalRegularHours: g.Sum(x => x.RegularHours),
+                TotalOvertimeHours: g.Sum(x => x.OvertimeHours),
+                TotalDoubletimeHours: g.Sum(x => x.DoubletimeHours),
+                TotalHours: g.Sum(x => x.TotalHours),
+                Entries: g.ToList()
+            ))
+            .OrderBy(g => g.ProjectNumber)
+            .ToList();
+
+        return Result.Success(new ReviewQueueResult(
+            StartDate: effectiveStart,
+            EndDate: effectiveEnd,
+            TotalEntries: entries.Count,
+            TotalProjects: groups.Count,
+            TotalRegularHours: entries.Sum(e => e.RegularHours),
+            TotalOvertimeHours: entries.Sum(e => e.OvertimeHours),
+            TotalDoubletimeHours: entries.Sum(e => e.DoubletimeHours),
+            TotalHours: entries.Sum(e => e.TotalHours),
+            Groups: groups
+        ));
+    }
+
+    public async Task<Employee?> GetEmployeeByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        return await _db.Set<Employee>()
+            .FirstOrDefaultAsync(e => e.Email == email && e.IsActive, cancellationToken);
+    }
+
     #endregion
 
     #region Command Operations
@@ -751,6 +844,150 @@ public class TimeEntryService : ITimeEntryService
             results));
     }
 
+    public async Task<Result<ReviewTimeEntriesResult>> ReviewTimeEntriesAsync(
+        ReviewTimeEntriesCommand command,
+        Guid reviewedByEmployeeId,
+        CancellationToken cancellationToken = default)
+    {
+        if (command.Decisions.Count == 0)
+            return Result.Failure<ReviewTimeEntriesResult>(
+                "At least one decision is required",
+                "VALIDATION_ERROR");
+
+        if (command.Decisions.Count > 500)
+            return Result.Failure<ReviewTimeEntriesResult>(
+                "Maximum 500 decisions per request",
+                "BATCH_LIMIT_EXCEEDED");
+
+        if (command.Decisions.Select(d => d.TimeEntryId).Distinct().Count() != command.Decisions.Count)
+            return Result.Failure<ReviewTimeEntriesResult>(
+                "Duplicate time entry decisions are not allowed",
+                "DUPLICATE_DECISION");
+
+        var ids = command.Decisions.Select(d => d.TimeEntryId).ToList();
+        var entries = await _db.Set<TimeEntry>()
+            .Include(te => te.Employee)
+            .Where(te => ids.Contains(te.Id) && !te.IsDeleted)
+            .ToDictionaryAsync(te => te.Id, cancellationToken);
+
+        // Get reviewer's approvable project IDs (Manager/Supervisor assignments)
+        var approvableProjectIds = await _db.Set<ProjectAssignment>()
+            .Where(pa => pa.EmployeeId == reviewedByEmployeeId &&
+                         pa.IsActive &&
+                         (pa.Role == AssignmentRole.Manager || pa.Role == AssignmentRole.Supervisor))
+            .Select(pa => pa.ProjectId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var approvableProjectSet = new HashSet<Guid>(approvableProjectIds);
+
+        var results = new List<ReviewTimeEntryResult>(command.Decisions.Count);
+        var approvedCount = 0;
+        var rejectedCount = 0;
+
+        foreach (var decision in command.Decisions)
+        {
+            if (!entries.TryGetValue(decision.TimeEntryId, out var entry))
+            {
+                results.Add(new ReviewTimeEntryResult(
+                    decision.TimeEntryId,
+                    false,
+                    "Time entry not found",
+                    "NOT_FOUND"));
+                continue;
+            }
+
+            // Enforce project-scope: reviewer must have Manager/Supervisor assignment on the entry's project
+            if (!approvableProjectSet.Contains(entry.ProjectId))
+            {
+                results.Add(new ReviewTimeEntryResult(
+                    decision.TimeEntryId,
+                    false,
+                    "Not authorized to review entries for this project",
+                    "UNAUTHORIZED"));
+                continue;
+            }
+
+            if (entry.Status != TimeEntryStatus.Submitted)
+            {
+                results.Add(new ReviewTimeEntryResult(
+                    decision.TimeEntryId,
+                    false,
+                    "Only submitted entries can be reviewed",
+                    "INVALID_STATUS"));
+                continue;
+            }
+
+            var hasPermission = await ValidateApproverPermission(
+                reviewedByEmployeeId,
+                entry.EmployeeId,
+                cancellationToken);
+            if (!hasPermission)
+            {
+                results.Add(new ReviewTimeEntryResult(
+                    decision.TimeEntryId,
+                    false,
+                    "User does not have permission to review this time entry",
+                    "UNAUTHORIZED"));
+                continue;
+            }
+
+            if (decision.Decision == TimeEntryReviewDecisionType.Reject &&
+                string.IsNullOrWhiteSpace(decision.Comment))
+            {
+                results.Add(new ReviewTimeEntryResult(
+                    decision.TimeEntryId,
+                    false,
+                    "Rejection reason is required",
+                    "VALIDATION_ERROR"));
+                continue;
+            }
+
+            entry.ApprovedById = reviewedByEmployeeId;
+            entry.ApprovedAt = DateTime.UtcNow;
+
+            if (decision.Decision == TimeEntryReviewDecisionType.Approve)
+            {
+                entry.Status = TimeEntryStatus.Approved;
+                entry.ApprovalComments = decision.Comment;
+                entry.RejectionReason = null;
+                approvedCount++;
+            }
+            else
+            {
+                entry.Status = TimeEntryStatus.Rejected;
+                entry.RejectionReason = decision.Comment;
+                entry.ApprovalComments = null;
+                rejectedCount++;
+            }
+
+            results.Add(new ReviewTimeEntryResult(decision.TimeEntryId, true));
+        }
+
+        if (results.Any(r => r.Success))
+        {
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to persist bulk time entry review");
+                return Result.Failure<ReviewTimeEntriesResult>(
+                    "Failed to persist review decisions",
+                    "DATABASE_ERROR");
+            }
+        }
+
+        return Result.Success(new ReviewTimeEntriesResult(
+            Total: command.Decisions.Count,
+            Approved: approvedCount,
+            Rejected: rejectedCount,
+            Failed: results.Count(r => !r.Success),
+            Results: results
+        ));
+    }
+
     public async Task<Result<TimeEntryDto>> UpdateTimeEntryAsync(UpdateTimeEntryCommand command, CancellationToken cancellationToken = default)
     {
         var validationResult = await _updateValidator.ValidateAsync(command, cancellationToken);
@@ -1047,6 +1284,22 @@ public class TimeEntryService : ITimeEntryService
                     "UNAUTHORIZED");
             }
 
+            // SEC-002: Enforce project-scope — approver must have Manager/Supervisor
+            // assignment on the entry's project (same check as bulk ReviewTimeEntriesAsync).
+            var hasProjectAccess = await _db.Set<ProjectAssignment>()
+                .AnyAsync(pa => pa.EmployeeId == command.ApproverId.Value &&
+                                pa.ProjectId == timeEntry.ProjectId &&
+                                pa.IsActive &&
+                                (pa.Role == AssignmentRole.Manager || pa.Role == AssignmentRole.Supervisor),
+                    cancellationToken);
+
+            if (!hasProjectAccess)
+            {
+                return Result.Failure(
+                    "Not authorized to review entries for this project",
+                    "UNAUTHORIZED");
+            }
+
             // Set approval/rejection details
             timeEntry.ApprovedById = command.ApproverId.Value;
             timeEntry.ApprovedAt = DateTime.UtcNow;
@@ -1084,6 +1337,10 @@ public class TimeEntryService : ITimeEntryService
         Guid employeeId,
         CancellationToken cancellationToken)
     {
+        // Prevent self-approval
+        if (approverId == employeeId)
+            return false;
+
         // Get the approver
         var approver = await _db.Set<Employee>()
             .FirstOrDefaultAsync(e => e.Id == approverId && e.IsActive, cancellationToken);

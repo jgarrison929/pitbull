@@ -307,6 +307,59 @@ export interface ListTimeEntriesResult {
   totalPages: number;
 }
 
+export interface ReviewQueueProjectGroup {
+  projectId: string;
+  projectNumber: string;
+  projectName: string;
+  entryCount: number;
+  employeeCount: number;
+  totalRegularHours: number;
+  totalOvertimeHours: number;
+  totalDoubletimeHours: number;
+  totalHours: number;
+  entries: TimeEntry[];
+}
+
+export interface ReviewQueueResult {
+  startDate: string;
+  endDate: string;
+  totalEntries: number;
+  totalProjects: number;
+  totalRegularHours: number;
+  totalOvertimeHours: number;
+  totalDoubletimeHours: number;
+  totalHours: number;
+  groups: ReviewQueueProjectGroup[];
+}
+
+export type ReviewDecisionType = "approve" | "reject";
+
+export interface ReviewTimeEntryDecision {
+  timeEntryId: string;
+  decision: ReviewDecisionType;
+  comment?: string | null;
+}
+
+export interface ReviewTimeEntriesCommand {
+  reviewedById: string;
+  decisions: ReviewTimeEntryDecision[];
+}
+
+export interface ReviewTimeEntryResult {
+  timeEntryId: string;
+  success: boolean;
+  error?: string | null;
+  errorCode?: string | null;
+}
+
+export interface ReviewTimeEntriesResult {
+  total: number;
+  approved: number;
+  rejected: number;
+  failed: number;
+  results: ReviewTimeEntryResult[];
+}
+
 export interface CreateEmployeeCommand {
   firstName: string;
   lastName: string;

@@ -2,11 +2,13 @@ using MassTransit;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
 using Pitbull.TimeTracking.Features.BulkSubmitTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
+using Pitbull.TimeTracking.Features.ReviewTimeEntries;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 using Pitbull.TimeTracking.Messages;
@@ -181,6 +183,17 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTimeEntryRequest request)
     {
+        // SEC-001: For approval/rejection via the generic update endpoint,
+        // resolve approver from JWT — never trust the request body's ApproverId.
+        Guid? approverId = request.ApproverId;
+        if (request.NewStatus is TimeEntryStatus.Approved or TimeEntryStatus.Rejected)
+        {
+            var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
+            if (!userResult.IsSuccess)
+                return Unauthorized(new { error = userResult.Error });
+            approverId = employeeId;
+        }
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: id,
             RegularHours: request.RegularHours,
@@ -188,7 +201,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
             DoubletimeHours: request.DoubletimeHours,
             Description: request.Description,
             NewStatus: request.NewStatus,
-            ApproverId: request.ApproverId,
+            ApproverId: approverId,
             ApproverNotes: request.ApproverNotes,
             SubmittedById: request.SubmittedById,
             PhaseId: request.PhaseId,
@@ -235,10 +248,14 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveTimeEntryRequest request)
     {
+        var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
+        if (!userResult.IsSuccess)
+            return Unauthorized(new { error = userResult.Error });
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: id,
             NewStatus: TimeEntryStatus.Approved,
-            ApproverId: request.ApproverId,
+            ApproverId: employeeId,
             ApproverNotes: request.Comments
         );
 
@@ -252,6 +269,15 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
         }
+
+        await bus.Publish(new TimeEntriesApproved
+        {
+            BatchId = Guid.NewGuid(),
+            ApprovedById = employeeId,
+            TimeEntryIds = [id],
+            Count = 1,
+            ApprovedAt = DateTime.UtcNow
+        });
 
         return Ok(result.Value);
     }
@@ -281,10 +307,14 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectTimeEntryRequest request)
     {
+        var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
+        if (!userResult.IsSuccess)
+            return Unauthorized(new { error = userResult.Error });
+
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: id,
             NewStatus: TimeEntryStatus.Rejected,
-            ApproverId: request.ApproverId,
+            ApproverId: employeeId,
             ApproverNotes: request.Reason
         );
 
@@ -299,7 +329,143 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
             };
         }
 
+        await bus.Publish(new TimeEntriesRejected
+        {
+            BatchId = Guid.NewGuid(),
+            RejectedById = employeeId,
+            TimeEntryIds = [id],
+            Count = 1,
+            RejectedAt = DateTime.UtcNow
+        });
+
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get PM review queue grouped by project
+    /// </summary>
+    /// <param name="startDate">Optional queue start date (defaults to current week start)</param>
+    /// <param name="endDate">Optional queue end date (defaults to current week end)</param>
+    /// <param name="projectId">Optional project filter</param>
+    /// <param name="supervisorId">Optional supervisor filter</param>
+    /// <returns>Submitted time entries grouped by project</returns>
+    [HttpGet("review-queue")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> GetReviewQueue(
+        [FromQuery] DateOnly? startDate,
+        [FromQuery] DateOnly? endDate,
+        [FromQuery] Guid? projectId,
+        [FromQuery] Guid? supervisorId)
+    {
+        var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
+        if (!userResult.IsSuccess)
+            return Unauthorized(new { error = userResult.Error });
+
+        var result = await timeEntryService.GetReviewQueueAsync(
+            startDate,
+            endDate,
+            projectId,
+            supervisorId,
+            employeeId);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Bulk review submitted time entries
+    /// </summary>
+    /// <param name="request">Review decisions and approver</param>
+    /// <returns>Per-entry review results</returns>
+    [HttpPost("review")]
+    [ProducesResponseType(typeof(ReviewTimeEntriesResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Review([FromBody] ReviewTimeEntriesRequest request)
+    {
+        var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
+        if (!userResult.IsSuccess)
+            return Unauthorized(new { error = userResult.Error });
+
+        var parseFailures = new List<string>();
+        var decisions = new List<TimeEntryReviewDecision>();
+
+        foreach (var item in request.Decisions)
+        {
+            if (!TryParseDecisionType(item.Decision, out var decisionType))
+            {
+                parseFailures.Add($"Invalid decision '{item.Decision}' for time entry {item.TimeEntryId}");
+                continue;
+            }
+
+            decisions.Add(new TimeEntryReviewDecision(
+                item.TimeEntryId,
+                decisionType,
+                item.Comment));
+        }
+
+        if (parseFailures.Count > 0)
+        {
+            return BadRequest(new
+            {
+                error = string.Join("; ", parseFailures),
+                code = "VALIDATION_ERROR"
+            });
+        }
+
+        var result = await timeEntryService.ReviewTimeEntriesAsync(
+            new ReviewTimeEntriesCommand(decisions),
+            employeeId);
+
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        var response = result.Value!;
+        var decisionLookup = decisions.ToDictionary(d => d.TimeEntryId, d => d.Decision);
+        var approvedIds = response.Results
+            .Where(r => r.Success
+                        && decisionLookup.TryGetValue(r.TimeEntryId, out var d)
+                        && d == TimeEntryReviewDecisionType.Approve)
+            .Select(r => r.TimeEntryId)
+            .ToList();
+        var rejectedIds = response.Results
+            .Where(r => r.Success
+                        && decisionLookup.TryGetValue(r.TimeEntryId, out var d)
+                        && d == TimeEntryReviewDecisionType.Reject)
+            .Select(r => r.TimeEntryId)
+            .ToList();
+
+        if (approvedIds.Count > 0)
+        {
+            await bus.Publish(new TimeEntriesApproved
+            {
+                BatchId = Guid.NewGuid(),
+                ApprovedById = employeeId,
+                TimeEntryIds = approvedIds,
+                Count = approvedIds.Count,
+                ApprovedAt = DateTime.UtcNow
+            });
+        }
+
+        if (rejectedIds.Count > 0)
+        {
+            await bus.Publish(new TimeEntriesRejected
+            {
+                BatchId = Guid.NewGuid(),
+                RejectedById = employeeId,
+                TimeEntryIds = rejectedIds,
+                Count = rejectedIds.Count,
+                RejectedAt = DateTime.UtcNow
+            });
+        }
+
+        return Ok(response);
     }
 
     /// <summary>
@@ -581,6 +747,39 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
         var bytes = System.Text.Encoding.UTF8.GetBytes(export.CsvContent);
         return File(bytes, "text/csv", export.FileName);
     }
+
+    private static bool TryParseDecisionType(string? decision, out TimeEntryReviewDecisionType decisionType)
+    {
+        decisionType = default;
+        if (string.IsNullOrWhiteSpace(decision))
+            return false;
+
+        return decision.Trim().ToLowerInvariant() switch
+        {
+            "approve" => (decisionType = TimeEntryReviewDecisionType.Approve) == TimeEntryReviewDecisionType.Approve,
+            "reject" => (decisionType = TimeEntryReviewDecisionType.Reject) == TimeEntryReviewDecisionType.Reject,
+            _ => false
+        };
+    }
+
+    private async Task<(Result, Guid)> GetCurrentEmployeeIdAsync()
+    {
+        var email = User.Identity?.Name
+            ?? User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+            ?? User.FindFirst("email")?.Value;
+        if (string.IsNullOrEmpty(email))
+        {
+            return (Result.Failure("User email not found in token.", "UNAUTHORIZED"), Guid.Empty);
+        }
+
+        var employee = await timeEntryService.GetEmployeeByEmailAsync(email);
+        if (employee == null)
+        {
+            return (Result.Failure("No matching employee record found for the current user.", "UNAUTHORIZED"), Guid.Empty);
+        }
+
+        return (Result.Success(), employee.Id);
+    }
 }
 
 // Request DTOs
@@ -613,12 +812,10 @@ public record UpdateTimeEntryRequest(
 );
 
 public record ApproveTimeEntryRequest(
-    Guid ApproverId,
     string? Comments = null
 );
 
 public record RejectTimeEntryRequest(
-    Guid ApproverId,
     string Reason
 );
 
@@ -647,4 +844,14 @@ public record BatchCreateItemRequest(
 public record BulkSubmitRequest(
     List<Guid> TimeEntryIds,
     Guid SubmittedById
+);
+
+public record ReviewTimeEntriesRequest(
+    List<ReviewTimeEntryDecisionRequest> Decisions
+);
+
+public record ReviewTimeEntryDecisionRequest(
+    Guid TimeEntryId,
+    string Decision,
+    string? Comment = null
 );

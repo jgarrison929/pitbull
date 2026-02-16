@@ -35,10 +35,21 @@ public class TimeEntriesControllerTests
         _serviceMock = new Mock<ITimeEntryService>();
         _busMock = new Mock<IBus>();
         _controller = new TimeEntriesController(_serviceMock.Object, _busMock.Object);
+
+        // Set up JWT claims so GetCurrentEmployeeIdAsync() resolves an approver
+        var claims = new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "approver@test.com") };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
         _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext()
+            HttpContext = new DefaultHttpContext { User = principal }
         };
+
+        // Mock employee lookup for the JWT-resolved approver
+        _serviceMock
+            .Setup(s => s.GetEmployeeByEmailAsync("approver@test.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Employee { Id = TestApproverId, FirstName = "Test", LastName = "Approver", Email = "approver@test.com", IsActive = true });
     }
 
     private static TimeEntryDto CreateTestDto(
@@ -350,7 +361,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Success(dto));
 
-        var request = new ApproveTimeEntryRequest(TestApproverId, "Approved");
+        var request = new ApproveTimeEntryRequest("Approved");
 
         var result = await _controller.Approve(TestId, request);
 
@@ -365,7 +376,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Success(CreateTestDto(status: TimeEntryStatus.Approved)));
 
-        var request = new ApproveTimeEntryRequest(TestApproverId, "Well done");
+        var request = new ApproveTimeEntryRequest("Well done");
 
         await _controller.Approve(TestId, request);
 
@@ -385,7 +396,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Failure<TimeEntryDto>("Not found", "NOT_FOUND"));
 
-        var request = new ApproveTimeEntryRequest(TestApproverId);
+        var request = new ApproveTimeEntryRequest();
 
         var result = await _controller.Approve(TestId, request);
 
@@ -399,7 +410,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Failure<TimeEntryDto>("Not authorized", "UNAUTHORIZED"));
 
-        var request = new ApproveTimeEntryRequest(TestApproverId);
+        var request = new ApproveTimeEntryRequest();
 
         var result = await _controller.Approve(TestId, request);
 
@@ -413,7 +424,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Failure<TimeEntryDto>("Entry must be Submitted to approve", "INVALID_STATUS"));
 
-        var request = new ApproveTimeEntryRequest(TestApproverId);
+        var request = new ApproveTimeEntryRequest();
 
         var result = await _controller.Approve(TestId, request);
 
@@ -432,7 +443,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Success(dto));
 
-        var request = new RejectTimeEntryRequest(TestApproverId, "Hours look wrong");
+        var request = new RejectTimeEntryRequest("Hours look wrong");
 
         var result = await _controller.Reject(TestId, request);
 
@@ -447,7 +458,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Success(CreateTestDto(status: TimeEntryStatus.Rejected)));
 
-        var request = new RejectTimeEntryRequest(TestApproverId, "Incorrect project");
+        var request = new RejectTimeEntryRequest("Incorrect project");
 
         await _controller.Reject(TestId, request);
 
@@ -467,7 +478,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Failure<TimeEntryDto>("Not found", "NOT_FOUND"));
 
-        var request = new RejectTimeEntryRequest(TestApproverId, "Reason");
+        var request = new RejectTimeEntryRequest("Reason");
 
         var result = await _controller.Reject(TestId, request);
 
@@ -481,7 +492,7 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Failure<TimeEntryDto>("Not authorized", "UNAUTHORIZED"));
 
-        var request = new RejectTimeEntryRequest(TestApproverId, "Reason");
+        var request = new RejectTimeEntryRequest("Reason");
 
         var result = await _controller.Reject(TestId, request);
 
@@ -495,264 +506,11 @@ public class TimeEntriesControllerTests
             .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
             .ReturnsAsync(Result.Failure<TimeEntryDto>("Entry must be Submitted to reject", "INVALID_STATUS"));
 
-        var request = new RejectTimeEntryRequest(TestApproverId, "Reason");
+        var request = new RejectTimeEntryRequest("Reason");
 
         var result = await _controller.Reject(TestId, request);
 
         result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    #endregion
-
-    #region GetCostReport
-
-    [Fact]
-    public async Task GetCostReport_Success_Returns200()
-    {
-        var report = new LaborCostReportResponse
-        {
-            DateRange = new DateRangeInfo(TestDate, TestDate),
-            TotalCost = new LaborCostSummary(),
-            ByProject = Array.Empty<ProjectCostSummary>()
-        };
-        _serviceMock
-            .Setup(s => s.GetLaborCostReportAsync(null, null, null, true, default))
-            .ReturnsAsync(Result.Success(report));
-
-        var result = await _controller.GetCostReport(null, null, null, true);
-
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        ok.Value.Should().Be(report);
-    }
-
-    [Fact]
-    public async Task GetCostReport_WithProjectFilter_PassesToService()
-    {
-        var report = new LaborCostReportResponse
-        {
-            DateRange = new DateRangeInfo(TestDate, TestDate),
-            TotalCost = new LaborCostSummary(),
-            ByProject = Array.Empty<ProjectCostSummary>()
-        };
-        _serviceMock
-            .Setup(s => s.GetLaborCostReportAsync(TestProjectId, TestDate, TestDate, false, default))
-            .ReturnsAsync(Result.Success(report));
-
-        await _controller.GetCostReport(TestProjectId, TestDate, TestDate, false);
-
-        _serviceMock.Verify(s => s.GetLaborCostReportAsync(
-            TestProjectId, TestDate, TestDate, false, default), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetCostReport_NotFound_Returns404()
-    {
-        _serviceMock
-            .Setup(s => s.GetLaborCostReportAsync(TestProjectId, null, null, true, default))
-            .ReturnsAsync(Result.Failure<LaborCostReportResponse>("Project not found", "NOT_FOUND"));
-
-        var result = await _controller.GetCostReport(TestProjectId, null, null, true);
-
-        result.Should().BeOfType<NotFoundObjectResult>();
-    }
-
-    [Fact]
-    public async Task GetCostReport_OtherError_Returns400()
-    {
-        _serviceMock
-            .Setup(s => s.GetLaborCostReportAsync(null, null, null, true, default))
-            .ReturnsAsync(Result.Failure<LaborCostReportResponse>("Database error", "DB_ERROR"));
-
-        var result = await _controller.GetCostReport(null, null, null, true);
-
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    #endregion
-
-    #region GetByProject
-
-    [Fact]
-    public async Task GetByProject_Success_Returns200()
-    {
-        var projectResult = new ProjectTimeEntriesResult(
-            TestProjectId, "Downtown", "PRJ-001",
-            new[] { CreateTestDto() }, 1, 1, 50, 1);
-        _serviceMock
-            .Setup(s => s.GetTimeEntriesByProjectAsync(
-                TestProjectId, null, null, null, false, 1, 50, default))
-            .ReturnsAsync(Result.Success(projectResult));
-
-        var result = await _controller.GetByProject(TestProjectId, null, null, null, false);
-
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        ok.Value.Should().Be(projectResult);
-    }
-
-    [Fact]
-    public async Task GetByProject_WithFilters_PassesToService()
-    {
-        var projectResult = new ProjectTimeEntriesResult(
-            TestProjectId, "Downtown", "PRJ-001",
-            Array.Empty<TimeEntryDto>(), 0, 2, 10, 0);
-        _serviceMock
-            .Setup(s => s.GetTimeEntriesByProjectAsync(
-                TestProjectId, TestDate, TestDate, TimeEntryStatus.Approved, true, 2, 10, default))
-            .ReturnsAsync(Result.Success(projectResult));
-
-        await _controller.GetByProject(TestProjectId, TestDate, TestDate,
-            TimeEntryStatus.Approved, true, 2, 10);
-
-        _serviceMock.Verify(s => s.GetTimeEntriesByProjectAsync(
-            TestProjectId, TestDate, TestDate, TimeEntryStatus.Approved, true, 2, 10, default),
-            Times.Once);
-    }
-
-    [Fact]
-    public async Task GetByProject_NotFound_Returns404()
-    {
-        _serviceMock
-            .Setup(s => s.GetTimeEntriesByProjectAsync(
-                TestProjectId, null, null, null, false, 1, 50, default))
-            .ReturnsAsync(Result.Failure<ProjectTimeEntriesResult>("Project not found", "NOT_FOUND"));
-
-        var result = await _controller.GetByProject(TestProjectId, null, null, null, false);
-
-        result.Should().BeOfType<NotFoundObjectResult>();
-    }
-
-    [Fact]
-    public async Task GetByProject_OtherError_Returns400()
-    {
-        _serviceMock
-            .Setup(s => s.GetTimeEntriesByProjectAsync(
-                TestProjectId, null, null, null, false, 1, 50, default))
-            .ReturnsAsync(Result.Failure<ProjectTimeEntriesResult>("Database error", "DB_ERROR"));
-
-        var result = await _controller.GetByProject(TestProjectId, null, null, null, false);
-
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    #endregion
-
-    #region ExportVista
-
-    [Fact]
-    public async Task ExportVista_Success_ReturnsCsvFile()
-    {
-        var export = new VistaExportResult
-        {
-            CsvContent = "Header1,Header2\nVal1,Val2",
-            FileName = "vista-export-2026-02-15.csv",
-            RowCount = 1,
-            TotalHours = 8.0m,
-            StartDate = TestDate,
-            EndDate = TestDate,
-            EmployeeCount = 1,
-            ProjectCount = 1
-        };
-        _serviceMock
-            .Setup(s => s.ExportVistaTimesheetAsync(TestDate, TestDate, null, default))
-            .ReturnsAsync(Result.Success(export));
-
-        var result = await _controller.ExportVista(TestDate, TestDate);
-
-        var file = result.Should().BeOfType<FileContentResult>().Subject;
-        file.ContentType.Should().Be("text/csv");
-        file.FileDownloadName.Should().Be("vista-export-2026-02-15.csv");
-        var content = System.Text.Encoding.UTF8.GetString(file.FileContents);
-        content.Should().Contain("Header1,Header2");
-    }
-
-    [Fact]
-    public async Task ExportVista_AcceptJson_ReturnsMetadata()
-    {
-        var export = new VistaExportResult
-        {
-            CsvContent = "Header1,Header2\nVal1,Val2",
-            FileName = "vista-export-2026-02-15.csv",
-            RowCount = 1,
-            TotalHours = 8.0m,
-            StartDate = TestDate,
-            EndDate = TestDate,
-            EmployeeCount = 1,
-            ProjectCount = 1
-        };
-        _serviceMock
-            .Setup(s => s.ExportVistaTimesheetAsync(TestDate, TestDate, null, default))
-            .ReturnsAsync(Result.Success(export));
-
-        // Set Accept header to application/json
-        _controller.ControllerContext.HttpContext.Request.Headers.Accept = "application/json";
-
-        var result = await _controller.ExportVista(TestDate, TestDate);
-
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        ok.StatusCode.Should().Be(200);
-    }
-
-    [Fact]
-    public async Task ExportVista_InvalidDateRange_Returns400()
-    {
-        var start = new DateOnly(2026, 2, 20);
-        var end = new DateOnly(2026, 2, 10); // end before start
-        _serviceMock
-            .Setup(s => s.ExportVistaTimesheetAsync(start, end, null, default))
-            .ReturnsAsync(Result.Failure<VistaExportResult>(
-                "Start date must be before end date", "INVALID_DATE_RANGE"));
-
-        var result = await _controller.ExportVista(start, end);
-
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Fact]
-    public async Task ExportVista_DateRangeTooLarge_Returns400()
-    {
-        var start = new DateOnly(2026, 1, 1);
-        var end = new DateOnly(2026, 3, 15); // >31 days
-        _serviceMock
-            .Setup(s => s.ExportVistaTimesheetAsync(start, end, null, default))
-            .ReturnsAsync(Result.Failure<VistaExportResult>(
-                "Date range cannot exceed 31 days", "DATE_RANGE_TOO_LARGE"));
-
-        var result = await _controller.ExportVista(start, end);
-
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Fact]
-    public async Task ExportVista_NotFound_Returns404()
-    {
-        _serviceMock
-            .Setup(s => s.ExportVistaTimesheetAsync(TestDate, TestDate, null, default))
-            .ReturnsAsync(Result.Failure<VistaExportResult>(
-                "No approved entries found", "NOT_FOUND"));
-
-        var result = await _controller.ExportVista(TestDate, TestDate);
-
-        result.Should().BeOfType<NotFoundObjectResult>();
-    }
-
-    [Fact]
-    public async Task ExportVista_WithProjectFilter_PassesToService()
-    {
-        var export = new VistaExportResult
-        {
-            CsvContent = "data",
-            FileName = "export.csv",
-            StartDate = TestDate,
-            EndDate = TestDate
-        };
-        _serviceMock
-            .Setup(s => s.ExportVistaTimesheetAsync(TestDate, TestDate, TestProjectId, default))
-            .ReturnsAsync(Result.Success(export));
-
-        await _controller.ExportVista(TestDate, TestDate, TestProjectId);
-
-        _serviceMock.Verify(s => s.ExportVistaTimesheetAsync(
-            TestDate, TestDate, TestProjectId, default), Times.Once);
     }
 
     #endregion

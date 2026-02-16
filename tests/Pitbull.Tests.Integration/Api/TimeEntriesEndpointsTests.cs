@@ -269,11 +269,21 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
     public async Task Approve_nonexistent_time_entry_returns_404()
     {
         await db.ResetAsync();
-        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create an employee with the same email so JWT resolution succeeds
+        var empResp = await client.PostAsJsonAsync("/api/employees", new
+        {
+            employeeNumber = $"APR-{Guid.NewGuid():N}".Substring(0, 15),
+            firstName = "Approver",
+            lastName = "Test",
+            email = auth.Email,
+            classification = (int)EmployeeClassification.Salaried,
+        });
+        empResp.EnsureSuccessStatusCode();
 
         var resp = await client.PostAsJsonAsync($"/api/time-entries/{Guid.NewGuid()}/approve", new
         {
-            approverId = Guid.NewGuid(),
             comments = "Should not exist"
         });
 
@@ -299,11 +309,21 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
     public async Task Reject_nonexistent_time_entry_returns_404()
     {
         await db.ResetAsync();
-        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+        var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        // Create an employee with the same email so JWT resolution succeeds
+        var empResp = await client.PostAsJsonAsync("/api/employees", new
+        {
+            employeeNumber = $"REJ-{Guid.NewGuid():N}".Substring(0, 15),
+            firstName = "Rejector",
+            lastName = "Test",
+            email = auth.Email,
+            classification = (int)EmployeeClassification.Salaried,
+        });
+        empResp.EnsureSuccessStatusCode();
 
         var resp = await client.PostAsJsonAsync($"/api/time-entries/{Guid.NewGuid()}/reject", new
         {
-            approverId = Guid.NewGuid(),
             reason = "Should not exist"
         });
 

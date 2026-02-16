@@ -5,9 +5,11 @@ using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
 using Pitbull.TimeTracking.Features.BulkSubmitTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
+using Pitbull.TimeTracking.Features.GetReviewQueue;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
+using Pitbull.TimeTracking.Features.ReviewTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 
 namespace Pitbull.TimeTracking.Services;
@@ -54,6 +56,16 @@ public interface ITimeEntryService
         Guid? projectId,
         CancellationToken cancellationToken = default);
 
+    Task<Result<ReviewQueueResult>> GetReviewQueueAsync(
+        DateOnly? startDate,
+        DateOnly? endDate,
+        Guid? projectId,
+        Guid? supervisorId,
+        Guid currentEmployeeId,
+        CancellationToken cancellationToken = default);
+
+    Task<Employee?> GetEmployeeByEmailAsync(string email, CancellationToken cancellationToken = default);
+
     // Command operations
     Task<Result<TimeEntryDto>> CreateTimeEntryAsync(CreateTimeEntryCommand command, CancellationToken cancellationToken = default);
 
@@ -62,4 +74,9 @@ public interface ITimeEntryService
     Task<Result<BatchCreateTimeEntriesResult>> BatchCreateTimeEntriesAsync(BatchCreateTimeEntriesCommand command, CancellationToken cancellationToken = default);
 
     Task<Result<BulkSubmitTimeEntriesResult>> BulkSubmitTimeEntriesAsync(BulkSubmitTimeEntriesCommand command, CancellationToken cancellationToken = default);
+
+    Task<Result<ReviewTimeEntriesResult>> ReviewTimeEntriesAsync(
+        ReviewTimeEntriesCommand command,
+        Guid reviewedByEmployeeId,
+        CancellationToken cancellationToken = default);
 }
