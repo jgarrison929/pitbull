@@ -44,6 +44,106 @@ public abstract class PmServiceBase
         var query = Db.Set<T>().Where(e => !e.IsDeleted).AsQueryable();
         if (typeof(T).GetProperty("ProjectId") != null)
             query = query.Where(e => EF.Property<Guid>(e, "ProjectId") == projectId);
+        else
+            query = typeof(T).Name switch
+            {
+                nameof(PmScheduleDependency) => query.Where(e =>
+                    Db.Set<PmSchedule>().Any(s =>
+                        !s.IsDeleted &&
+                        s.Id == EF.Property<Guid>(e, "ScheduleId") &&
+                        s.ProjectId == projectId)),
+                nameof(PmSubmittalWorkflowEvent) => query.Where(e =>
+                    Db.Set<PmSubmittal>().Any(s =>
+                        !s.IsDeleted &&
+                        s.Id == EF.Property<Guid>(e, "SubmittalId") &&
+                        s.ProjectId == projectId)),
+                nameof(PmSubmittalAttachment) => query.Where(e =>
+                    Db.Set<PmSubmittal>().Any(s =>
+                        !s.IsDeleted &&
+                        s.Id == EF.Property<Guid>(e, "SubmittalId") &&
+                        s.ProjectId == projectId)),
+                nameof(PmCommunicationAttachment) => query.Where(e =>
+                    Db.Set<PmCommunication>().Any(c =>
+                        !c.IsDeleted &&
+                        c.Id == EF.Property<Guid>(e, "CommunicationId") &&
+                        c.ProjectId == projectId)),
+                nameof(PmDailyReportPhoto) => query.Where(e =>
+                    Db.Set<PmDailyReport>().Any(r =>
+                        !r.IsDeleted &&
+                        r.Id == EF.Property<Guid>(e, "DailyReportId") &&
+                        r.ProjectId == projectId)),
+                nameof(PmDailyReportRollup) => query.Where(e =>
+                    Db.Set<PmDailyReport>().Any(r =>
+                        !r.IsDeleted &&
+                        r.Id == EF.Property<Guid>(e, "ParentDailyReportId") &&
+                        r.ProjectId == projectId)),
+                nameof(PmActivityProgress) => query.Where(e =>
+                    Db.Set<PmProgressEntry>().Any(p =>
+                        !p.IsDeleted &&
+                        p.Id == EF.Property<Guid>(e, "ProgressEntryId") &&
+                        p.ProjectId == projectId)),
+                nameof(PmCostCodeProgress) => query.Where(e =>
+                    Db.Set<PmProgressEntry>().Any(p =>
+                        !p.IsDeleted &&
+                        p.Id == EF.Property<Guid>(e, "ProgressEntryId") &&
+                        p.ProjectId == projectId)),
+                nameof(PmProgressTimeEntryLink) => query.Where(e =>
+                    Db.Set<PmProgressEntry>().Any(p =>
+                        !p.IsDeleted &&
+                        p.Id == EF.Property<Guid>(e, "ProgressEntryId") &&
+                        p.ProjectId == projectId)),
+                nameof(PmMeetingAgendaItem) => query.Where(e =>
+                    Db.Set<PmMeeting>().Any(m =>
+                        !m.IsDeleted &&
+                        m.Id == EF.Property<Guid>(e, "MeetingId") &&
+                        m.ProjectId == projectId)),
+                nameof(PmMeetingMinute) => query.Where(e =>
+                    Db.Set<PmMeeting>().Any(m =>
+                        !m.IsDeleted &&
+                        m.Id == EF.Property<Guid>(e, "MeetingId") &&
+                        m.ProjectId == projectId)),
+                nameof(PmMeetingActionItem) => query.Where(e =>
+                    Db.Set<PmMeeting>().Any(m =>
+                        !m.IsDeleted &&
+                        m.Id == EF.Property<Guid>(e, "MeetingId") &&
+                        m.ProjectId == projectId)),
+                nameof(PmMeetingAttachment) => query.Where(e =>
+                    Db.Set<PmMeeting>().Any(m =>
+                        !m.IsDeleted &&
+                        m.Id == EF.Property<Guid>(e, "MeetingId") &&
+                        m.ProjectId == projectId)),
+                nameof(PmPlanSheetRevision) => query.Where(e =>
+                    Db.Set<PmPlanSheet>().Any(s =>
+                        !s.IsDeleted &&
+                        s.Id == EF.Property<Guid>(e, "PlanSheetId") &&
+                        s.ProjectId == projectId)),
+                nameof(PmSpecSectionRevision) => query.Where(e =>
+                    Db.Set<PmSpecSection>().Any(s =>
+                        !s.IsDeleted &&
+                        s.Id == EF.Property<Guid>(e, "SpecSectionId") &&
+                        s.ProjectId == projectId)),
+                nameof(PmTaskComment) => query.Where(e =>
+                    Db.Set<PmTask>().Any(t =>
+                        !t.IsDeleted &&
+                        t.Id == EF.Property<Guid>(e, "TaskId") &&
+                        t.ProjectId == projectId)),
+                nameof(RfiAttachment) => query.Where(e =>
+                    Db.Set<Rfi>().Any(r =>
+                        !r.IsDeleted &&
+                        r.Id == EF.Property<Guid>(e, "RfiId") &&
+                        r.ProjectId == projectId)),
+                nameof(RfiDistributionRecipient) => query.Where(e =>
+                    Db.Set<Rfi>().Any(r =>
+                        !r.IsDeleted &&
+                        r.Id == EF.Property<Guid>(e, "RfiId") &&
+                        r.ProjectId == projectId)),
+                nameof(RfiCostImpactLink) => query.Where(e =>
+                    Db.Set<Rfi>().Any(r =>
+                        !r.IsDeleted &&
+                        r.Id == EF.Property<Guid>(e, "RfiId") &&
+                        r.ProjectId == projectId)),
+                _ => query
+            };
         return query;
     }
 
@@ -69,6 +169,13 @@ public abstract class PmServiceBase
     protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct)
         where T : BaseEntity, ICompanyScoped, new()
     {
+        if (request.ReferenceId.HasValue)
+        {
+            var referenceValidation = await ValidateReferenceProjectScopeAsync<T>(projectId, request.ReferenceId.Value, ct);
+            if (!referenceValidation.IsSuccess)
+                return Result.Failure<PmEntityDto>(referenceValidation.Error ?? "Not found", referenceValidation.ErrorCode ?? "NOT_FOUND");
+        }
+
         var entity = new T
         {
             Id = Guid.NewGuid(),
@@ -207,6 +314,40 @@ public abstract class PmServiceBase
 
     protected static Result<PmActionResultDto> Action(string message, Guid? id = null, object? data = null)
         => Result.Success(new PmActionResultDto(true, message, id, data));
+
+    private async Task<Result> ValidateReferenceProjectScopeAsync<T>(Guid projectId, Guid referenceId, CancellationToken ct)
+        where T : BaseEntity
+    {
+        var typeName = typeof(T).Name;
+        var valid = typeName switch
+        {
+            nameof(PmScheduleActivity) or nameof(PmScheduleDependency) =>
+                await Db.Set<PmSchedule>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmSubmittalWorkflowEvent) or nameof(PmSubmittalAttachment) =>
+                await Db.Set<PmSubmittal>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmPlanSheet) =>
+                await Db.Set<PmPlanSet>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmPlanSheetRevision) =>
+                await Db.Set<PmPlanSheet>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmSpecSectionRevision) =>
+                await Db.Set<PmSpecSection>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmCommunicationAttachment) =>
+                await Db.Set<PmCommunication>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmDailyReportPhoto) =>
+                await Db.Set<PmDailyReport>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmMeetingAgendaItem) or nameof(PmMeetingMinute) or nameof(PmMeetingActionItem) or nameof(PmMeetingAttachment) =>
+                await Db.Set<PmMeeting>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmTaskComment) =>
+                await Db.Set<PmTask>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(RfiAttachment) or nameof(RfiDistributionRecipient) or nameof(RfiCostImpactLink) =>
+                await Db.Set<Rfi>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            _ => true
+        };
+
+        return valid
+            ? Result.Success()
+            : Result.Failure("Reference entity was not found in this project", "NOT_FOUND");
+    }
 }
 
 public class ScheduleService : PmServiceBase, IScheduleService
@@ -696,6 +837,16 @@ public class NarrativeService : PmServiceBase, INarrativeService
         await Db.SaveChangesAsync(cancellationToken);
         return Action("Narrative published", narrativeId, new { Status = narrative.Status.ToString(), narrative.FinalizedAt });
     }
-    public Task<Result<PagedResult<PmEntityDto>>> ListNarrativeRevisionsAsync(Guid projectId, Guid narrativeId, PmListQuery query, CancellationToken cancellationToken = default)
-        => ListAsync(Db.Set<PmProjectNarrativeRevision>().Where(r => r.NarrativeId == narrativeId), query, cancellationToken);
+    public async Task<Result<PagedResult<PmEntityDto>>> ListNarrativeRevisionsAsync(Guid projectId, Guid narrativeId, PmListQuery query, CancellationToken cancellationToken = default)
+    {
+        var hasProjectNarrative = await ProjectScoped<PmProjectNarrative>(projectId)
+            .AnyAsync(n => n.Id == narrativeId, cancellationToken);
+        if (!hasProjectNarrative)
+            return Result.Failure<PagedResult<PmEntityDto>>("Not found", "NOT_FOUND");
+
+        return await ListAsync(
+            Db.Set<PmProjectNarrativeRevision>().Where(r => !r.IsDeleted && r.NarrativeId == narrativeId),
+            query,
+            cancellationToken);
+    }
 }
