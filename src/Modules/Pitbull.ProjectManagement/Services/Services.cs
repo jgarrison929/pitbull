@@ -1274,3 +1274,18 @@ public class NarrativeService : PmServiceBase, INarrativeService
             cancellationToken);
     }
 }
+
+public class DocumentService : PmServiceBase, IDocumentService
+{
+    public DocumentService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
+    public Task<Result<PmEntityDto>> CreateDocumentAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+        => CreateAsync<PmDocument>(projectId, request, cancellationToken);
+    public Task<Result<PmEntityDto>> GetDocumentAsync(Guid projectId, Guid documentId, CancellationToken cancellationToken = default)
+        => GetAsync<PmDocument>(projectId, documentId, cancellationToken);
+    public Task<Result<PagedResult<PmEntityDto>>> ListDocumentsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
+        => ListAsync(ProjectScoped<PmDocument>(projectId), query, cancellationToken);
+    public Task<Result<PmEntityDto>> UpdateDocumentAsync(Guid projectId, Guid documentId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+        => UpdateAsync<PmDocument>(projectId, documentId, request, cancellationToken);
+    public Task<Result> DeleteDocumentAsync(Guid projectId, Guid documentId, CancellationToken cancellationToken = default)
+        => DeleteAsync<PmDocument>(projectId, documentId, cancellationToken);
+}

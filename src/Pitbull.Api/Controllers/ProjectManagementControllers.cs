@@ -1988,3 +1988,95 @@ public class ProjectRfiEnhancementsController(IPlansSpecsService plansSpecsServi
     public async Task<IActionResult> ListCostLinks(Guid projectId, Guid rfiId, [FromQuery] PmListQuery query)
         => HandleResult(await plansSpecsService.ListRfiCostLinksAsync(projectId, rfiId, query));
 }
+
+/// <summary>
+/// Project document management endpoints for uploading, listing, updating, and deleting documents.
+/// </summary>
+[ApiController]
+[Authorize]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Route("api/projects/{projectId:guid}/documents")]
+public class ProjectDocumentsController(IDocumentService documentService) : ProjectManagementControllerBase
+{
+    /// <summary>
+    /// Creates a new document record for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Document details.</param>
+    /// <returns>The created document record.</returns>
+    /// <response code="200">Document created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await documentService.CreateDocumentAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a document by ID for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="documentId">Document identifier.</param>
+    /// <returns>The requested document.</returns>
+    /// <response code="200">Document returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Document not found.</response>
+    [HttpGet("{documentId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid documentId)
+        => HandleResult(await documentService.GetDocumentAsync(projectId, documentId));
+
+    /// <summary>
+    /// Lists documents for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of documents.</returns>
+    /// <response code="200">Documents returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await documentService.ListDocumentsAsync(projectId, query));
+
+    /// <summary>
+    /// Updates an existing document record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="documentId">Document identifier.</param>
+    /// <param name="request">Updated document values.</param>
+    /// <returns>The updated document.</returns>
+    /// <response code="200">Document updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Document not found.</response>
+    [HttpPut("{documentId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid documentId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await documentService.UpdateDocumentAsync(projectId, documentId, request));
+
+    /// <summary>
+    /// Soft-deletes a document for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="documentId">Document identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Document deleted successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Document not found.</response>
+    [HttpDelete("{documentId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid documentId)
+        => HandleAction(await documentService.DeleteDocumentAsync(projectId, documentId));
+}
