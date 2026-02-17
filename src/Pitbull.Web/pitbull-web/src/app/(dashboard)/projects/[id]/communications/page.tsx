@@ -327,65 +327,114 @@ export default function CommunicationsPage({ params }: { params: Promise<{ id: s
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading communications...</p>
           ) : (
-            <div className="overflow-x-auto"><Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Body</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[180px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 sm:hidden">
                 {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8}>
-                      <div className="flex flex-col items-center gap-3 py-6 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          No communications yet. Create your first communication record.
-                        </p>
-                        <Button size="sm" onClick={openCreate}>Create Communication</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <div className="rounded-lg border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No communications yet. Create your first communication record.
+                    </p>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Communication</Button>
+                  </div>
                 ) : (
                   rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{row.type}</TableCell>
-                      <TableCell className="font-medium">{row.subject}</TableCell>
-                      <TableCell>{row.from}</TableCell>
-                      <TableCell>{row.to}</TableCell>
-                      <TableCell className="font-mono text-sm">{formatDate(row.date)}</TableCell>
-                      <TableCell className="max-w-[260px] truncate">{row.body || "-"}</TableCell>
-                      <TableCell>
+                    <div key={row.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium truncate">{row.subject}</span>
                         <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setPendingDelete(row);
-                              setDeleteOpen(true);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      <Badge variant="outline">{row.type}</Badge>
+                      <div className="flex gap-4 text-sm text-muted-foreground">
+                        <span>{row.from} → {row.to}</span>
+                        <span>{formatDate(row.date)}</span>
+                      </div>
+                      {row.body && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{row.body}</p>
+                      )}
+                      <div className="flex gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPendingDelete(row);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table></div>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <div className="overflow-x-auto"><Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>From</TableHead>
+                      <TableHead>To</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Body</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[180px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8}>
+                          <div className="flex flex-col items-center gap-3 py-6 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No communications yet. Create your first communication record.
+                            </p>
+                            <Button size="sm" onClick={openCreate}>Create Communication</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>{row.type}</TableCell>
+                          <TableCell className="font-medium">{row.subject}</TableCell>
+                          <TableCell>{row.from}</TableCell>
+                          <TableCell>{row.to}</TableCell>
+                          <TableCell className="font-mono text-sm">{formatDate(row.date)}</TableCell>
+                          <TableCell className="max-w-[260px] truncate">{row.body || "-"}</TableCell>
+                          <TableCell>
+                            <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPendingDelete(row);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table></div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

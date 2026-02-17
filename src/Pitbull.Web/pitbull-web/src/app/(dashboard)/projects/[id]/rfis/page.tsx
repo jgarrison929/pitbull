@@ -337,66 +337,115 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading RFIs...</p>
           ) : (
-            <div className="overflow-x-auto"><Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>RFI #</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead className="w-[220px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 sm:hidden">
                 {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <div className="flex flex-col items-center gap-3 py-6 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          No RFIs yet. Create your first request for information.
-                        </p>
-                        <Button size="sm" onClick={openCreate}>Create RFI</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <div className="rounded-lg border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No RFIs yet. Create your first request for information.
+                    </p>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Create RFI</Button>
+                  </div>
                 ) : (
                   filtered.map((rfi) => (
-                    <TableRow key={rfi.id}>
-                      <TableCell className="font-medium">RFI-{String(rfi.number).padStart(3, "0")}</TableCell>
-                      <TableCell>{rfi.subject}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{priorityLabel(rfi.priority)}</Badge>
-                      </TableCell>
-                      <TableCell>
+                    <div key={rfi.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">RFI-{String(rfi.number).padStart(3, "0")}</span>
                         <Badge>{statusLabel(rfi.status)}</Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(rfi.dueDate)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/rfis/${rfi.id}?projectId=${projectId}`}>View</Link>
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => openEdit(rfi)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setPendingDelete(rfi);
-                              setDeleteOpen(true);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      <p className="text-sm">{rfi.subject}</p>
+                      <div className="flex gap-4 text-sm text-muted-foreground">
+                        <Badge variant="outline">{priorityLabel(rfi.priority)}</Badge>
+                        <span>{formatDate(rfi.dueDate)}</span>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/rfis/${rfi.id}?projectId=${projectId}`}>View</Link>
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => openEdit(rfi)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPendingDelete(rfi);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table></div>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <div className="overflow-x-auto"><Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>RFI #</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead className="w-[220px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="flex flex-col items-center gap-3 py-6 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No RFIs yet. Create your first request for information.
+                            </p>
+                            <Button size="sm" onClick={openCreate}>Create RFI</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filtered.map((rfi) => (
+                        <TableRow key={rfi.id}>
+                          <TableCell className="font-medium">RFI-{String(rfi.number).padStart(3, "0")}</TableCell>
+                          <TableCell>{rfi.subject}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{priorityLabel(rfi.priority)}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge>{statusLabel(rfi.status)}</Badge>
+                          </TableCell>
+                          <TableCell>{formatDate(rfi.dueDate)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button asChild variant="outline" size="sm">
+                                <Link href={`/rfis/${rfi.id}?projectId=${projectId}`}>View</Link>
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => openEdit(rfi)}>
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPendingDelete(rfi);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table></div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

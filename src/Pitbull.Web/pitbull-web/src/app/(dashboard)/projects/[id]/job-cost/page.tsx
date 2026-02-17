@@ -330,71 +330,131 @@ export default function JobCostPage({ params }: { params: Promise<{ id: string }
             placeholder="Filter by cost code or description"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="max-w-md"
+            className="md:max-w-md"
           />
 
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading job cost data...</p>
           ) : (
-            <div className="overflow-x-auto"><Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cost Code</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Budget</TableHead>
-                  <TableHead className="text-right">Actual</TableHead>
-                  <TableHead className="text-right">Variance</TableHead>
-                  <TableHead className="text-right">% Complete</TableHead>
-                  <TableHead className="w-[180px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 sm:hidden">
                 {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                      <div className="flex flex-col items-center gap-3 py-6 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          No job cost rows yet. Add your first budget line.
-                        </p>
-                        <Button size="sm" onClick={openCreate}>Add Budget Line</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <div className="rounded-lg border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No job cost rows yet. Add your first budget line.
+                    </p>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Add Budget Line</Button>
+                  </div>
                 ) : (
                   rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-medium">{row.costCode}</TableCell>
-                      <TableCell>{row.description || "-"}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(row.budget)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(row.actual)}</TableCell>
-                      <TableCell className="text-right">
+                    <div key={row.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium">{row.costCode}</span>
                         <Badge variant={row.variance >= 0 ? "default" : "destructive"}>
                           {formatCurrency(row.variance)}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{formatPercent(row.percentComplete)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setPendingDelete(row);
-                              setDeleteOpen(true);
-                            }}
-                          >
-                            Delete
-                          </Button>
+                      </div>
+                      {row.description && (
+                        <p className="text-sm text-muted-foreground">{row.description}</p>
+                      )}
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Budget</p>
+                          <p className="font-mono">{formatCurrency(row.budget)}</p>
                         </div>
-                      </TableCell>
-                    </TableRow>
+                        <div>
+                          <p className="text-muted-foreground">Actual</p>
+                          <p className="font-mono">{formatCurrency(row.actual)}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Complete</p>
+                          <p className="font-mono">{formatPercent(row.percentComplete)}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPendingDelete(row);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table></div>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <div className="overflow-x-auto"><Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cost Code</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Budget</TableHead>
+                      <TableHead className="text-right">Actual</TableHead>
+                      <TableHead className="text-right">Variance</TableHead>
+                      <TableHead className="text-right">% Complete</TableHead>
+                      <TableHead className="w-[180px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7}>
+                          <div className="flex flex-col items-center gap-3 py-6 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No job cost rows yet. Add your first budget line.
+                            </p>
+                            <Button size="sm" onClick={openCreate}>Add Budget Line</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-medium">{row.costCode}</TableCell>
+                          <TableCell>{row.description || "-"}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.budget)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(row.actual)}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant={row.variance >= 0 ? "default" : "destructive"}>
+                              {formatCurrency(row.variance)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{formatPercent(row.percentComplete)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPendingDelete(row);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table></div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
