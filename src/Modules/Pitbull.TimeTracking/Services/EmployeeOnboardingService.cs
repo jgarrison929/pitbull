@@ -115,7 +115,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
         if (request.IsPrimary)
         {
             var existingPrimaries = await db.Set<EmployeeEmergencyContact>()
-                .Where(c => c.EmployeeId == employeeId && c.IsPrimary)
+                .Where(c => c.EmployeeId == employeeId && c.IsPrimary && !c.IsDeleted)
                 .ToListAsync(cancellationToken);
             foreach (var p in existingPrimaries) p.IsPrimary = false;
         }
@@ -164,7 +164,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
 
         var tax = await db.Set<EmployeeTaxCompliance>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(t => t.EmployeeId == employeeId, cancellationToken);
+            .FirstOrDefaultAsync(t => t.EmployeeId == employeeId && !t.IsDeleted, cancellationToken);
 
         if (tax is null)
             return Result.Failure<TaxComplianceDto>("No tax compliance record", "NOT_FOUND");
@@ -188,7 +188,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
             return Result.Failure<TaxComplianceDto>("I-9 verifier is required when status is Verified", "VALIDATION_ERROR");
 
         var tax = await db.Set<EmployeeTaxCompliance>()
-            .FirstOrDefaultAsync(t => t.EmployeeId == employeeId, cancellationToken);
+            .FirstOrDefaultAsync(t => t.EmployeeId == employeeId && !t.IsDeleted, cancellationToken);
 
         if (tax is null)
         {
