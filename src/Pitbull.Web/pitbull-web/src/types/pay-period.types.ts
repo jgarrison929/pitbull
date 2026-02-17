@@ -3,7 +3,7 @@
 export enum PayPeriodStatus {
   Open = 0,
   Locked = 1,
-  Processed = 2,
+  Closed = 2,
 }
 
 export enum PayPeriodType {
@@ -15,19 +15,18 @@ export enum PayPeriodType {
 
 export interface PayPeriod {
   id: string;
+  tenantId?: string;
   startDate: string;
   endDate: string;
   status: PayPeriodStatus;
+  name: string;
   statusName: string;
   isLocked: boolean;
   lockedAt?: string | null;
   lockedById?: string | null;
-  lockedByName?: string | null;
-  notes?: string | null;
-  processedAt?: string | null;
-  processedById?: string | null;
-  processedByName?: string | null;
+  payrollExportMarkedAt?: string | null;
   createdAt: string;
+  updatedAt?: string | null;
   label: string;
   dayCount: number;
 }
@@ -64,14 +63,31 @@ export interface GeneratePayPeriodsResult {
 }
 
 // Request types
-export interface LockPayPeriodRequest {
-  lockedById: string;
-  notes?: string | null;
+export interface CreatePayPeriodRequest {
+  startDate: string;
+  endDate: string;
 }
 
-export interface UnlockPayPeriodRequest {
-  unlockedById: string;
-  reason: string;
+export interface UpdatePayPeriodRequest {
+  startDate: string;
+  endDate: string;
+}
+
+export interface PayPeriodStatusBreakdown {
+  status: number;
+  entryCount: number;
+  totalHours: number;
+}
+
+export interface PayPeriodSummary {
+  payPeriodId: string;
+  payPeriodName: string;
+  startDate: string;
+  endDate: string;
+  totalHours: number;
+  employeeCount: number;
+  entryCount: number;
+  byStatus: PayPeriodStatusBreakdown[];
 }
 
 export interface UpdatePayPeriodConfigurationRequest {
@@ -98,8 +114,8 @@ export function getStatusColor(status: PayPeriodStatus): string {
       return "bg-green-100 text-green-800";
     case PayPeriodStatus.Locked:
       return "bg-amber-100 text-amber-800";
-    case PayPeriodStatus.Processed:
-      return "bg-blue-100 text-blue-800";
+    case PayPeriodStatus.Closed:
+      return "bg-gray-200 text-gray-700";
     default:
       return "bg-gray-100 text-gray-800";
   }
@@ -111,8 +127,8 @@ export function getStatusLabel(status: PayPeriodStatus): string {
       return "Open";
     case PayPeriodStatus.Locked:
       return "Locked";
-    case PayPeriodStatus.Processed:
-      return "Processed";
+    case PayPeriodStatus.Closed:
+      return "Closed";
     default:
       return "Unknown";
   }
