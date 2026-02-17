@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -269,24 +269,27 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasNewSinceLastOpen, setHasNewSinceLastOpen] = useState(false);
 
+  const prevUnreadRef = useRef(0);
+
   const fetchNotifications = useCallback(async () => {
     try {
       const result = await api<PagedResult<Notification>>("/api/notifications?pageSize=50");
       setNotifications(result.items);
       const newUnread = result.items.filter((n) => !n.isRead).length;
-      if (newUnread > unreadCount) setHasNewSinceLastOpen(true);
+      if (newUnread > prevUnreadRef.current) setHasNewSinceLastOpen(true);
+      prevUnreadRef.current = newUnread;
       setUnreadCount(newUnread);
     } catch {
       // Silently fail — notifications are non-critical
     }
-  }, [unreadCount]);
+  }, []);
 
   // Initial fetch + poll every 30 seconds
   useEffect(() => {
-    fetchNotifications();
+    const timeout = setTimeout(fetchNotifications, 0);
     const interval = setInterval(fetchNotifications, 30_000);
-    return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { clearTimeout(timeout); clearInterval(interval); };
+  }, [fetchNotifications]);
 
   const markAsRead = useCallback(
     async (id: string) => {
