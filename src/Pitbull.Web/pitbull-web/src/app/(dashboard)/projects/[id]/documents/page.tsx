@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -306,57 +307,102 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading documents...</p>
           ) : (
-            <div className="overflow-x-auto"><Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Uploaded Date</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead className="w-[180px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 sm:hidden">
                 {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5}>
-                      <div className="flex flex-col items-center gap-3 py-6 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          No documents yet. Upload your first project document.
-                        </p>
-                        <Button size="sm" onClick={openUpload}>Upload Document</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <div className="rounded-lg border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No documents yet. Upload your first project document.
+                    </p>
+                    <Button className="mt-3" size="sm" onClick={openUpload}>Upload Document</Button>
+                  </div>
                 ) : (
                   rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-medium">{row.name}</TableCell>
-                      <TableCell>{row.type}</TableCell>
-                      <TableCell className="font-mono text-sm">{formatDate(row.uploadedDate)}</TableCell>
-                      <TableCell>{row.version}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setPendingDelete(row);
-                              setDeleteOpen(true);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                    <div key={row.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium truncate">{row.name}</span>
+                        <Badge variant="outline">{row.type}</Badge>
+                      </div>
+                      <div className="flex gap-4 text-sm text-muted-foreground">
+                        <span>{formatDate(row.uploadedDate)}</span>
+                        <span>v{row.version}</span>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPendingDelete(row);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table></div>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <div className="overflow-x-auto"><Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Uploaded Date</TableHead>
+                      <TableHead>Version</TableHead>
+                      <TableHead className="w-[180px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5}>
+                          <div className="flex flex-col items-center gap-3 py-6 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No documents yet. Upload your first project document.
+                            </p>
+                            <Button size="sm" onClick={openUpload}>Upload Document</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-medium">{row.name}</TableCell>
+                          <TableCell>{row.type}</TableCell>
+                          <TableCell className="font-mono text-sm">{formatDate(row.uploadedDate)}</TableCell>
+                          <TableCell>{row.version}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPendingDelete(row);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table></div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

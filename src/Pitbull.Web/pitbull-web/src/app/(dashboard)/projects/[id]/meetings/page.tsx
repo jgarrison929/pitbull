@@ -327,63 +327,110 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading meetings...</p>
           ) : (
-            <div className="overflow-x-auto"><Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Attendees</TableHead>
-                  <TableHead>Agenda Items</TableHead>
-                  <TableHead>Action Items</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[180px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 sm:hidden">
                 {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7}>
-                      <div className="flex flex-col items-center gap-3 py-6 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          No meetings yet. Create your first meeting record.
-                        </p>
-                        <Button size="sm" onClick={openCreate}>Create Meeting</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <div className="rounded-lg border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No meetings yet. Create your first meeting record.
+                    </p>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Meeting</Button>
+                  </div>
                 ) : (
                   rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-mono text-sm">{formatDate(row.date)}</TableCell>
-                      <TableCell className="font-medium">{row.title}</TableCell>
-                      <TableCell className="max-w-[220px] truncate">{row.attendees}</TableCell>
-                      <TableCell>{itemCount(row.agendaItems)}</TableCell>
-                      <TableCell>{itemCount(row.actionItems)}</TableCell>
-                      <TableCell>
+                    <div key={row.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-mono text-muted-foreground">{formatDate(row.date)}</span>
                         <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setPendingDelete(row);
-                              setDeleteOpen(true);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      <p className="font-medium">{row.title}</p>
+                      <p className="text-sm text-muted-foreground truncate">{row.attendees}</p>
+                      <div className="flex gap-4 text-sm text-muted-foreground">
+                        <span>Agenda: {itemCount(row.agendaItems)}</span>
+                        <span>Actions: {itemCount(row.actionItems)}</span>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPendingDelete(row);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table></div>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <div className="overflow-x-auto"><Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Attendees</TableHead>
+                      <TableHead>Agenda Items</TableHead>
+                      <TableHead>Action Items</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[180px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7}>
+                          <div className="flex flex-col items-center gap-3 py-6 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No meetings yet. Create your first meeting record.
+                            </p>
+                            <Button size="sm" onClick={openCreate}>Create Meeting</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-mono text-sm">{formatDate(row.date)}</TableCell>
+                          <TableCell className="font-medium">{row.title}</TableCell>
+                          <TableCell className="max-w-[220px] truncate">{row.attendees}</TableCell>
+                          <TableCell>{itemCount(row.agendaItems)}</TableCell>
+                          <TableCell>{itemCount(row.actionItems)}</TableCell>
+                          <TableCell>
+                            <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPendingDelete(row);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table></div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

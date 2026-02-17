@@ -306,63 +306,111 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading tasks...</p>
           ) : (
-            <div className="overflow-x-auto"><Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Assignee</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-[180px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 sm:hidden">
                 {rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6}>
-                      <div className="flex flex-col items-center gap-3 py-6 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          No tasks yet. Create your first task to track project work.
-                        </p>
-                        <Button size="sm" onClick={openCreate}>Create Task</Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <div className="rounded-lg border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No tasks yet. Create your first task to track project work.
+                    </p>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Task</Button>
+                  </div>
                 ) : (
                   rows.map((task) => (
-                    <TableRow key={task.id}>
-                      <TableCell className="font-medium">{task.title}</TableCell>
-                      <TableCell>{task.assigneeName}</TableCell>
-                      <TableCell>{formatDate(task.dueDate)}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{task.priority}</Badge>
-                      </TableCell>
-                      <TableCell>
+                    <div key={task.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium truncate">{task.title}</span>
                         <Badge>{task.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEdit(task)}>
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setPendingDelete(task);
-                              setDeleteOpen(true);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-sm text-muted-foreground">
+                        <span>{task.assigneeName}</span>
+                        <span className="text-right">{formatDate(task.dueDate)}</span>
+                      </div>
+                      <div>
+                        <Badge variant="outline">{task.priority}</Badge>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <Button variant="outline" size="sm" onClick={() => openEdit(task)}>
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setPendingDelete(task);
+                            setDeleteOpen(true);
+                          }}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
                   ))
                 )}
-              </TableBody>
-            </Table></div>
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <div className="overflow-x-auto"><Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Assignee</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-[180px]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="flex flex-col items-center gap-3 py-6 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No tasks yet. Create your first task to track project work.
+                            </p>
+                            <Button size="sm" onClick={openCreate}>Create Task</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((task) => (
+                        <TableRow key={task.id}>
+                          <TableCell className="font-medium">{task.title}</TableCell>
+                          <TableCell>{task.assigneeName}</TableCell>
+                          <TableCell>{formatDate(task.dueDate)}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{task.priority}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge>{task.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="outline" size="sm" onClick={() => openEdit(task)}>
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPendingDelete(task);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table></div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
