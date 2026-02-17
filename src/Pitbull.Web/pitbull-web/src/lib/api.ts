@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "./config";
 import { getToken, removeToken } from "./auth";
+import { reportError } from "./error-reporter";
 
 const ACTIVE_COMPANY_KEY = "pitbull_active_company_id";
 
@@ -55,6 +56,19 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
+
+    // Report 5xx errors to diagnostic tracking
+    if (response.status >= 500) {
+      reportError({
+        source: "frontend",
+        level: "error",
+        httpStatusCode: response.status,
+        requestMethod: (rest.method as string) || "GET",
+        requestPath: endpoint,
+        message: `API ${(rest.method as string) || "GET"} ${endpoint} returned ${response.status}`,
+      });
+    }
+
     throw new ApiError(
       response.status,
       errorData?.message || `Request failed with status ${response.status}`,

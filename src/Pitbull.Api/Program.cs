@@ -28,6 +28,7 @@ using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.ProjectManagement.Storage;
 using MassTransit;
+using Pitbull.Api.Data;
 using Pitbull.Core.Messaging;
 using Serilog;
 
@@ -94,6 +95,8 @@ builder.Services.AddPitbullAiModule(builder.Configuration);
 
 // AI Insights service (uses Claude for project analysis)
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IRoleService, Pitbull.Api.Services.RoleService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IComplianceDocumentService, Pitbull.Api.Services.ComplianceDocumentService>();
 
 // TimeTracking singleton services (don't require DI scope)
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
@@ -111,6 +114,7 @@ builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pi
 // Cost code service (Core module - for job cost accounting)
 builder.Services.AddScoped<Pitbull.Core.Features.CostCode.ICostCodeService, Pitbull.Core.Features.CostCode.CostCodeService>();
 builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentStorageProvider>();
+builder.Services.AddScoped<Pitbull.Reports.Services.IReportService, Pitbull.Reports.Services.ReportService>();
 
 // Documents module (file attachments)
 builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbull.Documents.Services.FileStorageService>();
@@ -119,10 +123,18 @@ builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbu
 builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService, Pitbull.Notifications.Services.NotificationService>();
 builder.Services.AddScoped<Pitbull.Api.Services.INotificationPreferenceService, Pitbull.Api.Services.NotificationPreferenceService>();
 
+// Audit interceptor for automatic change tracking via EF SaveChanges
+builder.Services.AddScoped<AuditInterceptor>();
+builder.Services.AddScoped<Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor>(
+    sp => sp.GetRequiredService<AuditInterceptor>());
+
 // SystemAdmin module services
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, Pitbull.SystemAdmin.Services.TenantSettingsService>();
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.IApiKeyService, Pitbull.SystemAdmin.Services.ApiKeyService>();
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pitbull.SystemAdmin.Services.SystemHealthService>();
+
+// Diagnostics service (production error tracking)
+builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api.Services.DiagnosticsService>();
 
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -418,6 +430,9 @@ app.UseMiddleware<TenantMiddleware>();
 app.UseMiddleware<Pitbull.Core.MultiTenancy.CompanyMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+
+// Capture 404s on /api/ routes as diagnostic errors (after endpoint routing)
+app.UseMiddleware<ApiNotFoundMiddleware>();
 
 // Health check endpoints with deep dependency checks
 app.MapHealthChecks("/health", new HealthCheckOptions

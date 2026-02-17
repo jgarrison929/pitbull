@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.Tests.Unit.Helpers;
@@ -61,6 +62,7 @@ public sealed class TimeEntryUpdateTests
             new UpdateTimeEntryValidator(),
             new BatchCreateTimeEntriesValidator(),
             new LaborCostCalculator(),
+            Mock.Of<IPayPeriodService>(),
             NullLogger<TimeEntryService>.Instance
         );
     }

@@ -1,5 +1,6 @@
 using Pitbull.Core.CQRS;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.GetProjectPhases;
 using Pitbull.Projects.Features.GetProjectRfiCostSummary;
 using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
@@ -18,8 +19,10 @@ public interface IProjectService
     Task<Result<PagedResult<ProjectDto>>> GetProjectsAsync(ListProjectsQuery query, CancellationToken cancellationToken = default);
     Task<Result<ProjectStatsResponse>> GetProjectStatsAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result<ProjectRfiCostSummaryDto>> GetProjectRfiCostSummaryAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<List<PhaseDto>>> GetProjectPhasesAsync(Guid projectId, int pageSize = 100, CancellationToken cancellationToken = default);
+    Task<Result<PhaseDto>> GetPhaseAsync(Guid projectId, Guid phaseId, CancellationToken cancellationToken = default);
 
-    // Command operations  
+    // Command operations
     Task<Result<ProjectDto>> CreateProjectAsync(CreateProjectCommand command, CancellationToken cancellationToken = default);
     Task<Result<ProjectDto>> UpdateProjectAsync(UpdateProjectCommand command, CancellationToken cancellationToken = default);
     Task<Result> DeleteProjectAsync(Guid id, CancellationToken cancellationToken = default);
