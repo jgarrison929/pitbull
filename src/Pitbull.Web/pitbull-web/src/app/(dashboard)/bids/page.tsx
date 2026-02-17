@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useNewShortcut } from "@/hooks/use-page-shortcuts";
 import {
   Table,
@@ -21,6 +30,8 @@ import api from "@/lib/api";
 import { BidStatus, type PagedResult, type Bid } from "@/lib/types";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
+
+const ALL_VALUE = "__all__";
 
 function statusColor(status: BidStatus) {
   switch (status) {
@@ -72,6 +83,8 @@ export default function BidsPage() {
   const { activeCompany } = useCompany();
   const [bids, setBids] = useState<Bid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
   
   // Register "n" shortcut to create new bid
   useNewShortcut("/bids/new");
@@ -80,8 +93,12 @@ export default function BidsPage() {
     async function fetchBids() {
       setIsLoading(true);
       try {
+        const params = new URLSearchParams();
+        params.set("pageSize", "50");
+        if (search.trim()) params.set("search", search.trim());
+        if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
         const result = await api<PagedResult<Bid>>(
-          "/api/bids?pageSize=50"
+          `/api/bids?${params.toString()}`
         );
         setBids(result.items);
       } catch {
@@ -90,9 +107,10 @@ export default function BidsPage() {
         setIsLoading(false);
       }
     }
-    fetchBids();
+    const timer = setTimeout(fetchBids, 250);
+    return () => clearTimeout(timer);
     // Re-fetch when the active company changes
-  }, [activeCompany?.id]);
+  }, [activeCompany?.id, search, statusFilter]);
 
   return (
     <div className="space-y-6">
@@ -110,6 +128,40 @@ export default function BidsPage() {
           <Link href="/bids/new">+ New Bid</Link>
         </Button>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="bid-search">Search</Label>
+              <Input
+                id="bid-search"
+                placeholder="Bid name or number..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bid-status">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="bid-status">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUE}>All statuses</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="Submitted">Submitted</SelectItem>
+                  <SelectItem value="Won">Won</SelectItem>
+                  <SelectItem value="Lost">Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

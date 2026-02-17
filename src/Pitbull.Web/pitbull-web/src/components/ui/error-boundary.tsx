@@ -9,6 +9,8 @@ interface ErrorBoundaryProps {
   fallback?: React.ReactNode;
   /** Optional label for what this boundary wraps, shown in error message */
   label?: string;
+  /** Alias for label */
+  section?: string;
 }
 
 interface ErrorBoundaryState {
@@ -30,7 +32,8 @@ export class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(`ErrorBoundary${this.props.label ? ` [${this.props.label}]` : ""}:`, error, errorInfo);
+    const displayLabel = this.props.label || this.props.section;
+    console.error(`ErrorBoundary${displayLabel ? ` [${displayLabel}]` : ""}:`, error, errorInfo);
   }
 
   handleReset = () => {
@@ -47,8 +50,8 @@ export class ErrorBoundary extends React.Component<
         <div className="flex flex-col items-center justify-center py-8 px-4 text-center border border-dashed border-muted-foreground/25 rounded-lg bg-muted/10">
           <AlertCircle className="h-8 w-8 text-muted-foreground mb-3" />
           <p className="text-sm font-medium text-muted-foreground mb-1">
-            {this.props.label
-              ? `Something went wrong loading ${this.props.label}`
+            {(this.props.label || this.props.section)
+              ? `Something went wrong loading ${this.props.label || this.props.section}`
               : "Something went wrong"}
           </p>
           <p className="text-xs text-muted-foreground/75 mb-4 max-w-sm">

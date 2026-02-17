@@ -4,6 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useNewShortcut } from "@/hooks/use-page-shortcuts";
 import {
   Table,
@@ -18,10 +27,12 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HardHat } from "lucide-react";
 import api from "@/lib/api";
-import type { PagedResult, Project } from "@/lib/types";
+import { ProjectStatus, type PagedResult, type Project } from "@/lib/types";
 import { projectStatusBadgeClass, projectStatusLabel } from "@/lib/projects";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
+
+const ALL_VALUE = "__all__";
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -35,6 +46,8 @@ export default function ProjectsPage() {
   const { activeCompany } = useCompany();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
   
   // Register "n" shortcut to create new project
   useNewShortcut("/projects/new");
@@ -43,7 +56,13 @@ export default function ProjectsPage() {
     async function fetchProjects() {
       setIsLoading(true);
       try {
-        const result = await api<PagedResult<Project>>("/api/projects?pageSize=50");
+        const params = new URLSearchParams();
+        params.set("pageSize", "50");
+        if (search.trim()) params.set("search", search.trim());
+        if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
+        const result = await api<PagedResult<Project>>(
+          `/api/projects?${params.toString()}`
+        );
         setProjects(result.items);
       } catch {
         toast.error("Failed to load projects");
@@ -51,9 +70,10 @@ export default function ProjectsPage() {
         setIsLoading(false);
       }
     }
-    fetchProjects();
+    const timer = setTimeout(fetchProjects, 250);
+    return () => clearTimeout(timer);
     // Re-fetch when the active company changes
-  }, [activeCompany?.id]);
+  }, [activeCompany?.id, search, statusFilter]);
 
   return (
     <div className="space-y-6">
@@ -71,6 +91,42 @@ export default function ProjectsPage() {
           <Link href="/projects/new">+ New Project</Link>
         </Button>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Filters</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="project-search">Search</Label>
+              <Input
+                id="project-search"
+                placeholder="Name or project number..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-status">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger id="project-status">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_VALUE}>All statuses</SelectItem>
+                  <SelectItem value={String(ProjectStatus.Bidding)}>Bidding</SelectItem>
+                  <SelectItem value={String(ProjectStatus.PreConstruction)}>Pre-Construction</SelectItem>
+                  <SelectItem value={String(ProjectStatus.Active)}>Active</SelectItem>
+                  <SelectItem value={String(ProjectStatus.Completed)}>Completed</SelectItem>
+                  <SelectItem value={String(ProjectStatus.Closed)}>Closed</SelectItem>
+                  <SelectItem value={String(ProjectStatus.OnHold)}>On Hold</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
