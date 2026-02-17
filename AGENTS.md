@@ -291,6 +291,15 @@ CI must be GREEN before merging to main. Railway auto-deploys from main.
 - **Before opening PR:** `dotnet build`, `npm run build`, `npm run lint` must all pass
 - **Do NOT merge PRs** — push, open PR, request review. User merges after review.
 
+## Design Philosophy
+
+- **This is an ERP system.** Every module needs a settings page. Business rules are configurable within the constraints of GAAP principles and construction industry standards.
+- **Dual-book accounting.** Construction companies run GAAP books (for investors/banks) AND Bonus/Job Cost books (for PM performance). The system must support both perspectives on the same underlying data.
+- **Configurable, not opinionated.** When a business rule could go either way, make it a toggle in company/module settings. Let the customer decide. Example: "Require signed subcontract before payment application?" → that's a setting, not a hardcoded rule.
+- **Balance forward.** Customers shouldn't need a 2-year migration. Meet them where they are.
+- **Construction-first.** Every feature should make sense to a GC project manager, not just a developer.
+- **Module settings pattern:** Each module should have a `{Module}Settings` entity (company-scoped) with sensible defaults. Settings page in the admin UI. Examples: TimecardSettings already exists — follow that pattern.
+
 ## Anti-Patterns (DO NOT DO THESE)
 
 - **Never use MediatR in controllers** — use direct service injection
