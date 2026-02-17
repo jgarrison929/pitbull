@@ -19,9 +19,18 @@ namespace Pitbull.Api.Migrations
                 name: "FK_pay_periods_processed_by",
                 table: "pay_periods");
 
-            // Drop RLS policy and any dependent objects before dropping CompanyId column
-            migrationBuilder.Sql("DROP POLICY IF EXISTS pay_periods_tenant_isolation ON pay_periods;");
-            migrationBuilder.Sql("DROP POLICY IF EXISTS pay_periods_company_isolation ON pay_periods;");
+            // Drop ALL RLS policies on pay_periods before dropping CompanyId column
+            migrationBuilder.Sql(@"
+                DO $$
+                DECLARE pol RECORD;
+                BEGIN
+                    FOR pol IN SELECT policyname FROM pg_policies WHERE tablename = 'pay_periods'
+                    LOOP
+                        EXECUTE format('DROP POLICY IF EXISTS %I ON pay_periods', pol.policyname);
+                    END LOOP;
+                END $$;
+            ");
+            migrationBuilder.Sql("ALTER TABLE pay_periods DISABLE ROW LEVEL SECURITY;");
 
             migrationBuilder.DropIndex(
                 name: "IX_pay_periods_CompanyId",
