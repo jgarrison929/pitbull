@@ -285,14 +285,23 @@ public sealed class PmMeetingServiceTests
         using var db = TestDbContextFactory.Create();
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
 
         var meetingA = (await service.CreateMeetingAsync(ProjectId, new PmUpsertRequest(Title: "A"))).Value!;
         var meetingB = (await service.CreateMeetingAsync(otherProjectId, new PmUpsertRequest(Title: "B"))).Value!;
 
-        await service.AddActionItemAsync(ProjectId, meetingA.Id, new PmUpsertRequest(Data: new Dictionary<string, object?> { ["Description"] = "A1" }));
-        await service.AddActionItemAsync(otherProjectId, meetingB.Id, new PmUpsertRequest(Data: new Dictionary<string, object?> { ["Description"] = "B1" }));
+        await service.AddActionItemAsync(ProjectId, meetingA.Id, new PmUpsertRequest(Data: new Dictionary<string, object?>
+        {
+            ["Description"] = "A1",
+            ["AssigneeUserId"] = currentUserId
+        }));
+        await service.AddActionItemAsync(otherProjectId, meetingB.Id, new PmUpsertRequest(Data: new Dictionary<string, object?>
+        {
+            ["Description"] = "B1",
+            ["AssigneeUserId"] = currentUserId
+        }));
 
-        var result = await service.ListMyActionItemsAsync(new PmListQuery(ProjectId: ProjectId));
+        var result = await service.ListMyActionItemsAsync(new PmListQuery(ProjectId: ProjectId), currentUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.TotalCount.Should().Be(1);

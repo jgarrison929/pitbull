@@ -122,7 +122,7 @@ public interface IMeetingService
     Task<Result<PmEntityDto>> AddMinutesAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default);
     Task<Result<PmEntityDto>> AddActionItemAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default);
     Task<Result<PmEntityDto>> UpdateActionItemAsync(Guid projectId, Guid meetingId, Guid actionItemId, PmUpsertRequest request, CancellationToken cancellationToken = default);
-    Task<Result<PagedResult<PmEntityDto>>> ListMyActionItemsAsync(PmListQuery query, CancellationToken cancellationToken = default);
+    Task<Result<PagedResult<PmEntityDto>>> ListMyActionItemsAsync(PmListQuery query, Guid assignedUserId, CancellationToken cancellationToken = default);
 }
 
 public interface IDocumentGenerationService
@@ -143,7 +143,7 @@ public interface ITaskService
     Task<Result<PagedResult<PmEntityDto>>> ListTasksAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default);
     Task<Result<PmEntityDto>> UpdateTaskAsync(Guid projectId, Guid taskId, PmUpsertRequest request, CancellationToken cancellationToken = default);
     Task<Result<PmEntityDto>> AddTaskCommentAsync(Guid projectId, Guid taskId, PmUpsertRequest request, CancellationToken cancellationToken = default);
-    Task<Result<PagedResult<PmEntityDto>>> ListMyTasksAsync(PmListQuery query, CancellationToken cancellationToken = default);
+    Task<Result<PagedResult<PmEntityDto>>> ListMyTasksAsync(PmListQuery query, Guid assignedUserId, CancellationToken cancellationToken = default);
 }
 
 public interface INarrativeService

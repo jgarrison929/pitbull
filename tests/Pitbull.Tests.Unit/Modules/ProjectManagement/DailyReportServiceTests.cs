@@ -290,4 +290,230 @@ public sealed class DailyReportServiceTests
     }
 
     #endregion
+
+    #region CompanyId and Timestamps
+
+    [Fact]
+    public async Task CreateDailyReport_SetsCompanyId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest());
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == result.Value!.Id);
+        entity.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task CreateDailyReport_SetsCreatedAtTimestamp()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var before = DateTime.UtcNow;
+        var result = await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest());
+        var after = DateTime.UtcNow;
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.CreatedAt.Should().BeOnOrAfter(before);
+        result.Value.CreatedAt.Should().BeOnOrBefore(after);
+    }
+
+    [Fact]
+    public async Task UpdateDailyReport_PreservesCreatedAt()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var originalCreatedAt = created.CreatedAt;
+
+        await service.UpdateDailyReportAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Status: "Submitted"));
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == created.Id);
+        entity.CreatedAt.Should().Be(originalCreatedAt);
+    }
+
+    #endregion
+
+    #region Soft Delete
+
+    [Fact]
+    public async Task ListDailyReports_ExcludesSoftDeleted()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var toDelete = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest());
+
+        // Soft-delete via direct entity manipulation (no DeleteAsync on this service)
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == toDelete.Id);
+        entity.IsDeleted = true;
+        entity.DeletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        var result = await service.ListDailyReportsAsync(ProjectId, new PmListQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetDailyReport_SoftDeleted_ReturnsNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == created.Id);
+        entity.IsDeleted = true;
+        entity.DeletedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        var result = await service.GetDailyReportAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    #endregion
+
+    #region Submit and Approve Timestamps
+
+    [Fact]
+    public async Task SubmitDailyReport_SetsUpdatedAtTimestamp()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        var before = DateTime.UtcNow;
+        await service.SubmitDailyReportAsync(ProjectId, created.Id);
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == created.Id);
+        entity.UpdatedAt.Should().NotBeNull();
+        entity.UpdatedAt!.Value.Should().BeOnOrAfter(before);
+    }
+
+    [Fact]
+    public async Task ApproveDailyReport_SetsUpdatedAtTimestamp()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        await service.SubmitDailyReportAsync(ProjectId, created.Id);
+
+        var before = DateTime.UtcNow;
+        await service.ApproveDailyReportAsync(ProjectId, created.Id);
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == created.Id);
+        entity.UpdatedAt.Should().NotBeNull();
+        entity.UpdatedAt!.Value.Should().BeOnOrAfter(before);
+    }
+
+    #endregion
+
+    #region Pagination Edge Cases
+
+    [Fact]
+    public async Task ListDailyReports_Page2_ReturnsRemainingItems()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 5; i++)
+            await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest());
+
+        var result = await service.ListDailyReportsAsync(ProjectId,
+            new PmListQuery { Page = 2, PageSize = 3 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(5);
+        result.Value.Page.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ListDailyReports_EmptyProject_ReturnsEmptyPage()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.ListDailyReportsAsync(ProjectId, new PmListQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalCount.Should().Be(0);
+        result.Value.Items.Should().BeEmpty();
+    }
+
+    #endregion
+
+    #region Photo Details
+
+    [Fact]
+    public async Task AddPhoto_MultiplePhotos_AllLinkedToSameReport()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        await service.AddPhotoAsync(ProjectId, report.Id, new PmUpsertRequest());
+        await service.AddPhotoAsync(ProjectId, report.Id, new PmUpsertRequest());
+        await service.AddPhotoAsync(ProjectId, report.Id, new PmUpsertRequest());
+
+        var photos = await db.Set<PmDailyReportPhoto>().ToListAsync();
+        photos.Should().HaveCount(3);
+        photos.Should().AllSatisfy(p => p.DocumentId.Should().Be(report.Id));
+    }
+
+    [Fact]
+    public async Task AddPhoto_SetsCompanyId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        await service.AddPhotoAsync(ProjectId, report.Id, new PmUpsertRequest());
+
+        var photo = await db.Set<PmDailyReportPhoto>().FirstAsync();
+        photo.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    #endregion
+
+    #region Rollup Details
+
+    [Fact]
+    public async Task RollupDailyReport_SetsCompanyIdOnRollup()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var parent = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var child = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        await service.RollupDailyReportAsync(ProjectId, parent.Id,
+            new PmUpsertRequest(ReferenceId: child.Id));
+
+        var rollup = await db.Set<PmDailyReportRollup>().FirstAsync();
+        rollup.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task RollupDailyReport_BothNotFound_ReturnsError()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.RollupDailyReportAsync(ProjectId, Guid.NewGuid(),
+            new PmUpsertRequest(ReferenceId: Guid.NewGuid()));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    #endregion
 }

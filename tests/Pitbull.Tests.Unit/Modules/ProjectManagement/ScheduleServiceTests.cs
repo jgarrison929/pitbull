@@ -366,4 +366,227 @@ public sealed class ScheduleServiceTests
     }
 
     #endregion
+
+    #region Activities
+
+    [Fact]
+    public async Task AddActivity_CreatesActivityLinkedToSchedule()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var schedule = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Master"))).Value!;
+
+        var result = await service.AddActivityAsync(ProjectId, schedule.Id,
+            new PmUpsertRequest(Name: "Pour Foundation"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Name.Should().Be("Pour Foundation");
+        result.Value.Id.Should().NotBeEmpty();
+
+        var activity = await db.Set<PmScheduleActivity>().FirstAsync();
+        activity.ScheduleId.Should().Be(schedule.Id);
+        activity.ProjectId.Should().Be(ProjectId);
+        activity.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task AddActivity_ScheduleNotFound_ReturnsNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.AddActivityAsync(ProjectId, Guid.NewGuid(),
+            new PmUpsertRequest(Name: "Orphan Activity"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task UpdateActivity_SetsNameAndUpdatedAt()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var schedule = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule"))).Value!;
+        var activity = (await service.AddActivityAsync(ProjectId, schedule.Id,
+            new PmUpsertRequest(Name: "Original Activity"))).Value!;
+
+        var beforeUpdate = DateTime.UtcNow;
+        var result = await service.UpdateActivityAsync(ProjectId, schedule.Id, activity.Id,
+            new PmUpsertRequest(Name: "Renamed Activity"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Name.Should().Be("Renamed Activity");
+        result.Value.UpdatedAt.Should().NotBeNull();
+        result.Value.UpdatedAt!.Value.Should().BeOnOrAfter(beforeUpdate);
+    }
+
+    [Fact]
+    public async Task UpdateActivity_NotFound_ReturnsError()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var schedule = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule"))).Value!;
+
+        var result = await service.UpdateActivityAsync(ProjectId, schedule.Id, Guid.NewGuid(),
+            new PmUpsertRequest(Name: "Nope"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    #endregion
+
+    #region Import
+
+    [Fact]
+    public async Task ImportSchedule_CreatesImportLogEntry()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.ImportScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Import-Jan.csv"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ProjectId.Should().Be(ProjectId);
+        result.Value.Id.Should().NotBeEmpty();
+
+        var log = await db.Set<PmScheduleImportLog>().FirstAsync();
+        log.ProjectId.Should().Be(ProjectId);
+        log.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task ListImports_ReturnsPaginatedResults()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 4; i++)
+            await service.ImportScheduleAsync(ProjectId, new PmUpsertRequest(Name: $"Import {i}"));
+
+        var result = await service.ListImportsAsync(ProjectId,
+            new PmListQuery { Page = 1, PageSize = 2 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task ListImports_ExcludesOtherProjects()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var otherProjectId = Guid.NewGuid();
+
+        await service.ImportScheduleAsync(ProjectId, new PmUpsertRequest(Name: "Our Import"));
+        await service.ImportScheduleAsync(otherProjectId, new PmUpsertRequest(Name: "Other Import"));
+
+        var result = await service.ListImportsAsync(ProjectId, new PmListQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalCount.Should().Be(1);
+    }
+
+    #endregion
+
+    #region Baseline SourceVersion
+
+    [Fact]
+    public async Task CreateBaseline_WithSourceVersion_StoresIt()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var schedule = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule"))).Value!;
+
+        var result = await service.CreateBaselineAsync(ProjectId, schedule.Id,
+            new PmUpsertRequest(Name: "v2 Baseline", Data: new Dictionary<string, object?>
+            {
+                { "SourceVersion", "Rev-2.1" }
+            }));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var baseline = await db.Set<PmScheduleBaseline>().FirstAsync();
+        baseline.SourceVersion.Should().Be("Rev-2.1");
+    }
+
+    #endregion
+
+    #region CompanyId and Timestamps
+
+    [Fact]
+    public async Task CreateSchedule_SetsCompanyId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Company Test"));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmSchedule>().FirstAsync(s => s.Id == result.Value!.Id);
+        entity.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task CreateSchedule_SetsCreatedAtToUtcNow()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var before = DateTime.UtcNow;
+        var result = await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Timestamp Test"));
+        var after = DateTime.UtcNow;
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.CreatedAt.Should().BeOnOrAfter(before);
+        result.Value.CreatedAt.Should().BeOnOrBefore(after);
+    }
+
+    [Fact]
+    public async Task ListSchedules_Page2_ReturnsRemainingItems()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 5; i++)
+            await service.CreateScheduleAsync(ProjectId, new PmUpsertRequest(Name: $"Schedule {i}"));
+
+        var result = await service.ListSchedulesAsync(ProjectId,
+            new PmListQuery { Page = 2, PageSize = 3 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(5);
+        result.Value.Page.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task DeleteSchedule_SetsDeletedAtTimestamp()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Timestamp Delete"))).Value!;
+
+        var beforeDelete = DateTime.UtcNow;
+        await service.DeleteScheduleAsync(ProjectId, created.Id);
+
+        var raw = await db.Set<PmSchedule>().IgnoreQueryFilters().FirstAsync(s => s.Id == created.Id);
+        raw.DeletedAt.Should().NotBeNull();
+        raw.DeletedAt!.Value.Should().BeOnOrAfter(beforeDelete);
+        raw.UpdatedAt.Should().NotBeNull();
+        raw.UpdatedAt!.Value.Should().BeOnOrAfter(beforeDelete);
+    }
+
+    #endregion
 }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -6,7 +7,9 @@ using Pitbull.Core.MultiTenancy;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.RFIs.Domain;
+using Pitbull.TimeTracking.Domain;
 using System.Text.Json;
+using System.Security.Claims;
 
 namespace Pitbull.ProjectManagement.Services;
 
@@ -19,11 +22,13 @@ public abstract class PmServiceBase
 
     protected readonly PitbullDbContext Db;
     private readonly ICompanyContext _companyContext;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    protected PmServiceBase(PitbullDbContext db, ICompanyContext companyContext)
+    protected PmServiceBase(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null)
     {
         Db = db;
         _companyContext = companyContext;
+        _httpContextAccessor = httpContextAccessor ?? new HttpContextAccessor();
     }
 
     protected Guid CurrentCompanyId => _companyContext.IsResolved ? _companyContext.CompanyId : Guid.Empty;
@@ -42,6 +47,24 @@ public abstract class PmServiceBase
     protected IQueryable<T> ProjectScoped<T>(Guid projectId) where T : BaseEntity
     {
         var query = Db.Set<T>().Where(e => !e.IsDeleted).AsQueryable();
+        if (ShouldEnforceProjectAccess())
+        {
+            var email = GetCurrentUserEmail();
+            if (string.IsNullOrWhiteSpace(email))
+                return query.Where(_ => false);
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            query = query.Where(e => Db.Set<ProjectAssignment>().Any(pa =>
+                pa.IsActive &&
+                pa.ProjectId == projectId &&
+                pa.StartDate <= today &&
+                (pa.EndDate == null || pa.EndDate >= today) &&
+                Db.Set<Employee>().Any(emp =>
+                    emp.Id == pa.EmployeeId &&
+                    emp.IsActive &&
+                    emp.Email == email)));
+        }
+
         if (typeof(T).GetProperty("ProjectId") != null)
             query = query.Where(e => EF.Property<Guid>(e, "ProjectId") == projectId);
         else
@@ -169,6 +192,8 @@ public abstract class PmServiceBase
     protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct)
         where T : BaseEntity, ICompanyScoped, new()
     {
+        if (!await HasCurrentUserProjectAccessAsync(projectId, ct))
+            return Result.Failure<PmEntityDto>("Not authorized to access this project", "UNAUTHORIZED");
         if (request.ReferenceId.HasValue)
         {
             var referenceValidation = await ValidateReferenceProjectScopeAsync<T>(projectId, request.ReferenceId.Value, ct);
@@ -348,11 +373,42 @@ public abstract class PmServiceBase
             ? Result.Success()
             : Result.Failure("Reference entity was not found in this project", "NOT_FOUND");
     }
+    private bool IsCurrentUserAdmin()
+        => _httpContextAccessor.HttpContext?.User?.IsInRole("Admin") == true;
+
+    private bool ShouldEnforceProjectAccess()
+        => _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true && !IsCurrentUserAdmin();
+
+    private string? GetCurrentUserEmail()
+    {
+        var user = _httpContextAccessor.HttpContext?.User;
+        return user?.Identity?.Name
+               ?? user?.FindFirst(ClaimTypes.Email)?.Value
+               ?? user?.FindFirst("email")?.Value;
+    }
+
+    private async Task<bool> HasCurrentUserProjectAccessAsync(Guid projectId, CancellationToken ct)
+    {
+        if (!ShouldEnforceProjectAccess())
+            return true;
+
+        var email = GetCurrentUserEmail();
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return await Db.Set<ProjectAssignment>().AnyAsync(pa =>
+            pa.IsActive &&
+            pa.ProjectId == projectId &&
+            pa.StartDate <= today &&
+            (pa.EndDate == null || pa.EndDate >= today) &&
+            Db.Set<Employee>().Any(emp => emp.Id == pa.EmployeeId && emp.IsActive && emp.Email == email), ct);
+    }
 }
 
 public class ScheduleService : PmServiceBase, IScheduleService
 {
-    public ScheduleService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public ScheduleService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
 
     public Task<Result<PmEntityDto>> CreateScheduleAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmSchedule>(projectId, request, cancellationToken);
@@ -433,7 +489,7 @@ public class ScheduleService : PmServiceBase, IScheduleService
 
 public class JobCostService : PmServiceBase, IJobCostService
 {
-    public JobCostService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public JobCostService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateBudgetAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmJobCostBudget>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> UpdateBudgetAsync(Guid projectId, Guid budgetId, PmUpsertRequest request, CancellationToken cancellationToken = default)
@@ -464,7 +520,7 @@ public class JobCostService : PmServiceBase, IJobCostService
 
 public class SubmittalService : PmServiceBase, ISubmittalService
 {
-    public SubmittalService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public SubmittalService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateSubmittalAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmSubmittal>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> GetSubmittalAsync(Guid projectId, Guid submittalId, CancellationToken cancellationToken = default)
@@ -481,7 +537,7 @@ public class SubmittalService : PmServiceBase, ISubmittalService
 
 public class PlansSpecsService : PmServiceBase, IPlansSpecsService
 {
-    public PlansSpecsService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public PlansSpecsService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PagedResult<PmEntityDto>>> ListFoldersAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmDocumentFolder>(projectId), query, cancellationToken);
     public Task<Result<PmEntityDto>> CreateFolderAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
@@ -558,7 +614,7 @@ public class PlansSpecsService : PmServiceBase, IPlansSpecsService
 
 public class CommunicationService : PmServiceBase, ICommunicationService
 {
-    public CommunicationService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public CommunicationService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateCommunicationAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmCommunication>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> GetCommunicationAsync(Guid projectId, Guid communicationId, CancellationToken cancellationToken = default)
@@ -573,7 +629,7 @@ public class CommunicationService : PmServiceBase, ICommunicationService
 
 public class DailyReportService : PmServiceBase, IDailyReportService
 {
-    public DailyReportService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public DailyReportService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateDailyReportAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> GetDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
@@ -633,7 +689,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
 
 public class ProgressService : PmServiceBase, IProgressService
 {
-    public ProgressService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public ProgressService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateProgressEntryAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmProgressEntry>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> GetProgressEntryAsync(Guid projectId, Guid progressEntryId, CancellationToken cancellationToken = default)
@@ -683,7 +739,7 @@ public class ProgressService : PmServiceBase, IProgressService
 
 public class ProjectionService : PmServiceBase, IProjectionService
 {
-    public ProjectionService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public ProjectionService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateMonthlyProjectionAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmMonthlyProjection>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> GetMonthlyProjectionAsync(Guid projectId, Guid projectionId, CancellationToken cancellationToken = default)
@@ -718,7 +774,7 @@ public class ProjectionService : PmServiceBase, IProjectionService
 
 public class MeetingService : PmServiceBase, IMeetingService
 {
-    public MeetingService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public MeetingService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateMeetingSeriesAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmMeetingSeries>(projectId, request, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListMeetingSeriesAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
@@ -739,13 +795,15 @@ public class MeetingService : PmServiceBase, IMeetingService
         => CreateAsync<PmMeetingActionItem>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
     public Task<Result<PmEntityDto>> UpdateActionItemAsync(Guid projectId, Guid meetingId, Guid actionItemId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => UpdateAsync<PmMeetingActionItem>(projectId, actionItemId, request, cancellationToken);
-    public Task<Result<PagedResult<PmEntityDto>>> ListMyActionItemsAsync(PmListQuery query, CancellationToken cancellationToken = default)
+    public Task<Result<PagedResult<PmEntityDto>>> ListMyActionItemsAsync(PmListQuery query, Guid assignedUserId, CancellationToken cancellationToken = default)
     {
-        var actionItemQuery = Db.Set<PmMeetingActionItem>().AsQueryable();
+        var actionItemQuery = Db.Set<PmMeetingActionItem>()
+            .Where(a => !a.IsDeleted && a.AssigneeUserId == assignedUserId)
+            .AsQueryable();
         if (query.ProjectId.HasValue)
         {
             actionItemQuery = actionItemQuery.Where(a =>
-                Db.Set<PmMeeting>().Any(m => m.Id == a.MeetingId && m.ProjectId == query.ProjectId.Value));
+                Db.Set<PmMeeting>().Any(m => !m.IsDeleted && m.Id == a.MeetingId && m.ProjectId == query.ProjectId.Value));
         }
 
         return ListAsync(actionItemQuery, query, cancellationToken);
@@ -754,7 +812,7 @@ public class MeetingService : PmServiceBase, IMeetingService
 
 public class DocumentGenerationService : PmServiceBase, IDocumentGenerationService
 {
-    public DocumentGenerationService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public DocumentGenerationService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateTemplateAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmDocumentTemplate>(projectId, request, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListTemplatesAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
@@ -782,7 +840,7 @@ public class DocumentGenerationService : PmServiceBase, IDocumentGenerationServi
 
 public class TaskService : PmServiceBase, ITaskService
 {
-    public TaskService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public TaskService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateTaskAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmTask>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> GetTaskAsync(Guid projectId, Guid taskId, CancellationToken cancellationToken = default)
@@ -793,9 +851,11 @@ public class TaskService : PmServiceBase, ITaskService
         => UpdateAsync<PmTask>(projectId, taskId, request, cancellationToken);
     public Task<Result<PmEntityDto>> AddTaskCommentAsync(Guid projectId, Guid taskId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmTaskComment>(projectId, request with { ReferenceId = taskId }, cancellationToken);
-    public Task<Result<PagedResult<PmEntityDto>>> ListMyTasksAsync(PmListQuery query, CancellationToken cancellationToken = default)
+    public Task<Result<PagedResult<PmEntityDto>>> ListMyTasksAsync(PmListQuery query, Guid assignedUserId, CancellationToken cancellationToken = default)
     {
-        var taskQuery = Db.Set<PmTask>().AsQueryable();
+        var taskQuery = Db.Set<PmTask>()
+            .Where(t => !t.IsDeleted && t.AssignedToUserId == assignedUserId)
+            .AsQueryable();
         if (query.ProjectId.HasValue)
             taskQuery = taskQuery.Where(t => t.ProjectId == query.ProjectId.Value);
 
@@ -805,7 +865,7 @@ public class TaskService : PmServiceBase, ITaskService
 
 public class NarrativeService : PmServiceBase, INarrativeService
 {
-    public NarrativeService(PitbullDbContext db, ICompanyContext companyContext) : base(db, companyContext) { }
+    public NarrativeService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
     public Task<Result<PmEntityDto>> CreateNarrativeAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmProjectNarrative>(projectId, request, cancellationToken);
     public Task<Result<PmEntityDto>> GetNarrativeAsync(Guid projectId, Guid narrativeId, CancellationToken cancellationToken = default)

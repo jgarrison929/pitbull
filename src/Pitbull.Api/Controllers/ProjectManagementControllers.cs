@@ -222,8 +222,23 @@ public class ProjectNarrativesController(INarrativeService narrativeService) : P
 [Route("api/project-management")]
 public class ProjectManagementDashboardController(ITaskService taskService, IMeetingService meetingService) : ProjectManagementControllerBase
 {
-    [HttpGet("tasks/my")] public async Task<IActionResult> MyTasks([FromQuery] PmListQuery query) => HandleResult(await taskService.ListMyTasksAsync(query));
-    [HttpGet("action-items/my")] public async Task<IActionResult> MyActionItems([FromQuery] PmListQuery query) => HandleResult(await meetingService.ListMyActionItemsAsync(query));
+    [HttpGet("tasks/my")]
+    public async Task<IActionResult> MyTasks([FromQuery] PmListQuery query)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+            return Unauthorized(new { error = "User ID was not found in token claims.", code = "UNAUTHORIZED" });
+
+        return HandleResult(await taskService.ListMyTasksAsync(query, userId));
+    }
+
+    [HttpGet("action-items/my")]
+    public async Task<IActionResult> MyActionItems([FromQuery] PmListQuery query)
+    {
+        if (!TryGetCurrentUserId(out var userId))
+            return Unauthorized(new { error = "User ID was not found in token claims.", code = "UNAUTHORIZED" });
+
+        return HandleResult(await meetingService.ListMyActionItemsAsync(query, userId));
+    }
 }
 
 [ApiController]

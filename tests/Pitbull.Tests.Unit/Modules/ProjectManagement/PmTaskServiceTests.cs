@@ -183,16 +183,25 @@ public sealed class PmTaskServiceTests
     }
 
     [Fact]
-    public async Task ListMyTasks_ReturnsAllTasksAcrossProjects()
+    public async Task ListMyTasks_FiltersByAssignedUserAcrossProjects()
     {
         using var db = TestDbContextFactory.Create();
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
 
-        await service.CreateTaskAsync(ProjectId, new PmUpsertRequest(Title: "Task A"));
-        await service.CreateTaskAsync(otherProjectId, new PmUpsertRequest(Title: "Task B"));
+        await service.CreateTaskAsync(ProjectId, new PmUpsertRequest(
+            Title: "Task A",
+            Data: new Dictionary<string, object?> { ["AssignedToUserId"] = currentUserId }));
+        await service.CreateTaskAsync(otherProjectId, new PmUpsertRequest(
+            Title: "Task B",
+            Data: new Dictionary<string, object?> { ["AssignedToUserId"] = currentUserId }));
+        await service.CreateTaskAsync(otherProjectId, new PmUpsertRequest(
+            Title: "Task C",
+            Data: new Dictionary<string, object?> { ["AssignedToUserId"] = otherUserId }));
 
-        var result = await service.ListMyTasksAsync(new PmListQuery());
+        var result = await service.ListMyTasksAsync(new PmListQuery(), currentUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.TotalCount.Should().Be(2);
@@ -204,11 +213,16 @@ public sealed class PmTaskServiceTests
         using var db = TestDbContextFactory.Create();
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+        var currentUserId = Guid.NewGuid();
 
-        await service.CreateTaskAsync(ProjectId, new PmUpsertRequest(Title: "Task A"));
-        await service.CreateTaskAsync(otherProjectId, new PmUpsertRequest(Title: "Task B"));
+        await service.CreateTaskAsync(ProjectId, new PmUpsertRequest(
+            Title: "Task A",
+            Data: new Dictionary<string, object?> { ["AssignedToUserId"] = currentUserId }));
+        await service.CreateTaskAsync(otherProjectId, new PmUpsertRequest(
+            Title: "Task B",
+            Data: new Dictionary<string, object?> { ["AssignedToUserId"] = currentUserId }));
 
-        var result = await service.ListMyTasksAsync(new PmListQuery(ProjectId: ProjectId));
+        var result = await service.ListMyTasksAsync(new PmListQuery(ProjectId: ProjectId), currentUserId);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.TotalCount.Should().Be(1);

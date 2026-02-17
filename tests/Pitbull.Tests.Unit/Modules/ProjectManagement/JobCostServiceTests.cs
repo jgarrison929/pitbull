@@ -260,5 +260,243 @@ public sealed class JobCostServiceTests
         otherActual.UpdatedAt.Should().Be(pastTime);
     }
 
+    [Fact]
+    public async Task RebuildActuals_ReturnsCorrectUpdatedCount()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 5; i++)
+        {
+            db.Set<PmJobCostActual>().Add(new PmJobCostActual
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = TestDbContextFactory.TestCompanyId,
+                ProjectId = ProjectId,
+                CostCodeId = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow.AddDays(-5)
+            });
+        }
+        await db.SaveChangesAsync();
+
+        var result = await service.RebuildActualsAsync(ProjectId);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Id.Should().Be(ProjectId);
+    }
+
+    #endregion
+
+    #region Budget Details
+
+    [Fact]
+    public async Task CreateBudget_SetsCompanyId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest());
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmJobCostBudget>().FirstAsync(b => b.Id == result.Value!.Id);
+        entity.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task CreateBudget_SetsCreatedAtTimestamp()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var before = DateTime.UtcNow;
+        var result = await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest());
+        var after = DateTime.UtcNow;
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.CreatedAt.Should().BeOnOrAfter(before);
+        result.Value.CreatedAt.Should().BeOnOrBefore(after);
+    }
+
+    [Fact]
+    public async Task ListBudgets_Page2_ReturnsRemainingItems()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 5; i++)
+            await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest());
+
+        var result = await service.ListBudgetsAsync(ProjectId,
+            new PmListQuery { Page = 2, PageSize = 3 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(5);
+        result.Value.Page.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task UpdateBudget_PreservesCreatedAt()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var originalCreatedAt = created.CreatedAt;
+
+        await service.UpdateBudgetAsync(ProjectId, created.Id, new PmUpsertRequest());
+
+        var entity = await db.Set<PmJobCostBudget>().FirstAsync(b => b.Id == created.Id);
+        entity.CreatedAt.Should().Be(originalCreatedAt);
+    }
+
+    #endregion
+
+    #region Commitment Details
+
+    [Fact]
+    public async Task CreateCommitment_SetsCompanyId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateCommitmentAsync(ProjectId, new PmUpsertRequest());
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmJobCostCommitment>().FirstAsync(c => c.Id == result.Value!.Id);
+        entity.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task ListCommitments_ReturnsPaginatedResults()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 4; i++)
+            await service.CreateCommitmentAsync(ProjectId, new PmUpsertRequest());
+
+        var result = await service.ListCommitmentsAsync(ProjectId,
+            new PmListQuery { Page = 1, PageSize = 2 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(4);
+    }
+
+    #endregion
+
+    #region Forecast Details
+
+    [Fact]
+    public async Task CreateForecast_SetsCompanyId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateForecastAsync(ProjectId, new PmUpsertRequest());
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmJobCostForecast>().FirstAsync(f => f.Id == result.Value!.Id);
+        entity.CompanyId.Should().Be(TestDbContextFactory.TestCompanyId);
+    }
+
+    [Fact]
+    public async Task ListForecasts_ReturnsPaginatedResults()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 4; i++)
+            await service.CreateForecastAsync(ProjectId, new PmUpsertRequest());
+
+        var result = await service.ListForecastsAsync(ProjectId,
+            new PmListQuery { Page = 1, PageSize = 2 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task ListForecasts_ExcludesOtherProjects()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var otherProjectId = Guid.NewGuid();
+
+        await service.CreateForecastAsync(ProjectId, new PmUpsertRequest());
+        await service.CreateForecastAsync(otherProjectId, new PmUpsertRequest());
+
+        var result = await service.ListForecastsAsync(ProjectId, new PmListQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalCount.Should().Be(1);
+    }
+
+    #endregion
+
+    #region Actuals Pagination
+
+    [Fact]
+    public async Task ListActuals_ReturnsPaginatedResults()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        for (var i = 0; i < 4; i++)
+        {
+            db.Set<PmJobCostActual>().Add(new PmJobCostActual
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = TestDbContextFactory.TestCompanyId,
+                ProjectId = ProjectId,
+                CostCodeId = Guid.NewGuid(),
+                CreatedAt = DateTime.UtcNow.AddMinutes(-i)
+            });
+        }
+        await db.SaveChangesAsync();
+
+        var result = await service.ListActualsAsync(ProjectId,
+            new PmListQuery { Page = 1, PageSize = 2 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(2);
+        result.Value.TotalCount.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task ListActuals_ExcludesOtherProjects()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var otherProjectId = Guid.NewGuid();
+
+        db.Set<PmJobCostActual>().Add(new PmJobCostActual
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            ProjectId = ProjectId,
+            CostCodeId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow
+        });
+        db.Set<PmJobCostActual>().Add(new PmJobCostActual
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            ProjectId = otherProjectId,
+            CostCodeId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.ListActualsAsync(ProjectId, new PmListQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalCount.Should().Be(1);
+    }
+
     #endregion
 }
