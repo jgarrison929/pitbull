@@ -27,25 +27,23 @@ import { toast } from "sonner";
 interface ChangeOrderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Pre-selected subcontract ID */
   subcontractId?: string;
-  /** ID of the originating RFI (for linking) */
   originatingRfiId?: string;
-  /** Pre-filled description from RFI */
   prefillDescription?: string;
-  /** Callback when change order is created */
   onCreated?: (changeOrder: ChangeOrder) => void;
 }
 
 interface CreateChangeOrderPayload {
   subcontractId: string;
-  changeOrderNumber: string;
+  number: string;
   title: string;
   description: string;
-  reason?: string;
   amount: number;
-  daysExtension?: number;
-  referenceNumber?: string;
+  status: number;
+  scheduleImpactDays?: number;
+  costImpact?: number;
+  requestedBy?: string;
+  requestDate?: string;
   originatingRfiId?: string;
 }
 
@@ -61,37 +59,36 @@ export function ChangeOrderDialog({
   const [isLoadingSubcontracts, setIsLoadingSubcontracts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Form state
   const [subcontractId, setSubcontractId] = useState(initialSubcontractId || "");
-  const [changeOrderNumber, setChangeOrderNumber] = useState("");
+  const [number, setNumber] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState(prefillDescription || "");
-  const [reason, setReason] = useState("");
   const [amount, setAmount] = useState("");
-  const [daysExtension, setDaysExtension] = useState("");
+  const [scheduleImpactDays, setScheduleImpactDays] = useState("");
+  const [costImpact, setCostImpact] = useState("");
+  const [requestedBy, setRequestedBy] = useState("");
+  const [requestDate, setRequestDate] = useState(new Date().toISOString().slice(0, 10));
 
-  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setSubcontractId(initialSubcontractId || "");
       setDescription(prefillDescription || "");
-      setChangeOrderNumber("");
+      setNumber("");
       setTitle(prefillDescription ? prefillDescription.substring(0, 100) : "");
-      setReason("");
       setAmount("");
-      setDaysExtension("");
+      setScheduleImpactDays("");
+      setCostImpact("");
+      setRequestedBy("");
+      setRequestDate(new Date().toISOString().slice(0, 10));
     }
   }, [open, initialSubcontractId, prefillDescription]);
 
-  // Load subcontracts when dialog opens
   useEffect(() => {
     async function loadSubcontracts() {
       if (!open) return;
       setIsLoadingSubcontracts(true);
       try {
-        const result = await api<PagedResult<Subcontract>>(
-          "/api/subcontracts?pageSize=100"
-        );
+        const result = await api<PagedResult<Subcontract>>("/api/subcontracts?pageSize=100");
         setSubcontracts(result.items);
       } catch {
         toast.error("Failed to load subcontracts");
@@ -99,6 +96,7 @@ export function ChangeOrderDialog({
         setIsLoadingSubcontracts(false);
       }
     }
+
     loadSubcontracts();
   }, [open]);
 
@@ -109,7 +107,7 @@ export function ChangeOrderDialog({
       toast.error("Please select a subcontract");
       return;
     }
-    if (!changeOrderNumber.trim()) {
+    if (!number.trim()) {
       toast.error("Change order number is required");
       return;
     }
@@ -132,12 +130,17 @@ export function ChangeOrderDialog({
     try {
       const payload: CreateChangeOrderPayload = {
         subcontractId,
-        changeOrderNumber: changeOrderNumber.trim(),
+        number: number.trim(),
         title: title.trim(),
         description: description.trim(),
-        reason: reason.trim() || undefined,
         amount: parsedAmount,
-        daysExtension: daysExtension ? parseInt(daysExtension, 10) : undefined,
+        status: 0,
+        scheduleImpactDays: scheduleImpactDays
+          ? parseInt(scheduleImpactDays, 10)
+          : undefined,
+        costImpact: costImpact ? parseFloat(costImpact) : undefined,
+        requestedBy: requestedBy.trim() || undefined,
+        requestDate: requestDate || undefined,
         originatingRfiId: originatingRfiId || undefined,
       };
 
@@ -165,7 +168,7 @@ export function ChangeOrderDialog({
           <DialogDescription>
             Create a new change order for a subcontract.
             {originatingRfiId && (
-              <span className="block mt-1 text-amber-600">
+              <span className="mt-1 block text-amber-600">
                 This change order will be linked to the originating RFI.
               </span>
             )}
@@ -173,7 +176,6 @@ export function ChangeOrderDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Subcontract Selection */}
           <div className="space-y-2">
             <Label htmlFor="subcontract">
               Subcontract <span className="text-destructive">*</span>
@@ -182,9 +184,7 @@ export function ChangeOrderDialog({
               <SelectTrigger className="w-full">
                 <SelectValue
                   placeholder={
-                    isLoadingSubcontracts
-                      ? "Loading..."
-                      : "Select a subcontract"
+                    isLoadingSubcontracts ? "Loading..." : "Select a subcontract"
                   }
                 />
               </SelectTrigger>
@@ -198,20 +198,18 @@ export function ChangeOrderDialog({
             </Select>
           </div>
 
-          {/* Change Order Number */}
           <div className="space-y-2">
             <Label htmlFor="coNumber">
               Change Order # <span className="text-destructive">*</span>
             </Label>
             <Input
               id="coNumber"
-              value={changeOrderNumber}
-              onChange={(e) => setChangeOrderNumber(e.target.value)}
+              value={number}
+              onChange={(e) => setNumber(e.target.value)}
               placeholder="CO-001"
             />
           </div>
 
-          {/* Title */}
           <div className="space-y-2">
             <Label htmlFor="title">
               Title <span className="text-destructive">*</span>
@@ -224,7 +222,6 @@ export function ChangeOrderDialog({
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">
               Description <span className="text-destructive">*</span>
@@ -238,19 +235,28 @@ export function ChangeOrderDialog({
             />
           </div>
 
-          {/* Reason */}
-          <div className="space-y-2">
-            <Label htmlFor="reason">Reason</Label>
-            <Input
-              id="reason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="e.g., Field condition, Design change, Owner request"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="requestedBy">Requested By</Label>
+              <Input
+                id="requestedBy"
+                value={requestedBy}
+                onChange={(e) => setRequestedBy(e.target.value)}
+                placeholder="Foreman / PM / Owner"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="requestDate">Request Date</Label>
+              <Input
+                id="requestDate"
+                type="date"
+                value={requestDate}
+                onChange={(e) => setRequestDate(e.target.value)}
+              />
+            </div>
           </div>
 
-          {/* Amount and Days Extension in a row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="amount">
                 Amount ($) <span className="text-destructive">*</span>
@@ -265,13 +271,24 @@ export function ChangeOrderDialog({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="daysExtension">Days Extension</Label>
+              <Label htmlFor="scheduleImpactDays">Schedule Impact</Label>
               <Input
-                id="daysExtension"
+                id="scheduleImpactDays"
                 type="number"
-                value={daysExtension}
-                onChange={(e) => setDaysExtension(e.target.value)}
+                value={scheduleImpactDays}
+                onChange={(e) => setScheduleImpactDays(e.target.value)}
                 placeholder="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="costImpact">Cost Impact ($)</Label>
+              <Input
+                id="costImpact"
+                type="number"
+                step="0.01"
+                value={costImpact}
+                onChange={(e) => setCostImpact(e.target.value)}
+                placeholder="0.00"
               />
             </div>
           </div>
@@ -287,7 +304,7 @@ export function ChangeOrderDialog({
             </Button>
             <Button
               type="submit"
-              className="bg-amber-500 hover:bg-amber-600 text-white"
+              className="bg-amber-500 text-white hover:bg-amber-600"
               disabled={isSubmitting || isLoadingSubcontracts}
             >
               {isSubmitting ? "Creating..." : "Create Change Order"}

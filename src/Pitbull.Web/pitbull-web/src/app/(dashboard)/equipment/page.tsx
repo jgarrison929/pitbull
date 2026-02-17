@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -46,6 +47,10 @@ import {
   Trash2,
   Upload,
   PackagePlus,
+  Calendar,
+  Link2,
+  Clock3,
+  DollarSign,
 } from "lucide-react";
 import api from "@/lib/api";
 import {
@@ -54,7 +59,15 @@ import {
   type ListEquipmentResult,
   type CreateEquipmentCommand,
   type UpdateEquipmentCommand,
+  type PagedResult,
+  type Project,
 } from "@/lib/types";
+import {
+  type EquipmentAssignment,
+  type EquipmentWorkflowData,
+  parseEquipmentDescription,
+  serializeEquipmentDescription,
+} from "@/lib/equipment-workflow";
 import { toast } from "sonner";
 
 const ALL_VALUE = "__all__";
@@ -87,7 +100,33 @@ function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
+    maximumFractionDigits: 0,
   }).format(amount);
+}
+
+function formatDate(date: string): string {
+  return new Date(date).toLocaleDateString();
+}
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(base: Date, days: number): Date {
+  const next = new Date(base);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function dateInRange(dateIso: string, startIso: string, endIso: string): boolean {
+  return dateIso >= startIso && dateIso <= endIso;
+}
+
+function createAssignmentSeed(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 interface EquipmentFormData {
@@ -119,29 +158,49 @@ export default function EquipmentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Filters
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workflows, setWorkflows] = useState<Record<string, EquipmentWorkflowData>>({});
+  const [plainDescriptions, setPlainDescriptions] = useState<Record<string, string>>({});
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>(ALL_VALUE);
   const [activeFilter, setActiveFilter] = useState<string>("true");
 
-  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<Equipment | null>(null);
   const [formData, setFormData] = useState<EquipmentFormData>(emptyFormData);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Delete dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingEquipment, setDeletingEquipment] = useState<Equipment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Refs for keyboard shortcuts
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string>("");
+  const [assignmentProjectId, setAssignmentProjectId] = useState<string>("");
+  const [assignmentStartDate, setAssignmentStartDate] = useState<string>(isoDate(new Date()));
+  const [assignmentEndDate, setAssignmentEndDate] = useState<string>(isoDate(addDays(new Date(), 6)));
+  const [assignmentHoursPerDay, setAssignmentHoursPerDay] = useState<string>("8");
+  const [maintenanceNextServiceDate, setMaintenanceNextServiceDate] = useState<string>("");
+  const [maintenanceServiceIntervalHours, setMaintenanceServiceIntervalHours] = useState<string>("0");
+  const [maintenanceCurrentHours, setMaintenanceCurrentHours] = useState<string>("0");
+  const [dailyRateInput, setDailyRateInput] = useState<string>("0");
+
+  const [isSavingWorkflow, setIsSavingWorkflow] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Keyboard shortcuts: 'n' for new, '/' for search
   useListPageShortcuts({
     searchInputRef,
   });
+
+  const fetchProjects = useCallback(async () => {
+    try {
+      const result = await api<PagedResult<Project>>("/api/projects?pageSize=250");
+      setProjects(result.items);
+    } catch {
+      toast.error("Failed to load projects for assignments");
+    }
+  }, []);
 
   const fetchEquipment = useCallback(async () => {
     setIsLoading(true);
@@ -157,25 +216,101 @@ export default function EquipmentPage() {
       );
       setEquipment(result.items);
       setTotalCount(result.totalCount);
+
+      const nextWorkflows: Record<string, EquipmentWorkflowData> = {};
+      const nextPlain: Record<string, string> = {};
+
+      for (const eq of result.items) {
+        const parsed = parseEquipmentDescription(eq.description);
+        nextWorkflows[eq.id] = parsed.workflow;
+        nextPlain[eq.id] = parsed.plainDescription ?? "";
+      }
+
+      setWorkflows(nextWorkflows);
+      setPlainDescriptions(nextPlain);
+
+      if (!selectedEquipmentId && result.items.length > 0) {
+        setSelectedEquipmentId(result.items[0].id);
+      }
     } catch {
       toast.error("Failed to load equipment");
     } finally {
       setIsLoading(false);
     }
-  }, [search, typeFilter, activeFilter]);
+  }, [search, typeFilter, activeFilter, selectedEquipmentId]);
 
   useEffect(() => {
     fetchEquipment();
   }, [fetchEquipment]);
 
-  // Debounced search
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchEquipment();
     }, 300);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search]);
+  }, [search, fetchEquipment]);
+
+  const selectedEquipment = useMemo(
+    () => equipment.find((eq) => eq.id === selectedEquipmentId) ?? null,
+    [equipment, selectedEquipmentId]
+  );
+
+  const selectedWorkflow = useMemo(
+    () => (selectedEquipment ? workflows[selectedEquipment.id] : undefined),
+    [selectedEquipment, workflows]
+  );
+
+  useEffect(() => {
+    if (!selectedWorkflow) return;
+    setDailyRateInput(String(selectedWorkflow.dailyRate ?? 0));
+    setMaintenanceNextServiceDate(selectedWorkflow.nextServiceDate ?? "");
+    setMaintenanceServiceIntervalHours(String(selectedWorkflow.serviceIntervalHours ?? 0));
+    setMaintenanceCurrentHours(String(selectedWorkflow.currentHours ?? 0));
+  }, [selectedWorkflow]);
+
+  async function updateEquipmentWorkflow(
+    eq: Equipment,
+    updater: (prev: EquipmentWorkflowData) => EquipmentWorkflowData
+  ) {
+    const prev = workflows[eq.id] ?? {
+      dailyRate: 0,
+      nextServiceDate: null,
+      serviceIntervalHours: 0,
+      currentHours: 0,
+      assignments: [],
+    };
+
+    const next = updater(prev);
+    const serializedDescription = serializeEquipmentDescription(next, plainDescriptions[eq.id] ?? "");
+
+    const command: UpdateEquipmentCommand = {
+      code: eq.code,
+      name: eq.name,
+      description: serializedDescription,
+      type: eq.type,
+      hourlyRate: eq.hourlyRate,
+      billingRate: eq.billingRate ?? null,
+      isActive: eq.isActive,
+      serialNumber: eq.serialNumber ?? null,
+      licensePlate: eq.licensePlate ?? null,
+    };
+
+    const updated = await api<Equipment>(`/api/equipment/${eq.id}`, {
+      method: "PUT",
+      body: command,
+    });
+
+    const parsed = parseEquipmentDescription(updated.description);
+    setWorkflows((prevMap) => ({ ...prevMap, [eq.id]: parsed.workflow }));
+    setPlainDescriptions((prevMap) => ({ ...prevMap, [eq.id]: parsed.plainDescription ?? "" }));
+    setEquipment((prevList) => prevList.map((item) => (item.id === eq.id ? updated : item)));
+
+    return parsed.workflow;
+  }
 
   function openAddDialog() {
     setEditingEquipment(null);
@@ -188,7 +323,7 @@ export default function EquipmentPage() {
     setFormData({
       code: eq.code,
       name: eq.name,
-      description: eq.description || "",
+      description: plainDescriptions[eq.id] ?? "",
       type: eq.type,
       hourlyRate: eq.hourlyRate.toString(),
       billingRate: eq.billingRate != null ? eq.billingRate.toString() : "",
@@ -213,11 +348,18 @@ export default function EquipmentPage() {
     setIsSubmitting(true);
     try {
       if (editingEquipment) {
-        // Update
+        const currentWorkflow = workflows[editingEquipment.id] ?? {
+          dailyRate: 0,
+          nextServiceDate: null,
+          serviceIntervalHours: 0,
+          currentHours: 0,
+          assignments: [],
+        };
+
         const command: UpdateEquipmentCommand = {
           code: formData.code,
           name: formData.name,
-          description: formData.description || null,
+          description: serializeEquipmentDescription(currentWorkflow, formData.description),
           type: formData.type,
           hourlyRate: parseFloat(formData.hourlyRate) || 0,
           billingRate: formData.billingRate ? parseFloat(formData.billingRate) : null,
@@ -225,13 +367,17 @@ export default function EquipmentPage() {
           licensePlate: formData.licensePlate || null,
           isActive: formData.isActive,
         };
-        await api<Equipment>(`/api/equipment/${editingEquipment.id}`, {
+        const updated = await api<Equipment>(`/api/equipment/${editingEquipment.id}`, {
           method: "PUT",
           body: command,
         });
+
+        const parsed = parseEquipmentDescription(updated.description);
+        setWorkflows((prevMap) => ({ ...prevMap, [updated.id]: parsed.workflow }));
+        setPlainDescriptions((prevMap) => ({ ...prevMap, [updated.id]: parsed.plainDescription ?? "" }));
+        setEquipment((prevList) => prevList.map((item) => (item.id === updated.id ? updated : item)));
         toast.success("Equipment updated");
       } else {
-        // Create
         const command: CreateEquipmentCommand = {
           code: formData.code,
           name: formData.name,
@@ -247,9 +393,10 @@ export default function EquipmentPage() {
           body: command,
         });
         toast.success("Equipment created");
+        await fetchEquipment();
       }
+
       setDialogOpen(false);
-      fetchEquipment();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to save equipment"
@@ -270,7 +417,7 @@ export default function EquipmentPage() {
       toast.success("Equipment deactivated");
       setDeleteDialogOpen(false);
       setDeletingEquipment(null);
-      fetchEquipment();
+      await fetchEquipment();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Failed to delete equipment"
@@ -280,7 +427,146 @@ export default function EquipmentPage() {
     }
   }
 
-  // Summary stats
+  async function handleAssignEquipment() {
+    if (!selectedEquipment) {
+      toast.error("Select equipment first");
+      return;
+    }
+    const project = projects.find((p) => p.id === assignmentProjectId);
+    if (!project) {
+      toast.error("Select a project");
+      return;
+    }
+    if (!assignmentStartDate || !assignmentEndDate || assignmentStartDate > assignmentEndDate) {
+      toast.error("Provide a valid assignment date range");
+      return;
+    }
+
+    const hoursPerDay = Number(assignmentHoursPerDay);
+    if (!Number.isFinite(hoursPerDay) || hoursPerDay <= 0) {
+      toast.error("Hours per day must be greater than 0");
+      return;
+    }
+
+    setIsSavingWorkflow(true);
+    try {
+      await updateEquipmentWorkflow(selectedEquipment, (prev) => ({
+        ...prev,
+        assignments: [
+          ...prev.assignments,
+          {
+            id: createAssignmentSeed(),
+            projectId: project.id,
+            projectName: `${project.number} - ${project.name}`,
+            startDate: assignmentStartDate,
+            endDate: assignmentEndDate,
+            hoursPerDay,
+          },
+        ],
+      }));
+      toast.success("Equipment assigned to project");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to assign equipment");
+    } finally {
+      setIsSavingWorkflow(false);
+    }
+  }
+
+  async function handleUnassignEquipment(assignment: EquipmentAssignment) {
+    if (!selectedEquipment) return;
+
+    setIsSavingWorkflow(true);
+    try {
+      await updateEquipmentWorkflow(selectedEquipment, (prev) => ({
+        ...prev,
+        assignments: prev.assignments.filter((a) => a.id !== assignment.id),
+      }));
+      toast.success("Equipment unassigned");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to unassign equipment");
+    } finally {
+      setIsSavingWorkflow(false);
+    }
+  }
+
+  async function handleSaveMaintenanceAndRates() {
+    if (!selectedEquipment) return;
+
+    const dailyRate = Number(dailyRateInput);
+    const serviceIntervalHours = Number(maintenanceServiceIntervalHours);
+    const currentHours = Number(maintenanceCurrentHours);
+
+    if (!Number.isFinite(dailyRate) || dailyRate < 0) {
+      toast.error("Daily rate must be 0 or greater");
+      return;
+    }
+    if (!Number.isFinite(serviceIntervalHours) || serviceIntervalHours < 0) {
+      toast.error("Service interval hours must be 0 or greater");
+      return;
+    }
+    if (!Number.isFinite(currentHours) || currentHours < 0) {
+      toast.error("Current hours must be 0 or greater");
+      return;
+    }
+
+    setIsSavingWorkflow(true);
+    try {
+      await updateEquipmentWorkflow(selectedEquipment, (prev) => ({
+        ...prev,
+        dailyRate,
+        nextServiceDate: maintenanceNextServiceDate || null,
+        serviceIntervalHours,
+        currentHours,
+      }));
+      toast.success("Maintenance and cost profile saved");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to save maintenance profile");
+    } finally {
+      setIsSavingWorkflow(false);
+    }
+  }
+
+  const calendarDays = useMemo(() => {
+    const start = new Date();
+    return Array.from({ length: 14 }, (_, index) => {
+      const day = addDays(start, index);
+      return {
+        iso: isoDate(day),
+        label: day.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      };
+    });
+  }, []);
+
+  const assignmentRows = useMemo(() => {
+    if (!selectedWorkflow) return [];
+
+    return selectedWorkflow.assignments.map((assignment) => {
+      const days =
+        Math.floor(
+          (new Date(`${assignment.endDate}T00:00:00Z`).getTime() -
+            new Date(`${assignment.startDate}T00:00:00Z`).getTime()) /
+            86400000
+        ) + 1;
+      const activeDays = Math.max(0, days);
+      const hourlyTotal = selectedEquipment ? selectedEquipment.hourlyRate * assignment.hoursPerDay * activeDays : 0;
+      const dailyRate = selectedWorkflow.dailyRate;
+      const dailyTotal = dailyRate > 0 ? dailyRate * activeDays : hourlyTotal;
+
+      return {
+        assignment,
+        activeDays,
+        hourlyTotal,
+        dailyTotal,
+      };
+    });
+  }, [selectedEquipment, selectedWorkflow]);
+
+  const totalProjectCost = assignmentRows.reduce((sum, row) => sum + row.dailyTotal, 0);
+  const hoursUntilService = Math.max(
+    0,
+    (selectedWorkflow?.serviceIntervalHours ?? 0) - (selectedWorkflow?.currentHours ?? 0)
+  );
+
   const heavyCount = equipment.filter((e) => e.type === EquipmentType.HeavyEquipment).length;
   const lightCount = equipment.filter((e) => e.type === EquipmentType.LightEquipment).length;
   const vehicleCount = equipment.filter((e) => e.type === EquipmentType.Vehicles).length;
@@ -294,12 +580,11 @@ export default function EquipmentPage() {
   return (
     <ErrorBoundary label="equipment management">
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Equipment</h1>
             <p className="text-muted-foreground">
-              Manage equipment for tracking on time entries and job costing
+              Manage equipment assignments, utilization, maintenance, and cost tracking
             </p>
           </div>
           <div className="flex gap-2">
@@ -324,7 +609,6 @@ export default function EquipmentPage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
         <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -369,15 +653,12 @@ export default function EquipmentPage() {
               <Hammer className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold font-mono">
-                {formatCurrency(avgHourlyRate)}
-              </div>
+              <div className="text-2xl font-bold font-mono">{formatCurrency(avgHourlyRate)}</div>
               <p className="text-xs text-muted-foreground">{toolCount} tools</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters */}
         <Card>
           <CardContent className="pt-6">
             <div className="grid gap-4 sm:grid-cols-3">
@@ -424,312 +705,483 @@ export default function EquipmentPage() {
           </CardContent>
         </Card>
 
-        {/* Table (Desktop) */}
-        <div className="hidden md:block">
-          {isLoading ? (
-            <TableSkeleton
-              headers={["Code", "Name", "Type", "Hourly Rate", "Billing Rate", "Serial #", "Status", ""]}
-              rows={8}
-            />
-          ) : equipment.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/20 mb-6">
-                <PackagePlus className="h-10 w-10 text-amber-500" />
-              </div>
-              <h3 className="text-xl font-semibold tracking-tight mb-2">
-                No equipment found
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-md mb-2">
-                Add your first equipment item to start tracking equipment usage
-                on time entries. Equipment costs flow directly to job costing.
-              </p>
-              <p className="text-xs text-muted-foreground mb-6">
-                Press <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">N</kbd> to add new equipment
-              </p>
-              <Button
-                onClick={openAddDialog}
-                className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Equipment
-              </Button>
+        <Tabs defaultValue="register" className="space-y-4">
+          <TabsList className="grid grid-cols-3 w-full max-w-2xl">
+            <TabsTrigger value="register">Equipment Register</TabsTrigger>
+            <TabsTrigger value="assignments">Assignments & Maintenance</TabsTrigger>
+            <TabsTrigger value="calendar">Utilization Calendar</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="register" className="space-y-4">
+            <div className="hidden md:block">
+              {isLoading ? (
+                <TableSkeleton
+                  headers={["Code", "Name", "Type", "Hourly Rate", "Billing Rate", "Serial #", "Status", ""]}
+                  rows={8}
+                />
+              ) : equipment.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/20 mb-6">
+                    <PackagePlus className="h-10 w-10 text-amber-500" />
+                  </div>
+                  <h3 className="text-xl font-semibold tracking-tight mb-2">No equipment found</h3>
+                  <p className="text-sm text-muted-foreground max-w-md mb-6">
+                    Add your first equipment item to start tracking usage and costs.
+                  </p>
+                  <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Equipment
+                  </Button>
+                </div>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead className="text-right">Hourly Rate</TableHead>
+                        <TableHead className="text-right">Billing Rate</TableHead>
+                        <TableHead>Serial #</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {equipment.map((eq) => {
+                        const TypeIcon = equipmentTypeIcons[eq.type] || HelpCircle;
+                        return (
+                          <TableRow key={eq.id}>
+                            <TableCell className="font-mono font-medium">{eq.code}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{eq.name}</div>
+                                {(plainDescriptions[eq.id] || "") && (
+                                  <div className="text-xs text-muted-foreground truncate max-w-[240px]">
+                                    {plainDescriptions[eq.id]}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className={equipmentTypeBadgeClass[eq.type]}>
+                                <TypeIcon className="mr-1 h-3 w-3" />
+                                {equipmentTypeLabels[eq.type]}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(eq.hourlyRate)}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              {eq.billingRate != null ? formatCurrency(eq.billingRate) : "—"}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{eq.serialNumber || "—"}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={eq.isActive ? "default" : "secondary"}
+                                className={eq.isActive
+                                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
+                                  : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"}
+                              >
+                                {eq.isActive ? "Active" : "Inactive"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditDialog(eq)}
+                                  className="min-h-[44px] min-w-[44px]"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteDialog(eq)}
+                                  className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Hourly Rate</TableHead>
-                    <TableHead className="text-right">Billing Rate</TableHead>
-                    <TableHead>Serial #</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+
+            <div className="md:hidden">
+              {isLoading ? (
+                <CardListSkeleton rows={5} />
+              ) : equipment.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/20 mb-4">
+                    <PackagePlus className="h-8 w-8 text-amber-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold tracking-tight mb-1">No equipment yet</h3>
+                  <p className="text-sm text-muted-foreground max-w-sm mb-6">
+                    Add equipment to track usage and costs on projects.
+                  </p>
+                  <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Equipment
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
                   {equipment.map((eq) => {
                     const TypeIcon = equipmentTypeIcons[eq.type] || HelpCircle;
                     return (
-                      <TableRow key={eq.id}>
-                        <TableCell className="font-mono font-medium">
-                          {eq.code}
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{eq.name}</div>
-                            {eq.description && (
-                              <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                {eq.description}
+                      <Card key={eq.id}>
+                        <CardContent className="pt-4">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1 flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-mono font-semibold">{eq.code}</p>
+                                <Badge variant={eq.isActive ? "default" : "secondary"}>
+                                  {eq.isActive ? "Active" : "Inactive"}
+                                </Badge>
                               </div>
-                            )}
+                              <p className="text-sm font-medium">{eq.name}</p>
+                              {(plainDescriptions[eq.id] || "") && (
+                                <p className="text-xs text-muted-foreground">{plainDescriptions[eq.id]}</p>
+                              )}
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                <Badge variant="secondary" className={equipmentTypeBadgeClass[eq.type]}>
+                                  <TypeIcon className="mr-1 h-3 w-3" />
+                                  {equipmentTypeLabels[eq.type]}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {formatCurrency(eq.hourlyRate)}/hr
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(eq)} className="min-h-[44px] min-w-[44px]">
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(eq)} className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={equipmentTypeBadgeClass[eq.type]}
-                          >
-                            <TypeIcon className="mr-1 h-3 w-3" />
-                            {equipmentTypeLabels[eq.type]}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatCurrency(eq.hourlyRate)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono">
-                          {eq.billingRate != null
-                            ? formatCurrency(eq.billingRate)
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {eq.serialNumber || "—"}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={eq.isActive ? "default" : "secondary"}
-                            className={
-                              eq.isActive
-                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                            }
-                          >
-                            {eq.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEditDialog(eq)}
-                              title="Edit equipment" aria-label="Edit equipment"
-                              className="min-h-[44px] min-w-[44px]"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openDeleteDialog(eq)}
-                              title="Delete equipment" aria-label="Delete equipment"
-                              className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                        </CardContent>
+                      </Card>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </TabsContent>
 
-        {/* Card List (Mobile) */}
-        <div className="md:hidden">
-          {isLoading ? (
-            <CardListSkeleton rows={5} />
-          ) : equipment.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/20 mb-4">
-                <PackagePlus className="h-8 w-8 text-amber-500" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight mb-1">
-                No equipment yet
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                Add equipment to track usage and costs on time entries.
-              </p>
-              <Button
-                onClick={openAddDialog}
-                className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Equipment
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {equipment.map((eq) => {
-                const TypeIcon = equipmentTypeIcons[eq.type] || HelpCircle;
-                return (
-                  <Card key={eq.id}>
-                    <CardContent className="pt-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1 flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="font-mono font-semibold">{eq.code}</p>
-                            <Badge
-                              variant={eq.isActive ? "default" : "secondary"}
-                              className={
-                                eq.isActive
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                              }
-                            >
-                              {eq.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </div>
-                          <p className="text-sm font-medium">{eq.name}</p>
-                          {eq.description && (
-                            <p className="text-xs text-muted-foreground">
-                              {eq.description}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <Badge
-                              variant="secondary"
-                              className={equipmentTypeBadgeClass[eq.type]}
-                            >
-                              <TypeIcon className="mr-1 h-3 w-3" />
-                              {equipmentTypeLabels[eq.type]}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              Rate: {formatCurrency(eq.hourlyRate)}/hr
-                            </span>
-                            {eq.serialNumber && (
-                              <span className="text-xs text-muted-foreground">
-                                S/N: {eq.serialNumber}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex gap-1 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openEditDialog(eq)}
-                            title="Edit" aria-label="Edit"
-                            className="min-h-[44px] min-w-[44px]"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => openDeleteDialog(eq)}
-                            title="Delete" aria-label="Delete"
-                            className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </div>
+          <TabsContent value="assignments" className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Assign / Unassign
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Equipment</Label>
+                    <Select value={selectedEquipmentId} onValueChange={setSelectedEquipmentId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select equipment" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {equipment.map((eq) => (
+                          <SelectItem key={eq.id} value={eq.id}>
+                            {eq.code} - {eq.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Project</Label>
+                    <Select value={assignmentProjectId} onValueChange={setAssignmentProjectId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select project" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {projects.map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.number} - {project.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>Start</Label>
+                      <Input type="date" value={assignmentStartDate} onChange={(e) => setAssignmentStartDate(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>End</Label>
+                      <Input type="date" value={assignmentEndDate} onChange={(e) => setAssignmentEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Hours / Day</Label>
+                    <Input type="number" min="1" step="0.5" value={assignmentHoursPerDay} onChange={(e) => setAssignmentHoursPerDay(e.target.value)} />
+                  </div>
+                  <LoadingButton
+                    onClick={handleAssignEquipment}
+                    loading={isSavingWorkflow}
+                    loadingText="Saving..."
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    Assign Equipment
+                  </LoadingButton>
+                </CardContent>
+              </Card>
 
-        {/* Pagination info */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-base">Current Assignments</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {!selectedEquipment ? (
+                    <p className="text-sm text-muted-foreground">Select equipment to view assignments.</p>
+                  ) : assignmentRows.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No assignments yet for this equipment.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Project</TableHead>
+                          <TableHead>Dates</TableHead>
+                          <TableHead className="text-right">Days</TableHead>
+                          <TableHead className="text-right">Hourly Rate</TableHead>
+                          <TableHead className="text-right">Daily Rate</TableHead>
+                          <TableHead className="text-right">Total Cost</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {assignmentRows.map(({ assignment, activeDays, hourlyTotal, dailyTotal }) => (
+                          <TableRow key={assignment.id}>
+                            <TableCell>{assignment.projectName}</TableCell>
+                            <TableCell>{formatDate(assignment.startDate)} - {formatDate(assignment.endDate)}</TableCell>
+                            <TableCell className="text-right">{activeDays}</TableCell>
+                            <TableCell className="text-right font-mono">{formatCurrency(hourlyTotal)}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              {selectedWorkflow && selectedWorkflow.dailyRate > 0
+                                ? formatCurrency(selectedWorkflow.dailyRate * activeDays)
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right font-mono font-semibold">{formatCurrency(dailyTotal)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUnassignEquipment(assignment)}
+                                disabled={isSavingWorkflow}
+                              >
+                                Unassign
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-muted/40">
+                          <TableCell colSpan={5} className="font-medium">Total Cost Across Assigned Projects</TableCell>
+                          <TableCell className="text-right font-mono font-bold">{formatCurrency(totalProjectCost)}</TableCell>
+                          <TableCell />
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Clock3 className="h-4 w-4" />
+                  Maintenance Schedule Tracking
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 md:grid-cols-5">
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Next Service Date</Label>
+                  <Input type="date" value={maintenanceNextServiceDate} onChange={(e) => setMaintenanceNextServiceDate(e.target.value)} disabled={!selectedEquipment} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Service Interval Hours</Label>
+                  <Input type="number" min="0" step="1" value={maintenanceServiceIntervalHours} onChange={(e) => setMaintenanceServiceIntervalHours(e.target.value)} disabled={!selectedEquipment} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Current Hours</Label>
+                  <Input type="number" min="0" step="1" value={maintenanceCurrentHours} onChange={(e) => setMaintenanceCurrentHours(e.target.value)} disabled={!selectedEquipment} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Hours Until Service</Label>
+                  <Input value={selectedEquipment ? String(hoursUntilService) : ""} readOnly disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label>Daily Rate ($)</Label>
+                  <Input type="number" min="0" step="0.01" value={dailyRateInput} onChange={(e) => setDailyRateInput(e.target.value)} disabled={!selectedEquipment} />
+                </div>
+                <div className="md:col-span-4 flex items-end">
+                  <p className="text-xs text-muted-foreground">
+                    Hourly rate comes from Equipment settings; daily rate is used for project cost rollups when set.
+                  </p>
+                </div>
+                <div className="flex items-end justify-end">
+                  <LoadingButton
+                    onClick={handleSaveMaintenanceAndRates}
+                    loading={isSavingWorkflow}
+                    loadingText="Saving..."
+                    disabled={!selectedEquipment}
+                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    Save Tracking
+                  </LoadingButton>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Utilization Calendar (Next 14 Days)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {equipment.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No equipment available.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[220px]">Equipment</TableHead>
+                          {calendarDays.map((day) => (
+                            <TableHead key={day.iso} className="text-center min-w-[110px]">
+                              {day.label}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {equipment.map((eq) => {
+                          const workflow = workflows[eq.id];
+                          return (
+                            <TableRow key={eq.id}>
+                              <TableCell>
+                                <div className="font-medium">{eq.code} - {eq.name}</div>
+                                <div className="text-xs text-muted-foreground">{formatCurrency(eq.hourlyRate)}/hr</div>
+                              </TableCell>
+                              {calendarDays.map((day) => {
+                                const assigned = workflow?.assignments.find((assignment) =>
+                                  dateInRange(day.iso, assignment.startDate, assignment.endDate)
+                                );
+
+                                return (
+                                  <TableCell key={`${eq.id}-${day.iso}`} className="text-center">
+                                    {assigned ? (
+                                      <Badge variant="secondary" className="bg-amber-100 text-amber-800 whitespace-normal">
+                                        {assigned.projectName}
+                                      </Badge>
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">—</span>
+                                    )}
+                                  </TableCell>
+                                );
+                              })}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Equipment Cost Tracking by Project
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {selectedEquipment ? (
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Selected equipment:</span>{" "}
+                      <span className="font-medium">{selectedEquipment.code} - {selectedEquipment.name}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Hourly rate:</span>{" "}
+                      <span className="font-mono">{formatCurrency(selectedEquipment.hourlyRate)}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Daily rate:</span>{" "}
+                      <span className="font-mono">{formatCurrency(selectedWorkflow?.dailyRate ?? 0)}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Total assigned project cost:</span>{" "}
+                      <span className="font-mono font-semibold">{formatCurrency(totalProjectCost)}</span>
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Select equipment in the Assignments tab to view detailed costs.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
         {!isLoading && equipment.length > 0 && (
           <div className="text-sm text-muted-foreground text-center">
             Showing {equipment.length} of {totalCount} equipment items
           </div>
         )}
 
-        {/* Add/Edit Equipment Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
-                {editingEquipment ? "Edit Equipment" : "Add Equipment"}
-              </DialogTitle>
+              <DialogTitle>{editingEquipment ? "Edit Equipment" : "Add Equipment"}</DialogTitle>
               <DialogDescription>
-                {editingEquipment
-                  ? "Update equipment details"
-                  : "Add a new equipment item for tracking on time entries"}
+                {editingEquipment ? "Update equipment details" : "Add a new equipment item for tracking on projects"}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="eq-code">
-                    Code <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="eq-code"
-                    value={formData.code}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, code: e.target.value }))
-                    }
-                    placeholder="EX-001"
-                  />
+                  <Label htmlFor="eq-code">Code <span className="text-destructive">*</span></Label>
+                  <Input id="eq-code" value={formData.code} onChange={(e) => setFormData((prev) => ({ ...prev, code: e.target.value }))} placeholder="EX-001" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="eq-name">
-                    Name <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="eq-name"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                    placeholder="CAT 320 Excavator"
-                  />
+                  <Label htmlFor="eq-name">Name <span className="text-destructive">*</span></Label>
+                  <Input id="eq-name" value={formData.name} onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))} placeholder="CAT 320 Excavator" />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="eq-description">Description</Label>
-                <Textarea
-                  id="eq-description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      description: e.target.value,
-                    }))
-                  }
-                  placeholder="Optional description..."
-                  rows={2}
-                />
+                <Textarea id="eq-description" value={formData.description} onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))} rows={2} placeholder="Optional description..." />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="eq-type">Type</Label>
-                  <Select
-                    value={formData.type.toString()}
-                    onValueChange={(v) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        type: parseInt(v) as EquipmentType,
-                      }))
-                    }
-                  >
-                    <SelectTrigger id="eq-type">
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Select value={formData.type.toString()} onValueChange={(v) => setFormData((prev) => ({ ...prev, type: parseInt(v) as EquipmentType }))}>
+                    <SelectTrigger id="eq-type"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="0">Heavy Equipment</SelectItem>
                       <SelectItem value="1">Light Equipment</SelectItem>
@@ -742,18 +1194,8 @@ export default function EquipmentPage() {
                 {editingEquipment && (
                   <div className="space-y-2">
                     <Label htmlFor="eq-active">Status</Label>
-                    <Select
-                      value={formData.isActive ? "true" : "false"}
-                      onValueChange={(v) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          isActive: v === "true",
-                        }))
-                      }
-                    >
-                      <SelectTrigger id="eq-active">
-                        <SelectValue />
-                      </SelectTrigger>
+                    <Select value={formData.isActive ? "true" : "false"} onValueChange={(v) => setFormData((prev) => ({ ...prev, isActive: v === "true" }))}>
+                      <SelectTrigger id="eq-active"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="true">Active</SelectItem>
                         <SelectItem value="false">Inactive</SelectItem>
@@ -766,122 +1208,46 @@ export default function EquipmentPage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="eq-hourlyRate">Hourly Rate ($)</Label>
-                  <Input
-                    id="eq-hourlyRate"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.hourlyRate}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        hourlyRate: e.target.value,
-                      }))
-                    }
-                    placeholder="0.00"
-                  />
+                  <Input id="eq-hourlyRate" type="number" min="0" step="0.01" value={formData.hourlyRate} onChange={(e) => setFormData((prev) => ({ ...prev, hourlyRate: e.target.value }))} placeholder="0.00" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="eq-billingRate">Billing Rate ($)</Label>
-                  <Input
-                    id="eq-billingRate"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.billingRate}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        billingRate: e.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
+                  <Input id="eq-billingRate" type="number" min="0" step="0.01" value={formData.billingRate} onChange={(e) => setFormData((prev) => ({ ...prev, billingRate: e.target.value }))} placeholder="Optional" />
                 </div>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="eq-serial">Serial Number</Label>
-                  <Input
-                    id="eq-serial"
-                    value={formData.serialNumber}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        serialNumber: e.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
+                  <Input id="eq-serial" value={formData.serialNumber} onChange={(e) => setFormData((prev) => ({ ...prev, serialNumber: e.target.value }))} placeholder="Optional" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="eq-plate">License Plate</Label>
-                  <Input
-                    id="eq-plate"
-                    value={formData.licensePlate}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        licensePlate: e.target.value,
-                      }))
-                    }
-                    placeholder="Optional"
-                  />
+                  <Input id="eq-plate" value={formData.licensePlate} onChange={(e) => setFormData((prev) => ({ ...prev, licensePlate: e.target.value }))} placeholder="Optional" />
                 </div>
               </div>
             </div>
 
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <LoadingButton
-                onClick={handleSubmit}
-                loading={isSubmitting}
-                loadingText="Saving..."
-                className="bg-amber-500 hover:bg-amber-600 text-white"
-              >
+              <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSubmitting}>Cancel</Button>
+              <LoadingButton onClick={handleSubmit} loading={isSubmitting} loadingText="Saving..." className="bg-amber-500 hover:bg-amber-600 text-white">
                 {editingEquipment ? "Update" : "Create"}
               </LoadingButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Delete Equipment</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete{" "}
-                <strong>
-                  {deletingEquipment?.code} - {deletingEquipment?.name}
-                </strong>
-                ? This will deactivate the equipment. Existing time entries
-                referencing it will be preserved.
+                Are you sure you want to delete <strong>{deletingEquipment?.code} - {deletingEquipment?.name}</strong>? This deactivates the equipment.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteDialogOpen(false)}
-                disabled={isDeleting}
-              >
-                Cancel
-              </Button>
-              <LoadingButton
-                variant="destructive"
-                onClick={handleDelete}
-                loading={isDeleting}
-                loadingText="Deleting..."
-              >
-                Delete
-              </LoadingButton>
+              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>Cancel</Button>
+              <LoadingButton variant="destructive" onClick={handleDelete} loading={isDeleting} loadingText="Deleting...">Delete</LoadingButton>
             </DialogFooter>
           </DialogContent>
         </Dialog>

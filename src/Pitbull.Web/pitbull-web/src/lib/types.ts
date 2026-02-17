@@ -523,10 +523,14 @@ export interface AuditLog {
   resourceType: string;
   resourceId: string | null;
   description: string;
+  details: string | null;
+  changes: string | null;
+  metadata: string | null;
   ipAddress: string | null;
   userAgent: string | null;
-  metadata: Record<string, unknown> | null;
   timestamp: string;
+  success: boolean;
+  errorMessage: string | null;
 }
 
 export interface AuditLogListResult {
@@ -534,6 +538,7 @@ export interface AuditLogListResult {
   totalCount: number;
   page: number;
   pageSize: number;
+  totalPages: number;
 }
 
 export interface AuditLogFilters {
@@ -542,8 +547,34 @@ export interface AuditLogFilters {
   resourceType?: string;
   startDate?: string;
   endDate?: string;
+  search?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
+  sortDir?: string;
+}
+
+export interface AuditLogSummary {
+  totalEventsToday: number;
+  actionCounts: { action: string; count: number }[];
+  topUser: { userId: string | null; userName: string | null; userEmail: string | null; eventCount: number } | null;
+  topEntityType: string | null;
+  topEntityTypeCount: number;
+  loginCountToday: number;
+  recentActivity: {
+    id: string;
+    action: string;
+    resourceType: string;
+    resourceId: string | null;
+    description: string;
+    userName: string | null;
+    timestamp: string;
+  }[];
+}
+
+export interface PropertyChange {
+  oldValue: string | null;
+  newValue: string | null;
 }
 
 // Company Settings
@@ -786,20 +817,20 @@ export interface ChangeOrder {
   subcontractId: string;
   subcontractNumber?: string | null;
   subcontractorName?: string | null;
+  number: string;
   changeOrderNumber: string;
   title: string;
   description: string;
+  requestedBy?: string | null;
+  requestDate?: string | null;
+  scheduleImpactDays?: number | null;
+  costImpact?: number | null;
   reason?: string | null;
   amount: number;
   daysExtension?: number | null;
   status: ChangeOrderStatus;
   submittedDate?: string | null;
   approvedDate?: string | null;
-  rejectedDate?: string | null;
-  approvedBy?: string | null;
-  rejectedBy?: string | null;
-  rejectionReason?: string | null;
-  referenceNumber?: string | null;
   originatingRfiId?: string | null;
   createdAt: string;
   updatedAt?: string | null;
@@ -838,6 +869,80 @@ export interface PaymentApplication {
   notes?: string | null;
   createdAt: string;
   updatedAt?: string | null;
+}
+
+// ============================================
+// Schedule of Values Types
+// ============================================
+
+export enum SOVStatus {
+  Draft = 0,
+  Active = 1,
+  Closed = 2,
+}
+
+export interface SOVLineItem {
+  id: string;
+  scheduleOfValuesId: string;
+  itemNumber: string;
+  description: string;
+  scheduledValue: number;
+  previouslyBilled: number;
+  currentBilled: number;
+  storedMaterials: number;
+  totalCompletedToDate: number;
+  percentComplete: number;
+  balanceToFinish: number;
+  retainage: number;
+  sortOrder: number;
+}
+
+export interface ScheduleOfValues {
+  id: string;
+  subcontractId: string;
+  name: string;
+  totalScheduledValue: number;
+  status: SOVStatus;
+  retainagePercent: number;
+  createdAt: string;
+  updatedAt?: string | null;
+  lineItems: SOVLineItem[];
+}
+
+export interface SOVSummary {
+  id: string;
+  name: string;
+  totalScheduledValue: number;
+  totalPreviouslyBilled: number;
+  totalCurrentBilled: number;
+  totalStoredMaterials: number;
+  totalCompletedToDate: number;
+  overallPercentComplete: number;
+  totalBalanceToFinish: number;
+  totalRetainage: number;
+  lineItemCount: number;
+}
+
+export interface CreateSOVLineItemCommand {
+  itemNumber: string;
+  description: string;
+  scheduledValue: number;
+  previouslyBilled?: number;
+  currentBilled?: number;
+  storedMaterials?: number;
+  retainage?: number;
+  sortOrder?: number;
+}
+
+export interface UpdateSOVLineItemCommand {
+  itemNumber?: string;
+  description?: string;
+  scheduledValue?: number;
+  previouslyBilled?: number;
+  currentBilled?: number;
+  storedMaterials?: number;
+  retainage?: number;
+  sortOrder?: number;
 }
 
 // RFI (Request for Information) Types

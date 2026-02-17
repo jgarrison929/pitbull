@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportError } from "@/lib/error-reporter";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -42,6 +43,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       error,
       errorInfo
     );
+
+    // Report to diagnostic error tracking
+    reportError({
+      source: "frontend",
+      level: "error",
+      message: error.message,
+      stackTrace: error.stack,
+      componentStack: errorInfo.componentStack ?? undefined,
+      metadata: JSON.stringify({
+        section,
+        timestamp: new Date().toISOString(),
+        viewport: typeof window !== "undefined"
+          ? `${window.innerWidth}x${window.innerHeight}`
+          : undefined,
+      }),
+    });
 
     if (onError) {
       onError(error, errorInfo);

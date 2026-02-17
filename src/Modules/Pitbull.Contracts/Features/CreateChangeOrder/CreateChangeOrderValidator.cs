@@ -32,8 +32,20 @@ public class CreateChangeOrderValidator : AbstractValidator<CreateChangeOrderCom
             .GreaterThanOrEqualTo(0).WithMessage("Days extension cannot be negative")
             .When(x => x.DaysExtension.HasValue);
 
+        RuleFor(x => x.ScheduleImpactDays)
+            .GreaterThanOrEqualTo(0).WithMessage("Days extension cannot be negative")
+            .When(x => x.ScheduleImpactDays.HasValue);
+
         RuleFor(x => x.ReferenceNumber)
             .MaximumLength(100).WithMessage("Reference number cannot exceed 100 characters")
             .When(x => !string.IsNullOrEmpty(x.ReferenceNumber));
+
+        RuleFor(x => x.RequestedBy)
+            .MaximumLength(200).WithMessage("Requested by cannot exceed 200 characters")
+            .When(x => !string.IsNullOrEmpty(x.RequestedBy));
+
+        RuleFor(x => x.CostImpact)
+            .GreaterThanOrEqualTo(0).WithMessage("Cost impact cannot be negative")
+            .When(x => x.CostImpact.HasValue);
     }
 }
