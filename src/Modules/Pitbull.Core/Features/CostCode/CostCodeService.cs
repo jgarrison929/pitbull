@@ -47,8 +47,12 @@ public class CostCodeService : ICostCodeService
             .AsNoTracking()
             .AsQueryable();
 
+        // Default to active-only when not specified. Pass isActive=false to see inactive,
+        // or explicitly query all via the API by not including the parameter (frontend should handle this).
         if (query.IsActive.HasValue)
             dbQuery = dbQuery.Where(c => c.IsActive == query.IsActive.Value);
+        else
+            dbQuery = dbQuery.Where(c => c.IsActive);
 
         if (query.CostType.HasValue)
             dbQuery = dbQuery.Where(c => c.CostType == query.CostType.Value);
