@@ -165,12 +165,12 @@ public class AuthController(
                 // Ensure roles exist for this tenant
                 await roleSeeder.EnsureRolesForTenantAsync(tenantId);
 
-                // Auto-assign role: first user in tenant gets Admin, others get User
+                // Auto-assign role: first user in tenant gets Admin, others get Viewer
                 var tenantUserCount = await db.Users.CountAsync(u => u.TenantId == tenantId);
                 if (tenantUserCount <= 1)
                     await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin);
                 else
-                    await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.User);
+                    await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Viewer);
 
                 // Ensure a default company exists for this tenant
                 var defaultCompany = await db.Set<Pitbull.Core.Domain.Company>()
@@ -281,12 +281,12 @@ public class AuthController(
         {
             await roleSeeder.EnsureRolesForTenantAsync(user.TenantId);
 
-            // First/only user in tenant gets Admin, others get User
+            // First/only user in tenant gets Admin, others get Viewer
             var userCount = await db.Users.CountAsync(u => u.TenantId == user.TenantId);
             if (userCount <= 1)
                 await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin);
             else
-                await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.User);
+                await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Viewer);
 
             // Re-fetch roles for JWT
             roles = await roleSeeder.GetUserRolesAsync(user);

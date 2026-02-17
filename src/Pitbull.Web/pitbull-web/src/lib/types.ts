@@ -1282,3 +1282,50 @@ export interface RfiAttentionItem {
   isBallInCourt: boolean;
   ballInCourtName: string | null;
 }
+
+// ============================================
+// Module Settings Types
+// ============================================
+
+export interface ProjectSettingsData {
+  defaultNumberingFormat: string;
+  requireBudgetBeforeActivation: boolean;
+  autoCreatePhases: boolean;
+  defaultRetentionPercent: number;
+}
+
+export interface ContractSettingsData {
+  defaultRetainagePercent: number;
+  requireSignedSubcontractBeforePayApp: boolean;
+  approvalWorkflowType: string;
+  aiaArchitectName: string;
+  aiaOwnerName: string;
+}
+
+export interface BidSettingsData {
+  defaultValidityPeriodDays: number;
+  requireEstimatorSignOff: boolean;
+  defaultOverheadPercent: number;
+  defaultProfitPercent: number;
+}
+
+export interface RfiSettingsData {
+  defaultResponseDeadlineDays: number;
+  autoAssignToPm: boolean;
+  requireCostImpact: boolean;
+}
+
+export interface ReportSettingsData {
+  overtimeRules: string;
+  reportBrandingName: string;
+  reportLogoUrl: string;
+  fiscalYearStartMonth: number;
+}
+
+export interface AllModuleSettings {
+  projects: ProjectSettingsData;
+  contracts: ContractSettingsData;
+  bids: BidSettingsData;
+  rfis: RfiSettingsData;
+  reports: ReportSettingsData;
+}

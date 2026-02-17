@@ -112,7 +112,11 @@ public class AdminUsersController(
         if (!string.IsNullOrWhiteSpace(request.LastName))
             user.LastName = request.LastName;
         if (request.Status != null)
-            user.Status = Enum.Parse<UserStatus>(request.Status);
+        {
+            if (!Enum.TryParse<UserStatus>(request.Status, out var status))
+                return BadRequest(new { error = "Invalid user status value" });
+            user.Status = status;
+        }
 
         // Update roles if provided (frontend sends short names like "Admin", DB stores "{tenantId}:Admin")
         if (request.Roles != null)
@@ -143,7 +147,12 @@ public class AdminUsersController(
     [ProducesResponseType(typeof(List<RoleDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRoles()
     {
-        var roles = await roleManager.Roles.ToListAsync();
+        var tenantClaim = User.FindFirst("tenant_id")?.Value;
+        var tenantId = Guid.TryParse(tenantClaim, out var tid) ? tid : Guid.Empty;
+        var tenantPrefix = $"{tenantId}:";
+        var roles = await roleManager.Roles
+            .Where(r => r.Name != null && r.Name.StartsWith(tenantPrefix))
+            .ToListAsync();
         return Ok(roles.Select(r =>
         {
             // Strip tenant prefix (e.g., "{guid}:Admin" → "Admin")

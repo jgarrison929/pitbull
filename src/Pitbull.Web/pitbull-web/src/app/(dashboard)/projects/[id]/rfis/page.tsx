@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import api, { ApiError } from "@/lib/api";
+import { isValidGuid } from "@/lib/utils";
 import type {
   CreateRfiCommand,
   Rfi,
@@ -97,6 +98,7 @@ function formatDate(value?: string | null): string {
 
 export default function ProjectRfisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const isProjectIdValid = isValidGuid(projectId);
 
   const [rfis, setRfis] = useState<Rfi[]>([]);
   const [loading, setLoading] = useState(true);
@@ -139,8 +141,12 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
   }, [projectId]);
 
   useEffect(() => {
+    if (!isProjectIdValid) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [isProjectIdValid, load]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -283,6 +289,10 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
       setDeleteOpen(false);
       setPendingDelete(null);
     }
+  }
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
   return (

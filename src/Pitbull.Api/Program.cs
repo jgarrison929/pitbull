@@ -380,11 +380,15 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
+    var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeeder>();
     await db.Database.MigrateAsync();
 
     // Optional: bootstrap the public demo tenant + seed data
     var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
     await demoBootstrapper.EnsureSeededIfEnabledAsync();
+
+    // Ensure Josh has Admin role on his existing tenant (idempotent startup seed)
+    await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");
 }
 
 // Global exception handling (must be first in pipeline)

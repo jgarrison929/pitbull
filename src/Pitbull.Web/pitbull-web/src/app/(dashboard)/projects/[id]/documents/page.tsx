@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
+import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -136,6 +137,7 @@ function formatDate(value: string | null): string {
 
 export default function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const isProjectIdValid = isValidGuid(projectId);
 
   const [templates, setTemplates] = useState<PmEntityDto[]>([]);
   const [generatedDocs, setGeneratedDocs] = useState<PmEntityDto[]>([]);
@@ -252,9 +254,13 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
   }, [projectId]);
 
   useEffect(() => {
+    if (!isProjectIdValid) {
+      setLoading(false);
+      return;
+    }
     void load();
     void loadFiles();
-  }, [load, loadFiles]);
+  }, [isProjectIdValid, load, loadFiles]);
 
   const templateRows = useMemo(() => {
     const mapped = templates.map<TemplateRow>((t) => {
@@ -402,6 +408,10 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
     } finally {
       setSaving(false);
     }
+  }
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError } from "@/lib/api";
+import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -117,6 +118,7 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
 
 export default function DailyReportsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const isProjectIdValid = isValidGuid(projectId);
 
   const [reports, setReports] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,8 +173,12 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
   }, [projectId]);
 
   useEffect(() => {
+    if (!isProjectIdValid) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [isProjectIdValid, load]);
 
   const rows = useMemo(() => {
     const mapped = reports.map<ReportRow>((report) => {
@@ -383,6 +389,10 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
     } finally {
       setAiLoading(false);
     }
+  }
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
   return (
