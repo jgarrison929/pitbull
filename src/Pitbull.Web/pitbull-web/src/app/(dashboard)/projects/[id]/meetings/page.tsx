@@ -327,7 +327,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading meetings...</p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto"><Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
@@ -342,8 +342,13 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground">
-                      No meetings found.
+                    <TableCell colSpan={7}>
+                      <div className="flex flex-col items-center gap-3 py-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No meetings yet. Create your first meeting record.
+                        </p>
+                        <Button size="sm" onClick={openCreate}>Create Meeting</Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -378,7 +383,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                   ))
                 )}
               </TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent>
       </Card>

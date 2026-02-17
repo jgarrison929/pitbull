@@ -330,7 +330,12 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
               {/* Mobile card layout */}
               <div className="space-y-3 sm:hidden">
                 {rows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No narratives found.</p>
+                  <div className="rounded-lg border border-dashed p-4 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      No narratives yet. Create your first narrative for this project.
+                    </p>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Narrative</Button>
+                  </div>
                 ) : (
                   rows.map((row) => (
                     <div key={row.id} className="rounded-lg border p-4 space-y-2">
@@ -385,7 +390,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
 
               {/* Desktop table layout */}
               <div className="hidden sm:block">
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Title</TableHead>
@@ -399,8 +404,13 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                   <TableBody>
                     {rows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-muted-foreground">
-                          No narratives found.
+                        <TableCell colSpan={6}>
+                          <div className="flex flex-col items-center gap-3 py-6 text-center">
+                            <p className="text-sm text-muted-foreground">
+                              No narratives yet. Create your first narrative for this project.
+                            </p>
+                            <Button size="sm" onClick={openCreate}>Create Narrative</Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -458,7 +468,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                       ))
                     )}
                   </TableBody>
-                </Table>
+                </Table></div>
               </div>
             </>
           )}

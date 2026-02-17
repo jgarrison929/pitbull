@@ -402,7 +402,12 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                   {/* Mobile */}
                   <div className="space-y-3 sm:hidden">
                     {planRows.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No plan sets found.</p>
+                      <div className="rounded-lg border border-dashed p-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No plan sets yet. Create your first plan set for this project.
+                        </p>
+                        <Button className="mt-3" size="sm" onClick={openCreatePlan}>Create Plan Set</Button>
+                      </div>
                     ) : (
                       planRows.map((row) => (
                         <div key={row.id} className="rounded-lg border p-4 space-y-2">
@@ -428,7 +433,7 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                   </div>
                   {/* Desktop */}
                   <div className="hidden sm:block">
-                    <Table>
+                    <div className="overflow-x-auto"><Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Title</TableHead>
@@ -442,8 +447,13 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                       <TableBody>
                         {planRows.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={6} className="text-muted-foreground">
-                              No plan sets found.
+                            <TableCell colSpan={6}>
+                              <div className="flex flex-col items-center gap-3 py-6 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                  No plan sets yet. Create your first plan set for this project.
+                                </p>
+                                <Button size="sm" onClick={openCreatePlan}>Create Plan Set</Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -473,7 +483,7 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                           ))
                         )}
                       </TableBody>
-                    </Table>
+                    </Table></div>
                   </div>
                 </>
               )}
@@ -503,7 +513,12 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                   {/* Mobile */}
                   <div className="space-y-3 sm:hidden">
                     {specRows.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No spec sections found.</p>
+                      <div className="rounded-lg border border-dashed p-4 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No spec sections yet. Create your first spec section for this project.
+                        </p>
+                        <Button className="mt-3" size="sm" onClick={openCreateSpec}>Create Spec Section</Button>
+                      </div>
                     ) : (
                       specRows.map((row) => (
                         <div key={row.id} className="rounded-lg border p-4 space-y-2">
@@ -528,7 +543,7 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                   </div>
                   {/* Desktop */}
                   <div className="hidden sm:block">
-                    <Table>
+                    <div className="overflow-x-auto"><Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Section No.</TableHead>
@@ -541,8 +556,13 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                       <TableBody>
                         {specRows.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={5} className="text-muted-foreground">
-                              No spec sections found.
+                            <TableCell colSpan={5}>
+                              <div className="flex flex-col items-center gap-3 py-6 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                  No spec sections yet. Create your first spec section for this project.
+                                </p>
+                                <Button size="sm" onClick={openCreateSpec}>Create Spec Section</Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -569,7 +589,7 @@ export default function PlansSpecsPage({ params }: { params: Promise<{ id: strin
                           ))
                         )}
                       </TableBody>
-                    </Table>
+                    </Table></div>
                   </div>
                 </>
               )}

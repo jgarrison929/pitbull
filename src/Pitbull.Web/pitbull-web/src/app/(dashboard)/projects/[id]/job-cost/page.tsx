@@ -336,7 +336,7 @@ export default function JobCostPage({ params }: { params: Promise<{ id: string }
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading job cost data...</p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto"><Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cost Code</TableHead>
@@ -351,8 +351,13 @@ export default function JobCostPage({ params }: { params: Promise<{ id: string }
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground">
-                      No job cost rows found.
+                    <TableCell colSpan={7}>
+                      <div className="flex flex-col items-center gap-3 py-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No job cost rows yet. Add your first budget line.
+                        </p>
+                        <Button size="sm" onClick={openCreate}>Add Budget Line</Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -389,7 +394,7 @@ export default function JobCostPage({ params }: { params: Promise<{ id: string }
                   ))
                 )}
               </TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent>
       </Card>

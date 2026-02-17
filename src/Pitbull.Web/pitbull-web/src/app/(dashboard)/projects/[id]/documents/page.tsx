@@ -306,7 +306,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading documents...</p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto"><Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -319,8 +319,13 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-muted-foreground">
-                      No documents found.
+                    <TableCell colSpan={5}>
+                      <div className="flex flex-col items-center gap-3 py-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No documents yet. Upload your first project document.
+                        </p>
+                        <Button size="sm" onClick={openUpload}>Upload Document</Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -351,7 +356,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
                   ))
                 )}
               </TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent>
       </Card>

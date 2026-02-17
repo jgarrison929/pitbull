@@ -337,7 +337,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading RFIs...</p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto"><Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>RFI #</TableHead>
@@ -351,8 +351,13 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-muted-foreground">
-                      No RFIs found.
+                    <TableCell colSpan={6}>
+                      <div className="flex flex-col items-center gap-3 py-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No RFIs yet. Create your first request for information.
+                        </p>
+                        <Button size="sm" onClick={openCreate}>Create RFI</Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -391,7 +396,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
                   ))
                 )}
               </TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent>
       </Card>

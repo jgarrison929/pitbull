@@ -327,7 +327,7 @@ export default function CommunicationsPage({ params }: { params: Promise<{ id: s
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading communications...</p>
           ) : (
-            <Table>
+            <div className="overflow-x-auto"><Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Type</TableHead>
@@ -343,8 +343,13 @@ export default function CommunicationsPage({ params }: { params: Promise<{ id: s
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-muted-foreground">
-                      No communications found.
+                    <TableCell colSpan={8}>
+                      <div className="flex flex-col items-center gap-3 py-6 text-center">
+                        <p className="text-sm text-muted-foreground">
+                          No communications yet. Create your first communication record.
+                        </p>
+                        <Button size="sm" onClick={openCreate}>Create Communication</Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -380,7 +385,7 @@ export default function CommunicationsPage({ params }: { params: Promise<{ id: s
                   ))
                 )}
               </TableBody>
-            </Table>
+            </Table></div>
           )}
         </CardContent>
       </Card>
