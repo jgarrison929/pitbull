@@ -15,5 +15,6 @@ public record UpdateBidCommand(
     DateTime? DueDate,
     string? Owner,
     string? Description,
-    List<CreateBidItemDto>? Items
+    List<CreateBidItemDto>? Items,
+    string? Notes = null
 ) : ICommand<BidDto>;

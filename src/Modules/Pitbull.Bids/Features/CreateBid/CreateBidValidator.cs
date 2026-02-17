@@ -14,6 +14,9 @@ public class CreateBidValidator : AbstractValidator<CreateBidCommand>
             .NotEmpty().WithMessage("Bid number is required")
             .MaximumLength(50).WithMessage("Bid number cannot exceed 50 characters");
 
+        RuleFor(x => x.Status)
+            .IsInEnum().WithMessage("Invalid bid status");
+
         RuleFor(x => x.EstimatedValue)
             .GreaterThanOrEqualTo(0).WithMessage("Estimated value cannot be negative");
 
@@ -21,6 +24,10 @@ public class CreateBidValidator : AbstractValidator<CreateBidCommand>
         RuleFor(x => x.Description)
             .MaximumLength(1000).WithMessage("Description cannot exceed 1000 characters")
             .When(x => !string.IsNullOrEmpty(x.Description));
+
+        RuleFor(x => x.Notes)
+            .MaximumLength(2000).WithMessage("Notes cannot exceed 2000 characters")
+            .When(x => !string.IsNullOrEmpty(x.Notes));
 
         RuleFor(x => x.Owner)
             .MaximumLength(200).WithMessage("Owner name cannot exceed 200 characters")

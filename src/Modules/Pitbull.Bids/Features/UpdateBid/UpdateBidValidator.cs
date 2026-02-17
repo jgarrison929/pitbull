@@ -28,6 +28,10 @@ public class UpdateBidValidator : AbstractValidator<UpdateBidCommand>
             .MaximumLength(1000).WithMessage("Description cannot exceed 1000 characters")
             .When(x => !string.IsNullOrEmpty(x.Description));
 
+        RuleFor(x => x.Notes)
+            .MaximumLength(2000).WithMessage("Notes cannot exceed 2000 characters")
+            .When(x => !string.IsNullOrEmpty(x.Notes));
+
         RuleFor(x => x.Owner)
             .MaximumLength(200).WithMessage("Owner name cannot exceed 200 characters")
             .When(x => !string.IsNullOrEmpty(x.Owner));

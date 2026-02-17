@@ -19,14 +19,14 @@ export enum ProjectType {
   Other = 6,
 }
 
-export type BidStatus =
-  | "Draft"
-  | "InProgress"
-  | "Submitted"
-  | "Won"
-  | "Lost"
-  | "NoDecision"
-  | "Withdrawn";
+export enum BidStatus {
+  Draft = "Draft",
+  Submitted = "Submitted",
+  Won = "Won",
+  Lost = "Lost",
+  NoResponse = "NoResponse",
+  Cancelled = "Cancelled",
+}
 
 export type BidItemCategory =
   | "General"
@@ -160,11 +160,13 @@ export interface CreateBidItemDto {
 export interface CreateBidCommand {
   name: string;
   number: string;
+  status?: BidStatus;
   estimatedValue: number;
   bidDate?: string;
   dueDate?: string;
   owner?: string;
   description?: string;
+  notes?: string;
   items?: CreateBidItemDto[];
 }
 
@@ -178,6 +180,7 @@ export interface UpdateBidCommand {
   dueDate?: string;
   owner?: string;
   description?: string;
+  notes?: string;
   items?: CreateBidItemDto[];
 }
 

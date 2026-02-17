@@ -18,39 +18,45 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText } from "lucide-react";
 import api from "@/lib/api";
-import type { PagedResult, Bid } from "@/lib/types";
+import { BidStatus, type PagedResult, type Bid } from "@/lib/types";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
 
-function statusColor(status: string) {
+function statusColor(status: BidStatus) {
   switch (status) {
-    case "Submitted":
+    case BidStatus.Submitted:
       return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100";
-    case "Draft":
+    case BidStatus.Draft:
       return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
-    case "InProgress":
-      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300 hover:bg-yellow-100";
-    case "Won":
+    case BidStatus.Won:
       return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100";
-    case "Lost":
+    case BidStatus.Lost:
       return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 hover:bg-red-100";
-    case "NoDecision":
+    case BidStatus.NoResponse:
       return "bg-neutral-100 text-neutral-500 hover:bg-neutral-100";
-    case "Withdrawn":
+    case BidStatus.Cancelled:
       return "bg-neutral-200 text-neutral-500 hover:bg-neutral-200";
     default:
       return "";
   }
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: BidStatus) {
   switch (status) {
-    case "InProgress":
-      return "In Progress";
-    case "NoDecision":
-      return "No Decision";
+    case BidStatus.Draft:
+      return "Draft";
+    case BidStatus.Submitted:
+      return "Submitted";
+    case BidStatus.Won:
+      return "Won";
+    case BidStatus.Lost:
+      return "Lost";
+    case BidStatus.NoResponse:
+      return "No Response";
+    case BidStatus.Cancelled:
+      return "Cancelled";
     default:
-      return status;
+      return "Unknown";
   }
 }
 

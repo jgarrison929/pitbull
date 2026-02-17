@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import api from "@/lib/api";
-import type { Bid, CreateBidCommand, CreateBidItemDto, BidStatus, BidItemCategory } from "@/lib/types";
+import { BidStatus, type Bid, type CreateBidCommand, type CreateBidItemDto, type BidItemCategory } from "@/lib/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -86,7 +86,7 @@ function getDueDateUrgency(dueDate: string): { label: string; color: string; day
 export default function NewBidPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState<BidStatus>("Draft");
+  const [status, setStatus] = useState<BidStatus>(BidStatus.Draft);
 
   // Controlled form fields
   const [bidNumber, setBidNumber] = useState("");
@@ -148,7 +148,7 @@ export default function NewBidPage() {
         if (d.notes) setNotes(d.notes);
         if (d.bidDate) setBidDate(d.bidDate);
         if (d.dueDate) setDueDate(d.dueDate);
-        if (d.status) setStatus(d.status);
+        if (d.status) setStatus(d.status as BidStatus);
       }
     }
   }, [draftLoaded, loadDraft, clearDraft]);
@@ -281,11 +281,13 @@ export default function NewBidPage() {
     const command: CreateBidCommand = {
       name,
       number: bidNumber,
+      status: BidStatus.Draft,
       estimatedValue: estimatedValue ? Number(estimatedValue) : (totalWithMarkup > 0 ? totalWithMarkup : 0),
       bidDate: bidDate || undefined,
       dueDate: dueDate || undefined,
       owner: clientName || undefined,
       description: description || undefined,
+      notes: notes || undefined,
       items: lineItems.length > 0 ? lineItems.map(item => ({
         description: item.description,
         category: item.category,
@@ -363,8 +365,6 @@ export default function NewBidPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Draft">Draft</SelectItem>
-                      <SelectItem value="InProgress">In Progress</SelectItem>
-                      <SelectItem value="Submitted">Submitted</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

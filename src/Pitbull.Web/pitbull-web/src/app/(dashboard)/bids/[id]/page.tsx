@@ -32,7 +32,7 @@ import {
 import api from "@/lib/api";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
-import type { Bid, Project } from "@/lib/types";
+import { BidStatus, type Bid, type Project } from "@/lib/types";
 import { toast } from "sonner";
 
 function formatCurrency(amount: number) {
@@ -43,35 +43,41 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-function statusColor(status: string) {
+function statusColor(status: BidStatus) {
   switch (status) {
-    case "Submitted":
+    case BidStatus.Submitted:
       return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-    case "Draft":
+    case BidStatus.Draft:
       return "bg-neutral-100 text-neutral-600";
-    case "InProgress":
-      return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300";
-    case "Won":
+    case BidStatus.Won:
       return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
-    case "Lost":
+    case BidStatus.Lost:
       return "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400";
-    case "NoDecision":
+    case BidStatus.NoResponse:
       return "bg-neutral-100 text-neutral-500";
-    case "Withdrawn":
+    case BidStatus.Cancelled:
       return "bg-neutral-200 text-neutral-500";
     default:
       return "";
   }
 }
 
-function statusLabel(status: string) {
+function statusLabel(status: BidStatus) {
   switch (status) {
-    case "InProgress":
-      return "In Progress";
-    case "NoDecision":
-      return "No Decision";
+    case BidStatus.Draft:
+      return "Draft";
+    case BidStatus.Submitted:
+      return "Submitted";
+    case BidStatus.Won:
+      return "Won";
+    case BidStatus.Lost:
+      return "Lost";
+    case BidStatus.NoResponse:
+      return "No Response";
+    case BidStatus.Cancelled:
+      return "Cancelled";
     default:
-      return status;
+      return "Unknown";
   }
 }
 
@@ -203,7 +209,10 @@ export default function BidDetailPage({
           </p>
         </div>
         <div className="flex gap-2">
-          {bid.status === "Won" && (
+          <Button asChild variant="outline" className="min-h-[44px]">
+            <Link href={`/bids/${bid.id}/edit`}>Edit Bid</Link>
+          </Button>
+          {bid.status === BidStatus.Won && (
             <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-green-600 hover:bg-green-700 text-white min-h-[44px]">

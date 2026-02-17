@@ -90,12 +90,14 @@ public class BidService : IBidService
             Id = Guid.NewGuid(),
             Name = command.Name,
             Number = command.Number,
-            Status = BidStatus.Draft,
+            Status = command.Status,
             EstimatedValue = command.EstimatedValue,
             BidDate = command.BidDate,
             DueDate = command.DueDate,
             Owner = command.Owner,
-            Description = command.Description,
+            Description = !string.IsNullOrWhiteSpace(command.Description)
+                ? command.Description
+                : command.Notes,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -152,7 +154,9 @@ public class BidService : IBidService
         bid.BidDate = command.BidDate;
         bid.DueDate = command.DueDate;
         bid.Owner = command.Owner;
-        bid.Description = command.Description;
+        bid.Description = !string.IsNullOrWhiteSpace(command.Description)
+            ? command.Description
+            : command.Notes;
 
         try
         {

@@ -12,7 +12,9 @@ public record CreateBidCommand(
     DateTime? DueDate,
     string? Owner,
     string? Description,
-    List<CreateBidItemDto>? Items
+    List<CreateBidItemDto>? Items,
+    BidStatus Status = BidStatus.Draft,
+    string? Notes = null
 ) : ICommand<BidDto>;
 
 public record CreateBidItemDto(
