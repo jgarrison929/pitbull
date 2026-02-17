@@ -320,8 +320,10 @@ export default function SubcontractDetailPage() {
               {payApps.length} pay app{payApps.length !== 1 ? "s" : ""}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm">
-            + New Pay App
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/contracts/${id}/payment-applications`}>
+              Manage Pay Apps
+            </Link>
           </Button>
         </CardHeader>
         <CardContent>
