@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Core.CQRS;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.ProjectManagement.Services;
 
 namespace Pitbull.Api.Controllers;
 
+/// <summary>
+/// Schedule management endpoints for project planning, sequencing, and baseline tracking.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -13,22 +17,241 @@ namespace Pitbull.Api.Controllers;
 [Route("api/projects/{projectId:guid}/schedules")]
 public class ProjectSchedulesController(IScheduleService scheduleService) : ProjectManagementControllerBase
 {
-    [HttpPost] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await scheduleService.CreateScheduleAsync(projectId, request));
-    [HttpGet("{scheduleId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid scheduleId) => HandleResult(await scheduleService.GetScheduleAsync(projectId, scheduleId));
-    [HttpGet] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await scheduleService.ListSchedulesAsync(projectId, query));
-    [HttpPut("{scheduleId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request) => HandleResult(await scheduleService.UpdateScheduleAsync(projectId, scheduleId, request));
-    [HttpDelete("{scheduleId:guid}")] public async Task<IActionResult> Delete(Guid projectId, Guid scheduleId) => HandleAction(await scheduleService.DeleteScheduleAsync(projectId, scheduleId));
-    [HttpPost("{scheduleId:guid}/activities")] public async Task<IActionResult> AddActivity(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request) => HandleResult(await scheduleService.AddActivityAsync(projectId, scheduleId, request));
-    [HttpPut("{scheduleId:guid}/activities/{activityId:guid}")] public async Task<IActionResult> UpdateActivity(Guid projectId, Guid scheduleId, Guid activityId, [FromBody] PmUpsertRequest request) => HandleResult(await scheduleService.UpdateActivityAsync(projectId, scheduleId, activityId, request));
-    [HttpPost("{scheduleId:guid}/dependencies")] public async Task<IActionResult> AddDependency(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request) => HandleResult(await scheduleService.AddDependencyAsync(projectId, scheduleId, request));
-    [HttpDelete("{scheduleId:guid}/dependencies/{dependencyId:guid}")] public async Task<IActionResult> DeleteDependency(Guid projectId, Guid scheduleId, Guid dependencyId) => HandleAction(await scheduleService.DeleteDependencyAsync(projectId, scheduleId, dependencyId));
-    [HttpPost("{scheduleId:guid}/baseline")] public async Task<IActionResult> Baseline(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request) => HandleResult(await scheduleService.CreateBaselineAsync(projectId, scheduleId, request));
-    [HttpGet("{scheduleId:guid}/variance")] public async Task<IActionResult> Variance(Guid projectId, Guid scheduleId) => HandleResult(await scheduleService.GetScheduleAsync(projectId, scheduleId));
-    [HttpPost("{scheduleId:guid}/critical-path/recalculate")] public async Task<IActionResult> Recalculate(Guid projectId, Guid scheduleId) => HandleResult(await scheduleService.RecalculateCriticalPathAsync(projectId, scheduleId));
-    [HttpPost("/api/projects/{projectId:guid}/schedules/import")] public async Task<IActionResult> Import(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await scheduleService.ImportScheduleAsync(projectId, request));
-    [HttpGet("/api/projects/{projectId:guid}/schedules/imports")] public async Task<IActionResult> Imports(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await scheduleService.ListImportsAsync(projectId, query));
+    /// <summary>
+    /// Creates a new schedule for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Schedule details.</param>
+    /// <returns>The created schedule record.</returns>
+    /// <response code="200">Schedule created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await scheduleService.CreateScheduleAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a schedule by ID for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <returns>The requested schedule.</returns>
+    /// <response code="200">Schedule retrieved successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpGet("{scheduleId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid scheduleId)
+        => HandleResult(await scheduleService.GetScheduleAsync(projectId, scheduleId));
+
+    /// <summary>
+    /// Lists schedules for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of schedules.</returns>
+    /// <response code="200">Schedules returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await scheduleService.ListSchedulesAsync(projectId, query));
+
+    /// <summary>
+    /// Updates an existing schedule for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <param name="request">Updated schedule values.</param>
+    /// <returns>The updated schedule.</returns>
+    /// <response code="200">Schedule updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpPut("{scheduleId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await scheduleService.UpdateScheduleAsync(projectId, scheduleId, request));
+
+    /// <summary>
+    /// Soft-deletes a schedule for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Schedule deleted successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpDelete("{scheduleId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid scheduleId)
+        => HandleAction(await scheduleService.DeleteScheduleAsync(projectId, scheduleId));
+
+    /// <summary>
+    /// Adds a schedule activity to the specified schedule.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <param name="request">Activity details.</param>
+    /// <returns>The created activity.</returns>
+    /// <response code="200">Activity added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpPost("{scheduleId:guid}/activities")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddActivity(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await scheduleService.AddActivityAsync(projectId, scheduleId, request));
+
+    /// <summary>
+    /// Updates a schedule activity on the specified schedule.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <param name="activityId">Activity identifier.</param>
+    /// <param name="request">Updated activity details.</param>
+    /// <returns>The updated activity.</returns>
+    /// <response code="200">Activity updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Activity not found.</response>
+    [HttpPut("{scheduleId:guid}/activities/{activityId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateActivity(Guid projectId, Guid scheduleId, Guid activityId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await scheduleService.UpdateActivityAsync(projectId, scheduleId, activityId, request));
+
+    /// <summary>
+    /// Adds a dependency relationship to the specified schedule.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <param name="request">Dependency details.</param>
+    /// <returns>The created dependency.</returns>
+    /// <response code="200">Dependency added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpPost("{scheduleId:guid}/dependencies")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddDependency(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await scheduleService.AddDependencyAsync(projectId, scheduleId, request));
+
+    /// <summary>
+    /// Removes a dependency from the specified schedule.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <param name="dependencyId">Dependency identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Dependency deleted successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Dependency not found.</response>
+    [HttpDelete("{scheduleId:guid}/dependencies/{dependencyId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteDependency(Guid projectId, Guid scheduleId, Guid dependencyId)
+        => HandleAction(await scheduleService.DeleteDependencyAsync(projectId, scheduleId, dependencyId));
+
+    /// <summary>
+    /// Creates a baseline snapshot for the specified schedule.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <param name="request">Baseline metadata.</param>
+    /// <returns>The baseline creation result.</returns>
+    /// <response code="200">Baseline created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpPost("{scheduleId:guid}/baseline")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Baseline(Guid projectId, Guid scheduleId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await scheduleService.CreateBaselineAsync(projectId, scheduleId, request));
+
+    /// <summary>
+    /// Gets schedule variance details for the specified schedule.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <returns>The schedule variance source record.</returns>
+    /// <response code="200">Variance data returned.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpGet("{scheduleId:guid}/variance")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Variance(Guid projectId, Guid scheduleId)
+        => HandleResult(await scheduleService.GetScheduleAsync(projectId, scheduleId));
+
+    /// <summary>
+    /// Recalculates critical path data for the specified schedule.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="scheduleId">Schedule identifier.</param>
+    /// <returns>The recalculation result.</returns>
+    /// <response code="200">Critical path recalculated.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Schedule not found.</response>
+    [HttpPost("{scheduleId:guid}/critical-path/recalculate")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Recalculate(Guid projectId, Guid scheduleId)
+        => HandleResult(await scheduleService.RecalculateCriticalPathAsync(projectId, scheduleId));
+
+    /// <summary>
+    /// Imports schedule data for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Schedule import payload.</param>
+    /// <returns>The imported schedule record.</returns>
+    /// <response code="200">Schedule imported successfully.</response>
+    /// <response code="400">Import payload invalid.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("/api/projects/{projectId:guid}/schedules/import")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Import(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await scheduleService.ImportScheduleAsync(projectId, request));
+
+    /// <summary>
+    /// Lists schedule import history for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of schedule imports.</returns>
+    /// <response code="200">Import history returned.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("/api/projects/{projectId:guid}/schedules/imports")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Imports(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await scheduleService.ListImportsAsync(projectId, query));
 }
 
+/// <summary>
+/// Job cost endpoints for budgets, commitments, actuals, and forecasting.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -36,19 +259,186 @@ public class ProjectSchedulesController(IScheduleService scheduleService) : Proj
 [Route("api/projects/{projectId:guid}/job-cost")]
 public class ProjectJobCostController(IJobCostService jobCostService) : ProjectManagementControllerBase
 {
-    [HttpPost("budgets")] public async Task<IActionResult> CreateBudget(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await jobCostService.CreateBudgetAsync(projectId, request));
-    [HttpPut("budgets/{budgetId:guid}")] public async Task<IActionResult> UpdateBudget(Guid projectId, Guid budgetId, [FromBody] PmUpsertRequest request) => HandleResult(await jobCostService.UpdateBudgetAsync(projectId, budgetId, request));
-    [HttpGet("budgets")] public async Task<IActionResult> ListBudgets(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await jobCostService.ListBudgetsAsync(projectId, query));
-    [HttpGet("actuals")] public async Task<IActionResult> ListActuals(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await jobCostService.ListActualsAsync(projectId, query));
-    [HttpPost("actuals/rebuild")] public async Task<IActionResult> RebuildActuals(Guid projectId) => HandleResult(await jobCostService.RebuildActualsAsync(projectId));
-    [HttpGet("commitments")] public async Task<IActionResult> ListCommitments(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await jobCostService.ListCommitmentsAsync(projectId, query));
-    [HttpPost("commitments")] public async Task<IActionResult> CreateCommitment(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await jobCostService.CreateCommitmentAsync(projectId, request));
-    [HttpGet("forecasts")] public async Task<IActionResult> ListForecasts(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await jobCostService.ListForecastsAsync(projectId, query));
-    [HttpPost("forecasts")] public async Task<IActionResult> CreateForecast(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await jobCostService.CreateForecastAsync(projectId, request));
-    [HttpGet("analysis/over-under")] public async Task<IActionResult> OverUnder(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await jobCostService.ListForecastsAsync(projectId, query));
-    [HttpGet("unit-costs")] public async Task<IActionResult> UnitCosts(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await jobCostService.ListActualsAsync(projectId, query));
+    /// <summary>
+    /// Creates a new budget line item for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Budget details.</param>
+    /// <returns>The created budget record.</returns>
+    /// <response code="200">Budget created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("budgets")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateBudget(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await jobCostService.CreateBudgetAsync(projectId, request));
+
+    /// <summary>
+    /// Updates a budget line item.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="budgetId">Budget identifier.</param>
+    /// <param name="request">Updated budget values.</param>
+    /// <returns>The updated budget record.</returns>
+    /// <response code="200">Budget updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Budget not found.</response>
+    [HttpPut("budgets/{budgetId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateBudget(Guid projectId, Guid budgetId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await jobCostService.UpdateBudgetAsync(projectId, budgetId, request));
+
+    /// <summary>
+    /// Lists budget line items for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of budget records.</returns>
+    /// <response code="200">Budgets returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("budgets")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListBudgets(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await jobCostService.ListBudgetsAsync(projectId, query));
+
+    /// <summary>
+    /// Lists actual cost records for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of actual cost records.</returns>
+    /// <response code="200">Actuals returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("actuals")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListActuals(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await jobCostService.ListActualsAsync(projectId, query));
+
+    /// <summary>
+    /// Rebuilds job cost actuals for the project from source transactions.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <returns>The rebuild operation result.</returns>
+    /// <response code="200">Actuals rebuilt successfully.</response>
+    /// <response code="400">Rebuild request invalid.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("actuals/rebuild")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RebuildActuals(Guid projectId)
+        => HandleResult(await jobCostService.RebuildActualsAsync(projectId));
+
+    /// <summary>
+    /// Lists commitments for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of commitment records.</returns>
+    /// <response code="200">Commitments returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("commitments")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListCommitments(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await jobCostService.ListCommitmentsAsync(projectId, query));
+
+    /// <summary>
+    /// Creates a commitment record for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Commitment details.</param>
+    /// <returns>The created commitment record.</returns>
+    /// <response code="200">Commitment created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("commitments")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateCommitment(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await jobCostService.CreateCommitmentAsync(projectId, request));
+
+    /// <summary>
+    /// Lists cost forecasts for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of forecast records.</returns>
+    /// <response code="200">Forecasts returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("forecasts")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListForecasts(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await jobCostService.ListForecastsAsync(projectId, query));
+
+    /// <summary>
+    /// Creates a forecast record for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Forecast details.</param>
+    /// <returns>The created forecast record.</returns>
+    /// <response code="200">Forecast created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("forecasts")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateForecast(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await jobCostService.CreateForecastAsync(projectId, request));
+
+    /// <summary>
+    /// Returns over/under analysis for project forecasts.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of forecast analysis rows.</returns>
+    /// <response code="200">Analysis returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("analysis/over-under")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> OverUnder(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await jobCostService.ListForecastsAsync(projectId, query));
+
+    /// <summary>
+    /// Returns unit cost metrics for project actuals.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of actual cost rows for unit analysis.</returns>
+    /// <response code="200">Unit costs returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("unit-costs")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnitCosts(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await jobCostService.ListActualsAsync(projectId, query));
 }
 
+/// <summary>
+/// Submittal management endpoints for creation, updates, workflows, and attachments.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -56,15 +446,125 @@ public class ProjectJobCostController(IJobCostService jobCostService) : ProjectM
 [Route("api/projects/{projectId:guid}/submittals")]
 public class SubmittalsController(ISubmittalService submittalService) : ProjectManagementControllerBase
 {
-    [HttpPost] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await submittalService.CreateSubmittalAsync(projectId, request));
-    [HttpGet("{submittalId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid submittalId) => HandleResult(await submittalService.GetSubmittalAsync(projectId, submittalId));
-    [HttpGet] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await submittalService.ListSubmittalsAsync(projectId, query));
-    [HttpPut("{submittalId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid submittalId, [FromBody] PmUpsertRequest request) => HandleResult(await submittalService.UpdateSubmittalAsync(projectId, submittalId, request));
-    [HttpPost("{submittalId:guid}/workflow")] public async Task<IActionResult> Workflow(Guid projectId, Guid submittalId, [FromBody] PmUpsertRequest request) => HandleResult(await submittalService.AddWorkflowEventAsync(projectId, submittalId, request));
-    [HttpPost("{submittalId:guid}/attachments")] public async Task<IActionResult> Attachment(Guid projectId, Guid submittalId, [FromBody] PmUpsertRequest request) => HandleResult(await submittalService.AddAttachmentAsync(projectId, submittalId, request));
-    [HttpGet("register")] public async Task<IActionResult> Register(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await submittalService.ListSubmittalsAsync(projectId, query));
+    /// <summary>
+    /// Creates a new submittal for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Submittal details.</param>
+    /// <returns>The created submittal.</returns>
+    /// <response code="200">Submittal created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await submittalService.CreateSubmittalAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a submittal by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="submittalId">Submittal identifier.</param>
+    /// <returns>The requested submittal.</returns>
+    /// <response code="200">Submittal returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Submittal not found.</response>
+    [HttpGet("{submittalId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid submittalId)
+        => HandleResult(await submittalService.GetSubmittalAsync(projectId, submittalId));
+
+    /// <summary>
+    /// Lists submittals for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of submittals.</returns>
+    /// <response code="200">Submittals returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await submittalService.ListSubmittalsAsync(projectId, query));
+
+    /// <summary>
+    /// Updates an existing submittal.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="submittalId">Submittal identifier.</param>
+    /// <param name="request">Updated submittal values.</param>
+    /// <returns>The updated submittal.</returns>
+    /// <response code="200">Submittal updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Submittal not found.</response>
+    [HttpPut("{submittalId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid submittalId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await submittalService.UpdateSubmittalAsync(projectId, submittalId, request));
+
+    /// <summary>
+    /// Adds a workflow event to a submittal.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="submittalId">Submittal identifier.</param>
+    /// <param name="request">Workflow event details.</param>
+    /// <returns>The created workflow event record.</returns>
+    /// <response code="200">Workflow event recorded successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Submittal not found.</response>
+    [HttpPost("{submittalId:guid}/workflow")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Workflow(Guid projectId, Guid submittalId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await submittalService.AddWorkflowEventAsync(projectId, submittalId, request));
+
+    /// <summary>
+    /// Attaches a document to the specified submittal.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="submittalId">Submittal identifier.</param>
+    /// <param name="request">Attachment details.</param>
+    /// <returns>The created attachment record.</returns>
+    /// <response code="200">Attachment added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Submittal not found.</response>
+    [HttpPost("{submittalId:guid}/attachments")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Attachment(Guid projectId, Guid submittalId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await submittalService.AddAttachmentAsync(projectId, submittalId, request));
+
+    /// <summary>
+    /// Returns the submittal register for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of submittals in register view.</returns>
+    /// <response code="200">Register returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("register")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Register(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await submittalService.ListSubmittalsAsync(projectId, query));
 }
 
+/// <summary>
+/// Plans, specifications, folders, and document distribution endpoints.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -72,20 +572,205 @@ public class SubmittalsController(ISubmittalService submittalService) : ProjectM
 [Route("api/projects/{projectId:guid}")]
 public class PlansAndSpecsController(IPlansSpecsService plansSpecsService) : ProjectManagementControllerBase
 {
-    [HttpGet("documents/folders")] public async Task<IActionResult> ListFolders(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await plansSpecsService.ListFoldersAsync(projectId, query));
-    [HttpPost("documents/folders")] public async Task<IActionResult> CreateFolder(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.CreateFolderAsync(projectId, request));
-    [HttpPost("plan-sets")] public async Task<IActionResult> CreatePlanSet(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.CreatePlanSetAsync(projectId, request));
-    [HttpGet("plan-sets")] public async Task<IActionResult> ListPlanSets(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await plansSpecsService.ListPlanSetsAsync(projectId, query));
-    [HttpGet("plan-sets/{planSetId:guid}")] public async Task<IActionResult> GetPlanSet(Guid projectId, Guid planSetId) => HandleResult(await plansSpecsService.GetPlanSetAsync(projectId, planSetId));
-    [HttpPost("plan-sets/{planSetId:guid}/sheets")] public async Task<IActionResult> AddSheet(Guid projectId, Guid planSetId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.AddPlanSheetAsync(projectId, planSetId, request));
-    [HttpPost("plan-sheets/{sheetId:guid}/revisions")] public async Task<IActionResult> AddSheetRevision(Guid projectId, Guid sheetId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.AddPlanSheetRevisionAsync(projectId, sheetId, request));
-    [HttpGet("spec-sections")] public async Task<IActionResult> ListSpecSections(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await plansSpecsService.ListSpecSectionsAsync(projectId, query));
-    [HttpPost("spec-sections")] public async Task<IActionResult> CreateSpecSection(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.CreateSpecSectionAsync(projectId, request));
-    [HttpPost("spec-sections/{specSectionId:guid}/revisions")] public async Task<IActionResult> AddSpecRevision(Guid projectId, Guid specSectionId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.AddSpecRevisionAsync(projectId, specSectionId, request));
-    [HttpPost("document-distributions")] public async Task<IActionResult> CreateDistribution(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.CreateDistributionAsync(projectId, request));
-    [HttpGet("document-distributions")] public async Task<IActionResult> ListDistributions(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await plansSpecsService.ListDistributionsAsync(projectId, query));
+    /// <summary>
+    /// Lists document folders for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of project folders.</returns>
+    /// <response code="200">Folders returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("documents/folders")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListFolders(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await plansSpecsService.ListFoldersAsync(projectId, query));
+
+    /// <summary>
+    /// Creates a new document folder for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Folder details.</param>
+    /// <returns>The created folder record.</returns>
+    /// <response code="200">Folder created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("documents/folders")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateFolder(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.CreateFolderAsync(projectId, request));
+
+    /// <summary>
+    /// Creates a plan set for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Plan set details.</param>
+    /// <returns>The created plan set.</returns>
+    /// <response code="200">Plan set created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("plan-sets")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreatePlanSet(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.CreatePlanSetAsync(projectId, request));
+
+    /// <summary>
+    /// Lists plan sets for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of plan sets.</returns>
+    /// <response code="200">Plan sets returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("plan-sets")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListPlanSets(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await plansSpecsService.ListPlanSetsAsync(projectId, query));
+
+    /// <summary>
+    /// Gets a plan set by ID for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="planSetId">Plan set identifier.</param>
+    /// <returns>The requested plan set.</returns>
+    /// <response code="200">Plan set returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Plan set not found.</response>
+    [HttpGet("plan-sets/{planSetId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPlanSet(Guid projectId, Guid planSetId)
+        => HandleResult(await plansSpecsService.GetPlanSetAsync(projectId, planSetId));
+
+    /// <summary>
+    /// Adds a plan sheet to the specified plan set.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="planSetId">Plan set identifier.</param>
+    /// <param name="request">Plan sheet details.</param>
+    /// <returns>The created plan sheet.</returns>
+    /// <response code="200">Plan sheet added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Plan set not found.</response>
+    [HttpPost("plan-sets/{planSetId:guid}/sheets")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddSheet(Guid projectId, Guid planSetId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.AddPlanSheetAsync(projectId, planSetId, request));
+
+    /// <summary>
+    /// Adds a revision to a plan sheet.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="sheetId">Plan sheet identifier.</param>
+    /// <param name="request">Revision details.</param>
+    /// <returns>The created plan sheet revision.</returns>
+    /// <response code="200">Revision added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Plan sheet not found.</response>
+    [HttpPost("plan-sheets/{sheetId:guid}/revisions")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddSheetRevision(Guid projectId, Guid sheetId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.AddPlanSheetRevisionAsync(projectId, sheetId, request));
+
+    /// <summary>
+    /// Lists specification sections for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of specification sections.</returns>
+    /// <response code="200">Specification sections returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("spec-sections")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListSpecSections(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await plansSpecsService.ListSpecSectionsAsync(projectId, query));
+
+    /// <summary>
+    /// Creates a specification section for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Specification section details.</param>
+    /// <returns>The created specification section.</returns>
+    /// <response code="200">Specification section created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("spec-sections")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateSpecSection(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.CreateSpecSectionAsync(projectId, request));
+
+    /// <summary>
+    /// Adds a revision to a specification section.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="specSectionId">Specification section identifier.</param>
+    /// <param name="request">Revision details.</param>
+    /// <returns>The created specification revision.</returns>
+    /// <response code="200">Revision added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Specification section not found.</response>
+    [HttpPost("spec-sections/{specSectionId:guid}/revisions")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddSpecRevision(Guid projectId, Guid specSectionId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.AddSpecRevisionAsync(projectId, specSectionId, request));
+
+    /// <summary>
+    /// Creates a project document distribution record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Distribution details.</param>
+    /// <returns>The created distribution record.</returns>
+    /// <response code="200">Distribution created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("document-distributions")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateDistribution(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.CreateDistributionAsync(projectId, request));
+
+    /// <summary>
+    /// Lists project document distributions.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of distribution records.</returns>
+    /// <response code="200">Distributions returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("document-distributions")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListDistributions(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await plansSpecsService.ListDistributionsAsync(projectId, query));
 }
 
+/// <summary>
+/// Project communication endpoints for correspondence tracking and attachments.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -93,13 +778,92 @@ public class PlansAndSpecsController(IPlansSpecsService plansSpecsService) : Pro
 [Route("api/projects/{projectId:guid}/communications")]
 public class ProjectCommunicationsController(ICommunicationService communicationService) : ProjectManagementControllerBase
 {
-    [HttpPost] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await communicationService.CreateCommunicationAsync(projectId, request));
-    [HttpGet("{communicationId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid communicationId) => HandleResult(await communicationService.GetCommunicationAsync(projectId, communicationId));
-    [HttpGet] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await communicationService.ListCommunicationsAsync(projectId, query));
-    [HttpPut("{communicationId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid communicationId, [FromBody] PmUpsertRequest request) => HandleResult(await communicationService.UpdateCommunicationAsync(projectId, communicationId, request));
-    [HttpPost("{communicationId:guid}/attachments")] public async Task<IActionResult> Attachment(Guid projectId, Guid communicationId, [FromBody] PmUpsertRequest request) => HandleResult(await communicationService.AddAttachmentAsync(projectId, communicationId, request));
+    /// <summary>
+    /// Creates a communication record for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Communication details.</param>
+    /// <returns>The created communication record.</returns>
+    /// <response code="200">Communication created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await communicationService.CreateCommunicationAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a communication record by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="communicationId">Communication identifier.</param>
+    /// <returns>The requested communication record.</returns>
+    /// <response code="200">Communication returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Communication not found.</response>
+    [HttpGet("{communicationId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid communicationId)
+        => HandleResult(await communicationService.GetCommunicationAsync(projectId, communicationId));
+
+    /// <summary>
+    /// Lists project communications.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of communication records.</returns>
+    /// <response code="200">Communications returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await communicationService.ListCommunicationsAsync(projectId, query));
+
+    /// <summary>
+    /// Updates an existing communication record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="communicationId">Communication identifier.</param>
+    /// <param name="request">Updated communication values.</param>
+    /// <returns>The updated communication record.</returns>
+    /// <response code="200">Communication updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Communication not found.</response>
+    [HttpPut("{communicationId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid communicationId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await communicationService.UpdateCommunicationAsync(projectId, communicationId, request));
+
+    /// <summary>
+    /// Adds an attachment to a communication record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="communicationId">Communication identifier.</param>
+    /// <param name="request">Attachment details.</param>
+    /// <returns>The created communication attachment.</returns>
+    /// <response code="200">Attachment added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Communication not found.</response>
+    [HttpPost("{communicationId:guid}/attachments")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Attachment(Guid projectId, Guid communicationId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await communicationService.AddAttachmentAsync(projectId, communicationId, request));
 }
 
+/// <summary>
+/// Daily report endpoints for field reporting, approvals, photos, and rollups.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -107,16 +871,141 @@ public class ProjectCommunicationsController(ICommunicationService communication
 [Route("api/projects/{projectId:guid}/daily-reports")]
 public class ProjectDailyReportsController(IDailyReportService dailyReportService) : ProjectManagementControllerBase
 {
-    [HttpPost] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await dailyReportService.CreateDailyReportAsync(projectId, request));
-    [HttpGet("{dailyReportId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid dailyReportId) => HandleResult(await dailyReportService.GetDailyReportAsync(projectId, dailyReportId));
-    [HttpGet] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await dailyReportService.ListDailyReportsAsync(projectId, query));
-    [HttpPut("{dailyReportId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request) => HandleResult(await dailyReportService.UpdateDailyReportAsync(projectId, dailyReportId, request));
-    [HttpPost("{dailyReportId:guid}/submit")] public async Task<IActionResult> Submit(Guid projectId, Guid dailyReportId) => HandleResult(await dailyReportService.SubmitDailyReportAsync(projectId, dailyReportId));
-    [HttpPost("{dailyReportId:guid}/approve")] public async Task<IActionResult> Approve(Guid projectId, Guid dailyReportId) => HandleResult(await dailyReportService.ApproveDailyReportAsync(projectId, dailyReportId));
-    [HttpPost("{dailyReportId:guid}/photos")] public async Task<IActionResult> AddPhoto(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request) => HandleResult(await dailyReportService.AddPhotoAsync(projectId, dailyReportId, request));
-    [HttpPost("{dailyReportId:guid}/rollup")] public async Task<IActionResult> Rollup(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request) => HandleResult(await dailyReportService.RollupDailyReportAsync(projectId, dailyReportId, request));
+    /// <summary>
+    /// Creates a new daily report for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Daily report details.</param>
+    /// <returns>The created daily report.</returns>
+    /// <response code="200">Daily report created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await dailyReportService.CreateDailyReportAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a daily report by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <returns>The requested daily report.</returns>
+    /// <response code="200">Daily report returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpGet("{dailyReportId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid dailyReportId)
+        => HandleResult(await dailyReportService.GetDailyReportAsync(projectId, dailyReportId));
+
+    /// <summary>
+    /// Lists daily reports for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of daily reports.</returns>
+    /// <response code="200">Daily reports returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await dailyReportService.ListDailyReportsAsync(projectId, query));
+
+    /// <summary>
+    /// Updates a daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <param name="request">Updated daily report values.</param>
+    /// <returns>The updated daily report.</returns>
+    /// <response code="200">Daily report updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpPut("{dailyReportId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await dailyReportService.UpdateDailyReportAsync(projectId, dailyReportId, request));
+
+    /// <summary>
+    /// Submits a daily report for review.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <returns>The submission result.</returns>
+    /// <response code="200">Daily report submitted successfully.</response>
+    /// <response code="400">Invalid state transition.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpPost("{dailyReportId:guid}/submit")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Submit(Guid projectId, Guid dailyReportId)
+        => HandleResult(await dailyReportService.SubmitDailyReportAsync(projectId, dailyReportId));
+
+    /// <summary>
+    /// Approves a submitted daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <returns>The approval result.</returns>
+    /// <response code="200">Daily report approved successfully.</response>
+    /// <response code="400">Invalid state transition.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpPost("{dailyReportId:guid}/approve")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Approve(Guid projectId, Guid dailyReportId)
+        => HandleResult(await dailyReportService.ApproveDailyReportAsync(projectId, dailyReportId));
+
+    /// <summary>
+    /// Adds a photo record to a daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <param name="request">Photo metadata.</param>
+    /// <returns>The created photo record.</returns>
+    /// <response code="200">Photo added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpPost("{dailyReportId:guid}/photos")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddPhoto(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await dailyReportService.AddPhotoAsync(projectId, dailyReportId, request));
+
+    /// <summary>
+    /// Runs a rollup operation for a daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <param name="request">Rollup options.</param>
+    /// <returns>The rollup result.</returns>
+    /// <response code="200">Rollup completed successfully.</response>
+    /// <response code="400">Invalid rollup request.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpPost("{dailyReportId:guid}/rollup")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Rollup(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await dailyReportService.RollupDailyReportAsync(projectId, dailyReportId, request));
 }
 
+/// <summary>
+/// Progress tracking and earned value endpoints for construction execution.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -124,16 +1013,140 @@ public class ProjectDailyReportsController(IDailyReportService dailyReportServic
 [Route("api/projects/{projectId:guid}")]
 public class ProjectProgressController(IProgressService progressService) : ProjectManagementControllerBase
 {
-    [HttpPost("progress-entries")] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await progressService.CreateProgressEntryAsync(projectId, request));
-    [HttpGet("progress-entries/{progressEntryId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid progressEntryId) => HandleResult(await progressService.GetProgressEntryAsync(projectId, progressEntryId));
-    [HttpGet("progress-entries")] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await progressService.ListProgressEntriesAsync(projectId, query));
-    [HttpPut("progress-entries/{progressEntryId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid progressEntryId, [FromBody] PmUpsertRequest request) => HandleResult(await progressService.UpdateProgressEntryAsync(projectId, progressEntryId, request));
-    [HttpPost("progress-entries/{progressEntryId:guid}/approve")] public async Task<IActionResult> Approve(Guid projectId, Guid progressEntryId) => HandleResult(await progressService.ApproveProgressEntryAsync(projectId, progressEntryId));
-    [HttpPost("progress-entries/{progressEntryId:guid}/time-links")] public async Task<IActionResult> TimeLinks(Guid projectId, Guid progressEntryId, [FromBody] PmUpsertRequest request) => HandleResult(await progressService.LinkTimeEntryAsync(projectId, progressEntryId, request));
-    [HttpGet("earned-value/snapshots")] public async Task<IActionResult> EarnedValue(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await progressService.ListEarnedValueSnapshotsAsync(projectId, query));
-    [HttpGet("s-curve")] public async Task<IActionResult> SCurve(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await progressService.ListSCurveAsync(projectId, query));
+    /// <summary>
+    /// Creates a progress entry for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Progress entry details.</param>
+    /// <returns>The created progress entry.</returns>
+    /// <response code="200">Progress entry created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("progress-entries")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await progressService.CreateProgressEntryAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a progress entry by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="progressEntryId">Progress entry identifier.</param>
+    /// <returns>The requested progress entry.</returns>
+    /// <response code="200">Progress entry returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Progress entry not found.</response>
+    [HttpGet("progress-entries/{progressEntryId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid progressEntryId)
+        => HandleResult(await progressService.GetProgressEntryAsync(projectId, progressEntryId));
+
+    /// <summary>
+    /// Lists progress entries for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of progress entries.</returns>
+    /// <response code="200">Progress entries returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("progress-entries")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await progressService.ListProgressEntriesAsync(projectId, query));
+
+    /// <summary>
+    /// Updates a progress entry.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="progressEntryId">Progress entry identifier.</param>
+    /// <param name="request">Updated progress values.</param>
+    /// <returns>The updated progress entry.</returns>
+    /// <response code="200">Progress entry updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Progress entry not found.</response>
+    [HttpPut("progress-entries/{progressEntryId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid progressEntryId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await progressService.UpdateProgressEntryAsync(projectId, progressEntryId, request));
+
+    /// <summary>
+    /// Approves a progress entry.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="progressEntryId">Progress entry identifier.</param>
+    /// <returns>The approval result.</returns>
+    /// <response code="200">Progress entry approved successfully.</response>
+    /// <response code="400">Invalid state transition.</response>
+    /// <response code="404">Progress entry not found.</response>
+    [HttpPost("progress-entries/{progressEntryId:guid}/approve")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Approve(Guid projectId, Guid progressEntryId)
+        => HandleResult(await progressService.ApproveProgressEntryAsync(projectId, progressEntryId));
+
+    /// <summary>
+    /// Links a time entry to a progress entry.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="progressEntryId">Progress entry identifier.</param>
+    /// <param name="request">Time link details.</param>
+    /// <returns>The link operation result.</returns>
+    /// <response code="200">Time entry linked successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Progress entry not found.</response>
+    [HttpPost("progress-entries/{progressEntryId:guid}/time-links")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> TimeLinks(Guid projectId, Guid progressEntryId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await progressService.LinkTimeEntryAsync(projectId, progressEntryId, request));
+
+    /// <summary>
+    /// Lists earned value snapshots for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of earned value snapshots.</returns>
+    /// <response code="200">Snapshots returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("earned-value/snapshots")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> EarnedValue(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await progressService.ListEarnedValueSnapshotsAsync(projectId, query));
+
+    /// <summary>
+    /// Lists S-curve records for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of S-curve records.</returns>
+    /// <response code="200">S-curve data returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("s-curve")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SCurve(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await progressService.ListSCurveAsync(projectId, query));
 }
 
+/// <summary>
+/// Projection endpoints for monthly forecasting and approval workflow.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -141,15 +1154,123 @@ public class ProjectProgressController(IProgressService progressService) : Proje
 [Route("api/projects/{projectId:guid}")]
 public class ProjectProjectionsController(IProjectionService projectionService) : ProjectManagementControllerBase
 {
-    [HttpPost("monthly-projections")] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await projectionService.CreateMonthlyProjectionAsync(projectId, request));
-    [HttpGet("monthly-projections/{projectionId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid projectionId) => HandleResult(await projectionService.GetMonthlyProjectionAsync(projectId, projectionId));
-    [HttpGet("monthly-projections")] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await projectionService.ListMonthlyProjectionsAsync(projectId, query));
-    [HttpPut("monthly-projections/{projectionId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid projectionId, [FromBody] PmUpsertRequest request) => HandleResult(await projectionService.UpdateMonthlyProjectionAsync(projectId, projectionId, request));
-    [HttpPost("monthly-projections/{projectionId:guid}/submit")] public async Task<IActionResult> Submit(Guid projectId, Guid projectionId) => HandleResult(await projectionService.SubmitMonthlyProjectionAsync(projectId, projectionId));
-    [HttpPost("monthly-projections/{projectionId:guid}/approve")] public async Task<IActionResult> Approve(Guid projectId, Guid projectionId) => HandleResult(await projectionService.ApproveMonthlyProjectionAsync(projectId, projectionId));
-    [HttpGet("projection-variance")] public async Task<IActionResult> Variance(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await projectionService.ListMonthlyProjectionsAsync(projectId, query));
+    /// <summary>
+    /// Creates a monthly projection for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Projection details.</param>
+    /// <returns>The created projection record.</returns>
+    /// <response code="200">Projection created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("monthly-projections")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await projectionService.CreateMonthlyProjectionAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a monthly projection by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="projectionId">Projection identifier.</param>
+    /// <returns>The requested projection.</returns>
+    /// <response code="200">Projection returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Projection not found.</response>
+    [HttpGet("monthly-projections/{projectionId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid projectionId)
+        => HandleResult(await projectionService.GetMonthlyProjectionAsync(projectId, projectionId));
+
+    /// <summary>
+    /// Lists monthly projections for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of monthly projections.</returns>
+    /// <response code="200">Projections returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("monthly-projections")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await projectionService.ListMonthlyProjectionsAsync(projectId, query));
+
+    /// <summary>
+    /// Updates a monthly projection.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="projectionId">Projection identifier.</param>
+    /// <param name="request">Updated projection values.</param>
+    /// <returns>The updated projection.</returns>
+    /// <response code="200">Projection updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Projection not found.</response>
+    [HttpPut("monthly-projections/{projectionId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid projectionId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await projectionService.UpdateMonthlyProjectionAsync(projectId, projectionId, request));
+
+    /// <summary>
+    /// Submits a monthly projection for review.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="projectionId">Projection identifier.</param>
+    /// <returns>The submission result.</returns>
+    /// <response code="200">Projection submitted successfully.</response>
+    /// <response code="400">Invalid state transition.</response>
+    /// <response code="404">Projection not found.</response>
+    [HttpPost("monthly-projections/{projectionId:guid}/submit")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Submit(Guid projectId, Guid projectionId)
+        => HandleResult(await projectionService.SubmitMonthlyProjectionAsync(projectId, projectionId));
+
+    /// <summary>
+    /// Approves a submitted monthly projection.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="projectionId">Projection identifier.</param>
+    /// <returns>The approval result.</returns>
+    /// <response code="200">Projection approved successfully.</response>
+    /// <response code="400">Invalid state transition.</response>
+    /// <response code="404">Projection not found.</response>
+    [HttpPost("monthly-projections/{projectionId:guid}/approve")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Approve(Guid projectId, Guid projectionId)
+        => HandleResult(await projectionService.ApproveMonthlyProjectionAsync(projectId, projectionId));
+
+    /// <summary>
+    /// Returns projection variance analysis rows for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of variance rows.</returns>
+    /// <response code="200">Variance analysis returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("projection-variance")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Variance(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await projectionService.ListMonthlyProjectionsAsync(projectId, query));
 }
 
+/// <summary>
+/// Meeting endpoints for series, meeting records, agenda, minutes, and action items.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -157,18 +1278,176 @@ public class ProjectProjectionsController(IProjectionService projectionService) 
 [Route("api/projects/{projectId:guid}")]
 public class ProjectMeetingsController(IMeetingService meetingService) : ProjectManagementControllerBase
 {
-    [HttpPost("meeting-series")] public async Task<IActionResult> CreateSeries(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await meetingService.CreateMeetingSeriesAsync(projectId, request));
-    [HttpGet("meeting-series")] public async Task<IActionResult> ListSeries(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await meetingService.ListMeetingSeriesAsync(projectId, query));
-    [HttpPost("meetings")] public async Task<IActionResult> CreateMeeting(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await meetingService.CreateMeetingAsync(projectId, request));
-    [HttpGet("meetings/{meetingId:guid}")] public async Task<IActionResult> GetMeeting(Guid projectId, Guid meetingId) => HandleResult(await meetingService.GetMeetingAsync(projectId, meetingId));
-    [HttpGet("meetings")] public async Task<IActionResult> ListMeetings(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await meetingService.ListMeetingsAsync(projectId, query));
-    [HttpPut("meetings/{meetingId:guid}")] public async Task<IActionResult> UpdateMeeting(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request) => HandleResult(await meetingService.UpdateMeetingAsync(projectId, meetingId, request));
-    [HttpPost("meetings/{meetingId:guid}/agenda-items")] public async Task<IActionResult> Agenda(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request) => HandleResult(await meetingService.AddAgendaItemAsync(projectId, meetingId, request));
-    [HttpPost("meetings/{meetingId:guid}/minutes")] public async Task<IActionResult> Minutes(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request) => HandleResult(await meetingService.AddMinutesAsync(projectId, meetingId, request));
-    [HttpPost("meetings/{meetingId:guid}/action-items")] public async Task<IActionResult> ActionItem(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request) => HandleResult(await meetingService.AddActionItemAsync(projectId, meetingId, request));
-    [HttpPut("meetings/{meetingId:guid}/action-items/{actionItemId:guid}")] public async Task<IActionResult> UpdateActionItem(Guid projectId, Guid meetingId, Guid actionItemId, [FromBody] PmUpsertRequest request) => HandleResult(await meetingService.UpdateActionItemAsync(projectId, meetingId, actionItemId, request));
+    /// <summary>
+    /// Creates a recurring meeting series.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Meeting series details.</param>
+    /// <returns>The created meeting series record.</returns>
+    /// <response code="200">Meeting series created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("meeting-series")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateSeries(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await meetingService.CreateMeetingSeriesAsync(projectId, request));
+
+    /// <summary>
+    /// Lists meeting series for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of meeting series.</returns>
+    /// <response code="200">Meeting series returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("meeting-series")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListSeries(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await meetingService.ListMeetingSeriesAsync(projectId, query));
+
+    /// <summary>
+    /// Creates a meeting record for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Meeting details.</param>
+    /// <returns>The created meeting record.</returns>
+    /// <response code="200">Meeting created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("meetings")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateMeeting(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await meetingService.CreateMeetingAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a meeting by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="meetingId">Meeting identifier.</param>
+    /// <returns>The requested meeting record.</returns>
+    /// <response code="200">Meeting returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Meeting not found.</response>
+    [HttpGet("meetings/{meetingId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMeeting(Guid projectId, Guid meetingId)
+        => HandleResult(await meetingService.GetMeetingAsync(projectId, meetingId));
+
+    /// <summary>
+    /// Lists meetings for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of meetings.</returns>
+    /// <response code="200">Meetings returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("meetings")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListMeetings(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await meetingService.ListMeetingsAsync(projectId, query));
+
+    /// <summary>
+    /// Updates a meeting record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="meetingId">Meeting identifier.</param>
+    /// <param name="request">Updated meeting values.</param>
+    /// <returns>The updated meeting record.</returns>
+    /// <response code="200">Meeting updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Meeting not found.</response>
+    [HttpPut("meetings/{meetingId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateMeeting(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await meetingService.UpdateMeetingAsync(projectId, meetingId, request));
+
+    /// <summary>
+    /// Adds an agenda item to a meeting.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="meetingId">Meeting identifier.</param>
+    /// <param name="request">Agenda item details.</param>
+    /// <returns>The created agenda item record.</returns>
+    /// <response code="200">Agenda item added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Meeting not found.</response>
+    [HttpPost("meetings/{meetingId:guid}/agenda-items")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Agenda(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await meetingService.AddAgendaItemAsync(projectId, meetingId, request));
+
+    /// <summary>
+    /// Adds meeting minutes to a meeting record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="meetingId">Meeting identifier.</param>
+    /// <param name="request">Minutes details.</param>
+    /// <returns>The created minutes record.</returns>
+    /// <response code="200">Minutes added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Meeting not found.</response>
+    [HttpPost("meetings/{meetingId:guid}/minutes")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Minutes(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await meetingService.AddMinutesAsync(projectId, meetingId, request));
+
+    /// <summary>
+    /// Adds an action item to a meeting.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="meetingId">Meeting identifier.</param>
+    /// <param name="request">Action item details.</param>
+    /// <returns>The created action item record.</returns>
+    /// <response code="200">Action item added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Meeting not found.</response>
+    [HttpPost("meetings/{meetingId:guid}/action-items")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActionItem(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await meetingService.AddActionItemAsync(projectId, meetingId, request));
+
+    /// <summary>
+    /// Updates a meeting action item.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="meetingId">Meeting identifier.</param>
+    /// <param name="actionItemId">Action item identifier.</param>
+    /// <param name="request">Updated action item values.</param>
+    /// <returns>The updated action item record.</returns>
+    /// <response code="200">Action item updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Action item not found.</response>
+    [HttpPut("meetings/{meetingId:guid}/action-items/{actionItemId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateActionItem(Guid projectId, Guid meetingId, Guid actionItemId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await meetingService.UpdateActionItemAsync(projectId, meetingId, actionItemId, request));
 }
 
+/// <summary>
+/// Document template and generation endpoints for project correspondence output.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -176,15 +1455,122 @@ public class ProjectMeetingsController(IMeetingService meetingService) : Project
 [Route("api/projects/{projectId:guid}")]
 public class ProjectDocumentGenerationController(IDocumentGenerationService docService) : ProjectManagementControllerBase
 {
-    [HttpPost("document-templates")] public async Task<IActionResult> CreateTemplate(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await docService.CreateTemplateAsync(projectId, request));
-    [HttpGet("document-templates")] public async Task<IActionResult> ListTemplates(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await docService.ListTemplatesAsync(projectId, query));
-    [HttpPost("documents/generate")] public async Task<IActionResult> Generate(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await docService.GenerateDocumentAsync(projectId, request));
-    [HttpGet("generated-documents/{generatedDocumentId:guid}")] public async Task<IActionResult> GetGenerated(Guid projectId, Guid generatedDocumentId) => HandleResult(await docService.GetGeneratedDocumentAsync(projectId, generatedDocumentId));
-    [HttpGet("generated-documents")] public async Task<IActionResult> ListGenerated(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await docService.ListGeneratedDocumentsAsync(projectId, query));
-    [HttpPost("/api/companies/{companyId:guid}/letterheads")] public async Task<IActionResult> CreateLetterhead(Guid companyId, [FromBody] PmUpsertRequest request) => HandleResult(await docService.CreateLetterheadAsync(companyId, request));
-    [HttpGet("/api/companies/{companyId:guid}/letterheads")] public async Task<IActionResult> ListLetterheads(Guid companyId, [FromQuery] PmListQuery query) => HandleResult(await docService.ListLetterheadsAsync(companyId, query));
+    /// <summary>
+    /// Creates a document template for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Template details.</param>
+    /// <returns>The created template record.</returns>
+    /// <response code="200">Template created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost("document-templates")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateTemplate(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await docService.CreateTemplateAsync(projectId, request));
+
+    /// <summary>
+    /// Lists document templates for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of document templates.</returns>
+    /// <response code="200">Templates returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("document-templates")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListTemplates(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await docService.ListTemplatesAsync(projectId, query));
+
+    /// <summary>
+    /// Generates a project document from template and payload data.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Generation request details.</param>
+    /// <returns>The generated document record.</returns>
+    /// <response code="200">Document generated successfully.</response>
+    /// <response code="400">Generation request invalid.</response>
+    /// <response code="404">Template or project not found.</response>
+    [HttpPost("documents/generate")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Generate(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await docService.GenerateDocumentAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a generated document by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="generatedDocumentId">Generated document identifier.</param>
+    /// <returns>The requested generated document record.</returns>
+    /// <response code="200">Generated document returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Generated document not found.</response>
+    [HttpGet("generated-documents/{generatedDocumentId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetGenerated(Guid projectId, Guid generatedDocumentId)
+        => HandleResult(await docService.GetGeneratedDocumentAsync(projectId, generatedDocumentId));
+
+    /// <summary>
+    /// Lists generated documents for the project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of generated documents.</returns>
+    /// <response code="200">Generated documents returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet("generated-documents")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListGenerated(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await docService.ListGeneratedDocumentsAsync(projectId, query));
+
+    /// <summary>
+    /// Creates a company letterhead used by project document generation.
+    /// </summary>
+    /// <param name="companyId">Company identifier.</param>
+    /// <param name="request">Letterhead details.</param>
+    /// <returns>The created letterhead record.</returns>
+    /// <response code="200">Letterhead created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Company not found.</response>
+    [HttpPost("/api/companies/{companyId:guid}/letterheads")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateLetterhead(Guid companyId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await docService.CreateLetterheadAsync(companyId, request));
+
+    /// <summary>
+    /// Lists company letterheads available for document generation.
+    /// </summary>
+    /// <param name="companyId">Company identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of letterhead records.</returns>
+    /// <response code="200">Letterheads returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Company not found.</response>
+    [HttpGet("/api/companies/{companyId:guid}/letterheads")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListLetterheads(Guid companyId, [FromQuery] PmListQuery query)
+        => HandleResult(await docService.ListLetterheadsAsync(companyId, query));
 }
 
+/// <summary>
+/// Task endpoints for project action tracking and assignment management.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -192,13 +1578,92 @@ public class ProjectDocumentGenerationController(IDocumentGenerationService docS
 [Route("api/projects/{projectId:guid}/tasks")]
 public class ProjectTasksController(ITaskService taskService) : ProjectManagementControllerBase
 {
-    [HttpPost] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await taskService.CreateTaskAsync(projectId, request));
-    [HttpGet("{taskId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid taskId) => HandleResult(await taskService.GetTaskAsync(projectId, taskId));
-    [HttpGet] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await taskService.ListTasksAsync(projectId, query));
-    [HttpPut("{taskId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid taskId, [FromBody] PmUpsertRequest request) => HandleResult(await taskService.UpdateTaskAsync(projectId, taskId, request));
-    [HttpPost("{taskId:guid}/comments")] public async Task<IActionResult> Comment(Guid projectId, Guid taskId, [FromBody] PmUpsertRequest request) => HandleResult(await taskService.AddTaskCommentAsync(projectId, taskId, request));
+    /// <summary>
+    /// Creates a new project task.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Task details.</param>
+    /// <returns>The created task record.</returns>
+    /// <response code="200">Task created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await taskService.CreateTaskAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a project task by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="taskId">Task identifier.</param>
+    /// <returns>The requested task.</returns>
+    /// <response code="200">Task returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Task not found.</response>
+    [HttpGet("{taskId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid taskId)
+        => HandleResult(await taskService.GetTaskAsync(projectId, taskId));
+
+    /// <summary>
+    /// Lists tasks for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of tasks.</returns>
+    /// <response code="200">Tasks returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await taskService.ListTasksAsync(projectId, query));
+
+    /// <summary>
+    /// Updates an existing project task.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="taskId">Task identifier.</param>
+    /// <param name="request">Updated task values.</param>
+    /// <returns>The updated task record.</returns>
+    /// <response code="200">Task updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Task not found.</response>
+    [HttpPut("{taskId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid taskId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await taskService.UpdateTaskAsync(projectId, taskId, request));
+
+    /// <summary>
+    /// Adds a comment to a project task.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="taskId">Task identifier.</param>
+    /// <param name="request">Comment details.</param>
+    /// <returns>The created task comment record.</returns>
+    /// <response code="200">Comment added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Task not found.</response>
+    [HttpPost("{taskId:guid}/comments")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Comment(Guid projectId, Guid taskId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await taskService.AddTaskCommentAsync(projectId, taskId, request));
 }
 
+/// <summary>
+/// Narrative endpoints for monthly project reporting workflow.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -206,15 +1671,124 @@ public class ProjectTasksController(ITaskService taskService) : ProjectManagemen
 [Route("api/projects/{projectId:guid}/narratives")]
 public class ProjectNarrativesController(INarrativeService narrativeService) : ProjectManagementControllerBase
 {
-    [HttpPost] public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request) => HandleResult(await narrativeService.CreateNarrativeAsync(projectId, request));
-    [HttpGet("{narrativeId:guid}")] public async Task<IActionResult> Get(Guid projectId, Guid narrativeId) => HandleResult(await narrativeService.GetNarrativeAsync(projectId, narrativeId));
-    [HttpGet] public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query) => HandleResult(await narrativeService.ListNarrativesAsync(projectId, query));
-    [HttpPut("{narrativeId:guid}")] public async Task<IActionResult> Update(Guid projectId, Guid narrativeId, [FromBody] PmUpsertRequest request) => HandleResult(await narrativeService.UpdateNarrativeAsync(projectId, narrativeId, request));
-    [HttpPost("{narrativeId:guid}/submit")] public async Task<IActionResult> Submit(Guid projectId, Guid narrativeId) => HandleResult(await narrativeService.SubmitNarrativeAsync(projectId, narrativeId));
-    [HttpPost("{narrativeId:guid}/publish")] public async Task<IActionResult> Publish(Guid projectId, Guid narrativeId) => HandleResult(await narrativeService.PublishNarrativeAsync(projectId, narrativeId));
-    [HttpGet("{narrativeId:guid}/revisions")] public async Task<IActionResult> Revisions(Guid projectId, Guid narrativeId, [FromQuery] PmListQuery query) => HandleResult(await narrativeService.ListNarrativeRevisionsAsync(projectId, narrativeId, query));
+    /// <summary>
+    /// Creates a project narrative entry.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="request">Narrative details.</param>
+    /// <returns>The created narrative record.</returns>
+    /// <response code="200">Narrative created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await narrativeService.CreateNarrativeAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a project narrative by ID.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="narrativeId">Narrative identifier.</param>
+    /// <returns>The requested narrative.</returns>
+    /// <response code="200">Narrative returned successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Narrative not found.</response>
+    [HttpGet("{narrativeId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid narrativeId)
+        => HandleResult(await narrativeService.GetNarrativeAsync(projectId, narrativeId));
+
+    /// <summary>
+    /// Lists narratives for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of narratives.</returns>
+    /// <response code="200">Narratives returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Project not found.</response>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await narrativeService.ListNarrativesAsync(projectId, query));
+
+    /// <summary>
+    /// Updates a narrative record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="narrativeId">Narrative identifier.</param>
+    /// <param name="request">Updated narrative values.</param>
+    /// <returns>The updated narrative record.</returns>
+    /// <response code="200">Narrative updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Narrative not found.</response>
+    [HttpPut("{narrativeId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid narrativeId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await narrativeService.UpdateNarrativeAsync(projectId, narrativeId, request));
+
+    /// <summary>
+    /// Submits a narrative for review.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="narrativeId">Narrative identifier.</param>
+    /// <returns>The submission result.</returns>
+    /// <response code="200">Narrative submitted successfully.</response>
+    /// <response code="400">Invalid state transition.</response>
+    /// <response code="404">Narrative not found.</response>
+    [HttpPost("{narrativeId:guid}/submit")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Submit(Guid projectId, Guid narrativeId)
+        => HandleResult(await narrativeService.SubmitNarrativeAsync(projectId, narrativeId));
+
+    /// <summary>
+    /// Publishes a narrative.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="narrativeId">Narrative identifier.</param>
+    /// <returns>The publish result.</returns>
+    /// <response code="200">Narrative published successfully.</response>
+    /// <response code="400">Invalid state transition.</response>
+    /// <response code="404">Narrative not found.</response>
+    [HttpPost("{narrativeId:guid}/publish")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Publish(Guid projectId, Guid narrativeId)
+        => HandleResult(await narrativeService.PublishNarrativeAsync(projectId, narrativeId));
+
+    /// <summary>
+    /// Lists revision history for a narrative.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="narrativeId">Narrative identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of narrative revisions.</returns>
+    /// <response code="200">Narrative revisions returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Narrative not found.</response>
+    [HttpGet("{narrativeId:guid}/revisions")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Revisions(Guid projectId, Guid narrativeId, [FromQuery] PmListQuery query)
+        => HandleResult(await narrativeService.ListNarrativeRevisionsAsync(projectId, narrativeId, query));
 }
 
+/// <summary>
+/// Dashboard endpoints for authenticated users to view their PM work queues.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -222,7 +1796,20 @@ public class ProjectNarrativesController(INarrativeService narrativeService) : P
 [Route("api/project-management")]
 public class ProjectManagementDashboardController(ITaskService taskService, IMeetingService meetingService) : ProjectManagementControllerBase
 {
+    /// <summary>
+    /// Lists tasks assigned to the authenticated user.
+    /// </summary>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of tasks assigned to the current user.</returns>
+    /// <response code="200">Assigned tasks returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Related records not found.</response>
+    /// <response code="401">User claim data is missing or invalid.</response>
     [HttpGet("tasks/my")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MyTasks([FromQuery] PmListQuery query)
     {
         if (!TryGetCurrentUserId(out var userId))
@@ -231,7 +1818,20 @@ public class ProjectManagementDashboardController(ITaskService taskService, IMee
         return HandleResult(await taskService.ListMyTasksAsync(query, userId));
     }
 
+    /// <summary>
+    /// Lists meeting action items assigned to the authenticated user.
+    /// </summary>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of action items assigned to the current user.</returns>
+    /// <response code="200">Assigned action items returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">Related records not found.</response>
+    /// <response code="401">User claim data is missing or invalid.</response>
     [HttpGet("action-items/my")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> MyActionItems([FromQuery] PmListQuery query)
     {
         if (!TryGetCurrentUserId(out var userId))
@@ -241,6 +1841,9 @@ public class ProjectManagementDashboardController(ITaskService taskService, IMee
     }
 }
 
+/// <summary>
+/// RFI enhancement endpoints for attachments, distribution, and cost impact links.
+/// </summary>
 [ApiController]
 [Authorize]
 [EnableRateLimiting("api")]
@@ -248,12 +1851,140 @@ public class ProjectManagementDashboardController(ITaskService taskService, IMee
 [Route("api/projects/{projectId:guid}/rfis/{rfiId:guid}")]
 public class ProjectRfiEnhancementsController(IPlansSpecsService plansSpecsService) : ProjectManagementControllerBase
 {
-    [HttpPost("attachments")] public async Task<IActionResult> AddAttachment(Guid projectId, Guid rfiId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.AddRfiAttachmentAsync(projectId, rfiId, request));
-    [HttpGet("attachments")] public async Task<IActionResult> ListAttachments(Guid projectId, Guid rfiId, [FromQuery] PmListQuery query) => HandleResult(await plansSpecsService.ListRfiAttachmentsAsync(projectId, rfiId, query));
-    [HttpDelete("attachments/{attachmentId:guid}")] public async Task<IActionResult> DeleteAttachment(Guid projectId, Guid rfiId, Guid attachmentId) => HandleAction(await plansSpecsService.DeleteRfiAttachmentAsync(projectId, rfiId, attachmentId));
-    [HttpPost("distribution")] public async Task<IActionResult> CreateDistribution(Guid projectId, Guid rfiId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.CreateRfiDistributionAsync(projectId, rfiId, request));
-    [HttpGet("distribution")] public async Task<IActionResult> ListDistribution(Guid projectId, Guid rfiId, [FromQuery] PmListQuery query) => HandleResult(await plansSpecsService.ListRfiDistributionsAsync(projectId, rfiId, query));
-    [HttpPost("cost-links")] public async Task<IActionResult> CreateCostLink(Guid projectId, Guid rfiId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.CreateRfiCostLinkAsync(projectId, rfiId, request));
-    [HttpPut("cost-links/{linkId:guid}")] public async Task<IActionResult> UpdateCostLink(Guid projectId, Guid rfiId, Guid linkId, [FromBody] PmUpsertRequest request) => HandleResult(await plansSpecsService.UpdateRfiCostLinkAsync(projectId, rfiId, linkId, request));
-    [HttpGet("cost-links")] public async Task<IActionResult> ListCostLinks(Guid projectId, Guid rfiId, [FromQuery] PmListQuery query) => HandleResult(await plansSpecsService.ListRfiCostLinksAsync(projectId, rfiId, query));
+    /// <summary>
+    /// Adds an attachment to the specified RFI.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="request">Attachment details.</param>
+    /// <returns>The created RFI attachment record.</returns>
+    /// <response code="200">Attachment added successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">RFI not found.</response>
+    [HttpPost("attachments")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddAttachment(Guid projectId, Guid rfiId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.AddRfiAttachmentAsync(projectId, rfiId, request));
+
+    /// <summary>
+    /// Lists attachments for the specified RFI.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of RFI attachment records.</returns>
+    /// <response code="200">Attachments returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">RFI not found.</response>
+    [HttpGet("attachments")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListAttachments(Guid projectId, Guid rfiId, [FromQuery] PmListQuery query)
+        => HandleResult(await plansSpecsService.ListRfiAttachmentsAsync(projectId, rfiId, query));
+
+    /// <summary>
+    /// Deletes an attachment from the specified RFI.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="attachmentId">Attachment identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Attachment deleted successfully.</response>
+    /// <response code="400">Invalid request.</response>
+    /// <response code="404">Attachment not found.</response>
+    [HttpDelete("attachments/{attachmentId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteAttachment(Guid projectId, Guid rfiId, Guid attachmentId)
+        => HandleAction(await plansSpecsService.DeleteRfiAttachmentAsync(projectId, rfiId, attachmentId));
+
+    /// <summary>
+    /// Creates an RFI distribution recipient record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="request">Distribution recipient details.</param>
+    /// <returns>The created distribution recipient record.</returns>
+    /// <response code="200">Distribution recipient created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">RFI not found.</response>
+    [HttpPost("distribution")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateDistribution(Guid projectId, Guid rfiId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.CreateRfiDistributionAsync(projectId, rfiId, request));
+
+    /// <summary>
+    /// Lists RFI distribution recipients.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of RFI distribution recipient records.</returns>
+    /// <response code="200">Distribution recipients returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">RFI not found.</response>
+    [HttpGet("distribution")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListDistribution(Guid projectId, Guid rfiId, [FromQuery] PmListQuery query)
+        => HandleResult(await plansSpecsService.ListRfiDistributionsAsync(projectId, rfiId, query));
+
+    /// <summary>
+    /// Creates a cost impact link for the specified RFI.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="request">Cost link details.</param>
+    /// <returns>The created cost link record.</returns>
+    /// <response code="200">Cost link created successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">RFI not found.</response>
+    [HttpPost("cost-links")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateCostLink(Guid projectId, Guid rfiId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.CreateRfiCostLinkAsync(projectId, rfiId, request));
+
+    /// <summary>
+    /// Updates an RFI cost impact link.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="linkId">Cost link identifier.</param>
+    /// <param name="request">Updated cost link values.</param>
+    /// <returns>The updated cost link record.</returns>
+    /// <response code="200">Cost link updated successfully.</response>
+    /// <response code="400">Validation failed.</response>
+    /// <response code="404">Cost link not found.</response>
+    [HttpPut("cost-links/{linkId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateCostLink(Guid projectId, Guid rfiId, Guid linkId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await plansSpecsService.UpdateRfiCostLinkAsync(projectId, rfiId, linkId, request));
+
+    /// <summary>
+    /// Lists cost impact links for the specified RFI.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="rfiId">RFI identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of RFI cost link records.</returns>
+    /// <response code="200">Cost links returned successfully.</response>
+    /// <response code="400">Invalid query parameters.</response>
+    /// <response code="404">RFI not found.</response>
+    [HttpGet("cost-links")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListCostLinks(Guid projectId, Guid rfiId, [FromQuery] PmListQuery query)
+        => HandleResult(await plansSpecsService.ListRfiCostLinksAsync(projectId, rfiId, query));
 }
