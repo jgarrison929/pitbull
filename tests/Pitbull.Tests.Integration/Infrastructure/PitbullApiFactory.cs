@@ -17,6 +17,8 @@ public sealed class PitbullApiFactory(string connectionString) : WebApplicationF
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["ConnectionStrings:PitbullDb"] = connectionString,
+                // Skip migrations — PostgresFixture applies them once during init.
+                ["SkipMigrations"] = "true",
                 // Suppress verbose EF SQL logging in integration tests to prevent
                 // GitHub Actions log buffer overflow (25K+ lines of SQL trace).
                 // Must override the specific Database.Command namespace because

@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Respawn;
 using Testcontainers.PostgreSql;
@@ -6,11 +8,19 @@ namespace Pitbull.Tests.Integration.Infrastructure;
 
 /// <summary>
 /// Shared PostgreSQL container + database reset for integration tests.
+/// Migrations are applied once during fixture initialization to avoid
+/// race conditions when multiple test hosts start concurrently.
 /// </summary>
 public sealed class PostgresFixture : IAsyncLifetime
 {
     private readonly PostgreSqlContainer _container;
     private Respawner? _respawner;
+
+    /// <summary>
+    /// Indicates migrations have already been applied by the fixture.
+    /// Test hosts should skip MigrateAsync when this is true.
+    /// </summary>
+    public bool MigrationsApplied { get; private set; }
 
     public PostgresFixture()
     {
@@ -62,6 +72,16 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO pitbull_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO pitbull_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO pitbull_app;
 ");
+
+        // Apply migrations once using admin connection to avoid race conditions
+        // when multiple test hosts start concurrently.
+        var optionsBuilder = new DbContextOptionsBuilder<Pitbull.Core.Data.PitbullDbContext>();
+        optionsBuilder.UseNpgsql(AdminConnectionString);
+        var tenantCtx = new Pitbull.Core.MultiTenancy.TenantContext { TenantId = Guid.Empty, TenantName = "fixture" };
+        var companyCtx = new Pitbull.Core.MultiTenancy.CompanyContext { CompanyId = Guid.Empty, CompanyCode = "00", CompanyName = "fixture" };
+        await using var dbCtx = new Pitbull.Core.Data.PitbullDbContext(optionsBuilder.Options, tenantCtx, companyCtx);
+        await dbCtx.Database.MigrateAsync();
+        MigrationsApplied = true;
     }
 
     public async Task DisposeAsync() => await _container.DisposeAsync();

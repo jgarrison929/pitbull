@@ -360,9 +360,11 @@ var app = builder.Build();
 // Handle forwarded headers from reverse proxy (must be very early)
 app.UseForwardedHeaders();
 
-// Auto-migrate database on startup
-using (var scope = app.Services.CreateScope())
+// Auto-migrate database on startup (skipped in integration tests where
+// PostgresFixture applies migrations once to avoid parallel race conditions).
+if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison.OrdinalIgnoreCase))
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
     await db.Database.MigrateAsync();
 
