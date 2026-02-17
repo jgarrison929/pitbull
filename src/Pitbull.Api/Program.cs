@@ -121,6 +121,7 @@ builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbu
 
 // Notifications module
 builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService, Pitbull.Notifications.Services.NotificationService>();
+builder.Services.AddScoped<Pitbull.Api.Services.INotificationPreferenceService, Pitbull.Api.Services.NotificationPreferenceService>();
 
 // Audit interceptor for automatic change tracking via EF SaveChanges
 builder.Services.AddScoped<AuditInterceptor>();

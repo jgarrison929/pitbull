@@ -32,6 +32,8 @@ public class PitbullDbContext(
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<UserCompanyAccess> UserCompanyAccess => Set<UserCompanyAccess>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
+    public DbSet<EmailDigestSetting> EmailDigestSettings => Set<EmailDigestSetting>();
     public DbSet<Role> RbacRoles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
@@ -185,6 +187,26 @@ public class PitbullDbContext(
         builder.Entity<AppRole>(e =>
         {
             e.HasIndex(r => new { r.TenantId, r.Name });
+        });
+
+        // Notification preferences configuration
+        builder.Entity<NotificationPreference>(e =>
+        {
+            e.ToTable("notification_preferences");
+            e.HasKey(np => np.Id);
+            e.Property(np => np.Category).HasMaxLength(100).IsRequired();
+            e.HasIndex(np => new { np.TenantId, np.UserId, np.Category }).IsUnique();
+            e.HasIndex(np => new { np.TenantId, np.UserId });
+        });
+
+        // Email digest settings configuration
+        builder.Entity<EmailDigestSetting>(e =>
+        {
+            e.ToTable("email_digest_settings");
+            e.HasKey(ds => ds.Id);
+            e.Property(ds => ds.Frequency).HasConversion<int>();
+            e.Property(ds => ds.SendTime).HasColumnType("time");
+            e.HasIndex(ds => new { ds.TenantId, ds.UserId }).IsUnique();
         });
 
         // RBAC Role configuration
