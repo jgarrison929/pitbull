@@ -26,8 +26,13 @@ public class AdminUsersController(
     /// List all users in the tenant with their roles
     /// </summary>
     [HttpGet]
-    [ProducesResponseType(typeof(List<AdminUserDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListUsers([FromQuery] string? search, [FromQuery] string? role, [FromQuery] bool? isActive)
+    [ProducesResponseType(typeof(AdminListUsersResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListUsers(
+        [FromQuery] string? search,
+        [FromQuery] string? role,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
     {
         var query = db.Users.AsQueryable();
 
@@ -40,16 +45,14 @@ public class AdminUsersController(
                 u.LastName!.ToLower().Contains(searchLower));
         }
 
-        if (isActive.HasValue)
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<UserStatus>(status, ignoreCase: true, out var parsedStatus))
         {
-            query = query.Where(u => isActive.Value
-                ? u.Status == UserStatus.Active
-                : u.Status != UserStatus.Active);
+            query = query.Where(u => u.Status == parsedStatus);
         }
 
         var users = await query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName).ToListAsync();
 
-        var result = new List<AdminUserDto>();
+        var allItems = new List<AdminUserDto>();
         foreach (var user in users)
         {
             var roles = await userManager.GetRolesAsync(user);
@@ -57,20 +60,19 @@ public class AdminUsersController(
             if (!string.IsNullOrWhiteSpace(role) && !roles.Contains(role, StringComparer.OrdinalIgnoreCase))
                 continue;
 
-            result.Add(new AdminUserDto
-            {
-                Id = user.Id,
-                Email = user.Email!,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                Status = user.Status.ToString(),
-                LastLoginAt = user.LastLoginAt,
-                CreatedAt = user.CreatedAt,
-                Roles = roles.ToList()
-            });
+            allItems.Add(MapToDto(user, roles.ToList()));
         }
 
-        return Ok(result);
+        var totalCount = allItems.Count;
+        var items = allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        return Ok(new AdminListUsersResult
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     /// <summary>
@@ -87,17 +89,7 @@ public class AdminUsersController(
 
         var roles = await userManager.GetRolesAsync(user);
 
-        return Ok(new AdminUserDto
-        {
-            Id = user.Id,
-            Email = user.Email!,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Status = user.Status.ToString(),
-            LastLoginAt = user.LastLoginAt,
-            CreatedAt = user.CreatedAt,
-            Roles = roles.ToList()
-        });
+        return Ok(MapToDto(user, roles.ToList()));
     }
 
     /// <summary>
@@ -138,17 +130,7 @@ public class AdminUsersController(
         await db.SaveChangesAsync();
 
         var roles = await userManager.GetRolesAsync(user);
-        return Ok(new AdminUserDto
-        {
-            Id = user.Id,
-            Email = user.Email!,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Status = user.Status.ToString(),
-            LastLoginAt = user.LastLoginAt,
-            CreatedAt = user.CreatedAt,
-            Roles = roles.ToList()
-        });
+        return Ok(MapToDto(user, roles.ToList()));
     }
 
     /// <summary>
@@ -159,7 +141,12 @@ public class AdminUsersController(
     public async Task<IActionResult> GetRoles()
     {
         var roles = await roleManager.Roles.ToListAsync();
-        return Ok(roles.Select(r => new RoleDto { Id = r.Id, Name = r.Name! }).ToList());
+        return Ok(roles.Select(r => new RoleDto
+        {
+            Id = r.Id,
+            Name = r.Name!,
+            Description = r.Description ?? r.Name!
+        }).ToList());
     }
 
     /// <summary>
@@ -256,6 +243,19 @@ public class AdminUsersController(
             roles = new[] { "Admin", "Manager", "Supervisor", "User" }
         });
     }
+
+    private static AdminUserDto MapToDto(AppUser user, List<string> roles) => new()
+    {
+        Id = user.Id,
+        Email = user.Email!,
+        FirstName = user.FirstName,
+        LastName = user.LastName,
+        FullName = user.FullName,
+        Status = user.Status.ToString(),
+        LastLoginAt = user.LastLoginAt,
+        CreatedAt = user.CreatedAt,
+        Roles = roles
+    };
 }
 
 public record BootstrapAdminRequest
@@ -269,10 +269,19 @@ public record AdminUserDto
     public string Email { get; init; } = string.Empty;
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    public string FullName { get; init; } = string.Empty;
     public string Status { get; init; } = "Active";
     public DateTime? LastLoginAt { get; init; }
     public DateTime CreatedAt { get; init; }
     public List<string> Roles { get; init; } = [];
+}
+
+public record AdminListUsersResult
+{
+    public List<AdminUserDto> Items { get; init; } = [];
+    public int TotalCount { get; init; }
+    public int Page { get; init; }
+    public int PageSize { get; init; }
 }
 
 public record UpdateUserRequest
@@ -287,4 +296,5 @@ public record RoleDto
 {
     public Guid Id { get; init; }
     public string Name { get; init; } = string.Empty;
+    public string Description { get; init; } = string.Empty;
 }
