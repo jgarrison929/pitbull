@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import api, { ApiError } from "@/lib/api";
+import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,7 @@ function meetingTypeLabel(type: string): string {
 
 export default function MeetingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const isProjectIdValid = isValidGuid(projectId);
 
   const [meetings, setMeetings] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,8 +166,12 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
   }, [projectId]);
 
   useEffect(() => {
+    if (!isProjectIdValid) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [isProjectIdValid, load]);
 
   const rows = useMemo(() => {
     const mapped = meetings.map<MeetingRow>((meeting) => {
@@ -308,6 +314,10 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
     } finally {
       setSaving(false);
     }
+  }
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
   return (

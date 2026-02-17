@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api from "@/lib/api";
+import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -163,6 +164,7 @@ function formatDate(date: string | null): string {
 
 function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const isProjectIdValid = isValidGuid(projectId);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -219,8 +221,12 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
   }, [projectId]);
 
   useEffect(() => {
+    if (!isProjectIdValid) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [isProjectIdValid, load]);
 
   useListPageShortcuts({ searchInputRef });
 
@@ -428,6 +434,10 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
     } finally {
       setIsDeleting(false);
     }
+  }
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
   return (

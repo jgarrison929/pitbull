@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError } from "@/lib/api";
+import { isValidGuid } from "@/lib/utils";
 import type { CostCode } from "@/lib/types";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ function formatPercent(v: number): string { return `${v.toFixed(1)}%`; }
 
 function JobCostContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const isProjectIdValid = isValidGuid(projectId);
   const searchInputRef = useRef<HTMLInputElement>(null);
   useListPageShortcuts({ searchInputRef });
 
@@ -76,7 +78,13 @@ function JobCostContent({ params }: { params: Promise<{ id: string }> }) {
     } finally { setLoading(false); }
   }, [projectId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!isProjectIdValid) {
+      setLoading(false);
+      return;
+    }
+    void load();
+  }, [isProjectIdValid, load]);
 
   const rows = useMemo(() => {
     const codeMap = new Map(costCodes.map((code) => [code.id, code]));
@@ -166,6 +174,10 @@ function JobCostContent({ params }: { params: Promise<{ id: string }> }) {
         : error instanceof Error ? error.message : "Unknown error";
       toast.error("Failed to delete budget", { description: message });
     } finally { setIsDeleting(false); }
+  }
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
   return (

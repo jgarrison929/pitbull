@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError } from "@/lib/api";
+import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,7 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
 
 function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const isProjectIdValid = isValidGuid(projectId);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useListPageShortcuts({ searchInputRef });
@@ -163,8 +165,12 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
   }, [projectId]);
 
   useEffect(() => {
+    if (!isProjectIdValid) {
+      setLoading(false);
+      return;
+    }
     void load();
-  }, [load]);
+  }, [isProjectIdValid, load]);
 
   const rows = useMemo(() => {
     const mapped = schedules.map<ScheduleRow>((schedule) => {
@@ -296,6 +302,10 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
     } finally {
       setIsDeleting(false);
     }
+  }
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
   return (
