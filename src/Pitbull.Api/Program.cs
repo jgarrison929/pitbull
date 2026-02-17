@@ -104,6 +104,7 @@ builder.Services.AddScoped<Pitbull.TimeTracking.Services.IEmployeeService, Pitbu
 
 // Dashboard service (Core module - migrated from MediatR)
 builder.Services.AddScoped<Pitbull.Core.Features.Dashboard.IDashboardService, Pitbull.Core.Features.Dashboard.DashboardService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IDashboardAnalyticsService, Pitbull.Api.Services.DashboardAnalyticsService>();
 
 // Equipment service (Core module - for time entry equipment tracking)
 builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pitbull.Core.Features.Equipment.EquipmentService>();

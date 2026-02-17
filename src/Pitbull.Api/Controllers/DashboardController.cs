@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
+using Pitbull.Api.Services;
 using Pitbull.Core.Features.Dashboard;
 
 namespace Pitbull.Api.Controllers;
@@ -16,7 +17,9 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Dashboard")]
-public class DashboardController(IDashboardService dashboardService) : ControllerBase
+public class DashboardController(
+    IDashboardService dashboardService,
+    IDashboardAnalyticsService dashboardAnalyticsService) : ControllerBase
 {
     /// <summary>
     /// Get dashboard statistics for the current tenant
@@ -158,5 +161,18 @@ public class DashboardController(IDashboardService dashboardService) : Controlle
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get all enhanced dashboard KPI analytics in one call.
+    /// </summary>
+    [HttpGet("analytics")]
+    [Cacheable(DurationSeconds = 60)]
+    [ProducesResponseType(typeof(DashboardAnalyticsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetAnalytics(CancellationToken cancellationToken)
+    {
+        var result = await dashboardAnalyticsService.GetAnalyticsAsync(cancellationToken);
+        return Ok(result);
     }
 }
