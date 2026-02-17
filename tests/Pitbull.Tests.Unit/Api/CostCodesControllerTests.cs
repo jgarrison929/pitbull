@@ -114,8 +114,9 @@ public class CostCodesControllerTests : IDisposable
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
-        // isActive=false means we don't filter by active, so all come through
-        payload.totalCount.Should().Be(2);
+        // isActive=false filters to inactive only
+        payload.totalCount.Should().Be(1);
+        payload.items.First().Code.Should().Be("01-200");
     }
 
     [Fact]
@@ -125,7 +126,7 @@ public class CostCodesControllerTests : IDisposable
         await SeedCostCode("02-200", "Material Code", costType: CostType.Material);
         await SeedCostCode("03-300", "Equipment Code", costType: CostType.Equipment);
 
-        var result = await _controller.List(CostType.Material, isActive: false, null);
+        var result = await _controller.List(CostType.Material, isActive: null, null);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -139,7 +140,7 @@ public class CostCodesControllerTests : IDisposable
         await SeedCostCode("02-200", "Framing");
         await SeedCostCode("03-300", "Electrical");
 
-        var result = await _controller.List(null, isActive: false, search: "01-100");
+        var result = await _controller.List(null, isActive: null, search: "01-100");
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -153,7 +154,7 @@ public class CostCodesControllerTests : IDisposable
         await SeedCostCode("02-200", "Steel Framing");
         await SeedCostCode("03-300", "Electrical Wiring");
 
-        var result = await _controller.List(null, isActive: false, search: "framing");
+        var result = await _controller.List(null, isActive: null, search: "framing");
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -165,7 +166,7 @@ public class CostCodesControllerTests : IDisposable
     {
         await SeedCostCode("01-100", "Concrete Work");
 
-        var result = await _controller.List(null, isActive: false, search: "CONCRETE");
+        var result = await _controller.List(null, isActive: null, search: "CONCRETE");
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -179,7 +180,7 @@ public class CostCodesControllerTests : IDisposable
         for (int i = 1; i <= 5; i++)
             await SeedCostCode($"{i:D2}-100", $"Code {i}");
 
-        var result = await _controller.List(null, isActive: false, null, page: 2, pageSize: 2);
+        var result = await _controller.List(null, isActive: null, null, page: 2, pageSize: 2);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -221,7 +222,7 @@ public class CostCodesControllerTests : IDisposable
         await SeedCostCode("01-100", "Concrete");
         await SeedCostCode("02-200", "Framing");
 
-        var result = await _controller.List(null, isActive: false, null);
+        var result = await _controller.List(null, isActive: null, null);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -256,7 +257,7 @@ public class CostCodesControllerTests : IDisposable
         await SeedCostCode("02-200", "Code 2");
         await SeedCostCode("03-300", "Code 3");
 
-        var result = await _controller.List(null, isActive: false, null, page: 1, pageSize: 2);
+        var result = await _controller.List(null, isActive: null, null, page: 1, pageSize: 2);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -274,7 +275,7 @@ public class CostCodesControllerTests : IDisposable
         deletedCode.DeletedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        var result = await _controller.List(null, isActive: false, null);
+        var result = await _controller.List(null, isActive: null, null);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
@@ -288,7 +289,7 @@ public class CostCodesControllerTests : IDisposable
         await SeedCostCode("02-200", "Concrete Material", costType: CostType.Material);
         await SeedCostCode("03-300", "Steel Material", costType: CostType.Material);
 
-        var result = await _controller.List(CostType.Material, isActive: false, search: "concrete");
+        var result = await _controller.List(CostType.Material, isActive: null, search: "concrete");
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var payload = GetAnonymousPayload(ok.Value!);
