@@ -32,6 +32,10 @@ public class PitbullDbContext(
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<UserCompanyAccess> UserCompanyAccess => Set<UserCompanyAccess>();
+    public DbSet<Role> RbacRoles => Set<Role>();
+    public DbSet<Permission> Permissions => Set<Permission>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<UserRole> UserRolesMap => Set<UserRole>();
     public DbSet<ComplianceDocument> ComplianceDocuments => Set<ComplianceDocument>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
@@ -181,6 +185,64 @@ public class PitbullDbContext(
         builder.Entity<AppRole>(e =>
         {
             e.HasIndex(r => new { r.TenantId, r.Name });
+        });
+
+        // RBAC Role configuration
+        builder.Entity<Role>(e =>
+        {
+            e.ToTable("rbac_roles");
+            e.HasKey(r => r.Id);
+            e.Property(r => r.Name).HasMaxLength(100).IsRequired();
+            e.Property(r => r.Description).HasMaxLength(500);
+            e.HasIndex(r => new { r.TenantId, r.Name }).IsUnique();
+        });
+
+        // RBAC Permission configuration
+        builder.Entity<Permission>(e =>
+        {
+            e.ToTable("rbac_permissions");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Name).HasMaxLength(150).IsRequired();
+            e.Property(p => p.Category).HasMaxLength(100).IsRequired();
+            e.Property(p => p.Description).HasMaxLength(500);
+            e.HasIndex(p => new { p.TenantId, p.Name }).IsUnique();
+            e.HasIndex(p => new { p.TenantId, p.Category });
+        });
+
+        // RBAC RolePermission configuration
+        builder.Entity<RolePermission>(e =>
+        {
+            e.ToTable("rbac_role_permissions");
+            e.HasKey(rp => new { rp.TenantId, rp.RoleId, rp.PermissionId });
+            e.HasIndex(rp => new { rp.TenantId, rp.PermissionId });
+
+            e.HasOne(rp => rp.Role)
+                .WithMany(r => r.RolePermissions)
+                .HasForeignKey(rp => rp.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(rp => rp.Permission)
+                .WithMany(p => p.RolePermissions)
+                .HasForeignKey(rp => rp.PermissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // RBAC UserRole configuration
+        builder.Entity<UserRole>(e =>
+        {
+            e.ToTable("rbac_user_roles");
+            e.HasKey(ur => new { ur.TenantId, ur.UserId, ur.RoleId });
+            e.HasIndex(ur => new { ur.TenantId, ur.RoleId });
+
+            e.HasOne(ur => ur.User)
+                .WithMany()
+                .HasForeignKey(ur => ur.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasOne(ur => ur.Role)
+                .WithMany(r => r.UserRoles)
+                .HasForeignKey(ur => ur.RoleId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Apply module-specific configurations FIRST so all entity types are registered
