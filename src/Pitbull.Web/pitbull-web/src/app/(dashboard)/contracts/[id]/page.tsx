@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,12 +38,14 @@ function formatDate(dateString: string | null | undefined): string {
 
 export default function SubcontractDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
 
   const [subcontract, setSubcontract] = useState<Subcontract | null>(null);
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [payApps, setPayApps] = useState<PaymentApplication[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
@@ -94,6 +97,24 @@ export default function SubcontractDetailPage() {
     ? (subcontract.billedToDate / subcontract.currentValue) * 100 
     : 0;
 
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      "Delete this subcontract? Only draft subcontracts can be deleted."
+    );
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await api(`/api/subcontracts/${id}`, { method: "DELETE" });
+      toast.success("Subcontract deleted");
+      router.push("/contracts");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete subcontract");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Breadcrumbs
@@ -121,12 +142,19 @@ export default function SubcontractDetailPage() {
             {subcontract.subcontractNumber}
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="min-h-[44px] shrink-0"
-        >
-          Edit Subcontract
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" className="min-h-[44px] shrink-0">
+            <Link href={`/contracts/${subcontract.id}/edit`}>Edit Subcontract</Link>
+          </Button>
+          <Button
+            variant="destructive"
+            className="min-h-[44px] shrink-0"
+            disabled={isDeleting}
+            onClick={handleDelete}
+          >
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        </div>
       </div>
 
       {/* Info Cards */}

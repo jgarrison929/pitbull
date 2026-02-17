@@ -1,10 +1,13 @@
 using FluentAssertions;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Pitbull.Api.Controllers;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Features.CostCode;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Tests.Unit.Api;
@@ -25,7 +28,12 @@ public class CostCodesControllerTests : IDisposable
             .Options;
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
-        _controller = new CostCodesController(_db);
+        var service = new CostCodeService(
+            _db,
+            new CreateCostCodeValidator(),
+            new UpdateCostCodeValidator(),
+            NullLogger<CostCodeService>.Instance);
+        _controller = new CostCodesController(service);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
