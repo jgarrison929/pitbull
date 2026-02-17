@@ -104,6 +104,9 @@ builder.Services.AddScoped<Pitbull.Core.Features.Dashboard.IDashboardService, Pi
 
 // Equipment service (Core module - for time entry equipment tracking)
 builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pitbull.Core.Features.Equipment.EquipmentService>();
+
+// Cost code service (Core module - for job cost accounting)
+builder.Services.AddScoped<Pitbull.Core.Features.CostCode.ICostCodeService, Pitbull.Core.Features.CostCode.CostCodeService>();
 builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentStorageProvider>();
 
 // Auth validators (since auth doesn't use CQRS pattern yet)

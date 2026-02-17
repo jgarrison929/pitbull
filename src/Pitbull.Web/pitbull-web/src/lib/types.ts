@@ -286,6 +286,30 @@ export enum CostType {
   Other = 5,
 }
 
+export interface ListCostCodesResult {
+  items: CostCode[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface CreateCostCodeCommand {
+  code: string;
+  description: string;
+  division?: string | null;
+  costType: CostType;
+  isActive?: boolean;
+}
+
+export interface UpdateCostCodeCommand {
+  code?: string | null;
+  description?: string | null;
+  division?: string | null;
+  costType?: CostType | null;
+  isActive?: boolean | null;
+}
+
 export interface CreateTimeEntryCommand {
   date: string;
   employeeId: string;

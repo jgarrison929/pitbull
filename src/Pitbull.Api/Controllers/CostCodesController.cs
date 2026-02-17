@@ -1,9 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
-using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Features.CostCode;
 
 namespace Pitbull.Api.Controllers;
 
@@ -18,34 +17,13 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Cost Codes")]
-public class CostCodesController(PitbullDbContext db) : ControllerBase
+public class CostCodesController(ICostCodeService costCodeService) : ControllerBase
 {
     /// <summary>
     /// List cost codes with optional filtering
     /// </summary>
-    /// <remarks>
-    /// Returns paginated cost codes for use in time entry forms and reports.
-    /// Default is active codes only. Search matches against code or description.
-    ///
-    /// Cost types:
-    /// - Labor = 0 (default for time entries)
-    /// - Material = 1
-    /// - Equipment = 2
-    /// - Subcontract = 3
-    ///
-    /// Divisions follow CSI MasterFormat conventions (01-16).
-    /// </remarks>
-    /// <param name="costType">Filter by cost type (Labor=0, Material=1, Equipment=2, Subcontract=3)</param>
-    /// <param name="isActive">Filter by active status (default: true)</param>
-    /// <param name="search">Search by code or description</param>
-    /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Items per page (default: 100)</param>
-    /// <returns>Paginated list of cost codes</returns>
-    /// <response code="200">Cost codes list</response>
-    /// <response code="401">Not authenticated</response>
-    /// <response code="429">Rate limit exceeded</response>
     [HttpGet]
-    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)] // Paginated CostCodeDto list
+    [ProducesResponseType(typeof(ListCostCodesResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> List(
@@ -55,63 +33,18 @@ public class CostCodesController(PitbullDbContext db) : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100)
     {
-        var query = db.Set<CostCode>().AsQueryable();
+        var query = new ListCostCodesQuery(costType, isActive, search, page, pageSize);
+        var result = await costCodeService.ListCostCodesAsync(query);
 
-        // Default to active only
-        if (isActive ?? true)
-            query = query.Where(c => c.IsActive);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error });
 
-        if (costType.HasValue)
-            query = query.Where(c => c.CostType == costType.Value);
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var searchTerm = search.ToLower();
-            query = query.Where(c =>
-                c.Code.ToLower().Contains(searchTerm) ||
-                c.Description.ToLower().Contains(searchTerm));
-        }
-
-        var totalCount = await query.CountAsync();
-
-        var items = await query
-            .OrderBy(c => c.Code)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .Select(c => new CostCodeDto(
-                c.Id,
-                c.Code,
-                c.Description,
-                c.Division,
-                c.CostType,
-                c.IsActive
-            ))
-            .ToListAsync();
-
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
-
-        return Ok(new
-        {
-            items,
-            totalCount,
-            page,
-            pageSize,
-            totalPages
-        });
+        return Ok(result.Value);
     }
 
     /// <summary>
     /// Get a specific cost code by ID
     /// </summary>
-    /// <remarks>
-    /// Returns full cost code details for display or validation.
-    /// </remarks>
-    /// <param name="id">Cost code unique identifier</param>
-    /// <returns>Cost code details</returns>
-    /// <response code="200">Cost code found</response>
-    /// <response code="401">Not authenticated</response>
-    /// <response code="404">Cost code not found</response>
-    /// <response code="429">Rate limit exceeded</response>
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(CostCodeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -119,30 +52,106 @@ public class CostCodesController(PitbullDbContext db) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var costCode = await db.Set<CostCode>()
-            .Where(c => c.Id == id)
-            .Select(c => new CostCodeDto(
-                c.Id,
-                c.Code,
-                c.Description,
-                c.Division,
-                c.CostType,
-                c.IsActive
-            ))
-            .FirstOrDefaultAsync();
+        var result = await costCodeService.GetCostCodeAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
 
-        if (costCode is null)
-            return NotFound(new { error = "Cost code not found" });
+        return Ok(result.Value);
+    }
 
-        return Ok(costCode);
+    /// <summary>
+    /// Create a new cost code
+    /// </summary>
+    [HttpPost]
+    [ProducesResponseType(typeof(CostCodeDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Create([FromBody] CreateCostCodeRequest request)
+    {
+        var command = new CreateCostCodeCommand(
+            Code: request.Code,
+            Description: request.Description,
+            Division: request.Division,
+            CostType: request.CostType,
+            IsActive: request.IsActive
+        );
+
+        var result = await costCodeService.CreateCostCodeAsync(command);
+        if (!result.IsSuccess)
+            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return CreatedAtAction(nameof(GetById),
+            new { id = result.Value!.Id }, result.Value);
+    }
+
+    /// <summary>
+    /// Update an existing cost code
+    /// </summary>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(typeof(CostCodeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCostCodeRequest request)
+    {
+        var command = new UpdateCostCodeCommand(
+            CostCodeId: id,
+            Code: request.Code,
+            Description: request.Description,
+            Division: request.Division,
+            CostType: request.CostType,
+            IsActive: request.IsActive
+        );
+
+        var result = await costCodeService.UpdateCostCodeAsync(command);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Delete (soft delete) a cost code
+    /// </summary>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var result = await costCodeService.DeleteCostCodeAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+
+        return NoContent();
     }
 }
 
-public record CostCodeDto(
-    Guid Id,
+public record CreateCostCodeRequest(
     string Code,
     string Description,
-    string? Division,
-    CostType CostType,
-    bool IsActive
+    string? Division = null,
+    CostType CostType = CostType.Labor,
+    bool IsActive = true
+);
+
+public record UpdateCostCodeRequest(
+    string? Code = null,
+    string? Description = null,
+    string? Division = null,
+    CostType? CostType = null,
+    bool? IsActive = null
 );
