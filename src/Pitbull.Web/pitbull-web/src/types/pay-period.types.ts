@@ -24,6 +24,7 @@ export interface PayPeriod {
   isLocked: boolean;
   lockedAt?: string | null;
   lockedById?: string | null;
+  lockedByName?: string | null;
   payrollExportMarkedAt?: string | null;
   createdAt: string;
   updatedAt?: string | null;

@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Tests.Unit.Services;
@@ -243,7 +244,7 @@ public class PayPeriodServiceTests
     [Theory]
     [InlineData(PayPeriodStatus.Open, false)]
     [InlineData(PayPeriodStatus.Locked, true)]
-    [InlineData(PayPeriodStatus.Processed, true)]
+    [InlineData(PayPeriodStatus.Closed, true)]
     public void PayPeriod_IsLocked_ReturnsCorrectValue(PayPeriodStatus status, bool expectedLocked)
     {
         // Arrange
