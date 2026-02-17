@@ -18,7 +18,7 @@
 
 ## 📊 Current Stats (Feb 11, 2026)
 
-- **Version:** v0.11.0
+- **Version:** v0.12.0
 - **Tests:** 1017 passing (834 unit + 183 integration)
 - **CI:** Green on all branches
 - **Deployment:** Railway production healthy
