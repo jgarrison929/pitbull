@@ -12,8 +12,17 @@ public record CreateChangeOrderCommand(
     decimal Amount,
     int? DaysExtension,
     string? ReferenceNumber,
-    Guid? OriginatingRfiId = null
-) : ICommand<ChangeOrderDto>;
+    Guid? OriginatingRfiId = null,
+    ChangeOrderStatus Status = ChangeOrderStatus.Pending,
+    int? ScheduleImpactDays = null,
+    decimal? CostImpact = null,
+    string? RequestedBy = null,
+    DateTime? RequestDate = null,
+    DateTime? ApprovedDate = null
+) : ICommand<ChangeOrderDto>
+{
+    public string Number => ChangeOrderNumber;
+}
 
 public record ChangeOrderDto(
     Guid Id,
@@ -32,5 +41,10 @@ public record ChangeOrderDto(
     string? RejectedBy,
     string? RejectionReason,
     string? ReferenceNumber,
-    DateTime CreatedAt
+    string? Number = null,
+    int? ScheduleImpactDays = null,
+    decimal? CostImpact = null,
+    string? RequestedBy = null,
+    DateTime? RequestDate = null,
+    DateTime CreatedAt = default
 );

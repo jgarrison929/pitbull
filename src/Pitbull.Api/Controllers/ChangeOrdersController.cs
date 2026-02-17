@@ -57,14 +57,54 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> Create([FromBody] CreateChangeOrderCommand command)
+    public async Task<IActionResult> Create([FromBody] CreateChangeOrderRequest request)
     {
+        var command = new CreateChangeOrderCommand(
+            SubcontractId: request.SubcontractId,
+            ChangeOrderNumber: request.Number ?? request.ChangeOrderNumber ?? string.Empty,
+            Title: request.Title,
+            Description: request.Description,
+            Reason: request.Reason,
+            Amount: request.Amount,
+            DaysExtension: request.DaysExtension,
+            ReferenceNumber: request.ReferenceNumber,
+            OriginatingRfiId: request.OriginatingRfiId,
+            Status: request.Status ?? ChangeOrderStatus.Pending,
+            ScheduleImpactDays: request.ScheduleImpactDays ?? request.DaysExtension,
+            CostImpact: request.CostImpact,
+            RequestedBy: request.RequestedBy,
+            RequestDate: request.RequestDate ?? request.SubmittedDate,
+            ApprovedDate: request.ApprovedDate
+        );
+
         var result = await contractsService.CreateChangeOrderAsync(command);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
     }
+
+    [NonAction]
+    public Task<IActionResult> Create(CreateChangeOrderCommand command) =>
+        Create(new CreateChangeOrderRequest(
+            SubcontractId: command.SubcontractId,
+            Title: command.Title,
+            Description: command.Description,
+            Amount: command.Amount,
+            Number: command.ChangeOrderNumber,
+            ChangeOrderNumber: command.ChangeOrderNumber,
+            Status: command.Status,
+            ScheduleImpactDays: command.ScheduleImpactDays,
+            DaysExtension: command.DaysExtension,
+            CostImpact: command.CostImpact,
+            RequestedBy: command.RequestedBy,
+            Reason: command.Reason,
+            ReferenceNumber: command.ReferenceNumber,
+            RequestDate: command.RequestDate,
+            SubmittedDate: command.RequestDate,
+            ApprovedDate: command.ApprovedDate,
+            OriginatingRfiId: command.OriginatingRfiId
+        ));
 
     /// <summary>
     /// Get a change order by ID
@@ -150,10 +190,27 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
-    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateChangeOrderCommand command)
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateChangeOrderRequest request)
     {
-        if (id != command.Id)
+        if (id != request.Id)
             return this.BadRequestError("Route ID does not match body ID");
+
+        var command = new UpdateChangeOrderCommand(
+            Id: request.Id,
+            ChangeOrderNumber: request.Number ?? request.ChangeOrderNumber ?? string.Empty,
+            Title: request.Title,
+            Description: request.Description,
+            Reason: request.Reason,
+            Amount: request.Amount,
+            DaysExtension: request.DaysExtension,
+            Status: request.Status,
+            ReferenceNumber: request.ReferenceNumber,
+            ScheduleImpactDays: request.ScheduleImpactDays ?? request.DaysExtension,
+            CostImpact: request.CostImpact,
+            RequestedBy: request.RequestedBy,
+            RequestDate: request.RequestDate ?? request.SubmittedDate,
+            ApprovedDate: request.ApprovedDate
+        );
 
         var result = await contractsService.UpdateChangeOrderAsync(command);
         if (!result.IsSuccess)
@@ -168,6 +225,27 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
 
         return Ok(result.Value);
     }
+
+    [NonAction]
+    public Task<IActionResult> Update(Guid id, UpdateChangeOrderCommand command) =>
+        Update(id, new UpdateChangeOrderRequest(
+            Id: command.Id,
+            Title: command.Title,
+            Description: command.Description,
+            Amount: command.Amount,
+            Status: command.Status,
+            Number: command.ChangeOrderNumber,
+            ChangeOrderNumber: command.ChangeOrderNumber,
+            ScheduleImpactDays: command.ScheduleImpactDays,
+            DaysExtension: command.DaysExtension,
+            CostImpact: command.CostImpact,
+            RequestedBy: command.RequestedBy,
+            Reason: command.Reason,
+            ReferenceNumber: command.ReferenceNumber,
+            RequestDate: command.RequestDate,
+            SubmittedDate: command.RequestDate,
+            ApprovedDate: command.ApprovedDate
+        ));
 
     /// <summary>
     /// Delete a change order (soft delete)
@@ -196,3 +274,42 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
         return NoContent();
     }
 }
+
+public record CreateChangeOrderRequest(
+    Guid SubcontractId,
+    string Title,
+    string Description,
+    decimal Amount,
+    string? Number = null,
+    string? ChangeOrderNumber = null,
+    ChangeOrderStatus? Status = null,
+    int? ScheduleImpactDays = null,
+    int? DaysExtension = null,
+    decimal? CostImpact = null,
+    string? RequestedBy = null,
+    string? Reason = null,
+    string? ReferenceNumber = null,
+    DateTime? RequestDate = null,
+    DateTime? SubmittedDate = null,
+    DateTime? ApprovedDate = null,
+    Guid? OriginatingRfiId = null
+);
+
+public record UpdateChangeOrderRequest(
+    Guid Id,
+    string Title,
+    string Description,
+    decimal Amount,
+    ChangeOrderStatus Status,
+    string? Number = null,
+    string? ChangeOrderNumber = null,
+    int? ScheduleImpactDays = null,
+    int? DaysExtension = null,
+    decimal? CostImpact = null,
+    string? RequestedBy = null,
+    string? Reason = null,
+    string? ReferenceNumber = null,
+    DateTime? RequestDate = null,
+    DateTime? SubmittedDate = null,
+    DateTime? ApprovedDate = null
+);

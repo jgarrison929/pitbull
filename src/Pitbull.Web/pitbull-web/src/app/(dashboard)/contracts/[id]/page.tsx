@@ -257,8 +257,8 @@ export default function SubcontractDetailPage() {
               {changeOrders.length} change order{changeOrders.length !== 1 ? "s" : ""}
             </CardDescription>
           </div>
-          <Button variant="outline" size="sm">
-            + New CO
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/contracts/${id}/change-orders`}>Manage COs</Link>
           </Button>
         </CardHeader>
         <CardContent>
@@ -281,7 +281,7 @@ export default function SubcontractDetailPage() {
                 {changeOrders.map((co) => (
                   <TableRow key={co.id}>
                     <TableCell className="font-mono text-sm">
-                      {co.changeOrderNumber}
+                      {co.number || co.changeOrderNumber}
                     </TableCell>
                     <TableCell className="max-w-[200px] truncate">
                       {co.title}
@@ -290,7 +290,7 @@ export default function SubcontractDetailPage() {
                       {co.amount >= 0 ? "+" : ""}{formatCurrency(co.amount)}
                     </TableCell>
                     <TableCell>
-                      {co.daysExtension ? `+${co.daysExtension}` : "—"}
+                      {co.scheduleImpactDays ?? co.daysExtension ? `+${co.scheduleImpactDays ?? co.daysExtension}` : "—"}
                     </TableCell>
                     <TableCell>
                       <Badge

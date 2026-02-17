@@ -13,5 +13,13 @@ public record UpdateChangeOrderCommand(
     decimal Amount,
     int? DaysExtension,
     ChangeOrderStatus Status,
-    string? ReferenceNumber
-) : ICommand<ChangeOrderDto>;
+    string? ReferenceNumber,
+    int? ScheduleImpactDays = null,
+    decimal? CostImpact = null,
+    string? RequestedBy = null,
+    DateTime? RequestDate = null,
+    DateTime? ApprovedDate = null
+) : ICommand<ChangeOrderDto>
+{
+    public string Number => ChangeOrderNumber;
+}

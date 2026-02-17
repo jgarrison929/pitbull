@@ -217,7 +217,7 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         // Check for duplicate CO number on this subcontract
         var duplicateExists = await db.Set<ChangeOrder>()
             .AnyAsync(co => co.SubcontractId == command.SubcontractId
-                         && co.ChangeOrderNumber == command.ChangeOrderNumber,
+                         && co.ChangeOrderNumber == command.Number,
                      cancellationToken);
 
         if (duplicateExists)
@@ -228,17 +228,22 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         var changeOrder = new ChangeOrder
         {
             SubcontractId = command.SubcontractId,
-            ChangeOrderNumber = command.ChangeOrderNumber,
+            ChangeOrderNumber = command.Number,
             Title = command.Title,
             Description = command.Description,
-            Reason = command.Reason,
+            Reason = command.RequestedBy ?? command.Reason,
             Amount = command.Amount,
-            DaysExtension = command.DaysExtension,
+            DaysExtension = command.ScheduleImpactDays ?? command.DaysExtension,
+            DelayCost = command.CostImpact,
             ReferenceNumber = command.ReferenceNumber,
             OriginatingRfiId = command.OriginatingRfiId,
-            Status = ChangeOrderStatus.Pending,
-            SubmittedDate = DateTime.UtcNow
+            Status = command.Status,
+            SubmittedDate = command.RequestDate ?? DateTime.UtcNow,
+            ApprovedDate = command.ApprovedDate
         };
+
+        if (changeOrder.Status == ChangeOrderStatus.Approved && !changeOrder.ApprovedDate.HasValue)
+            changeOrder.ApprovedDate = DateTime.UtcNow;
 
         db.Set<ChangeOrder>().Add(changeOrder);
         await db.SaveChangesAsync(cancellationToken);
@@ -255,11 +260,11 @@ public class ContractsService(PitbullDbContext db) : IContractsService
             return Result.Failure<ChangeOrderDto>("Change order not found", "NOT_FOUND");
 
         // Check for duplicate CO number if changed
-        if (changeOrder.ChangeOrderNumber != command.ChangeOrderNumber)
+        if (changeOrder.ChangeOrderNumber != command.Number)
         {
             var duplicateExists = await db.Set<ChangeOrder>()
                 .AnyAsync(co => co.SubcontractId == changeOrder.SubcontractId
-                             && co.ChangeOrderNumber == command.ChangeOrderNumber
+                             && co.ChangeOrderNumber == command.Number
                              && co.Id != command.Id,
                          cancellationToken);
 
@@ -274,14 +279,17 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         var newStatus = command.Status;
 
         // Update fields
-        changeOrder.ChangeOrderNumber = command.ChangeOrderNumber;
+        changeOrder.ChangeOrderNumber = command.Number;
         changeOrder.Title = command.Title;
         changeOrder.Description = command.Description;
-        changeOrder.Reason = command.Reason;
+        changeOrder.Reason = command.RequestedBy ?? command.Reason;
         changeOrder.Amount = command.Amount;
-        changeOrder.DaysExtension = command.DaysExtension;
+        changeOrder.DaysExtension = command.ScheduleImpactDays ?? command.DaysExtension;
+        changeOrder.DelayCost = command.CostImpact;
         changeOrder.Status = command.Status;
         changeOrder.ReferenceNumber = command.ReferenceNumber;
+        changeOrder.SubmittedDate = command.RequestDate ?? changeOrder.SubmittedDate;
+        changeOrder.ApprovedDate = command.ApprovedDate ?? changeOrder.ApprovedDate;
 
         // Set approval/rejection dates on status change
         if (oldStatus != newStatus)
@@ -572,6 +580,11 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         co.RejectedBy,
         co.RejectionReason,
         co.ReferenceNumber,
+        co.ChangeOrderNumber,
+        co.DaysExtension,
+        co.DelayCost,
+        co.Reason,
+        co.SubmittedDate,
         co.CreatedAt
     );
 
