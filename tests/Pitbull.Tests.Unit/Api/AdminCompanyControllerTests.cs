@@ -1,110 +1,162 @@
-using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Moq;
+using Microsoft.EntityFrameworkCore;
 using Pitbull.Api.Controllers;
-using Pitbull.Core.CQRS;
-using Pitbull.SystemAdmin.Services;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Tests.Unit.Api;
 
-public class AdminCompanyControllerTests
+public class AdminCompanyControllerTests : IDisposable
 {
-    private static (AdminCompanyController controller, Mock<ITenantSettingsService> mock) CreateController(Guid tenantId)
-    {
-        var claims = new[] { new Claim("tenant_id", tenantId.ToString()) };
-        var identity = new ClaimsIdentity(claims, "TestAuth");
-        var principal = new ClaimsPrincipal(identity);
+    private static readonly Guid TestTenantId = Guid.NewGuid();
+    private static readonly Guid TestCompanyId = Guid.NewGuid();
 
-        var mockService = new Mock<ITenantSettingsService>();
-        var controller = new AdminCompanyController(mockService.Object);
-        controller.ControllerContext = new ControllerContext
+    private readonly PitbullDbContext _db;
+    private readonly AdminCompanyController _controller;
+
+    public AdminCompanyControllerTests()
+    {
+        var tenantContext = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
+        var companyContext = new CompanyContext { CompanyId = TestCompanyId, CompanyCode = "01", CompanyName = "Test Co" };
+
+        var options = new DbContextOptionsBuilder<PitbullDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        _db = new PitbullDbContext(options, tenantContext, companyContext);
+        _controller = new AdminCompanyController(_db, companyContext);
+        _controller.ControllerContext = new ControllerContext
         {
-            HttpContext = new DefaultHttpContext { User = principal }
+            HttpContext = new DefaultHttpContext()
         };
-        return (controller, mockService);
     }
 
-    private static TenantSettingsDto DefaultSettings(Guid id = default) => new(
-        id == default ? Guid.NewGuid() : id,
-        "My Company", null, null, null, null, null, null, null, null, null,
-        "America/Los_Angeles", "MM/dd/yyyy", "USD", 1,
-        true, true, true, false
-    );
+    public void Dispose()
+    {
+        _db.Dispose();
+        GC.SuppressFinalize(this);
+    }
+
+    private async Task SeedCompany(Action<Company>? configure = null)
+    {
+        var company = new Company
+        {
+            Id = TestCompanyId,
+            TenantId = TestTenantId,
+            Code = "01",
+            Name = "My Company",
+            Timezone = "America/Los_Angeles",
+            DateFormat = "MM/dd/yyyy",
+            Currency = "USD",
+            FiscalYearStartMonth = 1,
+            PayPeriodType = "Weekly",
+            DefaultWorkWeekDays = "Mon,Tue,Wed,Thu,Fri",
+            OvertimeSettings = new OvertimeSettings
+            {
+                Enabled = true,
+                DailyOtThreshold = 8,
+                WeeklyOtThreshold = 40,
+                DailyDtThreshold = 12,
+                CaliforniaOtRules = false
+            }
+        };
+        configure?.Invoke(company);
+        _db.Companies.Add(company);
+        await _db.SaveChangesAsync();
+    }
 
     [Fact]
-    public async Task GetSettings_ReturnsDefaults_WhenNoSettingsStored()
+    public async Task GetSettings_ReturnsNotFound_WhenNoCompanyExists()
     {
-        var tenantId = Guid.NewGuid();
-        var (controller, mock) = CreateController(tenantId);
-        var dto = DefaultSettings();
+        var result = await _controller.GetSettings(CancellationToken.None);
 
-        mock.Setup(s => s.GetSettingsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result.Success(dto));
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
 
-        var result = await controller.GetSettings();
+    [Fact]
+    public async Task GetSettings_ReturnsSettings_WhenCompanyExists()
+    {
+        await SeedCompany();
+
+        var result = await _controller.GetSettings(CancellationToken.None);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var settings = okResult.Value.Should().BeOfType<TenantSettingsDto>().Subject;
-        settings.CompanyName.Should().Be("My Company");
+        var settings = okResult.Value.Should().BeOfType<CompanySettingsDto>().Subject;
+        settings.Name.Should().Be("My Company");
         settings.Timezone.Should().Be("America/Los_Angeles");
         settings.DateFormat.Should().Be("MM/dd/yyyy");
         settings.Currency.Should().Be("USD");
         settings.FiscalYearStartMonth.Should().Be(1);
+        settings.OvertimeEnabled.Should().BeTrue();
+        settings.DailyOtThreshold.Should().Be(8);
+        settings.WeeklyOtThreshold.Should().Be(40);
     }
 
     [Fact]
     public async Task UpdateSettings_ReturnsUpdatedSettings()
     {
-        var tenantId = Guid.NewGuid();
-        var (controller, mock) = CreateController(tenantId);
+        await SeedCompany();
 
-        var command = new UpsertTenantSettingsCommand(
-            "Pitbull Construction", null, null, "123 Main St", "Los Angeles", "CA",
-            "90001", "555-1234", null, null, "America/New_York", null, "EUR", 7,
-            null, null, null, null
-        );
+        var request = new UpdateCompanySettingsRequest
+        {
+            Name = "Pitbull Construction",
+            Address = "123 Main St",
+            City = "Los Angeles",
+            State = "CA",
+            ZipCode = "90001",
+            Phone = "555-1234",
+            Timezone = "America/New_York",
+            Currency = "EUR",
+            FiscalYearStartMonth = 7,
+            OvertimeEnabled = false,
+            DailyOtThreshold = 10
+        };
 
-        var responseDto = new TenantSettingsDto(
-            Guid.NewGuid(), "Pitbull Construction", null, null, "123 Main St",
-            "Los Angeles", "CA", "90001", "555-1234", null, null,
-            "America/New_York", "MM/dd/yyyy", "EUR", 7,
-            true, true, true, false
-        );
-
-        mock.Setup(s => s.UpsertSettingsAsync(It.IsAny<UpsertTenantSettingsCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result.Success(responseDto));
-
-        var result = await controller.UpdateSettings(command);
+        var result = await _controller.UpdateSettings(request, CancellationToken.None);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var settings = okResult.Value.Should().BeOfType<TenantSettingsDto>().Subject;
-        settings.CompanyName.Should().Be("Pitbull Construction");
+        var settings = okResult.Value.Should().BeOfType<CompanySettingsDto>().Subject;
+        settings.Name.Should().Be("Pitbull Construction");
         settings.Address.Should().Be("123 Main St");
         settings.City.Should().Be("Los Angeles");
         settings.State.Should().Be("CA");
         settings.Timezone.Should().Be("America/New_York");
         settings.Currency.Should().Be("EUR");
         settings.FiscalYearStartMonth.Should().Be(7);
+        settings.OvertimeEnabled.Should().BeFalse();
+        settings.DailyOtThreshold.Should().Be(10);
     }
 
     [Fact]
-    public async Task UpdateSettings_ReturnsBadRequest_OnFailure()
+    public async Task UpdateSettings_ReturnsNotFound_WhenNoCompanyExists()
     {
-        var tenantId = Guid.NewGuid();
-        var (controller, mock) = CreateController(tenantId);
+        var request = new UpdateCompanySettingsRequest { Name = "Test" };
 
-        var command = new UpsertTenantSettingsCommand(
-            "", null, null, null, null, null, null, null, null, null,
-            null, null, null, null, null, null, null, null
-        );
+        var result = await _controller.UpdateSettings(request, CancellationToken.None);
 
-        mock.Setup(s => s.UpsertSettingsAsync(It.IsAny<UpsertTenantSettingsCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Result.Failure<TenantSettingsDto>("Company name is required", "VALIDATION_ERROR"));
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
 
-        var result = await controller.UpdateSettings(command);
+    [Fact]
+    public async Task UpdateSettings_OnlyUpdatesProvidedFields()
+    {
+        await SeedCompany();
 
-        result.Should().BeOfType<BadRequestObjectResult>();
+        // Only update name, leave everything else null
+        var request = new UpdateCompanySettingsRequest { Name = "Updated Name" };
+
+        var result = await _controller.UpdateSettings(request, CancellationToken.None);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var settings = okResult.Value.Should().BeOfType<CompanySettingsDto>().Subject;
+        settings.Name.Should().Be("Updated Name");
+        // Unchanged fields should keep defaults
+        settings.Timezone.Should().Be("America/Los_Angeles");
+        settings.Currency.Should().Be("USD");
+        settings.OvertimeEnabled.Should().BeTrue();
+        settings.DailyOtThreshold.Should().Be(8);
     }
 }

@@ -424,17 +424,18 @@ public class CostCodesControllerTests : IDisposable
         int totalPages);
 
     /// <summary>
-    /// Extract fields from the anonymous paginated response object.
+    /// Extract fields from the paginated response object.
+    /// The controller returns ListCostCodesResult (PascalCase properties).
     /// </summary>
     private static PaginatedPayload GetAnonymousPayload(object value)
     {
-        var type = value.GetType();
+        var result = (ListCostCodesResult)value;
         return new PaginatedPayload(
-            items: ((IEnumerable<CostCodeDto>)type.GetProperty("items")!.GetValue(value)!).ToList(),
-            totalCount: (int)type.GetProperty("totalCount")!.GetValue(value)!,
-            page: (int)type.GetProperty("page")!.GetValue(value)!,
-            pageSize: (int)type.GetProperty("pageSize")!.GetValue(value)!,
-            totalPages: (int)type.GetProperty("totalPages")!.GetValue(value)!
+            items: result.Items.ToList(),
+            totalCount: result.TotalCount,
+            page: result.Page,
+            pageSize: result.PageSize,
+            totalPages: result.TotalPages
         );
     }
 
