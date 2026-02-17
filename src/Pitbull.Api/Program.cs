@@ -137,6 +137,13 @@ builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pi
 // Diagnostics service (production error tracking)
 builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api.Services.DiagnosticsService>();
 
+// Customer onboarding services
+builder.Services.AddScoped<Pitbull.Api.Services.IEmailService, Pitbull.Api.Services.ConsoleEmailService>();
+builder.Services.AddScoped<Pitbull.Api.Services.ITenantProvisioningService, Pitbull.Api.Services.TenantProvisioningService>();
+builder.Services.AddScoped<Pitbull.Api.Services.ITeamInvitationService, Pitbull.Api.Services.TeamInvitationService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IOnboardingService, Pitbull.Api.Services.OnboardingService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IWelcomeService, Pitbull.Api.Services.WelcomeService>();
+
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 

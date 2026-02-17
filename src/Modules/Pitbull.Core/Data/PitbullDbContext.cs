@@ -39,6 +39,8 @@ public class PitbullDbContext(
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserRole> UserRolesMap => Set<UserRole>();
     public DbSet<ComplianceDocument> ComplianceDocuments => Set<ComplianceDocument>();
+    public DbSet<TeamInvitation> TeamInvitations => Set<TeamInvitation>();
+    public DbSet<OnboardingChecklist> OnboardingChecklists => Set<OnboardingChecklist>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
@@ -456,6 +458,41 @@ public class PitbullDbContext(
                 .WithMany(r => r.UserRoles)
                 .HasForeignKey(ur => ur.RoleId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // TeamInvitation configuration
+        builder.Entity<TeamInvitation>(e =>
+        {
+            e.ToTable("team_invitations");
+            e.HasKey(i => i.Id);
+            e.Property(i => i.Email).HasMaxLength(200).IsRequired();
+            e.Property(i => i.Role).HasMaxLength(50).IsRequired();
+            e.Property(i => i.TokenHash).HasMaxLength(100).IsRequired();
+            e.Property(i => i.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(i => i.Message).HasMaxLength(500);
+            e.Property(i => i.InvitedBy).HasMaxLength(200);
+            e.HasOne(i => i.Company)
+                .WithMany()
+                .HasForeignKey(i => i.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(i => i.TokenHash).IsUnique();
+            e.HasIndex(i => new { i.TenantId, i.Email, i.CompanyId });
+        });
+
+        // OnboardingChecklist configuration
+        builder.Entity<OnboardingChecklist>(e =>
+        {
+            e.ToTable("onboarding_checklists");
+            e.HasKey(c => c.Id);
+            e.HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(c => c.Company)
+                .WithMany()
+                .HasForeignKey(c => c.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(c => new { c.TenantId, c.UserId, c.CompanyId }).IsUnique();
         });
 
         // Apply module-specific configurations FIRST so all entity types are registered

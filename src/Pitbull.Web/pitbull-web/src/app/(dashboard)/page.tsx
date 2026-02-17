@@ -9,6 +9,8 @@ import { FolderOpen, Clock3, Inbox, MessageCircle, RefreshCw, Activity } from "l
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
+import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
+import { WelcomeTour } from "@/components/onboarding/welcome-tour";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -138,6 +140,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Welcome tour for new users */}
+      <WelcomeTour />
+
+      {/* Onboarding checklist for new users */}
+      <OnboardingChecklist />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
