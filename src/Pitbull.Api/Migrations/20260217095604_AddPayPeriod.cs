@@ -19,6 +19,10 @@ namespace Pitbull.Api.Migrations
                 name: "FK_pay_periods_processed_by",
                 table: "pay_periods");
 
+            // Drop RLS policy and any dependent objects before dropping CompanyId column
+            migrationBuilder.Sql("DROP POLICY IF EXISTS pay_periods_tenant_isolation ON pay_periods;");
+            migrationBuilder.Sql("DROP POLICY IF EXISTS pay_periods_company_isolation ON pay_periods;");
+
             migrationBuilder.DropIndex(
                 name: "IX_pay_periods_CompanyId",
                 table: "pay_periods");
