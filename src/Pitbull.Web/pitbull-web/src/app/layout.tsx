@@ -5,6 +5,7 @@ import { CompanyProvider } from "@/contexts/company-context";
 import { ThemeProvider } from "@/contexts/theme-context";
 import { Toaster } from "@/components/ui/sonner";
 import { RootErrorBoundary } from "@/components/root-error-boundary";
+import { GlobalErrorHandlers } from "@/components/global-error-handlers";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -81,6 +82,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <RootErrorBoundary>
+          <GlobalErrorHandlers />
           <ThemeProvider>
             <AuthProvider>
               <CompanyProvider>

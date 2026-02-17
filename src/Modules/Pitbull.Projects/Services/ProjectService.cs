@@ -8,6 +8,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
+using Pitbull.Projects.Features.GetProjectPhases;
 using Pitbull.Projects.Features.GetProjectRfiCostSummary;
 using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
@@ -433,6 +434,46 @@ public class ProjectService : IProjectService
             AverageResolutionDays: Math.Round(avgResolutionDays, 1),
             TopCostlyRfis: topCostlyRfis
         ));
+    }
+
+    public async Task<Result<List<PhaseDto>>> GetProjectPhasesAsync(Guid projectId, int pageSize = 100, CancellationToken cancellationToken = default)
+    {
+        var project = await _db.Set<Project>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);
+
+        if (project is null)
+            return Result.Failure<List<PhaseDto>>("Project not found", "NOT_FOUND");
+
+        var phases = await _db.Set<Phase>()
+            .AsNoTracking()
+            .Where(p => p.ProjectId == projectId && !p.IsDeleted)
+            .OrderBy(p => p.SortOrder)
+            .Take(pageSize)
+            .Select(p => new PhaseDto(
+                p.Id, p.ProjectId, p.Name, p.CostCode, p.Description, p.SortOrder,
+                p.BudgetAmount, p.ActualCost, p.PercentComplete, p.Status.ToString(),
+                p.StartDate, p.EndDate))
+            .ToListAsync(cancellationToken);
+
+        return Result.Success(phases);
+    }
+
+    public async Task<Result<PhaseDto>> GetPhaseAsync(Guid projectId, Guid phaseId, CancellationToken cancellationToken = default)
+    {
+        var phase = await _db.Set<Phase>()
+            .AsNoTracking()
+            .Where(p => p.Id == phaseId && p.ProjectId == projectId && !p.IsDeleted)
+            .Select(p => new PhaseDto(
+                p.Id, p.ProjectId, p.Name, p.CostCode, p.Description, p.SortOrder,
+                p.BudgetAmount, p.ActualCost, p.PercentComplete, p.Status.ToString(),
+                p.StartDate, p.EndDate))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (phase is null)
+            return Result.Failure<PhaseDto>("Phase not found", "NOT_FOUND");
+
+        return Result.Success(phase);
     }
 
     /// <summary>
