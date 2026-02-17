@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260217065714_AddNotificationsModule")]
+    partial class AddNotificationsModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -6922,223 +6925,6 @@ namespace Pitbull.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("rfis", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.SystemAdmin.Domain.ApiKey", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CreatedByEmail")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("KeyHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("KeyPrefix")
-                        .IsRequired()
-                        .HasMaxLength(12)
-                        .HasColumnType("character varying(12)");
-
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RevokedBy")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
-
-                    b.Property<string>("Scopes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("KeyHash")
-                        .IsUnique();
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "Status");
-
-                    b.ToTable("api_keys", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.SystemAdmin.Domain.TenantSettings", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Address")
-                        .HasMaxLength(300)
-                        .HasColumnType("character varying(300)");
-
-                    b.Property<string>("City")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("CompanyName")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Currency")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasDefaultValue("USD");
-
-                    b.Property<string>("DateFormat")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("MM/dd/yyyy");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("EnableBidManagement")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("EnableDocumentManagement")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("EnableSubcontractorPortal")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("EnableTimeTracking")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("FiscalYearStartMonth")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("LogoUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("Phone")
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)");
-
-                    b.Property<string>("PrimaryColor")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<string>("State")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("TaxId")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Timezone")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasDefaultValue("America/Los_Angeles");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Website")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("ZipCode")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId")
-                        .IsUnique();
-
-                    b.ToTable("tenant_settings", (string)null);
                 });
 
             modelBuilder.Entity("Pitbull.TimeTracking.Domain.Employee", b =>

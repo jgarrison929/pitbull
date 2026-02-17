@@ -24,191 +24,112 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import api from "@/lib/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type NotificationCategory = "time_entry" | "approval" | "rfi" | "system";
 export type NotificationType =
-  | "overdue_rfi"
-  | "pending_approval"
-  | "change_order"
-  | "time_entry_submitted"
-  | "time_entry_approved"
-  | "time_entry_rejected"
-  | "rfi_created"
-  | "rfi_answered"
-  | "system_update"
-  | "info";
+  | "Info"
+  | "Success"
+  | "Warning"
+  | "Error"
+  | "TimeEntrySubmitted"
+  | "TimeEntryApproved"
+  | "TimeEntryRejected"
+  | "PendingApproval"
+  | "ChangeOrder"
+  | "OverdueRfi"
+  | "RfiCreated"
+  | "RfiAnswered"
+  | "SystemUpdate";
+
+export type NotificationCategory = "time_entry" | "approval" | "rfi" | "system";
 
 export interface Notification {
   id: string;
+  userId: string;
   type: NotificationType;
-  category: NotificationCategory;
   title: string;
   message: string;
-  timestamp: Date;
-  read: boolean;
-  href?: string;
-  /** If the notification has an inline action (e.g. Approve) */
-  actionLabel?: string;
-  actionType?: "approve" | "dismiss";
+  isRead: boolean;
+  createdAt: string;
+  readAt: string | null;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
 }
 
-// ─── Storage helpers ─────────────────────────────────────────────────────────
-
-const STORAGE_KEY = "pitbull_notification_read_state";
-
-function loadReadState(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
-  } catch {
-    return new Set();
-  }
+interface PagedResult<T> {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 }
-
-function saveReadState(ids: Set<string>) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(ids)));
-  } catch {
-    // quota exceeded – ignore
-  }
-}
-
-// ─── Mock data ───────────────────────────────────────────────────────────────
-
-const mockNotifications: Notification[] = [
-  {
-    id: "n1",
-    type: "pending_approval",
-    category: "approval",
-    title: "3 time entries need approval",
-    message: "Mike Torres submitted 24 hours on Highway Resurfacing",
-    timestamp: new Date(Date.now() - 25 * 60 * 1000),
-    read: false,
-    href: "/time-tracking/approval",
-    actionLabel: "Review",
-    actionType: "approve",
-  },
-  {
-    id: "n2",
-    type: "time_entry_approved",
-    category: "time_entry",
-    title: "Time entry approved",
-    message: "Your 8-hour entry on Downtown Office Tower was approved by Jane Doe",
-    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    read: false,
-    href: "/time-tracking",
-  },
-  {
-    id: "n3",
-    type: "overdue_rfi",
-    category: "rfi",
-    title: "RFI #1042 Overdue",
-    message: "Electrical rough-in clarification – Due 3 days ago",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    read: false,
-    href: "/rfis",
-  },
-  {
-    id: "n4",
-    type: "rfi_created",
-    category: "rfi",
-    title: "New RFI #1055 created",
-    message: "Foundation waterproofing detail – assigned to you",
-    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000),
-    read: false,
-    href: "/rfis",
-  },
-  {
-    id: "n5",
-    type: "change_order",
-    category: "approval",
-    title: "Change Order #208 submitted",
-    message: "CO #208 for Downtown Office Tower awaiting your approval – $14,200",
-    timestamp: new Date(Date.now() - 30 * 60 * 1000),
-    read: false,
-    href: "/contracts",
-    actionLabel: "Approve",
-    actionType: "approve",
-  },
-  {
-    id: "n6",
-    type: "time_entry_rejected",
-    category: "time_entry",
-    title: "Time entry rejected",
-    message: "Your entry on Feb 10 was returned – missing cost code",
-    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000),
-    read: false,
-    href: "/time-tracking",
-  },
-  {
-    id: "n7",
-    type: "time_entry_submitted",
-    category: "time_entry",
-    title: "Weekly timesheet submitted",
-    message: "40 hours submitted for week ending Feb 9",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    read: false,
-    href: "/time-tracking",
-  },
-  {
-    id: "n8",
-    type: "system_update",
-    category: "system",
-    title: "Scheduled maintenance",
-    message: "System maintenance planned for Sunday 2 AM – 4 AM PST",
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-    read: false,
-  },
-  {
-    id: "n9",
-    type: "rfi_answered",
-    category: "rfi",
-    title: "RFI #1038 answered",
-    message: "Foundation detail response received from engineer",
-    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    read: true,
-    href: "/rfis",
-  },
-  {
-    id: "n10",
-    type: "info",
-    category: "system",
-    title: "Weekly report ready",
-    message: "Project status report for Week 6 is available",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    read: true,
-    href: "/projects",
-  },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function getCategory(type: NotificationType): NotificationCategory {
+  switch (type) {
+    case "TimeEntrySubmitted":
+    case "TimeEntryApproved":
+    case "TimeEntryRejected":
+      return "time_entry";
+    case "PendingApproval":
+    case "ChangeOrder":
+      return "approval";
+    case "OverdueRfi":
+    case "RfiCreated":
+    case "RfiAnswered":
+      return "rfi";
+    default:
+      return "system";
+  }
+}
+
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
-    case "overdue_rfi":
+    case "OverdueRfi":
+    case "Error":
+    case "TimeEntryRejected":
       return <AlertCircle className="h-4 w-4 text-red-500" />;
-    case "pending_approval":
-    case "change_order":
+    case "PendingApproval":
+    case "ChangeOrder":
+    case "Warning":
       return <Clock className="h-4 w-4 text-amber-500" />;
-    case "time_entry_submitted":
-    case "time_entry_approved":
+    case "TimeEntrySubmitted":
+    case "TimeEntryApproved":
+    case "Success":
       return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-    case "time_entry_rejected":
-      return <AlertCircle className="h-4 w-4 text-red-500" />;
-    case "rfi_created":
-    case "rfi_answered":
+    case "RfiCreated":
+    case "RfiAnswered":
       return <HelpCircle className="h-4 w-4 text-blue-500" />;
-    case "system_update":
+    case "SystemUpdate":
       return <Settings className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
     default:
       return <Bell className="h-4 w-4 text-gray-500 dark:text-gray-400" />;
   }
 }
 
-function formatRelativeTime(date: Date): string {
+function getNotificationHref(n: Notification): string | undefined {
+  switch (n.type) {
+    case "TimeEntrySubmitted":
+    case "TimeEntryApproved":
+    case "TimeEntryRejected":
+      return "/time-tracking";
+    case "PendingApproval":
+      return "/time-tracking";
+    case "ChangeOrder":
+      return "/change-orders";
+    case "OverdueRfi":
+    case "RfiCreated":
+    case "RfiAnswered":
+      return "/rfis";
+    default:
+      return undefined;
+  }
+}
+
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSecs = Math.floor(diffMs / 1000);
@@ -266,19 +187,17 @@ function EmptyState({ category }: { category: CategoryTab }) {
 function NotificationRow({
   notification,
   onRead,
-  onAction,
   onClick,
 }: {
   notification: Notification;
   onRead: (id: string) => void;
-  onAction: (n: Notification) => void;
   onClick: (n: Notification) => void;
 }) {
   return (
     <div
       className={cn(
         "flex cursor-pointer flex-col gap-1 px-3 py-3 hover:bg-accent/50 transition-colors border-b border-border/40 last:border-b-0",
-        !notification.read && "bg-primary/5 dark:bg-primary/10"
+        !notification.isRead && "bg-primary/5 dark:bg-primary/10"
       )}
       onClick={() => onClick(notification)}
       role="button"
@@ -299,13 +218,13 @@ function NotificationRow({
             <span
               className={cn(
                 "text-sm truncate",
-                !notification.read && "font-semibold"
+                !notification.isRead && "font-semibold"
               )}
             >
               {notification.title}
             </span>
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              {!notification.read && (
+              {!notification.isRead && (
                 <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
               )}
             </div>
@@ -315,23 +234,10 @@ function NotificationRow({
           </p>
           <div className="flex items-center justify-between mt-1.5 gap-2">
             <span className="text-[10px] text-muted-foreground">
-              {formatRelativeTime(notification.timestamp)}
+              {formatRelativeTime(notification.createdAt)}
             </span>
             <div className="flex items-center gap-1">
-              {notification.actionLabel && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-[11px] font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAction(notification);
-                  }}
-                >
-                  {notification.actionLabel}
-                </Button>
-              )}
-              {!notification.read && (
+              {!notification.isRead && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -359,79 +265,83 @@ export function NotificationCenter() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<CategoryTab>("all");
-  const [notifications, setNotifications] = useState<Notification[]>(() => {
-    const readIds = loadReadState();
-    return mockNotifications.map((n) => ({
-      ...n,
-      read: n.read || readIds.has(n.id),
-    }));
-  });
-  const [hasNewSinceLastOpen, setHasNewSinceLastOpen] = useState(true);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [hasNewSinceLastOpen, setHasNewSinceLastOpen] = useState(false);
 
-  // Persist read state on change
-  const persistReadState = useCallback((updated: Notification[]) => {
-    const readIds = new Set(updated.filter((n) => n.read).map((n) => n.id));
-    saveReadState(readIds);
-  }, []);
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const result = await api<PagedResult<Notification>>("/api/notifications?pageSize=50");
+      setNotifications(result.items);
+      const newUnread = result.items.filter((n) => !n.isRead).length;
+      if (newUnread > unreadCount) setHasNewSinceLastOpen(true);
+      setUnreadCount(newUnread);
+    } catch {
+      // Silently fail — notifications are non-critical
+    }
+  }, [unreadCount]);
+
+  // Initial fetch + poll every 30 seconds
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30_000);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markAsRead = useCallback(
-    (id: string) => {
-      setNotifications((prev) => {
-        const updated = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
-        persistReadState(updated);
-        return updated;
-      });
+    async (id: string) => {
+      // Optimistic update
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+
+      try {
+        await api(`/api/notifications/${id}/read`, { method: "POST" });
+      } catch {
+        // Revert on failure
+        fetchNotifications();
+      }
     },
-    [persistReadState]
+    [fetchNotifications]
   );
 
-  const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => {
-      const updated = prev.map((n) => ({ ...n, read: true }));
-      persistReadState(updated);
-      return updated;
-    });
+  const markAllAsRead = useCallback(async () => {
+    // Optimistic update
+    setNotifications((prev) =>
+      prev.map((n) => ({ ...n, isRead: true, readAt: n.readAt || new Date().toISOString() }))
+    );
+    setUnreadCount(0);
     setHasNewSinceLastOpen(false);
-  }, [persistReadState]);
+
+    try {
+      await api("/api/notifications/read-all", { method: "POST" });
+    } catch {
+      fetchNotifications();
+    }
+  }, [fetchNotifications]);
 
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
-      markAsRead(notification.id);
-      if (notification.href) {
-        router.push(notification.href);
-      }
+      if (!notification.isRead) markAsRead(notification.id);
+      const href = getNotificationHref(notification);
+      if (href) router.push(href);
       setIsOpen(false);
     },
     [markAsRead, router]
-  );
-
-  const handleAction = useCallback(
-    (notification: Notification) => {
-      // Mark as read and navigate
-      markAsRead(notification.id);
-      if (notification.href) {
-        router.push(notification.href);
-      }
-      setIsOpen(false);
-    },
-    [markAsRead, router]
-  );
-
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications]
   );
 
   const filteredNotifications = useMemo(() => {
     if (activeTab === "all") return notifications;
-    return notifications.filter((n) => n.category === activeTab);
+    return notifications.filter((n) => getCategory(n.type) === activeTab);
   }, [notifications, activeTab]);
 
   const unreadByCategory = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const n of notifications) {
-      if (!n.read) {
-        counts[n.category] = (counts[n.category] || 0) + 1;
+      if (!n.isRead) {
+        const cat = getCategory(n.type);
+        counts[cat] = (counts[cat] || 0) + 1;
       }
     }
     return counts;
@@ -440,7 +350,6 @@ export function NotificationCenter() {
   // When dropdown opens, clear the "new" pulse
   useEffect(() => {
     if (isOpen) {
-      // Small delay so the user sees the transition
       const t = setTimeout(() => setHasNewSinceLastOpen(false), 300);
       return () => clearTimeout(t);
     }
@@ -529,7 +438,6 @@ export function NotificationCenter() {
                       key={notification.id}
                       notification={notification}
                       onRead={markAsRead}
-                      onAction={handleAction}
                       onClick={handleNotificationClick}
                     />
                   ))
