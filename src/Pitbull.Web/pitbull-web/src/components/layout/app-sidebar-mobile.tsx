@@ -55,6 +55,9 @@ const settingsItems = [
 const adminItems = [
   { label: "Company Settings", href: "/admin/company", icon: "🏢" },
   { label: "Users", href: "/admin/users", icon: "👥" },
+  { label: "Roles & Permissions", href: "/admin/roles", icon: "🛡️" },
+  { label: "API Keys", href: "/admin/api-keys", icon: "🔑" },
+  { label: "System Health", href: "/admin/system-health", icon: "💚" },
   { label: "Pay Periods", href: "/admin/pay-periods", icon: "📅" },
   { label: "Companies", href: "/admin/companies", icon: "🏛️" },
   { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖" },

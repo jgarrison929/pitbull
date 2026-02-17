@@ -660,7 +660,7 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
 
 export default function SchedulePage(props: { params: Promise<{ id: string }> }) {
   return (
-    <ErrorBoundary section="Schedule">
+    <ErrorBoundary label="Schedule">
       <ScheduleContent {...props} />
     </ErrorBoundary>
   );

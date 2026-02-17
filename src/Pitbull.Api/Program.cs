@@ -51,6 +51,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly)
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectManagementModuleCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.SystemAdmin.Features.SystemAdminModuleMarker).Assembly);
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
@@ -108,6 +109,11 @@ builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pi
 // Cost code service (Core module - for job cost accounting)
 builder.Services.AddScoped<Pitbull.Core.Features.CostCode.ICostCodeService, Pitbull.Core.Features.CostCode.CostCodeService>();
 builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentStorageProvider>();
+
+// SystemAdmin module services
+builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, Pitbull.SystemAdmin.Services.TenantSettingsService>();
+builder.Services.AddScoped<Pitbull.SystemAdmin.Services.IApiKeyService, Pitbull.SystemAdmin.Services.ApiKeyService>();
+builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pitbull.SystemAdmin.Services.SystemHealthService>();
 
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();

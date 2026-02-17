@@ -37,6 +37,7 @@
     <ProjectReference Include="..\Modules\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.ProjectManagement\Pitbull.ProjectManagement.csproj" />
     <ProjectReference Include="..\Modules\Pitbull.AI\Pitbull.AI.csproj" />
+    <ProjectReference Include="..\Modules\Pitbull.SystemAdmin\Pitbull.SystemAdmin.csproj" />
     <!-- HR and Payroll modules not yet complete - uncomment when ready -->
     <!-- <ProjectReference Include="..\Modules\Pitbull.HR\Pitbull.HR.csproj" /> -->
     <!-- <ProjectReference Include="..\Modules\Pitbull.Payroll\Pitbull.Payroll.csproj" /> -->
