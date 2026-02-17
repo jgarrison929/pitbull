@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Pitbull.Api.Controllers;
 using Pitbull.Core.CQRS;
+using Pitbull.Api.Services;
 using Pitbull.Core.Features.Dashboard;
 
 namespace Pitbull.Tests.Unit.Api;
@@ -12,6 +13,7 @@ namespace Pitbull.Tests.Unit.Api;
 public class DashboardControllerTests
 {
     private readonly Mock<IDashboardService> _serviceMock;
+    private readonly Mock<IDashboardAnalyticsService> _analyticsMock;
     private readonly DashboardController _controller;
 
     private static readonly Guid TestUserId = Guid.NewGuid();
@@ -19,7 +21,8 @@ public class DashboardControllerTests
     public DashboardControllerTests()
     {
         _serviceMock = new Mock<IDashboardService>();
-        _controller = new DashboardController(_serviceMock.Object);
+        _analyticsMock = new Mock<IDashboardAnalyticsService>();
+        _controller = new DashboardController(_serviceMock.Object, _analyticsMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
