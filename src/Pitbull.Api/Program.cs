@@ -123,6 +123,9 @@ builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, 
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.IApiKeyService, Pitbull.SystemAdmin.Services.ApiKeyService>();
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pitbull.SystemAdmin.Services.SystemHealthService>();
 
+// Diagnostics service (production error tracking)
+builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api.Services.DiagnosticsService>();
+
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
@@ -417,6 +420,9 @@ app.UseMiddleware<TenantMiddleware>();
 app.UseMiddleware<Pitbull.Core.MultiTenancy.CompanyMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+
+// Capture 404s on /api/ routes as diagnostic errors (after endpoint routing)
+app.UseMiddleware<ApiNotFoundMiddleware>();
 
 // Health check endpoints with deep dependency checks
 app.MapHealthChecks("/health", new HealthCheckOptions
