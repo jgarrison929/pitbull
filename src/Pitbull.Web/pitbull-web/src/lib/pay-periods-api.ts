@@ -4,8 +4,9 @@ import type {
   PayPeriodConfiguration,
   PayPeriodListResult,
   GeneratePayPeriodsResult,
-  LockPayPeriodRequest,
-  UnlockPayPeriodRequest,
+  CreatePayPeriodRequest,
+  UpdatePayPeriodRequest,
+  PayPeriodSummary,
   UpdatePayPeriodConfigurationRequest,
   GeneratePayPeriodsRequest,
   PayPeriodStatus,
@@ -40,30 +41,49 @@ export async function getCurrentPayPeriod(date?: string): Promise<PayPeriod> {
   return api<PayPeriod>(`/api/pay-periods/current${query}`);
 }
 
-/**
- * Lock a pay period
- */
-export async function lockPayPeriod(
-  id: string,
-  request: LockPayPeriodRequest
-): Promise<PayPeriod> {
-  return api<PayPeriod>(`/api/pay-periods/${id}/lock`, {
+export async function createPayPeriod(request: CreatePayPeriodRequest): Promise<PayPeriod> {
+  return api<PayPeriod>("/api/pay-periods", {
     method: "POST",
     body: request,
   });
 }
 
-/**
- * Unlock a pay period (requires reason)
- */
-export async function unlockPayPeriod(
-  id: string,
-  request: UnlockPayPeriodRequest
-): Promise<PayPeriod> {
-  return api<PayPeriod>(`/api/pay-periods/${id}/unlock`, {
-    method: "POST",
+export async function updatePayPeriod(id: string, request: UpdatePayPeriodRequest): Promise<PayPeriod> {
+  return api<PayPeriod>(`/api/pay-periods/${id}`, {
+    method: "PUT",
     body: request,
   });
+}
+
+/**
+ * Lock a pay period
+ */
+export async function lockPayPeriod(id: string): Promise<PayPeriod> {
+  return api<PayPeriod>(`/api/pay-periods/${id}/lock`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+/**
+ * Unlock a pay period
+ */
+export async function unlockPayPeriod(id: string): Promise<PayPeriod> {
+  return api<PayPeriod>(`/api/pay-periods/${id}/unlock`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+export async function closePayPeriod(id: string): Promise<PayPeriod> {
+  return api<PayPeriod>(`/api/pay-periods/${id}/close`, {
+    method: "POST",
+    body: {},
+  });
+}
+
+export async function getPayPeriodSummary(id: string): Promise<PayPeriodSummary> {
+  return api<PayPeriodSummary>(`/api/pay-periods/${id}/summary`);
 }
 
 /**

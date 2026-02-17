@@ -1,5 +1,6 @@
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 using Pitbull.TimeTracking.Features;
 
 namespace Pitbull.TimeTracking.Services;
@@ -44,21 +45,26 @@ public interface IPayPeriodService
     Task<string?> ValidateTimeEntryDateAsync(DateOnly date, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// List pay periods with filtering and pagination
+    /// List pay periods with filtering and pagination.
     /// </summary>
     Task<Result<PagedResult<PayPeriodDto>>> ListPayPeriodsAsync(
         PayPeriodStatus? status,
-        DateOnly? startDateFrom,
-        DateOnly? startDateTo,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the current (or specified date's) pay period
+    /// Get the pay period by id.
     /// </summary>
-    Task<Result<PayPeriodDto>> GetCurrentPayPeriodAsync(
-        DateOnly? date = null,
+    Task<Result<PayPeriodDto>> GetPayPeriodAsync(
+        Guid id,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get time entry summary for a pay period.
+    /// </summary>
+    Task<Result<PayPeriodSummaryDto>> GetPayPeriodSummaryAsync(
+        Guid id,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -70,12 +76,28 @@ public interface IPayPeriodService
     // ============ Command Methods ============
 
     /// <summary>
+    /// Create a pay period.
+    /// </summary>
+    Task<Result<PayPeriodDto>> CreatePayPeriodAsync(
+        DateOnly startDate,
+        DateOnly endDate,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Update pay period dates (open periods only).
+    /// </summary>
+    Task<Result<PayPeriodDto>> UpdatePayPeriodAsync(
+        Guid payPeriodId,
+        DateOnly startDate,
+        DateOnly endDate,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Lock a pay period to prevent modifications
     /// </summary>
     Task<Result<PayPeriodDto>> LockPayPeriodAsync(
         Guid payPeriodId,
         Guid lockedById,
-        string? notes = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -84,7 +106,14 @@ public interface IPayPeriodService
     Task<Result<PayPeriodDto>> UnlockPayPeriodAsync(
         Guid payPeriodId,
         Guid unlockedById,
-        string reason,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Close a pay period permanently and mark payroll export completion.
+    /// </summary>
+    Task<Result<PayPeriodDto>> ClosePayPeriodAsync(
+        Guid payPeriodId,
+        Guid closedById,
         CancellationToken cancellationToken = default);
 
     /// <summary>

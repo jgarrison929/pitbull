@@ -4,6 +4,7 @@ using System.Text.Json;
 using Pitbull.Api.Controllers;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateEmployee;
 using Pitbull.TimeTracking.Services;
@@ -238,9 +239,8 @@ public sealed class PayPeriodsEndpointsTests(PostgresFixture db) : IAsyncLifetim
 
         var periodToLock = listResult.Items.First(p => p.Status == PayPeriodStatus.Open);
 
-        // Lock the period using employee ID
-        var lockReq = new LockPayPeriodRequest(LockedById: employee!.Id, Notes: "Locking for test");
-        var lockResp = await client.PostAsJsonAsync($"/api/pay-periods/{periodToLock.Id}/lock", lockReq);
+        // Lock the period (user ID resolved from JWT)
+        var lockResp = await client.PostAsync($"/api/pay-periods/{periodToLock.Id}/lock", null);
 
         Assert.Equal(HttpStatusCode.OK, lockResp.StatusCode);
 
@@ -249,9 +249,8 @@ public sealed class PayPeriodsEndpointsTests(PostgresFixture db) : IAsyncLifetim
         Assert.Equal(PayPeriodStatus.Locked, lockedPeriod!.Status);
         Assert.True(lockedPeriod.IsLocked);
 
-        // Unlock the period using employee ID
-        var unlockReq = new UnlockPayPeriodRequest(UnlockedById: employee.Id, Reason: "Correction needed");
-        var unlockResp = await client.PostAsJsonAsync($"/api/pay-periods/{periodToLock.Id}/unlock", unlockReq);
+        // Unlock the period (user ID resolved from JWT)
+        var unlockResp = await client.PostAsync($"/api/pay-periods/{periodToLock.Id}/unlock", null);
 
         Assert.Equal(HttpStatusCode.OK, unlockResp.StatusCode);
 

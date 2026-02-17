@@ -1,3 +1,5 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +7,7 @@ using Moq;
 using Pitbull.Api.Controllers;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Services;
 
@@ -28,6 +31,19 @@ public class PayPeriodsControllerTests
         };
     }
 
+    /// <summary>
+    /// Helper to set up the controller with a JWT user claim so TryGetCurrentUserId succeeds.
+    /// </summary>
+    private void SetCurrentUser(Guid userId)
+    {
+        var claims = new[] { new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()) };
+        var identity = new ClaimsIdentity(claims, "TestAuth");
+        _controller.ControllerContext.HttpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(identity)
+        };
+    }
+
     private static PayPeriodDto CreateTestDto(Guid? id = null) => new()
     {
         Id = id ?? TestId,
@@ -36,11 +52,6 @@ public class PayPeriodsControllerTests
         Status = PayPeriodStatus.Open,
         LockedAt = null,
         LockedById = null,
-        LockedByName = null,
-        Notes = null,
-        ProcessedAt = null,
-        ProcessedById = null,
-        ProcessedByName = null,
         CreatedAt = DateTime.UtcNow
     };
 
@@ -66,10 +77,10 @@ public class PayPeriodsControllerTests
         var pagedResult = new PagedResult<PayPeriodDto>(
             new[] { CreateTestDto() }, TotalCount: 1, Page: 1, PageSize: 25);
         _serviceMock
-            .Setup(s => s.ListPayPeriodsAsync(null, null, null, 1, 25, default))
+            .Setup(s => s.ListPayPeriodsAsync(null, 1, 25, default))
             .ReturnsAsync(Result.Success(pagedResult));
 
-        var result = await _controller.List(null, null, null);
+        var result = await _controller.List(null);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         ok.Value.Should().Be(pagedResult);
@@ -83,21 +94,15 @@ public class PayPeriodsControllerTests
         _serviceMock
             .Setup(s => s.ListPayPeriodsAsync(
                 PayPeriodStatus.Locked,
-                new DateOnly(2026, 1, 1),
-                new DateOnly(2026, 3, 31),
                 2, 50, default))
             .ReturnsAsync(Result.Success(pagedResult));
 
         await _controller.List(
             PayPeriodStatus.Locked,
-            new DateOnly(2026, 1, 1),
-            new DateOnly(2026, 3, 31),
             2, 50);
 
         _serviceMock.Verify(s => s.ListPayPeriodsAsync(
             PayPeriodStatus.Locked,
-            new DateOnly(2026, 1, 1),
-            new DateOnly(2026, 3, 31),
             2, 50, default), Times.Once);
     }
 
@@ -107,13 +112,13 @@ public class PayPeriodsControllerTests
         var pagedResult = new PagedResult<PayPeriodDto>(
             Array.Empty<PayPeriodDto>(), 0, 1, 25);
         _serviceMock
-            .Setup(s => s.ListPayPeriodsAsync(null, null, null, 1, 25, default))
+            .Setup(s => s.ListPayPeriodsAsync(null, 1, 25, default))
             .ReturnsAsync(Result.Success(pagedResult));
 
-        await _controller.List(null, null, null);
+        await _controller.List(null);
 
         _serviceMock.Verify(s => s.ListPayPeriodsAsync(
-            null, null, null, 1, 25, default), Times.Once);
+            null, 1, 25, default), Times.Once);
     }
 
     [Fact]
@@ -122,23 +127,23 @@ public class PayPeriodsControllerTests
         var pagedResult = new PagedResult<PayPeriodDto>(
             Array.Empty<PayPeriodDto>(), 0, 1, 25);
         _serviceMock
-            .Setup(s => s.ListPayPeriodsAsync(null, null, null, 1, 25, default))
+            .Setup(s => s.ListPayPeriodsAsync(null, 1, 25, default))
             .ReturnsAsync(Result.Success(pagedResult));
 
-        await _controller.List(null, null, null);
+        await _controller.List(null);
 
         _serviceMock.Verify(s => s.ListPayPeriodsAsync(
-            null, null, null, 1, 25, default), Times.Once);
+            null, 1, 25, default), Times.Once);
     }
 
     [Fact]
     public async Task List_Error_Returns400()
     {
         _serviceMock
-            .Setup(s => s.ListPayPeriodsAsync(null, null, null, 1, 25, default))
+            .Setup(s => s.ListPayPeriodsAsync(null, 1, 25, default))
             .ReturnsAsync(Result.Failure<PagedResult<PayPeriodDto>>("Invalid query"));
 
-        var result = await _controller.List(null, null, null);
+        var result = await _controller.List(null);
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
@@ -149,10 +154,10 @@ public class PayPeriodsControllerTests
         var pagedResult = new PagedResult<PayPeriodDto>(
             Array.Empty<PayPeriodDto>(), 0, 1, 25);
         _serviceMock
-            .Setup(s => s.ListPayPeriodsAsync(null, null, null, 1, 25, default))
+            .Setup(s => s.ListPayPeriodsAsync(null, 1, 25, default))
             .ReturnsAsync(Result.Success(pagedResult));
 
-        var result = await _controller.List(null, null, null);
+        var result = await _controller.List(null);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var paged = ok.Value.Should().BeOfType<PagedResult<PayPeriodDto>>().Subject;
@@ -167,115 +172,13 @@ public class PayPeriodsControllerTests
             Array.Empty<PayPeriodDto>(), 0, 1, 25);
         _serviceMock
             .Setup(s => s.ListPayPeriodsAsync(
-                PayPeriodStatus.Processed, null, null, 1, 25, default))
+                PayPeriodStatus.Closed, 1, 25, default))
             .ReturnsAsync(Result.Success(pagedResult));
 
-        await _controller.List(PayPeriodStatus.Processed, null, null);
+        await _controller.List(PayPeriodStatus.Closed);
 
         _serviceMock.Verify(s => s.ListPayPeriodsAsync(
-            PayPeriodStatus.Processed, null, null, 1, 25, default), Times.Once);
-    }
-
-    [Fact]
-    public async Task List_FilterByDateRange_PassesToService()
-    {
-        var pagedResult = new PagedResult<PayPeriodDto>(
-            Array.Empty<PayPeriodDto>(), 0, 1, 25);
-        var from = new DateOnly(2026, 1, 1);
-        var to = new DateOnly(2026, 6, 30);
-        _serviceMock
-            .Setup(s => s.ListPayPeriodsAsync(null, from, to, 1, 25, default))
-            .ReturnsAsync(Result.Success(pagedResult));
-
-        await _controller.List(null, from, to);
-
-        _serviceMock.Verify(s => s.ListPayPeriodsAsync(
-            null, from, to, 1, 25, default), Times.Once);
-    }
-
-    #endregion
-
-    #region GetCurrent
-
-    [Fact]
-    public async Task GetCurrent_Success_Returns200()
-    {
-        var dto = CreateTestDto();
-        _serviceMock
-            .Setup(s => s.GetCurrentPayPeriodAsync(null, default))
-            .ReturnsAsync(Result.Success(dto));
-
-        var result = await _controller.GetCurrent(null);
-
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        ok.Value.Should().Be(dto);
-    }
-
-    [Fact]
-    public async Task GetCurrent_WithDate_PassesDateToService()
-    {
-        var date = new DateOnly(2026, 3, 15);
-        var dto = CreateTestDto();
-        _serviceMock
-            .Setup(s => s.GetCurrentPayPeriodAsync(date, default))
-            .ReturnsAsync(Result.Success(dto));
-
-        await _controller.GetCurrent(date);
-
-        _serviceMock.Verify(s => s.GetCurrentPayPeriodAsync(date, default), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetCurrent_NullDate_PassesNullToService()
-    {
-        _serviceMock
-            .Setup(s => s.GetCurrentPayPeriodAsync(null, default))
-            .ReturnsAsync(Result.Success(CreateTestDto()));
-
-        await _controller.GetCurrent(null);
-
-        _serviceMock.Verify(s => s.GetCurrentPayPeriodAsync(null, default), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetCurrent_Error_Returns400()
-    {
-        _serviceMock
-            .Setup(s => s.GetCurrentPayPeriodAsync(null, default))
-            .ReturnsAsync(Result.Failure<PayPeriodDto>("Request failed"));
-
-        var result = await _controller.GetCurrent(null);
-
-        result.Should().BeOfType<BadRequestObjectResult>();
-    }
-
-    [Fact]
-    public async Task GetCurrent_ReturnsFullDtoFields()
-    {
-        var dto = CreateTestDto() with
-        {
-            Status = PayPeriodStatus.Locked,
-            LockedAt = new DateTime(2026, 2, 16, 8, 0, 0, DateTimeKind.Utc),
-            LockedById = TestLockedById,
-            LockedByName = "John Admin",
-            Notes = "End of sprint lock"
-        };
-        _serviceMock
-            .Setup(s => s.GetCurrentPayPeriodAsync(null, default))
-            .ReturnsAsync(Result.Success(dto));
-
-        var result = await _controller.GetCurrent(null);
-
-        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        var returned = ok.Value.Should().BeOfType<PayPeriodDto>().Subject;
-        returned.Id.Should().Be(TestId);
-        returned.StartDate.Should().Be(new DateOnly(2026, 2, 9));
-        returned.EndDate.Should().Be(new DateOnly(2026, 2, 15));
-        returned.Status.Should().Be(PayPeriodStatus.Locked);
-        returned.LockedAt.Should().NotBeNull();
-        returned.LockedById.Should().Be(TestLockedById);
-        returned.LockedByName.Should().Be("John Admin");
-        returned.Notes.Should().Be("End of sprint lock");
+            PayPeriodStatus.Closed, 1, 25, default), Times.Once);
     }
 
     #endregion
@@ -285,13 +188,13 @@ public class PayPeriodsControllerTests
     [Fact]
     public async Task Lock_Success_Returns200()
     {
+        SetCurrentUser(TestLockedById);
         var dto = CreateTestDto() with { Status = PayPeriodStatus.Locked };
         _serviceMock
-            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, "Payroll processing", default))
+            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, default))
             .ReturnsAsync(Result.Success(dto));
 
-        var request = new LockPayPeriodRequest(TestLockedById, "Payroll processing");
-        var result = await _controller.Lock(TestId, request);
+        var result = await _controller.Lock(TestId);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         ok.Value.Should().Be(dto);
@@ -300,12 +203,12 @@ public class PayPeriodsControllerTests
     [Fact]
     public async Task Lock_NotFound_Returns404()
     {
+        SetCurrentUser(TestLockedById);
         _serviceMock
-            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, null, default))
+            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, default))
             .ReturnsAsync(Result.Failure<PayPeriodDto>("Pay period not found", "NOT_FOUND"));
 
-        var request = new LockPayPeriodRequest(TestLockedById);
-        var result = await _controller.Lock(TestId, request);
+        var result = await _controller.Lock(TestId);
 
         result.Should().BeOfType<NotFoundObjectResult>();
     }
@@ -313,54 +216,49 @@ public class PayPeriodsControllerTests
     [Fact]
     public async Task Lock_AlreadyLocked_Returns400()
     {
+        SetCurrentUser(TestLockedById);
         _serviceMock
-            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, null, default))
+            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, default))
             .ReturnsAsync(Result.Failure<PayPeriodDto>("Pay period is already locked", "ALREADY_LOCKED"));
 
-        var request = new LockPayPeriodRequest(TestLockedById);
-        var result = await _controller.Lock(TestId, request);
+        var result = await _controller.Lock(TestId);
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]
-    public async Task Lock_PassesAllFieldsToService()
+    public async Task Lock_PassesUserIdFromJwt()
     {
         var lockedById = Guid.NewGuid();
+        SetCurrentUser(lockedById);
         _serviceMock
-            .Setup(s => s.LockPayPeriodAsync(TestId, lockedById, "Quarter end lock", default))
+            .Setup(s => s.LockPayPeriodAsync(TestId, lockedById, default))
             .ReturnsAsync(Result.Success(CreateTestDto()));
 
-        var request = new LockPayPeriodRequest(lockedById, "Quarter end lock");
-        await _controller.Lock(TestId, request);
+        await _controller.Lock(TestId);
 
         _serviceMock.Verify(s => s.LockPayPeriodAsync(
-            TestId, lockedById, "Quarter end lock", default), Times.Once);
+            TestId, lockedById, default), Times.Once);
     }
 
     [Fact]
-    public async Task Lock_NullNotes_PassesNullToService()
+    public async Task Lock_NoUserClaim_Returns400()
     {
-        _serviceMock
-            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, null, default))
-            .ReturnsAsync(Result.Success(CreateTestDto()));
+        // Controller has default HttpContext with no claims
+        var result = await _controller.Lock(TestId);
 
-        var request = new LockPayPeriodRequest(TestLockedById, null);
-        await _controller.Lock(TestId, request);
-
-        _serviceMock.Verify(s => s.LockPayPeriodAsync(
-            TestId, TestLockedById, null, default), Times.Once);
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]
     public async Task Lock_OtherError_Returns400()
     {
+        SetCurrentUser(TestLockedById);
         _serviceMock
-            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, null, default))
+            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, default))
             .ReturnsAsync(Result.Failure<PayPeriodDto>("Unknown error", "UNKNOWN"));
 
-        var request = new LockPayPeriodRequest(TestLockedById);
-        var result = await _controller.Lock(TestId, request);
+        var result = await _controller.Lock(TestId);
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
@@ -368,20 +266,18 @@ public class PayPeriodsControllerTests
     [Fact]
     public async Task Lock_ReturnsLockedDto()
     {
+        SetCurrentUser(TestLockedById);
         var dto = CreateTestDto() with
         {
             Status = PayPeriodStatus.Locked,
             LockedAt = DateTime.UtcNow,
-            LockedById = TestLockedById,
-            LockedByName = "Admin User",
-            Notes = "End of period"
+            LockedById = TestLockedById
         };
         _serviceMock
-            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, "End of period", default))
+            .Setup(s => s.LockPayPeriodAsync(TestId, TestLockedById, default))
             .ReturnsAsync(Result.Success(dto));
 
-        var request = new LockPayPeriodRequest(TestLockedById, "End of period");
-        var result = await _controller.Lock(TestId, request);
+        var result = await _controller.Lock(TestId);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var returned = ok.Value.Should().BeOfType<PayPeriodDto>().Subject;
@@ -398,13 +294,13 @@ public class PayPeriodsControllerTests
     public async Task Unlock_Success_Returns200()
     {
         var unlockedById = Guid.NewGuid();
+        SetCurrentUser(unlockedById);
         var dto = CreateTestDto() with { Status = PayPeriodStatus.Open };
         _serviceMock
-            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, "Correction needed", default))
+            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, default))
             .ReturnsAsync(Result.Success(dto));
 
-        var request = new UnlockPayPeriodRequest(unlockedById, "Correction needed");
-        var result = await _controller.Unlock(TestId, request);
+        var result = await _controller.Unlock(TestId);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         ok.Value.Should().Be(dto);
@@ -414,69 +310,63 @@ public class PayPeriodsControllerTests
     public async Task Unlock_NotFound_Returns404()
     {
         var unlockedById = Guid.NewGuid();
+        SetCurrentUser(unlockedById);
         _serviceMock
-            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, "Correction", default))
+            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, default))
             .ReturnsAsync(Result.Failure<PayPeriodDto>("Pay period not found", "NOT_FOUND"));
 
-        var request = new UnlockPayPeriodRequest(unlockedById, "Correction");
-        var result = await _controller.Unlock(TestId, request);
+        var result = await _controller.Unlock(TestId);
 
         result.Should().BeOfType<NotFoundObjectResult>();
-    }
-
-    [Fact]
-    public async Task Unlock_ReasonRequired_Returns400()
-    {
-        var unlockedById = Guid.NewGuid();
-        _serviceMock
-            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, "", default))
-            .ReturnsAsync(Result.Failure<PayPeriodDto>("Reason is required to unlock a pay period", "REASON_REQUIRED"));
-
-        var request = new UnlockPayPeriodRequest(unlockedById, "");
-        var result = await _controller.Unlock(TestId, request);
-
-        result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]
     public async Task Unlock_AlreadyOpen_Returns400()
     {
         var unlockedById = Guid.NewGuid();
+        SetCurrentUser(unlockedById);
         _serviceMock
-            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, "Some reason", default))
+            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, default))
             .ReturnsAsync(Result.Failure<PayPeriodDto>("Pay period is already open", "ALREADY_OPEN"));
 
-        var request = new UnlockPayPeriodRequest(unlockedById, "Some reason");
-        var result = await _controller.Unlock(TestId, request);
+        var result = await _controller.Unlock(TestId);
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]
-    public async Task Unlock_PassesAllFieldsToService()
+    public async Task Unlock_PassesUserIdFromJwt()
     {
         var unlockedById = Guid.NewGuid();
+        SetCurrentUser(unlockedById);
         _serviceMock
-            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, "Employee correction request", default))
+            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, default))
             .ReturnsAsync(Result.Success(CreateTestDto()));
 
-        var request = new UnlockPayPeriodRequest(unlockedById, "Employee correction request");
-        await _controller.Unlock(TestId, request);
+        await _controller.Unlock(TestId);
 
         _serviceMock.Verify(s => s.UnlockPayPeriodAsync(
-            TestId, unlockedById, "Employee correction request", default), Times.Once);
+            TestId, unlockedById, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Unlock_NoUserClaim_Returns400()
+    {
+        var result = await _controller.Unlock(TestId);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     [Fact]
     public async Task Unlock_OtherError_Returns400()
     {
         var unlockedById = Guid.NewGuid();
+        SetCurrentUser(unlockedById);
         _serviceMock
-            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, "Reason", default))
+            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, default))
             .ReturnsAsync(Result.Failure<PayPeriodDto>("Unknown error", "UNKNOWN"));
 
-        var request = new UnlockPayPeriodRequest(unlockedById, "Reason");
-        var result = await _controller.Unlock(TestId, request);
+        var result = await _controller.Unlock(TestId);
 
         result.Should().BeOfType<BadRequestObjectResult>();
     }
@@ -485,13 +375,13 @@ public class PayPeriodsControllerTests
     public async Task Unlock_ReturnsUnlockedDto()
     {
         var unlockedById = Guid.NewGuid();
+        SetCurrentUser(unlockedById);
         var dto = CreateTestDto() with { Status = PayPeriodStatus.Open };
         _serviceMock
-            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, "Time entry correction", default))
+            .Setup(s => s.UnlockPayPeriodAsync(TestId, unlockedById, default))
             .ReturnsAsync(Result.Success(dto));
 
-        var request = new UnlockPayPeriodRequest(unlockedById, "Time entry correction");
-        var result = await _controller.Unlock(TestId, request);
+        var result = await _controller.Unlock(TestId);
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var returned = ok.Value.Should().BeOfType<PayPeriodDto>().Subject;
