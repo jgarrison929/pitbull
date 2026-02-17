@@ -559,9 +559,9 @@ public class UsersControllerTests
         result.Should().BeOfType<OkObjectResult>();
         var okResult = (OkObjectResult)result;
         var roles = okResult.Value.Should().BeOfType<RoleInfo[]>().Subject;
-        roles.Should().HaveCount(4);
+        roles.Should().HaveCount(5);
         roles.Select(r => r.Name).Should().BeEquivalentTo(
-            new[] { "Admin", "Manager", "Supervisor", "User" });
+            new[] { "Admin", "Manager", "Supervisor", "Viewer", "User" });
 
         // Each role should have a description
         foreach (var role in roles)

@@ -5,8 +5,9 @@ namespace Pitbull.TimeTracking.Entities;
 /// <summary>
 /// Represents a payroll period for time entry locking and closeout.
 /// </summary>
-public class PayPeriod : BaseEntity
+public class PayPeriod : BaseEntity, ICompanyScoped
 {
+    public Guid CompanyId { get; set; }
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }
     public PayPeriodStatus Status { get; set; } = PayPeriodStatus.Open;

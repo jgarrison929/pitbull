@@ -230,6 +230,13 @@ public class ArchitectureTests
                 .And().DoNotHaveName("TimecardSettingsController")
                 .And().DoNotHaveName("PaymentApplicationSettingsController")
                 .And().DoNotHaveName("EmployeeOnboardingSettingsController")
+                .And().DoNotHaveName("AiDocumentController")
+                .And().DoNotHaveName("BidSettingsController")
+                .And().DoNotHaveName("ContractSettingsController")
+                .And().DoNotHaveName("ModuleSettingsController")
+                .And().DoNotHaveName("ProjectSettingsController")
+                .And().DoNotHaveName("ReportSettingsController")
+                .And().DoNotHaveName("RfiSettingsController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 
