@@ -28,23 +28,9 @@ namespace Pitbull.Api.Migrations
             migrationBuilder.Sql(@"ALTER TABLE ""AuditLogs"" RENAME TO ""audit_logs"";");
             migrationBuilder.Sql(@"ALTER INDEX ""IX_AuditLogs_TenantId_ResourceType_ResourceId"" RENAME TO ""IX_audit_logs_TenantId_ResourceType_ResourceId"";");
 
-            migrationBuilder.AlterColumn<string>(
-                name: "Details",
-                table: "audit_logs",
-                type: "jsonb",
-                nullable: true,
-                oldClrType: typeof(string),
-                oldType: "text",
-                oldNullable: true);
-
-            migrationBuilder.AlterColumn<string>(
-                name: "Action",
-                table: "audit_logs",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: false,
-                oldClrType: typeof(int),
-                oldType: "integer");
+            // Use raw SQL for type changes that require explicit USING casts in PostgreSQL
+            migrationBuilder.Sql(@"ALTER TABLE ""audit_logs"" ALTER COLUMN ""Details"" TYPE jsonb USING ""Details""::jsonb;");
+            migrationBuilder.Sql(@"ALTER TABLE ""audit_logs"" ALTER COLUMN ""Action"" TYPE character varying(50) USING ""Action""::text;");
 
             migrationBuilder.AddColumn<string>(
                 name: "Changes",
