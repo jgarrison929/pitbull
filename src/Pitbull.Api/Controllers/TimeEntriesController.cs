@@ -10,6 +10,7 @@ using Pitbull.TimeTracking.Features.BulkSubmitTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.ReviewTimeEntries;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
+using Pitbull.TimeTracking.Features.GetYesterdayCrewEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 using Pitbull.TimeTracking.Messages;
 using Pitbull.TimeTracking.Services;
@@ -124,6 +125,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
     /// </remarks>
     /// <param name="projectId">Filter by project</param>
     /// <param name="employeeId">Filter by employee</param>
+    /// <param name="foremanId">Filter by foreman's crew (Employee.SupervisorId)</param>
     /// <param name="startDate">Filter entries on or after this date</param>
     /// <param name="endDate">Filter entries on or before this date</param>
     /// <param name="status">Filter by status (Draft=0, Submitted=1, Approved=2, Rejected=3)</param>
@@ -144,13 +146,42 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
         [FromQuery] DateOnly? endDate,
         [FromQuery] TimeEntryStatus? status,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 25)
+        [FromQuery] int pageSize = 25,
+        [FromQuery] Guid? foremanId = null)
     {
         var result = await timeEntryService.ListTimeEntriesAsync(
-            projectId, employeeId, startDate, endDate, status, page, pageSize);
+            projectId, employeeId, startDate, endDate, status, page, pageSize, foremanId);
 
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get a foreman's crew entries for a target date (used by Copy Yesterday in crew entry)
+    /// </summary>
+    /// <param name="foremanId">Foreman/supervisor employee ID</param>
+    /// <param name="targetDate">Date to copy from (defaults to yesterday)</param>
+    /// <returns>Crew entries grouped by employee</returns>
+    [HttpGet("yesterday-crew")]
+    [ProducesResponseType(typeof(YesterdayCrewEntriesResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> GetYesterdayCrewEntries(
+        [FromQuery] Guid foremanId,
+        [FromQuery] DateOnly? targetDate = null)
+    {
+        if (foremanId == Guid.Empty)
+            return BadRequest(new { error = "Foreman ID is required", code = "VALIDATION_ERROR" });
+
+        var result = await timeEntryService.GetYesterdayCrewEntriesAsync(foremanId, targetDate);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }

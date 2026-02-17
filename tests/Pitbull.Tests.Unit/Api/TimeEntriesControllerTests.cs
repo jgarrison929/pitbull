@@ -208,7 +208,7 @@ public class TimeEntriesControllerTests
         var listResult = new ListTimeEntriesResult(
             new[] { CreateTestDto() }, TotalCount: 1, Page: 1, PageSize: 25, TotalPages: 1);
         _serviceMock
-            .Setup(s => s.ListTimeEntriesAsync(null, null, null, null, null, 1, 25, default))
+            .Setup(s => s.ListTimeEntriesAsync(null, null, null, null, null, 1, 25, null, default))
             .ReturnsAsync(Result.Success(listResult));
 
         var result = await _controller.List(null, null, null, null, null);
@@ -225,7 +225,7 @@ public class TimeEntriesControllerTests
         _serviceMock
             .Setup(s => s.ListTimeEntriesAsync(
                 TestProjectId, TestEmployeeId, TestDate, TestDate,
-                TimeEntryStatus.Approved, 2, 10, default))
+                TimeEntryStatus.Approved, 2, 10, null, default))
             .ReturnsAsync(Result.Success(listResult));
 
         await _controller.List(TestProjectId, TestEmployeeId, TestDate, TestDate,
@@ -233,14 +233,14 @@ public class TimeEntriesControllerTests
 
         _serviceMock.Verify(s => s.ListTimeEntriesAsync(
             TestProjectId, TestEmployeeId, TestDate, TestDate,
-            TimeEntryStatus.Approved, 2, 10, default), Times.Once);
+            TimeEntryStatus.Approved, 2, 10, null, default), Times.Once);
     }
 
     [Fact]
     public async Task List_Error_Returns400()
     {
         _serviceMock
-            .Setup(s => s.ListTimeEntriesAsync(null, null, null, null, null, 1, 25, default))
+            .Setup(s => s.ListTimeEntriesAsync(null, null, null, null, null, 1, 25, null, default))
             .ReturnsAsync(Result.Failure<ListTimeEntriesResult>("Invalid page", "VALIDATION_ERROR"));
 
         var result = await _controller.List(null, null, null, null, null);

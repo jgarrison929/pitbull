@@ -7,6 +7,7 @@ using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
 using Pitbull.TimeTracking.Features.GetReviewQueue;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
+using Pitbull.TimeTracking.Features.GetYesterdayCrewEntries;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
 using Pitbull.TimeTracking.Features.ReviewTimeEntries;
@@ -31,6 +32,12 @@ public interface ITimeEntryService
         TimeEntryStatus? status,
         int page,
         int pageSize,
+        Guid? foremanId,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<YesterdayCrewEntriesResult>> GetYesterdayCrewEntriesAsync(
+        Guid foremanId,
+        DateOnly? targetDate = null,
         CancellationToken cancellationToken = default);
 
     Task<Result<ProjectTimeEntriesResult>> GetTimeEntriesByProjectAsync(

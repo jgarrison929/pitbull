@@ -16,6 +16,7 @@ using Pitbull.TimeTracking.Features.ExportVistaTimesheet;
 using Pitbull.TimeTracking.Features.GetReviewQueue;
 using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
+using Pitbull.TimeTracking.Features.GetYesterdayCrewEntries;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
 using Pitbull.TimeTracking.Features.ReviewTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
@@ -111,6 +112,7 @@ public class TimeEntryService : ITimeEntryService
         TimeEntryStatus? status,
         int page,
         int pageSize,
+        Guid? foremanId,
         CancellationToken cancellationToken = default)
     {
         var query = _db.Set<TimeEntry>()
@@ -127,6 +129,9 @@ public class TimeEntryService : ITimeEntryService
 
         if (employeeId.HasValue)
             query = query.Where(te => te.EmployeeId == employeeId.Value);
+
+        if (foremanId.HasValue)
+            query = query.Where(te => te.Employee.SupervisorId == foremanId.Value);
 
         if (startDate.HasValue)
             query = query.Where(te => te.Date >= startDate.Value);
@@ -153,6 +158,86 @@ public class TimeEntryService : ITimeEntryService
 
         return Result.Success(new ListTimeEntriesResult(
             items, totalCount, page, pageSize, totalPages));
+    }
+
+    public async Task<Result<YesterdayCrewEntriesResult>> GetYesterdayCrewEntriesAsync(
+        Guid foremanId,
+        DateOnly? targetDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        var entriesDate = targetDate ?? DateOnly.FromDateTime(DateTime.UtcNow.Date.AddDays(-1));
+
+        var foremanExists = await _db.Set<Employee>()
+            .AsNoTracking()
+            .AnyAsync(e => e.Id == foremanId && !e.IsDeleted, cancellationToken);
+
+        if (!foremanExists)
+            return Result.Failure<YesterdayCrewEntriesResult>("Foreman not found", "NOT_FOUND");
+
+        var crewIds = await _db.Set<Employee>()
+            .AsNoTracking()
+            .Where(e => e.SupervisorId == foremanId && !e.IsDeleted && e.IsActive)
+            .Select(e => e.Id)
+            .ToListAsync(cancellationToken);
+
+        if (crewIds.Count == 0)
+        {
+            return Result.Success(new YesterdayCrewEntriesResult(
+                EntriesDate: entriesDate,
+                EmployeeCount: 0,
+                EntryCount: 0,
+                TotalHours: 0,
+                EmployeeEntries: []
+            ));
+        }
+
+        var timeEntries = await _db.Set<TimeEntry>()
+            .AsNoTracking()
+            .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
+            .Where(te =>
+                !te.IsDeleted &&
+                te.Date == entriesDate &&
+                crewIds.Contains(te.EmployeeId))
+            .OrderBy(te => te.Employee.LastName)
+            .ThenBy(te => te.Employee.FirstName)
+            .ThenBy(te => te.Project.Name)
+            .ToListAsync(cancellationToken);
+
+        var grouped = timeEntries
+            .GroupBy(te => te.EmployeeId)
+            .Select(g =>
+            {
+                var first = g.First();
+                return new YesterdayCrewEmployeeEntries(
+                    EmployeeId: first.EmployeeId,
+                    EmployeeName: first.Employee?.FullName ?? "Unknown Employee",
+                    EmployeeNumber: first.Employee?.EmployeeNumber ?? "N/A",
+                    Entries: g.Select(te => new YesterdayTimeEntryDto(
+                        ProjectId: te.ProjectId,
+                        ProjectName: te.Project?.Name ?? "Unknown Project",
+                        ProjectNumber: te.Project?.Number ?? "N/A",
+                        CostCodeId: te.CostCodeId,
+                        CostCodeCode: te.CostCode?.Code ?? "N/A",
+                        CostCodeDescription: te.CostCode?.Description ?? "Unknown Cost Code",
+                        RegularHours: te.RegularHours,
+                        OvertimeHours: te.OvertimeHours,
+                        DoubletimeHours: te.DoubletimeHours,
+                        TotalHours: te.TotalHours,
+                        Description: te.Description
+                    )).ToList()
+                );
+            })
+            .ToList();
+
+        return Result.Success(new YesterdayCrewEntriesResult(
+            EntriesDate: entriesDate,
+            EmployeeCount: grouped.Count,
+            EntryCount: timeEntries.Count,
+            TotalHours: timeEntries.Sum(te => te.TotalHours),
+            EmployeeEntries: grouped
+        ));
     }
 
     public async Task<Result<ProjectTimeEntriesResult>> GetTimeEntriesByProjectAsync(
