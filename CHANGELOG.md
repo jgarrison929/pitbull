@@ -8,23 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [0.12.0] - 2026-02-17
 
-### 🧪 Testing
+### Added
 
-- **100% Controller Unit Test Coverage** - All 23 API controllers now have dedicated unit tests
-- **New controller tests** - Added comprehensive unit tests for the remaining 8 untested controllers:
-  - CompaniesController (15 tests) - CRUD, company switching
-  - AdminCompaniesController (15 tests) - admin management operations
-  - ProjectAssignmentsController (22 tests) - assignment CRUD with validation
-  - AdminAuditController (12 tests) - audit log queries and filtering
-  - TenantsController (8 tests) - tenant info and settings
-  - SeedDataController (4 tests) - demo data seeding guards
-  - MonitoringController (4 tests) - health and diagnostics
-  - UsersController (18 tests) - user management and profiles
-- **Weekly Timecard Mode** - Feature-complete weekly entry with daily, detailed weekly, and simple weekly modes (#70)
-- **Codex review fixes** - Applied static analysis findings on crew timecard settings (#71)
-- **Unit test count:** 1,342 (up from 1,189)
-- **Integration test count:** 225
-- **Total test count:** 1,567
+- Project Management module scaffold with API + data model for schedule, job cost, daily reports, submittals, RFIs, communications, meetings, documents, progress, tasks, and narratives.
+- AI module with provider abstraction (OpenAI + Anthropic), tenant-scoped API key management, provider routing, and secure key storage/retrieval.
+- Crew-to-payroll Phase 2 PM review flow with review queue, bulk approve/reject decisions, and approval/rejection event publishing.
+- PM web experience expanded with 12+ project dashboard pages under `projects/[id]` (schedule, submittals, documents, meetings, communications, daily reports, job cost, tasks, narratives, plans/specs, progress, projections).
+- 135+ new unit tests added across PM and AI services, including child-entity scope enforcement and AI provider/key-management behavior.
+
+### Security
+
+- JWT hardening in PM review workflows: reviewer identity is resolved from JWT claims instead of trusting request-body approver IDs.
+- Project-scoped bulk review enforcement: PM review queue and review actions are restricted to entries in projects where the reviewer has active manager/supervisor assignment.
+- Self-approval guard: reviewers cannot approve or reject their own submitted time entries.
+- Child entity project ownership validation for PM endpoints now enforces that referenced parent records belong to the route `projectId`, reducing cross-project/IDOR exposure.
+- JWT email fallback support improved for employee resolution (`Identity.Name` with `email` claim fallback) in approval and review flows.
+
+### Fixed
+
+- Stabilized flaky MassTransit consumer unit tests by replacing harness-dependent assertions with deterministic consumer-level verification.
+- Fixed PM narrative revision listing to enforce project ownership checks and soft-delete filtering (`!IsDeleted`) before returning revisions.
 
 ---
 
