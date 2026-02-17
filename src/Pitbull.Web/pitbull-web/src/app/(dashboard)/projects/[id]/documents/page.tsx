@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
-import api, { ApiError } from "@/lib/api";
+import api from "@/lib/api";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -37,34 +38,45 @@ interface DataMap {
   [key: string]: unknown;
 }
 
-interface DocumentRow {
+interface TemplateRow {
   id: string;
   name: string;
-  type: string;
-  uploadedDate: string;
-  version: string;
+  templateType: string;
+  engine: string;
+  isDefault: boolean;
+  version: number;
+  createdAt: string;
 }
 
-interface DocumentFormState {
+interface GeneratedDocRow {
+  id: string;
+  documentType: string;
+  generatedAt: string;
+  outputFormat: string;
+  createdAt: string;
+}
+
+interface TemplateFormState {
   id?: string;
   name: string;
-  type: string;
-  uploadedDate: string;
-  version: string;
-  fileName: string;
-  mimeType: string;
-  fileSizeBytes: number;
+  description: string;
+  templateType: string;
+  engine: string;
+  bodyTemplate: string;
+  isDefault: boolean;
 }
 
-const DOCUMENT_TYPES = [
-  "Contract",
-  "Drawing",
-  "Specification",
-  "Submittal",
-  "RFI",
-  "Photo",
-  "Other",
-];
+const TEMPLATE_TYPES = ["Transmittal", "MeetingMinutes", "DailyReport", "Letter", "Narrative"];
+const ENGINE_TYPES = ["Razor", "Handlebars"];
+const OUTPUT_FORMATS = ["Pdf", "Docx"];
+
+const TEMPLATE_TYPE_LABELS: Record<string, string> = {
+  Transmittal: "Transmittal",
+  MeetingMinutes: "Meeting Minutes",
+  DailyReport: "Daily Report",
+  Letter: "Letter",
+  Narrative: "Narrative",
+};
 
 function asDataMap(value: unknown): DataMap {
   return value && typeof value === "object" ? (value as DataMap) : {};
@@ -72,6 +84,10 @@ function asDataMap(value: unknown): DataMap {
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function asBool(value: unknown): boolean {
+  return typeof value === "boolean" ? value : false;
 }
 
 function asNumber(value: unknown): number {
@@ -93,7 +109,8 @@ function formatDate(value: string | null): string {
 export default function DocumentsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
 
-  const [documents, setDocuments] = useState<PmEntityDto[]>([]);
+  const [templates, setTemplates] = useState<PmEntityDto[]>([]);
+  const [generatedDocs, setGeneratedDocs] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -101,24 +118,28 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<DocumentFormState>({
+  const [form, setForm] = useState<TemplateFormState>({
     name: "",
-    type: "Other",
-    uploadedDate: new Date().toISOString().slice(0, 10),
-    version: "1.0",
-    fileName: "",
-    mimeType: "",
-    fileSizeBytes: 0,
+    description: "",
+    templateType: "Transmittal",
+    engine: "Razor",
+    bodyTemplate: "",
+    isDefault: false,
   });
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<DocumentRow | null>(null);
+  const [generateOpen, setGenerateOpen] = useState(false);
+  const [generateTemplateId, setGenerateTemplateId] = useState("");
+  const [generateFormat, setGenerateFormat] = useState("Pdf");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await api<PmPagedResult>(`/api/projects/${projectId}/documents?page=1&pageSize=500`);
-      setDocuments(result.items ?? []);
+      const [templateRes, generatedRes] = await Promise.all([
+        api<PmPagedResult>(`/api/projects/${projectId}/document-templates?page=1&pageSize=500`),
+        api<PmPagedResult>(`/api/projects/${projectId}/generated-documents?page=1&pageSize=500`),
+      ]);
+      setTemplates(templateRes.items ?? []);
+      setGeneratedDocs(generatedRes.items ?? []);
     } catch (error) {
       toast.error("Failed to load documents", {
         description: error instanceof Error ? error.message : "Unknown error",
@@ -132,67 +153,74 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
     void load();
   }, [load]);
 
-  const rows = useMemo(() => {
-    const mapped = documents.map<DocumentRow>((document) => {
-      const data = asDataMap(document.data);
+  const templateRows = useMemo(() => {
+    const mapped = templates.map<TemplateRow>((t) => {
+      const data = asDataMap(t.data);
       return {
-        id: document.id,
-        name: asString(data.FileName ?? data.fileName) || document.name || document.title || "Untitled document",
-        type: asString(data.DocumentType ?? data.documentType) || "Other",
-        uploadedDate:
-          asString(data.UploadedAt ?? data.uploadedAt) ||
-          asString(data.UploadedDate ?? data.uploadedDate) ||
-          document.createdAt,
-        version:
-          asString(data.VersionNumber ?? data.versionNumber) ||
-          asString(data.Version ?? data.version) ||
-          "1.0",
+        id: t.id,
+        name: t.name || t.title || "Untitled template",
+        templateType: asString(data.TemplateType ?? data.templateType) || "Transmittal",
+        engine: asString(data.Engine ?? data.engine) || "Razor",
+        isDefault: asBool(data.IsDefault ?? data.isDefault),
+        version: asNumber(data.Version ?? data.version) || 1,
+        createdAt: t.createdAt,
       };
     });
 
     const q = search.trim().toLowerCase();
     return mapped.filter((row) => {
-      if (typeFilter !== "all" && row.type !== typeFilter) return false;
+      if (typeFilter !== "all" && row.templateType !== typeFilter) return false;
       if (!q) return true;
-      return row.name.toLowerCase().includes(q) || row.type.toLowerCase().includes(q);
+      return row.name.toLowerCase().includes(q) || row.templateType.toLowerCase().includes(q);
     });
-  }, [documents, search, typeFilter]);
+  }, [templates, search, typeFilter]);
 
-  function openUpload() {
+  const generatedDocRows = useMemo(() => {
+    return generatedDocs.map<GeneratedDocRow>((d) => {
+      const data = asDataMap(d.data);
+      return {
+        id: d.id,
+        documentType: asString(data.DocumentType ?? data.documentType) || "Unknown",
+        generatedAt: asString(data.GeneratedAt ?? data.generatedAt) || d.createdAt,
+        outputFormat: asString(data.OutputFormat ?? data.outputFormat) || "Pdf",
+        createdAt: d.createdAt,
+      };
+    });
+  }, [generatedDocs]);
+
+  function openCreate() {
     setEditing(false);
     setForm({
       name: "",
-      type: "Other",
-      uploadedDate: new Date().toISOString().slice(0, 10),
-      version: "1.0",
-      fileName: "",
-      mimeType: "",
-      fileSizeBytes: 0,
+      description: "",
+      templateType: "Transmittal",
+      engine: "Razor",
+      bodyTemplate: "",
+      isDefault: false,
     });
     setDialogOpen(true);
   }
 
-  function openEdit(row: DocumentRow) {
+  function openEdit(row: TemplateRow) {
     setEditing(true);
-    const source = documents.find((entry) => entry.id === row.id);
+    const source = templates.find((t) => t.id === row.id);
     const data = asDataMap(source?.data);
 
     setForm({
       id: row.id,
       name: row.name,
-      type: row.type,
-      uploadedDate: row.uploadedDate ? row.uploadedDate.slice(0, 10) : "",
-      version: row.version,
-      fileName: asString(data.FileName ?? data.fileName) || row.name,
-      mimeType: asString(data.MimeType ?? data.mimeType),
-      fileSizeBytes: asNumber(data.FileSizeBytes ?? data.fileSizeBytes),
+      description: asString(data.Description ?? data.description),
+      templateType: row.templateType,
+      engine: row.engine,
+      bodyTemplate: asString(data.BodyTemplate ?? data.bodyTemplate),
+      isDefault: row.isDefault,
     });
     setDialogOpen(true);
   }
 
-  async function saveDocument() {
+  async function saveTemplate() {
     if (!form.name.trim()) {
-      toast.error("Document name is required");
+      toast.error("Template name is required");
       return;
     }
 
@@ -200,36 +228,34 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
       name: form.name.trim(),
       title: form.name.trim(),
       data: {
-        FileName: form.fileName || form.name.trim(),
-        MimeType: form.mimeType || "application/octet-stream",
-        FileSizeBytes: form.fileSizeBytes,
-        UploadedAt: form.uploadedDate || null,
-        UploadedDate: form.uploadedDate || null,
-        DocumentType: form.type,
-        VersionNumber: form.version || "1.0",
+        TemplateType: form.templateType,
+        Description: form.description || null,
+        Engine: form.engine,
+        BodyTemplate: form.bodyTemplate || null,
+        IsDefault: form.isDefault,
       },
     };
 
     setSaving(true);
     try {
       if (editing && form.id) {
-        await api<PmEntityDto>(`/api/projects/${projectId}/documents/${form.id}`, {
+        await api<PmEntityDto>(`/api/projects/${projectId}/document-templates/${form.id}`, {
           method: "PUT",
           body: payload,
         });
-        toast.success("Document updated");
+        toast.success("Template updated");
       } else {
-        await api<PmEntityDto>(`/api/projects/${projectId}/documents`, {
+        await api<PmEntityDto>(`/api/projects/${projectId}/document-templates`, {
           method: "POST",
           body: payload,
         });
-        toast.success("Document uploaded");
+        toast.success("Template created");
       }
 
       setDialogOpen(false);
       await load();
     } catch (error) {
-      toast.error("Failed to save document", {
+      toast.error("Failed to save template", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
@@ -237,27 +263,39 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
     }
   }
 
-  async function deleteDocument() {
-    if (!pendingDelete) return;
+  function openGenerate() {
+    setGenerateTemplateId(templates[0]?.id ?? "");
+    setGenerateFormat("Pdf");
+    setGenerateOpen(true);
+  }
+
+  async function generateDocument() {
+    if (!generateTemplateId) {
+      toast.error("Select a template to generate from");
+      return;
+    }
+
+    const payload: PmUpsertRequest = {
+      name: "Generated Document",
+      data: {
+        TemplateId: generateTemplateId,
+        OutputFormat: generateFormat,
+      },
+    };
 
     setSaving(true);
     try {
-      await api<void>(`/api/projects/${projectId}/documents/${pendingDelete.id}`, {
-        method: "DELETE",
+      await api<PmEntityDto>(`/api/projects/${projectId}/documents/generate`, {
+        method: "POST",
+        body: payload,
       });
-      toast.success("Document deleted");
-      setDeleteOpen(false);
-      setPendingDelete(null);
+      toast.success("Document generated");
+      setGenerateOpen(false);
       await load();
     } catch (error) {
-      const message =
-        error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete endpoint is not available yet for documents"
-          : error instanceof Error
-            ? error.message
-            : "Unknown error";
-
-      toast.error("Failed to delete document", { description: message });
+      toast.error("Failed to generate document", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
     } finally {
       setSaving(false);
     }
@@ -269,17 +307,23 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Documents</h1>
           <p className="text-muted-foreground">
-            Manage project documents, versions, and upload metadata.
+            Manage document templates and generate project documents.
           </p>
         </div>
-        <Button onClick={openUpload}>+ Upload Document</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={openGenerate} disabled={templates.length === 0}>
+            Generate Document
+          </Button>
+          <Button onClick={openCreate}>+ New Template</Button>
+        </div>
       </div>
 
+      {/* Document Templates */}
       <Card>
         <CardHeader>
-          <CardTitle>Document Register</CardTitle>
+          <CardTitle>Document Templates</CardTitle>
           <CardDescription>
-            Track documents by type, upload date, and revision version.
+            Create and manage templates for generating project documents.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -287,7 +331,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search document name or type"
+              placeholder="Search template name or type"
             />
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger>
@@ -295,9 +339,9 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                {DOCUMENT_TYPES.map((type) => (
+                {TEMPLATE_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
-                    {type}
+                    {TEMPLATE_TYPE_LABELS[type] || type}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -305,42 +349,35 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading documents...</p>
+            <p className="text-sm text-muted-foreground">Loading templates...</p>
           ) : (
             <>
               {/* Mobile card layout */}
               <div className="space-y-3 sm:hidden">
-                {rows.length === 0 ? (
+                {templateRows.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      No documents yet. Upload your first project document.
+                      No templates yet. Create your first document template.
                     </p>
-                    <Button className="mt-3" size="sm" onClick={openUpload}>Upload Document</Button>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Template</Button>
                   </div>
                 ) : (
-                  rows.map((row) => (
+                  templateRows.map((row) => (
                     <div key={row.id} className="rounded-lg border p-4 space-y-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium truncate">{row.name}</span>
-                        <Badge variant="outline">{row.type}</Badge>
+                        <Badge variant="outline">
+                          {TEMPLATE_TYPE_LABELS[row.templateType] || row.templateType}
+                        </Badge>
                       </div>
                       <div className="flex gap-4 text-sm text-muted-foreground">
-                        <span>{formatDate(row.uploadedDate)}</span>
+                        <span>{row.engine}</span>
                         <span>v{row.version}</span>
+                        {row.isDefault && <Badge variant="secondary">Default</Badge>}
                       </div>
                       <div className="flex gap-2 pt-1">
                         <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
                           Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setPendingDelete(row);
-                            setDeleteOpen(true);
-                          }}
-                        >
-                          Delete
                         </Button>
                       </div>
                     </div>
@@ -355,46 +392,40 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Uploaded Date</TableHead>
+                      <TableHead>Engine</TableHead>
                       <TableHead>Version</TableHead>
-                      <TableHead className="w-[180px]">Actions</TableHead>
+                      <TableHead>Default</TableHead>
+                      <TableHead className="w-[120px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.length === 0 ? (
+                    {templateRows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5}>
+                        <TableCell colSpan={6}>
                           <div className="flex flex-col items-center gap-3 py-6 text-center">
                             <p className="text-sm text-muted-foreground">
-                              No documents yet. Upload your first project document.
+                              No templates yet. Create your first document template.
                             </p>
-                            <Button size="sm" onClick={openUpload}>Upload Document</Button>
+                            <Button size="sm" onClick={openCreate}>Create Template</Button>
                           </div>
                         </TableCell>
                       </TableRow>
                     ) : (
-                      rows.map((row) => (
+                      templateRows.map((row) => (
                         <TableRow key={row.id}>
                           <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell>{row.type}</TableCell>
-                          <TableCell className="font-mono text-sm">{formatDate(row.uploadedDate)}</TableCell>
-                          <TableCell>{row.version}</TableCell>
                           <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setPendingDelete(row);
-                                  setDeleteOpen(true);
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
+                            <Badge variant="outline">
+                              {TEMPLATE_TYPE_LABELS[row.templateType] || row.templateType}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{row.engine}</TableCell>
+                          <TableCell>{row.version}</TableCell>
+                          <TableCell>{row.isDefault ? "Yes" : "No"}</TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                              Edit
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -407,57 +438,134 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
         </CardContent>
       </Card>
 
+      {/* Generated Documents */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Generated Documents</CardTitle>
+          <CardDescription>
+            Documents generated from templates for this project.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading generated documents...</p>
+          ) : generatedDocRows.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                No generated documents yet. Create a template and generate your first document.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile card layout */}
+              <div className="space-y-3 sm:hidden">
+                {generatedDocRows.map((row) => (
+                  <div key={row.id} className="rounded-lg border p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="outline">
+                        {TEMPLATE_TYPE_LABELS[row.documentType] || row.documentType}
+                      </Badge>
+                      <Badge variant="secondary">{row.outputFormat}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Generated: {formatDate(row.generatedAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop table layout */}
+              <div className="hidden sm:block">
+                <div className="overflow-x-auto"><Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Document Type</TableHead>
+                      <TableHead>Generated At</TableHead>
+                      <TableHead>Output Format</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {generatedDocRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {TEMPLATE_TYPE_LABELS[row.documentType] || row.documentType}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{formatDate(row.generatedAt)}</TableCell>
+                        <TableCell>{row.outputFormat}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table></div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Template Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Document" : "Upload Document"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit Template" : "New Template"}</DialogTitle>
             <DialogDescription>
-              Provide document metadata and upload details for project filing.
+              Define a document template with a name, type, engine, and body content.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="document-file">File</Label>
+              <Label htmlFor="template-name">Name</Label>
               <Input
-                id="document-file"
-                type="file"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setForm((prev) => ({
-                    ...prev,
-                    fileName: file.name,
-                    mimeType: file.type || "application/octet-stream",
-                    fileSizeBytes: file.size,
-                    name: prev.name || file.name,
-                  }));
-                }}
+                id="template-name"
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Standard Transmittal"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="document-name">Name</Label>
+              <Label htmlFor="template-description">Description</Label>
               <Input
-                id="document-name"
-                value={form.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="IFC Structural Set"
+                id="template-description"
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Optional description"
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label>Template Type</Label>
                 <Select
-                  value={form.type}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, type: value }))}
+                  value={form.templateType}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, templateType: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {DOCUMENT_TYPES.map((type) => (
+                    {TEMPLATE_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {TEMPLATE_TYPE_LABELS[type] || type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Engine</Label>
+                <Select
+                  value={form.engine}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, engine: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ENGINE_TYPES.map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
                       </SelectItem>
@@ -465,24 +573,17 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="document-date">Uploaded Date</Label>
-                <Input
-                  id="document-date"
-                  type="date"
-                  value={form.uploadedDate}
-                  onChange={(e) => setForm((prev) => ({ ...prev, uploadedDate: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="document-version">Version</Label>
-                <Input
-                  id="document-version"
-                  value={form.version}
-                  onChange={(e) => setForm((prev) => ({ ...prev, version: e.target.value }))}
-                  placeholder="1.0"
-                />
-              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="template-body">Body Template</Label>
+              <Textarea
+                id="template-body"
+                value={form.bodyTemplate}
+                onChange={(e) => setForm((prev) => ({ ...prev, bodyTemplate: e.target.value }))}
+                placeholder="Template body content (Razor or Handlebars syntax)"
+                rows={8}
+              />
             </div>
           </div>
 
@@ -490,28 +591,63 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={saveDocument} disabled={saving}>
-              {saving ? "Saving..." : editing ? "Save Changes" : "Upload"}
+            <Button onClick={saveTemplate} disabled={saving}>
+              {saving ? "Saving..." : editing ? "Save Changes" : "Create Template"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+      {/* Generate Document Dialog */}
+      <Dialog open={generateOpen} onOpenChange={setGenerateOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Document</DialogTitle>
+            <DialogTitle>Generate Document</DialogTitle>
             <DialogDescription>
-              Delete &quot;{pendingDelete?.name ?? "this document"}&quot;? This action cannot be
-              undone.
+              Select a template and output format to generate a project document.
             </DialogDescription>
           </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Template</Label>
+              <Select value={generateTemplateId} onValueChange={setGenerateTemplateId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a template" />
+                </SelectTrigger>
+                <SelectContent>
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name || t.title || "Untitled"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Output Format</Label>
+              <Select value={generateFormat} onValueChange={setGenerateFormat}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OUTPUT_FORMATS.map((format) => (
+                    <SelectItem key={format} value={format}>
+                      {format}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={saving}>
+            <Button variant="outline" onClick={() => setGenerateOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={deleteDocument} disabled={saving}>
-              {saving ? "Deleting..." : "Delete"}
+            <Button onClick={generateDocument} disabled={saving}>
+              {saving ? "Generating..." : "Generate"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,7 @@ interface DataMap {
 interface TaskRow {
   id: string;
   title: string;
+  taskType: string;
   assigneeName: string;
   dueDate: string | null;
   priority: string;
@@ -52,14 +54,25 @@ interface TaskFormState {
   id?: string;
   title: string;
   description: string;
+  taskType: string;
   assigneeUserId: string;
   dueDate: string;
   priority: string;
   status: string;
 }
 
+const TASK_TYPES = ["General", "Rfi", "Submittal", "MeetingAction", "DailyReport", "Narrative"];
 const PRIORITIES = ["Low", "Normal", "High", "Urgent"];
 const STATUSES = ["Open", "InProgress", "Blocked", "Complete", "Canceled"];
+
+const TASK_TYPE_LABELS: Record<string, string> = {
+  General: "General",
+  Rfi: "RFI",
+  Submittal: "Submittal",
+  MeetingAction: "Meeting Action",
+  DailyReport: "Daily Report",
+  Narrative: "Narrative",
+};
 
 function asDataMap(value: unknown): DataMap {
   return value && typeof value === "object" ? (value as DataMap) : {};
@@ -98,6 +111,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
   const [form, setForm] = useState<TaskFormState>({
     title: "",
     description: "",
+    taskType: "General",
     assigneeUserId: "",
     dueDate: "",
     priority: "Normal",
@@ -136,6 +150,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
       return {
         id: task.id,
         title: task.title || "Untitled task",
+        taskType: asString(data.TaskType ?? data.taskType) || "General",
         assigneeName: asString(data.AssignedToName ?? data.assignedToName) || "Unassigned",
         dueDate: asString(data.DueDate ?? data.dueDate) || null,
         priority: asString(data.Priority ?? data.priority) || "Normal",
@@ -162,6 +177,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
     setForm({
       title: "",
       description: "",
+      taskType: "General",
       assigneeUserId: "",
       dueDate: "",
       priority: "Normal",
@@ -181,6 +197,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
       id: row.id,
       title: row.title,
       description: asString(data.Description ?? data.description),
+      taskType: row.taskType,
       assigneeUserId,
       dueDate: row.dueDate ? row.dueDate.slice(0, 10) : "",
       priority: row.priority,
@@ -204,6 +221,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
       dueDate: toIsoDate(form.dueDate) ?? undefined,
       data: {
         Description: form.description || null,
+        TaskType: form.taskType,
         Priority: form.priority,
         AssignedToUserId: form.assigneeUserId || null,
         AssignedToName:
@@ -327,8 +345,9 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
                         <span>{task.assigneeName}</span>
                         <span className="text-right">{formatDate(task.dueDate)}</span>
                       </div>
-                      <div>
+                      <div className="flex gap-2">
                         <Badge variant="outline">{task.priority}</Badge>
+                        <Badge variant="secondary">{TASK_TYPE_LABELS[task.taskType] || task.taskType}</Badge>
                       </div>
                       <div className="flex gap-2 pt-1">
                         <Button variant="outline" size="sm" onClick={() => openEdit(task)}>
@@ -356,6 +375,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
                   <TableHeader>
                     <TableRow>
                       <TableHead>Title</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Assignee</TableHead>
                       <TableHead>Due Date</TableHead>
                       <TableHead>Priority</TableHead>
@@ -366,7 +386,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
                   <TableBody>
                     {rows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6}>
+                        <TableCell colSpan={7}>
                           <div className="flex flex-col items-center gap-3 py-6 text-center">
                             <p className="text-sm text-muted-foreground">
                               No tasks yet. Create your first task to track project work.
@@ -379,6 +399,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
                       rows.map((task) => (
                         <TableRow key={task.id}>
                           <TableCell className="font-medium">{task.title}</TableCell>
+                          <TableCell>{TASK_TYPE_LABELS[task.taskType] || task.taskType}</TableCell>
                           <TableCell>{task.assigneeName}</TableCell>
                           <TableCell>{formatDate(task.dueDate)}</TableCell>
                           <TableCell>
@@ -416,7 +437,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-xl">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Task" : "Create Task"}</DialogTitle>
             <DialogDescription>
@@ -437,15 +458,35 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
 
             <div className="space-y-2">
               <Label htmlFor="task-description">Description</Label>
-              <Input
+              <Textarea
                 id="task-description"
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 placeholder="Optional description"
+                rows={3}
               />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Task Type</Label>
+                <Select
+                  value={form.taskType}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, taskType: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TASK_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {TASK_TYPE_LABELS[type] || type}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <Label>Assignee</Label>
                 <Select
@@ -470,7 +511,9 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="task-due-date">Due Date</Label>
                 <Input
@@ -480,9 +523,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
                   onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
                 />
               </div>
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Priority</Label>
                 <Select
@@ -501,25 +542,25 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -539,7 +580,7 @@ export default function TasksPage({ params }: { params: Promise<{ id: string }> 
           <DialogHeader>
             <DialogTitle>Delete Task</DialogTitle>
             <DialogDescription>
-              Delete “{pendingDelete?.title ?? "this task"}”? This action cannot be undone.
+              Delete &quot;{pendingDelete?.title ?? "this task"}&quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

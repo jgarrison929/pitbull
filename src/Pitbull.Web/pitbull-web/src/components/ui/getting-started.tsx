@@ -29,7 +29,7 @@ interface ChecklistItem {
   description: string;
   href: string;
   icon: typeof HardHat;
-  isComplete: (stats: DashboardStats | null, manualCompleted: string[]) => boolean;
+  isComplete: (stats: DashboardStats | null) => boolean;
 }
 
 const CHECKLIST_ITEMS: ChecklistItem[] = [
@@ -55,29 +55,27 @@ const CHECKLIST_ITEMS: ChecklistItem[] = [
     description: "Log hours against a project to start tracking labor costs",
     href: "/time-tracking/new",
     icon: Clock,
-    isComplete: (stats) =>
-      stats?.recentActivity?.some((a) => a.type === "timeentry") ?? false,
+    isComplete: (stats) => (stats?.timeEntryCount ?? 0) > 0,
   },
   {
     id: "costcodes",
     title: "Set up cost codes",
     description: "Organize project costs with industry-standard codes",
-    href: "/settings",
+    href: "/cost-codes",
     icon: Settings,
-    isComplete: (_stats, manual) => manual.includes("costcodes"),
+    isComplete: (stats) => (stats?.costCodeCount ?? 0) > 0,
   },
   {
     id: "payperiods",
     title: "Configure pay periods",
     description: "Define weekly, bi-weekly, or monthly pay cycles",
-    href: "/settings",
+    href: "/time-tracking/settings/pay-periods",
     icon: Calendar,
-    isComplete: (_stats, manual) => manual.includes("payperiods"),
+    isComplete: (stats) => (stats?.payPeriodCount ?? 0) > 0,
   },
 ];
 
 const STORAGE_KEY = "pitbull_getting_started_dismissed";
-const MANUAL_COMPLETE_KEY = "pitbull_onboarding_completed";
 
 export function GettingStarted({ stats }: GettingStartedProps) {
   const [isDismissed, setIsDismissed] = useState(() => {
@@ -85,20 +83,11 @@ export function GettingStarted({ stats }: GettingStartedProps) {
     return localStorage.getItem(STORAGE_KEY) === "true";
   });
 
-  const [manualCompleted, setManualCompleted] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      return JSON.parse(localStorage.getItem(MANUAL_COMPLETE_KEY) || "[]");
-    } catch {
-      return [];
-    }
-  });
-
   const [showCelebration, setShowCelebration] = useState(false);
   const [animatedProgress, setAnimatedProgress] = useState(0);
 
   const completedCount = CHECKLIST_ITEMS.filter((item) =>
-    item.isComplete(stats, manualCompleted)
+    item.isComplete(stats)
   ).length;
   const totalCount = CHECKLIST_ITEMS.length;
   const progress = (completedCount / totalCount) * 100;
@@ -131,16 +120,6 @@ export function GettingStarted({ stats }: GettingStartedProps) {
   const handleDismiss = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, "true");
     setIsDismissed(true);
-  }, []);
-
-  const toggleManualComplete = useCallback((id: string) => {
-    setManualCompleted((prev) => {
-      const next = prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : [...prev, id];
-      localStorage.setItem(MANUAL_COMPLETE_KEY, JSON.stringify(next));
-      return next;
-    });
   }, []);
 
   if (isDismissed) {
@@ -198,8 +177,7 @@ export function GettingStarted({ stats }: GettingStartedProps) {
       <CardContent className="pt-0">
         <div className="space-y-2">
           {CHECKLIST_ITEMS.map((item) => {
-            const isComplete = item.isComplete(stats, manualCompleted);
-            const isManualItem = item.id === "costcodes" || item.id === "payperiods";
+            const isComplete = item.isComplete(stats);
 
             return (
               <div
@@ -210,38 +188,19 @@ export function GettingStarted({ stats }: GettingStartedProps) {
                     : "bg-white dark:bg-neutral-800/50 hover:bg-amber-50/80 dark:hover:bg-amber-900/30 border border-amber-100 dark:border-amber-900/50 hover:shadow-sm"
                 }`}
               >
-                {/* Completion toggle for manual items */}
-                {isManualItem ? (
-                  <button
-                    onClick={() => toggleManualComplete(item.id)}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 transition-all duration-200 ${
-                      isComplete
-                        ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
-                        : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/50"
-                    }`}
-                    title={isComplete ? "Mark as incomplete" : "Mark as complete"}
-                  >
-                    {isComplete ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <item.icon className="h-4 w-4" />
-                    )}
-                  </button>
-                ) : (
-                  <div
-                    className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 transition-all duration-200 ${
-                      isComplete
-                        ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
-                        : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
-                    }`}
-                  >
-                    {isComplete ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <item.icon className="h-4 w-4" />
-                    )}
-                  </div>
-                )}
+                <div
+                  className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 transition-all duration-200 ${
+                    isComplete
+                      ? "bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-400"
+                      : "bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400"
+                  }`}
+                >
+                  {isComplete ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <item.icon className="h-4 w-4" />
+                  )}
+                </div>
 
                 <Link
                   href={isComplete ? "#" : item.href}

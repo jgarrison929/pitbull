@@ -38,6 +38,9 @@ public record DashboardStatsResponse(
     DateTime LastActivityDate,
     int EmployeeCount,
     int PendingTimeApprovals,
+    int TimeEntryCount,
+    int CostCodeCount,
+    int PayPeriodCount,
     List<RecentActivityItem> RecentActivity
 );
 

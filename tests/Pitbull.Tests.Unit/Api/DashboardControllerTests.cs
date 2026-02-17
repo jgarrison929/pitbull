@@ -49,6 +49,9 @@ public class DashboardControllerTests
         LastActivityDate: DateTime.UtcNow,
         EmployeeCount: 42,
         PendingTimeApprovals: 7,
+        TimeEntryCount: 12,
+        CostCodeCount: 8,
+        PayPeriodCount: 4,
         RecentActivity: new List<RecentActivityItem>
         {
             new("1", "project", "Office Building", "Project PRJ-001 created", DateTime.UtcNow, "🏗️"),

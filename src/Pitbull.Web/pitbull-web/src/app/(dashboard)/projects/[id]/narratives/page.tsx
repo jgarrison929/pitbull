@@ -34,15 +34,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-interface DataMap {
-  [key: string]: unknown;
-}
-
 interface NarrativeRow {
   id: string;
   title: string;
-  period: string;
-  author: string;
+  narrativeMonth: string;
   status: string;
   createdAt: string;
   updatedAt: string | null;
@@ -51,20 +46,24 @@ interface NarrativeRow {
 interface NarrativeFormState {
   id?: string;
   title: string;
-  period: string;
-  author: string;
-  content: string;
+  narrativeMonth: string;
+  executiveSummary: string;
+  keyAccomplishments: string;
+  upcomingMilestones: string;
+  risksAndConcerns: string;
+  financialSummary: string;
+  scheduleSummary: string;
   status: string;
 }
 
-const STATUSES = ["Draft", "Submitted", "Published"];
-
-function asDataMap(value: unknown): DataMap {
-  return value && typeof value === "object" ? (value as DataMap) : {};
-}
+const STATUSES = ["Draft", "Submitted", "Approved", "Published"];
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+function asDataMap(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
 
 function formatDate(date: string | null): string {
@@ -74,10 +73,18 @@ function formatDate(date: string | null): string {
   return parsed.toLocaleDateString();
 }
 
+function formatMonth(value: string | null): string {
+  if (!value) return "-";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleDateString(undefined, { year: "numeric", month: "long" });
+}
+
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" {
   switch (status) {
     case "Published":
       return "default";
+    case "Approved":
     case "Submitted":
       return "secondary";
     default:
@@ -99,9 +106,13 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<NarrativeFormState>({
     title: "",
-    period: "",
-    author: "",
-    content: "",
+    narrativeMonth: new Date().toISOString().slice(0, 10),
+    executiveSummary: "",
+    keyAccomplishments: "",
+    upcomingMilestones: "",
+    risksAndConcerns: "",
+    financialSummary: "",
+    scheduleSummary: "",
     status: "Draft",
   });
 
@@ -134,8 +145,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
       return {
         id: n.id,
         title: n.title || "Untitled narrative",
-        period: asString(data.Period ?? data.period),
-        author: asString(data.Author ?? data.author),
+        narrativeMonth: asString(data.NarrativeMonth ?? data.narrativeMonth),
         status: n.status || "Draft",
         createdAt: n.createdAt,
         updatedAt: n.updatedAt ?? null,
@@ -146,23 +156,21 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
     return mapped.filter((row) => {
       if (statusFilter !== "all" && row.status !== statusFilter) return false;
       if (!q) return true;
-      return (
-        row.title.toLowerCase().includes(q) ||
-        row.period.toLowerCase().includes(q) ||
-        row.author.toLowerCase().includes(q)
-      );
+      return row.title.toLowerCase().includes(q);
     });
   }, [narratives, search, statusFilter]);
 
   function openCreate() {
-    const now = new Date();
-    const defaultPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     setEditing(false);
     setForm({
       title: "",
-      period: defaultPeriod,
-      author: "",
-      content: "",
+      narrativeMonth: new Date().toISOString().slice(0, 10),
+      executiveSummary: "",
+      keyAccomplishments: "",
+      upcomingMilestones: "",
+      risksAndConcerns: "",
+      financialSummary: "",
+      scheduleSummary: "",
       status: "Draft",
     });
     setDialogOpen(true);
@@ -176,9 +184,13 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
     setForm({
       id: row.id,
       title: row.title,
-      period: row.period,
-      author: row.author,
-      content: asString(data.Content ?? data.content),
+      narrativeMonth: row.narrativeMonth ? row.narrativeMonth.slice(0, 10) : "",
+      executiveSummary: asString(data.ExecutiveSummary ?? data.executiveSummary),
+      keyAccomplishments: asString(data.KeyAccomplishments ?? data.keyAccomplishments),
+      upcomingMilestones: asString(data.UpcomingMilestones ?? data.upcomingMilestones),
+      risksAndConcerns: asString(data.RisksAndConcerns ?? data.risksAndConcerns),
+      financialSummary: asString(data.FinancialSummary ?? data.financialSummary),
+      scheduleSummary: asString(data.ScheduleSummary ?? data.scheduleSummary),
       status: row.status,
     });
     setDialogOpen(true);
@@ -193,11 +205,14 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
     const payload: PmUpsertRequest = {
       title: form.title.trim(),
       status: form.status,
-      description: form.content || undefined,
       data: {
-        Period: form.period || null,
-        Author: form.author || null,
-        Content: form.content || null,
+        NarrativeMonth: form.narrativeMonth || null,
+        ExecutiveSummary: form.executiveSummary || null,
+        KeyAccomplishments: form.keyAccomplishments || null,
+        UpcomingMilestones: form.upcomingMilestones || null,
+        RisksAndConcerns: form.risksAndConcerns || null,
+        FinancialSummary: form.financialSummary || null,
+        ScheduleSummary: form.scheduleSummary || null,
       },
     };
 
@@ -306,7 +321,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search title, period, or author"
+              placeholder="Search title"
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -343,9 +358,8 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                         <span className="font-medium">{row.title}</span>
                         <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
                       </div>
-                      <div className="flex gap-4 text-sm text-muted-foreground">
-                        {row.period && <span>{row.period}</span>}
-                        {row.author && <span>{row.author}</span>}
+                      <div className="text-sm text-muted-foreground">
+                        <span>{formatMonth(row.narrativeMonth)}</span>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Updated: {formatDate(row.updatedAt || row.createdAt)}
@@ -363,7 +377,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                             Submit
                           </Button>
                         )}
-                        {row.status === "Submitted" && (
+                        {row.status === "Approved" && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -394,8 +408,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                   <TableHeader>
                     <TableRow>
                       <TableHead>Title</TableHead>
-                      <TableHead>Period</TableHead>
-                      <TableHead>Author</TableHead>
+                      <TableHead>Month</TableHead>
                       <TableHead>Last Updated</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[260px]">Actions</TableHead>
@@ -404,7 +417,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                   <TableBody>
                     {rows.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6}>
+                        <TableCell colSpan={5}>
                           <div className="flex flex-col items-center gap-3 py-6 text-center">
                             <p className="text-sm text-muted-foreground">
                               No narratives yet. Create your first narrative for this project.
@@ -417,8 +430,9 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                       rows.map((row) => (
                         <TableRow key={row.id}>
                           <TableCell className="font-medium">{row.title}</TableCell>
-                          <TableCell className="font-mono text-sm">{row.period || "-"}</TableCell>
-                          <TableCell>{row.author || "-"}</TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {formatMonth(row.narrativeMonth)}
+                          </TableCell>
                           <TableCell className="font-mono text-sm">
                             {formatDate(row.updatedAt || row.createdAt)}
                           </TableCell>
@@ -443,7 +457,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
                                   Submit
                                 </Button>
                               )}
-                              {row.status === "Submitted" && (
+                              {row.status === "Approved" && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -477,11 +491,12 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Narrative" : "New Narrative"}</DialogTitle>
             <DialogDescription>
               Write a monthly project narrative summarizing progress, issues, and outlook.
+              Executive Summary is required before submitting.
             </DialogDescription>
           </DialogHeader>
 
@@ -496,23 +511,14 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="narrative-period">Period</Label>
+                <Label htmlFor="narrative-month">Narrative Month</Label>
                 <Input
-                  id="narrative-period"
-                  type="month"
-                  value={form.period}
-                  onChange={(e) => setForm((prev) => ({ ...prev, period: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="narrative-author">Author</Label>
-                <Input
-                  id="narrative-author"
-                  value={form.author}
-                  onChange={(e) => setForm((prev) => ({ ...prev, author: e.target.value }))}
-                  placeholder="Author name"
+                  id="narrative-month"
+                  type="date"
+                  value={form.narrativeMonth}
+                  onChange={(e) => setForm((prev) => ({ ...prev, narrativeMonth: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
@@ -536,14 +542,70 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="narrative-content">Narrative Content</Label>
+              <Label htmlFor="narrative-executive-summary">Executive Summary</Label>
               <Textarea
-                id="narrative-content"
-                value={form.content}
-                onChange={(e) => setForm((prev) => ({ ...prev, content: e.target.value }))}
-                placeholder="Project narrative - describe progress, challenges, upcoming milestones, and outlook"
-                rows={8}
+                id="narrative-executive-summary"
+                value={form.executiveSummary}
+                onChange={(e) => setForm((prev) => ({ ...prev, executiveSummary: e.target.value }))}
+                placeholder="High-level summary of the project status this month"
+                rows={4}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="narrative-accomplishments">Key Accomplishments</Label>
+              <Textarea
+                id="narrative-accomplishments"
+                value={form.keyAccomplishments}
+                onChange={(e) => setForm((prev) => ({ ...prev, keyAccomplishments: e.target.value }))}
+                placeholder="Major accomplishments and milestones reached"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="narrative-milestones">Upcoming Milestones</Label>
+              <Textarea
+                id="narrative-milestones"
+                value={form.upcomingMilestones}
+                onChange={(e) => setForm((prev) => ({ ...prev, upcomingMilestones: e.target.value }))}
+                placeholder="Key milestones and targets for the upcoming period"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="narrative-risks">Risks and Concerns</Label>
+              <Textarea
+                id="narrative-risks"
+                value={form.risksAndConcerns}
+                onChange={(e) => setForm((prev) => ({ ...prev, risksAndConcerns: e.target.value }))}
+                placeholder="Active risks, concerns, and mitigation strategies"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="narrative-financial">Financial Summary</Label>
+                <Textarea
+                  id="narrative-financial"
+                  value={form.financialSummary}
+                  onChange={(e) => setForm((prev) => ({ ...prev, financialSummary: e.target.value }))}
+                  placeholder="Budget status, cost variances, billing summary"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="narrative-schedule">Schedule Summary</Label>
+                <Textarea
+                  id="narrative-schedule"
+                  value={form.scheduleSummary}
+                  onChange={(e) => setForm((prev) => ({ ...prev, scheduleSummary: e.target.value }))}
+                  placeholder="Schedule status, critical path, milestone dates"
+                  rows={3}
+                />
+              </div>
             </div>
           </div>
 

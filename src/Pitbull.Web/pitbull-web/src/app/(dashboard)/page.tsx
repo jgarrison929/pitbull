@@ -349,7 +349,7 @@ export default function DashboardPage() {
 
             {/* Activity Feed */}
             <div className="lg:col-span-2">
-              <ActivityFeed />
+              <ActivityFeed activities={state.stats?.recentActivity ?? []} />
             </div>
           </div>
 

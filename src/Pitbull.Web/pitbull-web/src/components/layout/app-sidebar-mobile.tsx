@@ -17,6 +17,8 @@ const mainNavItems = [
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
   { label: "Equipment", href: "/equipment", icon: "🚜" },
   { label: "Contracts", href: "/contracts", icon: "📄" },
+  { label: "Change Orders", href: "/change-orders", icon: "📝" },
+  { label: "Pay Apps", href: "/payment-applications", icon: "💵" },
 ];
 
 function getProjectManagementItems(projectId: string | null) {
@@ -40,6 +42,7 @@ function getProjectManagementItems(projectId: string | null) {
 
 const reportItems = [
   { label: "Labor Cost", href: "/reports/labor-cost", icon: "💰" },
+  { label: "Financial Overview", href: "/reports/financial-overview", icon: "📊" },
   { label: "Equipment Utilization", href: "/reports/equipment", icon: "🔧" },
   { label: "Vista Export", href: "/reports/vista-export", icon: "📤" },
 ];
@@ -54,6 +57,7 @@ const adminItems = [
   { label: "Users", href: "/admin/users", icon: "👥" },
   { label: "Pay Periods", href: "/admin/pay-periods", icon: "📅" },
   { label: "Companies", href: "/admin/companies", icon: "🏛️" },
+  { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖" },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜" },
 ];
 

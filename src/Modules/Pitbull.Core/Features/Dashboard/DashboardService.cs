@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
 
 namespace Pitbull.Core.Features.Dashboard;
 
@@ -32,6 +33,11 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
             // Get pending time entry approvals
             var pendingTimeApprovals = await GetPendingTimeApprovals(cancellationToken);
 
+            // Getting-started completion checks
+            var timeEntryCount = await GetTimeEntryCount(cancellationToken);
+            var costCodeCount = await GetCostCodeCount(cancellationToken);
+            var payPeriodCount = await GetPayPeriodCount(cancellationToken);
+
             // Get recent activity
             var recentActivity = await GetRecentActivity(cancellationToken);
 
@@ -44,6 +50,9 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
                 LastActivityDate: lastActivityDate,
                 EmployeeCount: employeeCount,
                 PendingTimeApprovals: pendingTimeApprovals,
+                TimeEntryCount: timeEntryCount,
+                CostCodeCount: costCodeCount,
+                PayPeriodCount: payPeriodCount,
                 RecentActivity: recentActivity
             );
 
@@ -138,20 +147,10 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
     {
         try
         {
-            var projectType = GetEntityType("Pitbull.Projects.Domain.Project");
-            if (projectType == null)
-                return (0, 0);
-
-            var setMethod = typeof(DbContext).GetMethod("Set", Type.EmptyTypes)?.MakeGenericMethod(projectType);
-            if (setMethod == null)
-                return (0, 0);
-
-            var dbSet = setMethod.Invoke(db, null) as IQueryable;
-            if (dbSet == null)
-                return (0, 0);
-
-            // Get count
-            var count = await dbSet.OfType<object>().CountAsync(cancellationToken);
+            // Active projects: anything not Completed
+            var count = await db.Database.SqlQueryRaw<int>(
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM projects WHERE \"IsDeleted\" = false AND \"Status\" <> 'Completed'"
+            ).FirstAsync(cancellationToken);
 
             // Get total contract amount using raw SQL to avoid complex reflection
             var totalValue = await db.Database.SqlQueryRaw<decimal>(
@@ -170,20 +169,11 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
     {
         try
         {
-            var bidType = GetEntityType("Pitbull.Bids.Domain.Bid");
-            if (bidType == null)
-                return (0, 0);
-
-            var setMethod = typeof(DbContext).GetMethod("Set", Type.EmptyTypes)?.MakeGenericMethod(bidType);
-            if (setMethod == null)
-                return (0, 0);
-
-            var dbSet = setMethod.Invoke(db, null) as IQueryable;
-            if (dbSet == null)
-                return (0, 0);
-
-            // Get count
-            var count = await dbSet.OfType<object>().CountAsync(cancellationToken);
+            // Open bids: map Open/Pending to the module's Draft/Submitted lifecycle
+            // and include legacy Open/Pending string values if present.
+            var count = await db.Database.SqlQueryRaw<int>(
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM bids WHERE \"IsDeleted\" = false AND \"Status\" IN ('Draft', 'Submitted', 'Open', 'Pending')"
+            ).FirstAsync(cancellationToken);
 
             // Get total estimated value using raw SQL to avoid complex reflection
             var totalValue = await db.Database.SqlQueryRaw<decimal>(
@@ -247,6 +237,50 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
             // Status = 0 is "Submitted" (pending approval)
             var count = await db.Database.SqlQueryRaw<int>(
                 "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM time_entries WHERE \"IsDeleted\" = false AND \"Status\" = 0"
+            ).FirstAsync(cancellationToken);
+            return count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private async Task<int> GetTimeEntryCount(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count = await db.Database.SqlQueryRaw<int>(
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM time_entries WHERE \"IsDeleted\" = false"
+            ).FirstAsync(cancellationToken);
+            return count;
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private async Task<int> GetCostCodeCount(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await db.Set<Domain.CostCode>()
+                .AsNoTracking()
+                .CountAsync(c => !c.IsDeleted, cancellationToken);
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    private async Task<int> GetPayPeriodCount(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var count = await db.Database.SqlQueryRaw<int>(
+                "SELECT COALESCE(COUNT(*), 0) AS \"Value\" FROM pay_periods WHERE \"IsDeleted\" = false"
             ).FirstAsync(cancellationToken);
             return count;
         }
@@ -380,17 +414,6 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
         {
             return activities;
         }
-    }
-
-    private static Type? GetEntityType(string fullTypeName)
-    {
-        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-        {
-            var type = assembly.GetType(fullTypeName);
-            if (type != null)
-                return type;
-        }
-        return null;
     }
 
     /// <inheritdoc />

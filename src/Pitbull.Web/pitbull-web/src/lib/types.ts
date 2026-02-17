@@ -193,12 +193,15 @@ export interface DashboardStats {
   lastActivityDate: string;
   employeeCount: number;
   pendingTimeApprovals: number;
+  timeEntryCount: number;
+  costCodeCount: number;
+  payPeriodCount: number;
   recentActivity: RecentActivityItem[];
 }
 
 export interface RecentActivityItem {
   id: string;
-  type: "project" | "bid" | "employee" | "timeentry";
+  type: "project" | "bid" | "employee" | "timeentry" | "subcontract";
   title: string;
   description: string;
   timestamp: string;

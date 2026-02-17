@@ -40,28 +40,34 @@ interface DataMap {
 
 interface MeetingRow {
   id: string;
-  date: string;
   title: string;
-  attendees: string;
-  agendaItems: string;
-  actionItems: string;
+  meetingType: string;
+  meetingDate: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  description: string;
+  isRecurring: boolean;
+  recurrencePattern: string;
   status: string;
 }
 
 interface MeetingFormState {
   id?: string;
-  date: string;
   title: string;
   meetingType: string;
-  attendees: string;
-  agendaItems: string;
-  actionItems: string;
-  minutes: string;
+  meetingDate: string;
+  startTime: string;
+  endTime: string;
+  location: string;
+  description: string;
+  isRecurring: boolean;
+  recurrencePattern: string;
   status: string;
 }
 
-const MEETING_TYPES = ["Oac", "Subcontractor", "Safety", "Progress", "Other"];
-const STATUSES = ["Scheduled", "InProgress", "Completed", "Canceled"];
+const MEETING_TYPES = ["OAC", "Progress", "Safety", "Coordination", "PreConstruction", "Closeout", "Special", "Other"];
+const STATUSES = ["Scheduled", "InProgress", "Completed", "Cancelled", "Postponed"];
 
 function asDataMap(value: unknown): DataMap {
   return value && typeof value === "object" ? (value as DataMap) : {};
@@ -71,6 +77,12 @@ function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function asBool(value: unknown): boolean {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  return false;
+}
+
 function formatDate(date: string | null): string {
   if (!date) return "-";
   const parsed = new Date(date);
@@ -78,22 +90,32 @@ function formatDate(date: string | null): string {
   return parsed.toLocaleDateString();
 }
 
-function itemCount(value: string): number {
-  if (!value.trim()) return 0;
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean).length;
+function formatTime(time: string): string {
+  if (!time) return "-";
+  return time.slice(0, 5);
 }
 
-function statusBadgeVariant(status: string): "default" | "secondary" | "outline" {
+function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
   switch (status) {
     case "Completed":
       return "default";
     case "InProgress":
       return "secondary";
+    case "Cancelled":
+      return "destructive";
     default:
       return "outline";
+  }
+}
+
+function meetingTypeLabel(type: string): string {
+  switch (type) {
+    case "OAC":
+      return "OAC";
+    case "PreConstruction":
+      return "Pre-Construction";
+    default:
+      return type;
   }
 }
 
@@ -110,13 +132,15 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<MeetingFormState>({
-    date: new Date().toISOString().slice(0, 10),
     title: "",
-    meetingType: "Oac",
-    attendees: "",
-    agendaItems: "",
-    actionItems: "",
-    minutes: "",
+    meetingType: "OAC",
+    meetingDate: new Date().toISOString().slice(0, 10),
+    startTime: "09:00",
+    endTime: "10:00",
+    location: "",
+    description: "",
+    isRecurring: false,
+    recurrencePattern: "",
     status: "Scheduled",
   });
 
@@ -126,7 +150,9 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await api<PmPagedResult>(`/api/projects/${projectId}/meetings?page=1&pageSize=500`);
+      const result = await api<PmPagedResult>(
+        `/api/projects/${projectId}/meetings?page=1&pageSize=500`
+      );
       setMeetings(result.items ?? []);
     } catch (error) {
       toast.error("Failed to load meetings", {
@@ -146,14 +172,15 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       const data = asDataMap(meeting.data);
       return {
         id: meeting.id,
-        date: asString(data.ScheduledStart ?? data.scheduledStart) || meeting.createdAt,
-        title: meeting.title || asString(data.Title ?? data.title) || "Untitled meeting",
-        attendees:
-          asString(data.Attendees ?? data.attendees) ||
-          asString(data.Location ?? data.location) ||
-          "-",
-        agendaItems: asString(data.AgendaItems ?? data.agendaItems),
-        actionItems: asString(data.ActionItems ?? data.actionItems),
+        title: meeting.title || asString(data.Title ?? data.title) || "Untitled Meeting",
+        meetingType: asString(data.MeetingType ?? data.meetingType) || "Other",
+        meetingDate: asString(data.MeetingDate ?? data.meetingDate) || meeting.createdAt,
+        startTime: asString(data.StartTime ?? data.startTime),
+        endTime: asString(data.EndTime ?? data.endTime),
+        location: asString(data.Location ?? data.location),
+        description: asString(data.Description ?? data.description),
+        isRecurring: asBool(data.IsRecurring ?? data.isRecurring),
+        recurrencePattern: asString(data.RecurrencePattern ?? data.recurrencePattern),
         status: meeting.status || "Scheduled",
       };
     });
@@ -164,9 +191,9 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       if (!q) return true;
       return (
         row.title.toLowerCase().includes(q) ||
-        row.attendees.toLowerCase().includes(q) ||
-        row.agendaItems.toLowerCase().includes(q) ||
-        row.actionItems.toLowerCase().includes(q)
+        row.location.toLowerCase().includes(q) ||
+        row.description.toLowerCase().includes(q) ||
+        row.meetingType.toLowerCase().includes(q)
       );
     });
   }, [meetings, search, statusFilter]);
@@ -174,13 +201,15 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
   function openCreate() {
     setEditing(false);
     setForm({
-      date: new Date().toISOString().slice(0, 10),
       title: "",
-      meetingType: "Oac",
-      attendees: "",
-      agendaItems: "",
-      actionItems: "",
-      minutes: "",
+      meetingType: "OAC",
+      meetingDate: new Date().toISOString().slice(0, 10),
+      startTime: "09:00",
+      endTime: "10:00",
+      location: "",
+      description: "",
+      isRecurring: false,
+      recurrencePattern: "",
       status: "Scheduled",
     });
     setDialogOpen(true);
@@ -188,18 +217,17 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
 
   function openEdit(row: MeetingRow) {
     setEditing(true);
-    const source = meetings.find((entry) => entry.id === row.id);
-    const data = asDataMap(source?.data);
-
     setForm({
       id: row.id,
-      date: row.date ? row.date.slice(0, 10) : "",
       title: row.title,
-      meetingType: asString(data.MeetingType ?? data.meetingType) || "Oac",
-      attendees: row.attendees === "-" ? "" : row.attendees,
-      agendaItems: row.agendaItems,
-      actionItems: row.actionItems,
-      minutes: asString(data.Minutes ?? data.minutes),
+      meetingType: row.meetingType,
+      meetingDate: row.meetingDate ? row.meetingDate.slice(0, 10) : "",
+      startTime: row.startTime || "09:00",
+      endTime: row.endTime || "10:00",
+      location: row.location,
+      description: row.description,
+      isRecurring: row.isRecurring,
+      recurrencePattern: row.recurrencePattern,
       status: row.status,
     });
     setDialogOpen(true);
@@ -211,7 +239,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       return;
     }
 
-    if (!form.date) {
+    if (!form.meetingDate) {
       toast.error("Meeting date is required");
       return;
     }
@@ -221,12 +249,13 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       status: form.status,
       data: {
         MeetingType: form.meetingType,
-        ScheduledStart: `${form.date}T09:00:00`,
-        Location: form.attendees || null,
-        Attendees: form.attendees || null,
-        AgendaItems: form.agendaItems || null,
-        ActionItems: form.actionItems || null,
-        Minutes: form.minutes || null,
+        MeetingDate: form.meetingDate,
+        StartTime: form.startTime || null,
+        EndTime: form.endTime || null,
+        Location: form.location || null,
+        Description: form.description || null,
+        IsRecurring: form.isRecurring,
+        RecurrencePattern: form.isRecurring ? (form.recurrencePattern || null) : null,
       },
     };
 
@@ -245,7 +274,6 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         });
         toast.success("Meeting created");
       }
-
       setDialogOpen(false);
       await load();
     } catch (error) {
@@ -276,7 +304,6 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
           : error instanceof Error
             ? error.message
             : "Unknown error";
-
       toast.error("Failed to delete meeting", { description: message });
     } finally {
       setSaving(false);
@@ -289,7 +316,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Meetings</h1>
           <p className="text-muted-foreground">
-            Capture meeting minutes, attendees, agenda topics, and action items.
+            Schedule and manage project meetings, track locations, and recurring patterns.
           </p>
         </div>
         <Button onClick={openCreate}>+ New Meeting</Button>
@@ -297,7 +324,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
 
       <Card>
         <CardHeader>
-          <CardTitle>Meeting Minutes Log</CardTitle>
+          <CardTitle>Meeting Schedule</CardTitle>
           <CardDescription>
             Create and manage meeting records for this project.
           </CardDescription>
@@ -307,7 +334,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search title, attendees, agenda, or actions"
+              placeholder="Search by title, location, type, or description"
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -333,7 +360,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                 {rows.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      No meetings yet. Create your first meeting record.
+                      No meetings yet. Create your first meeting.
                     </p>
                     <Button className="mt-3" size="sm" onClick={openCreate}>Create Meeting</Button>
                   </div>
@@ -341,15 +368,24 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                   rows.map((row) => (
                     <div key={row.id} className="rounded-lg border p-4 space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-mono text-muted-foreground">{formatDate(row.date)}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono text-muted-foreground">
+                            {formatDate(row.meetingDate)}
+                          </span>
+                          <Badge variant="secondary">{meetingTypeLabel(row.meetingType)}</Badge>
+                        </div>
                         <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
                       </div>
                       <p className="font-medium">{row.title}</p>
-                      <p className="text-sm text-muted-foreground truncate">{row.attendees}</p>
                       <div className="flex gap-4 text-sm text-muted-foreground">
-                        <span>Agenda: {itemCount(row.agendaItems)}</span>
-                        <span>Actions: {itemCount(row.actionItems)}</span>
+                        <span>{formatTime(row.startTime)} - {formatTime(row.endTime)}</span>
+                        {row.location && <span>{row.location}</span>}
                       </div>
+                      {row.isRecurring && (
+                        <p className="text-xs text-muted-foreground">
+                          Recurring: {row.recurrencePattern || "Yes"}
+                        </p>
+                      )}
                       <div className="flex gap-2 pt-1">
                         <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
                           Edit
@@ -372,91 +408,136 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
 
               {/* Desktop table layout */}
               <div className="hidden sm:block">
-                <div className="overflow-x-auto"><Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Attendees</TableHead>
-                      <TableHead>Agenda Items</TableHead>
-                      <TableHead>Action Items</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[180px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.length === 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={7}>
-                          <div className="flex flex-col items-center gap-3 py-6 text-center">
-                            <p className="text-sm text-muted-foreground">
-                              No meetings yet. Create your first meeting record.
-                            </p>
-                            <Button size="sm" onClick={openCreate}>Create Meeting</Button>
-                          </div>
-                        </TableCell>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[180px]">Actions</TableHead>
                       </TableRow>
-                    ) : (
-                      rows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="font-mono text-sm">{formatDate(row.date)}</TableCell>
-                          <TableCell className="font-medium">{row.title}</TableCell>
-                          <TableCell className="max-w-[220px] truncate">{row.attendees}</TableCell>
-                          <TableCell>{itemCount(row.agendaItems)}</TableCell>
-                          <TableCell>{itemCount(row.actionItems)}</TableCell>
-                          <TableCell>
-                            <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setPendingDelete(row);
-                                  setDeleteOpen(true);
-                                }}
-                              >
-                                Delete
-                              </Button>
+                    </TableHeader>
+                    <TableBody>
+                      {rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7}>
+                            <div className="flex flex-col items-center gap-3 py-6 text-center">
+                              <p className="text-sm text-muted-foreground">
+                                No meetings yet. Create your first meeting.
+                              </p>
+                              <Button size="sm" onClick={openCreate}>Create Meeting</Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table></div>
+                      ) : (
+                        rows.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell className="font-mono text-sm">{formatDate(row.meetingDate)}</TableCell>
+                            <TableCell>
+                              <div>
+                                <span className="font-medium">{row.title}</span>
+                                {row.isRecurring && (
+                                  <span className="ml-2 text-xs text-muted-foreground">(recurring)</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{meetingTypeLabel(row.meetingType)}</Badge>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {formatTime(row.startTime)} - {formatTime(row.endTime)}
+                            </TableCell>
+                            <TableCell className="max-w-[200px] truncate">{row.location || "-"}</TableCell>
+                            <TableCell>
+                              <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setPendingDelete(row);
+                                    setDeleteOpen(true);
+                                  }}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </>
           )}
         </CardContent>
       </Card>
 
+      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Meeting" : "New Meeting"}</DialogTitle>
             <DialogDescription>
-              Record meeting details including attendees, agenda topics, action items, and notes.
+              Schedule a meeting with date, time, location, and recurrence details.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="meeting-title">Title</Label>
+              <Input
+                id="meeting-title"
+                value={form.title}
+                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Weekly OAC Meeting"
+              />
+            </div>
+
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="meeting-date">Date</Label>
                 <Input
                   id="meeting-date"
                   type="date"
-                  value={form.date}
-                  onChange={(e) => setForm((prev) => ({ ...prev, date: e.target.value }))}
+                  value={form.meetingDate}
+                  onChange={(e) => setForm((prev) => ({ ...prev, meetingDate: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Type</Label>
+                <Label htmlFor="meeting-start">Start Time</Label>
+                <Input
+                  id="meeting-start"
+                  type="time"
+                  value={form.startTime}
+                  onChange={(e) => setForm((prev) => ({ ...prev, startTime: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="meeting-end">End Time</Label>
+                <Input
+                  id="meeting-end"
+                  type="time"
+                  value={form.endTime}
+                  onChange={(e) => setForm((prev) => ({ ...prev, endTime: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Meeting Type</Label>
                 <Select
                   value={form.meetingType}
                   onValueChange={(value) => setForm((prev) => ({ ...prev, meetingType: value }))}
@@ -467,7 +548,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                   <SelectContent>
                     {MEETING_TYPES.map((type) => (
                       <SelectItem key={type} value={type}>
-                        {type}
+                        {meetingTypeLabel(type)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -491,61 +572,50 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="meeting-location">Location</Label>
+                <Input
+                  id="meeting-location"
+                  value={form.location}
+                  onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
+                  placeholder="Jobsite trailer, Room 201, etc."
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="meeting-title">Title</Label>
-              <Input
-                id="meeting-title"
-                value={form.title}
-                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="Weekly OAC Meeting"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="meeting-attendees">Attendees</Label>
+              <Label htmlFor="meeting-desc">Description</Label>
               <Textarea
-                id="meeting-attendees"
-                value={form.attendees}
-                onChange={(e) => setForm((prev) => ({ ...prev, attendees: e.target.value }))}
-                rows={2}
-                placeholder="Comma-separated attendee names"
+                id="meeting-desc"
+                value={form.description}
+                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                rows={3}
+                placeholder="Meeting agenda, purpose, and notes"
               />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="meeting-agenda">Agenda Items (one per line)</Label>
-                <Textarea
-                  id="meeting-agenda"
-                  value={form.agendaItems}
-                  onChange={(e) => setForm((prev) => ({ ...prev, agendaItems: e.target.value }))}
-                  rows={5}
-                  placeholder="Safety updates"
+              <div className="flex items-center gap-3 pt-2">
+                <input
+                  id="meeting-recurring"
+                  type="checkbox"
+                  checked={form.isRecurring}
+                  onChange={(e) => setForm((prev) => ({ ...prev, isRecurring: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300"
                 />
+                <Label htmlFor="meeting-recurring" className="cursor-pointer">Recurring Meeting</Label>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="meeting-actions">Action Items (one per line)</Label>
-                <Textarea
-                  id="meeting-actions"
-                  value={form.actionItems}
-                  onChange={(e) => setForm((prev) => ({ ...prev, actionItems: e.target.value }))}
-                  rows={5}
-                  placeholder="Update schedule look-ahead - Superintendent"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="meeting-minutes">Minutes Notes</Label>
-              <Textarea
-                id="meeting-minutes"
-                value={form.minutes}
-                onChange={(e) => setForm((prev) => ({ ...prev, minutes: e.target.value }))}
-                rows={3}
-                placeholder="Summary of discussion and decisions"
-              />
+              {form.isRecurring && (
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-recurrence">Recurrence Pattern</Label>
+                  <Input
+                    id="meeting-recurrence"
+                    value={form.recurrencePattern}
+                    onChange={(e) => setForm((prev) => ({ ...prev, recurrencePattern: e.target.value }))}
+                    placeholder="Weekly, Biweekly, Monthly, etc."
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -560,6 +630,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         </DialogContent>
       </Dialog>
 
+      {/* Delete Confirmation */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

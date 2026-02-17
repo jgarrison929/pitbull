@@ -33,6 +33,13 @@ public abstract class PmServiceBase
 
     protected Guid CurrentCompanyId => _companyContext.IsResolved ? _companyContext.CompanyId : Guid.Empty;
 
+    private static readonly HashSet<string> BaseEntityFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Id", "TenantId", "CompanyId", "IsDeleted", "DeletedAt", "DeletedBy",
+        "CreatedAt", "CreatedBy", "UpdatedAt", "UpdatedBy",
+        "ProjectId", "Name", "Title", "Status"
+    };
+
     protected static PmEntityDto ToDto<T>(T entity) where T : BaseEntity
     {
         var type = typeof(T);
@@ -41,7 +48,26 @@ public abstract class PmServiceBase
         var title = type.GetProperty("Title")?.GetValue(entity)?.ToString();
         var status = type.GetProperty("Status")?.GetValue(entity)?.ToString();
 
-        return new PmEntityDto(entity.Id, projectId, name, title, status, entity.CreatedAt, entity.UpdatedAt);
+        var data = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var prop in type.GetProperties())
+        {
+            if (BaseEntityFields.Contains(prop.Name))
+                continue;
+            if (prop.PropertyType != typeof(string) &&
+                typeof(System.Collections.IEnumerable).IsAssignableFrom(prop.PropertyType))
+                continue;
+            if (prop.PropertyType.IsClass &&
+                prop.PropertyType != typeof(string) &&
+                typeof(BaseEntity).IsAssignableFrom(prop.PropertyType))
+                continue;
+
+            var value = prop.GetValue(entity);
+            if (value != null && prop.PropertyType.IsEnum)
+                value = value.ToString();
+            data[prop.Name] = value;
+        }
+
+        return new PmEntityDto(entity.Id, projectId, name, title, status, entity.CreatedAt, entity.UpdatedAt, data);
     }
 
     protected IQueryable<T> ProjectScoped<T>(Guid projectId) where T : BaseEntity

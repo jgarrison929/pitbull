@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError } from "@/lib/api";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
@@ -33,6 +33,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
+import { Pencil, Trash2 } from "lucide-react";
 
 interface DataMap {
   [key: string]: unknown;
@@ -40,26 +54,43 @@ interface DataMap {
 
 interface ScheduleRow {
   id: string;
-  title: string;
-  startDate: string | null;
-  endDate: string | null;
-  percentComplete: number;
-  status: string;
+  name: string;
   description: string;
+  dataDate: string | null;
+  calendarType: string;
+  importedFrom: string;
+  status: string;
   createdAt: string;
 }
 
 interface ScheduleFormState {
   id?: string;
-  title: string;
+  name: string;
   description: string;
-  startDate: string;
-  endDate: string;
-  percentComplete: string;
+  dataDate: string;
+  calendarType: string;
+  importedFrom: string;
   status: string;
 }
 
-const STATUSES = ["Draft", "Active", "Baseline", "Superseded", "Closed"];
+// ScheduleStatus enum: Draft, Active, Baselined, Archived
+const STATUSES = ["Draft", "Active", "Baselined", "Archived"];
+
+// ScheduleCalendarType enum: Standard5x8, Standard6x10, Custom
+const CALENDAR_TYPES = ["Standard5x8", "Standard6x10", "Custom"];
+const CALENDAR_LABELS: Record<string, string> = {
+  Standard5x8: "Standard 5x8",
+  Standard6x10: "Standard 6x10",
+  Custom: "Custom",
+};
+
+// ScheduleImportSource enum: Csv, P6Xml, MsProject
+const IMPORT_SOURCES = ["Csv", "P6Xml", "MsProject"];
+const IMPORT_LABELS: Record<string, string> = {
+  Csv: "CSV",
+  P6Xml: "P6 XML",
+  MsProject: "MS Project",
+};
 
 function asDataMap(value: unknown): DataMap {
   return value && typeof value === "object" ? (value as DataMap) : {};
@@ -67,15 +98,6 @@ function asDataMap(value: unknown): DataMap {
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
-}
-
-function asNumber(value: unknown): number {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") {
-    const parsed = Number.parseFloat(value);
-    return Number.isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
 }
 
 function formatDate(date: string | null): string {
@@ -89,19 +111,23 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
   switch (status) {
     case "Active":
       return "default";
-    case "Baseline":
+    case "Baselined":
       return "secondary";
     default:
       return "outline";
   }
 }
 
-export default function SchedulePage({ params }: { params: Promise<{ id: string }> }) {
+function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useListPageShortcuts({ searchInputRef });
 
   const [schedules, setSchedules] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -109,11 +135,11 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ScheduleFormState>({
-    title: "",
+    name: "",
     description: "",
-    startDate: "",
-    endDate: "",
-    percentComplete: "0",
+    dataDate: "",
+    calendarType: "Standard5x8",
+    importedFrom: "Csv",
     status: "Draft",
   });
 
@@ -145,11 +171,11 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
       const data = asDataMap(schedule.data);
       return {
         id: schedule.id,
-        title: schedule.title || schedule.name || "Untitled schedule",
-        startDate: asString(data.StartDate ?? data.startDate) || null,
-        endDate: asString(data.EndDate ?? data.endDate) || null,
-        percentComplete: asNumber(data.PercentComplete ?? data.percentComplete),
-        description: asString(data.Description ?? data.description),
+        name: schedule.name || asString(data.Name) || "Untitled schedule",
+        description: asString(data.Description),
+        dataDate: asString(data.DataDate) || null,
+        calendarType: asString(data.CalendarType) || "Standard5x8",
+        importedFrom: asString(data.ImportedFrom) || "Csv",
         status: schedule.status || "Draft",
         createdAt: schedule.createdAt,
       };
@@ -160,20 +186,29 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
       if (statusFilter !== "all" && row.status !== statusFilter) return false;
       if (!q) return true;
       return (
-        row.title.toLowerCase().includes(q) ||
+        row.name.toLowerCase().includes(q) ||
         row.description.toLowerCase().includes(q)
       );
     });
   }, [schedules, search, statusFilter]);
 
+  // Summary stats
+  const stats = useMemo(() => {
+    const total = schedules.length;
+    const active = schedules.filter((s) => s.status === "Active").length;
+    const baselined = schedules.filter((s) => s.status === "Baselined").length;
+    const draft = schedules.filter((s) => s.status === "Draft").length;
+    return { total, active, baselined, draft };
+  }, [schedules]);
+
   function openCreate() {
     setEditing(false);
     setForm({
-      title: "",
+      name: "",
       description: "",
-      startDate: "",
-      endDate: "",
-      percentComplete: "0",
+      dataDate: "",
+      calendarType: "Standard5x8",
+      importedFrom: "Csv",
       status: "Draft",
     });
     setDialogOpen(true);
@@ -183,32 +218,30 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
     setEditing(true);
     setForm({
       id: row.id,
-      title: row.title,
+      name: row.name,
       description: row.description,
-      startDate: row.startDate ? row.startDate.slice(0, 10) : "",
-      endDate: row.endDate ? row.endDate.slice(0, 10) : "",
-      percentComplete: String(row.percentComplete),
+      dataDate: row.dataDate ? row.dataDate.slice(0, 10) : "",
+      calendarType: row.calendarType,
+      importedFrom: row.importedFrom,
       status: row.status,
     });
     setDialogOpen(true);
   }
 
   async function saveSchedule() {
-    if (!form.title.trim()) {
-      toast.error("Schedule title is required");
+    if (!form.name.trim()) {
+      toast.error("Schedule name is required");
       return;
     }
 
     const payload: PmUpsertRequest = {
-      title: form.title.trim(),
+      name: form.name.trim(),
       status: form.status,
       data: {
         Description: form.description || null,
-        StartDate: form.startDate || null,
-        EndDate: form.endDate || null,
-        PercentComplete: form.percentComplete
-          ? Number.parseFloat(form.percentComplete)
-          : 0,
+        DataDate: form.dataDate || null,
+        CalendarType: form.calendarType,
+        ImportedFrom: form.importedFrom,
       },
     };
 
@@ -242,7 +275,7 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
   async function deleteSchedule() {
     if (!pendingDelete) return;
 
-    setSaving(true);
+    setIsDeleting(true);
     try {
       await api<void>(`/api/projects/${projectId}/schedules/${pendingDelete.id}`, {
         method: "DELETE",
@@ -261,7 +294,7 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
 
       toast.error("Failed to delete schedule", { description: message });
     } finally {
-      setSaving(false);
+      setIsDeleting(false);
     }
   }
 
@@ -271,10 +304,40 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schedule</h1>
           <p className="text-muted-foreground">
-            Project schedules, timelines, and completion tracking.
+            Project schedules, timelines, and calendar management.
           </p>
         </div>
-        <Button onClick={openCreate}>+ New Schedule</Button>
+        <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreate}>
+          + New Schedule
+        </Button>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total Schedules</CardDescription>
+            <CardTitle className="text-lg">{stats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-lg text-emerald-600">{stats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Baselined</CardDescription>
+            <CardTitle className="text-lg">{stats.baselined}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Draft</CardDescription>
+            <CardTitle className="text-lg text-muted-foreground">{stats.draft}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       <Card>
@@ -287,9 +350,10 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-[1fr_220px]">
             <Input
+              ref={searchInputRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search title or description"
+              placeholder="Search name or description (press / to focus)"
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -307,7 +371,14 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading schedules...</p>
+            <>
+              <div className="sm:hidden">
+                <CardListSkeleton rows={3} />
+              </div>
+              <div className="hidden sm:block">
+                <TableSkeleton headers={["Name", "Data Date", "Calendar", "Import Source", "Status", "Actions"]} rows={5} />
+              </div>
+            </>
           ) : (
             <>
               {/* Mobile card layout */}
@@ -317,40 +388,45 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
                     <p className="text-sm text-muted-foreground">
                       No schedules yet. Create your first schedule to start tracking milestones.
                     </p>
-                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Schedule</Button>
+                    <Button className="mt-3 bg-amber-500 hover:bg-amber-600 text-white" size="sm" onClick={openCreate}>
+                      Create Schedule
+                    </Button>
                   </div>
                 ) : (
                   rows.map((row) => (
                     <div key={row.id} className="rounded-lg border p-4 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{row.title}</span>
+                        <span className="font-medium">{row.name}</span>
                         <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
                       </div>
-                      <div className="flex gap-4 text-sm text-muted-foreground">
-                        <span>{formatDate(row.startDate)} - {formatDate(row.endDate)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 flex-1 rounded-full bg-muted">
-                          <div
-                            className="h-2 rounded-full bg-amber-500"
-                            style={{ width: `${Math.min(row.percentComplete, 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-sm font-mono">{row.percentComplete}%</span>
+                      {row.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{row.description}</p>
+                      )}
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                        <span>Data Date: {formatDate(row.dataDate)}</span>
+                        <span>{CALENDAR_LABELS[row.calendarType] || row.calendarType}</span>
                       </div>
                       <div className="flex gap-2 pt-1">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                          Edit
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 min-h-[44px] min-w-[44px]"
+                          onClick={() => openEdit(row)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
                         </Button>
                         <Button
-                          variant="outline"
-                          size="sm"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
                           onClick={() => {
                             setPendingDelete(row);
                             setDeleteOpen(true);
                           }}
                         >
-                          Delete
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
                         </Button>
                       </div>
                     </div>
@@ -360,75 +436,75 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
 
               {/* Desktop table layout */}
               <div className="hidden sm:block">
-                <div className="overflow-x-auto"><Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Start</TableHead>
-                      <TableHead>End</TableHead>
-                      <TableHead>Progress</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-[180px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.length === 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={6}>
-                          <div className="flex flex-col items-center gap-3 py-6 text-center">
-                            <p className="text-sm text-muted-foreground">
-                              No schedules yet. Create your first schedule to start tracking milestones.
-                            </p>
-                            <Button size="sm" onClick={openCreate}>Create Schedule</Button>
-                          </div>
-                        </TableCell>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Data Date</TableHead>
+                        <TableHead>Calendar</TableHead>
+                        <TableHead>Import Source</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="w-[100px]">Actions</TableHead>
                       </TableRow>
-                    ) : (
-                      rows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="font-medium">{row.title}</TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {formatDate(row.startDate)}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {formatDate(row.endDate)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div className="h-2 w-20 rounded-full bg-muted">
-                                <div
-                                  className="h-2 rounded-full bg-amber-500"
-                                  style={{ width: `${Math.min(row.percentComplete, 100)}%` }}
-                                />
-                              </div>
-                              <span className="text-sm font-mono">{row.percentComplete}%</span>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setPendingDelete(row);
-                                  setDeleteOpen(true);
-                                }}
-                              >
-                                Delete
+                    </TableHeader>
+                    <TableBody>
+                      {rows.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6}>
+                            <div className="flex flex-col items-center gap-3 py-6 text-center">
+                              <p className="text-sm text-muted-foreground">
+                                No schedules yet. Create your first schedule to start tracking milestones.
+                              </p>
+                              <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreate}>
+                                Create Schedule
                               </Button>
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table></div>
+                      ) : (
+                        rows.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell className="font-medium">{row.name}</TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {formatDate(row.dataDate)}
+                            </TableCell>
+                            <TableCell>{CALENDAR_LABELS[row.calendarType] || row.calendarType}</TableCell>
+                            <TableCell>{IMPORT_LABELS[row.importedFrom] || row.importedFrom}</TableCell>
+                            <TableCell>
+                              <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 min-h-[44px] min-w-[44px]"
+                                  onClick={() => openEdit(row)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Edit</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    setPendingDelete(row);
+                                    setDeleteOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Delete</span>
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </>
           )}
@@ -441,17 +517,19 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Schedule" : "New Schedule"}</DialogTitle>
             <DialogDescription>
-              Define schedule name, date range, and completion percentage.
+              Define schedule name, data date, calendar type, and import source.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label htmlFor="schedule-title">Title</Label>
+              <Label htmlFor="schedule-name">
+                Name <span className="text-destructive">*</span>
+              </Label>
               <Input
-                id="schedule-title"
-                value={form.title}
-                onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                id="schedule-name"
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder="e.g. Master Schedule, Phase 2 Schedule"
               />
             </div>
@@ -469,38 +547,52 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="schedule-start">Start Date</Label>
+                <Label htmlFor="schedule-data-date">Data Date</Label>
                 <Input
-                  id="schedule-start"
+                  id="schedule-data-date"
                   type="date"
-                  value={form.startDate}
-                  onChange={(e) => setForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                  value={form.dataDate}
+                  onChange={(e) => setForm((prev) => ({ ...prev, dataDate: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="schedule-end">End Date</Label>
-                <Input
-                  id="schedule-end"
-                  type="date"
-                  value={form.endDate}
-                  onChange={(e) => setForm((prev) => ({ ...prev, endDate: e.target.value }))}
-                />
+                <Label>Calendar Type</Label>
+                <Select
+                  value={form.calendarType}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, calendarType: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CALENDAR_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {CALENDAR_LABELS[type]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="schedule-pct">% Complete</Label>
-                <Input
-                  id="schedule-pct"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={form.percentComplete}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, percentComplete: e.target.value }))
-                  }
-                />
+                <Label>Import Source</Label>
+                <Select
+                  value={form.importedFrom}
+                  onValueChange={(value) => setForm((prev) => ({ ...prev, importedFrom: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {IMPORT_SOURCES.map((source) => (
+                      <SelectItem key={source} value={source}>
+                        {IMPORT_LABELS[source]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -527,33 +619,49 @@ export default function SchedulePage({ params }: { params: Promise<{ id: string 
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={saveSchedule} disabled={saving}>
-              {saving ? "Saving..." : editing ? "Save Changes" : "Create Schedule"}
-            </Button>
+            <LoadingButton
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={saveSchedule}
+              loading={saving}
+              loadingText="Saving..."
+            >
+              {editing ? "Save Changes" : "Create Schedule"}
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete Schedule</DialogTitle>
-            <DialogDescription>
-              Delete &quot;{pendingDelete?.title ?? "this schedule"}&quot;? This action cannot be
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Schedule</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &quot;{pendingDelete?.name ?? "this schedule"}&quot;? This action cannot be
               undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={saving}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={deleteSchedule} disabled={saving}>
-              {saving ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <LoadingButton
+              variant="destructive"
+              onClick={deleteSchedule}
+              loading={isDeleting}
+              loadingText="Deleting..."
+            >
+              Delete
+            </LoadingButton>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+export default function SchedulePage(props: { params: Promise<{ id: string }> }) {
+  return (
+    <ErrorBoundary section="Schedule">
+      <ScheduleContent {...props} />
+    </ErrorBoundary>
   );
 }
