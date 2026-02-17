@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Pitbull.Api.Controllers;
+using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Tests.Unit.Helpers;
@@ -37,7 +39,12 @@ public class AdminUsersControllerTests
         bool isAuthenticated = false,
         string? authenticatedRole = null)
     {
-        var controller = new AdminUsersController(db, userManager.Object, roleManager.Object);
+        var roleSeeder = new RoleSeeder(
+            roleManager.Object,
+            userManager.Object,
+            db,
+            NullLogger<RoleSeeder>.Instance);
+        var controller = new AdminUsersController(db, userManager.Object, roleManager.Object, roleSeeder);
 
         var claims = new List<Claim>();
         if (isAuthenticated)

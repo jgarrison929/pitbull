@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 
@@ -20,7 +21,8 @@ namespace Pitbull.Api.Controllers;
 public class AdminUsersController(
     PitbullDbContext db,
     UserManager<AppUser> userManager,
-    RoleManager<AppRole> roleManager) : ControllerBase
+    RoleManager<AppRole> roleManager,
+    RoleSeeder roleSeeder) : ControllerBase
 {
     /// <summary>
     /// List all users in the tenant with their roles
@@ -55,7 +57,7 @@ public class AdminUsersController(
         var allItems = new List<AdminUserDto>();
         foreach (var user in users)
         {
-            var roles = await userManager.GetRolesAsync(user);
+            var roles = await roleSeeder.GetUserRolesAsync(user);
 
             if (!string.IsNullOrWhiteSpace(role) && !roles.Contains(role, StringComparer.OrdinalIgnoreCase))
                 continue;
@@ -87,7 +89,7 @@ public class AdminUsersController(
         if (user == null)
             return NotFound(new { error = "User not found" });
 
-        var roles = await userManager.GetRolesAsync(user);
+        var roles = await roleSeeder.GetUserRolesAsync(user);
 
         return Ok(MapToDto(user, roles.ToList()));
     }
@@ -112,7 +114,7 @@ public class AdminUsersController(
         if (request.Status != null)
             user.Status = Enum.Parse<UserStatus>(request.Status);
 
-        // Update roles if provided
+        // Update roles if provided (frontend sends short names like "Admin", DB stores "{tenantId}:Admin")
         if (request.Roles != null)
         {
             var currentRoles = await userManager.GetRolesAsync(user);
@@ -120,16 +122,17 @@ public class AdminUsersController(
 
             foreach (var roleName in request.Roles)
             {
-                if (await roleManager.RoleExistsAsync(roleName))
+                var tenantRoleName = $"{user.TenantId}:{roleName}";
+                if (await roleManager.RoleExistsAsync(tenantRoleName))
                 {
-                    await userManager.AddToRoleAsync(user, roleName);
+                    await userManager.AddToRoleAsync(user, tenantRoleName);
                 }
             }
         }
 
         await db.SaveChangesAsync();
 
-        var roles = await userManager.GetRolesAsync(user);
+        var roles = await roleSeeder.GetUserRolesAsync(user);
         return Ok(MapToDto(user, roles.ToList()));
     }
 
@@ -141,11 +144,19 @@ public class AdminUsersController(
     public async Task<IActionResult> GetRoles()
     {
         var roles = await roleManager.Roles.ToListAsync();
-        return Ok(roles.Select(r => new RoleDto
+        return Ok(roles.Select(r =>
         {
-            Id = r.Id,
-            Name = r.Name!,
-            Description = r.Description ?? r.Name!
+            // Strip tenant prefix (e.g., "{guid}:Admin" → "Admin")
+            var name = r.Name ?? string.Empty;
+            var colonIdx = name.IndexOf(':');
+            var displayName = colonIdx >= 0 ? name[(colonIdx + 1)..] : name;
+
+            return new RoleDto
+            {
+                Id = r.Id,
+                Name = displayName,
+                Description = r.Description ?? displayName
+            };
         }).ToList());
     }
 
