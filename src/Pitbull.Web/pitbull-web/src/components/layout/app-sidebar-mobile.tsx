@@ -12,15 +12,31 @@ const mainNavItems = [
   { label: "Dashboard", href: "/", icon: "📊" },
   { label: "Projects", href: "/projects", icon: "🏗️" },
   { label: "Bids", href: "/bids", icon: "📋" },
-  { label: "RFIs", href: "/rfis", icon: "❓" },
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
   { label: "Employees", href: "/employees", icon: "👷" },
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
   { label: "Equipment", href: "/equipment", icon: "🚜" },
   { label: "Contracts", href: "/contracts", icon: "📄" },
-  { label: "Project Mgmt", href: "/project-management/tasks/my", icon: "🗂️" },
-  { label: "Documents", href: "#", icon: "📁", disabled: true },
 ];
+
+function getProjectManagementItems(projectId: string | null) {
+  const base = projectId ? `/projects/${projectId}` : null;
+  return [
+    { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base },
+    { label: "Job Cost", href: base ? `${base}/job-cost` : "#", icon: "💰", disabled: !base },
+    { label: "RFIs", href: base ? `${base}/rfis` : "#", icon: "❓", disabled: !base },
+    { label: "Submittals", href: base ? `${base}/submittals` : "#", icon: "📬", disabled: !base },
+    { label: "Plans & Specs", href: base ? `${base}/plans-specs` : "#", icon: "📐", disabled: !base },
+    { label: "Communications", href: base ? `${base}/communications` : "#", icon: "💬", disabled: !base },
+    { label: "Daily Reports", href: base ? `${base}/daily-reports` : "#", icon: "📝", disabled: !base },
+    { label: "Progress", href: base ? `${base}/progress` : "#", icon: "📈", disabled: !base },
+    { label: "Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base },
+    { label: "Meetings", href: base ? `${base}/meetings` : "#", icon: "🤝", disabled: !base },
+    { label: "Documents", href: base ? `${base}/documents` : "#", icon: "📁", disabled: !base },
+    { label: "Tasks", href: base ? `${base}/tasks` : "#", icon: "✅", disabled: !base },
+    { label: "Narratives", href: base ? `${base}/narratives` : "#", icon: "📖", disabled: !base },
+  ];
+}
 
 const reportItems = [
   { label: "Labor Cost", href: "/reports/labor-cost", icon: "💰" },
@@ -93,6 +109,11 @@ export function AppSidebarMobile() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
+  // Extract current project ID from URL for project-scoped navigation
+  const projectMatch = pathname.match(/^\/projects\/([a-f0-9-]+)/i);
+  const currentProjectId = projectMatch?.[1] || null;
+  const projectManagementItems = getProjectManagementItems(currentProjectId);
+
   return (
     <div className="flex flex-col h-full text-white">
       <div className="flex items-center gap-3 px-6 py-5">
@@ -122,6 +143,17 @@ export function AppSidebarMobile() {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {/* Main nav */}
         {mainNavItems.map((item) => (
+          <MobileNavItem key={item.label} item={item} pathname={pathname} />
+        ))}
+
+        {/* Project Management Section */}
+        <SectionHeader label="Project Management" />
+        {!currentProjectId && (
+          <p className="px-3 text-xs text-neutral-500 italic pb-1">
+            Select a project to navigate
+          </p>
+        )}
+        {projectManagementItems.map((item) => (
           <MobileNavItem key={item.label} item={item} pathname={pathname} />
         ))}
 
