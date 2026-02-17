@@ -31,6 +31,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<TenantConnectionInterceptor>();
 
+        // Audit interceptor is registered separately in Program.cs (lives in Pitbull.Api)
+
         // PostgreSQL + EF Core with tenant isolation interceptor
         // Connection pool settings are configured in the connection string:
         // - "Maximum Pool Size=50" - prevents connection exhaustion under load
@@ -48,7 +50,8 @@ public static class ServiceCollectionExtensions
                     npgsql.MigrationsAssembly("Pitbull.Api");
                     npgsql.EnableRetryOnFailure(3);
                 })
-            .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>());
+            .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>())
+            .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>().ToArray());
 
             // Development: Enable detailed errors and N+1 query warnings
             if (isDevelopment)

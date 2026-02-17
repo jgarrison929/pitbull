@@ -28,6 +28,7 @@ using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.ProjectManagement.Storage;
 using MassTransit;
+using Pitbull.Api.Data;
 using Pitbull.Core.Messaging;
 using Serilog;
 
@@ -117,6 +118,11 @@ builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbu
 
 // Notifications module
 builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService, Pitbull.Notifications.Services.NotificationService>();
+
+// Audit interceptor for automatic change tracking via EF SaveChanges
+builder.Services.AddScoped<AuditInterceptor>();
+builder.Services.AddScoped<Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor>(
+    sp => sp.GetRequiredService<AuditInterceptor>());
 
 // SystemAdmin module services
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, Pitbull.SystemAdmin.Services.TenantSettingsService>();

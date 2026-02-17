@@ -8,7 +8,7 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
 {
     public void Configure(EntityTypeBuilder<AuditLog> builder)
     {
-        builder.ToTable("AuditLogs");
+        builder.ToTable("audit_logs");
 
         builder.HasKey(a => a.Id);
 
@@ -22,7 +22,8 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
             .HasMaxLength(200);
 
         builder.Property(a => a.Action)
-            .HasConversion<int>()
+            .HasConversion<string>()
+            .HasMaxLength(50)
             .IsRequired();
 
         builder.Property(a => a.ResourceType)
@@ -36,7 +37,14 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
             .IsRequired()
             .HasMaxLength(1000);
 
-        builder.Property(a => a.Details); // JSON text, no max length
+        builder.Property(a => a.Details)
+            .HasColumnType("jsonb");
+
+        builder.Property(a => a.Changes)
+            .HasColumnType("jsonb");
+
+        builder.Property(a => a.Metadata)
+            .HasColumnType("jsonb");
 
         builder.Property(a => a.IpAddress)
             .HasMaxLength(50);
@@ -47,14 +55,12 @@ public class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(a => a.ErrorMessage)
             .HasMaxLength(2000);
 
-        // Indexes
-        builder.HasIndex(a => a.TenantId)
-            .HasDatabaseName("IX_AuditLogs_TenantId");
-
+        // Indexes for efficient querying
         builder.HasIndex(a => new { a.TenantId, a.Timestamp })
-            .HasDatabaseName("IX_AuditLogs_TenantId_Timestamp");
+            .IsDescending(false, true)
+            .HasDatabaseName("IX_audit_logs_TenantId_Timestamp");
 
         builder.HasIndex(a => new { a.TenantId, a.ResourceType, a.ResourceId })
-            .HasDatabaseName("IX_AuditLogs_TenantId_ResourceType_ResourceId");
+            .HasDatabaseName("IX_audit_logs_TenantId_ResourceType_ResourceId");
     }
 }
