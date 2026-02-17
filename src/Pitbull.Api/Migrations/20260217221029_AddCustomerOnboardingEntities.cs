@@ -44,8 +44,7 @@ namespace Pitbull.Api.Migrations
                 name: "ScheduleOfValuesId",
                 table: "payment_applications",
                 type: "uuid",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                nullable: true);
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "OnboardingCompletedAt",
