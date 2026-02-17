@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Respawn;
 using Testcontainers.PostgreSql;
@@ -75,12 +74,29 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO pitbull_app;
 
         // Apply migrations once using admin connection to avoid race conditions
         // when multiple test hosts start concurrently.
+        // MigrationsAssembly is required because PitbullDbContext lives in Pitbull.Core
+        // but migrations live in Pitbull.Api.
         var optionsBuilder = new DbContextOptionsBuilder<Pitbull.Core.Data.PitbullDbContext>();
-        optionsBuilder.UseNpgsql(AdminConnectionString);
+        optionsBuilder.UseNpgsql(AdminConnectionString,
+            npgsql => npgsql.MigrationsAssembly("Pitbull.Api"));
+        // Suppress PendingModelChangesWarning — the DI-configured DbContext already
+        // ignores this; we must do the same when creating a raw context for migrations.
+        optionsBuilder.ConfigureWarnings(w => w
+            .Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         var tenantCtx = new Pitbull.Core.MultiTenancy.TenantContext { TenantId = Guid.Empty, TenantName = "fixture" };
         var companyCtx = new Pitbull.Core.MultiTenancy.CompanyContext { CompanyId = Guid.Empty, CompanyCode = "00", CompanyName = "fixture" };
         await using var dbCtx = new Pitbull.Core.Data.PitbullDbContext(optionsBuilder.Options, tenantCtx, companyCtx);
         await dbCtx.Database.MigrateAsync();
+
+        // Grant privileges on all tables/sequences created by migration to the app role.
+        // ALTER DEFAULT PRIVILEGES only covers future objects; this covers objects
+        // created by MigrateAsync above.
+        await adminConn.ExecuteNonQueryAsync(@"
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO pitbull_app;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO pitbull_app;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO pitbull_app;
+");
+
         MigrationsApplied = true;
     }
 

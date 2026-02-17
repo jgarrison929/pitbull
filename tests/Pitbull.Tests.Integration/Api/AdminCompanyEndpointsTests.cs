@@ -49,7 +49,7 @@ public sealed class AdminCompanyEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var json = await resp.Content.ReadAsStringAsync();
         // Should return default settings
-        Assert.Contains("\"companyName\":", json);
+        Assert.Contains("\"name\":", json);
         Assert.Contains("\"timezone\":", json);
         Assert.Contains("\"dateFormat\":", json);
         Assert.Contains("\"currency\":", json);
@@ -64,7 +64,7 @@ public sealed class AdminCompanyEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var updateRequest = new
         {
-            companyName = "Pitbull Construction Test Co",
+            name = "Pitbull Construction Test Co",
             logoUrl = "https://example.com/logo.png",
             primaryColor = "#FF5500",
             address = "123 Main Street",
@@ -84,7 +84,7 @@ public sealed class AdminCompanyEndpointsTests(PostgresFixture db) : IAsyncLifet
         Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
 
         var updated = await updateResp.Content.ReadAsStringAsync();
-        Assert.Contains("\"companyName\":\"Pitbull Construction Test Co\"", updated);
+        Assert.Contains("\"name\":\"Pitbull Construction Test Co\"", updated);
         Assert.Contains("\"city\":\"Los Angeles\"", updated);
         Assert.Contains("\"state\":\"CA\"", updated);
         Assert.Contains("\"timezone\":\"America/New_York\"", updated);
@@ -100,14 +100,14 @@ public sealed class AdminCompanyEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var minimalRequest = new
         {
-            companyName = "Minimal Co"
+            name = "Minimal Co"
         };
 
         var resp = await client.PutAsJsonAsync("/api/admin/company", minimalRequest);
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        Assert.Contains("\"companyName\":\"Minimal Co\"", json);
+        Assert.Contains("\"name\":\"Minimal Co\"", json);
         // Should still have default timezone
         Assert.Contains("\"timezone\":", json);
     }
@@ -122,7 +122,7 @@ public sealed class AdminCompanyEndpointsTests(PostgresFixture db) : IAsyncLifet
         // First, update settings
         var updateRequest = new
         {
-            companyName = "Persisted Test Company",
+            name = "Persisted Test Company",
             city = "San Francisco"
         };
 
@@ -134,7 +134,7 @@ public sealed class AdminCompanyEndpointsTests(PostgresFixture db) : IAsyncLifet
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
         var json = await getResp.Content.ReadAsStringAsync();
-        Assert.Contains("\"companyName\":\"Persisted Test Company\"", json);
+        Assert.Contains("\"name\":\"Persisted Test Company\"", json);
         Assert.Contains("\"city\":\"San Francisco\"", json);
     }
 }

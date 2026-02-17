@@ -112,7 +112,7 @@ public sealed class AdminUsersEndpointsTests(PostgresFixture db) : IAsyncLifetim
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
         var json = await resp.Content.ReadAsStringAsync();
-        Assert.Equal("[]", json);
+        Assert.Contains("\"items\":[]", json);
     }
 
     [Fact]
