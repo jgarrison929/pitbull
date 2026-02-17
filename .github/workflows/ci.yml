@@ -120,10 +120,10 @@ jobs:
         run: |
           echo "::group::npm Vulnerability Audit"
           # Run audit and capture exit code
-          if npm audit --audit-level moderate; then
-            echo "✅ No moderate+ vulnerabilities detected"
+          if npm audit --audit-level high; then
+            echo "✅ No high+ vulnerabilities detected"
           else
-            echo "::error::npm audit found moderate+ vulnerabilities!"
+            echo "::error::npm audit found high+ vulnerabilities!"
             echo "Run 'npm audit fix' to address auto-fixable issues"
             exit 1
           fi

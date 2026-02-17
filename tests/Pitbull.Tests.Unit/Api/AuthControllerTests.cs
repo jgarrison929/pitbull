@@ -544,7 +544,7 @@ public class AuthControllerTests
                 callCount++;
                 return callCount <= 1
                     ? new List<string>()
-                    : new List<string> { $"{TestTenantId}:User" };
+                    : new List<string> { $"{TestTenantId}:Viewer" };
             });
 
         roleManager.Setup(r => r.FindByNameAsync(It.IsAny<string>()))
@@ -566,10 +566,10 @@ public class AuthControllerTests
         // Assert
         result.Should().BeOfType<OkObjectResult>();
         var response = ((OkObjectResult)result).Value.Should().BeOfType<AuthResponse>().Subject;
-        response.Roles.Should().Contain("User");
+        response.Roles.Should().Contain("Viewer");
 
-        // Should get User role since there's more than 1 user in tenant
-        userManager.Verify(u => u.AddToRoleAsync(user2, $"{TestTenantId}:User"), Times.Once);
+        // Should get Viewer role since there's more than 1 user in tenant
+        userManager.Verify(u => u.AddToRoleAsync(user2, $"{TestTenantId}:Viewer"), Times.Once);
     }
 
     #endregion
