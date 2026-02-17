@@ -67,14 +67,14 @@ public class AdminAuditControllerTests
         var log2 = CreateLog(AuditAction.Update);
         await SeedLogs(db, log1, log2);
 
-        var result = await controller.ListLogs(null, null, null, null, null, null);
+        var result = await controller.ListLogs(null, null, null, null, null, null, null);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;
         response.Items.Should().HaveCount(2);
         response.TotalCount.Should().Be(2);
         response.Page.Should().Be(1);
-        response.PageSize.Should().Be(50);
+        response.PageSize.Should().Be(25);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public class AdminAuditControllerTests
         var log2 = CreateLog(userId: OtherUserId);
         await SeedLogs(db, log1, log2);
 
-        var result = await controller.ListLogs(userId: TestUserId, null, null, null, null, null);
+        var result = await controller.ListLogs(userId: TestUserId, null, null, null, null, null, null);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;
@@ -106,7 +106,7 @@ public class AdminAuditControllerTests
         var log3 = CreateLog(action: AuditAction.Create);
         await SeedLogs(db, log1, log2, log3);
 
-        var result = await controller.ListLogs(null, AuditAction.Create, null, null, null, null);
+        var result = await controller.ListLogs(null, nameof(AuditAction.Create), null, null, null, null, null);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;
@@ -124,7 +124,7 @@ public class AdminAuditControllerTests
         var log2 = CreateLog(resourceType: "Bid");
         await SeedLogs(db, log1, log2);
 
-        var result = await controller.ListLogs(null, null, "Project", null, null, null);
+        var result = await controller.ListLogs(null, null, "Project", null, null, null, null);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;
@@ -146,7 +146,7 @@ public class AdminAuditControllerTests
         var from = DateTime.UtcNow.AddMinutes(-5);
         var to = DateTime.UtcNow.AddMinutes(5);
 
-        var result = await controller.ListLogs(null, null, null, from, to, null);
+        var result = await controller.ListLogs(null, null, null, from, to, null, null);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;
@@ -163,7 +163,7 @@ public class AdminAuditControllerTests
         var log2 = CreateLog(success: false);
         await SeedLogs(db, log1, log2);
 
-        var result = await controller.ListLogs(null, null, null, null, null, success: false);
+        var result = await controller.ListLogs(null, null, null, null, null, success: false, search: null);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;
@@ -184,7 +184,7 @@ public class AdminAuditControllerTests
         await SeedLogs(db, logs);
 
         // Page 1, pageSize 2
-        var result = await controller.ListLogs(null, null, null, null, null, null, page: 1, pageSize: 2);
+        var result = await controller.ListLogs(null, null, null, null, null, null, search: null, page: 1, pageSize: 2);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;
@@ -206,7 +206,7 @@ public class AdminAuditControllerTests
             .ToArray();
         await SeedLogs(db, logs);
 
-        var result = await controller.ListLogs(null, null, null, null, null, null, page: 2, pageSize: 2);
+        var result = await controller.ListLogs(null, null, null, null, null, null, search: null, page: 2, pageSize: 2);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
         var response = okResult.Value.Should().BeOfType<AuditLogListResponse>().Subject;

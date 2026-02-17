@@ -523,10 +523,14 @@ export interface AuditLog {
   resourceType: string;
   resourceId: string | null;
   description: string;
+  details: string | null;
+  changes: string | null;
+  metadata: string | null;
   ipAddress: string | null;
   userAgent: string | null;
-  metadata: Record<string, unknown> | null;
   timestamp: string;
+  success: boolean;
+  errorMessage: string | null;
 }
 
 export interface AuditLogListResult {
@@ -534,6 +538,7 @@ export interface AuditLogListResult {
   totalCount: number;
   page: number;
   pageSize: number;
+  totalPages: number;
 }
 
 export interface AuditLogFilters {
@@ -542,8 +547,34 @@ export interface AuditLogFilters {
   resourceType?: string;
   startDate?: string;
   endDate?: string;
+  search?: string;
   page?: number;
   pageSize?: number;
+  sortBy?: string;
+  sortDir?: string;
+}
+
+export interface AuditLogSummary {
+  totalEventsToday: number;
+  actionCounts: { action: string; count: number }[];
+  topUser: { userId: string | null; userName: string | null; userEmail: string | null; eventCount: number } | null;
+  topEntityType: string | null;
+  topEntityTypeCount: number;
+  loginCountToday: number;
+  recentActivity: {
+    id: string;
+    action: string;
+    resourceType: string;
+    resourceId: string | null;
+    description: string;
+    userName: string | null;
+    timestamp: string;
+  }[];
+}
+
+export interface PropertyChange {
+  oldValue: string | null;
+  newValue: string | null;
 }
 
 // Company Settings
