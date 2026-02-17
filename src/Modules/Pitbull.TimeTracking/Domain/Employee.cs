@@ -86,14 +86,6 @@ public class Employee : BaseEntity
     public string? Notes { get; set; }
 
     /// <summary>
-    /// Current onboarding status (set when onboarding application is completed)
-    /// </summary>
-    public OnboardingStatus? OnboardingStatus { get; set; }
-
-    /// <summary>
-    /// When onboarding was completed
-    /// </summary>
-    public DateTime? OnboardingCompletedAt { get; set; }
 
     // Navigation properties
     public Employee? Supervisor { get; set; }
