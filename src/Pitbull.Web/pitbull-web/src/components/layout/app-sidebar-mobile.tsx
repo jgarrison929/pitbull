@@ -53,6 +53,12 @@ const settingsItems = [
   { label: "Preferences", href: "/settings", icon: "⚙️" },
   { label: "Notifications", href: "/settings/notifications", icon: "🔔" },
   { label: "Overtime Rules", href: "/settings/overtime", icon: "⏰" },
+  { label: "Projects", href: "/settings/projects", icon: "🏗️" },
+  { label: "Contracts", href: "/settings/contracts", icon: "📄" },
+  { label: "Bids", href: "/settings/bids", icon: "📋" },
+  { label: "RFIs", href: "/settings/rfis", icon: "❓" },
+  { label: "Reports", href: "/settings/reports", icon: "📊" },
+  { label: "Company Setup", href: "/settings/company/setup", icon: "🧙" },
 ];
 
 const adminItems = [

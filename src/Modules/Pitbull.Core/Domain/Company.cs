@@ -92,4 +92,34 @@ public class Company : BaseEntity
     /// Stored as owned entity (mapped to columns on the companies table).
     /// </summary>
     public OvertimeSettings OvertimeSettings { get; set; } = new();
+
+    /// <summary>
+    /// Project numbering, budget, and phase configuration.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public ProjectSettings ProjectSettings { get; set; } = new();
+
+    /// <summary>
+    /// Subcontract retainage, approval workflow, and AIA form defaults.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public ContractSettings ContractSettings { get; set; } = new();
+
+    /// <summary>
+    /// Bid validity, estimator sign-off, and markup defaults.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public BidSettings BidSettings { get; set; } = new();
+
+    /// <summary>
+    /// RFI response deadlines, auto-assignment, and cost impact rules.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public RfiSettings RfiSettings { get; set; } = new();
+
+    /// <summary>
+    /// Report branding, overtime rules, and fiscal year configuration.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public ReportSettings ReportSettings { get; set; } = new();
 }
