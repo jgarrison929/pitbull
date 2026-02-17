@@ -2,37 +2,51 @@ using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Moq;
 using Pitbull.Api.Controllers;
+using Pitbull.Core.CQRS;
+using Pitbull.SystemAdmin.Services;
 
 namespace Pitbull.Tests.Unit.Api;
 
 public class AdminCompanyControllerTests
 {
-    private static AdminCompanyController CreateController(Guid tenantId)
+    private static (AdminCompanyController controller, Mock<ITenantSettingsService> mock) CreateController(Guid tenantId)
     {
         var claims = new[] { new Claim("tenant_id", tenantId.ToString()) };
         var identity = new ClaimsIdentity(claims, "TestAuth");
         var principal = new ClaimsPrincipal(identity);
 
-        var controller = new AdminCompanyController();
+        var mockService = new Mock<ITenantSettingsService>();
+        var controller = new AdminCompanyController(mockService.Object);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext { User = principal }
         };
-        return controller;
+        return (controller, mockService);
     }
 
-    [Fact]
-    public void GetSettings_ReturnsDefaults_WhenNoSettingsStored()
-    {
-        // Use a unique tenant ID that won't collide with other tests
-        var tenantId = Guid.NewGuid();
-        var controller = CreateController(tenantId);
+    private static TenantSettingsDto DefaultSettings(Guid id = default) => new(
+        id == default ? Guid.NewGuid() : id,
+        "My Company", null, null, null, null, null, null, null, null, null,
+        "America/Los_Angeles", "MM/dd/yyyy", "USD", 1,
+        true, true, true, false
+    );
 
-        var result = controller.GetSettings();
+    [Fact]
+    public async Task GetSettings_ReturnsDefaults_WhenNoSettingsStored()
+    {
+        var tenantId = Guid.NewGuid();
+        var (controller, mock) = CreateController(tenantId);
+        var dto = DefaultSettings();
+
+        mock.Setup(s => s.GetSettingsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(dto));
+
+        var result = await controller.GetSettings();
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var settings = okResult.Value.Should().BeOfType<CompanySettingsDto>().Subject;
+        var settings = okResult.Value.Should().BeOfType<TenantSettingsDto>().Subject;
         settings.CompanyName.Should().Be("My Company");
         settings.Timezone.Should().Be("America/Los_Angeles");
         settings.DateFormat.Should().Be("MM/dd/yyyy");
@@ -41,28 +55,31 @@ public class AdminCompanyControllerTests
     }
 
     [Fact]
-    public void UpdateSettings_StoresAndReturnsSettings()
+    public async Task UpdateSettings_ReturnsUpdatedSettings()
     {
         var tenantId = Guid.NewGuid();
-        var controller = CreateController(tenantId);
+        var (controller, mock) = CreateController(tenantId);
 
-        var request = new UpdateCompanySettingsRequest
-        {
-            CompanyName = "Pitbull Construction",
-            Address = "123 Main St",
-            City = "Los Angeles",
-            State = "CA",
-            ZipCode = "90001",
-            Phone = "555-1234",
-            Timezone = "America/New_York",
-            Currency = "EUR",
-            FiscalYearStartMonth = 7
-        };
+        var command = new UpsertTenantSettingsCommand(
+            "Pitbull Construction", null, null, "123 Main St", "Los Angeles", "CA",
+            "90001", "555-1234", null, null, "America/New_York", null, "EUR", 7,
+            null, null, null, null
+        );
 
-        var result = controller.UpdateSettings(request);
+        var responseDto = new TenantSettingsDto(
+            Guid.NewGuid(), "Pitbull Construction", null, null, "123 Main St",
+            "Los Angeles", "CA", "90001", "555-1234", null, null,
+            "America/New_York", "MM/dd/yyyy", "EUR", 7,
+            true, true, true, false
+        );
+
+        mock.Setup(s => s.UpsertSettingsAsync(It.IsAny<UpsertTenantSettingsCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(responseDto));
+
+        var result = await controller.UpdateSettings(command);
 
         var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var settings = okResult.Value.Should().BeOfType<CompanySettingsDto>().Subject;
+        var settings = okResult.Value.Should().BeOfType<TenantSettingsDto>().Subject;
         settings.CompanyName.Should().Be("Pitbull Construction");
         settings.Address.Should().Be("123 Main St");
         settings.City.Should().Be("Los Angeles");
@@ -73,88 +90,21 @@ public class AdminCompanyControllerTests
     }
 
     [Fact]
-    public void GetSettings_ReturnsStoredSettings_AfterUpdate()
+    public async Task UpdateSettings_ReturnsBadRequest_OnFailure()
     {
         var tenantId = Guid.NewGuid();
-        var controller = CreateController(tenantId);
+        var (controller, mock) = CreateController(tenantId);
 
-        var request = new UpdateCompanySettingsRequest
-        {
-            CompanyName = "Updated Company",
-            Timezone = "Europe/London",
-            DateFormat = "dd/MM/yyyy",
-            Currency = "GBP",
-            FiscalYearStartMonth = 4
-        };
+        var command = new UpsertTenantSettingsCommand(
+            "", null, null, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null
+        );
 
-        controller.UpdateSettings(request);
+        mock.Setup(s => s.UpsertSettingsAsync(It.IsAny<UpsertTenantSettingsCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure<TenantSettingsDto>("Company name is required", "VALIDATION_ERROR"));
 
-        // Now GET should return the stored settings
-        var result = controller.GetSettings();
+        var result = await controller.UpdateSettings(command);
 
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var settings = okResult.Value.Should().BeOfType<CompanySettingsDto>().Subject;
-        settings.CompanyName.Should().Be("Updated Company");
-        settings.Timezone.Should().Be("Europe/London");
-        settings.Currency.Should().Be("GBP");
-        settings.FiscalYearStartMonth.Should().Be(4);
-    }
-
-    [Fact]
-    public void Settings_ArePerTenant()
-    {
-        var tenantA = Guid.NewGuid();
-        var tenantB = Guid.NewGuid();
-
-        var controllerA = CreateController(tenantA);
-        var controllerB = CreateController(tenantB);
-
-        // Update tenant A settings
-        controllerA.UpdateSettings(new UpdateCompanySettingsRequest
-        {
-            CompanyName = "Tenant A Company",
-            Currency = "USD"
-        });
-
-        // Update tenant B settings
-        controllerB.UpdateSettings(new UpdateCompanySettingsRequest
-        {
-            CompanyName = "Tenant B Company",
-            Currency = "EUR"
-        });
-
-        // Verify tenant A gets its own settings
-        var resultA = controllerA.GetSettings();
-        var settingsA = ((OkObjectResult)resultA).Value as CompanySettingsDto;
-        settingsA!.CompanyName.Should().Be("Tenant A Company");
-        settingsA.Currency.Should().Be("USD");
-
-        // Verify tenant B gets its own settings
-        var resultB = controllerB.GetSettings();
-        var settingsB = ((OkObjectResult)resultB).Value as CompanySettingsDto;
-        settingsB!.CompanyName.Should().Be("Tenant B Company");
-        settingsB.Currency.Should().Be("EUR");
-    }
-
-    [Fact]
-    public void UpdateSettings_DefaultsNullTimezoneAndCurrency()
-    {
-        var tenantId = Guid.NewGuid();
-        var controller = CreateController(tenantId);
-
-        var request = new UpdateCompanySettingsRequest
-        {
-            CompanyName = "Minimal Company"
-            // Timezone, DateFormat, Currency, FiscalYearStartMonth are null
-        };
-
-        var result = controller.UpdateSettings(request);
-
-        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
-        var settings = okResult.Value.Should().BeOfType<CompanySettingsDto>().Subject;
-        settings.Timezone.Should().Be("America/Los_Angeles");
-        settings.DateFormat.Should().Be("MM/dd/yyyy");
-        settings.Currency.Should().Be("USD");
-        settings.FiscalYearStartMonth.Should().Be(1);
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 }
