@@ -153,6 +153,197 @@ public class PitbullDbContext(
                     .HasColumnName("CaliforniaOtRules")
                     .HasDefaultValue(false);
             });
+
+            // PaymentApplicationSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.PaymentApplicationSettings, pa =>
+            {
+                pa.Property(p => p.DefaultRetainagePercent)
+                    .HasColumnName("PayAppDefaultRetainagePercent")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(10m);
+
+                pa.Property(p => p.EnableApprovalWorkflow)
+                    .HasColumnName("PayAppEnableApprovalWorkflow")
+                    .HasDefaultValue(true);
+
+                pa.Property(p => p.RequireSignedSubcontract)
+                    .HasColumnName("PayAppRequireSignedSubcontract")
+                    .HasDefaultValue(true);
+
+                pa.Property(p => p.AllowRetainageOverride)
+                    .HasColumnName("PayAppAllowRetainageOverride")
+                    .HasDefaultValue(false);
+
+                pa.Property(p => p.AllowRetainageReleaseBeforeFinal)
+                    .HasColumnName("PayAppAllowRetainageReleaseBeforeFinal")
+                    .HasDefaultValue(false);
+
+                pa.Property(p => p.DefaultBookMode)
+                    .HasColumnName("PayAppDefaultBookMode")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Both");
+
+                pa.Property(p => p.LockSubmittedLineItems)
+                    .HasColumnName("PayAppLockSubmittedLineItems")
+                    .HasDefaultValue(true);
+
+                pa.Property(p => p.RequireLienWaiverBeforePaid)
+                    .HasColumnName("PayAppRequireLienWaiverBeforePaid")
+                    .HasDefaultValue(false);
+            });
+
+            // EmployeeOnboardingSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.EmployeeOnboardingSettings, ob =>
+            {
+                ob.Property(o => o.Enabled)
+                    .HasColumnName("OnboardingEnabled")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireApprovalWorkflow)
+                    .HasColumnName("OnboardingRequireApprovalWorkflow")
+                    .HasDefaultValue(false);
+
+                ob.Property(o => o.RequireEmergencyContact)
+                    .HasColumnName("OnboardingRequireEmergencyContact")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireI9)
+                    .HasColumnName("OnboardingRequireI9")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireW4)
+                    .HasColumnName("OnboardingRequireW4")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireCertifications)
+                    .HasColumnName("OnboardingRequireCertifications")
+                    .HasDefaultValue(false);
+
+                ob.Property(o => o.RequiredCertificationTypes)
+                    .HasColumnName("OnboardingRequiredCertificationTypes")
+                    .HasMaxLength(500)
+                    .HasDefaultValue("");
+
+                ob.Property(o => o.DefaultPrevailingWageClass)
+                    .HasColumnName("OnboardingDefaultPrevailingWageClass")
+                    .HasMaxLength(100)
+                    .HasDefaultValue("");
+
+                ob.Property(o => o.EnableUnionFields)
+                    .HasColumnName("OnboardingEnableUnionFields")
+                    .HasDefaultValue(false);
+            });
+
+            // ProjectSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.ProjectSettings, ps =>
+            {
+                ps.Property(p => p.DefaultNumberingFormat)
+                    .HasColumnName("ProjDefaultNumberingFormat")
+                    .HasMaxLength(50)
+                    .HasDefaultValue("YYYY-####");
+
+                ps.Property(p => p.RequireBudgetBeforeActivation)
+                    .HasColumnName("ProjRequireBudgetBeforeActivation")
+                    .HasDefaultValue(false);
+
+                ps.Property(p => p.AutoCreatePhases)
+                    .HasColumnName("ProjAutoCreatePhases")
+                    .HasDefaultValue(true);
+
+                ps.Property(p => p.DefaultRetentionPercent)
+                    .HasColumnName("ProjDefaultRetentionPercent")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(10m);
+            });
+
+            // ContractSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.ContractSettings, cs =>
+            {
+                cs.Property(p => p.DefaultRetainagePercent)
+                    .HasColumnName("ContractDefaultRetainagePercent")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(10m);
+
+                cs.Property(p => p.RequireSignedSubcontractBeforePayApp)
+                    .HasColumnName("ContractRequireSignedSubcontract")
+                    .HasDefaultValue(true);
+
+                cs.Property(p => p.ApprovalWorkflowType)
+                    .HasColumnName("ContractApprovalWorkflowType")
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Sequential");
+
+                cs.Property(p => p.AiaArchitectName)
+                    .HasColumnName("ContractAiaArchitectName")
+                    .HasMaxLength(200)
+                    .HasDefaultValue("");
+
+                cs.Property(p => p.AiaOwnerName)
+                    .HasColumnName("ContractAiaOwnerName")
+                    .HasMaxLength(200)
+                    .HasDefaultValue("");
+            });
+
+            // BidSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.BidSettings, bs =>
+            {
+                bs.Property(p => p.DefaultValidityPeriodDays)
+                    .HasColumnName("BidDefaultValidityPeriodDays")
+                    .HasDefaultValue(30);
+
+                bs.Property(p => p.RequireEstimatorSignOff)
+                    .HasColumnName("BidRequireEstimatorSignOff")
+                    .HasDefaultValue(false);
+
+                bs.Property(p => p.DefaultOverheadPercent)
+                    .HasColumnName("BidDefaultOverheadPercent")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(10m);
+
+                bs.Property(p => p.DefaultProfitPercent)
+                    .HasColumnName("BidDefaultProfitPercent")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(10m);
+            });
+
+            // RfiSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.RfiSettings, rs =>
+            {
+                rs.Property(p => p.DefaultResponseDeadlineDays)
+                    .HasColumnName("RfiDefaultResponseDeadlineDays")
+                    .HasDefaultValue(14);
+
+                rs.Property(p => p.AutoAssignToPm)
+                    .HasColumnName("RfiAutoAssignToPm")
+                    .HasDefaultValue(true);
+
+                rs.Property(p => p.RequireCostImpact)
+                    .HasColumnName("RfiRequireCostImpact")
+                    .HasDefaultValue(false);
+            });
+
+            // ReportSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.ReportSettings, rpt =>
+            {
+                rpt.Property(p => p.OvertimeRules)
+                    .HasColumnName("ReportOvertimeRules")
+                    .HasMaxLength(50)
+                    .HasDefaultValue("Federal");
+
+                rpt.Property(p => p.ReportBrandingName)
+                    .HasColumnName("ReportBrandingName")
+                    .HasMaxLength(200)
+                    .HasDefaultValue("");
+
+                rpt.Property(p => p.ReportLogoUrl)
+                    .HasColumnName("ReportLogoUrl")
+                    .HasMaxLength(500)
+                    .HasDefaultValue("");
+
+                rpt.Property(p => p.FiscalYearStartMonth)
+                    .HasColumnName("ReportFiscalYearStartMonth")
+                    .HasDefaultValue(1);
+            });
         });
 
         // UserCompanyAccess configuration

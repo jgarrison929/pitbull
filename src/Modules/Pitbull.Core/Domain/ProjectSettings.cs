@@ -1,0 +1,32 @@
+namespace Pitbull.Core.Domain;
+
+/// <summary>
+/// Company-level project configuration defaults. Owned by Company entity.
+/// Controls project numbering, budget rules, phase auto-creation, and retention.
+/// </summary>
+public class ProjectSettings
+{
+    /// <summary>
+    /// Default project number format (e.g., "YYYY-####", "PRJ-####").
+    /// Used as template when auto-generating project numbers.
+    /// </summary>
+    public string DefaultNumberingFormat { get; set; } = "YYYY-####";
+
+    /// <summary>
+    /// Require a budget to be entered before a project can be activated.
+    /// Prevents starting work without financial planning.
+    /// </summary>
+    public bool RequireBudgetBeforeActivation { get; set; } = false;
+
+    /// <summary>
+    /// Automatically create standard phases (e.g., Preconstruction, Construction, Closeout)
+    /// when a new project is created.
+    /// </summary>
+    public bool AutoCreatePhases { get; set; } = true;
+
+    /// <summary>
+    /// Default retention percentage held on project pay applications.
+    /// Industry standard is typically 5-10%.
+    /// </summary>
+    public decimal DefaultRetentionPercent { get; set; } = 10m;
+}

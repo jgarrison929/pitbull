@@ -7,6 +7,7 @@ using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.ListPaymentApplications;
 using Pitbull.Contracts.Features.UpdatePaymentApplication;
+using Pitbull.Contracts.Features;
 using Pitbull.Contracts.Services;
 using Pitbull.Core.CQRS;
 
@@ -22,7 +23,9 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Payment Applications")]
-public class PaymentApplicationsController(IContractsService contractsService) : ControllerBase
+public class PaymentApplicationsController(
+    IContractsService contractsService,
+    IPaymentApplicationService payAppService) : ControllerBase
 {
     /// <summary>
     /// Create a new payment application
@@ -198,5 +201,135 @@ public class PaymentApplicationsController(IContractsService contractsService) :
         }
 
         return NoContent();
+    }
+
+    // ── Enhanced G702/G703 Endpoints ──────────────────────────
+
+    /// <summary>
+    /// Get full payment application detail with G702 summary and G703 line items
+    /// </summary>
+    [HttpGet("{id:guid}/detail")]
+    [Cacheable(DurationSeconds = 120)]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetDetail(Guid id)
+    {
+        var result = await payAppService.GetDetailAsync(id);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get G702 summary for a payment application
+    /// </summary>
+    [HttpGet("{id:guid}/summary")]
+    [Cacheable(DurationSeconds = 120)]
+    [ProducesResponseType(typeof(PaymentApplicationG702Dto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSummary(Guid id, [FromQuery] AccountingBookType? bookType = null)
+    {
+        var result = await payAppService.GetSummaryAsync(id, bookType);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get G703 line items for a payment application
+    /// </summary>
+    [HttpGet("{id:guid}/line-items")]
+    [Cacheable(DurationSeconds = 120)]
+    [ProducesResponseType(typeof(IReadOnlyList<PaymentApplicationLineItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetLineItems(Guid id)
+    {
+        var result = await payAppService.GetLineItemsAsync(id);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Update G703 line items (bulk upsert for draft applications)
+    /// </summary>
+    [HttpPut("{id:guid}/line-items")]
+    [ProducesResponseType(typeof(IReadOnlyList<PaymentApplicationLineItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateLineItems(
+        Guid id, [FromBody] UpdatePaymentApplicationLineItemsRequest request)
+    {
+        var result = await payAppService.UpdateLineItemsAsync(id, request);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Submit a draft payment application for review
+    /// </summary>
+    [HttpPost("{id:guid}/submit")]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Submit(Guid id)
+    {
+        var result = await payAppService.SubmitAsync(id);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Mark a submitted application as reviewed
+    /// </summary>
+    [HttpPost("{id:guid}/review")]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Review(Guid id, [FromBody] ReviewPaymentApplicationRequest request)
+    {
+        var result = await payAppService.ReviewAsync(id, request);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Approve a reviewed payment application
+    /// </summary>
+    [HttpPost("{id:guid}/approve")]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Approve(Guid id, [FromBody] ApprovePaymentApplicationRequest request)
+    {
+        var result = await payAppService.ApproveAsync(id, request);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Mark an approved application as paid
+    /// </summary>
+    [HttpPost("{id:guid}/mark-paid")]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> MarkPaid(Guid id, [FromBody] MarkPaymentApplicationPaidRequest request)
+    {
+        var result = await payAppService.MarkPaidAsync(id, request);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Create a draft payment application from a Schedule of Values
+    /// </summary>
+    [HttpPost("from-sov/{sovId:guid}")]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateFromSov(
+        Guid sovId, [FromBody] CreatePaymentApplicationFromSovRequest request)
+    {
+        var result = await payAppService.CreateFromSovAsync(sovId, request);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => this.NotFoundError(result.Error ?? "Not found"),
+                _ => this.BadRequestError(result.Error ?? "Invalid request")
+            };
+        }
+
+        return CreatedAtAction(nameof(GetDetail), new { id = result.Value!.Id }, result.Value);
     }
 }

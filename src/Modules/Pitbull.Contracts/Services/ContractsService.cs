@@ -478,10 +478,10 @@ public class ContractsService(PitbullDbContext db) : IContractsService
                 case PaymentApplicationStatus.Submitted when !payApp.SubmittedDate.HasValue:
                     payApp.SubmittedDate = DateTime.UtcNow;
                     break;
-                case PaymentApplicationStatus.UnderReview when !payApp.ReviewedDate.HasValue:
+                case PaymentApplicationStatus.Reviewed when !payApp.ReviewedDate.HasValue:
                     payApp.ReviewedDate = DateTime.UtcNow;
                     break;
-                case PaymentApplicationStatus.Approved or PaymentApplicationStatus.PartiallyApproved
+                case PaymentApplicationStatus.Approved
                     when !payApp.ApprovedDate.HasValue:
                     payApp.ApprovedDate = DateTime.UtcNow;
                     break;

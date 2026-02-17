@@ -103,12 +103,10 @@ export function paymentApplicationStatusLabel(
       return "Draft";
     case PaymentApplicationStatus.Submitted:
       return "Submitted";
-    case PaymentApplicationStatus.UnderReview:
-      return "Under Review";
+    case PaymentApplicationStatus.Reviewed:
+      return "Reviewed";
     case PaymentApplicationStatus.Approved:
       return "Approved";
-    case PaymentApplicationStatus.PartiallyApproved:
-      return "Partially Approved";
     case PaymentApplicationStatus.Rejected:
       return "Rejected";
     case PaymentApplicationStatus.Paid:
@@ -128,12 +126,10 @@ export function paymentApplicationStatusBadgeClass(
       return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
     case PaymentApplicationStatus.Submitted:
       return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-    case PaymentApplicationStatus.UnderReview:
+    case PaymentApplicationStatus.Reviewed:
       return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
     case PaymentApplicationStatus.Approved:
       return "bg-green-100 text-green-700 hover:bg-green-100";
-    case PaymentApplicationStatus.PartiallyApproved:
-      return "bg-amber-100 text-amber-700 hover:bg-amber-100";
     case PaymentApplicationStatus.Rejected:
       return "bg-red-100 text-red-700 hover:bg-red-100";
     case PaymentApplicationStatus.Paid:

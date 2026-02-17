@@ -104,7 +104,7 @@ export default function FinancialOverviewPage() {
   const outstandingPayApps = payApps.filter(
     (pa) =>
       pa.status === PaymentApplicationStatus.Submitted ||
-      pa.status === PaymentApplicationStatus.UnderReview ||
+      pa.status === PaymentApplicationStatus.Reviewed ||
       pa.status === PaymentApplicationStatus.Approved
   );
   const outstandingAmount = outstandingPayApps.reduce(

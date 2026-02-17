@@ -46,6 +46,14 @@ public class PaymentApplicationConfiguration : IEntityTypeConfiguration<PaymentA
         builder.Property(x => x.InvoiceNumber).HasMaxLength(100);
         builder.Property(x => x.CheckNumber).HasMaxLength(100);
 
+        // New fields for G702/G703 enhancement
+        builder.Property(x => x.PaidAmount).HasPrecision(18, 2);
+        builder.Property(x => x.PaidReference).HasMaxLength(200);
+        builder.Property(x => x.ReviewedBy).HasMaxLength(200);
+        builder.Property(x => x.ReviewedNotes).HasMaxLength(4000);
+
+        builder.HasIndex(x => x.ScheduleOfValuesId);
+
         // Optimistic concurrency (PostgreSQL xmin)
         builder.Property<uint>("xmin")
             .HasColumnType("xid")
@@ -55,10 +63,25 @@ public class PaymentApplicationConfiguration : IEntityTypeConfiguration<PaymentA
         // Note: Global tenant+soft-delete filter is applied in PitbullDbContext for all BaseEntity types
         // Do not add a local HasQueryFilter here as it would override the tenant isolation
 
-        // Relationship
+        // Relationships
         builder.HasOne(x => x.Subcontract)
             .WithMany()
             .HasForeignKey(x => x.SubcontractId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.ScheduleOfValues)
+            .WithMany()
+            .HasForeignKey(x => x.ScheduleOfValuesId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.LineItems)
+            .WithOne(li => li.PaymentApplication)
+            .HasForeignKey(li => li.PaymentApplicationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(x => x.BookEntries)
+            .WithOne(be => be.PaymentApplication)
+            .HasForeignKey(be => be.PaymentApplicationId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }
@@ -139,6 +162,68 @@ public class ChangeOrderConfiguration : IEntityTypeConfiguration<ChangeOrder>
         builder.HasIndex(co => co.Status);
 
         // Optimistic concurrency
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+    }
+}
+
+public class PaymentApplicationLineItemConfiguration : IEntityTypeConfiguration<PaymentApplicationLineItem>
+{
+    public void Configure(EntityTypeBuilder<PaymentApplicationLineItem> builder)
+    {
+        builder.ToTable("payment_application_line_items");
+        builder.HasKey(x => x.Id);
+
+        builder.HasIndex(x => new { x.PaymentApplicationId, x.SOVLineItemId }).IsUnique();
+        builder.HasIndex(x => x.PaymentApplicationId);
+
+        builder.Property(x => x.ItemNumber).HasMaxLength(50);
+        builder.Property(x => x.Description).HasMaxLength(500);
+
+        builder.Property(x => x.ScheduledValue).HasPrecision(18, 2);
+        builder.Property(x => x.WorkCompletedPrevious).HasPrecision(18, 2);
+        builder.Property(x => x.WorkCompletedThisPeriod).HasPrecision(18, 2);
+        builder.Property(x => x.MaterialsStoredPrevious).HasPrecision(18, 2);
+        builder.Property(x => x.MaterialsStoredThisPeriod).HasPrecision(18, 2);
+        builder.Property(x => x.MaterialsStoredToDate).HasPrecision(18, 2);
+        builder.Property(x => x.TotalCompletedAndStoredToDate).HasPrecision(18, 2);
+        builder.Property(x => x.PercentComplete).HasPrecision(8, 4);
+        builder.Property(x => x.BalanceToFinish).HasPrecision(18, 2);
+        builder.Property(x => x.RetainagePercent).HasPrecision(5, 2);
+        builder.Property(x => x.RetainageAmount).HasPrecision(18, 2);
+
+        builder.HasOne(x => x.SOVLineItem)
+            .WithMany()
+            .HasForeignKey(x => x.SOVLineItemId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+    }
+}
+
+public class PaymentApplicationBookEntryConfiguration : IEntityTypeConfiguration<PaymentApplicationBookEntry>
+{
+    public void Configure(EntityTypeBuilder<PaymentApplicationBookEntry> builder)
+    {
+        builder.ToTable("payment_application_book_entries");
+        builder.HasKey(x => x.Id);
+
+        builder.HasIndex(x => new { x.PaymentApplicationId, x.BookType }).IsUnique();
+
+        builder.Property(x => x.BookType).HasConversion<string>().HasMaxLength(20);
+
+        builder.Property(x => x.EarnedRevenueToDate).HasPrecision(18, 2);
+        builder.Property(x => x.CurrentPeriodRevenue).HasPrecision(18, 2);
+        builder.Property(x => x.BillingsToDate).HasPrecision(18, 2);
+        builder.Property(x => x.CurrentPeriodBilling).HasPrecision(18, 2);
+        builder.Property(x => x.RetainageHeldToDate).HasPrecision(18, 2);
+        builder.Property(x => x.OverUnderBilling).HasPrecision(18, 2);
+
         builder.Property<uint>("xmin")
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()

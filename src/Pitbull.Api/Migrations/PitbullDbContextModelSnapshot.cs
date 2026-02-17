@@ -1707,6 +1707,95 @@ namespace Pitbull.Api.Migrations
                     b.ToTable("user_company_access", (string)null);
                 });
 
+            modelBuilder.Entity("Pitbull.Core.Entities.ComplianceDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DeletedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("EntityId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("ExpirationDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("IssuedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasDefaultValue("Active");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "DocumentType")
+                        .HasDatabaseName("IX_compliance_docs_tenant_doc_type");
+
+                    b.HasIndex("TenantId", "ExpirationDate")
+                        .HasDatabaseName("IX_compliance_docs_tenant_expiration");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("IX_compliance_docs_tenant_status");
+
+                    b.HasIndex("TenantId", "EntityType", "EntityId")
+                        .HasDatabaseName("IX_compliance_docs_tenant_entity");
+
+                    b.ToTable("compliance_documents", (string)null);
+                });
+
             modelBuilder.Entity("Pitbull.Core.Entities.EmailDigestSetting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1972,95 +2061,6 @@ namespace Pitbull.Api.Migrations
                     b.HasIndex("TenantId", "RoleId");
 
                     b.ToTable("rbac_user_roles", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.Core.Entities.ComplianceDocument", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DocumentNumber")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("DocumentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<Guid>("EntityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime?>("ExpirationDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FileUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("IssuedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasDefaultValue("Active");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "DocumentType")
-                        .HasDatabaseName("IX_compliance_docs_tenant_doc_type");
-
-                    b.HasIndex("TenantId", "ExpirationDate")
-                        .HasDatabaseName("IX_compliance_docs_tenant_expiration");
-
-                    b.HasIndex("TenantId", "Status")
-                        .HasDatabaseName("IX_compliance_docs_tenant_status");
-
-                    b.HasIndex("TenantId", "EntityType", "EntityId")
-                        .HasDatabaseName("IX_compliance_docs_tenant_entity");
-
-                    b.ToTable("compliance_documents", (string)null);
                 });
 
             modelBuilder.Entity("Pitbull.Documents.Domain.FileAttachment", b =>
@@ -8495,6 +8495,95 @@ namespace Pitbull.Api.Migrations
 
             modelBuilder.Entity("Pitbull.Core.Domain.Company", b =>
                 {
+                    b.OwnsOne("Pitbull.Core.Domain.BidSettings", "BidSettings", b1 =>
+                        {
+                            b1.Property<Guid>("CompanyId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<decimal>("DefaultOverheadPercent")
+                                .ValueGeneratedOnAdd()
+                                .HasPrecision(5, 2)
+                                .HasColumnType("numeric(5,2)")
+                                .HasDefaultValue(10m)
+                                .HasColumnName("BidDefaultOverheadPercent");
+
+                            b1.Property<decimal>("DefaultProfitPercent")
+                                .ValueGeneratedOnAdd()
+                                .HasPrecision(5, 2)
+                                .HasColumnType("numeric(5,2)")
+                                .HasDefaultValue(10m)
+                                .HasColumnName("BidDefaultProfitPercent");
+
+                            b1.Property<int>("DefaultValidityPeriodDays")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasDefaultValue(30)
+                                .HasColumnName("BidDefaultValidityPeriodDays");
+
+                            b1.Property<bool>("RequireEstimatorSignOff")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("boolean")
+                                .HasDefaultValue(false)
+                                .HasColumnName("BidRequireEstimatorSignOff");
+
+                            b1.HasKey("CompanyId");
+
+                            b1.ToTable("companies");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CompanyId");
+                        });
+
+                    b.OwnsOne("Pitbull.Core.Domain.ContractSettings", "ContractSettings", b1 =>
+                        {
+                            b1.Property<Guid>("CompanyId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("AiaArchitectName")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasDefaultValue("")
+                                .HasColumnName("ContractAiaArchitectName");
+
+                            b1.Property<string>("AiaOwnerName")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasDefaultValue("")
+                                .HasColumnName("ContractAiaOwnerName");
+
+                            b1.Property<string>("ApprovalWorkflowType")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasDefaultValue("Sequential")
+                                .HasColumnName("ContractApprovalWorkflowType");
+
+                            b1.Property<decimal>("DefaultRetainagePercent")
+                                .ValueGeneratedOnAdd()
+                                .HasPrecision(5, 2)
+                                .HasColumnType("numeric(5,2)")
+                                .HasDefaultValue(10m)
+                                .HasColumnName("ContractDefaultRetainagePercent");
+
+                            b1.Property<bool>("RequireSignedSubcontractBeforePayApp")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("boolean")
+                                .HasDefaultValue(true)
+                                .HasColumnName("ContractRequireSignedSubcontract");
+
+                            b1.HasKey("CompanyId");
+
+                            b1.ToTable("companies");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CompanyId");
+                        });
+
                     b.OwnsOne("Pitbull.Core.Domain.OvertimeSettings", "OvertimeSettings", b1 =>
                         {
                             b1.Property<Guid>("CompanyId")
@@ -8532,6 +8621,120 @@ namespace Pitbull.Api.Migrations
                                 .HasColumnType("numeric(5,2)")
                                 .HasDefaultValue(40m)
                                 .HasColumnName("WeeklyOtThreshold");
+
+                            b1.HasKey("CompanyId");
+
+                            b1.ToTable("companies");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CompanyId");
+                        });
+
+                    b.OwnsOne("Pitbull.Core.Domain.ProjectSettings", "ProjectSettings", b1 =>
+                        {
+                            b1.Property<Guid>("CompanyId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<bool>("AutoCreatePhases")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("boolean")
+                                .HasDefaultValue(true)
+                                .HasColumnName("ProjAutoCreatePhases");
+
+                            b1.Property<string>("DefaultNumberingFormat")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasDefaultValue("YYYY-####")
+                                .HasColumnName("ProjDefaultNumberingFormat");
+
+                            b1.Property<decimal>("DefaultRetentionPercent")
+                                .ValueGeneratedOnAdd()
+                                .HasPrecision(5, 2)
+                                .HasColumnType("numeric(5,2)")
+                                .HasDefaultValue(10m)
+                                .HasColumnName("ProjDefaultRetentionPercent");
+
+                            b1.Property<bool>("RequireBudgetBeforeActivation")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("boolean")
+                                .HasDefaultValue(false)
+                                .HasColumnName("ProjRequireBudgetBeforeActivation");
+
+                            b1.HasKey("CompanyId");
+
+                            b1.ToTable("companies");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CompanyId");
+                        });
+
+                    b.OwnsOne("Pitbull.Core.Domain.ReportSettings", "ReportSettings", b1 =>
+                        {
+                            b1.Property<Guid>("CompanyId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<int>("FiscalYearStartMonth")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasDefaultValue(1)
+                                .HasColumnName("ReportFiscalYearStartMonth");
+
+                            b1.Property<string>("OvertimeRules")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasDefaultValue("Federal")
+                                .HasColumnName("ReportOvertimeRules");
+
+                            b1.Property<string>("ReportBrandingName")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasDefaultValue("")
+                                .HasColumnName("ReportBrandingName");
+
+                            b1.Property<string>("ReportLogoUrl")
+                                .IsRequired()
+                                .ValueGeneratedOnAdd()
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasDefaultValue("")
+                                .HasColumnName("ReportLogoUrl");
+
+                            b1.HasKey("CompanyId");
+
+                            b1.ToTable("companies");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CompanyId");
+                        });
+
+                    b.OwnsOne("Pitbull.Core.Domain.RfiSettings", "RfiSettings", b1 =>
+                        {
+                            b1.Property<Guid>("CompanyId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<bool>("AutoAssignToPm")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("boolean")
+                                .HasDefaultValue(true)
+                                .HasColumnName("RfiAutoAssignToPm");
+
+                            b1.Property<int>("DefaultResponseDeadlineDays")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("integer")
+                                .HasDefaultValue(14)
+                                .HasColumnName("RfiDefaultResponseDeadlineDays");
+
+                            b1.Property<bool>("RequireCostImpact")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("boolean")
+                                .HasDefaultValue(false)
+                                .HasColumnName("RfiRequireCostImpact");
 
                             b1.HasKey("CompanyId");
 
@@ -8582,7 +8785,22 @@ namespace Pitbull.Api.Migrations
                                 .HasForeignKey("CompanyId");
                         });
 
+                    b.Navigation("BidSettings")
+                        .IsRequired();
+
+                    b.Navigation("ContractSettings")
+                        .IsRequired();
+
                     b.Navigation("OvertimeSettings")
+                        .IsRequired();
+
+                    b.Navigation("ProjectSettings")
+                        .IsRequired();
+
+                    b.Navigation("ReportSettings")
+                        .IsRequired();
+
+                    b.Navigation("RfiSettings")
                         .IsRequired();
 
                     b.Navigation("TimecardSettings")
