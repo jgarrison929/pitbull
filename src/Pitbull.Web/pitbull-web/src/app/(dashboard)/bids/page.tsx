@@ -143,7 +143,7 @@ export default function BidsPage() {
                           {bid.name}
                         </Link>
                         <p className="text-xs text-muted-foreground font-mono mt-1">
-                          {bid.bidNumber}
+                          {bid.number}
                         </p>
                       </div>
                       <Badge
@@ -156,7 +156,7 @@ export default function BidsPage() {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground text-xs">Client</span>
-                        <p className="font-medium">{bid.clientName || "—"}</p>
+                        <p className="font-medium">{bid.owner || "—"}</p>
                       </div>
                       <div>
                         <span className="text-muted-foreground text-xs">Value</span>
@@ -189,7 +189,7 @@ export default function BidsPage() {
                     {bids.map((bid) => (
                       <TableRow key={bid.id}>
                         <TableCell className="font-mono text-sm">
-                          {bid.bidNumber}
+                          {bid.number}
                         </TableCell>
                         <TableCell>
                           <Link
@@ -207,7 +207,7 @@ export default function BidsPage() {
                             {statusLabel(bid.status)}
                           </Badge>
                         </TableCell>
-                        <TableCell>{bid.clientName || "—"}</TableCell>
+                        <TableCell>{bid.owner || "—"}</TableCell>
                         <TableCell className="text-right font-mono">
                           {bid.estimatedValue
                             ? formatCurrency(bid.estimatedValue)

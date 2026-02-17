@@ -100,7 +100,7 @@ export default function BidDetailPage({
           id: data.id,
           type: "bid",
           name: data.name,
-          identifier: data.bidNumber,
+          identifier: data.number,
         });
       } catch {
         setError("Failed to load bid");
@@ -199,7 +199,7 @@ export default function BidDetailPage({
             </Badge>
           </div>
           <p className="text-muted-foreground font-mono text-sm">
-            {bid.bidNumber}
+            {bid.number}
           </p>
         </div>
         <div className="flex gap-2">
@@ -231,7 +231,7 @@ export default function BidDetailPage({
                   <div className="text-sm text-muted-foreground">
                     <p>
                       This will create a new project from{" "}
-                      <strong>{bid.bidNumber}</strong> — {bid.name}
+                      <strong>{bid.number}</strong> — {bid.name}
                     </p>
                   </div>
                 </div>
@@ -266,9 +266,9 @@ export default function BidDetailPage({
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <span className="text-muted-foreground">Client</span>
+              <span className="text-muted-foreground">Client / Owner</span>
               <span className="font-medium">
-                {bid.clientName || "—"}
+                {bid.owner || "—"}
               </span>
               <span className="text-muted-foreground">Bid Value</span>
               <span className="font-medium font-mono">
@@ -304,27 +304,16 @@ export default function BidDetailPage({
         </Card>
       </div>
 
-      {bid.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">{bid.notes}</p>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Bid Items</CardTitle>
         </CardHeader>
         <CardContent>
-          {bid.bidItems && bid.bidItems.length > 0 ? (
+          {bid.items && bid.items.length > 0 ? (
             <>
               {/* Mobile card layout for bid items */}
               <div className="sm:hidden space-y-3">
-                {bid.bidItems.map((item) => (
+                {bid.items.map((item) => (
                   <div key={item.id} className="border rounded-lg p-3 space-y-2">
                     <div className="font-medium text-sm">{item.description}</div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
@@ -352,7 +341,7 @@ export default function BidDetailPage({
                     <span>Total</span>
                     <span className="font-mono">
                       {formatCurrency(
-                        bid.bidItems.reduce(
+                        bid.items.reduce(
                           (sum, item) => sum + item.totalCost,
                           0
                         )
@@ -375,7 +364,7 @@ export default function BidDetailPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {bid.bidItems.map((item) => (
+                    {bid.items.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>{item.description}</TableCell>
                         <TableCell>{item.category}</TableCell>
@@ -396,7 +385,7 @@ export default function BidDetailPage({
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {formatCurrency(
-                          bid.bidItems.reduce(
+                          bid.items.reduce(
                             (sum, item) => sum + item.totalCost,
                             0
                           )

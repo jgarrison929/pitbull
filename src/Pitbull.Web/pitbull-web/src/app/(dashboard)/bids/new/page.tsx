@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import api from "@/lib/api";
-import type { Bid, CreateBidCommand, BidStatus, BidItemCategory } from "@/lib/types";
+import type { Bid, CreateBidCommand, CreateBidItemDto, BidStatus, BidItemCategory } from "@/lib/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -279,15 +279,19 @@ export default function NewBidPage() {
     setIsSubmitting(true);
 
     const command: CreateBidCommand = {
-      bidNumber,
       name,
-      description: description || undefined,
-      status,
-      clientName: clientName || undefined,
-      estimatedValue: estimatedValue ? Number(estimatedValue) : (totalWithMarkup > 0 ? totalWithMarkup : undefined),
+      number: bidNumber,
+      estimatedValue: estimatedValue ? Number(estimatedValue) : (totalWithMarkup > 0 ? totalWithMarkup : 0),
       bidDate: bidDate || undefined,
       dueDate: dueDate || undefined,
-      notes: notes || undefined,
+      owner: clientName || undefined,
+      description: description || undefined,
+      items: lineItems.length > 0 ? lineItems.map(item => ({
+        description: item.description,
+        category: item.category,
+        quantity: item.quantity,
+        unitCost: item.unitCost,
+      })) : undefined,
     };
 
     try {

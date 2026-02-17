@@ -157,7 +157,7 @@ export default function SearchPage() {
             id: b.id,
             type: "bids",
             title: b.name,
-            subtitle: `${b.bidNumber}${b.clientName ? ` · ${b.clientName}` : ""}`,
+            subtitle: `${b.number}${b.owner ? ` · ${b.owner}` : ""}`,
             badge: b.status,
             badgeClass: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
             href: `/bids/${b.id}`,

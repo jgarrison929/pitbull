@@ -74,16 +74,17 @@ export interface Project {
 
 export interface Bid {
   id: string;
-  bidNumber: string;
+  number: string;
   name: string;
   description: string;
   status: BidStatus;
-  clientName: string;
+  owner: string;
   estimatedValue: number;
   bidDate: string | null;
   dueDate: string | null;
-  notes: string;
-  bidItems: BidItem[];
+  projectId: string | null;
+  items: BidItem[];
+  createdAt: string;
 }
 
 export interface BidItem {
@@ -149,27 +150,35 @@ export interface UpdateProjectCommand {
   superintendentId?: string;
 }
 
+export interface CreateBidItemDto {
+  description: string;
+  category: BidItemCategory;
+  quantity: number;
+  unitCost: number;
+}
+
 export interface CreateBidCommand {
-  bidNumber: string;
   name: string;
-  description?: string;
-  status: BidStatus;
-  clientName?: string;
-  estimatedValue?: number;
+  number: string;
+  estimatedValue: number;
   bidDate?: string;
   dueDate?: string;
-  notes?: string;
+  owner?: string;
+  description?: string;
+  items?: CreateBidItemDto[];
 }
 
 export interface UpdateBidCommand {
-  name?: string;
-  description?: string;
-  status?: BidStatus;
-  clientName?: string;
-  estimatedValue?: number;
+  id: string;
+  name: string;
+  number: string;
+  status: BidStatus;
+  estimatedValue: number;
   bidDate?: string;
   dueDate?: string;
-  notes?: string;
+  owner?: string;
+  description?: string;
+  items?: CreateBidItemDto[];
 }
 
 export interface DashboardStats {
