@@ -198,4 +198,108 @@ public sealed class ProjectionServiceTests
     }
 
     #endregion
+
+    #region Locked Projection Enforcement
+
+    [Fact]
+    public async Task UpdateMonthlyProjection_LockedProjection_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        // Manually set to Locked via direct entity manipulation
+        var entity = await db.Set<PmMonthlyProjection>().FirstAsync(p => p.Id == created.Id);
+        entity.ProjectionStatus = ProjectionStatus.Locked;
+        await db.SaveChangesAsync();
+
+        var result = await service.UpdateMonthlyProjectionAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Description: "Try edit locked"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    #endregion
+
+    #region Status Transition Enforcement
+
+    [Fact]
+    public async Task SubmitMonthlyProjection_NonDraft_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        await service.SubmitMonthlyProjectionAsync(ProjectId, created.Id);
+
+        // Try to submit again (Submitted -> should fail)
+        var result = await service.SubmitMonthlyProjectionAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task ApproveMonthlyProjection_NotSubmitted_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        // Try to approve directly from Draft (skipping Submit)
+        var result = await service.ApproveMonthlyProjectionAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    #endregion
+
+    #region Auto-Computed AdjustedContractValue
+
+    [Fact]
+    public async Task UpdateMonthlyProjection_ComputesAdjustedContractValue()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["ContractValueOriginal"] = 1000000m,
+                ["ApprovedChangeOrders"] = 50000m
+            }))).Value!;
+
+        await service.UpdateMonthlyProjectionAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["ApprovedChangeOrders"] = 75000m
+            }));
+
+        var entity = await db.Set<PmMonthlyProjection>().FirstAsync(p => p.Id == created.Id);
+        entity.AdjustedContractValue.Should().Be(entity.ContractValueOriginal + entity.ApprovedChangeOrders);
+    }
+
+    [Fact]
+    public async Task SubmitMonthlyProjection_ComputesAdjustedContractValue()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["ContractValueOriginal"] = 500000m,
+                ["ApprovedChangeOrders"] = 25000m
+            }))).Value!;
+
+        await service.SubmitMonthlyProjectionAsync(ProjectId, created.Id);
+
+        var entity = await db.Set<PmMonthlyProjection>().FirstAsync(p => p.Id == created.Id);
+        entity.AdjustedContractValue.Should().Be(525000m);
+    }
+
+    #endregion
 }

@@ -589,4 +589,152 @@ public sealed class ScheduleServiceTests
     }
 
     #endregion
+
+    #region Status Transition Enforcement
+
+    [Fact]
+    public async Task CreateSchedule_NoStatus_DefaultsToDraft()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "No Status Schedule"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Status.Should().Be("Draft");
+
+        var entity = await db.Set<PmSchedule>().FirstAsync(s => s.Id == result.Value.Id);
+        entity.Status.Should().Be(ScheduleStatus.Draft);
+    }
+
+    [Fact]
+    public async Task UpdateSchedule_InvalidTransition_DraftToBaselined_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
+
+        var result = await service.UpdateScheduleAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Status: "Baselined"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task UpdateSchedule_InvalidTransition_DraftToArchived_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
+
+        var result = await service.UpdateScheduleAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Status: "Archived"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task UpdateSchedule_ValidTransition_ActiveToBaselined_Succeeds()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
+
+        await service.UpdateScheduleAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Active"));
+        var result = await service.UpdateScheduleAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Baselined"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Status.Should().Be("Baselined");
+    }
+
+    [Fact]
+    public async Task RecalculateCriticalPath_ArchivedSchedule_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
+
+        await service.UpdateScheduleAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Active"));
+        await service.UpdateScheduleAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Archived"));
+
+        var result = await service.RecalculateCriticalPathAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    #endregion
+
+    #region Dependency Validation
+
+    [Fact]
+    public async Task AddDependency_PredecessorNotInSchedule_ReturnsValidationError()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var schedule = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule"))).Value!;
+
+        var fakePredecessorId = Guid.NewGuid();
+        var result = await service.AddDependencyAsync(ProjectId, schedule.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["PredecessorActivityId"] = fakePredecessorId
+            }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("Predecessor");
+    }
+
+    [Fact]
+    public async Task AddDependency_SuccessorNotInSchedule_ReturnsValidationError()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var schedule = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule"))).Value!;
+
+        var fakeSuccessorId = Guid.NewGuid();
+        var result = await service.AddDependencyAsync(ProjectId, schedule.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["SuccessorActivityId"] = fakeSuccessorId
+            }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("Successor");
+    }
+
+    [Fact]
+    public async Task AddDependency_SameActivity_ReturnsValidationError()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var schedule = (await service.CreateScheduleAsync(ProjectId,
+            new PmUpsertRequest(Name: "Schedule"))).Value!;
+        var activity = (await service.AddActivityAsync(ProjectId, schedule.Id,
+            new PmUpsertRequest(Name: "Activity"))).Value!;
+
+        var result = await service.AddDependencyAsync(ProjectId, schedule.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["PredecessorActivityId"] = activity.Id,
+                ["SuccessorActivityId"] = activity.Id
+            }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("same activity");
+    }
+
+    #endregion
 }

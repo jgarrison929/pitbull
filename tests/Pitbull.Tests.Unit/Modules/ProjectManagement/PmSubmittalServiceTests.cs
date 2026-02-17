@@ -108,6 +108,122 @@ public sealed class PmSubmittalServiceTests
         result.Value!.TotalCount.Should().Be(1);
         result.Value.Items.Single().Title.Should().Be("Project A");
     }
+
+    [Fact]
+    public async Task CreateSubmittal_AutoIncrementsSubmittalNumber()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var first = (await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(Title: "S-001"))).Value!;
+        var second = (await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(Title: "S-002"))).Value!;
+
+        var entity1 = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == first.Id);
+        var entity2 = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == second.Id);
+
+        entity1.SubmittalNumber.Should().Be(1);
+        entity2.SubmittalNumber.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task CreateSubmittal_DefaultsToDraftStatus_WhenNoStatusProvided()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(Title: "No Status"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Status.Should().Be("Draft");
+
+        var entity = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == result.Value.Id);
+        entity.Status.Should().Be(SubmittalStatus.Draft);
+    }
+
+    [Fact]
+    public async Task UpdateSubmittal_ClosedSubmittal_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Title: "Closed One", Status: "Closed"))).Value!;
+
+        var result = await service.UpdateSubmittalAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Title: "Try Edit"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+        result.Error.Should().Contain("closed");
+    }
+
+    [Fact]
+    public async Task UpdateSubmittal_TransitionToSubmitted_SetsSubmittedDate()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Title: "To Submit", Status: "Draft"))).Value!;
+
+        var beforeSubmit = DateTime.UtcNow;
+        await service.UpdateSubmittalAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Status: "Submitted"));
+
+        var entity = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == created.Id);
+        entity.SubmittedDate.Should().NotBeNull();
+        entity.SubmittedDate!.Value.Should().BeOnOrAfter(beforeSubmit);
+    }
+
+    [Fact]
+    public async Task UpdateSubmittal_TransitionToApproved_SetsReturnedDate()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Title: "To Approve", Status: "Draft"))).Value!;
+
+        var beforeReturn = DateTime.UtcNow;
+        await service.UpdateSubmittalAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Status: "Approved"));
+
+        var entity = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == created.Id);
+        entity.ReturnedDate.Should().NotBeNull();
+        entity.ReturnedDate!.Value.Should().BeOnOrAfter(beforeReturn);
+    }
+
+    [Fact]
+    public async Task UpdateSubmittal_ReviseAndResubmit_IncrementsRevisionNumber()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Title: "Rev Test", Status: "InReview"))).Value!;
+
+        var entityBefore = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == created.Id);
+        var originalRevision = entityBefore.RevisionNumber;
+
+        await service.UpdateSubmittalAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Status: "ReviseAndResubmit"));
+
+        var entityAfter = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == created.Id);
+        entityAfter.RevisionNumber.Should().Be(originalRevision + 1);
+    }
+
+    [Fact]
+    public async Task AddWorkflowEvent_PopulatesFromStatusFromCurrentSubmittalStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var submittal = (await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Status: "InReview"))).Value!;
+
+        var result = await service.AddWorkflowEventAsync(ProjectId, submittal.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["ToStatus"] = "Approved" }));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var workflow = await db.Set<PmSubmittalWorkflowEvent>().FirstAsync(x => x.Id == result.Value!.Id);
+        workflow.FromStatus.Should().Be(SubmittalStatus.InReview);
+    }
 }
 
 public sealed class PmCommunicationServiceTests
@@ -305,5 +421,142 @@ public sealed class PmMeetingServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task UpdateMeeting_CompletedMeeting_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "Done Meeting", Status: "Scheduled"))).Value!;
+
+        // Transition through to Completed: Scheduled -> InProgress -> Completed
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "InProgress"));
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "Completed"));
+
+        var result = await service.UpdateMeetingAsync(ProjectId, meeting.Id,
+            new PmUpsertRequest(Title: "Try Edit"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task UpdateMeeting_CanceledMeeting_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "Cancel Me", Status: "Scheduled"))).Value!;
+
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "Canceled"));
+
+        var result = await service.UpdateMeetingAsync(ProjectId, meeting.Id,
+            new PmUpsertRequest(Title: "Try Edit"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task UpdateMeeting_InvalidTransition_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "Meeting", Status: "Scheduled"))).Value!;
+
+        // Scheduled -> Completed is not valid (must go through InProgress)
+        var result = await service.UpdateMeetingAsync(ProjectId, meeting.Id,
+            new PmUpsertRequest(Status: "Completed"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task UpdateMeeting_TransitionToInProgress_SetsActualStart()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "Start Me", Status: "Scheduled"))).Value!;
+
+        var beforeTransition = DateTime.UtcNow;
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "InProgress"));
+
+        var entity = await db.Set<PmMeeting>().FirstAsync(m => m.Id == meeting.Id);
+        entity.ActualStart.Should().NotBeNull();
+        entity.ActualStart!.Value.Should().BeOnOrAfter(beforeTransition);
+    }
+
+    [Fact]
+    public async Task UpdateMeeting_TransitionToCompleted_SetsActualEnd()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "End Me", Status: "Scheduled"))).Value!;
+
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "InProgress"));
+
+        var beforeComplete = DateTime.UtcNow;
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "Completed"));
+
+        var entity = await db.Set<PmMeeting>().FirstAsync(m => m.Id == meeting.Id);
+        entity.ActualEnd.Should().NotBeNull();
+        entity.ActualEnd!.Value.Should().BeOnOrAfter(beforeComplete);
+    }
+
+    [Fact]
+    public async Task AddAgendaItem_CanceledMeeting_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "Canceled", Status: "Scheduled"))).Value!;
+
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "Canceled"));
+
+        var result = await service.AddAgendaItemAsync(ProjectId, meeting.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["Topic"] = "Late Topic" }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task AddMinutes_CanceledMeeting_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "Canceled", Status: "Scheduled"))).Value!;
+
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "Canceled"));
+
+        var result = await service.AddMinutesAsync(ProjectId, meeting.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["MinuteText"] = "Should fail" }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task AddActionItem_CanceledMeeting_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var meeting = (await service.CreateMeetingAsync(ProjectId,
+            new PmUpsertRequest(Title: "Canceled", Status: "Scheduled"))).Value!;
+
+        await service.UpdateMeetingAsync(ProjectId, meeting.Id, new PmUpsertRequest(Status: "Canceled"));
+
+        var result = await service.AddActionItemAsync(ProjectId, meeting.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["Description"] = "Should fail" }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
     }
 }

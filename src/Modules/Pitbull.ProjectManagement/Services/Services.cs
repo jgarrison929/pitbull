@@ -340,6 +340,15 @@ public abstract class PmServiceBase
     protected static Result<PmActionResultDto> Action(string message, Guid? id = null, object? data = null)
         => Result.Success(new PmActionResultDto(true, message, id, data));
 
+    protected static PmUpsertRequest MergeData(PmUpsertRequest request, string key, object value)
+    {
+        var data = request.Data is null
+            ? new Dictionary<string, object?>()
+            : new Dictionary<string, object?>(request.Data);
+        data[key] = value;
+        return request with { Data = data };
+    }
+
     private async Task<Result> ValidateReferenceProjectScopeAsync<T>(Guid projectId, Guid referenceId, CancellationToken ct)
         where T : BaseEntity
     {
@@ -411,11 +420,41 @@ public class ScheduleService : PmServiceBase, IScheduleService
     public ScheduleService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
 
     public Task<Result<PmEntityDto>> CreateScheduleAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmSchedule>(projectId, request, cancellationToken);
+    {
+        if (string.IsNullOrWhiteSpace(request.Status))
+            request = request with { Status = "Draft" };
+        return CreateAsync<PmSchedule>(projectId, request, cancellationToken);
+    }
+
     public Task<Result<PmEntityDto>> GetScheduleAsync(Guid projectId, Guid scheduleId, CancellationToken cancellationToken = default)
         => GetAsync<PmSchedule>(projectId, scheduleId, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateScheduleAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmSchedule>(projectId, scheduleId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdateScheduleAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var schedule = await ProjectScoped<PmSchedule>(projectId).FirstOrDefaultAsync(s => s.Id == scheduleId, cancellationToken);
+        if (schedule == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<ScheduleStatus>(request.Status, true, out var newStatus) && newStatus != schedule.Status)
+        {
+            var valid = (schedule.Status, newStatus) switch
+            {
+                (ScheduleStatus.Draft, ScheduleStatus.Active) => true,
+                (ScheduleStatus.Active, ScheduleStatus.Baselined) => true,
+                (ScheduleStatus.Active, ScheduleStatus.Archived) => true,
+                (ScheduleStatus.Baselined, ScheduleStatus.Archived) => true,
+                _ => false
+            };
+            if (!valid)
+                return Result.Failure<PmEntityDto>($"Invalid status transition from {schedule.Status} to {newStatus}", "INVALID_STATUS");
+        }
+
+        ApplyUpsert(schedule, request);
+        schedule.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(schedule));
+    }
+
     public Task<Result> DeleteScheduleAsync(Guid projectId, Guid scheduleId, CancellationToken cancellationToken = default)
         => DeleteAsync<PmSchedule>(projectId, scheduleId, cancellationToken);
     public async Task<Result<PmActionResultDto>> RecalculateCriticalPathAsync(Guid projectId, Guid scheduleId, CancellationToken cancellationToken = default)
@@ -423,6 +462,9 @@ public class ScheduleService : PmServiceBase, IScheduleService
         var schedule = await ProjectScoped<PmSchedule>(projectId).FirstOrDefaultAsync(s => s.Id == scheduleId, cancellationToken);
         if (schedule == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (schedule.Status == ScheduleStatus.Archived)
+            return Result.Failure<PmActionResultDto>("Cannot recalculate critical path on an archived schedule", "INVALID_STATUS");
 
         schedule.LastCriticalPathRunAt = DateTime.UtcNow;
         schedule.UpdatedAt = DateTime.UtcNow;
@@ -460,8 +502,36 @@ public class ScheduleService : PmServiceBase, IScheduleService
         => CreateAsync<PmScheduleActivity>(projectId, request with { ReferenceId = scheduleId }, cancellationToken);
     public Task<Result<PmEntityDto>> UpdateActivityAsync(Guid projectId, Guid scheduleId, Guid activityId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => UpdateAsync<PmScheduleActivity>(projectId, activityId, request with { ReferenceId = scheduleId }, cancellationToken);
-    public Task<Result<PmEntityDto>> AddDependencyAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmScheduleDependency>(projectId, request with { ReferenceId = scheduleId }, cancellationToken);
+    public async Task<Result<PmEntityDto>> AddDependencyAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var scheduleExists = await ProjectScoped<PmSchedule>(projectId).AnyAsync(s => s.Id == scheduleId, cancellationToken);
+        if (!scheduleExists)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        Guid? predecessorId = null;
+        Guid? successorId = null;
+        if (request.Data is not null)
+        {
+            if (request.Data.TryGetValue("PredecessorActivityId", out var predObj) && predObj is not null)
+            {
+                predecessorId = predObj is JsonElement pje ? pje.GetGuid() : (Guid)Convert.ChangeType(predObj, typeof(Guid));
+                var predExists = await Db.Set<PmScheduleActivity>().AnyAsync(a => !a.IsDeleted && a.Id == predecessorId && a.ScheduleId == scheduleId, cancellationToken);
+                if (!predExists)
+                    return Result.Failure<PmEntityDto>("Predecessor activity not found in this schedule", "VALIDATION_ERROR");
+            }
+            if (request.Data.TryGetValue("SuccessorActivityId", out var succObj) && succObj is not null)
+            {
+                successorId = succObj is JsonElement sje ? sje.GetGuid() : (Guid)Convert.ChangeType(succObj, typeof(Guid));
+                var succExists = await Db.Set<PmScheduleActivity>().AnyAsync(a => !a.IsDeleted && a.Id == successorId && a.ScheduleId == scheduleId, cancellationToken);
+                if (!succExists)
+                    return Result.Failure<PmEntityDto>("Successor activity not found in this schedule", "VALIDATION_ERROR");
+            }
+            if (predecessorId.HasValue && successorId.HasValue && predecessorId == successorId)
+                return Result.Failure<PmEntityDto>("Predecessor and successor cannot be the same activity", "VALIDATION_ERROR");
+        }
+
+        return await CreateAsync<PmScheduleDependency>(projectId, request with { ReferenceId = scheduleId }, cancellationToken);
+    }
     public async Task<Result> DeleteDependencyAsync(Guid projectId, Guid scheduleId, Guid dependencyId, CancellationToken cancellationToken = default)
     {
         var schedule = await ProjectScoped<PmSchedule>(projectId).FirstOrDefaultAsync(s => s.Id == scheduleId, cancellationToken);
@@ -490,10 +560,61 @@ public class ScheduleService : PmServiceBase, IScheduleService
 public class JobCostService : PmServiceBase, IJobCostService
 {
     public JobCostService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
-    public Task<Result<PmEntityDto>> CreateBudgetAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmJobCostBudget>(projectId, request, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateBudgetAsync(Guid projectId, Guid budgetId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmJobCostBudget>(projectId, budgetId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> CreateBudgetAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        Guid costCodeId = Guid.Empty;
+        Guid? phaseId = null;
+
+        if (request.Data is not null)
+        {
+            if (request.Data.TryGetValue("CostCodeId", out var ccObj) && ccObj is not null)
+            {
+                try { costCodeId = ccObj is JsonElement je ? je.GetGuid() : (Guid)Convert.ChangeType(ccObj, typeof(Guid)); }
+                catch { /* leave as Empty */ }
+            }
+            if (request.Data.TryGetValue("PhaseId", out var phObj) && phObj is not null)
+            {
+                try { phaseId = phObj is JsonElement je2 ? je2.GetGuid() : (Guid)Convert.ChangeType(phObj, typeof(Guid)); }
+                catch { /* leave as null */ }
+            }
+        }
+
+        if (costCodeId != Guid.Empty)
+        {
+            var duplicate = await ProjectScoped<PmJobCostBudget>(projectId)
+                .AnyAsync(b => b.CostCodeId == costCodeId && b.PhaseId == phaseId, cancellationToken);
+            if (duplicate)
+                return Result.Failure<PmEntityDto>("A budget already exists for this project, cost code, and phase", "DUPLICATE_BUDGET");
+        }
+
+        // Compute CurrentBudget
+        decimal originalBudget = 0, approvedChanges = 0;
+        if (request.Data is not null)
+        {
+            if (request.Data.TryGetValue("OriginalBudget", out var obObj) && obObj is not null)
+                try { originalBudget = obObj is JsonElement je ? je.GetDecimal() : Convert.ToDecimal(obObj); } catch { }
+            if (request.Data.TryGetValue("ApprovedBudgetChanges", out var abObj) && abObj is not null)
+                try { approvedChanges = abObj is JsonElement je ? je.GetDecimal() : Convert.ToDecimal(abObj); } catch { }
+        }
+        request = MergeData(request, "CurrentBudget", originalBudget + approvedChanges);
+
+        return await CreateAsync<PmJobCostBudget>(projectId, request, cancellationToken);
+    }
+
+    public async Task<Result<PmEntityDto>> UpdateBudgetAsync(Guid projectId, Guid budgetId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var budget = await ProjectScoped<PmJobCostBudget>(projectId).FirstOrDefaultAsync(b => b.Id == budgetId, cancellationToken);
+        if (budget == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        ApplyUpsert(budget, request);
+        budget.CurrentBudget = budget.OriginalBudget + budget.ApprovedBudgetChanges;
+        budget.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(budget));
+    }
+
     public Task<Result<PagedResult<PmEntityDto>>> ListBudgetsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmJobCostBudget>(projectId), query, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListActualsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
@@ -514,23 +635,85 @@ public class JobCostService : PmServiceBase, IJobCostService
         => CreateAsync<PmJobCostCommitment>(projectId, request, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListForecastsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmJobCostForecast>(projectId), query, cancellationToken);
-    public Task<Result<PmEntityDto>> CreateForecastAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmJobCostForecast>(projectId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> CreateForecastAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var result = await CreateAsync<PmJobCostForecast>(projectId, request, cancellationToken);
+        if (!result.IsSuccess)
+            return result;
+
+        var forecast = await Db.Set<PmJobCostForecast>().FirstOrDefaultAsync(f => f.Id == result.Value!.Id, cancellationToken);
+        if (forecast != null)
+        {
+            var budget = await ProjectScoped<PmJobCostBudget>(projectId)
+                .FirstOrDefaultAsync(b => b.CostCodeId == forecast.CostCodeId && b.PhaseId == forecast.PhaseId, cancellationToken);
+            forecast.VarianceToBudget = forecast.EstimatedFinalCost - (budget?.CurrentBudget ?? 0);
+            await Db.SaveChangesAsync(cancellationToken);
+        }
+
+        return result;
+    }
 }
 
 public class SubmittalService : PmServiceBase, ISubmittalService
 {
     public SubmittalService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
-    public Task<Result<PmEntityDto>> CreateSubmittalAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmSubmittal>(projectId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> CreateSubmittalAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var maxNumber = await ProjectScoped<PmSubmittal>(projectId)
+            .MaxAsync(s => (int?)s.SubmittalNumber, cancellationToken) ?? 0;
+
+        var enriched = MergeData(request, "SubmittalNumber", maxNumber + 1);
+        if (string.IsNullOrWhiteSpace(request.Status))
+            enriched = enriched with { Status = "Draft" };
+
+        return await CreateAsync<PmSubmittal>(projectId, enriched, cancellationToken);
+    }
+
     public Task<Result<PmEntityDto>> GetSubmittalAsync(Guid projectId, Guid submittalId, CancellationToken cancellationToken = default)
         => GetAsync<PmSubmittal>(projectId, submittalId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListSubmittalsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmSubmittal>(projectId), query, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateSubmittalAsync(Guid projectId, Guid submittalId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmSubmittal>(projectId, submittalId, request, cancellationToken);
-    public Task<Result<PmEntityDto>> AddWorkflowEventAsync(Guid projectId, Guid submittalId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmSubmittalWorkflowEvent>(projectId, request with { ReferenceId = submittalId }, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdateSubmittalAsync(Guid projectId, Guid submittalId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var submittal = await ProjectScoped<PmSubmittal>(projectId).FirstOrDefaultAsync(s => s.Id == submittalId, cancellationToken);
+        if (submittal == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (submittal.Status == SubmittalStatus.Closed)
+            return Result.Failure<PmEntityDto>("Cannot edit a closed submittal", "INVALID_STATUS");
+
+        if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<SubmittalStatus>(request.Status, true, out var newStatus) && newStatus != submittal.Status)
+        {
+            if (newStatus == SubmittalStatus.Submitted)
+                request = MergeData(request, "SubmittedDate", DateTime.UtcNow);
+            else if (newStatus is SubmittalStatus.Approved or SubmittalStatus.ApprovedAsNoted or SubmittalStatus.ReviseAndResubmit or SubmittalStatus.Rejected)
+                request = MergeData(request, "ReturnedDate", DateTime.UtcNow);
+
+            if (newStatus == SubmittalStatus.ReviseAndResubmit)
+                request = MergeData(request, "RevisionNumber", submittal.RevisionNumber + 1);
+        }
+
+        ApplyUpsert(submittal, request);
+        submittal.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(submittal));
+    }
+
+    public async Task<Result<PmEntityDto>> AddWorkflowEventAsync(Guid projectId, Guid submittalId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var submittal = await ProjectScoped<PmSubmittal>(projectId).FirstOrDefaultAsync(s => s.Id == submittalId, cancellationToken);
+        if (submittal == null)
+            return Result.Failure<PmEntityDto>("Submittal not found", "NOT_FOUND");
+
+        request = MergeData(request, "FromStatus", submittal.Status.ToString());
+        request = MergeData(request, "ActionAt", DateTime.UtcNow);
+
+        return await CreateAsync<PmSubmittalWorkflowEvent>(projectId, request with { ReferenceId = submittalId }, cancellationToken);
+    }
+
     public Task<Result<PmEntityDto>> AddAttachmentAsync(Guid projectId, Guid submittalId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmSubmittalAttachment>(projectId, request with { ReferenceId = submittalId }, cancellationToken);
 }
@@ -630,19 +813,59 @@ public class CommunicationService : PmServiceBase, ICommunicationService
 public class DailyReportService : PmServiceBase, IDailyReportService
 {
     public DailyReportService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
-    public Task<Result<PmEntityDto>> CreateDailyReportAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> CreateDailyReportAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.Data is not null
+            && request.Data.TryGetValue("ReportDate", out var rdObj) && rdObj is not null
+            && request.Data.TryGetValue("ReportType", out var rtObj) && rtObj is not null)
+        {
+            DateTime reportDate;
+            DailyReportType reportType;
+            try
+            {
+                reportDate = ConvertValue<DateTime>(rdObj);
+                reportType = ConvertValue<DailyReportType>(rtObj);
+            }
+            catch { goto skip; }
+
+            var duplicate = await ProjectScoped<PmDailyReport>(projectId)
+                .AnyAsync(r => r.ReportDate.Date == reportDate.Date && r.ReportType == reportType, cancellationToken);
+            if (duplicate)
+                return Result.Failure<PmEntityDto>("A daily report already exists for this date and report type", "DUPLICATE_REPORT");
+        }
+        skip:
+        return await CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
+    }
+
     public Task<Result<PmEntityDto>> GetDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
         => GetAsync<PmDailyReport>(projectId, dailyReportId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListDailyReportsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmDailyReport>(projectId), query, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateDailyReportAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmDailyReport>(projectId, dailyReportId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdateDailyReportAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var report = await ProjectScoped<PmDailyReport>(projectId).FirstOrDefaultAsync(r => r.Id == dailyReportId, cancellationToken);
+        if (report == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (report.Status == DailyReportStatus.Approved || report.Status == DailyReportStatus.Locked)
+            return Result.Failure<PmEntityDto>("Cannot edit an approved or locked daily report", "INVALID_STATUS");
+
+        ApplyUpsert(report, request);
+        report.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(report));
+    }
+
     public async Task<Result<PmActionResultDto>> SubmitDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
     {
         var dailyReport = await ProjectScoped<PmDailyReport>(projectId).FirstOrDefaultAsync(r => r.Id == dailyReportId, cancellationToken);
         if (dailyReport == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (dailyReport.Status != DailyReportStatus.Draft)
+            return Result.Failure<PmActionResultDto>("Daily report can only be submitted from Draft status", "INVALID_STATUS");
 
         dailyReport.Status = DailyReportStatus.Submitted;
         dailyReport.UpdatedAt = DateTime.UtcNow;
@@ -654,6 +877,9 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         var dailyReport = await ProjectScoped<PmDailyReport>(projectId).FirstOrDefaultAsync(r => r.Id == dailyReportId, cancellationToken);
         if (dailyReport == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (dailyReport.Status != DailyReportStatus.Draft && dailyReport.Status != DailyReportStatus.Submitted)
+            return Result.Failure<PmActionResultDto>("Daily report can only be approved from Draft or Submitted status", "INVALID_STATUS");
 
         dailyReport.Status = DailyReportStatus.Approved;
         dailyReport.UpdatedAt = DateTime.UtcNow;
@@ -685,6 +911,17 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         await Db.SaveChangesAsync(cancellationToken);
         return Action("Daily report rollup complete", dailyReportId, new { rollup.Id });
     }
+
+    private static T ConvertValue<T>(object value)
+    {
+        if (value is JsonElement je)
+        {
+            if (typeof(T) == typeof(DateTime)) return (T)(object)je.GetDateTime();
+            if (typeof(T).IsEnum) return (T)Enum.Parse(typeof(T), je.GetString()!, true);
+        }
+        if (typeof(T).IsEnum && value is string s) return (T)Enum.Parse(typeof(T), s, true);
+        return (T)Convert.ChangeType(value, typeof(T));
+    }
 }
 
 public class ProgressService : PmServiceBase, IProgressService
@@ -696,13 +933,30 @@ public class ProgressService : PmServiceBase, IProgressService
         => GetAsync<PmProgressEntry>(projectId, progressEntryId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListProgressEntriesAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmProgressEntry>(projectId), query, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateProgressEntryAsync(Guid projectId, Guid progressEntryId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmProgressEntry>(projectId, progressEntryId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdateProgressEntryAsync(Guid projectId, Guid progressEntryId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var entry = await ProjectScoped<PmProgressEntry>(projectId).FirstOrDefaultAsync(e => e.Id == progressEntryId, cancellationToken);
+        if (entry == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (entry.Status == ProgressEntryStatus.Approved)
+            return Result.Failure<PmEntityDto>("Cannot edit an approved progress entry", "INVALID_STATUS");
+
+        ApplyUpsert(entry, request);
+        entry.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(entry));
+    }
+
     public async Task<Result<PmActionResultDto>> ApproveProgressEntryAsync(Guid projectId, Guid progressEntryId, CancellationToken cancellationToken = default)
     {
         var progressEntry = await ProjectScoped<PmProgressEntry>(projectId).FirstOrDefaultAsync(r => r.Id == progressEntryId, cancellationToken);
         if (progressEntry == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (progressEntry.Status != ProgressEntryStatus.Draft && progressEntry.Status != ProgressEntryStatus.Submitted)
+            return Result.Failure<PmActionResultDto>("Progress entry can only be approved from Draft or Submitted status", "INVALID_STATUS");
 
         progressEntry.Status = ProgressEntryStatus.Approved;
         progressEntry.UpdatedAt = DateTime.UtcNow;
@@ -717,6 +971,11 @@ public class ProgressService : PmServiceBase, IProgressService
         var progressEntryExists = await ProjectScoped<PmProgressEntry>(projectId).AnyAsync(r => r.Id == progressEntryId, cancellationToken);
         if (!progressEntryExists)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        var duplicateLink = await Db.Set<PmProgressTimeEntryLink>()
+            .AnyAsync(l => !l.IsDeleted && l.ProgressEntryId == progressEntryId && l.TimeEntryId == request.ReferenceId.Value, cancellationToken);
+        if (duplicateLink)
+            return Result.Failure<PmActionResultDto>("This time entry is already linked to this progress entry", "DUPLICATE_LINK");
 
         var link = new PmProgressTimeEntryLink
         {
@@ -746,14 +1005,33 @@ public class ProjectionService : PmServiceBase, IProjectionService
         => GetAsync<PmMonthlyProjection>(projectId, projectionId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListMonthlyProjectionsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmMonthlyProjection>(projectId), query, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateMonthlyProjectionAsync(Guid projectId, Guid projectionId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmMonthlyProjection>(projectId, projectionId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdateMonthlyProjectionAsync(Guid projectId, Guid projectionId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var projection = await ProjectScoped<PmMonthlyProjection>(projectId).FirstOrDefaultAsync(p => p.Id == projectionId, cancellationToken);
+        if (projection == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (projection.ProjectionStatus == ProjectionStatus.Locked)
+            return Result.Failure<PmEntityDto>("Cannot edit a locked projection", "INVALID_STATUS");
+
+        ApplyUpsert(projection, request);
+        projection.AdjustedContractValue = projection.ContractValueOriginal + projection.ApprovedChangeOrders;
+        projection.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(projection));
+    }
+
     public async Task<Result<PmActionResultDto>> SubmitMonthlyProjectionAsync(Guid projectId, Guid projectionId, CancellationToken cancellationToken = default)
     {
         var projection = await ProjectScoped<PmMonthlyProjection>(projectId).FirstOrDefaultAsync(p => p.Id == projectionId, cancellationToken);
         if (projection == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
 
+        if (projection.ProjectionStatus != ProjectionStatus.Draft)
+            return Result.Failure<PmActionResultDto>("Projection can only be submitted from Draft status", "INVALID_STATUS");
+
+        projection.AdjustedContractValue = projection.ContractValueOriginal + projection.ApprovedChangeOrders;
         projection.ProjectionStatus = ProjectionStatus.Submitted;
         projection.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
@@ -764,6 +1042,9 @@ public class ProjectionService : PmServiceBase, IProjectionService
         var projection = await ProjectScoped<PmMonthlyProjection>(projectId).FirstOrDefaultAsync(p => p.Id == projectionId, cancellationToken);
         if (projection == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (projection.ProjectionStatus != ProjectionStatus.Submitted)
+            return Result.Failure<PmActionResultDto>("Projection can only be approved from Submitted status", "INVALID_STATUS");
 
         projection.ProjectionStatus = ProjectionStatus.Approved;
         projection.UpdatedAt = DateTime.UtcNow;
@@ -785,14 +1066,74 @@ public class MeetingService : PmServiceBase, IMeetingService
         => GetAsync<PmMeeting>(projectId, meetingId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListMeetingsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmMeeting>(projectId), query, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateMeetingAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmMeeting>(projectId, meetingId, request, cancellationToken);
-    public Task<Result<PmEntityDto>> AddAgendaItemAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmMeetingAgendaItem>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
-    public Task<Result<PmEntityDto>> AddMinutesAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmMeetingMinute>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
-    public Task<Result<PmEntityDto>> AddActionItemAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmMeetingActionItem>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdateMeetingAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var meeting = await ProjectScoped<PmMeeting>(projectId).FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+        if (meeting == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (meeting.Status == MeetingStatus.Completed || meeting.Status == MeetingStatus.Canceled)
+            return Result.Failure<PmEntityDto>("Cannot edit a completed or canceled meeting", "INVALID_STATUS");
+
+        if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<MeetingStatus>(request.Status, true, out var newStatus) && newStatus != meeting.Status)
+        {
+            var valid = (meeting.Status, newStatus) switch
+            {
+                (MeetingStatus.Scheduled, MeetingStatus.InProgress) => true,
+                (MeetingStatus.Scheduled, MeetingStatus.Canceled) => true,
+                (MeetingStatus.InProgress, MeetingStatus.Completed) => true,
+                (MeetingStatus.InProgress, MeetingStatus.Canceled) => true,
+                _ => false
+            };
+            if (!valid)
+                return Result.Failure<PmEntityDto>($"Invalid status transition from {meeting.Status} to {newStatus}", "INVALID_STATUS");
+
+            if (newStatus == MeetingStatus.InProgress)
+                request = MergeData(request, "ActualStart", DateTime.UtcNow);
+            else if (newStatus == MeetingStatus.Completed)
+                request = MergeData(request, "ActualEnd", DateTime.UtcNow);
+        }
+
+        ApplyUpsert(meeting, request);
+        meeting.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(meeting));
+    }
+
+    public async Task<Result<PmEntityDto>> AddAgendaItemAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var meeting = await ProjectScoped<PmMeeting>(projectId).FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+        if (meeting == null)
+            return Result.Failure<PmEntityDto>("Meeting not found", "NOT_FOUND");
+        if (meeting.Status == MeetingStatus.Canceled)
+            return Result.Failure<PmEntityDto>("Cannot add items to a canceled meeting", "INVALID_STATUS");
+
+        return await CreateAsync<PmMeetingAgendaItem>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
+    }
+
+    public async Task<Result<PmEntityDto>> AddMinutesAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var meeting = await ProjectScoped<PmMeeting>(projectId).FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+        if (meeting == null)
+            return Result.Failure<PmEntityDto>("Meeting not found", "NOT_FOUND");
+        if (meeting.Status == MeetingStatus.Canceled)
+            return Result.Failure<PmEntityDto>("Cannot add items to a canceled meeting", "INVALID_STATUS");
+
+        return await CreateAsync<PmMeetingMinute>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
+    }
+
+    public async Task<Result<PmEntityDto>> AddActionItemAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var meeting = await ProjectScoped<PmMeeting>(projectId).FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+        if (meeting == null)
+            return Result.Failure<PmEntityDto>("Meeting not found", "NOT_FOUND");
+        if (meeting.Status == MeetingStatus.Canceled)
+            return Result.Failure<PmEntityDto>("Cannot add items to a canceled meeting", "INVALID_STATUS");
+
+        return await CreateAsync<PmMeetingActionItem>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
+    }
+
     public Task<Result<PmEntityDto>> UpdateActionItemAsync(Guid projectId, Guid meetingId, Guid actionItemId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => UpdateAsync<PmMeetingActionItem>(projectId, actionItemId, request, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListMyActionItemsAsync(PmListQuery query, Guid assignedUserId, CancellationToken cancellationToken = default)
@@ -872,13 +1213,33 @@ public class NarrativeService : PmServiceBase, INarrativeService
         => GetAsync<PmProjectNarrative>(projectId, narrativeId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListNarrativesAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmProjectNarrative>(projectId), query, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateNarrativeAsync(Guid projectId, Guid narrativeId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmProjectNarrative>(projectId, narrativeId, request, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdateNarrativeAsync(Guid projectId, Guid narrativeId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var narrative = await ProjectScoped<PmProjectNarrative>(projectId).FirstOrDefaultAsync(n => n.Id == narrativeId, cancellationToken);
+        if (narrative == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (narrative.Status == NarrativeStatus.Published)
+            return Result.Failure<PmEntityDto>("Cannot edit a published narrative", "INVALID_STATUS");
+
+        ApplyUpsert(narrative, request);
+        narrative.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(narrative));
+    }
+
     public async Task<Result<PmActionResultDto>> SubmitNarrativeAsync(Guid projectId, Guid narrativeId, CancellationToken cancellationToken = default)
     {
         var narrative = await ProjectScoped<PmProjectNarrative>(projectId).FirstOrDefaultAsync(n => n.Id == narrativeId, cancellationToken);
         if (narrative == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (narrative.Status != NarrativeStatus.Draft)
+            return Result.Failure<PmActionResultDto>("Narrative can only be submitted from Draft status", "INVALID_STATUS");
+
+        if (string.IsNullOrWhiteSpace(narrative.ExecutiveSummary))
+            return Result.Failure<PmActionResultDto>("ExecutiveSummary is required before submitting", "VALIDATION_ERROR");
 
         narrative.Status = NarrativeStatus.Submitted;
         narrative.UpdatedAt = DateTime.UtcNow;
@@ -890,6 +1251,9 @@ public class NarrativeService : PmServiceBase, INarrativeService
         var narrative = await ProjectScoped<PmProjectNarrative>(projectId).FirstOrDefaultAsync(n => n.Id == narrativeId, cancellationToken);
         if (narrative == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (narrative.Status != NarrativeStatus.Approved)
+            return Result.Failure<PmActionResultDto>("Narrative can only be published from Approved status", "INVALID_STATUS");
 
         narrative.Status = NarrativeStatus.Published;
         narrative.FinalizedAt = DateTime.UtcNow;

@@ -516,4 +516,81 @@ public sealed class DailyReportServiceTests
     }
 
     #endregion
+
+    #region New Business Logic Validation
+
+    [Fact]
+    public async Task CreateDailyReport_DuplicateDateAndType_ReturnsDuplicateReport()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var reportDate = new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc);
+        await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["ReportDate"] = reportDate,
+                ["ReportType"] = "Foreman"
+            }));
+
+        var duplicate = await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["ReportDate"] = reportDate,
+                ["ReportType"] = "Foreman"
+            }));
+
+        duplicate.IsSuccess.Should().BeFalse();
+        duplicate.ErrorCode.Should().Be("DUPLICATE_REPORT");
+    }
+
+    [Fact]
+    public async Task UpdateDailyReport_ApprovedReport_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        await service.ApproveDailyReportAsync(ProjectId, created.Id);
+
+        var result = await service.UpdateDailyReportAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Description: "Try edit approved"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task SubmitDailyReport_NonDraftStatus_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        // Submit once (Draft -> Submitted)
+        await service.SubmitDailyReportAsync(ProjectId, created.Id);
+
+        // Try to submit again (Submitted -> should fail)
+        var result = await service.SubmitDailyReportAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task ApproveDailyReport_AlreadyApproved_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        await service.ApproveDailyReportAsync(ProjectId, created.Id);
+
+        var result = await service.ApproveDailyReportAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    #endregion
 }

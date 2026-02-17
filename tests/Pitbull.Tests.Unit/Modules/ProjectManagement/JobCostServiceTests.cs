@@ -499,4 +499,79 @@ public sealed class JobCostServiceTests
     }
 
     #endregion
+
+    #region Budget Duplicate Prevention
+
+    [Fact]
+    public async Task CreateBudget_DuplicateCostCodeAndPhase_ReturnsDuplicateBudget()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var costCodeId = Guid.NewGuid();
+        var phaseId = Guid.NewGuid();
+
+        await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["CostCodeId"] = costCodeId,
+                ["PhaseId"] = phaseId
+            }));
+
+        var duplicate = await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["CostCodeId"] = costCodeId,
+                ["PhaseId"] = phaseId
+            }));
+
+        duplicate.IsSuccess.Should().BeFalse();
+        duplicate.ErrorCode.Should().Be("DUPLICATE_BUDGET");
+    }
+
+    #endregion
+
+    #region Auto-Computed CurrentBudget
+
+    [Fact]
+    public async Task CreateBudget_ComputesCurrentBudget()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var result = await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["OriginalBudget"] = 100000m,
+                ["ApprovedBudgetChanges"] = 15000m
+            }));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmJobCostBudget>().FirstAsync(b => b.Id == result.Value!.Id);
+        entity.CurrentBudget.Should().Be(115000m);
+    }
+
+    [Fact]
+    public async Task UpdateBudget_RecomputesCurrentBudget()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["OriginalBudget"] = 50000m,
+                ["ApprovedBudgetChanges"] = 5000m
+            }))).Value!;
+
+        await service.UpdateBudgetAsync(ProjectId, created.Id, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["ApprovedBudgetChanges"] = 12000m
+            }));
+
+        var entity = await db.Set<PmJobCostBudget>().FirstAsync(b => b.Id == created.Id);
+        entity.CurrentBudget.Should().Be(entity.OriginalBudget + entity.ApprovedBudgetChanges);
+    }
+
+    #endregion
 }

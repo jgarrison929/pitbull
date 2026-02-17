@@ -248,4 +248,84 @@ public sealed class ProgressServiceTests
     }
 
     #endregion
+
+    #region Block Editing Approved Entries
+
+    [Fact]
+    public async Task UpdateProgressEntry_ApprovedEntry_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateProgressEntryAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        await service.ApproveProgressEntryAsync(ProjectId, created.Id);
+
+        var result = await service.UpdateProgressEntryAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Description: "Try edit approved"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    #endregion
+
+    #region Approve Status Enforcement
+
+    [Fact]
+    public async Task ApproveProgressEntry_AlreadyApproved_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateProgressEntryAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        await service.ApproveProgressEntryAsync(ProjectId, created.Id);
+
+        var result = await service.ApproveProgressEntryAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task ApproveProgressEntry_FromSubmitted_Succeeds()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var created = (await service.CreateProgressEntryAsync(ProjectId,
+            new PmUpsertRequest(Status: "Submitted"))).Value!;
+
+        var result = await service.ApproveProgressEntryAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmProgressEntry>().FirstAsync(p => p.Id == created.Id);
+        entity.Status.Should().Be(ProgressEntryStatus.Approved);
+    }
+
+    #endregion
+
+    #region Duplicate Time Entry Link Prevention
+
+    [Fact]
+    public async Task LinkTimeEntry_DuplicateLink_ReturnsDuplicateLink()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var entry = (await service.CreateProgressEntryAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+        var timeEntryId = Guid.NewGuid();
+
+        await service.LinkTimeEntryAsync(ProjectId, entry.Id,
+            new PmUpsertRequest(ReferenceId: timeEntryId));
+
+        var duplicate = await service.LinkTimeEntryAsync(ProjectId, entry.Id,
+            new PmUpsertRequest(ReferenceId: timeEntryId));
+
+        duplicate.IsSuccess.Should().BeFalse();
+        duplicate.ErrorCode.Should().Be("DUPLICATE_LINK");
+    }
+
+    #endregion
 }
