@@ -94,6 +94,7 @@ builder.Services.AddPitbullAiModule(builder.Configuration);
 
 // AI Insights service (uses Claude for project analysis)
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IComplianceDocumentService, Pitbull.Api.Services.ComplianceDocumentService>();
 
 // TimeTracking singleton services (don't require DI scope)
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
@@ -122,6 +123,9 @@ builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService, 
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, Pitbull.SystemAdmin.Services.TenantSettingsService>();
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.IApiKeyService, Pitbull.SystemAdmin.Services.ApiKeyService>();
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pitbull.SystemAdmin.Services.SystemHealthService>();
+
+// Diagnostics service (production error tracking)
+builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api.Services.DiagnosticsService>();
 
 // Auth validators (since auth doesn't use CQRS pattern yet)
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
@@ -417,6 +421,9 @@ app.UseMiddleware<TenantMiddleware>();
 app.UseMiddleware<Pitbull.Core.MultiTenancy.CompanyMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
+
+// Capture 404s on /api/ routes as diagnostic errors (after endpoint routing)
+app.UseMiddleware<ApiNotFoundMiddleware>();
 
 // Health check endpoints with deep dependency checks
 app.MapHealthChecks("/health", new HealthCheckOptions

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260217143316_AddDiagnosticErrors")]
+    partial class AddDiagnosticErrors
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -638,164 +641,6 @@ namespace Pitbull.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("payment_applications", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.Contracts.Domain.SOVLineItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("CurrentBilled")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("ItemNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<decimal>("PreviouslyBilled")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("Retainage")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("ScheduleOfValuesId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("ScheduledValue")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<int>("SortOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("StoredMaterials")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("ScheduleOfValuesId", "ItemNumber")
-                        .IsUnique()
-                        .HasDatabaseName("IX_sov_line_items_sov_item_number");
-
-                    b.HasIndex("ScheduleOfValuesId", "SortOrder")
-                        .HasDatabaseName("IX_sov_line_items_sov_sort_order");
-
-                    b.ToTable("sov_line_items", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.Contracts.Domain.ScheduleOfValues", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<decimal>("RetainagePercent")
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<Guid>("SubcontractId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("TotalScheduledValue")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("IX_schedule_of_values_status");
-
-                    b.HasIndex("SubcontractId")
-                        .HasDatabaseName("IX_schedule_of_values_subcontract_id");
-
-                    b.HasIndex("TenantId");
-
-                    b.ToTable("schedule_of_values", (string)null);
                 });
 
             modelBuilder.Entity("Pitbull.Contracts.Domain.Subcontract", b =>
@@ -1699,95 +1544,6 @@ namespace Pitbull.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("user_company_access", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.Core.Entities.ComplianceDocument", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("DocumentNumber")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("DocumentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<Guid>("EntityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime?>("ExpirationDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("FileUrl")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("IssuedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-                        .HasDefaultValue("Active");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("TenantId", "DocumentType")
-                        .HasDatabaseName("IX_compliance_docs_tenant_doc_type");
-
-                    b.HasIndex("TenantId", "ExpirationDate")
-                        .HasDatabaseName("IX_compliance_docs_tenant_expiration");
-
-                    b.HasIndex("TenantId", "Status")
-                        .HasDatabaseName("IX_compliance_docs_tenant_status");
-
-                    b.HasIndex("TenantId", "EntityType", "EntityId")
-                        .HasDatabaseName("IX_compliance_docs_tenant_entity");
-
-                    b.ToTable("compliance_documents", (string)null);
                 });
 
             modelBuilder.Entity("Pitbull.Documents.Domain.FileAttachment", b =>
@@ -8199,28 +7955,6 @@ namespace Pitbull.Api.Migrations
                     b.Navigation("Subcontract");
                 });
 
-            modelBuilder.Entity("Pitbull.Contracts.Domain.SOVLineItem", b =>
-                {
-                    b.HasOne("Pitbull.Contracts.Domain.ScheduleOfValues", "ScheduleOfValues")
-                        .WithMany("LineItems")
-                        .HasForeignKey("ScheduleOfValuesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ScheduleOfValues");
-                });
-
-            modelBuilder.Entity("Pitbull.Contracts.Domain.ScheduleOfValues", b =>
-                {
-                    b.HasOne("Pitbull.Contracts.Domain.Subcontract", "Subcontract")
-                        .WithMany()
-                        .HasForeignKey("SubcontractId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Subcontract");
-                });
-
             modelBuilder.Entity("Pitbull.Core.Domain.AppUser", b =>
                 {
                     b.HasOne("Pitbull.Core.Domain.Tenant", "Tenant")
@@ -9428,11 +9162,6 @@ namespace Pitbull.Api.Migrations
             modelBuilder.Entity("Pitbull.Bids.Domain.Bid", b =>
                 {
                     b.Navigation("Items");
-                });
-
-            modelBuilder.Entity("Pitbull.Contracts.Domain.ScheduleOfValues", b =>
-                {
-                    b.Navigation("LineItems");
                 });
 
             modelBuilder.Entity("Pitbull.Contracts.Domain.Subcontract", b =>
