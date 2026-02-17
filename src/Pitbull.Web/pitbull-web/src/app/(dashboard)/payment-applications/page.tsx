@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -52,6 +53,7 @@ function formatDate(dateString: string | null | undefined): string {
 }
 
 export default function PaymentApplicationsPage() {
+  const router = useRouter();
   const { activeCompany } = useCompany();
   const [payApps, setPayApps] = useState<PaymentApplication[]>([]);
   const [subcontracts, setSubcontracts] = useState<Subcontract[]>([]);
@@ -117,7 +119,7 @@ export default function PaymentApplicationsPage() {
     (pa) => pa.status === PaymentApplicationStatus.Approved || pa.status === PaymentApplicationStatus.Paid
   ).length;
   const pendingCount = payApps.filter(
-    (pa) => pa.status === PaymentApplicationStatus.Submitted || pa.status === PaymentApplicationStatus.UnderReview
+    (pa) => pa.status === PaymentApplicationStatus.Submitted || pa.status === PaymentApplicationStatus.Reviewed
   ).length;
 
   function openCreate() {
@@ -259,9 +261,8 @@ export default function PaymentApplicationsPage() {
                   <SelectItem value={ALL_VALUE}>All Statuses</SelectItem>
                   <SelectItem value="Draft">Draft</SelectItem>
                   <SelectItem value="Submitted">Submitted</SelectItem>
-                  <SelectItem value="UnderReview">Under Review</SelectItem>
+                  <SelectItem value="Reviewed">Reviewed</SelectItem>
                   <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="PartiallyApproved">Partially Approved</SelectItem>
                   <SelectItem value="Rejected">Rejected</SelectItem>
                   <SelectItem value="Paid">Paid</SelectItem>
                 </SelectContent>
@@ -303,7 +304,12 @@ export default function PaymentApplicationsPage() {
               {/* Mobile cards */}
               <div className="sm:hidden space-y-3">
                 {payApps.map((pa) => (
-                  <div key={pa.id} className="border rounded-lg p-4 space-y-3">
+                  <button
+                    key={pa.id}
+                    type="button"
+                    className="w-full text-left border rounded-lg p-4 space-y-3 hover:bg-muted/50 transition-colors"
+                    onClick={() => router.push(`/payment-applications/${pa.id}`)}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm">
@@ -346,7 +352,7 @@ export default function PaymentApplicationsPage() {
                         <p className="font-medium">{pa.invoiceNumber || "\u2014"}</p>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -367,7 +373,11 @@ export default function PaymentApplicationsPage() {
                   </TableHeader>
                   <TableBody>
                     {payApps.map((pa) => (
-                      <TableRow key={pa.id}>
+                      <TableRow
+                        key={pa.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => router.push(`/payment-applications/${pa.id}`)}
+                      >
                         <TableCell className="font-mono text-sm">
                           {pa.applicationNumber}
                         </TableCell>

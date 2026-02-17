@@ -77,6 +77,15 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .HasForeignKey(te => te.ApprovedById)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Onboarding fields
+        builder.Property(e => e.OnboardingStatus)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(OnboardingStatus.NotStarted);
+
+        builder.HasIndex(e => e.OnboardingStatus)
+            .HasDatabaseName("IX_employees_onboarding_status");
+
         // Optimistic concurrency using PostgreSQL xmin (prevents concurrent edit conflicts)
         builder.Property<uint>("xmin")
             .HasColumnType("xid")

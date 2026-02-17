@@ -772,12 +772,11 @@ export enum ChangeOrderStatus {
 export enum PaymentApplicationStatus {
   Draft = 0,
   Submitted = 1,
-  UnderReview = 2,
+  Reviewed = 2,
   Approved = 3,
-  PartiallyApproved = 4,
+  Paid = 4,
   Rejected = 5,
-  Paid = 6,
-  Void = 7,
+  Void = 6,
 }
 
 export interface Subcontract {
@@ -943,6 +942,102 @@ export interface UpdateSOVLineItemCommand {
   storedMaterials?: number;
   retainage?: number;
   sortOrder?: number;
+}
+
+// ============================================
+// Payment Application Detail Types (G702/G703)
+// ============================================
+
+export interface PaymentApplicationG702 {
+  originalContractSum: number;
+  netChangeByChangeOrders: number;
+  contractSumToDate: number;
+  totalCompletedAndStoredToDate: number;
+  retainageToDate: number;
+  totalEarnedLessRetainage: number;
+  lessPreviousCertificates: number;
+  currentPaymentDue: number;
+  balanceToFinish: number;
+}
+
+export interface PaymentApplicationLineItem {
+  id: string;
+  sovLineItemId: string;
+  itemNumber: string;
+  description: string;
+  scheduledValue: number;
+  workCompletedPrevious: number;
+  workCompletedThisPeriod: number;
+  materialsStoredPrevious: number;
+  materialsStoredThisPeriod: number;
+  totalCompletedAndStoredToDate: number;
+  percentComplete: number;
+  balanceToFinish: number;
+  retainagePercent: number;
+  retainageAmount: number;
+  sortOrder: number;
+}
+
+export enum AccountingBookType {
+  Gaap = "Gaap",
+  BonusJobCost = "BonusJobCost",
+}
+
+export interface PaymentApplicationBookEntry {
+  id: string;
+  bookType: AccountingBookType;
+  earnedRevenueToDate: number;
+  currentPeriodRevenue: number;
+  billingsToDate: number;
+  currentPeriodBilling: number;
+  retainageHeldToDate: number;
+  overUnderBilling: number;
+  generatedAt: string;
+}
+
+export interface PaymentApplicationDetail {
+  id: string;
+  subcontractId: string;
+  scheduleOfValuesId?: string | null;
+  applicationNumber: number;
+  periodStart: string;
+  periodEnd: string;
+  status: PaymentApplicationStatus;
+  currentPaymentDue: number;
+  totalCompletedAndStored: number;
+  totalRetainage: number;
+  retainagePercent: number;
+  paidAmount?: number | null;
+  submittedDate?: string | null;
+  reviewedDate?: string | null;
+  approvedDate?: string | null;
+  paidDate?: string | null;
+  approvedBy?: string | null;
+  reviewedBy?: string | null;
+  invoiceNumber?: string | null;
+  checkNumber?: string | null;
+  notes?: string | null;
+  g702: PaymentApplicationG702;
+  g703LineItems: PaymentApplicationLineItem[];
+  bookEntries: PaymentApplicationBookEntry[];
+}
+
+export interface PaymentApplicationLineItemInput {
+  sovLineItemId: string;
+  workCompletedThisPeriod: number;
+  materialsStoredThisPeriod: number;
+  retainagePercentOverride?: number | null;
+}
+
+export interface PaymentApplicationSettings {
+  defaultRetainagePercent: number;
+  enableApprovalWorkflow: boolean;
+  requireSignedSubcontract: boolean;
+  allowRetainageOverride: boolean;
+  allowRetainageReleaseBeforeFinal: boolean;
+  defaultBookMode: string;
+  lockSubmittedLineItems: boolean;
+  requireLienWaiverBeforePaid: boolean;
 }
 
 // RFI (Request for Information) Types
