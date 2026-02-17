@@ -36,6 +36,7 @@ public class PitbullDbContext(
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<UserRole> UserRolesMap => Set<UserRole>();
+    public DbSet<ComplianceDocument> ComplianceDocuments => Set<ComplianceDocument>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];

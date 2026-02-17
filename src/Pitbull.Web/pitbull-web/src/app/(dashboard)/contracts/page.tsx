@@ -16,7 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FileText } from "lucide-react";
+import { FileText, Wallet, HandCoins, Landmark, Scale } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Subcontract } from "@/lib/types";
 import {
@@ -87,6 +87,11 @@ export default function ContractsPage() {
     // For now, just show the toast (already handled in dialog)
   }
 
+  const totalCommitted = subcontracts.reduce((sum, sub) => sum + sub.currentValue, 0);
+  const totalPaidToDate = subcontracts.reduce((sum, sub) => sum + sub.paidToDate, 0);
+  const totalRetentionHeld = subcontracts.reduce((sum, sub) => sum + sub.retainageHeld, 0);
+  const totalRemaining = Math.max(0, totalCommitted - totalPaidToDate);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -109,6 +114,45 @@ export default function ContractsPage() {
           <CardTitle className="text-lg">All Subcontracts</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-6 grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total Committed</CardTitle>
+                <Landmark className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalCommitted)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Paid To Date</CardTitle>
+                <HandCoins className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalPaidToDate)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Retention Held</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalRetentionHeld)}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Remaining</CardTitle>
+                <Scale className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(totalRemaining)}</div>
+              </CardContent>
+            </Card>
+          </div>
+
           {isLoading ? (
             <>
               <div className="sm:hidden">

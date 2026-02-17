@@ -1,4 +1,5 @@
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 
 namespace Pitbull.TimeTracking.Features;
 
@@ -8,24 +9,23 @@ namespace Pitbull.TimeTracking.Features;
 public record PayPeriodDto
 {
     public Guid Id { get; init; }
+    public Guid TenantId { get; init; }
     public DateOnly StartDate { get; init; }
     public DateOnly EndDate { get; init; }
     public PayPeriodStatus Status { get; init; }
+    public string Name { get; init; } = string.Empty;
     public string StatusName => Status.ToString();
-    public bool IsLocked => Status == PayPeriodStatus.Locked || Status == PayPeriodStatus.Processed;
+    public bool IsLocked => Status is PayPeriodStatus.Locked or PayPeriodStatus.Closed;
     public DateTime? LockedAt { get; init; }
     public Guid? LockedById { get; init; }
-    public string? LockedByName { get; init; }
-    public string? Notes { get; init; }
-    public DateTime? ProcessedAt { get; init; }
-    public Guid? ProcessedById { get; init; }
-    public string? ProcessedByName { get; init; }
+    public DateTime? PayrollExportMarkedAt { get; init; }
     public DateTime CreatedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
 
     /// <summary>
     /// Display label for the pay period (e.g., "Feb 9 - Feb 15, 2026")
     /// </summary>
-    public string Label => $"{StartDate:MMM d} - {EndDate:MMM d, yyyy}";
+    public string Label => Name;
 
     /// <summary>
     /// Number of days in this pay period
@@ -57,13 +57,20 @@ public record PayPeriodConfigurationDto
 /// </summary>
 public record PayPeriodSummaryDto
 {
-    public PayPeriodDto? CurrentPeriod { get; init; }
-    public int TotalPeriods { get; init; }
-    public int OpenPeriods { get; init; }
-    public int LockedPeriods { get; init; }
-    public int ProcessedPeriods { get; init; }
-    public DateOnly? NextAutoLockDate { get; init; }
+    public Guid PayPeriodId { get; init; }
+    public string PayPeriodName { get; init; } = string.Empty;
+    public DateOnly StartDate { get; init; }
+    public DateOnly EndDate { get; init; }
+    public decimal TotalHours { get; init; }
+    public int EmployeeCount { get; init; }
+    public int EntryCount { get; init; }
+    public List<PayPeriodStatusBreakdownDto> ByStatus { get; init; } = [];
 }
+
+public record PayPeriodStatusBreakdownDto(
+    TimeEntryStatus Status,
+    int EntryCount,
+    decimal TotalHours);
 
 /// <summary>
 /// Mapper for pay period entities to DTOs
@@ -75,21 +82,16 @@ public static class PayPeriodMapper
         return new PayPeriodDto
         {
             Id = period.Id,
+            TenantId = period.TenantId,
             StartDate = period.StartDate,
             EndDate = period.EndDate,
             Status = period.Status,
+            Name = period.Name,
             LockedAt = period.LockedAt,
             LockedById = period.LockedById,
-            LockedByName = period.LockedBy != null
-                ? $"{period.LockedBy.FirstName} {period.LockedBy.LastName}"
-                : null,
-            Notes = period.Notes,
-            ProcessedAt = period.ProcessedAt,
-            ProcessedById = period.ProcessedById,
-            ProcessedByName = period.ProcessedBy != null
-                ? $"{period.ProcessedBy.FirstName} {period.ProcessedBy.LastName}"
-                : null,
-            CreatedAt = period.CreatedAt
+            PayrollExportMarkedAt = period.PayrollExportMarkedAt,
+            CreatedAt = period.CreatedAt,
+            UpdatedAt = period.UpdatedAt
         };
     }
 

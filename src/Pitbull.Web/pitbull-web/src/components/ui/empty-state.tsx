@@ -1,11 +1,11 @@
 import * as React from "react";
 import Link from "next/link";
-import { type LucideIcon } from "lucide-react";
+import { type LucideIcon, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateProps {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   title: string;
   description: string;
   actionLabel?: string;
@@ -15,7 +15,7 @@ interface EmptyStateProps {
 }
 
 function EmptyState({
-  icon: Icon,
+  icon: Icon = Inbox,
   title,
   description,
   actionLabel,

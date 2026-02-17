@@ -1,7 +1,8 @@
 namespace Pitbull.Core.Domain;
 
 /// <summary>
-/// Immutable audit log entry for tracking all system activity
+/// Immutable audit log entry for tracking all system activity.
+/// Stores before/after change diffs as JSON for entity modifications.
 /// </summary>
 public class AuditLog
 {
@@ -14,7 +15,9 @@ public class AuditLog
     public string ResourceType { get; private set; } = string.Empty;
     public string? ResourceId { get; private set; }
     public string Description { get; private set; } = string.Empty;
-    public string? Details { get; private set; } // JSON
+    public string? Details { get; private set; } // JSON - legacy field
+    public string? Changes { get; private set; } // JSON - before/after property diffs
+    public string? Metadata { get; private set; } // JSON - extra context
     public string? IpAddress { get; private set; }
     public string? UserAgent { get; private set; }
     public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
@@ -33,6 +36,8 @@ public class AuditLog
         string? resourceId,
         string description,
         string? details = null,
+        string? changes = null,
+        string? metadata = null,
         string? ipAddress = null,
         string? userAgent = null,
         bool success = true,
@@ -49,6 +54,8 @@ public class AuditLog
             ResourceId = resourceId,
             Description = description,
             Details = details,
+            Changes = changes,
+            Metadata = metadata,
             IpAddress = ipAddress,
             UserAgent = userAgent,
             Success = success,
@@ -72,5 +79,7 @@ public enum AuditAction
     Import = 11,
     StatusChange = 12,
     Approval = 13,
-    Rejection = 14
+    Rejection = 14,
+    Locked = 15,
+    Unlocked = 16
 }

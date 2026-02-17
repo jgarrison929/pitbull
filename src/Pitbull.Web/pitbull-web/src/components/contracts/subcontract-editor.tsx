@@ -62,6 +62,7 @@ interface FormState {
   subcontractNumber: string;
   subcontractorName: string;
   originalValue: string;
+  retainagePercent: string;
   status: SubcontractStatus;
   startDate: string;
   completionDate: string;
@@ -75,6 +76,7 @@ const emptyForm: FormState = {
   subcontractNumber: "",
   subcontractorName: "",
   originalValue: "",
+  retainagePercent: "10",
   status: SubcontractStatus.Draft,
   startDate: "",
   completionDate: "",
@@ -127,6 +129,7 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
             subcontractNumber: subcontractRes.subcontractNumber ?? "",
             subcontractorName: subcontractRes.subcontractorName ?? "",
             originalValue: subcontractRes.originalValue?.toString() ?? "",
+            retainagePercent: subcontractRes.retainagePercent?.toString() ?? "10",
             status: statusValue,
             startDate: subcontractRes.startDate?.slice(0, 10) ?? "",
             completionDate: subcontractRes.completionDate?.slice(0, 10) ?? "",
@@ -171,6 +174,11 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
       toast.error("Amount must be greater than 0");
       return false;
     }
+    const retainage = Number(form.retainagePercent);
+    if (!Number.isFinite(retainage) || retainage < 0 || retainage > 100) {
+      toast.error("Retention % must be between 0 and 100");
+      return false;
+    }
     if (form.subcontractorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.subcontractorEmail)) {
       toast.error("Contact email format is invalid");
       return false;
@@ -198,7 +206,7 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
         scopeOfWork: form.scopeOfWork.trim(),
         tradeCode: null,
         originalValue: Number(form.originalValue),
-        retainagePercent: subcontract?.retainagePercent ?? 10,
+        retainagePercent: Number(form.retainagePercent),
         startDate: form.startDate || null,
         completionDate: form.completionDate || null,
         licenseNumber: subcontract?.licenseNumber ?? null,
@@ -339,7 +347,7 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="originalValue">Amount</Label>
               <Input
@@ -350,6 +358,19 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
                 value={form.originalValue}
                 onChange={(e) => updateField("originalValue", e.target.value)}
                 placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="retainagePercent">Retention %</Label>
+              <Input
+                id="retainagePercent"
+                type="number"
+                min="0"
+                max="100"
+                step="0.1"
+                value={form.retainagePercent}
+                onChange={(e) => updateField("retainagePercent", e.target.value)}
+                placeholder="10"
               />
             </div>
             <div className="space-y-2">

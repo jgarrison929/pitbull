@@ -1,35 +1,74 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Link2, Sparkles } from "lucide-react";
+import {
+  Activity,
+  Calendar,
+  Clock,
+  ClipboardList,
+  FileQuestion,
+  FolderClock,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { DetailPageSkeleton } from "@/components/skeletons";
-import { AiInsights } from "@/components/ui/ai-insights";
-import { HealthScoreBadge } from "@/components/ui/health-score-gauge";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
-import { ProjectLaborSummary } from "@/components/projects/project-labor-summary";
-import { ProjectPhasesTable } from "@/components/projects/project-phases-table";
-import { ProjectEquipmentSummary } from "@/components/projects/project-equipment-summary";
-import { RfiCostWidget } from "@/components/rfis";
-import { HoursTrendChart } from "@/components/charts/hours-trend-chart";
-import { CostDistributionChart } from "@/components/charts/cost-distribution-chart";
-import { PhaseProgressChart } from "@/components/charts/phase-progress-chart";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import type { AiProjectSummary, Project } from "@/lib/types";
 import {
   projectStatusBadgeClass,
   projectStatusLabel,
-  projectTypeLabel,
 } from "@/lib/projects";
+import type {
+  ListTimeEntriesResult,
+  Project,
+  Rfi,
+  RfiCostSummary,
+  TimeEntry,
+} from "@/lib/types";
+import type { PmPagedResult } from "@/lib/pm-types";
 import { toast } from "sonner";
 
-function formatCurrency(amount: number) {
+interface ProjectStats {
+  projectId: string;
+  projectName: string;
+  projectNumber: string;
+  totalHours: number;
+  regularHours: number;
+  overtimeHours: number;
+  doubleTimeHours: number;
+  totalLaborCost: number;
+  timeEntryCount: number;
+  approvedEntryCount: number;
+  pendingEntryCount: number;
+  assignedEmployeeCount: number;
+  firstEntryDate: string | null;
+  lastEntryDate: string | null;
+}
+
+interface ProjectAssignmentSummary {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string;
+  roleDescription: string;
+  isActive: boolean;
+}
+
+interface DashboardActivityItem {
+  id: string;
+  type: "timeentry" | "rfi" | "submittal";
+  title: string;
+  detail: string;
+  timestamp: string;
+}
+
+function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -37,28 +76,63 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-function formatLocation(project: Project): string {
-  const parts = [project.address, project.city, project.state, project.zipCode]
-    .map((p) => (p ?? "").trim())
-    .filter(Boolean);
-  return parts.length ? parts.join(", ") : "—";
+function formatDate(date: string | null | undefined): string {
+  if (!date) return "—";
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-const pmNavItems = [
-  { label: "Schedule", href: "schedule" },
-  { label: "Job Cost", href: "job-cost" },
-  { label: "RFIs", href: "rfis" },
-  { label: "Submittals", href: "submittals" },
-  { label: "Plans & Specs", href: "plans-specs" },
-  { label: "Communications", href: "communications" },
-  { label: "Daily Reports", href: "daily-reports" },
-  { label: "Progress", href: "progress" },
-  { label: "Projections", href: "projections" },
-  { label: "Meetings", href: "meetings" },
-  { label: "Documents", href: "documents" },
-  { label: "Tasks", href: "tasks" },
-  { label: "Narratives", href: "narratives" },
-];
+function formatDateTime(date: string | null | undefined): string {
+  if (!date) return "—";
+  return new Date(date).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function computeScheduleProgress(project: Project): number {
+  if (project.actualCompletionDate) return 100;
+
+  if (!project.startDate || !project.estimatedCompletionDate) {
+    switch (project.status) {
+      case 0:
+      case 1:
+        return 15;
+      case 2:
+        return 50;
+      case 3:
+      case 4:
+        return 100;
+      default:
+        return 0;
+    }
+  }
+
+  const start = new Date(project.startDate).getTime();
+  const end = new Date(project.estimatedCompletionDate).getTime();
+  const now = Date.now();
+
+  if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return 0;
+  const progress = ((now - start) / (end - start)) * 100;
+  return Math.max(0, Math.min(100, progress));
+}
+
+function computeBudgetConsumed(contractAmount: number, laborCost: number): number {
+  if (contractAmount <= 0) return 0;
+  return Math.max(0, Math.min(100, (laborCost / contractAmount) * 100));
+}
+
+function getSubmittalStatus(row: { status?: string | null; data?: unknown }): string {
+  if (row.status) return row.status;
+  const data = row.data as Record<string, unknown> | undefined;
+  const fromData = data?.Status || data?.status;
+  return typeof fromData === "string" ? fromData : "Unknown";
+}
 
 export default function ProjectDetailPage({
   params,
@@ -67,61 +141,133 @@ export default function ProjectDetailPage({
 }) {
   const { id } = use(params);
   const [project, setProject] = useState<Project | null>(null);
+  const [stats, setStats] = useState<ProjectStats | null>(null);
+  const [rfiSummary, setRfiSummary] = useState<RfiCostSummary | null>(null);
+  const [team, setTeam] = useState<ProjectAssignmentSummary[]>([]);
+  const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
+  const [pendingSubmittals, setPendingSubmittals] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // AI Insights state
-  const [aiSummary, setAiSummary] = useState<AiProjectSummary | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [showAiInsights, setShowAiInsights] = useState(false);
 
   const { addRecentProject } = useRecentProjects();
   const { addRecentItem } = useRecentlyViewed();
 
   useEffect(() => {
-    async function fetchProject() {
+    let cancelled = false;
+
+    async function fetchDashboard() {
+      setIsLoading(true);
+      setError(null);
+
       try {
-        const data = await api<Project>(`/api/projects/${id}`);
-        setProject(data);
-        // Track this project as recently viewed (for project switcher)
-        addRecentProject({
-          id: data.id,
-          name: data.name,
-          number: data.number,
-        });
-        // Track for general recently viewed (dashboard widget)
+        const projectRequest = api<Project>(`/api/projects/${id}`);
+
+        const [projectData, statsData, rfiCostData, assignmentsData, timeEntriesData, rfisData, submittalsData] =
+          await Promise.all([
+            projectRequest,
+            api<ProjectStats>(`/api/projects/${id}/stats`).catch(() => null),
+            api<RfiCostSummary>(`/api/projects/${id}/rfi-cost-summary`).catch(() => null),
+            api<ProjectAssignmentSummary[]>(`/api/project-assignments/by-project/${id}?activeOnly=true`).catch(
+              () => []
+            ),
+            api<ListTimeEntriesResult>(`/api/time-entries?projectId=${id}&pageSize=8`).catch(() => ({ items: [], totalCount: 0, page: 1, pageSize: 8, totalPages: 0 })),
+            api<{ items: Rfi[] }>(`/api/projects/${id}/rfis?page=1&pageSize=8`).catch(() => ({ items: [] })),
+            api<PmPagedResult>(`/api/projects/${id}/submittals?page=1&pageSize=200`).catch(
+              () => ({ items: [], totalCount: 0, page: 1, pageSize: 200, totalPages: 0, hasPreviousPage: false, hasNextPage: false })
+            ),
+          ]);
+
+        if (cancelled) return;
+
+        setProject(projectData);
+        setStats(statsData);
+        setRfiSummary(rfiCostData);
+        setTeam(assignmentsData.filter((entry) => entry.isActive));
+
+        const pendingStatuses = new Set([
+          "Draft",
+          "Submitted",
+          "InReview",
+          "ReviseAndResubmit",
+          "Waiting",
+        ]);
+
+        const pendingCount = submittalsData.items.filter((row) =>
+          pendingStatuses.has(getSubmittalStatus(row))
+        ).length;
+        setPendingSubmittals(pendingCount);
+
+        const timeActivity: DashboardActivityItem[] = (timeEntriesData.items || []).map((entry: TimeEntry) => ({
+          id: `time-${entry.id}`,
+          type: "timeentry",
+          title: `Time entry: ${entry.employeeName}`,
+          detail: `${entry.totalHours.toFixed(1)}h on ${entry.costCodeDescription || "cost code"}`,
+          timestamp: entry.createdAt || entry.date,
+        }));
+
+        const rfiActivity: DashboardActivityItem[] = (rfisData.items || []).map((rfi) => ({
+          id: `rfi-${rfi.id}`,
+          type: "rfi",
+          title: `RFI #${rfi.number}: ${rfi.subject}`,
+          detail: `Status: ${rfi.status}`,
+          timestamp: rfi.createdAt,
+        }));
+
+        const submittalActivity: DashboardActivityItem[] = (submittalsData.items || []).map((submittal) => ({
+          id: `submittal-${submittal.id}`,
+          type: "submittal",
+          title: `Submittal: ${submittal.title || submittal.name || "Untitled"}`,
+          detail: `Status: ${getSubmittalStatus(submittal)}`,
+          timestamp: submittal.updatedAt || submittal.createdAt,
+        }));
+
+        const merged = [...timeActivity, ...rfiActivity, ...submittalActivity]
+          .filter((item) => Boolean(item.timestamp))
+          .sort(
+            (a, b) =>
+              new Date(b.timestamp).getTime() -
+              new Date(a.timestamp).getTime()
+          )
+          .slice(0, 10);
+
+        setActivities(merged);
+
+        addRecentProject({ id: projectData.id, name: projectData.name, number: projectData.number });
         addRecentItem({
-          id: data.id,
+          id: projectData.id,
           type: "project",
-          name: data.name,
-          identifier: data.number,
+          name: projectData.name,
+          identifier: projectData.number,
         });
       } catch {
-        setError("Failed to load project");
-        toast.error("Failed to load project");
+        if (!cancelled) {
+          setError("Failed to load project dashboard");
+          toast.error("Failed to load project dashboard");
+        }
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
-    fetchProject();
+
+    fetchDashboard();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id, addRecentProject, addRecentItem]);
 
-  const fetchAiInsights = useCallback(async () => {
-    setAiLoading(true);
-    setAiError(null);
-    try {
-      const data = await api<AiProjectSummary>(`/api/projects/${id}/ai-summary`);
-      setAiSummary(data);
-      if (!showAiInsights) setShowAiInsights(true);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to generate AI insights";
-      setAiError(message);
-      toast.error("AI insights unavailable", { description: message });
-    } finally {
-      setAiLoading(false);
-    }
-  }, [id, showAiInsights]);
+  const scheduleProgress = useMemo(
+    () => (project ? computeScheduleProgress(project) : 0),
+    [project]
+  );
+
+  const budgetConsumedPercent = useMemo(
+    () =>
+      project && stats
+        ? computeBudgetConsumed(project.contractAmount, stats.totalLaborCost)
+        : 0,
+    [project, stats]
+  );
 
   if (isLoading) return <DetailPageSkeleton />;
 
@@ -141,157 +287,180 @@ export default function ProjectDetailPage({
   return (
     <div className="space-y-6">
       <Breadcrumbs
-        items={[
-          { label: "Projects", href: "/projects" },
-          { label: project.name },
-        ]}
+        items={[{ label: "Projects", href: "/projects" }, { label: project.name }]}
       />
-
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                toast.success("Link copied to clipboard");
-              }}
-              title="Copy link" aria-label="Copy link"
-            >
-              <Link2 className="h-4 w-4" />
-            </Button>
-            <Badge
-              variant="secondary"
-              className={projectStatusBadgeClass(project.status)}
-            >
-              {projectStatusLabel(project.status)}
-            </Badge>
-            {aiSummary && aiSummary.success && (
-              <HealthScoreBadge score={aiSummary.healthScore} />
-            )}
-          </div>
-          <p className="text-muted-foreground font-mono text-sm">{project.number}</p>
-        </div>
-        <Button
-          onClick={fetchAiInsights}
-          disabled={aiLoading}
-          variant={showAiInsights ? "secondary" : "default"}
-          className="gap-2"
-        >
-          <Sparkles className={`h-4 w-4 ${aiLoading ? "animate-spin" : ""}`} />
-          {aiLoading ? "Analyzing..." : showAiInsights ? "Refresh AI Insights" : "Get AI Insights"}
-        </Button>
-      </div>
-
-      {/* Visual Charts: Hours Trend + Cost Distribution */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <HoursTrendChart projectId={id} title="Project Hours Trend" days={42} />
-        </div>
-        <CostDistributionChart projectId={id} title="Project Costs" />
-      </div>
-
-      {/* Phase Progress Chart */}
-      <PhaseProgressChart projectId={id} title="Phase Progress & Budget" />
-
-      {/* Labor Summary */}
-      <ProjectLaborSummary projectId={id} />
-
-      {/* Phase Progress & Budget Tracking (Table) */}
-      <ProjectPhasesTable projectId={id} />
-
-      {/* Equipment Hours + RFI Cost Impact */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <ProjectEquipmentSummary projectId={id} />
-        <RfiCostWidget projectId={id} />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Project Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <span className="text-muted-foreground">Client</span>
-              <span className="font-medium">{project.clientName || "—"}</span>
-
-              <span className="text-muted-foreground">Type</span>
-              <span className="font-medium">{projectTypeLabel(project.type)}</span>
-
-              <span className="text-muted-foreground">Location</span>
-              <span className="font-medium">{formatLocation(project)}</span>
-
-              <span className="text-muted-foreground">Contract Amount</span>
-              <span className="font-medium font-mono">
-                {formatCurrency(project.contractAmount)}
-              </span>
-
-              <span className="text-muted-foreground">Start Date</span>
-              <span className="font-medium">
-                {project.startDate
-                  ? new Date(project.startDate).toLocaleDateString()
-                  : "—"}
-              </span>
-
-              <span className="text-muted-foreground">Estimated Completion</span>
-              <span className="font-medium">
-                {project.estimatedCompletionDate
-                  ? new Date(project.estimatedCompletionDate).toLocaleDateString()
-                  : "—"}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Description</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {project.description || "No description provided."}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* AI Insights Section */}
-      {(showAiInsights || aiLoading) && (
-        <AiInsights
-          projectId={id}
-          summary={aiSummary}
-          isLoading={aiLoading}
-          error={aiError}
-          onRefresh={fetchAiInsights}
-        />
-      )}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Project Management</CardTitle>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-2xl">{project.name}</CardTitle>
+                <Badge className={projectStatusBadgeClass(project.status)}>
+                  {projectStatusLabel(project.status)}
+                </Badge>
+              </div>
+              <p className="font-mono text-sm text-muted-foreground mt-1">{project.number}</p>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Budget: <span className="font-semibold text-foreground">{formatCurrency(project.contractAmount)}</span>
+            </div>
+          </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {pmNavItems.map((item) => (
-              <Button key={item.href} variant="outline" asChild className="justify-start">
-                <Link href={`/projects/${id}/${item.href}`}>{item.label}</Link>
-              </Button>
-            ))}
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Start Date</p>
+              <p className="font-medium">{formatDate(project.startDate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Estimated Completion</p>
+              <p className="font-medium">{formatDate(project.estimatedCompletionDate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Actual Completion</p>
+              <p className="font-medium">{formatDate(project.actualCompletionDate)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Client</p>
+              <p className="font-medium">{project.clientName || "—"}</p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">Schedule Progress</span>
+              <span className="text-muted-foreground">{scheduleProgress.toFixed(0)}%</span>
+            </div>
+            <Progress value={scheduleProgress} className="h-3" />
           </div>
         </CardContent>
       </Card>
 
-      <Separator />
-
-      <div className="flex">
-        <Button variant="ghost" asChild className="min-h-[44px]">
-          <Link href="/projects">← Back to Projects</Link>
-        </Button>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4" />
+              Hours Logged
+            </div>
+            <p className="mt-2 text-2xl font-bold">{(stats?.totalHours || 0).toFixed(1)}h</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Activity className="h-4 w-4" />
+              Budget Consumed
+            </div>
+            <p className="mt-2 text-2xl font-bold">{budgetConsumedPercent.toFixed(1)}%</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <FileQuestion className="h-4 w-4" />
+              Open RFIs
+            </div>
+            <p className="mt-2 text-2xl font-bold">{rfiSummary?.openRfis ?? 0}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <FolderClock className="h-4 w-4" />
+              Pending Submittals
+            </div>
+            <p className="mt-2 text-2xl font-bold">{pendingSubmittals}</p>
+          </CardContent>
+        </Card>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Recent Activity</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent activity available.</p>
+            ) : (
+              <div className="space-y-3">
+                {activities.map((item) => (
+                  <div key={item.id} className="rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">{item.title}</p>
+                      <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                        {item.type}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">{item.detail}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{formatDateTime(item.timestamp)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Team Members Assigned
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {team.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No active team assignments.</p>
+            ) : (
+              <div className="space-y-3">
+                {team.map((member) => (
+                  <div key={member.id} className="rounded-lg border p-3">
+                    <p className="text-sm font-medium">{member.employeeName}</p>
+                    <p className="text-xs text-muted-foreground font-mono">{member.employeeNumber}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{member.roleDescription}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Quick Actions</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white">
+              <Link href={`/time-tracking/new?projectId=${id}`}>
+                <Clock className="mr-2 h-4 w-4" />
+                Add Time Entry
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${id}/rfis`}>
+                <FileQuestion className="mr-2 h-4 w-4" />
+                Create RFI
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${id}/schedule`}>
+                <Calendar className="mr-2 h-4 w-4" />
+                View Schedule
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/projects/${id}/submittals`}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Open Submittals
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

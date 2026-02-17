@@ -36,6 +36,7 @@ public class TimeEntryService : ITimeEntryService
     private readonly IValidator<UpdateTimeEntryCommand> _updateValidator;
     private readonly IValidator<BatchCreateTimeEntriesCommand> _batchValidator;
     private readonly ILaborCostCalculator _costCalculator;
+    private readonly IPayPeriodService _payPeriodService;
     private readonly ILogger<TimeEntryService> _logger;
 
     /// <summary>
@@ -77,6 +78,7 @@ public class TimeEntryService : ITimeEntryService
         IValidator<UpdateTimeEntryCommand> updateValidator,
         IValidator<BatchCreateTimeEntriesCommand> batchValidator,
         ILaborCostCalculator costCalculator,
+        IPayPeriodService payPeriodService,
         ILogger<TimeEntryService> logger)
     {
         _db = db;
@@ -84,6 +86,7 @@ public class TimeEntryService : ITimeEntryService
         _updateValidator = updateValidator;
         _batchValidator = batchValidator;
         _costCalculator = costCalculator;
+        _payPeriodService = payPeriodService;
         _logger = logger;
     }
 
@@ -655,6 +658,10 @@ public class TimeEntryService : ITimeEntryService
             return Result.Failure<TimeEntryDto>(errors, "VALIDATION_ERROR");
         }
 
+        var lockValidation = await _payPeriodService.ValidateTimeEntryDateAsync(command.Date, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(lockValidation))
+            return Result.Failure<TimeEntryDto>(lockValidation, "PAY_PERIOD_LOCKED");
+
         // Validate that employee exists and is active
         var employee = await _db.Set<Employee>()
             .FirstOrDefaultAsync(e => e.Id == command.EmployeeId && e.IsActive, cancellationToken);
@@ -908,6 +915,13 @@ public class TimeEntryService : ITimeEntryService
                 continue;
             }
 
+            var lockValidation = await _payPeriodService.ValidateTimeEntryDateAsync(entry.Date, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(lockValidation))
+            {
+                results.Add(new BulkSubmitEntryResult(entryId, false, lockValidation, "PAY_PERIOD_LOCKED"));
+                continue;
+            }
+
             // Validate employee still active at submit time
             if (!entry.Employee.IsActive)
             {
@@ -1116,6 +1130,10 @@ public class TimeEntryService : ITimeEntryService
         if (timeEntry == null)
             return Result.Failure<TimeEntryDto>("Time entry not found", "NOT_FOUND");
 
+        var updateLockValidation = await _payPeriodService.ValidateTimeEntryDateAsync(timeEntry.Date, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(updateLockValidation))
+            return Result.Failure<TimeEntryDto>(updateLockValidation, "PAY_PERIOD_LOCKED");
+
         // Handle status transition if requested
         if (command.NewStatus.HasValue)
         {
@@ -1209,6 +1227,10 @@ public class TimeEntryService : ITimeEntryService
     private async Task<Result<BatchTimeEntryUpsert>> ValidateAndBuildTimeEntry(
         BatchTimeEntryItem item, bool isDraft, CancellationToken cancellationToken)
     {
+        var lockValidation = await _payPeriodService.ValidateTimeEntryDateAsync(item.Date, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(lockValidation))
+            return Result.Failure<BatchTimeEntryUpsert>(lockValidation, "PAY_PERIOD_LOCKED");
+
         // Validate employee exists and is active
         var employee = await _db.Set<Employee>()
             .FirstOrDefaultAsync(e => e.Id == item.EmployeeId && e.IsActive, cancellationToken);

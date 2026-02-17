@@ -4,6 +4,7 @@ using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Domain;
 using Pitbull.Bids.Domain;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 using Pitbull.Tests.Unit.Helpers;
 using Microsoft.EntityFrameworkCore;
 
