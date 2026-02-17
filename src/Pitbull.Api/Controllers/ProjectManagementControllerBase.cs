@@ -18,21 +18,25 @@ public abstract class ProjectManagementControllerBase : ControllerBase
 
     protected IActionResult HandleResult<T>(Result<T> result)
     {
-        if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error, code = result.ErrorCode })
-                : BadRequest(new { error = result.Error, code = result.ErrorCode });
+        if (result.IsSuccess)
+            return Ok(result.Value);
 
-        return Ok(result.Value);
+        return MapErrorResult(result.Error, result.ErrorCode);
     }
 
     protected IActionResult HandleAction(Result result)
     {
-        if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error, code = result.ErrorCode })
-                : BadRequest(new { error = result.Error, code = result.ErrorCode });
+        if (result.IsSuccess)
+            return NoContent();
 
-        return NoContent();
+        return MapErrorResult(result.Error, result.ErrorCode);
     }
+
+    private IActionResult MapErrorResult(string? error, string? errorCode) => errorCode switch
+    {
+        "NOT_FOUND" => NotFound(new { error, code = errorCode }),
+        "UNAUTHORIZED" => Unauthorized(new { error, code = errorCode }),
+        "FORBIDDEN" => StatusCode(403, new { error, code = errorCode }),
+        _ => BadRequest(new { error, code = errorCode }),
+    };
 }
