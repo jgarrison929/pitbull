@@ -66,6 +66,17 @@ public class Company : BaseEntity
     public bool IsDefault { get; set; }
 
     /// <summary>
+    /// Pay period frequency: Weekly, BiWeekly, SemiMonthly, Monthly.
+    /// Stored as string to avoid cross-module dependency on TimeTracking.
+    /// </summary>
+    public string PayPeriodType { get; set; } = "Weekly";
+
+    /// <summary>
+    /// Default work week days as comma-separated values (e.g., "Mon,Tue,Wed,Thu,Fri").
+    /// </summary>
+    public string DefaultWorkWeekDays { get; set; } = "Mon,Tue,Wed,Thu,Fri";
+
+    /// <summary>
     /// JSONB column for company-specific settings
     /// </summary>
     public string Settings { get; set; } = "{}";
@@ -75,4 +86,10 @@ public class Company : BaseEntity
     /// Stored as owned entity (mapped to columns on the companies table).
     /// </summary>
     public TimecardSettings TimecardSettings { get; set; } = new();
+
+    /// <summary>
+    /// Overtime calculation rules.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public OvertimeSettings OvertimeSettings { get; set; } = new();
 }

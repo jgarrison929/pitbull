@@ -85,6 +85,13 @@ public class PitbullDbContext(
             e.Property(c => c.Timezone).HasMaxLength(50).HasDefaultValue("America/Los_Angeles");
             e.Property(c => c.DateFormat).HasMaxLength(20).HasDefaultValue("MM/dd/yyyy");
             e.Property(c => c.Settings).HasColumnType("jsonb").HasDefaultValue("{}");
+            e.Property(c => c.PayPeriodType)
+                .HasMaxLength(20)
+                .HasDefaultValue("Weekly");
+            e.Property(c => c.DefaultWorkWeekDays)
+                .HasMaxLength(100)
+                .HasDefaultValue("Mon,Tue,Wed,Thu,Fri");
+
             e.HasIndex(c => new { c.TenantId, c.Code }).IsUnique();
 
             // TimecardSettings as owned entity (stored as columns on companies table)
@@ -109,6 +116,33 @@ public class PitbullDbContext(
 
                 ts.Property(t => t.RequireEquipment)
                     .HasColumnName("RequireEquipment")
+                    .HasDefaultValue(false);
+            });
+
+            // OvertimeSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.OvertimeSettings, ot =>
+            {
+                ot.Property(o => o.Enabled)
+                    .HasColumnName("OtEnabled")
+                    .HasDefaultValue(true);
+
+                ot.Property(o => o.DailyOtThreshold)
+                    .HasColumnName("DailyOtThreshold")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(8m);
+
+                ot.Property(o => o.WeeklyOtThreshold)
+                    .HasColumnName("WeeklyOtThreshold")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(40m);
+
+                ot.Property(o => o.DailyDtThreshold)
+                    .HasColumnName("DailyDtThreshold")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(12m);
+
+                ot.Property(o => o.CaliforniaOtRules)
+                    .HasColumnName("CaliforniaOtRules")
                     .HasDefaultValue(false);
             });
         });

@@ -21,14 +21,13 @@ import {
   MapPin,
   Phone,
   Globe,
-  Percent,
   Calendar,
   CheckCircle2,
   AlertCircle,
   Clock,
-  Wrench,
   ImageIcon,
-  FileText,
+  CalendarDays,
+  Timer,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
@@ -113,45 +112,19 @@ const TIME_ZONES = [
   { value: "Pacific/Honolulu", label: "Hawaii Time (HST)" },
 ];
 
-const COST_CODE_TYPES = [
-  { value: "csi", label: "CSI MasterFormat" },
-  { value: "custom", label: "Custom / Company" },
-  { value: "uniformat", label: "UniFormat" },
+const WORK_DAYS = [
+  { value: "Mon", label: "Monday" },
+  { value: "Tue", label: "Tuesday" },
+  { value: "Wed", label: "Wednesday" },
+  { value: "Thu", label: "Thursday" },
+  { value: "Fri", label: "Friday" },
+  { value: "Sat", label: "Saturday" },
+  { value: "Sun", label: "Sunday" },
 ];
 
-const LOCAL_SETTINGS_KEY = "pitbull-company-extended-settings";
-
-interface ExtendedSettings {
-  defaultCostCodeType: string;
-  defaultRegularHours: number;
-  requireDescription: boolean;
-  requirePhase: boolean;
-  equipmentMarkupPercent: number;
-}
-
-function loadExtendedSettings(): ExtendedSettings {
-  if (typeof window === "undefined") {
-    return {
-      defaultCostCodeType: "csi",
-      defaultRegularHours: 8,
-      requireDescription: false,
-      requirePhase: false,
-      equipmentMarkupPercent: 15,
-    };
-  }
-  try {
-    const stored = localStorage.getItem(LOCAL_SETTINGS_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {
-    // ignore
-  }
-  return {
-    defaultCostCodeType: "csi",
-    defaultRegularHours: 8,
-    requireDescription: false,
-    requirePhase: false,
-    equipmentMarkupPercent: 15,
-  };
+function getFiscalYearEnd(startMonth: number): string {
+  const endMonth = startMonth === 1 ? 12 : startMonth - 1;
+  return MONTHS.find((m) => m.value === String(endMonth))?.label || "";
 }
 
 export default function CompanySettingsPage() {
@@ -163,25 +136,25 @@ export default function CompanySettingsPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Core form state (API-backed)
   const [form, setForm] = useState<UpdateCompanySettingsCommand>({
     name: "",
-    legalName: "",
     taxId: "",
     address: "",
     city: "",
     state: "",
     zipCode: "",
     phone: "",
-    email: "",
     website: "",
-    defaultRetainagePercent: 10,
+    timezone: "America/Los_Angeles",
     fiscalYearStartMonth: 1,
-    timeZone: "America/Los_Angeles",
+    payPeriodType: "Weekly",
+    defaultWorkWeekDays: "Mon,Tue,Wed,Thu,Fri",
+    overtimeEnabled: true,
+    dailyOtThreshold: 8,
+    weeklyOtThreshold: 40,
+    dailyDtThreshold: 12,
+    californiaOtRules: false,
   });
-
-  // Extended settings (localStorage)
-  const [extSettings, setExtSettings] = useState<ExtendedSettings>(loadExtendedSettings);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -196,18 +169,22 @@ export default function CompanySettingsPage() {
       const data = await api<CompanySettings>("/api/admin/company");
       setForm({
         name: data.name || "",
-        legalName: data.legalName || "",
         taxId: data.taxId || "",
         address: data.address || "",
         city: data.city || "",
         state: data.state || "",
         zipCode: data.zipCode || "",
         phone: data.phone || "",
-        email: data.email || "",
         website: data.website || "",
-        defaultRetainagePercent: data.defaultRetainagePercent ?? 10,
+        timezone: data.timezone || "America/Los_Angeles",
         fiscalYearStartMonth: data.fiscalYearStartMonth ?? 1,
-        timeZone: data.timeZone || "America/Los_Angeles",
+        payPeriodType: data.payPeriodType || "Weekly",
+        defaultWorkWeekDays: data.defaultWorkWeekDays || "Mon,Tue,Wed,Thu,Fri",
+        overtimeEnabled: data.overtimeEnabled ?? true,
+        dailyOtThreshold: data.dailyOtThreshold ?? 8,
+        weeklyOtThreshold: data.weeklyOtThreshold ?? 40,
+        dailyDtThreshold: data.dailyDtThreshold ?? 12,
+        californiaOtRules: data.californiaOtRules ?? false,
       });
     } catch {
       toast.error("Failed to load company settings");
@@ -222,25 +199,21 @@ export default function CompanySettingsPage() {
     }
   }, [isAdmin, fetchSettings]);
 
-  const updateForm = (field: keyof UpdateCompanySettingsCommand, value: string | number | null) => {
+  const updateForm = (field: keyof UpdateCompanySettingsCommand, value: string | number | boolean | null) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setHasChanges(true);
     setSuccessMessage(null);
     setErrorMessage(null);
   };
 
-  const updateExtSetting = <K extends keyof ExtendedSettings>(
-    key: K,
-    value: ExtendedSettings[K]
-  ) => {
-    setExtSettings((prev) => {
-      const next = { ...prev, [key]: value };
-      localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(next));
-      return next;
-    });
-    setHasChanges(true);
-    setSuccessMessage(null);
-    setErrorMessage(null);
+  const selectedWorkDays = (form.defaultWorkWeekDays || "Mon,Tue,Wed,Thu,Fri").split(",");
+
+  const toggleWorkDay = (day: string) => {
+    const current = selectedWorkDays.includes(day)
+      ? selectedWorkDays.filter((d) => d !== day)
+      : [...selectedWorkDays, day];
+    const ordered = WORK_DAYS.filter((wd) => current.includes(wd.value)).map((wd) => wd.value);
+    updateForm("defaultWorkWeekDays", ordered.join(","));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -260,7 +233,6 @@ export default function CompanySettingsPage() {
         method: "PUT",
         body: form,
       });
-      // Extended settings already saved to localStorage on change
       setHasChanges(false);
       setSuccessMessage("Company settings saved successfully!");
       toast.success("Company settings saved");
@@ -345,17 +317,6 @@ export default function CompanySettingsPage() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="legalName">Legal Name</Label>
-                <Input
-                  id="legalName"
-                  value={form.legalName || ""}
-                  onChange={(e) => updateForm("legalName", e.target.value || null)}
-                  placeholder="Pitbull Construction Solutions, LLC"
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="taxId">Tax ID / EIN</Label>
                 <Input
@@ -453,70 +414,37 @@ export default function CompanySettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="website" className="flex items-center gap-1">
+                  <Globe className="h-3 w-3" />
+                  Website
+                </Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={form.email || ""}
-                  onChange={(e) => updateForm("email", e.target.value || null)}
-                  placeholder="info@company.com"
+                  id="website"
+                  type="url"
+                  value={form.website || ""}
+                  onChange={(e) => updateForm("website", e.target.value || null)}
+                  placeholder="https://www.company.com"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="website" className="flex items-center gap-1">
-                <Globe className="h-3 w-3" />
-                Website
-              </Label>
-              <Input
-                id="website"
-                type="url"
-                value={form.website || ""}
-                onChange={(e) => updateForm("website", e.target.value || null)}
-                placeholder="https://www.company.com"
-              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Business Settings */}
+        {/* Fiscal Year & Time Zone */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Percent className="h-5 w-5" />
-              Business Settings
+              <Calendar className="h-5 w-5" />
+              Fiscal Year &amp; Regional
             </CardTitle>
             <CardDescription>
-              Default values and preferences for business operations
+              Fiscal year boundaries and time zone for reporting
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="defaultRetainagePercent">Default Retainage %</Label>
-                <Input
-                  id="defaultRetainagePercent"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={form.defaultRetainagePercent ?? 10}
-                  onChange={(e) =>
-                    updateForm("defaultRetainagePercent", parseFloat(e.target.value) || 0)
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Applied to new subcontracts by default
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="fiscalYearStartMonth"
-                  className="flex items-center gap-1"
-                >
-                  <Calendar className="h-3 w-3" />
-                  Fiscal Year Start
-                </Label>
+                <Label htmlFor="fiscalYearStartMonth">Fiscal Year Start</Label>
                 <Select
                   value={String(form.fiscalYearStartMonth ?? 1)}
                   onValueChange={(value) =>
@@ -536,15 +464,26 @@ export default function CompanySettingsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="timeZone">
+                <Label>Fiscal Year End</Label>
+                <Input
+                  value={getFiscalYearEnd(form.fiscalYearStartMonth ?? 1)}
+                  disabled
+                  className="bg-muted"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Calculated from start month
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="timezone">
                   <Clock className="h-3 w-3 inline mr-1" />
                   Time Zone
                 </Label>
                 <Select
-                  value={form.timeZone || "America/Los_Angeles"}
-                  onValueChange={(value) => updateForm("timeZone", value)}
+                  value={form.timezone || "America/Los_Angeles"}
+                  onValueChange={(value) => updateForm("timezone", value)}
                 >
-                  <SelectTrigger id="timeZone">
+                  <SelectTrigger id="timezone">
                     <SelectValue placeholder="Select time zone" />
                   </SelectTrigger>
                   <SelectContent>
@@ -560,126 +499,198 @@ export default function CompanySettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Cost Codes & Time Entry Defaults */}
+        {/* Pay Period Configuration */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Time Entry Defaults
+              <CalendarDays className="h-5 w-5" />
+              Pay Period Configuration
             </CardTitle>
             <CardDescription>
-              Default values applied to new time entries across the system
+              How often payroll cycles run and which days make up a standard work week
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Default Cost Code System</Label>
+                <Label htmlFor="payPeriodType">Pay Period Frequency</Label>
                 <Select
-                  value={extSettings.defaultCostCodeType}
-                  onValueChange={(v) => updateExtSetting("defaultCostCodeType", v)}
+                  value={form.payPeriodType || "Weekly"}
+                  onValueChange={(value) => updateForm("payPeriodType", value)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="payPeriodType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {COST_CODE_TYPES.map((ct) => (
-                      <SelectItem key={ct.value} value={ct.value}>
-                        {ct.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="Weekly">Weekly (52/year)</SelectItem>
+                    <SelectItem value="BiWeekly">Bi-Weekly (26/year)</SelectItem>
+                    <SelectItem value="SemiMonthly">Semi-Monthly (24/year)</SelectItem>
+                    <SelectItem value="Monthly">Monthly (12/year)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="defaultHours">Default Regular Hours</Label>
-                <Input
-                  id="defaultHours"
-                  type="number"
-                  min={0}
-                  max={24}
-                  step={0.5}
-                  value={extSettings.defaultRegularHours}
-                  onChange={(e) =>
-                    updateExtSetting(
-                      "defaultRegularHours",
-                      parseFloat(e.target.value) || 8
-                    )
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  Pre-filled for new time entries
-                </p>
-              </div>
             </div>
 
-            <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Require Description</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Workers must describe work performed
-                  </p>
-                </div>
-                <Switch
-                  checked={extSettings.requireDescription}
-                  onCheckedChange={(checked) =>
-                    updateExtSetting("requireDescription", checked)
-                  }
-                />
+            <div className="space-y-3">
+              <Label>Default Work Week Days</Label>
+              <p className="text-xs text-muted-foreground">
+                Select the days that make up a standard work week
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {WORK_DAYS.map((day) => {
+                  const isSelected = selectedWorkDays.includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      onClick={() => toggleWorkDay(day.value)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors min-h-[44px] ${
+                        isSelected
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "bg-background text-muted-foreground border-border hover:border-amber-300"
+                      }`}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Require Phase</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Phase selection mandatory on time entries
-                  </p>
-                </div>
-                <Switch
-                  checked={extSettings.requirePhase}
-                  onCheckedChange={(checked) =>
-                    updateExtSetting("requirePhase", checked)
-                  }
-                />
-              </div>
+              <p className="text-xs text-muted-foreground">
+                {selectedWorkDays.length} day{selectedWorkDays.length !== 1 ? "s" : ""} selected
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Equipment Billing */}
+        {/* Overtime Rules */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5" />
-              Equipment Billing
+              <Timer className="h-5 w-5" />
+              Overtime Rules
             </CardTitle>
             <CardDescription>
-              Default markup applied when generating equipment billing rates
+              Configure daily and weekly overtime thresholds for labor cost calculations
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Enable Overtime Calculation</Label>
+                <p className="text-xs text-muted-foreground">
+                  When disabled, all hours are treated as regular time
+                </p>
+              </div>
+              <Switch
+                checked={form.overtimeEnabled ?? true}
+                onCheckedChange={(checked) => updateForm("overtimeEnabled", checked)}
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="equipMarkup">Default Billing Rate Markup %</Label>
+                <Label htmlFor="dailyOt">Daily OT Threshold (hours)</Label>
                 <Input
-                  id="equipMarkup"
+                  id="dailyOt"
                   type="number"
                   min={0}
-                  max={200}
-                  step={1}
-                  value={extSettings.equipmentMarkupPercent}
+                  max={24}
+                  step={0.5}
+                  value={form.dailyOtThreshold ?? 8}
                   onChange={(e) =>
-                    updateExtSetting(
-                      "equipmentMarkupPercent",
-                      parseFloat(e.target.value) || 15
-                    )
+                    updateForm("dailyOtThreshold", parseFloat(e.target.value) || 8)
                   }
+                  disabled={!form.overtimeEnabled}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Billing rate = internal rate × (1 + markup%). Default: 15%
+                  Hours before overtime kicks in (CA default: 8)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="weeklyOt">Weekly OT Threshold (hours)</Label>
+                <Input
+                  id="weeklyOt"
+                  type="number"
+                  min={0}
+                  max={168}
+                  step={1}
+                  value={form.weeklyOtThreshold ?? 40}
+                  onChange={(e) =>
+                    updateForm("weeklyOtThreshold", parseFloat(e.target.value) || 40)
+                  }
+                  disabled={!form.overtimeEnabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Federal default: 40 hours/week
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dailyDt">Daily Double-Time Threshold (hours)</Label>
+                <Input
+                  id="dailyDt"
+                  type="number"
+                  min={0}
+                  max={24}
+                  step={0.5}
+                  value={form.dailyDtThreshold ?? 12}
+                  onChange={(e) =>
+                    updateForm("dailyDtThreshold", parseFloat(e.target.value) || 12)
+                  }
+                  disabled={!form.overtimeEnabled}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Hours before double-time kicks in (CA default: 12)
                 </p>
               </div>
             </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>California Overtime Rules</Label>
+                <p className="text-xs text-muted-foreground">
+                  Enables daily OT after 8 hours, daily DT after 12 hours, and 7th consecutive day rules
+                </p>
+              </div>
+              <Switch
+                checked={form.californiaOtRules ?? false}
+                onCheckedChange={(checked) => updateForm("californiaOtRules", checked)}
+                disabled={!form.overtimeEnabled}
+              />
+            </div>
+
+            {/* Visual breakdown */}
+            {form.overtimeEnabled && (
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  DAILY BREAKDOWN
+                </p>
+                <div className="flex h-6 rounded-full overflow-hidden text-[10px] font-medium">
+                  <div
+                    className="bg-green-500 text-white flex items-center justify-center"
+                    style={{
+                      width: `${((form.dailyOtThreshold ?? 8) / (form.dailyDtThreshold ?? 12)) * 100}%`,
+                    }}
+                  >
+                    Regular ({form.dailyOtThreshold ?? 8}h)
+                  </div>
+                  <div
+                    className="bg-amber-500 text-white flex items-center justify-center"
+                    style={{
+                      width: `${
+                        (((form.dailyDtThreshold ?? 12) - (form.dailyOtThreshold ?? 8)) /
+                          (form.dailyDtThreshold ?? 12)) *
+                        100
+                      }%`,
+                    }}
+                  >
+                    OT 1.5x ({(form.dailyDtThreshold ?? 12) - (form.dailyOtThreshold ?? 8)}h)
+                  </div>
+                  <div className="bg-red-500 text-white flex items-center justify-center flex-1">
+                    DT 2x
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

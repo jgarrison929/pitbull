@@ -550,37 +550,50 @@ export interface AuditLogFilters {
 export interface CompanySettings {
   id: string;
   name: string;
-  legalName: string | null;
-  taxId: string | null;
+  logoUrl: string | null;
+  primaryColor: string | null;
   address: string | null;
   city: string | null;
   state: string | null;
   zipCode: string | null;
   phone: string | null;
-  email: string | null;
   website: string | null;
-  logoUrl: string | null;
-  defaultRetainagePercent: number;
+  taxId: string | null;
+  timezone: string;
+  dateFormat: string;
+  currency: string;
   fiscalYearStartMonth: number;
-  timeZone: string | null;
-  createdAt: string;
-  updatedAt: string | null;
+  payPeriodType: string;
+  defaultWorkWeekDays: string;
+  overtimeEnabled: boolean;
+  dailyOtThreshold: number;
+  weeklyOtThreshold: number;
+  dailyDtThreshold: number;
+  californiaOtRules: boolean;
 }
 
 export interface UpdateCompanySettingsCommand {
   name?: string;
-  legalName?: string | null;
+  logoUrl?: string | null;
+  primaryColor?: string | null;
   taxId?: string | null;
   address?: string | null;
   city?: string | null;
   state?: string | null;
   zipCode?: string | null;
   phone?: string | null;
-  email?: string | null;
   website?: string | null;
-  defaultRetainagePercent?: number;
+  timezone?: string | null;
+  dateFormat?: string | null;
+  currency?: string | null;
   fiscalYearStartMonth?: number;
-  timeZone?: string | null;
+  payPeriodType?: string;
+  defaultWorkWeekDays?: string;
+  overtimeEnabled?: boolean;
+  dailyOtThreshold?: number;
+  weeklyOtThreshold?: number;
+  dailyDtThreshold?: number;
+  californiaOtRules?: boolean;
 }
 
 // ============================================
