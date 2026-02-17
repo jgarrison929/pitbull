@@ -27,16 +27,27 @@ import {
 import { RfiCostImpactSection } from "@/components/rfis";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import api from "@/lib/api";
+import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import type { Rfi, UpdateRfiCommand, RfiStatus, RfiPriority } from "@/lib/types";
 import { toast } from "sonner";
+import { Download, Paperclip } from "lucide-react";
+
+interface FileAttachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  createdAt: string;
+}
 
 interface FileItem {
   id: string;
   name: string;
   size: number;
   type: string;
+  file?: File;
 }
 
 function statusColor(status: RfiStatus) {
@@ -120,6 +131,7 @@ export default function RfiDetailPage({
   const [editEstimatedCostImpact, setEditEstimatedCostImpact] = useState("");
   const [editEstimatedDelayDays, setEditEstimatedDelayDays] = useState("");
   const [editAttachments, setEditAttachments] = useState<FileItem[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<FileAttachment[]>([]);
 
   // Track unsaved changes in edit mode
   const isDirty = useMemo(() => {
@@ -162,6 +174,11 @@ export default function RfiDetailPage({
         setEditHasCostImpact(data.hasCostImpact);
         setEditEstimatedCostImpact(data.estimatedCostImpact?.toString() || "");
         setEditEstimatedDelayDays(data.estimatedDelayDays?.toString() || "");
+
+        // Load existing attachments
+        api<FileAttachment[]>(`/api/files?entityType=Rfi&entityId=${data.id}`)
+          .then(setExistingAttachments)
+          .catch(() => setExistingAttachments([]));
 
         addRecentItem({
           id: data.id,
@@ -215,6 +232,26 @@ export default function RfiDetailPage({
         { method: "PUT", body: command }
       );
       setRfi(updated);
+
+      // Upload pending attachments
+      const realFiles = editAttachments.map((f) => f.file).filter((f): f is File => f !== undefined);
+      if (realFiles.length > 0) {
+        try {
+          const endpoint = realFiles.length === 1 ? "/api/files/upload" : "/api/files/upload-multiple";
+          await uploadFiles(endpoint, realFiles, {
+            relatedEntityType: "Rfi",
+            relatedEntityId: id,
+          });
+          toast.success(`${realFiles.length} attachment(s) uploaded`);
+          setEditAttachments([]);
+          // Reload attachments
+          const updated = await api<FileAttachment[]>(`/api/files?entityType=Rfi&entityId=${id}`);
+          setExistingAttachments(updated);
+        } catch {
+          toast.error("RFI saved but file upload failed");
+        }
+      }
+
       setIsEditing(false);
       toast.success("RFI updated successfully");
     } catch (err) {
@@ -429,6 +466,28 @@ export default function RfiDetailPage({
 
                 <div className="space-y-2">
                   <Label>Attachments</Label>
+                  {existingAttachments.length > 0 && (
+                    <div className="space-y-1 mb-2">
+                      {existingAttachments.map((f) => (
+                        <div key={f.id} className="flex items-center gap-2 text-sm rounded border px-2 py-1">
+                          <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="flex-1 truncate">{f.fileName}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                            const url = getDownloadUrl(f.id);
+                            const token = getToken();
+                            if (token) {
+                              fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+                                .then((r) => r.blob())
+                                .then((blob) => { const u = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = u; a.download = f.fileName; a.click(); URL.revokeObjectURL(u); })
+                                .catch(() => toast.error("Download failed"));
+                            }
+                          }}>
+                            <Download className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <FileDropZone
                     files={editAttachments}
                     onFilesChange={setEditAttachments}

@@ -1,7 +1,7 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
-import api from "@/lib/api";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
+import { Download, Trash2, Upload } from "lucide-react";
+import { getToken } from "@/lib/auth";
 import {
   Dialog,
   DialogContent,
@@ -64,6 +67,31 @@ interface TemplateFormState {
   engine: string;
   bodyTemplate: string;
   isDefault: boolean;
+}
+
+interface FileAttachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  uploadedById: string;
+  createdAt: string;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+}
+
+interface FileItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file?: File;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 const TEMPLATE_TYPES = ["Transmittal", "MeetingMinutes", "DailyReport", "Letter", "Narrative"];
@@ -131,6 +159,80 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
   const [generateTemplateId, setGenerateTemplateId] = useState("");
   const [generateFormat, setGenerateFormat] = useState("Pdf");
 
+  // File upload state
+  const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<FileItem[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const loadFiles = useCallback(async () => {
+    try {
+      const files = await api<FileAttachment[]>(
+        `/api/files?entityType=Project&entityId=${projectId}`
+      );
+      setUploadedFiles(files);
+    } catch {
+      // Non-critical
+    }
+  }, [projectId]);
+
+  async function handleFileUpload(filesToUpload: File[]) {
+    if (filesToUpload.length === 0) return;
+    setUploading(true);
+    try {
+      const endpoint = filesToUpload.length === 1
+        ? "/api/files/upload"
+        : "/api/files/upload-multiple";
+      await uploadFiles<FileAttachment | FileAttachment[]>(endpoint, filesToUpload, {
+        relatedEntityType: "Project",
+        relatedEntityId: projectId,
+      });
+      toast.success(`${filesToUpload.length} file(s) uploaded`);
+      setPendingFiles([]);
+      await loadFiles();
+    } catch (error) {
+      toast.error("Upload failed", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteFile(fileId: string) {
+    try {
+      await api(`/api/files/${fileId}`, { method: "DELETE" });
+      setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
+      toast.success("File deleted");
+    } catch (error) {
+      toast.error("Failed to delete file", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  }
+
+  function handleDownload(fileId: string, fileName: string) {
+    const url = getDownloadUrl(fileId);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    // Attach auth token via fetch for download
+    const token = getToken();
+    if (token) {
+      fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.blob())
+        .then((blob) => {
+          const blobUrl = URL.createObjectURL(blob);
+          a.href = blobUrl;
+          a.click();
+          URL.revokeObjectURL(blobUrl);
+        })
+        .catch(() => toast.error("Download failed"));
+    } else {
+      a.click();
+    }
+  }
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -151,7 +253,8 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
 
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadFiles();
+  }, [load, loadFiles]);
 
   const templateRows = useMemo(() => {
     const mapped = templates.map<TemplateRow>((t) => {
@@ -317,6 +420,85 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
           <Button onClick={openCreate}>+ New Template</Button>
         </div>
       </div>
+
+      {/* Project Files Upload */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Project Files</CardTitle>
+              <CardDescription>
+                Upload and manage files for this project.
+              </CardDescription>
+            </div>
+            <Badge variant="secondary">{uploadedFiles.length} files</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <FileDropZone
+            files={pendingFiles}
+            onFilesChange={setPendingFiles}
+            placeholder="Drag & drop project files here, or click to browse"
+          />
+          {pendingFiles.length > 0 && (
+            <Button
+              onClick={() => {
+                const realFiles = pendingFiles
+                  .map((f) => f.file)
+                  .filter((f): f is File => f !== undefined);
+                if (realFiles.length > 0) handleFileUpload(realFiles);
+              }}
+              disabled={uploading}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {uploading ? "Uploading..." : `Upload ${pendingFiles.length} file(s)`}
+            </Button>
+          )}
+
+          {uploadedFiles.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground">Uploaded Files</h4>
+              <div className="space-y-2">
+                {uploadedFiles.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center gap-3 rounded-md border bg-accent/20 px-3 py-2 text-sm"
+                  >
+                    <span className="flex-1 truncate font-medium">{file.fileName}</span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatFileSize(file.fileSize)}
+                    </span>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDate(file.createdAt)}
+                    </span>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => handleDownload(file.id, file.fileName)}
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        <span className="sr-only">Download</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteFile(file.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Document Templates */}
       <Card>

@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import api, { ApiError } from "@/lib/api";
+import api, { ApiError, uploadFiles, getDownloadUrl } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,24 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
-import { Pencil, Trash2 } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
+import { Pencil, Trash2, Download, Paperclip } from "lucide-react";
+
+interface FileAttachment {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  createdAt: string;
+}
+
+interface FileItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file?: File;
+}
 
 interface DataMap { [key: string]: unknown; }
 
@@ -94,6 +112,8 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
   });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<SubmittalRow | null>(null);
+  const [pendingFiles, setPendingFiles] = useState<FileItem[]>([]);
+  const [existingFiles, setExistingFiles] = useState<FileAttachment[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -141,6 +161,8 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
   function openCreate() {
     setEditing(false);
     setForm({ title: "", specSectionCode: "", specSectionTitle: "", submittalType: "ShopDrawing", description: "", requiredByDate: "", isSubstitutionRequest: false, status: "Draft" });
+    setPendingFiles([]);
+    setExistingFiles([]);
     setDialogOpen(true);
   }
 
@@ -154,6 +176,11 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
       requiredByDate: row.requiredByDate ? row.requiredByDate.slice(0, 10) : "",
       isSubstitutionRequest: row.isSubstitutionRequest, status: row.status,
     });
+    setPendingFiles([]);
+    // Load existing attachments for this submittal
+    api<FileAttachment[]>(`/api/files?entityType=Submittal&entityId=${row.id}`)
+      .then(setExistingFiles)
+      .catch(() => setExistingFiles([]));
     setDialogOpen(true);
   }
 
@@ -169,13 +196,30 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
     };
     setSaving(true);
     try {
+      let submittalId = form.id;
       if (editing && form.id) {
         await api<PmEntityDto>(`/api/projects/${projectId}/submittals/${form.id}`, { method: "PUT", body: payload });
         toast.success("Submittal updated");
       } else {
-        await api<PmEntityDto>(`/api/projects/${projectId}/submittals`, { method: "POST", body: payload });
+        const created = await api<PmEntityDto>(`/api/projects/${projectId}/submittals`, { method: "POST", body: payload });
+        submittalId = created.id;
         toast.success("Submittal created");
       }
+      // Upload pending files
+      const realFiles = pendingFiles.map((f) => f.file).filter((f): f is File => f !== undefined);
+      if (realFiles.length > 0 && submittalId) {
+        try {
+          const endpoint = realFiles.length === 1 ? "/api/files/upload" : "/api/files/upload-multiple";
+          await uploadFiles(endpoint, realFiles, {
+            relatedEntityType: "Submittal",
+            relatedEntityId: submittalId,
+          });
+          toast.success(`${realFiles.length} attachment(s) uploaded`);
+        } catch {
+          toast.error("Submittal saved but file upload failed");
+        }
+      }
+      setPendingFiles([]);
       setDialogOpen(false); await load();
     } catch (error) {
       toast.error("Failed to save submittal", { description: error instanceof Error ? error.message : "Unknown error" });
@@ -368,6 +412,37 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                   <Label htmlFor="sub-substitution" className="text-sm font-normal cursor-pointer">Substitution Request</Label>
                 </div>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Attachments</Label>
+              {existingFiles.length > 0 && (
+                <div className="space-y-1 mb-2">
+                  {existingFiles.map((f) => (
+                    <div key={f.id} className="flex items-center gap-2 text-sm rounded border px-2 py-1">
+                      <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                      <span className="flex-1 truncate">{f.fileName}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                        const url = getDownloadUrl(f.id);
+                        const token = getToken();
+                        if (token) {
+                          fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+                            .then((r) => r.blob())
+                            .then((blob) => { const u = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = u; a.download = f.fileName; a.click(); URL.revokeObjectURL(u); })
+                            .catch(() => toast.error("Download failed"));
+                        }
+                      }}>
+                        <Download className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <FileDropZone
+                files={pendingFiles}
+                onFilesChange={setPendingFiles}
+                placeholder="Drop files to attach to this submittal"
+                maxFiles={5}
+              />
             </div>
           </div>
           <DialogFooter>

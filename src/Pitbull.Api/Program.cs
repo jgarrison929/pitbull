@@ -51,6 +51,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly)
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateSubcontractCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectManagementModuleCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Documents.Features.DocumentsModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Notifications.Features.NotificationsModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.SystemAdmin.Features.SystemAdminModuleMarker).Assembly);
 
@@ -110,6 +111,9 @@ builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pi
 // Cost code service (Core module - for job cost accounting)
 builder.Services.AddScoped<Pitbull.Core.Features.CostCode.ICostCodeService, Pitbull.Core.Features.CostCode.CostCodeService>();
 builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentStorageProvider>();
+
+// Documents module (file attachments)
+builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbull.Documents.Services.FileStorageService>();
 
 // Notifications module
 builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService, Pitbull.Notifications.Services.NotificationService>();

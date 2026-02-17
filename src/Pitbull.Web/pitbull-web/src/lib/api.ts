@@ -69,5 +69,60 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export { api, ApiError };
+async function uploadFiles<T>(
+  endpoint: string,
+  files: File[],
+  fields?: Record<string, string>
+): Promise<T> {
+  const formData = new FormData();
+  if (files.length === 1) {
+    formData.append("file", files[0]);
+  } else {
+    for (const file of files) {
+      formData.append("files", file);
+    }
+  }
+  if (fields) {
+    for (const [key, value] of Object.entries(fields)) {
+      formData.append(key, value);
+    }
+  }
+
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (typeof window !== "undefined") {
+    const activeCompanyId = localStorage.getItem(ACTIVE_COMPANY_KEY);
+    if (activeCompanyId) headers["X-Company-Id"] = activeCompanyId;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (response.status === 401) {
+    removeToken();
+    if (typeof window !== "undefined") window.location.href = "/login";
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new ApiError(
+      response.status,
+      errorData?.message || `Upload failed with status ${response.status}`,
+      errorData
+    );
+  }
+
+  return response.json() as Promise<T>;
+}
+
+function getDownloadUrl(fileId: string): string {
+  return `${API_BASE_URL}/api/files/${fileId}/download`;
+}
+
+export { api, ApiError, uploadFiles, getDownloadUrl };
 export default api;

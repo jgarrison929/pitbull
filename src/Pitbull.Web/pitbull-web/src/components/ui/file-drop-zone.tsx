@@ -10,6 +10,7 @@ interface FileItem {
   name: string;
   size: number;
   type: string;
+  file?: File;
 }
 
 interface FileDropZoneProps {
@@ -78,6 +79,7 @@ export function FileDropZone({
             name: file.name,
             size: file.size,
             type: file.type,
+            file,
           });
         }
       }
