@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -26,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { Clock, ArrowUpDown, ArrowUp, ArrowDown, Users, List } from "lucide-react";
+import { Clock, ArrowUpDown, ArrowUp, ArrowDown, Users, List, CheckCircle2, XCircle } from "lucide-react";
 import api from "@/lib/api";
 import type {
   ListTimeEntriesResult,
@@ -86,6 +87,8 @@ function TimeTrackingContent() {
   // Sorting
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [selectedEntryIds, setSelectedEntryIds] = useState<Set<string>>(new Set());
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const fetchEntries = useCallback(async () => {
     setIsLoading(true);
@@ -183,6 +186,17 @@ function TimeTrackingContent() {
     return result;
   }, [entries, phaseFilter, equipmentFilter, sortField, sortDirection]);
 
+  useEffect(() => {
+    const visibleIds = new Set(filteredEntries.map((e) => e.id));
+    setSelectedEntryIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (visibleIds.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [filteredEntries]);
+
   // Get unique phase names from entries for the filter dropdown
   const uniquePhases = useMemo(() => {
     const phases = new Set<string>();
@@ -220,6 +234,78 @@ function TimeTrackingContent() {
   const totalHours = filteredEntries.reduce((sum, e) => sum + e.totalHours, 0);
   const totalEquipmentHours = filteredEntries.reduce((sum, e) => sum + (e.equipmentHours || 0), 0);
 
+  const allVisibleSelected =
+    filteredEntries.length > 0 &&
+    filteredEntries.every((entry) => selectedEntryIds.has(entry.id));
+  const someVisibleSelected =
+    filteredEntries.some((entry) => selectedEntryIds.has(entry.id)) && !allVisibleSelected;
+
+  function toggleEntrySelection(entryId: string, checked: boolean) {
+    setSelectedEntryIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(entryId);
+      else next.delete(entryId);
+      return next;
+    });
+  }
+
+  function toggleSelectAllVisible(checked: boolean) {
+    setSelectedEntryIds((prev) => {
+      const next = new Set(prev);
+      filteredEntries.forEach((entry) => {
+        if (checked) next.add(entry.id);
+        else next.delete(entry.id);
+      });
+      return next;
+    });
+  }
+
+  async function runBulkAction(action: "approve" | "reject") {
+    const ids = Array.from(selectedEntryIds);
+    if (ids.length === 0) {
+      toast.error("Select at least one entry");
+      return;
+    }
+
+    setIsBulkProcessing(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const id of ids) {
+      try {
+        if (action === "approve") {
+          await api(`/api/time-entries/${id}/approve`, {
+            method: "POST",
+            body: { comments: "Bulk approved from time tracking list" },
+          });
+        } else {
+          await api(`/api/time-entries/${id}/reject`, {
+            method: "POST",
+            body: { reason: "Bulk rejected from time tracking list" },
+          });
+        }
+        successCount += 1;
+      } catch {
+        failCount += 1;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(
+        action === "approve"
+          ? `Approved ${successCount} time entr${successCount === 1 ? "y" : "ies"}`
+          : `Rejected ${successCount} time entr${successCount === 1 ? "y" : "ies"}`
+      );
+    }
+    if (failCount > 0) {
+      toast.error(`Failed on ${failCount} entr${failCount === 1 ? "y" : "ies"}`);
+    }
+
+    setSelectedEntryIds(new Set());
+    await fetchEntries();
+    setIsBulkProcessing(false);
+  }
+
   // If not viewing entries, show nothing (redirect is happening)
   if (viewParam !== "entries") {
     return null;
@@ -236,6 +322,24 @@ function TimeTrackingContent() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => runBulkAction("approve")}
+              disabled={selectedEntryIds.size === 0 || isBulkProcessing}
+              className="min-h-[44px] shrink-0"
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              {isBulkProcessing ? "Processing..." : `Bulk Approve (${selectedEntryIds.size})`}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => runBulkAction("reject")}
+              disabled={selectedEntryIds.size === 0 || isBulkProcessing}
+              className="min-h-[44px] shrink-0"
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              {isBulkProcessing ? "Processing..." : `Bulk Reject (${selectedEntryIds.size})`}
+            </Button>
             <Button
               asChild
               variant="outline"
@@ -459,6 +563,7 @@ function TimeTrackingContent() {
                 <div className="hidden sm:block">
                   <TableSkeleton
                     headers={[
+                      "",
                       "Date",
                       "Employee",
                       "Project",
@@ -582,6 +687,13 @@ function TimeTrackingContent() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-[44px]">
+                          <Checkbox
+                            checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                            onCheckedChange={(checked) => toggleSelectAllVisible(checked === true)}
+                            aria-label="Select all visible entries"
+                          />
+                        </TableHead>
                         <TableHead
                           className="cursor-pointer select-none hover:text-foreground"
                           onClick={() => toggleSort("date")}
@@ -632,6 +744,13 @@ function TimeTrackingContent() {
                     <TableBody>
                       {filteredEntries.map((entry) => (
                         <TableRow key={entry.id}>
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedEntryIds.has(entry.id)}
+                              onCheckedChange={(checked) => toggleEntrySelection(entry.id, checked === true)}
+                              aria-label={`Select ${entry.employeeName} on ${entry.date}`}
+                            />
+                          </TableCell>
                           <TableCell className="whitespace-nowrap">
                             {formatDate(entry.date)}
                           </TableCell>
