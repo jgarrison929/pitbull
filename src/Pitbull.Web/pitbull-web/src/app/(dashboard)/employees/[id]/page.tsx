@@ -4,6 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import {
   Card,
   CardContent,
@@ -74,6 +75,7 @@ export default function EmployeeDetailPage({
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [complianceScore, setComplianceScore] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,6 +108,16 @@ export default function EmployeeDetailPage({
         } catch {
           // Time entries endpoint might fail
           setTimeEntries([]);
+        }
+
+        // Fetch employee compliance score
+        try {
+          const score = await api<{ scorePercent: number }>(
+            `/api/compliance-documents/score?entityType=Employee&entityId=${resolvedParams.id}`
+          );
+          setComplianceScore(score.scorePercent);
+        } catch {
+          setComplianceScore(null);
         }
       } catch {
         setError("Failed to load employee");
@@ -389,6 +401,34 @@ export default function EmployeeDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Compliance Score */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Compliance Score</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">Current</p>
+                <Badge
+                  variant="secondary"
+                  className={
+                    (complianceScore ?? 0) >= 85
+                      ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                      : (complianceScore ?? 0) >= 60
+                      ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200"
+                      : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
+                  }
+                >
+                  {complianceScore === null ? "N/A" : `${complianceScore.toFixed(0)}%`}
+                </Badge>
+              </div>
+              <Progress value={complianceScore ?? 0} className="h-2" />
+              <p className="text-xs text-muted-foreground">
+                Based on current required certifications and insurance documents.
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Project Assignments */}
           <Card>
             <CardHeader>
