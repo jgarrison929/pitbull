@@ -34,7 +34,7 @@ public class EmployeeOnboardingSettingsController(
             return NotFound(new { error = "No active company" });
 
         var company = await db.Companies
-            .Where(c => c.Id == companyContext.CompanyId)
+            .Where(c => c.Id == companyContext.CompanyId && !c.IsDeleted)
             .FirstOrDefaultAsync();
 
         if (company is null)
@@ -55,7 +55,7 @@ public class EmployeeOnboardingSettingsController(
             return NotFound(new { error = "No active company" });
 
         var company = await db.Companies
-            .Where(c => c.Id == companyContext.CompanyId)
+            .Where(c => c.Id == companyContext.CompanyId && !c.IsDeleted)
             .FirstOrDefaultAsync();
 
         if (company is null)

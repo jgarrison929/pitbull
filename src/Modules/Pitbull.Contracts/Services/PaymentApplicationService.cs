@@ -3,6 +3,7 @@ using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
 
 namespace Pitbull.Contracts.Services;
 
@@ -43,7 +44,12 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
             return Result.Failure<IReadOnlyList<PaymentApplicationLineItemDto>>(
                 "Payment application not found", "NOT_FOUND");
 
-        if (payApp.Status != PaymentApplicationStatus.Draft)
+        var settings = await GetSettingsAsync(payApp.CompanyId, cancellationToken);
+        var editableStatuses = settings.LockSubmittedLineItems
+            ? new[] { PaymentApplicationStatus.Draft }
+            : new[] { PaymentApplicationStatus.Draft, PaymentApplicationStatus.Submitted };
+
+        if (!editableStatuses.Contains(payApp.Status))
             return Result.Failure<IReadOnlyList<PaymentApplicationLineItemDto>>(
                 "Line items can only be edited on draft applications", "INVALID_STATUS");
 
@@ -90,6 +96,20 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
             return Result.Failure<PaymentApplicationDetailDto>(
                 "Only draft applications can be submitted", "INVALID_STATUS");
 
+        var settings = await GetSettingsAsync(payApp.CompanyId, cancellationToken);
+
+        if (settings.RequireSignedSubcontract)
+        {
+            var subcontract = await db.Set<Subcontract>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId && !s.IsDeleted, cancellationToken);
+
+            if (subcontract?.ExecutionDate is null)
+                return Result.Failure<PaymentApplicationDetailDto>(
+                    "Subcontract must be signed (have an execution date) before submitting a payment application",
+                    "UNSIGNED_SUBCONTRACT");
+        }
+
         payApp.Status = PaymentApplicationStatus.Submitted;
         payApp.SubmittedDate = DateTime.UtcNow;
 
@@ -128,7 +148,12 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         if (payApp is null)
             return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
 
-        if (payApp.Status != PaymentApplicationStatus.Reviewed)
+        var settings = await GetSettingsAsync(payApp.CompanyId, cancellationToken);
+        var approvableStatuses = settings.EnableApprovalWorkflow
+            ? new[] { PaymentApplicationStatus.Reviewed }
+            : new[] { PaymentApplicationStatus.Submitted, PaymentApplicationStatus.Reviewed };
+
+        if (!approvableStatuses.Contains(payApp.Status))
             return Result.Failure<PaymentApplicationDetailDto>(
                 "Only reviewed applications can be approved", "INVALID_STATUS");
 
@@ -155,6 +180,16 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
             return Result.Failure<PaymentApplicationDetailDto>(
                 "Only approved applications can be marked as paid", "INVALID_STATUS");
 
+        var settings = await GetSettingsAsync(payApp.CompanyId, cancellationToken);
+
+        if (settings.RequireLienWaiverBeforePaid)
+        {
+            // Lien waiver entity is not yet implemented - block payment until it is
+            return Result.Failure<PaymentApplicationDetailDto>(
+                "A lien waiver is required before marking as paid. Lien waiver tracking is not yet available.",
+                "LIEN_WAIVER_REQUIRED");
+        }
+
         payApp.Status = PaymentApplicationStatus.Paid;
         payApp.PaidAmount = request.PaidAmount;
         payApp.PaidDate = request.PaidDate;
@@ -163,7 +198,7 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         payApp.Notes = request.Notes ?? payApp.Notes;
 
         var subcontract = await db.Set<Subcontract>()
-            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId && !s.IsDeleted, cancellationToken);
 
         if (subcontract is not null)
         {
@@ -292,7 +327,7 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
 
         var subcontract = await db.Set<Subcontract>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId && !s.IsDeleted, cancellationToken);
 
         if (subcontract is null)
             return Result.Failure<PaymentApplicationG702Dto>("Subcontract not found", "NOT_FOUND");
@@ -301,6 +336,17 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
     }
 
     // === Private Helpers ===
+
+    private async Task<PaymentApplicationSettings> GetSettingsAsync(
+        Guid companyId, CancellationToken cancellationToken)
+    {
+        var company = await db.Companies
+            .AsNoTracking()
+            .Where(c => c.Id == companyId && !c.IsDeleted)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return company?.PaymentApplicationSettings ?? new PaymentApplicationSettings();
+    }
 
     private static void RecalculateLineItem(PaymentApplicationLineItem li)
     {
@@ -344,7 +390,7 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
 
         var subcontract = await db.Set<Subcontract>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId, cancellationToken);
+            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId && !s.IsDeleted, cancellationToken);
 
         var g702 = subcontract is not null
             ? BuildG702(payApp, subcontract)

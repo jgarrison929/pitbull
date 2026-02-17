@@ -18,7 +18,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     {
         var employee = await db.Set<Employee>()
             .AsNoTracking()
-            .Where(e => e.Id == employeeId)
+            .Where(e => e.Id == employeeId && !e.IsDeleted)
             .Select(e => new
             {
                 e.Id,
@@ -58,7 +58,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
             .Include(e => e.TaxCompliance)
             .Include(e => e.Certifications)
             .Include(e => e.UnionAffiliations)
-            .FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken);
+            .FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
 
         if (employee is null)
             return Result.Failure<EmployeeOnboardingStatusDto>("Employee not found", "NOT_FOUND");
@@ -89,13 +89,13 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<IReadOnlyList<EmergencyContactDto>>> GetEmergencyContactsAsync(
         Guid employeeId, CancellationToken cancellationToken = default)
     {
-        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!exists)
             return Result.Failure<IReadOnlyList<EmergencyContactDto>>("Employee not found", "NOT_FOUND");
 
         var contacts = await db.Set<EmployeeEmergencyContact>()
             .AsNoTracking()
-            .Where(c => c.EmployeeId == employeeId)
+            .Where(c => c.EmployeeId == employeeId && !c.IsDeleted)
             .OrderByDescending(c => c.IsPrimary)
             .ThenBy(c => c.Name)
             .Select(c => MapContactDto(c))
@@ -107,7 +107,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<EmergencyContactDto>> SaveEmergencyContactAsync(
         Guid employeeId, SaveEmergencyContactRequest request, CancellationToken cancellationToken = default)
     {
-        var employee = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var employee = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!employee)
             return Result.Failure<EmergencyContactDto>("Employee not found", "NOT_FOUND");
 
@@ -142,12 +142,13 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
         Guid employeeId, Guid contactId, CancellationToken cancellationToken = default)
     {
         var contact = await db.Set<EmployeeEmergencyContact>()
-            .FirstOrDefaultAsync(c => c.Id == contactId && c.EmployeeId == employeeId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.Id == contactId && c.EmployeeId == employeeId && !c.IsDeleted, cancellationToken);
 
         if (contact is null)
             return Result.Failure("Emergency contact not found", "NOT_FOUND");
 
-        db.Set<EmployeeEmergencyContact>().Remove(contact);
+        contact.IsDeleted = true;
+        contact.DeletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -157,7 +158,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<TaxComplianceDto>> GetTaxComplianceAsync(
         Guid employeeId, CancellationToken cancellationToken = default)
     {
-        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!exists)
             return Result.Failure<TaxComplianceDto>("Employee not found", "NOT_FOUND");
 
@@ -174,7 +175,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<TaxComplianceDto>> SaveTaxComplianceAsync(
         Guid employeeId, SaveTaxComplianceRequest request, CancellationToken cancellationToken = default)
     {
-        var employeeExists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var employeeExists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!employeeExists)
             return Result.Failure<TaxComplianceDto>("Employee not found", "NOT_FOUND");
 
@@ -217,13 +218,13 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<IReadOnlyList<CertificationDto>>> GetCertificationsAsync(
         Guid employeeId, CancellationToken cancellationToken = default)
     {
-        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!exists)
             return Result.Failure<IReadOnlyList<CertificationDto>>("Employee not found", "NOT_FOUND");
 
         var certs = await db.Set<EmployeeCertification>()
             .AsNoTracking()
-            .Where(c => c.EmployeeId == employeeId)
+            .Where(c => c.EmployeeId == employeeId && !c.IsDeleted)
             .OrderBy(c => c.CertificationType)
             .ThenBy(c => c.IssuedDate)
             .Select(c => MapCertDto(c))
@@ -235,7 +236,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<CertificationDto>> SaveCertificationAsync(
         Guid employeeId, SaveCertificationRequest request, CancellationToken cancellationToken = default)
     {
-        var employeeExists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var employeeExists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!employeeExists)
             return Result.Failure<CertificationDto>("Employee not found", "NOT_FOUND");
 
@@ -265,12 +266,13 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
         Guid employeeId, Guid certificationId, CancellationToken cancellationToken = default)
     {
         var cert = await db.Set<EmployeeCertification>()
-            .FirstOrDefaultAsync(c => c.Id == certificationId && c.EmployeeId == employeeId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.Id == certificationId && c.EmployeeId == employeeId && !c.IsDeleted, cancellationToken);
 
         if (cert is null)
             return Result.Failure("Certification not found", "NOT_FOUND");
 
-        db.Set<EmployeeCertification>().Remove(cert);
+        cert.IsDeleted = true;
+        cert.DeletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -280,13 +282,13 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<IReadOnlyList<UnionAffiliationDto>>> GetUnionAffiliationsAsync(
         Guid employeeId, CancellationToken cancellationToken = default)
     {
-        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var exists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!exists)
             return Result.Failure<IReadOnlyList<UnionAffiliationDto>>("Employee not found", "NOT_FOUND");
 
         var affiliations = await db.Set<EmployeeUnionAffiliation>()
             .AsNoTracking()
-            .Where(u => u.EmployeeId == employeeId)
+            .Where(u => u.EmployeeId == employeeId && !u.IsDeleted)
             .OrderByDescending(u => u.EffectiveDate)
             .Select(u => MapUnionDto(u))
             .ToListAsync(cancellationToken);
@@ -297,7 +299,7 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
     public async Task<Result<UnionAffiliationDto>> SaveUnionAffiliationAsync(
         Guid employeeId, SaveUnionAffiliationRequest request, CancellationToken cancellationToken = default)
     {
-        var employeeExists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId, cancellationToken);
+        var employeeExists = await db.Set<Employee>().AnyAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (!employeeExists)
             return Result.Failure<UnionAffiliationDto>("Employee not found", "NOT_FOUND");
 
@@ -331,12 +333,13 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
         Guid employeeId, Guid affiliationId, CancellationToken cancellationToken = default)
     {
         var affiliation = await db.Set<EmployeeUnionAffiliation>()
-            .FirstOrDefaultAsync(u => u.Id == affiliationId && u.EmployeeId == employeeId, cancellationToken);
+            .FirstOrDefaultAsync(u => u.Id == affiliationId && u.EmployeeId == employeeId && !u.IsDeleted, cancellationToken);
 
         if (affiliation is null)
             return Result.Failure("Union affiliation not found", "NOT_FOUND");
 
-        db.Set<EmployeeUnionAffiliation>().Remove(affiliation);
+        affiliation.IsDeleted = true;
+        affiliation.DeletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -345,7 +348,8 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
 
     private async Task UpdateOnboardingProgress(Guid employeeId, CancellationToken cancellationToken)
     {
-        var employee = await db.Set<Employee>().FindAsync([employeeId], cancellationToken);
+        var employee = await db.Set<Employee>()
+            .FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsDeleted, cancellationToken);
         if (employee is not null && employee.OnboardingStatus == OnboardingStatus.NotStarted)
         {
             employee.OnboardingStatus = OnboardingStatus.InProgress;
