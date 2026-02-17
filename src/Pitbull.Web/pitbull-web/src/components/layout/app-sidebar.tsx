@@ -50,6 +50,7 @@ const reportItems = [
 
 const settingsItems = [
   { label: "Preferences", href: "/settings", icon: "⚙️" },
+  { label: "Notifications", href: "/settings/notifications", icon: "🔔" },
   { label: "Overtime Rules", href: "/settings/overtime", icon: "⏰" },
 ];
 

@@ -117,6 +117,7 @@ builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbu
 
 // Notifications module
 builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService, Pitbull.Notifications.Services.NotificationService>();
+builder.Services.AddScoped<Pitbull.Api.Services.INotificationPreferenceService, Pitbull.Api.Services.NotificationPreferenceService>();
 
 // SystemAdmin module services
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, Pitbull.SystemAdmin.Services.TenantSettingsService>();
