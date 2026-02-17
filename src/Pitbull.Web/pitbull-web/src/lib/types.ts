@@ -1187,3 +1187,62 @@ export interface RfiAttentionItem {
   isBallInCourt: boolean;
   ballInCourtName: string | null;
 }
+
+// ============================================
+// AI Integration Types
+// ============================================
+
+export interface AiSuggestRequest {
+  fieldName: string;
+  entityType?: string;
+  currentValue?: string;
+  context?: Record<string, string>;
+}
+
+export interface AiSuggestResponse {
+  suggestion: string;
+  model: string;
+  provider: string;
+  latencyMs: number;
+}
+
+export interface AiChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AiChatRequest {
+  message: string;
+  history?: AiChatMessage[];
+}
+
+export interface AiChatResponse {
+  reply: string;
+  model: string;
+  provider: string;
+  latencyMs: number;
+}
+
+export interface AiDocumentAnalysisRequest {
+  fileId: string;
+  additionalContext?: string;
+}
+
+export interface AiDocumentAnalysisResponse {
+  fileId: string;
+  fileName: string;
+  analysis: string;
+  model: string;
+  provider: string;
+  latencyMs: number;
+}
+
+export interface AiDocumentAnalysis {
+  documentType: string | null;
+  dates: { label: string; value: string }[];
+  amounts: { label: string; value: number }[];
+  parties: { name: string; role: string }[];
+  keyTerms: string[];
+  summary: string | null;
+  recommendations: string[];
+}
