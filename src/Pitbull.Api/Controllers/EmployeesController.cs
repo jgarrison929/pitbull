@@ -139,9 +139,20 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
         }
 
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+        {
+            // Return empty crew instead of 404 when no employee matches
+            // This lets the crew entry page render with "no crew" instead of error
+            if (result.ErrorCode == "NOT_FOUND")
+            {
+                return Ok(new MyCrewResult(
+                    SupervisorId: supervisorId ?? Guid.Empty,
+                    SupervisorName: "Unknown",
+                    CrewCount: 0,
+                    CrewMembers: []
+                ));
+            }
+            return BadRequest(new { error = result.Error });
+        }
 
         return Ok(result.Value);
     }

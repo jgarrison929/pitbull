@@ -871,6 +871,80 @@ export interface PaymentApplication {
   updatedAt?: string | null;
 }
 
+// ============================================
+// Schedule of Values Types
+// ============================================
+
+export enum SOVStatus {
+  Draft = 0,
+  Active = 1,
+  Closed = 2,
+}
+
+export interface SOVLineItem {
+  id: string;
+  scheduleOfValuesId: string;
+  itemNumber: string;
+  description: string;
+  scheduledValue: number;
+  previouslyBilled: number;
+  currentBilled: number;
+  storedMaterials: number;
+  totalCompletedToDate: number;
+  percentComplete: number;
+  balanceToFinish: number;
+  retainage: number;
+  sortOrder: number;
+}
+
+export interface ScheduleOfValues {
+  id: string;
+  subcontractId: string;
+  name: string;
+  totalScheduledValue: number;
+  status: SOVStatus;
+  retainagePercent: number;
+  createdAt: string;
+  updatedAt?: string | null;
+  lineItems: SOVLineItem[];
+}
+
+export interface SOVSummary {
+  id: string;
+  name: string;
+  totalScheduledValue: number;
+  totalPreviouslyBilled: number;
+  totalCurrentBilled: number;
+  totalStoredMaterials: number;
+  totalCompletedToDate: number;
+  overallPercentComplete: number;
+  totalBalanceToFinish: number;
+  totalRetainage: number;
+  lineItemCount: number;
+}
+
+export interface CreateSOVLineItemCommand {
+  itemNumber: string;
+  description: string;
+  scheduledValue: number;
+  previouslyBilled?: number;
+  currentBilled?: number;
+  storedMaterials?: number;
+  retainage?: number;
+  sortOrder?: number;
+}
+
+export interface UpdateSOVLineItemCommand {
+  itemNumber?: string;
+  description?: string;
+  scheduledValue?: number;
+  previouslyBilled?: number;
+  currentBilled?: number;
+  storedMaterials?: number;
+  retainage?: number;
+  sortOrder?: number;
+}
+
 // RFI (Request for Information) Types
 export enum RfiStatus {
   Open = 0,

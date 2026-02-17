@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Core.Data;
@@ -31,6 +32,7 @@ public class PitbullDbContext(
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Company> Companies => Set<Company>();
     public DbSet<UserCompanyAccess> UserCompanyAccess => Set<UserCompanyAccess>();
+    public DbSet<ComplianceDocument> ComplianceDocuments => Set<ComplianceDocument>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
