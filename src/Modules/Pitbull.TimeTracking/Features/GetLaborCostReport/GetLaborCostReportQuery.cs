@@ -43,6 +43,11 @@ public record LaborCostReportResponse
     /// Breakdown by project (if multiple projects included)
     /// </summary>
     public required IReadOnlyList<ProjectCostSummary> ByProject { get; init; }
+
+    /// <summary>
+    /// Breakdown by employee across all projects
+    /// </summary>
+    public required IReadOnlyList<EmployeeCostSummary> ByEmployee { get; init; }
 }
 
 /// <summary>
@@ -107,5 +112,18 @@ public record CostCodeCostSummary
     public required Guid CostCodeId { get; init; }
     public required string CostCodeNumber { get; init; }
     public required string CostCodeName { get; init; }
+    public required LaborCostSummary Cost { get; init; }
+}
+
+/// <summary>
+/// Cost summary for a single employee across all projects
+/// </summary>
+public record EmployeeCostSummary
+{
+    public required Guid EmployeeId { get; init; }
+    public required string EmployeeName { get; init; }
+    public required string? EmployeeNumber { get; init; }
+    public required string Classification { get; init; }
+    public required decimal BaseHourlyRate { get; init; }
     public required LaborCostSummary Cost { get; init; }
 }

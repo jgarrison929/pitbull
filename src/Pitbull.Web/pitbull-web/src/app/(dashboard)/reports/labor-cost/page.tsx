@@ -33,11 +33,11 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
-  FileSpreadsheet,
   RefreshCw,
   AlertCircle,
   Download,
   Printer,
+  Users,
 } from "lucide-react";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
@@ -71,6 +71,15 @@ interface ProjectCostSummary {
   byCostCode: CostCodeCostSummary[];
 }
 
+interface EmployeeCostSummary {
+  employeeId: string;
+  employeeName: string;
+  employeeNumber: string | null;
+  classification: string;
+  baseHourlyRate: number;
+  cost: LaborCostSummary;
+}
+
 interface LaborCostReportResponse {
   generatedAt: string;
   dateRange: {
@@ -80,6 +89,7 @@ interface LaborCostReportResponse {
   approvedOnly: boolean;
   totalCost: LaborCostSummary;
   byProject: ProjectCostSummary[];
+  byEmployee: EmployeeCostSummary[];
 }
 
 interface Project {
@@ -87,6 +97,8 @@ interface Project {
   name: string;
   number: string;
 }
+
+type ViewMode = "project" | "employee";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -146,6 +158,7 @@ export default function LaborCostReportPage() {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
     new Set()
   );
+  const [viewMode, setViewMode] = useState<ViewMode>("project");
 
   // Filters
   const [projectFilter, setProjectFilter] = useState<string>(ALL_VALUE);
@@ -215,6 +228,69 @@ export default function LaborCostReportPage() {
 
   const exportCsv = () => {
     if (!report) return;
+
+    if (viewMode === "employee") {
+      const rows = [
+        [
+          "Employee #",
+          "Employee Name",
+          "Classification",
+          "Hourly Rate",
+          "Total Hours",
+          "Regular Hours",
+          "OT Hours",
+          "DT Hours",
+          "Base Wages",
+          "Burden",
+          "Total Cost",
+        ].join(","),
+      ];
+
+      for (const emp of report.byEmployee) {
+        rows.push(
+          [
+            emp.employeeNumber ?? "",
+            `"${emp.employeeName}"`,
+            emp.classification,
+            emp.baseHourlyRate.toFixed(2),
+            emp.cost.totalHours.toFixed(1),
+            emp.cost.regularHours.toFixed(1),
+            emp.cost.overtimeHours.toFixed(1),
+            emp.cost.doubletimeHours.toFixed(1),
+            emp.cost.baseWageCost.toFixed(2),
+            emp.cost.burdenCost.toFixed(2),
+            emp.cost.totalCost.toFixed(2),
+          ].join(",")
+        );
+      }
+
+      rows.push(
+        [
+          "",
+          "GRAND TOTAL",
+          "",
+          "",
+          report.totalCost.totalHours.toFixed(1),
+          report.totalCost.regularHours.toFixed(1),
+          report.totalCost.overtimeHours.toFixed(1),
+          report.totalCost.doubletimeHours.toFixed(1),
+          report.totalCost.baseWageCost.toFixed(2),
+          report.totalCost.burdenCost.toFixed(2),
+          report.totalCost.totalCost.toFixed(2),
+        ].join(",")
+      );
+
+      const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const dateRange = getDatePreset(datePreset);
+      a.download = `labor-cost-by-employee-${dateRange.start}-to-${dateRange.end}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("CSV exported successfully");
+      return;
+    }
 
     const rows = [
       [
@@ -296,6 +372,8 @@ export default function LaborCostReportPage() {
     toast.success("CSV exported successfully");
   };
 
+  const hasData = report && (report.byProject.length > 0 || report.byEmployee.length > 0);
+
   return (
     <div className="space-y-6">
       <Breadcrumbs
@@ -310,7 +388,7 @@ export default function LaborCostReportPage() {
         <div>
           <h1 className="text-2xl font-bold">Labor Cost Report</h1>
           <p className="text-muted-foreground">
-            Job cost analysis by project and cost code
+            Job cost analysis by project, cost code, and employee
           </p>
         </div>
         <div className="flex gap-2">
@@ -388,15 +466,15 @@ export default function LaborCostReportPage() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Burden Rate</CardTitle>
-              <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Employees</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {formatPercent(report.totalCost.burdenRateApplied)}
+                {report.byEmployee.length}
               </div>
               <p className="text-xs text-muted-foreground">
-                applied to base wages
+                {formatPercent(report.totalCost.burdenRateApplied)} burden rate
               </p>
             </CardContent>
           </Card>
@@ -406,7 +484,7 @@ export default function LaborCostReportPage() {
       {/* Filters */}
       <Card className="no-print">
         <CardContent className="pt-6">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <div className="space-y-2">
               <Label htmlFor="datePreset">Date Range</Label>
               <Select value={datePreset} onValueChange={setDatePreset}>
@@ -450,14 +528,26 @@ export default function LaborCostReportPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="viewMode">View By</Label>
+              <Select value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+                <SelectTrigger id="viewMode">
+                  <SelectValue placeholder="View mode" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="project">By Project</SelectItem>
+                  <SelectItem value="employee">By Employee</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Report Table */}
       <div className="space-y-4">
-        {/* Expand/Collapse controls */}
-        {report && report.byProject.length > 0 && (
+        {/* Expand/Collapse controls (project view only) */}
+        {viewMode === "project" && report && report.byProject.length > 0 && (
           <div className="flex justify-end gap-2 no-print">
             <Button variant="ghost" size="sm" onClick={expandAll}>
               Expand All
@@ -468,29 +558,25 @@ export default function LaborCostReportPage() {
           </div>
         )}
 
-        {/* Desktop Table */}
+        {/* Desktop Tables */}
         <div className="hidden md:block">
           {isLoading ? (
             <TableSkeleton
-              headers={[
-                "Project",
-                "Hours",
-                "Regular",
-                "OT",
-                "DT",
-                "Base Wages",
-                "Burden",
-                "Total Cost",
-              ]}
+              headers={
+                viewMode === "project"
+                  ? ["Project", "Hours", "Regular", "OT", "DT", "Base Wages", "Burden", "Total Cost"]
+                  : ["Employee", "Class", "Rate", "Hours", "OT", "DT", "Base Wages", "Burden", "Total Cost"]
+              }
               rows={5}
             />
-          ) : !report || report.byProject.length === 0 ? (
+          ) : !hasData ? (
             <EmptyState
               icon={AlertCircle}
               title="No labor data found"
               description="No approved time entries exist for the selected period and filters."
             />
-          ) : (
+          ) : viewMode === "project" ? (
+            /* ── Project View Table ── */
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -506,7 +592,7 @@ export default function LaborCostReportPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {report.byProject.map((project) => {
+                  {report!.byProject.map((project) => {
                     const isExpanded = expandedProjects.has(project.projectId);
                     return (
                       <Collapsible
@@ -613,25 +699,110 @@ export default function LaborCostReportPage() {
                   <TableRow className="bg-muted font-semibold">
                     <TableCell>Grand Total</TableCell>
                     <TableCell className="text-right">
-                      {formatHours(report.totalCost.totalHours)}
+                      {formatHours(report!.totalCost.totalHours)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatHours(report.totalCost.regularHours)}
+                      {formatHours(report!.totalCost.regularHours)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatHours(report.totalCost.overtimeHours)}
+                      {formatHours(report!.totalCost.overtimeHours)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatHours(report.totalCost.doubletimeHours)}
+                      {formatHours(report!.totalCost.doubletimeHours)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(report.totalCost.baseWageCost)}
+                      {formatCurrency(report!.totalCost.baseWageCost)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(report.totalCost.burdenCost)}
+                      {formatCurrency(report!.totalCost.burdenCost)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(report.totalCost.totalCost)}
+                      {formatCurrency(report!.totalCost.totalCost)}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            /* ── Employee View Table ── */
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[250px]">Employee</TableHead>
+                    <TableHead>Classification</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
+                    <TableHead className="text-right">Hours</TableHead>
+                    <TableHead className="text-right">OT</TableHead>
+                    <TableHead className="text-right">DT</TableHead>
+                    <TableHead className="text-right">Base Wages</TableHead>
+                    <TableHead className="text-right">Burden</TableHead>
+                    <TableHead className="text-right">Total Cost</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {report!.byEmployee.map((emp) => (
+                    <TableRow key={emp.employeeId}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{emp.employeeName}</div>
+                          {emp.employeeNumber && (
+                            <div className="text-xs text-muted-foreground font-mono">
+                              {emp.employeeNumber}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs">
+                          {emp.classification}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        ${emp.baseHourlyRate.toFixed(2)}/hr
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatHours(emp.cost.totalHours)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatHours(emp.cost.overtimeHours)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatHours(emp.cost.doubletimeHours)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatCurrency(emp.cost.baseWageCost)}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatCurrency(emp.cost.burdenCost)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(emp.cost.totalCost)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {/* Totals row */}
+                  <TableRow className="bg-muted font-semibold">
+                    <TableCell>Grand Total ({report!.byEmployee.length} employees)</TableCell>
+                    <TableCell />
+                    <TableCell />
+                    <TableCell className="text-right">
+                      {formatHours(report!.totalCost.totalHours)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatHours(report!.totalCost.overtimeHours)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatHours(report!.totalCost.doubletimeHours)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(report!.totalCost.baseWageCost)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(report!.totalCost.burdenCost)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(report!.totalCost.totalCost)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -644,7 +815,7 @@ export default function LaborCostReportPage() {
         <div className="md:hidden">
           {isLoading ? (
             <CardListSkeleton rows={5} />
-          ) : !report || report.byProject.length === 0 ? (
+          ) : !hasData ? (
             <EmptyState
               icon={AlertCircle}
               title="No labor data found"
@@ -659,24 +830,24 @@ export default function LaborCostReportPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold">
-                    {formatCurrency(report.totalCost.totalCost)}
+                    {formatCurrency(report!.totalCost.totalCost)}
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-sm opacity-90">
                     <div>
                       <div className="font-medium">
-                        {formatHours(report.totalCost.totalHours)}
+                        {formatHours(report!.totalCost.totalHours)}
                       </div>
                       <div className="text-xs">hours</div>
                     </div>
                     <div>
                       <div className="font-medium">
-                        {formatCurrency(report.totalCost.baseWageCost)}
+                        {formatCurrency(report!.totalCost.baseWageCost)}
                       </div>
                       <div className="text-xs">wages</div>
                     </div>
                     <div>
                       <div className="font-medium">
-                        {formatCurrency(report.totalCost.burdenCost)}
+                        {formatCurrency(report!.totalCost.burdenCost)}
                       </div>
                       <div className="text-xs">burden</div>
                     </div>
@@ -684,58 +855,107 @@ export default function LaborCostReportPage() {
                 </CardContent>
               </Card>
 
-              {/* Project Cards */}
-              {report.byProject.map((project) => (
-                <Card key={project.projectId}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        {project.projectNumber && (
-                          <Badge variant="outline" className="mb-1">
-                            {project.projectNumber}
-                          </Badge>
+              {viewMode === "project" ? (
+                /* Project Cards */
+                report!.byProject.map((project) => (
+                  <Card key={project.projectId}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          {project.projectNumber && (
+                            <Badge variant="outline" className="mb-1">
+                              {project.projectNumber}
+                            </Badge>
+                          )}
+                          <CardTitle className="text-base">
+                            {project.projectName}
+                          </CardTitle>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-bold">
+                            {formatCurrency(project.cost.totalCost)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatHours(project.cost.totalHours)} hrs
+                          </div>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {project.byCostCode.slice(0, 3).map((cc) => (
+                          <div
+                            key={cc.costCodeId}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <div>
+                              <span className="font-mono">{cc.costCodeNumber}</span>
+                              <span className="ml-2 text-muted-foreground">
+                                {cc.costCodeName}
+                              </span>
+                            </div>
+                            <div className="font-medium">
+                              {formatCurrency(cc.cost.totalCost)}
+                            </div>
+                          </div>
+                        ))}
+                        {project.byCostCode.length > 3 && (
+                          <div className="text-xs text-muted-foreground text-center pt-2">
+                            +{project.byCostCode.length - 3} more cost codes
+                          </div>
                         )}
-                        <CardTitle className="text-base">
-                          {project.projectName}
-                        </CardTitle>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">
-                          {formatCurrency(project.cost.totalCost)}
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                /* Employee Cards */
+                report!.byEmployee.map((emp) => (
+                  <Card key={emp.employeeId}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          {emp.employeeNumber && (
+                            <Badge variant="outline" className="mb-1 font-mono">
+                              {emp.employeeNumber}
+                            </Badge>
+                          )}
+                          <CardTitle className="text-base">
+                            {emp.employeeName}
+                          </CardTitle>
+                          <p className="text-xs text-muted-foreground">
+                            {emp.classification} &middot; ${emp.baseHourlyRate.toFixed(2)}/hr
+                          </p>
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatHours(project.cost.totalHours)} hrs
+                        <div className="text-right">
+                          <div className="text-lg font-bold">
+                            {formatCurrency(emp.cost.totalCost)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatHours(emp.cost.totalHours)} hrs
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {project.byCostCode.slice(0, 3).map((cc) => (
-                        <div
-                          key={cc.costCodeId}
-                          className="flex items-center justify-between text-sm"
-                        >
-                          <div>
-                            <span className="font-mono">{cc.costCodeNumber}</span>
-                            <span className="ml-2 text-muted-foreground">
-                              {cc.costCodeName}
-                            </span>
-                          </div>
-                          <div className="font-medium">
-                            {formatCurrency(cc.cost.totalCost)}
-                          </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Regular</p>
+                          <p className="font-medium">{formatHours(emp.cost.regularHours)}h</p>
                         </div>
-                      ))}
-                      {project.byCostCode.length > 3 && (
-                        <div className="text-xs text-muted-foreground text-center pt-2">
-                          +{project.byCostCode.length - 3} more cost codes
+                        <div>
+                          <p className="text-xs text-muted-foreground">OT</p>
+                          <p className="font-medium">{formatHours(emp.cost.overtimeHours)}h</p>
                         </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        <div>
+                          <p className="text-xs text-muted-foreground">DT</p>
+                          <p className="font-medium">{formatHours(emp.cost.doubletimeHours)}h</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           )}
         </div>

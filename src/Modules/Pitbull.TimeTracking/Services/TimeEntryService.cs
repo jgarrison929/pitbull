@@ -366,7 +366,8 @@ public class TimeEntryService : ITimeEntryService
                 DateRange = new DateRangeInfo(startDate, endDate),
                 ApprovedOnly = approvedOnly,
                 TotalCost = CreateEmptyCostSummary(),
-                ByProject = []
+                ByProject = [],
+                ByEmployee = []
             });
         }
 
@@ -436,6 +437,27 @@ public class TimeEntryService : ITimeEntryService
             .OrderBy(p => p.ProjectNumber)
             .ToList();
 
+        // Group by employee
+        var employeeGroups = timeEntries
+            .GroupBy(te => new { te.EmployeeId, te.Employee.FullName, te.Employee.EmployeeNumber, te.Employee.Classification, te.Employee.BaseHourlyRate })
+            .Select(empGroup =>
+            {
+                var empEntries = empGroup.ToList();
+                var empCost = _costCalculator.CalculateTotalCost(empEntries);
+
+                return new EmployeeCostSummary
+                {
+                    EmployeeId = empGroup.Key.EmployeeId,
+                    EmployeeName = empGroup.Key.FullName,
+                    EmployeeNumber = empGroup.Key.EmployeeNumber,
+                    Classification = empGroup.Key.Classification.ToString(),
+                    BaseHourlyRate = empGroup.Key.BaseHourlyRate,
+                    Cost = ToLaborCostSummary(empCost, empEntries)
+                };
+            })
+            .OrderByDescending(e => e.Cost.TotalCost)
+            .ToList();
+
         // Calculate grand total
         var totalCost = _costCalculator.CalculateTotalCost(timeEntries);
 
@@ -444,7 +466,8 @@ public class TimeEntryService : ITimeEntryService
             DateRange = new DateRangeInfo(startDate, endDate),
             ApprovedOnly = approvedOnly,
             TotalCost = ToLaborCostSummary(totalCost, timeEntries),
-            ByProject = projectGroups
+            ByProject = projectGroups,
+            ByEmployee = employeeGroups
         });
     }
 

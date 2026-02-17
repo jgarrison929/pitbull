@@ -42,6 +42,7 @@ function getProjectManagementItems(projectId: string | null) {
 
 const reportItems = [
   { label: "Labor Cost", href: "/reports/labor-cost", icon: "💰" },
+  { label: "Project Profitability", href: "/reports/project-profitability", icon: "📈" },
   { label: "Financial Overview", href: "/reports/financial-overview", icon: "📊" },
   { label: "Equipment Utilization", href: "/reports/equipment", icon: "🔧" },
   { label: "Vista Export", href: "/reports/vista-export", icon: "📤" },
