@@ -108,13 +108,6 @@ function asNumber(value: unknown): number {
   return 0;
 }
 
-function formatDate(date: string | null): string {
-  if (!date) return "-";
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "-";
-  return parsed.toLocaleDateString();
-}
-
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" {
   switch (status) {
     case "Current":
