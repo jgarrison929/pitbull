@@ -13,6 +13,7 @@ import { RfiDetailSkeleton } from "@/components/skeletons";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TextareaField, FormField } from "@/components/ui/form-field";
+import { SmartField } from "@/components/ui/smart-field";
 import { FormSection } from "@/components/ui/form-section";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { AvatarSelector } from "@/components/ui/avatar-selector";
@@ -393,14 +394,16 @@ export default function RfiDetailPage({
                   helpText="Be specific about location, specification, and drawing references."
                 />
 
-                <TextareaField
+                <SmartField
                   label="Answer"
-                  name="answer"
+                  fieldName="answer"
+                  entityType="RFI"
                   value={editAnswer}
-                  onChange={(e) => setEditAnswer(e.target.value)}
+                  onChange={setEditAnswer}
                   rows={5}
                   placeholder="Response to the RFI..."
                   helpText="Enter the official response. Changing status to Answered will timestamp this."
+                  context={{ subject: editSubject || "", question: editQuestion || "" }}
                 />
 
                 <div className="grid gap-4 sm:grid-cols-3">

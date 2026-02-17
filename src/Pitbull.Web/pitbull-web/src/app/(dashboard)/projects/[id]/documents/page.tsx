@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { Download, Trash2, Upload } from "lucide-react";
+import { AiDocumentAnalysisButton } from "@/components/ai-document-analysis";
 import { getToken } from "@/lib/auth";
 import {
   Dialog,
@@ -483,6 +484,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
                       {formatDate(file.createdAt)}
                     </span>
                     <div className="flex gap-1">
+                      <AiDocumentAnalysisButton fileId={file.id} fileName={file.fileName} />
                       <Button
                         variant="ghost"
                         size="icon"

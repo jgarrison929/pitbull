@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { FormField, TextareaField } from "@/components/ui/form-field";
+import { FormField } from "@/components/ui/form-field";
+import { SmartField } from "@/components/ui/smart-field";
 import { FormSection } from "@/components/ui/form-section";
 import {
   Select,
@@ -520,14 +521,15 @@ export default function NewProjectPage() {
                 error={touched.name ? errors.name : undefined}
               />
 
-              <TextareaField
+              <SmartField
                 label="Description"
-                name="description"
+                fieldName="description"
+                entityType="project"
                 placeholder="Brief description of the project scope..."
                 rows={3}
-                maxLength={MAX_DESCRIPTION_LENGTH}
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={setDescription}
+                context={{ projectName: projectName || "", projectType: String(type) }}
               />
 
               <div className="grid gap-4 sm:grid-cols-2">

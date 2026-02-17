@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { FormField, TextareaField } from "@/components/ui/form-field";
+import { SmartField } from "@/components/ui/smart-field";
 import { FormSection } from "@/components/ui/form-section";
 import {
   Select,
@@ -465,14 +466,15 @@ export default function NewBidPage() {
                 <p className="text-sm text-destructive" role="alert">{errors.dates}</p>
               )}
 
-              <TextareaField
+              <SmartField
                 label="Notes"
-                name="notes"
+                fieldName="notes"
+                entityType="bid"
                 placeholder="Any additional notes..."
                 rows={2}
-                maxLength={MAX_NOTES_LENGTH}
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                onChange={setNotes}
+                context={{ bidName: name || "", scope: description || "" }}
               />
             </div>
           </FormSection>

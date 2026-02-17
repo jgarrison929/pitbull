@@ -6,7 +6,7 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { SmartField } from "@/components/ui/smart-field";
 import {
   Select,
   SelectContent,
@@ -1125,17 +1125,20 @@ export default function NewTimeEntryPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="description">Work Description (optional)</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Brief description of work performed..."
-                  rows={2}
-                  className="min-h-[48px] text-base sm:text-sm"
-                />
-              </div>
+              <SmartField
+                label="Work Description (optional)"
+                fieldName="work description"
+                entityType="time entry"
+                value={description}
+                onChange={setDescription}
+                placeholder="Brief description of work performed..."
+                rows={2}
+                context={{
+                  project: selectedProjectLabel ? `${selectedProjectLabel.number} - ${selectedProjectLabel.name}` : "",
+                  costCode: selectedCostCodeLabel ? `${selectedCostCodeLabel.code} - ${selectedCostCodeLabel.description}` : "",
+                  hours: String(totalHours),
+                }}
+              />
               </fieldset>
 
               {/* Running Cost Estimate */}
