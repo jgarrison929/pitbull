@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 
 namespace Pitbull.TimeTracking.Data;
 
@@ -25,7 +26,12 @@ public class PayPeriodConfiguration : IEntityTypeConfiguration<PayPeriod>
 
         builder.Property(p => p.Status)
             .IsRequired()
-            .HasComment("Status: 0=Open, 1=Locked, 2=Processed");
+            .HasComment("Status: 0=Open, 1=Locked, 2=Closed");
+
+        builder.Property(p => p.Name)
+            .HasMaxLength(100)
+            .IsRequired()
+            .HasComment("Auto-generated display name for the period");
 
         builder.Property(p => p.LockedAt)
             .HasComment("When the period was locked");
@@ -33,28 +39,8 @@ public class PayPeriodConfiguration : IEntityTypeConfiguration<PayPeriod>
         builder.Property(p => p.LockedById)
             .HasComment("User who locked the period");
 
-        builder.Property(p => p.Notes)
-            .HasMaxLength(500)
-            .HasComment("Optional notes about the pay period");
-
-        builder.Property(p => p.ProcessedAt)
-            .HasComment("When the period was processed for payroll");
-
-        builder.Property(p => p.ProcessedById)
-            .HasComment("User who marked it as processed");
-
-        // Relationships
-        builder.HasOne(p => p.LockedBy)
-            .WithMany()
-            .HasForeignKey(p => p.LockedById)
-            .HasConstraintName("FK_pay_periods_locked_by")
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(p => p.ProcessedBy)
-            .WithMany()
-            .HasForeignKey(p => p.ProcessedById)
-            .HasConstraintName("FK_pay_periods_processed_by")
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(p => p.PayrollExportMarkedAt)
+            .HasComment("When payroll export was finalized on close");
 
         // Indexes
         builder.HasIndex(p => p.TenantId)
@@ -66,8 +52,6 @@ public class PayPeriodConfiguration : IEntityTypeConfiguration<PayPeriod>
         builder.HasIndex(p => new { p.TenantId, p.Status })
             .HasDatabaseName("IX_pay_periods_status");
 
-        // Unique constraint: no overlapping periods per tenant
-        // Note: This is enforced in application logic since EF can't do range overlap constraints
         builder.HasIndex(p => new { p.TenantId, p.StartDate })
             .IsUnique()
             .HasDatabaseName("IX_pay_periods_unique_start");

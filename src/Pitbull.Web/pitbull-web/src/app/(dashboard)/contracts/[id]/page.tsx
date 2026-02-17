@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Input } from "@/components/ui/input";
-import { FileText, Receipt, AlertCircle, Wallet, HandCoins, Landmark, Scale } from "lucide-react";
+import { FileText, Receipt, AlertCircle, Wallet, HandCoins, Landmark, Scale, ClipboardList } from "lucide-react";
 import api from "@/lib/api";
 import type { Subcontract, ChangeOrder, PaymentApplication, PagedResult } from "@/lib/types";
 import {
@@ -334,6 +334,12 @@ export default function SubcontractDetailPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button asChild variant="outline" className="min-h-[44px] shrink-0">
+            <Link href={`/contracts/${subcontract.id}/sov`}>
+              <ClipboardList className="mr-2 h-4 w-4" />
+              Schedule of Values
+            </Link>
+          </Button>
           <Button asChild variant="outline" className="min-h-[44px] shrink-0">
             <Link href={`/contracts/${subcontract.id}/edit`}>Edit Subcontract</Link>
           </Button>

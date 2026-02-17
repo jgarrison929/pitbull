@@ -156,7 +156,7 @@ public class UsersController(
     /// <summary>
     /// Assign a role to a user
     /// </summary>
-    [HttpPost("{id:guid}/roles")]
+    [HttpPost("{id:guid}/roles/by-name")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -19,6 +19,11 @@ COPY src/Modules/Pitbull.Documents/Pitbull.Documents.csproj src/Modules/Pitbull.
 COPY src/Modules/Pitbull.Portal/Pitbull.Portal.csproj src/Modules/Pitbull.Portal/
 COPY src/Modules/Pitbull.Billing/Pitbull.Billing.csproj src/Modules/Pitbull.Billing/
 COPY src/Modules/Pitbull.TimeTracking/Pitbull.TimeTracking.csproj src/Modules/Pitbull.TimeTracking/
+COPY src/Modules/Pitbull.ProjectManagement/Pitbull.ProjectManagement.csproj src/Modules/Pitbull.ProjectManagement/
+COPY src/Modules/Pitbull.AI/Pitbull.AI.csproj src/Modules/Pitbull.AI/
+COPY src/Modules/Pitbull.Notifications/Pitbull.Notifications.csproj src/Modules/Pitbull.Notifications/
+COPY src/Modules/Pitbull.SystemAdmin/Pitbull.SystemAdmin.csproj src/Modules/Pitbull.SystemAdmin/
+COPY src/Modules/Pitbull.Reports/Pitbull.Reports.csproj src/Modules/Pitbull.Reports/
 COPY src/Infrastructure/Pitbull.Email/Pitbull.Email.csproj src/Infrastructure/Pitbull.Email/
 COPY src/Infrastructure/Pitbull.Storage/Pitbull.Storage.csproj src/Infrastructure/Pitbull.Storage/
 COPY src/Infrastructure/Pitbull.Messaging/Pitbull.Messaging.csproj src/Infrastructure/Pitbull.Messaging/
