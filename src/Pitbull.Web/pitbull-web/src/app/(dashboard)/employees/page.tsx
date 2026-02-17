@@ -32,7 +32,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Users, ArrowUp, ArrowDown, ArrowUpDown, Briefcase, Clock, ShieldCheck } from "lucide-react";
+import { Users, ArrowUp, ArrowDown, ArrowUpDown, Briefcase, Clock, ShieldCheck, UserPlus, FileSpreadsheet } from "lucide-react";
 import api from "@/lib/api";
 import type { ListEmployeesResult, Employee, ProjectAssignment } from "@/lib/types";
 import { toast } from "sonner";
@@ -296,9 +296,23 @@ export default function EmployeesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
           <p className="text-muted-foreground">Manage your workforce and labor rates</p>
         </div>
-        <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0">
-          <Link href="/employees/new">+ Add Employee</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm" className="min-h-[44px]">
+            <Link href="/employees/import">
+              <FileSpreadsheet className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Import CSV</span>
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="min-h-[44px]">
+            <Link href="/employees/onboarding">
+              <UserPlus className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Start Onboarding</span>
+            </Link>
+          </Button>
+          <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0">
+            <Link href="/employees/new">+ Add Employee</Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

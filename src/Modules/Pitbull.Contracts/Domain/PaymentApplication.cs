@@ -10,6 +10,7 @@ public class PaymentApplication : BaseEntity, ICompanyScoped
 {
     public Guid CompanyId { get; set; }
     public Guid SubcontractId { get; set; }
+    public Guid ScheduleOfValuesId { get; set; }
     public int ApplicationNumber { get; set; } // Sequential: 1, 2, 3...
 
     // Billing period
@@ -44,10 +45,18 @@ public class PaymentApplication : BaseEntity, ICompanyScoped
     public DateTime? ApprovedDate { get; set; }
     public DateTime? PaidDate { get; set; }
 
+    // Review
+    public string? ReviewedBy { get; set; }
+    public string? ReviewedNotes { get; set; }
+
     // Approval
     public string? ApprovedBy { get; set; }
     public decimal? ApprovedAmount { get; set; } // May differ from requested
     public string? Notes { get; set; }
+
+    // Payment
+    public decimal? PaidAmount { get; set; }
+    public string? PaidReference { get; set; }
 
     // Reference
     public string? InvoiceNumber { get; set; } // Sub's invoice reference
@@ -55,4 +64,7 @@ public class PaymentApplication : BaseEntity, ICompanyScoped
 
     // Navigation
     public Subcontract? Subcontract { get; set; }
+    public ScheduleOfValues? ScheduleOfValues { get; set; }
+    public ICollection<PaymentApplicationLineItem> LineItems { get; set; } = [];
+    public ICollection<PaymentApplicationBookEntry> BookEntries { get; set; } = [];
 }

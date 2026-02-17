@@ -153,6 +153,86 @@ public class PitbullDbContext(
                     .HasColumnName("CaliforniaOtRules")
                     .HasDefaultValue(false);
             });
+
+            // PaymentApplicationSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.PaymentApplicationSettings, pa =>
+            {
+                pa.Property(p => p.DefaultRetainagePercent)
+                    .HasColumnName("PayAppDefaultRetainagePercent")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(10m);
+
+                pa.Property(p => p.EnableApprovalWorkflow)
+                    .HasColumnName("PayAppEnableApprovalWorkflow")
+                    .HasDefaultValue(true);
+
+                pa.Property(p => p.RequireSignedSubcontract)
+                    .HasColumnName("PayAppRequireSignedSubcontract")
+                    .HasDefaultValue(true);
+
+                pa.Property(p => p.AllowRetainageOverride)
+                    .HasColumnName("PayAppAllowRetainageOverride")
+                    .HasDefaultValue(false);
+
+                pa.Property(p => p.AllowRetainageReleaseBeforeFinal)
+                    .HasColumnName("PayAppAllowRetainageReleaseBeforeFinal")
+                    .HasDefaultValue(false);
+
+                pa.Property(p => p.DefaultBookMode)
+                    .HasColumnName("PayAppDefaultBookMode")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("Both");
+
+                pa.Property(p => p.LockSubmittedLineItems)
+                    .HasColumnName("PayAppLockSubmittedLineItems")
+                    .HasDefaultValue(true);
+
+                pa.Property(p => p.RequireLienWaiverBeforePaid)
+                    .HasColumnName("PayAppRequireLienWaiverBeforePaid")
+                    .HasDefaultValue(false);
+            });
+
+            // EmployeeOnboardingSettings as owned entity (stored as columns on companies table)
+            e.OwnsOne(c => c.EmployeeOnboardingSettings, ob =>
+            {
+                ob.Property(o => o.Enabled)
+                    .HasColumnName("OnboardingEnabled")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireApprovalWorkflow)
+                    .HasColumnName("OnboardingRequireApprovalWorkflow")
+                    .HasDefaultValue(false);
+
+                ob.Property(o => o.RequireEmergencyContact)
+                    .HasColumnName("OnboardingRequireEmergencyContact")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireI9)
+                    .HasColumnName("OnboardingRequireI9")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireW4)
+                    .HasColumnName("OnboardingRequireW4")
+                    .HasDefaultValue(true);
+
+                ob.Property(o => o.RequireCertifications)
+                    .HasColumnName("OnboardingRequireCertifications")
+                    .HasDefaultValue(false);
+
+                ob.Property(o => o.RequiredCertificationTypes)
+                    .HasColumnName("OnboardingRequiredCertificationTypes")
+                    .HasMaxLength(500)
+                    .HasDefaultValue("");
+
+                ob.Property(o => o.DefaultPrevailingWageClass)
+                    .HasColumnName("OnboardingDefaultPrevailingWageClass")
+                    .HasMaxLength(100)
+                    .HasDefaultValue("");
+
+                ob.Property(o => o.EnableUnionFields)
+                    .HasColumnName("OnboardingEnableUnionFields")
+                    .HasDefaultValue(false);
+            });
         });
 
         // UserCompanyAccess configuration

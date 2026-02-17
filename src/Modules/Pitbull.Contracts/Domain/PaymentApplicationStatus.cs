@@ -5,12 +5,11 @@ namespace Pitbull.Contracts.Domain;
 /// </summary>
 public enum PaymentApplicationStatus
 {
-    Draft = 0,           // Being prepared
-    Submitted = 1,       // Submitted for review
-    UnderReview = 2,     // Being reviewed by PM
-    Approved = 3,        // Approved for payment
-    PartiallyApproved = 4, // Approved for less than requested
-    Rejected = 5,        // Rejected - needs revision
-    Paid = 6,            // Payment processed
-    Void = 7             // Cancelled
+    Draft = 0,
+    Submitted = 1,
+    Reviewed = 2,
+    Approved = 3,
+    Paid = 4,
+    Rejected = 5,
+    Void = 6
 }

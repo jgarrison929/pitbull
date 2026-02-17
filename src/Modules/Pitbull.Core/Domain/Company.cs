@@ -92,4 +92,16 @@ public class Company : BaseEntity
     /// Stored as owned entity (mapped to columns on the companies table).
     /// </summary>
     public OvertimeSettings OvertimeSettings { get; set; } = new();
+
+    /// <summary>
+    /// Payment application workflow and retainage defaults.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public PaymentApplicationSettings PaymentApplicationSettings { get; set; } = new();
+
+    /// <summary>
+    /// Employee onboarding workflow configuration.
+    /// Stored as owned entity (mapped to columns on the companies table).
+    /// </summary>
+    public EmployeeOnboardingSettings EmployeeOnboardingSettings { get; set; } = new();
 }

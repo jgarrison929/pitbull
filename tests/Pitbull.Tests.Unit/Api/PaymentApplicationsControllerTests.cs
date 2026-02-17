@@ -15,6 +15,7 @@ namespace Pitbull.Tests.Unit.Api;
 public class PaymentApplicationsControllerTests
 {
     private readonly Mock<IContractsService> _serviceMock;
+    private readonly Mock<IPaymentApplicationService> _payAppServiceMock;
     private readonly PaymentApplicationsController _controller;
 
     private static readonly Guid TestId = Guid.NewGuid();
@@ -23,7 +24,8 @@ public class PaymentApplicationsControllerTests
     public PaymentApplicationsControllerTests()
     {
         _serviceMock = new Mock<IContractsService>();
-        _controller = new PaymentApplicationsController(_serviceMock.Object);
+        _payAppServiceMock = new Mock<IPaymentApplicationService>();
+        _controller = new PaymentApplicationsController(_serviceMock.Object, _payAppServiceMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

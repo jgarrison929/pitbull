@@ -772,12 +772,11 @@ export enum ChangeOrderStatus {
 export enum PaymentApplicationStatus {
   Draft = 0,
   Submitted = 1,
-  UnderReview = 2,
+  Reviewed = 2,
   Approved = 3,
-  PartiallyApproved = 4,
+  Paid = 4,
   Rejected = 5,
-  Paid = 6,
-  Void = 7,
+  Void = 6,
 }
 
 export interface Subcontract {

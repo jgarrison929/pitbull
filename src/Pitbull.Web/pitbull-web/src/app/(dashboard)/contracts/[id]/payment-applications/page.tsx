@@ -40,9 +40,9 @@ import api from "@/lib/api";
 import type {
   PagedResult,
   PaymentApplication,
-  PaymentApplicationStatus,
   Subcontract,
 } from "@/lib/types";
+import { PaymentApplicationStatus } from "@/lib/types";
 import {
   formatCurrency,
   paymentApplicationStatusBadgeClass,
@@ -93,18 +93,12 @@ const emptyEditForm: EditForm = {
 const statusOptions: Array<{ value: PaymentApplicationStatus; label: string }> = [
   { value: 0, label: "Draft" },
   { value: 1, label: "Submitted" },
-  { value: 2, label: "Under Review" },
+  { value: 2, label: "Reviewed" },
   { value: 3, label: "Approved" },
-  { value: 4, label: "Partially Approved" },
+  { value: 4, label: "Paid" },
   { value: 5, label: "Rejected" },
-  { value: 6, label: "Paid" },
-  { value: 7, label: "Void" },
+  { value: 6, label: "Void" },
 ];
-
-function dateOnly(dateValue?: string | null): string {
-  if (!dateValue) return "";
-  return new Date(dateValue).toISOString().slice(0, 10);
-}
 
 function formatDate(dateValue?: string | null): string {
   if (!dateValue) return "-";
@@ -138,7 +132,7 @@ export default function PaymentApplicationsPage() {
   );
 
   const paidCount = useMemo(
-    () => items.filter((item) => item.status === 6).length,
+    () => items.filter((item) => item.status === PaymentApplicationStatus.Paid).length,
     [items]
   );
 

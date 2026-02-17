@@ -117,7 +117,7 @@ export default function PaymentApplicationsPage() {
     (pa) => pa.status === PaymentApplicationStatus.Approved || pa.status === PaymentApplicationStatus.Paid
   ).length;
   const pendingCount = payApps.filter(
-    (pa) => pa.status === PaymentApplicationStatus.Submitted || pa.status === PaymentApplicationStatus.UnderReview
+    (pa) => pa.status === PaymentApplicationStatus.Submitted || pa.status === PaymentApplicationStatus.Reviewed
   ).length;
 
   function openCreate() {
@@ -259,9 +259,8 @@ export default function PaymentApplicationsPage() {
                   <SelectItem value={ALL_VALUE}>All Statuses</SelectItem>
                   <SelectItem value="Draft">Draft</SelectItem>
                   <SelectItem value="Submitted">Submitted</SelectItem>
-                  <SelectItem value="UnderReview">Under Review</SelectItem>
+                  <SelectItem value="Reviewed">Reviewed</SelectItem>
                   <SelectItem value="Approved">Approved</SelectItem>
-                  <SelectItem value="PartiallyApproved">Partially Approved</SelectItem>
                   <SelectItem value="Rejected">Rejected</SelectItem>
                   <SelectItem value="Paid">Paid</SelectItem>
                 </SelectContent>

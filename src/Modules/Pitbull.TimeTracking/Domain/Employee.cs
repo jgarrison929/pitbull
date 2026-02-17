@@ -85,7 +85,16 @@ public class Employee : BaseEntity
     /// </summary>
     public string? Notes { get; set; }
 
+    // Onboarding
     /// <summary>
+    /// Current onboarding status for this employee.
+    /// </summary>
+    public OnboardingStatus OnboardingStatus { get; set; } = OnboardingStatus.NotStarted;
+
+    /// <summary>
+    /// Date/time when onboarding was completed.
+    /// </summary>
+    public DateTime? OnboardingCompletedAt { get; set; }
 
     // Navigation properties
     public Employee? Supervisor { get; set; }
@@ -93,6 +102,10 @@ public class Employee : BaseEntity
     public ICollection<TimeEntry> TimeEntries { get; set; } = [];
     public ICollection<TimeEntry> ApprovedTimeEntries { get; set; } = [];
     public ICollection<ProjectAssignment> ProjectAssignments { get; set; } = [];
+    public ICollection<EmployeeEmergencyContact> EmergencyContacts { get; set; } = [];
+    public ICollection<EmployeeCertification> Certifications { get; set; } = [];
+    public ICollection<EmployeeUnionAffiliation> UnionAffiliations { get; set; } = [];
+    public EmployeeTaxCompliance? TaxCompliance { get; set; }
 }
 
 /// <summary>
