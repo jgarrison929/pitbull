@@ -84,7 +84,7 @@ export function QuickAddTimeEntry() {
       try {
         const [projectsRes, costCodesRes] = await Promise.all([
           api<PagedResult<Project>>("/api/projects?pageSize=100").catch(() => null),
-          api<PagedResult<CostCode>>("/api/costcodes?pageSize=200").catch(() => null),
+          api<PagedResult<CostCode>>("/api/cost-codes?pageSize=200").catch(() => null),
         ]);
         if (cancelled) return;
         if (projectsRes) setProjects(projectsRes.items);
@@ -144,7 +144,7 @@ export function QuickAddTimeEntry() {
 
       setIsSubmitting(true);
       try {
-        await api("/api/timeentries", {
+        await api("/api/time-entries", {
           method: "POST",
           body: {
             date,

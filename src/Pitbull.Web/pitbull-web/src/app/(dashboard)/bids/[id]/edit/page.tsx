@@ -49,7 +49,7 @@ export default function EditBidPage() {
         setName(data.name ?? "");
         setOwner(data.owner ?? "");
         setDescription(data.description ?? "");
-        setNotes(data.description ?? "");
+        setNotes(data.notes ?? "");
         setEstimatedValue(data.estimatedValue?.toString() ?? "0");
         setBidDate(data.bidDate?.slice(0, 10) ?? "");
         setDueDate(data.dueDate?.slice(0, 10) ?? "");
