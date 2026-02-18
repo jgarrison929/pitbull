@@ -119,7 +119,7 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
         const errorData = await retryResponse.json().catch(() => null);
         throw new ApiError(
           retryResponse.status,
-          errorData?.message || `Request failed with status ${retryResponse.status}`,
+          errorData?.error || errorData?.message || `Request failed with status ${retryResponse.status}`,
           errorData
         );
       }
@@ -138,6 +138,7 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     // Report errors to diagnostic tracking + PostHog
     if (response.status >= 400) {
       const method = (rest.method as string) || "GET";
+      const errorMsg = errorData?.error || errorData?.message || `${response.status} ${response.statusText}`;
 
       if (response.status >= 500) {
         reportError({
@@ -146,7 +147,7 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
           httpStatusCode: response.status,
           requestMethod: method,
           requestPath: endpoint,
-          message: `API ${method} ${endpoint} returned ${response.status}`,
+          message: `API ${method} ${endpoint} returned ${response.status}: ${errorMsg}`,
         });
       }
 
@@ -156,7 +157,10 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
           status: response.status,
           method,
           endpoint,
-          error_message: errorData?.message || `${response.status} ${response.statusText}`,
+          error_message: errorMsg,
+          error_code: errorData?.code ?? undefined,
+          trace_id: errorData?.traceId ?? undefined,
+          correlation_id: errorData?.correlationId ?? undefined,
           severity: response.status >= 500 ? "error" : "warning",
         });
       }
@@ -164,7 +168,7 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
 
     throw new ApiError(
       response.status,
-      errorData?.message || `Request failed with status ${response.status}`,
+      errorData?.error || errorData?.message || `Request failed with status ${response.status}`,
       errorData
     );
   }
@@ -235,7 +239,7 @@ async function uploadFiles<T>(
         const errorData = await retryResponse.json().catch(() => null);
         throw new ApiError(
           retryResponse.status,
-          errorData?.message || `Upload failed with status ${retryResponse.status}`,
+          errorData?.error || errorData?.message || `Upload failed with status ${retryResponse.status}`,
           errorData
         );
       }
@@ -249,9 +253,23 @@ async function uploadFiles<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
+
+    if (response.status >= 400 && posthog.__loaded) {
+      posthog.capture("api_error", {
+        status: response.status,
+        method: "POST",
+        endpoint,
+        error_message: errorData?.error || errorData?.message || `${response.status} ${response.statusText}`,
+        error_code: errorData?.code ?? undefined,
+        trace_id: errorData?.traceId ?? undefined,
+        correlation_id: errorData?.correlationId ?? undefined,
+        severity: response.status >= 500 ? "error" : "warning",
+      });
+    }
+
     throw new ApiError(
       response.status,
-      errorData?.message || `Upload failed with status ${response.status}`,
+      errorData?.error || errorData?.message || `Upload failed with status ${response.status}`,
       errorData
     );
   }
