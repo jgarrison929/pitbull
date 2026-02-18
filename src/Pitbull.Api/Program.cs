@@ -405,8 +405,18 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     await db.Database.MigrateAsync();
 
     // Optional: bootstrap the public demo tenant + seed data
+    // Wrapped in try-catch to prevent crash-looping on seed errors
     var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
-    await demoBootstrapper.EnsureSeededIfEnabledAsync();
+    try
+    {
+        await demoBootstrapper.EnsureSeededIfEnabledAsync();
+    }
+    catch (Exception ex)
+    {
+        var startupLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Startup");
+        startupLogger.LogError(ex, "Demo bootstrapper failed — app will start without seed data");
+    }
 
     // Ensure Josh has Admin role on his existing tenant (idempotent startup seed)
     await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");
