@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import api, { ApiError } from "@/lib/api";
+import api, { ApiError, uploadFiles } from "@/lib/api";
 import { isValidGuid } from "@/lib/utils";
 import type {
   CreateRfiCommand,
@@ -41,6 +41,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
+
+interface FileItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file?: File;
+}
 
 interface RfiFormState {
   id?: string;
@@ -121,6 +130,8 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
     ballInCourtName: "",
   });
 
+  const [attachments, setAttachments] = useState<FileItem[]>([]);
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Rfi | null>(null);
 
@@ -176,6 +187,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
       assignedToName: "",
       ballInCourtName: "",
     });
+    setAttachments([]);
     setDialogOpen(true);
   }
 
@@ -192,6 +204,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
       assignedToName: rfi.assignedToName ?? "",
       ballInCourtName: rfi.ballInCourtName ?? "",
     });
+    setAttachments([]);
     setDialogOpen(true);
   }
 
@@ -203,6 +216,8 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
 
     setSaving(true);
     try {
+      let savedRfiId: string;
+
       if (editing && form.id) {
         const payload: UpdateRfiCommand = {
           subject: form.subject.trim(),
@@ -219,6 +234,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
           method: "PUT",
           body: payload,
         });
+        savedRfiId = form.id;
         toast.success("RFI updated");
       } else {
         const payload: CreateRfiCommand = {
@@ -231,11 +247,27 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
           createdByName: "Project Team",
         };
 
-        await api<Rfi>(`/api/projects/${projectId}/rfis`, {
+        const created = await api<Rfi>(`/api/projects/${projectId}/rfis`, {
           method: "POST",
           body: payload,
         });
+        savedRfiId = created.id;
         toast.success("RFI created");
+      }
+
+      // Upload pending attachments
+      const realFiles = attachments.map((f) => f.file).filter((f): f is File => f !== undefined);
+      if (realFiles.length > 0) {
+        try {
+          const endpoint = realFiles.length === 1 ? "/api/files/upload" : "/api/files/upload-multiple";
+          await uploadFiles(endpoint, realFiles, {
+            relatedEntityType: "Rfi",
+            relatedEntityId: savedRfiId,
+          });
+          toast.success(`${realFiles.length} attachment(s) uploaded`);
+        } catch {
+          toast.error("RFI saved but file upload failed");
+        }
       }
 
       setDialogOpen(false);
@@ -570,6 +602,18 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
                 type="date"
                 value={form.dueDate}
                 onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Attachments</Label>
+              <FileDropZone
+                files={attachments}
+                onFilesChange={setAttachments}
+                maxSizeMB={10}
+                maxFiles={10}
+                disabled={saving}
+                placeholder="Drop files here (photos, PDFs, drawings)"
               />
             </div>
           </div>

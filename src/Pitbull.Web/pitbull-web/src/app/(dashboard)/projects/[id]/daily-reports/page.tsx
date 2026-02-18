@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import api, { ApiError } from "@/lib/api";
+import api, { ApiError, uploadFiles } from "@/lib/api";
 import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
@@ -38,7 +38,23 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
-import { Plus, Pencil, Trash2, FileText, CheckCircle, Sparkles, Send } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, CheckCircle, Sparkles, Send, Paperclip } from "lucide-react";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
+
+interface FileItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file?: File;
+}
+
+interface FileAttachmentInfo {
+  id: string;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+}
 
 interface DataMap {
   [key: string]: unknown;
@@ -55,6 +71,7 @@ interface ReportRow {
   workNarrative: string;
   status: string;
   createdAt: string;
+  attachmentCount: number;
 }
 
 interface ReportFormState {
@@ -147,6 +164,10 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
     status: "Draft",
   });
 
+  const [formAttachments, setFormAttachments] = useState<FileItem[]>([]);
+  const [existingAttachments, setExistingAttachments] = useState<FileAttachmentInfo[]>([]);
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
+
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ReportRow | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -162,7 +183,24 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
       const result = await api<PmPagedResult>(
         `/api/projects/${projectId}/daily-reports?page=1&pageSize=500`
       );
-      setReports(result.items ?? []);
+      const items = result.items ?? [];
+      setReports(items);
+
+      // Fetch attachment counts for each report
+      const counts: Record<string, number> = {};
+      await Promise.all(
+        items.map(async (report) => {
+          try {
+            const files = await api<FileAttachmentInfo[]>(
+              `/api/files?entityType=DailyReport&entityId=${report.id}`
+            );
+            counts[report.id] = files.length;
+          } catch {
+            counts[report.id] = 0;
+          }
+        })
+      );
+      setAttachmentCounts(counts);
     } catch (error) {
       toast.error("Failed to load daily reports", {
         description: error instanceof Error ? error.message : "Unknown error",
@@ -194,6 +232,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
         workNarrative: asString(data.WorkNarrative ?? data.workNarrative),
         status: report.status || "Draft",
         createdAt: report.createdAt,
+        attachmentCount: attachmentCounts[report.id] ?? 0,
       };
     });
 
@@ -207,7 +246,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
         row.workNarrative.toLowerCase().includes(q)
       );
     });
-  }, [reports, search, statusFilter]);
+  }, [reports, search, statusFilter, attachmentCounts]);
 
   const approvedCount = rows.filter((r) => r.status === "Approved" || r.status === "Locked").length;
   const draftCount = rows.filter((r) => r.status === "Draft").length;
@@ -228,6 +267,8 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
       safetyNarrative: "",
       status: "Draft",
     });
+    setFormAttachments([]);
+    setExistingAttachments([]);
     setDialogOpen(true);
   }
 
@@ -251,6 +292,13 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
       safetyNarrative: asString(data.SafetyNarrative ?? data.safetyNarrative),
       status: row.status,
     });
+    setFormAttachments([]);
+
+    // Load existing attachments for this report
+    api<FileAttachmentInfo[]>(`/api/files?entityType=DailyReport&entityId=${row.id}`)
+      .then(setExistingAttachments)
+      .catch(() => setExistingAttachments([]));
+
     setDialogOpen(true);
   }
 
@@ -281,18 +329,37 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
 
     setSaving(true);
     try {
+      let savedId: string;
+
       if (editing && form.id) {
         await api<PmEntityDto>(`/api/projects/${projectId}/daily-reports/${form.id}`, {
           method: "PUT",
           body: payload,
         });
+        savedId = form.id;
         toast.success("Daily report updated");
       } else {
-        await api<PmEntityDto>(`/api/projects/${projectId}/daily-reports`, {
+        const created = await api<PmEntityDto>(`/api/projects/${projectId}/daily-reports`, {
           method: "POST",
           body: payload,
         });
+        savedId = created.id;
         toast.success("Daily report created");
+      }
+
+      // Upload pending attachments
+      const realFiles = formAttachments.map((f) => f.file).filter((f): f is File => f !== undefined);
+      if (realFiles.length > 0) {
+        try {
+          const endpoint = realFiles.length === 1 ? "/api/files/upload" : "/api/files/upload-multiple";
+          await uploadFiles(endpoint, realFiles, {
+            relatedEntityType: "DailyReport",
+            relatedEntityId: savedId,
+          });
+          toast.success(`${realFiles.length} attachment(s) uploaded`);
+        } catch {
+          toast.error("Report saved but file upload failed");
+        }
       }
 
       setDialogOpen(false);
@@ -517,6 +584,12 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                           {(row.temperatureLow || row.temperatureHigh) && (
                             <span>{row.temperatureLow || "?"}&deg;-{row.temperatureHigh || "?"}&deg;F</span>
                           )}
+                          {row.attachmentCount > 0 && (
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <Paperclip className="h-3 w-3" />
+                              {row.attachmentCount}
+                            </span>
+                          )}
                         </div>
                         {row.workNarrative && (
                           <p className="text-sm line-clamp-2">{row.workNarrative}</p>
@@ -600,6 +673,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                         <TableHead>Weather</TableHead>
                         <TableHead>Temp</TableHead>
                         <TableHead>Work Summary</TableHead>
+                        <TableHead className="w-[50px]"><Paperclip className="h-3.5 w-3.5 text-muted-foreground" /></TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="w-[180px] text-right">Actions</TableHead>
                       </TableRow>
@@ -607,7 +681,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                     <TableBody>
                       {rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8}>
+                          <TableCell colSpan={9}>
                             <div className="flex flex-col items-center gap-3 py-6 text-center">
                               <p className="text-sm text-muted-foreground">
                                 No daily reports yet. Create your first report for this project.
@@ -639,6 +713,9 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                             </TableCell>
                             <TableCell className="max-w-[250px] truncate">
                               {row.workNarrative || "-"}
+                            </TableCell>
+                            <TableCell className="text-center text-sm text-muted-foreground">
+                              {row.attachmentCount > 0 ? row.attachmentCount : ""}
                             </TableCell>
                             <TableCell>
                               <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
@@ -880,6 +957,28 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Attachments</Label>
+                {existingAttachments.length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {existingAttachments.map((f) => (
+                      <div key={f.id} className="flex items-center gap-2 text-sm rounded border px-2 py-1">
+                        <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="flex-1 truncate">{f.fileName}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <FileDropZone
+                  files={formAttachments}
+                  onFilesChange={setFormAttachments}
+                  maxSizeMB={10}
+                  maxFiles={10}
+                  disabled={saving}
+                  placeholder="Drop photos, PDFs, or documents here"
+                />
               </div>
             </div>
 
