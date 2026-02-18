@@ -1,10 +1,11 @@
+using DotNetCore.CAP;
 using FluentAssertions;
-using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Pitbull.Api.Controllers;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
@@ -20,7 +21,9 @@ namespace Pitbull.Tests.Unit.Api;
 public class TimeEntriesControllerTests
 {
     private readonly Mock<ITimeEntryService> _serviceMock;
-    private readonly Mock<IBus> _busMock;
+    private readonly Mock<ICapPublisher> _capMock;
+    private readonly Mock<ITenantContext> _tenantContextMock;
+    private readonly Mock<ICompanyContext> _companyContextMock;
     private readonly TimeEntriesController _controller;
 
     private static readonly Guid TestId = Guid.NewGuid();
@@ -33,8 +36,10 @@ public class TimeEntriesControllerTests
     public TimeEntriesControllerTests()
     {
         _serviceMock = new Mock<ITimeEntryService>();
-        _busMock = new Mock<IBus>();
-        _controller = new TimeEntriesController(_serviceMock.Object, _busMock.Object);
+        _capMock = new Mock<ICapPublisher>();
+        _tenantContextMock = new Mock<ITenantContext>();
+        _companyContextMock = new Mock<ICompanyContext>();
+        _controller = new TimeEntriesController(_serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object);
 
         // Set up JWT claims so GetCurrentEmployeeIdAsync() resolves an approver
         var claims = new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "approver@test.com") };

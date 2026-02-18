@@ -1,4 +1,3 @@
-using MassTransit;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Pitbull.TimeTracking.Consumers;
@@ -9,7 +8,7 @@ namespace Pitbull.Tests.Unit.Consumers;
 public sealed class TimeEntriesSubmittedConsumerTests
 {
     [Fact]
-    public async Task Consumer_ConsumesSubmittedMessage()
+    public async Task Consumer_HandlesSubmittedMessage()
     {
         var message = new TimeEntriesSubmitted
         {
@@ -19,14 +18,12 @@ public sealed class TimeEntriesSubmittedConsumerTests
             Count = 2,
             SubmittedAt = DateTime.UtcNow
         };
-        var context = new Mock<ConsumeContext<TimeEntriesSubmitted>>();
-        context.SetupGet(x => x.Message).Returns(message);
 
         var logger = new Mock<ILogger<TimeEntriesSubmittedConsumer>>();
         var consumer = new TimeEntriesSubmittedConsumer(logger.Object);
 
         // Act
-        await consumer.Consume(context.Object);
+        await consumer.Handle(message);
 
         // Assert
         logger.Verify(
@@ -40,7 +37,7 @@ public sealed class TimeEntriesSubmittedConsumerTests
     }
 
     [Fact]
-    public async Task DraftSavedConsumer_ConsumesDraftSavedMessage()
+    public async Task DraftSavedConsumer_HandlesDraftSavedMessage()
     {
         var message = new TimeEntriesDraftSaved
         {
@@ -49,14 +46,12 @@ public sealed class TimeEntriesSubmittedConsumerTests
             Count = 5,
             SavedAt = DateTime.UtcNow
         };
-        var context = new Mock<ConsumeContext<TimeEntriesDraftSaved>>();
-        context.SetupGet(x => x.Message).Returns(message);
 
         var logger = new Mock<ILogger<TimeEntriesDraftSavedConsumer>>();
         var consumer = new TimeEntriesDraftSavedConsumer(logger.Object);
 
         // Act
-        await consumer.Consume(context.Object);
+        await consumer.Handle(message);
 
         // Assert
         logger.Verify(

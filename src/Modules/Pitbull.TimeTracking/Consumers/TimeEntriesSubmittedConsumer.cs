@@ -1,10 +1,10 @@
-using MassTransit;
+using DotNetCore.CAP;
 using Microsoft.Extensions.Logging;
 using Pitbull.TimeTracking.Messages;
 
 namespace Pitbull.TimeTracking.Consumers;
 
-public class TimeEntriesSubmittedConsumer : IConsumer<TimeEntriesSubmitted>
+public class TimeEntriesSubmittedConsumer : ICapSubscribe
 {
     private readonly ILogger<TimeEntriesSubmittedConsumer> _logger;
 
@@ -13,9 +13,9 @@ public class TimeEntriesSubmittedConsumer : IConsumer<TimeEntriesSubmitted>
         _logger = logger;
     }
 
-    public Task Consume(ConsumeContext<TimeEntriesSubmitted> context)
+    [CapSubscribe("timeentries.submitted")]
+    public Task Handle(TimeEntriesSubmitted msg)
     {
-        var msg = context.Message;
         _logger.LogInformation(
             "Time entries submitted: BatchId={BatchId}, Count={Count}, SubmittedBy={SubmittedById}",
             msg.BatchId, msg.Count, msg.SubmittedById);

@@ -1,8 +1,9 @@
-using MassTransit;
+using DotNetCore.CAP;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
@@ -27,8 +28,18 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Time Entries")]
-public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus) : ControllerBase
+public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPublisher capPublisher, ITenantContext tenantContext, ICompanyContext companyContext) : ControllerBase
 {
+    private Dictionary<string, string?> TenantHeaders()
+    {
+        var h = new Dictionary<string, string?>();
+        if (tenantContext.IsResolved)
+            h["X-Tenant-Id"] = tenantContext.TenantId.ToString();
+        if (companyContext.IsResolved)
+            h["X-Company-Id"] = companyContext.CompanyId.ToString();
+        return h;
+    }
+
     /// <summary>
     /// Create a new time entry for an employee
     /// </summary>
@@ -301,14 +312,14 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
             };
         }
 
-        await bus.Publish(new TimeEntriesApproved
+        await capPublisher.PublishAsync("timeentries.approved", new TimeEntriesApproved
         {
             BatchId = Guid.NewGuid(),
             ApprovedById = employeeId,
             TimeEntryIds = [id],
             Count = 1,
             ApprovedAt = DateTime.UtcNow
-        });
+        }, TenantHeaders());
 
         return Ok(result.Value);
     }
@@ -360,14 +371,14 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
             };
         }
 
-        await bus.Publish(new TimeEntriesRejected
+        await capPublisher.PublishAsync("timeentries.rejected", new TimeEntriesRejected
         {
             BatchId = Guid.NewGuid(),
             RejectedById = employeeId,
             TimeEntryIds = [id],
             Count = 1,
             RejectedAt = DateTime.UtcNow
-        });
+        }, TenantHeaders());
 
         return Ok(result.Value);
     }
@@ -474,26 +485,26 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
 
         if (approvedIds.Count > 0)
         {
-            await bus.Publish(new TimeEntriesApproved
+            await capPublisher.PublishAsync("timeentries.approved", new TimeEntriesApproved
             {
                 BatchId = Guid.NewGuid(),
                 ApprovedById = employeeId,
                 TimeEntryIds = approvedIds,
                 Count = approvedIds.Count,
                 ApprovedAt = DateTime.UtcNow
-            });
+            }, TenantHeaders());
         }
 
         if (rejectedIds.Count > 0)
         {
-            await bus.Publish(new TimeEntriesRejected
+            await capPublisher.PublishAsync("timeentries.rejected", new TimeEntriesRejected
             {
                 BatchId = Guid.NewGuid(),
                 RejectedById = employeeId,
                 TimeEntryIds = rejectedIds,
                 Count = rejectedIds.Count,
                 RejectedAt = DateTime.UtcNow
-            });
+            }, TenantHeaders());
         }
 
         return Ok(response);
@@ -630,17 +641,17 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
         // Publish event
         if (request.IsDraft)
         {
-            await bus.Publish(new TimeEntriesDraftSaved
+            await capPublisher.PublishAsync("timeentries.draftsaved", new TimeEntriesDraftSaved
             {
                 BatchId = Guid.NewGuid(),
                 SavedById = request.SubmittedById ?? Guid.Empty,
                 Count = batchResult.SuccessCount,
                 SavedAt = DateTime.UtcNow
-            });
+            }, TenantHeaders());
         }
         else
         {
-            await bus.Publish(new TimeEntriesSubmitted
+            await capPublisher.PublishAsync("timeentries.submitted", new TimeEntriesSubmitted
             {
                 BatchId = Guid.NewGuid(),
                 SubmittedById = request.SubmittedById ?? Guid.Empty,
@@ -649,7 +660,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
                     .Select(r => r.TimeEntryId!.Value).ToList(),
                 Count = batchResult.SuccessCount,
                 SubmittedAt = DateTime.UtcNow
-            });
+            }, TenantHeaders());
         }
 
         return StatusCode(StatusCodes.Status201Created, batchResult);
@@ -692,7 +703,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
         // Publish event for successful submissions
         if (submitResult.SuccessCount > 0)
         {
-            await bus.Publish(new TimeEntriesSubmitted
+            await capPublisher.PublishAsync("timeentries.submitted", new TimeEntriesSubmitted
             {
                 BatchId = Guid.NewGuid(),
                 SubmittedById = request.SubmittedById,
@@ -701,7 +712,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, IBus bus)
                     .Select(r => r.TimeEntryId).ToList(),
                 Count = submitResult.SuccessCount,
                 SubmittedAt = DateTime.UtcNow
-            });
+            }, TenantHeaders());
         }
 
         return Ok(submitResult);

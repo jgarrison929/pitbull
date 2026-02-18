@@ -29,10 +29,10 @@ using Pitbull.AI.Features;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.ProjectManagement.Storage;
-using MassTransit;
 using Pitbull.Api.Data;
 using Pitbull.Core.Messaging;
 using PostHog;
+using Savorboard.CAP.InMemoryMessageQueue;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -258,17 +258,39 @@ builder.Services.Configure<KestrelServerOptions>(options =>
     options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
 });
 
-// MassTransit - in-memory transport for Phase 1 (upgrade to RabbitMQ in Phase 2)
-builder.Services.AddMassTransit(x =>
+// CAP event bus — PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)
+builder.Services.AddCap(x =>
 {
-    x.AddConsumers(typeof(CreateTimeEntryCommand).Assembly);
-    x.UsingInMemory((context, cfg) =>
+    // Outbox: always use PostgreSQL (same DB as the app)
+    x.UsePostgreSql(opt =>
     {
-        cfg.UseConsumeFilter(typeof(TenantConsumeFilter<>), context);
-        cfg.UsePublishFilter(typeof(TenantPublishFilter<>), context);
-        cfg.ConfigureEndpoints(context);
+        opt.ConnectionString = builder.Configuration.GetConnectionString("PitbullDb")!;
+        opt.Schema = "cap";
     });
+
+    // Transport: Redis Streams if configured, else in-memory
+    var redisConn = builder.Configuration.GetValue<string>("EventBus:Redis:ConnectionString");
+    if (!string.IsNullOrEmpty(redisConn))
+    {
+        x.UseRedis(redisConn);
+    }
+    else
+    {
+        x.UseInMemoryMessageQueue();
+    }
+
+    x.UseDashboard(d => d.PathMatch = "/cap");
+    x.FailedRetryCount = 5;
+    x.JsonSerializerOptions.PropertyNamingPolicy = null;
 });
+
+// CAP subscriber filter for multi-tenant context propagation
+// (CAP auto-discovers SubscribeFilter implementations from DI)
+builder.Services.AddTransient<TenantCapFilter>();
+
+// Register CAP subscribers (consumers) so DI can inject their dependencies
+builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesSubmittedConsumer>();
+builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesDraftSavedConsumer>();
 
 // API
 builder.Services.AddControllers()
