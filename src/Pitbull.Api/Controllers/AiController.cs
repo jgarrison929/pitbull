@@ -88,7 +88,7 @@ public class AiController(
         var result = await aiService.CompleteAsync(tenantId, aiRequest, null, ct);
 
         if (!result.IsSuccess)
-            return StatusCode(502, new { error = result.Error, code = "AI_ERROR" });
+            return StatusCode(503, new { error = result.Error, code = result.ErrorCode });
 
         return Ok(new AiSummaryResponse(
             result.Value!.Content,
@@ -121,7 +121,7 @@ public class AiController(
         var result = await aiService.CompleteAsync(tenantId, aiRequest, null, ct);
 
         if (!result.IsSuccess)
-            return StatusCode(502, new { error = result.Error, code = "AI_ERROR" });
+            return StatusCode(503, new { error = result.Error, code = result.ErrorCode });
 
         return Ok(new AiReviewResponse(
             result.Value!.Content,

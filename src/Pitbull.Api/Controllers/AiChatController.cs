@@ -34,7 +34,7 @@ public class AiChatController(IAiService aiService) : ControllerBase
     [HttpPost("chat")]
     [ProducesResponseType(typeof(AiChatResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Chat(
         [FromBody] AiChatRequest request, CancellationToken ct)
     {
@@ -95,8 +95,13 @@ public class AiChatController(IAiService aiService) : ControllerBase
 
         if (!result.IsSuccess)
         {
-            var statusCode = result.ErrorCode == "AI_NOT_CONFIGURED" ? 422 : 502;
-            return StatusCode(statusCode, new { error = result.ErrorCode, message = result.Error });
+            return StatusCode(503, new
+            {
+                error = result.ErrorCode == "AI_NOT_CONFIGURED"
+                    ? "AI service is not configured. Add an API key in Settings → AI to enable the assistant."
+                    : "AI service is temporarily unavailable. Please try again later.",
+                code = result.ErrorCode
+            });
         }
 
         return Ok(new AiChatResponse(

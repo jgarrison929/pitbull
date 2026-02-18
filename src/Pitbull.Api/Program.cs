@@ -265,7 +265,11 @@ builder.Services.AddMassTransit(x =>
 });
 
 // API
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // Request timeouts for security (protection against slow loris attacks)
