@@ -67,7 +67,12 @@ public class RfisController(IRfiService rfiService) : ControllerBase
             request.AssignedToName,
             request.BallInCourtUserId,
             request.BallInCourtName,
-            request.CreatedByName
+            request.CreatedByName,
+            request.SpecSection,
+            request.DrawingReferences,
+            request.HasCostImpact,
+            request.EstimatedCostImpact,
+            request.EstimatedDelayDays
         );
 
         var result = await rfiService.CreateRfiAsync(command);
@@ -294,7 +299,12 @@ public record CreateRfiRequest(
     string? AssignedToName = null,
     Guid? BallInCourtUserId = null,
     string? BallInCourtName = null,
-    string? CreatedByName = null
+    string? CreatedByName = null,
+    string? SpecSection = null,
+    List<string>? DrawingReferences = null,
+    bool HasCostImpact = false,
+    decimal? EstimatedCostImpact = null,
+    int? EstimatedDelayDays = null
 );
 
 /// <summary>Request body for updating an existing RFI</summary>

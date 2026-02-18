@@ -366,10 +366,10 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetCertifications(Guid id)
+    public async Task<IActionResult> GetCertifications(Guid id, CancellationToken ct)
     {
         var employeeExists = await db.Set<TimeTracking.Domain.Employee>()
-            .AnyAsync(e => e.Id == id);
+            .AnyAsync(e => e.Id == id, ct);
         if (!employeeExists)
             return NotFound(new { error = "Employee not found" });
 
@@ -386,9 +386,9 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
                 c.IssuedDate,
                 c.ExpiresDate,
                 c.IssuingAuthority,
-                VerificationStatus = c.VerificationStatus.ToString()
+                c.VerificationStatus
             })
-            .ToListAsync();
+            .ToListAsync(ct);
 
         return Ok(certifications);
     }
