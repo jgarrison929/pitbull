@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Pitbull.AI.Providers;
 using Pitbull.AI.Services;
 using Pitbull.Api.Validation;
+using Pitbull.Core.Data;
+using Pitbull.RFIs.Domain;
 
 namespace Pitbull.Api.Controllers;
 
@@ -17,7 +20,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("AI")]
-public class AiSuggestController(IAiService aiService) : ControllerBase
+public class AiSuggestController(IAiService aiService, PitbullDbContext db) : ControllerBase
 {
     private const int MaxFieldValueLength = 2000;
     private const int MaxContextValueLength = 2000;
@@ -93,6 +96,101 @@ public class AiSuggestController(IAiService aiService) : ControllerBase
             LatencyMs: (long)result.Value.Latency.TotalMilliseconds));
     }
 
+    /// <summary>
+    /// Find semantically similar RFIs using AI analysis.
+    /// </summary>
+    [HttpPost("suggest/similar-rfis")]
+    [ProducesResponseType(typeof(List<SimilarRfiResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SimilarRfis(
+        [FromBody] SimilarRfisRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.Subject))
+            return BadRequest(new { error = "subject is required", code = "VALIDATION_ERROR" });
+
+        // Query recent RFIs from the same tenant
+        var recentRfis = await db.Set<Rfi>()
+            .AsNoTracking()
+            .Where(r => !r.IsDeleted)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(100)
+            .Select(r => new { r.Id, r.Number, r.Subject, r.Status })
+            .ToListAsync(ct);
+
+        if (recentRfis.Count == 0)
+            return Ok(Array.Empty<SimilarRfiResult>());
+
+        // Build AI prompt to find similar RFIs
+        var rfiList = string.Join("\n", recentRfis.Select(r => $"- RFI-{r.Number:D3}: {r.Subject}"));
+        var userPrompt = $"""
+            New RFI subject: "{AiInputSanitizer.Sanitize(request.Subject)}"
+            {(string.IsNullOrWhiteSpace(request.Description) ? "" : $"Description: \"{AiInputSanitizer.Sanitize(request.Description)}\"")}
+
+            Existing RFIs:
+            {rfiList}
+
+            Return the top 5 most semantically similar RFIs as a JSON array. Each item should have:
+            - "number": the RFI number string (e.g. "RFI-012")
+            - "subject": the RFI subject
+            - "reason": a brief explanation of why it's similar (one sentence)
+
+            If none are similar, return an empty array [].
+            Return ONLY the JSON array, no other text.
+            """;
+
+        var tenantId = GetTenantId();
+        var aiRequest = new AiCompletionRequest(
+            SystemPrompt: "You are an RFI similarity analyzer for a construction management system. Analyze RFI subjects and identify semantically similar ones based on topic, trade, location, or technical content. Return valid JSON only.",
+            UserPrompt: userPrompt,
+            Capability: AiCapability.Analysis,
+            MaxTokens: 1024,
+            Temperature: 0.2m);
+
+        var aiResult = await aiService.CompleteAsync(tenantId, aiRequest, null, ct);
+
+        if (!aiResult.IsSuccess)
+        {
+            // Graceful degradation: return empty array when AI is unavailable
+            return Ok(Array.Empty<SimilarRfiResult>());
+        }
+
+        // Parse the AI response into similar RFI results
+        try
+        {
+            var content = aiResult.Value!.Content.Trim();
+            // Strip markdown code fences if present
+            if (content.StartsWith("```"))
+            {
+                content = content.Split('\n', 2).Length > 1 ? content.Split('\n', 2)[1] : content;
+                content = content.TrimEnd('`').Trim();
+                if (content.EndsWith("```"))
+                    content = content[..^3].Trim();
+            }
+            var similar = System.Text.Json.JsonSerializer.Deserialize<List<SimilarRfiResult>>(content,
+                new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? [];
+
+            // Cross-reference with actual RFI data to add status
+            var enriched = similar.Take(5).Select(s =>
+            {
+                var match = recentRfis.FirstOrDefault(r => $"RFI-{r.Number:D3}" == s.Number);
+                return new SimilarRfiResult(
+                    s.Number,
+                    s.Subject,
+                    match?.Status.ToString() ?? "Unknown",
+                    s.Reason,
+                    match?.Id);
+            }).ToList();
+
+            return Ok(enriched);
+        }
+        catch
+        {
+            // If AI returns malformed JSON, return empty
+            return Ok(Array.Empty<SimilarRfiResult>());
+        }
+    }
+
     private static string BuildSystemPrompt(string fieldName, string? entityType)
     {
         var entity = entityType ?? "record";
@@ -137,3 +235,15 @@ public record AiSuggestResponse(
     string Model,
     string Provider,
     long LatencyMs);
+
+public record SimilarRfisRequest(
+    string Subject,
+    string? Description = null,
+    Guid? ProjectId = null);
+
+public record SimilarRfiResult(
+    string Number,
+    string Subject,
+    string Status,
+    string Reason,
+    Guid? Id = null);

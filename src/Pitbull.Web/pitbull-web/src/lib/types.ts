@@ -1333,6 +1333,7 @@ export interface AiChatMessage {
 export interface AiChatRequest {
   message: string;
   history?: AiChatMessage[];
+  systemContext?: string;
 }
 
 export interface AiChatResponse {

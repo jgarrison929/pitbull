@@ -27,9 +27,7 @@ function MobileNavItem({
   const isActive =
     item.href === "/"
       ? pathname === "/"
-      : item.href === "/settings"
-      ? pathname === "/settings"
-      : pathname.startsWith(item.href);
+      : pathname === item.href || pathname.startsWith(item.href + "/");
 
   return (
     <Link

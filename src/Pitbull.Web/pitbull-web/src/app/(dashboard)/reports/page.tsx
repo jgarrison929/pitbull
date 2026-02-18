@@ -63,7 +63,7 @@ export default function ReportsIndexPage() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         {reports.map((report) => (
           <Link key={report.href} href={report.href}>
             <Card className="h-full transition-colors hover:border-amber-500/50 hover:shadow-sm">
@@ -75,8 +75,11 @@ export default function ReportsIndexPage() {
                   <CardTitle className="text-base">{report.title}</CardTitle>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-2">
                 <CardDescription>{report.description}</CardDescription>
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  View Report &rarr;
+                </p>
               </CardContent>
             </Card>
           </Link>

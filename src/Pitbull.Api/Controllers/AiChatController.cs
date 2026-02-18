@@ -68,8 +68,12 @@ public class AiChatController(IAiService aiService) : ControllerBase
             ? sanitizedMessage
             : $"{conversationContext}\n\nUser: {sanitizedMessage}";
 
+        var contextClause = string.IsNullOrWhiteSpace(request.SystemContext)
+            ? ""
+            : $"\n\nThe user is currently viewing: {AiInputSanitizer.Sanitize(request.SystemContext)}\nHelp them with questions about their current context when possible.";
+
         var aiRequest = new AiCompletionRequest(
-            SystemPrompt: """
+            SystemPrompt: $"""
                 You are Pitbull AI, an in-app assistant for a construction management platform.
                 You help project managers, estimators, and superintendents with:
                 - Project management questions (budgets, schedules, phases)
@@ -81,7 +85,7 @@ public class AiChatController(IAiService aiService) : ControllerBase
 
                 Be concise, professional, and practical. Use construction industry terminology.
                 If you don't know something specific to the user's data, say so.
-                Format responses with markdown when helpful.
+                Format responses with markdown when helpful.{contextClause}
                 """,
             UserPrompt: userPrompt,
             Capability: AiCapability.TextGeneration,
@@ -92,7 +96,10 @@ public class AiChatController(IAiService aiService) : ControllerBase
         var result = await aiService.CompleteAsync(tenantId, aiRequest, null, ct);
 
         if (!result.IsSuccess)
-            return StatusCode(502, new { error = result.Error, code = "AI_ERROR" });
+        {
+            var statusCode = result.ErrorCode == "AI_NOT_CONFIGURED" ? 422 : 502;
+            return StatusCode(statusCode, new { error = result.ErrorCode, message = result.Error });
+        }
 
         return Ok(new AiChatResponse(
             Reply: result.Value!.Content,
@@ -120,7 +127,8 @@ public record AiChatMessage(string Role, string Content);
 
 public record AiChatRequest(
     string Message,
-    List<AiChatMessage>? History = null);
+    List<AiChatMessage>? History = null,
+    string? SystemContext = null);
 
 public record AiChatResponse(
     string Reply,

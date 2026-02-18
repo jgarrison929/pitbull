@@ -16,8 +16,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import api from "@/lib/api";
-import { SubcontractStatus, type PagedResult, type Project, type Subcontract } from "@/lib/types";
+import {
+  SubcontractStatus,
+  type PagedResult,
+  type Project,
+  type Subcontract,
+} from "@/lib/types";
 import { toast } from "sonner";
 
 type StatusOption = {
@@ -28,6 +34,8 @@ type StatusOption = {
 const statusOptions: StatusOption[] = [
   { value: SubcontractStatus.Draft, label: "Draft" },
   { value: SubcontractStatus.Executed, label: "Executed" },
+  { value: SubcontractStatus.InProgress, label: "In Progress" },
+  { value: SubcontractStatus.Complete, label: "Complete" },
   { value: SubcontractStatus.ClosedOut, label: "Closed" },
 ];
 
@@ -66,9 +74,17 @@ interface FormState {
   status: SubcontractStatus;
   startDate: string;
   completionDate: string;
+  executionDate: string;
   scopeOfWork: string;
   subcontractorContact: string;
   subcontractorEmail: string;
+  subcontractorPhone: string;
+  subcontractorAddress: string;
+  tradeCode: string;
+  licenseNumber: string;
+  notes: string;
+  insuranceCurrent: boolean;
+  insuranceExpirationDate: string;
 }
 
 const emptyForm: FormState = {
@@ -80,9 +96,17 @@ const emptyForm: FormState = {
   status: SubcontractStatus.Draft,
   startDate: "",
   completionDate: "",
+  executionDate: "",
   scopeOfWork: "",
   subcontractorContact: "",
   subcontractorEmail: "",
+  subcontractorPhone: "",
+  subcontractorAddress: "",
+  tradeCode: "",
+  licenseNumber: "",
+  notes: "",
+  insuranceCurrent: false,
+  insuranceExpirationDate: "",
 };
 
 interface SubcontractEditorProps {
@@ -90,7 +114,10 @@ interface SubcontractEditorProps {
   subcontractId?: string;
 }
 
-export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProps) {
+export function SubcontractEditor({
+  mode,
+  subcontractId,
+}: SubcontractEditorProps) {
   const router = useRouter();
   const isEdit = mode === "edit";
 
@@ -99,6 +126,7 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
   const [form, setForm] = useState<FormState>(emptyForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   const pageTitle = useMemo(
     () => (isEdit ? "Edit Subcontract" : "New Subcontract"),
@@ -109,18 +137,30 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
     async function load() {
       setIsLoading(true);
       try {
-        const projectReq = api<PagedResult<Project>>("/api/projects?pageSize=200");
+        const projectReq = api<PagedResult<Project>>(
+          "/api/projects?pageSize=200"
+        );
         const subcontractReq =
           isEdit && subcontractId
             ? api<Subcontract>(`/api/subcontracts/${subcontractId}`)
             : Promise.resolve(null);
 
-        const [projectsRes, subcontractRes] = await Promise.all([projectReq, subcontractReq]);
+        const [projectsRes, subcontractRes] = await Promise.all([
+          projectReq,
+          subcontractReq,
+        ]);
         setProjects(projectsRes.items);
         setSubcontract(subcontractRes);
 
+        if (isEdit && !subcontractRes) {
+          setNotFound(true);
+          return;
+        }
+
         if (subcontractRes) {
-          const statusValue = statusOptions.some((o) => o.value === subcontractRes.status)
+          const statusValue = statusOptions.some(
+            (o) => o.value === subcontractRes.status
+          )
             ? subcontractRes.status
             : SubcontractStatus.Draft;
 
@@ -129,17 +169,31 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
             subcontractNumber: subcontractRes.subcontractNumber ?? "",
             subcontractorName: subcontractRes.subcontractorName ?? "",
             originalValue: subcontractRes.originalValue?.toString() ?? "",
-            retainagePercent: subcontractRes.retainagePercent?.toString() ?? "10",
+            retainagePercent:
+              subcontractRes.retainagePercent?.toString() ?? "10",
             status: statusValue,
             startDate: subcontractRes.startDate?.slice(0, 10) ?? "",
             completionDate: subcontractRes.completionDate?.slice(0, 10) ?? "",
+            executionDate: subcontractRes.executionDate?.slice(0, 10) ?? "",
             scopeOfWork: subcontractRes.scopeOfWork ?? "",
             subcontractorContact: subcontractRes.subcontractorContact ?? "",
             subcontractorEmail: subcontractRes.subcontractorEmail ?? "",
+            subcontractorPhone: subcontractRes.subcontractorPhone ?? "",
+            subcontractorAddress: subcontractRes.subcontractorAddress ?? "",
+            tradeCode: subcontractRes.tradeCode ?? "",
+            licenseNumber: subcontractRes.licenseNumber ?? "",
+            notes: subcontractRes.notes ?? "",
+            insuranceCurrent: subcontractRes.insuranceCurrent,
+            insuranceExpirationDate:
+              subcontractRes.insuranceExpirationDate?.slice(0, 10) ?? "",
           });
         }
       } catch {
-        toast.error("Failed to load subcontract form");
+        if (isEdit) {
+          setNotFound(true);
+        } else {
+          toast.error("Failed to load form data");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -157,16 +211,8 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
       toast.error("Project is required");
       return false;
     }
-    if (!form.subcontractNumber.trim()) {
-      toast.error("Number is required");
-      return false;
-    }
     if (!form.subcontractorName.trim()) {
       toast.error("Vendor / Sub Name is required");
-      return false;
-    }
-    if (!form.scopeOfWork.trim()) {
-      toast.error("Description is required");
       return false;
     }
     const amount = Number(form.originalValue);
@@ -179,11 +225,18 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
       toast.error("Retention % must be between 0 and 100");
       return false;
     }
-    if (form.subcontractorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.subcontractorEmail)) {
+    if (
+      form.subcontractorEmail &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.subcontractorEmail)
+    ) {
       toast.error("Contact email format is invalid");
       return false;
     }
-    if (form.startDate && form.completionDate && form.startDate > form.completionDate) {
+    if (
+      form.startDate &&
+      form.completionDate &&
+      form.startDate > form.completionDate
+    ) {
       toast.error("End date must be on or after start date");
       return false;
     }
@@ -201,32 +254,32 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
         subcontractorName: form.subcontractorName.trim(),
         subcontractorContact: form.subcontractorContact.trim() || null,
         subcontractorEmail: form.subcontractorEmail.trim() || null,
-        subcontractorPhone: null,
-        subcontractorAddress: null,
+        subcontractorPhone: form.subcontractorPhone.trim() || null,
+        subcontractorAddress: form.subcontractorAddress.trim() || null,
         scopeOfWork: form.scopeOfWork.trim(),
-        tradeCode: null,
+        tradeCode: form.tradeCode.trim() || null,
         originalValue: Number(form.originalValue),
         retainagePercent: Number(form.retainagePercent),
         startDate: form.startDate || null,
         completionDate: form.completionDate || null,
-        licenseNumber: subcontract?.licenseNumber ?? null,
-        notes: subcontract?.notes ?? null,
+        licenseNumber: form.licenseNumber.trim() || null,
+        notes: form.notes.trim() || null,
       };
 
       if (isEdit && subcontractId && subcontract) {
         const updatePayload: UpdateSubcontractPayload = {
           ...createPayload,
           id: subcontractId,
-          executionDate: subcontract.executionDate ?? null,
+          executionDate: form.executionDate || null,
           status: form.status,
-          insuranceExpirationDate: subcontract.insuranceExpirationDate ?? null,
-          insuranceCurrent: subcontract.insuranceCurrent,
+          insuranceExpirationDate: form.insuranceExpirationDate || null,
+          insuranceCurrent: form.insuranceCurrent,
         };
 
-        const result = await api<Subcontract>(`/api/subcontracts/${subcontractId}`, {
-          method: "PUT",
-          body: updatePayload,
-        });
+        const result = await api<Subcontract>(
+          `/api/subcontracts/${subcontractId}`,
+          { method: "PUT", body: updatePayload }
+        );
         toast.success("Subcontract updated");
         router.push(`/contracts/${result.id}`);
         return;
@@ -239,7 +292,9 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
       toast.success("Subcontract created");
       router.push(`/contracts/${result.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save subcontract");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save subcontract"
+      );
     } finally {
       setIsSaving(false);
     }
@@ -254,8 +309,35 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
             { label: pageTitle },
           ]}
         />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="py-8">
+                <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (notFound) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Contracts", href: "/contracts" },
+            { label: "Not Found" },
+          ]}
+        />
         <Card>
-          <CardContent className="py-8 text-sm text-muted-foreground">Loading…</CardContent>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">Subcontract not found.</p>
+            <Button asChild variant="outline" className="mt-4">
+              <Link href="/contracts">Back to Contracts</Link>
+            </Button>
+          </CardContent>
         </Card>
       </div>
     );
@@ -274,19 +356,22 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{pageTitle}</h1>
           <p className="text-muted-foreground">
-            Number, vendor, project, amount, status, dates, and contact details.
+            Fill in the subcontract details across each section below.
           </p>
         </div>
       </div>
 
+      {/* Section 1: Basic Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Subcontract Details</CardTitle>
+          <CardTitle>Basic Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="projectId">Project</Label>
+              <Label htmlFor="projectId">
+                Project <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={form.projectId}
                 onValueChange={(value) => updateField("projectId", value)}
@@ -332,24 +417,132 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
               <Input
                 id="subcontractNumber"
                 value={form.subcontractNumber}
-                onChange={(e) => updateField("subcontractNumber", e.target.value)}
-                placeholder="SC-2026-001"
+                onChange={(e) =>
+                  updateField("subcontractNumber", e.target.value)
+                }
+                placeholder="SC-2026-001 (auto-generated if blank)"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subcontractorName">Vendor / Sub Name</Label>
+              <Label htmlFor="tradeCode">Trade Code</Label>
               <Input
-                id="subcontractorName"
-                value={form.subcontractorName}
-                onChange={(e) => updateField("subcontractorName", e.target.value)}
-                placeholder="ABC Concrete Inc"
+                id="tradeCode"
+                value={form.tradeCode}
+                onChange={(e) => updateField("tradeCode", e.target.value)}
+                placeholder="e.g., 03 - Concrete"
               />
             </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="space-y-2">
+            <Label htmlFor="scopeOfWork">
+              Scope of Work <span className="text-destructive">*</span>
+            </Label>
+            <Textarea
+              id="scopeOfWork"
+              value={form.scopeOfWork}
+              onChange={(e) => updateField("scopeOfWork", e.target.value)}
+              placeholder="Describe the scope of work for this subcontract"
+              rows={4}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 2: Parties */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Subcontractor / Vendor</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="originalValue">Amount</Label>
+              <Label htmlFor="subcontractorName">
+                Company Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="subcontractorName"
+                value={form.subcontractorName}
+                onChange={(e) =>
+                  updateField("subcontractorName", e.target.value)
+                }
+                placeholder="ABC Concrete Inc"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="subcontractorContact">Contact Name</Label>
+              <Input
+                id="subcontractorContact"
+                value={form.subcontractorContact}
+                onChange={(e) =>
+                  updateField("subcontractorContact", e.target.value)
+                }
+                placeholder="Jane Smith"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="subcontractorEmail">Email</Label>
+              <Input
+                id="subcontractorEmail"
+                type="email"
+                value={form.subcontractorEmail}
+                onChange={(e) =>
+                  updateField("subcontractorEmail", e.target.value)
+                }
+                placeholder="jane@vendor.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="subcontractorPhone">Phone</Label>
+              <Input
+                id="subcontractorPhone"
+                type="tel"
+                value={form.subcontractorPhone}
+                onChange={(e) =>
+                  updateField("subcontractorPhone", e.target.value)
+                }
+                placeholder="(555) 123-4567"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="licenseNumber">License Number</Label>
+              <Input
+                id="licenseNumber"
+                value={form.licenseNumber}
+                onChange={(e) => updateField("licenseNumber", e.target.value)}
+                placeholder="License #"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="subcontractorAddress">Address</Label>
+            <Input
+              id="subcontractorAddress"
+              value={form.subcontractorAddress}
+              onChange={(e) =>
+                updateField("subcontractorAddress", e.target.value)
+              }
+              placeholder="123 Main St, City, ST 12345"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 3: Financial */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Financial</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="originalValue">
+                Contract Amount <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="originalValue"
                 type="number"
@@ -361,7 +554,7 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="retainagePercent">Retention %</Label>
+              <Label htmlFor="retainagePercent">Retainage %</Label>
               <Input
                 id="retainagePercent"
                 type="number"
@@ -369,8 +562,30 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
                 max="100"
                 step="0.1"
                 value={form.retainagePercent}
-                onChange={(e) => updateField("retainagePercent", e.target.value)}
+                onChange={(e) =>
+                  updateField("retainagePercent", e.target.value)
+                }
                 placeholder="10"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Section 4: Dates */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Dates</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="executionDate">Execution Date</Label>
+              <Input
+                id="executionDate"
+                type="date"
+                value={form.executionDate}
+                onChange={(e) => updateField("executionDate", e.target.value)}
               />
             </div>
             <div className="space-y-2">
@@ -383,7 +598,7 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="completionDate">End Date</Label>
+              <Label htmlFor="completionDate">Estimated Completion</Label>
               <Input
                 id="completionDate"
                 type="date"
@@ -392,56 +607,86 @@ export function SubcontractEditor({ mode, subcontractId }: SubcontractEditorProp
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="scopeOfWork">Description</Label>
-            <Textarea
-              id="scopeOfWork"
-              value={form.scopeOfWork}
-              onChange={(e) => updateField("scopeOfWork", e.target.value)}
-              placeholder="Scope of work details"
-              rows={4}
-            />
-          </div>
-
+      {/* Section 5: Insurance & Compliance */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Insurance & Compliance</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="subcontractorContact">Contact Name</Label>
-              <Input
-                id="subcontractorContact"
-                value={form.subcontractorContact}
-                onChange={(e) => updateField("subcontractorContact", e.target.value)}
-                placeholder="Jane Smith"
+            <div className="flex items-center gap-3">
+              <Switch
+                id="insuranceCurrent"
+                checked={form.insuranceCurrent}
+                onCheckedChange={(checked) =>
+                  updateField("insuranceCurrent", checked)
+                }
               />
+              <Label htmlFor="insuranceCurrent">
+                COI Received / Insurance Current
+              </Label>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="subcontractorEmail">Contact Email</Label>
+              <Label htmlFor="insuranceExpirationDate">
+                Insurance Expiry Date
+              </Label>
               <Input
-                id="subcontractorEmail"
-                type="email"
-                value={form.subcontractorEmail}
-                onChange={(e) => updateField("subcontractorEmail", e.target.value)}
-                placeholder="jane@vendor.com"
+                id="insuranceExpirationDate"
+                type="date"
+                value={form.insuranceExpirationDate}
+                onChange={(e) =>
+                  updateField("insuranceExpirationDate", e.target.value)
+                }
               />
             </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button asChild variant="outline" disabled={isSaving}>
-              <Link href={isEdit && subcontractId ? `/contracts/${subcontractId}` : "/contracts"}>
-                Cancel
-              </Link>
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="bg-amber-500 hover:bg-amber-600 text-white"
-              disabled={isSaving}
-            >
-              {isSaving ? "Saving..." : isEdit ? "Update Subcontract" : "Create Subcontract"}
-            </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Section 6: Notes */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notes</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            id="notes"
+            value={form.notes}
+            onChange={(e) => updateField("notes", e.target.value)}
+            placeholder="Additional notes, special conditions, or payment terms"
+            rows={3}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2">
+        <Button asChild variant="outline" disabled={isSaving}>
+          <Link
+            href={
+              isEdit && subcontractId
+                ? `/contracts/${subcontractId}`
+                : "/contracts"
+            }
+          >
+            Cancel
+          </Link>
+        </Button>
+        <Button
+          onClick={handleSave}
+          className="bg-amber-500 hover:bg-amber-600 text-white"
+          disabled={isSaving}
+        >
+          {isSaving
+            ? "Saving..."
+            : isEdit
+              ? "Update Subcontract"
+              : "Create Subcontract"}
+        </Button>
+      </div>
     </div>
   );
 }

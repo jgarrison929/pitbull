@@ -32,6 +32,8 @@ import {
   Lightbulb,
   Save,
   AlertCircle,
+  Loader2,
+  ExternalLink,
 } from "lucide-react";
 
 type FormErrors = Partial<
@@ -48,12 +50,13 @@ interface FileItem {
 const MAX_SUBJECT_LENGTH = 150;
 const MAX_QUESTION_LENGTH = 2000;
 
-// Mock similar RFIs for the suggestion shell
-const SIMILAR_RFI_SUGGESTIONS = [
-  { number: "RFI-012", subject: "Foundation depth at grid line B", similarity: 87 },
-  { number: "RFI-008", subject: "Concrete spec clarification - Section 03", similarity: 72 },
-  { number: "RFI-003", subject: "Structural detail at column C4", similarity: 64 },
-];
+interface SimilarRfi {
+  number: string;
+  subject: string;
+  status: string;
+  reason: string;
+  id?: string;
+}
 
 export default function NewRfiPage() {
   const router = useRouter();
@@ -85,7 +88,8 @@ export default function NewRfiPage() {
   const [attachments, setAttachments] = useState<FileItem[]>([]);
 
   // Similar RFIs suggestion
-  const [showSimilar, setShowSimilar] = useState(false);
+  const [similarRfis, setSimilarRfis] = useState<SimilarRfi[]>([]);
+  const [isLoadingSimilar, setIsLoadingSimilar] = useState(false);
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -151,10 +155,31 @@ export default function NewRfiPage() {
     }
   }, [subject, question, ballInCourtName, assignedToName]);
 
-  // Show similar RFIs when subject has enough text
+  // Fetch similar RFIs with debounce when subject has enough text
   useEffect(() => {
-    setShowSimilar(subject.length >= 10);
-  }, [subject]);
+    if (subject.length < 10) {
+      setSimilarRfis([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsLoadingSimilar(true);
+      try {
+        const results = await api<SimilarRfi[]>("/api/ai/suggest/similar-rfis", {
+          method: "POST",
+          body: { subject, description: question || undefined },
+        });
+        setSimilarRfis(results ?? []);
+      } catch {
+        // Silently fail — similar RFIs are a nice-to-have
+        setSimilarRfis([]);
+      } finally {
+        setIsLoadingSimilar(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [subject, question]);
 
   // Team members for avatar selector (derived from project context)
   const teamMembers = useMemo(() => [
@@ -378,22 +403,43 @@ export default function NewRfiPage() {
               />
 
               {/* Similar RFIs suggestion */}
-              {showSimilar && (
+              {isLoadingSimilar && (
+                <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/10 p-3 animate-in fade-in-50">
+                  <Loader2 className="h-4 w-4 animate-spin text-amber-600" />
+                  <span className="text-xs text-amber-700 dark:text-amber-400">Finding similar RFIs...</span>
+                </div>
+              )}
+              {!isLoadingSimilar && similarRfis.length > 0 && (
                 <div className="rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-900/10 p-3 animate-in fade-in-50 slide-in-from-top-2">
                   <div className="flex items-center gap-2 mb-2">
                     <Lightbulb className="h-4 w-4 text-amber-600" />
                     <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Similar RFIs Found</span>
                   </div>
-                  <ul className="space-y-1">
-                    {SIMILAR_RFI_SUGGESTIONS.map((s) => (
-                      <li key={s.number} className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">
-                          <span className="font-mono font-medium">{s.number}</span>{" "}
-                          {s.subject}
-                        </span>
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                          {s.similarity}% match
-                        </Badge>
+                  <ul className="space-y-1.5">
+                    {similarRfis.map((s) => (
+                      <li key={s.number} className="text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">
+                            <span className="font-mono font-medium">{s.number}</span>{" "}
+                            {s.subject}
+                            {s.id && (
+                              <a
+                                href={`/rfis/${s.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ml-1 inline-flex items-center text-amber-600 hover:text-amber-700"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </span>
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+                            {s.status}
+                          </Badge>
+                        </div>
+                        {s.reason && (
+                          <p className="text-muted-foreground/70 mt-0.5 pl-[3.5rem]">{s.reason}</p>
+                        )}
                       </li>
                     ))}
                   </ul>
