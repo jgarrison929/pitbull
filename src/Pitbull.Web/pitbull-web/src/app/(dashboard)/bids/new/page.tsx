@@ -52,19 +52,10 @@ const MAX_DESCRIPTION_LENGTH = 1000;
 const MAX_NOTES_LENGTH = 500;
 
 const CATEGORY_OPTIONS: { label: string; value: BidItemCategory }[] = [
-  { label: "General", value: "General" },
-  { label: "Sitework", value: "Sitework" },
-  { label: "Concrete", value: "Concrete" },
-  { label: "Masonry", value: "Masonry" },
-  { label: "Metals", value: "Metals" },
-  { label: "Wood/Plastics", value: "WoodPlastics" },
-  { label: "Thermal/Moisture", value: "ThermalMoisture" },
-  { label: "Doors/Windows", value: "DoorsWindows" },
-  { label: "Finishes", value: "Finishes" },
-  { label: "Specialties", value: "Specialties" },
+  { label: "Labor", value: "Labor" },
+  { label: "Material", value: "Material" },
   { label: "Equipment", value: "Equipment" },
-  { label: "Mechanical", value: "Mechanical" },
-  { label: "Electrical", value: "Electrical" },
+  { label: "Subcontractor", value: "Subcontractor" },
   { label: "Other", value: "Other" },
 ];
 
@@ -246,7 +237,7 @@ export default function NewBidPage() {
       {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         description: "",
-        category: "General",
+        category: "Labor",
         quantity: 1,
         unitCost: 0,
       },

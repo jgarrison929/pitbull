@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using MediatR;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -21,7 +22,7 @@ public class PitbullDbContext(
     ICompanyContext companyContext,
     IHttpContextAccessor? httpContextAccessor = null,
     IMediator? mediator = null)
-    : IdentityDbContext<AppUser, AppRole, Guid>(options)
+    : IdentityDbContext<AppUser, AppRole, Guid>(options), IDataProtectionKeyContext
 {
     // Explicit fields for Expression.Field() access in query filters.
     // Primary constructor parameters generate compiler-mangled backing fields
@@ -43,6 +44,7 @@ public class PitbullDbContext(
     public DbSet<OnboardingChecklist> OnboardingChecklists => Set<OnboardingChecklist>();
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
@@ -592,6 +594,8 @@ public class PitbullDbContext(
             }
         }
 
+        NormalizeUnspecifiedDateTimeKindsForSave();
+
         // Ensure PostgreSQL session variables are set for RLS before save operations
         if (_tenantContext.TenantId != Guid.Empty)
         {
@@ -620,6 +624,25 @@ public class PitbullDbContext(
         var result = await base.SaveChangesAsync(cancellationToken);
         DispatchDomainEvents();
         return result;
+    }
+
+    private void NormalizeUnspecifiedDateTimeKindsForSave()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State is not (EntityState.Added or EntityState.Modified))
+                continue;
+
+            foreach (var property in entry.Properties)
+            {
+                if (property.CurrentValue is DateTime value && value.Kind == DateTimeKind.Unspecified)
+                {
+                    DateTime utcValue = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+                    property.CurrentValue = utcValue;
+                    property.Metadata.PropertyInfo?.SetValue(entry.Entity, utcValue);
+                }
+            }
+        }
     }
 
     private string GetCurrentUserId()

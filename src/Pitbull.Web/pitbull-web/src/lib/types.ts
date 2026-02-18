@@ -29,22 +29,10 @@ export enum BidStatus {
 }
 
 export type BidItemCategory =
-  | "General"
-  | "Sitework"
-  | "Concrete"
-  | "Masonry"
-  | "Metals"
-  | "WoodPlastics"
-  | "ThermalMoisture"
-  | "DoorsWindows"
-  | "Finishes"
-  | "Specialties"
+  | "Labor"
+  | "Material"
   | "Equipment"
-  | "Furnishings"
-  | "SpecialConstruction"
-  | "Conveying"
-  | "Mechanical"
-  | "Electrical"
+  | "Subcontractor"
   | "Other";
 
 export interface Project {

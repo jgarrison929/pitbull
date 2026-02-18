@@ -1,5 +1,6 @@
 using FluentValidation;
 using HealthChecks.UI.Client;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -66,6 +67,11 @@ if (!string.IsNullOrEmpty(builder.Configuration["PostHog:ProjectApiKey"]))
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
+
+// Persist DataProtection keys to PostgreSQL so encrypted data survives redeploys.
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<PitbullDbContext>()
+    .SetApplicationName("Pitbull");
 
 // Demo bootstrap and seed data (optional)
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
