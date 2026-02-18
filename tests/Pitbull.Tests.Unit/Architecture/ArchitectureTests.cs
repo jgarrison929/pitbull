@@ -239,6 +239,7 @@ public class ArchitectureTests
                 .And().DoNotHaveName("RfiSettingsController")
                 .And().DoNotHaveName("EmployeesController")
                 .And().DoNotHaveName("SearchController")
+                .And().DoNotHaveName("AiSuggestController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 

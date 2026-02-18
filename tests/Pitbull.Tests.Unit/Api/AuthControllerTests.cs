@@ -360,7 +360,8 @@ public class AuthControllerTests
         await controller.Login(new LoginRequest("john@test.com", "Password1"));
 
         // Assert
-        userManager.Verify(u => u.UpdateAsync(It.Is<AppUser>(x => x.LastLoginAt != null)), Times.Once);
+        // Login calls UpdateAsync twice: once for LastLoginAt, once for RefreshToken
+        userManager.Verify(u => u.UpdateAsync(It.Is<AppUser>(x => x.LastLoginAt != null)), Times.Exactly(2));
     }
 
     #endregion

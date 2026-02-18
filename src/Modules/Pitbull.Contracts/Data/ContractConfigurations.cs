@@ -72,6 +72,7 @@ public class PaymentApplicationConfiguration : IEntityTypeConfiguration<PaymentA
         builder.HasOne(x => x.ScheduleOfValues)
             .WithMany()
             .HasForeignKey(x => x.ScheduleOfValuesId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.LineItems)
