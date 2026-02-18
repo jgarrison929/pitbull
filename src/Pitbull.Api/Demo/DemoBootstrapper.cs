@@ -251,16 +251,24 @@ public sealed class DemoBootstrapper(
         if (string.IsNullOrWhiteSpace(demoEmail))
             return;
 
-        // Use IgnoreQueryFilters to bypass RLS/tenant filters during bootstrap.
-        // The unique constraint on EmployeeNumber is global, so we must find the
-        // existing record regardless of tenant context state.
+        // Look up by EmployeeNumber (the unique key) instead of email to avoid
+        // mismatches when the demo email config changes. Use IgnoreQueryFilters
+        // to bypass RLS/tenant filters during bootstrap.
+        const string supEmployeeNumber = "DEMO-SUP";
         var superintendent = await db.Set<Employee>()
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(e => e.Email == demoEmail && !e.IsDeleted, ct);
+            .FirstOrDefaultAsync(e => e.EmployeeNumber == supEmployeeNumber && !e.IsDeleted, ct);
 
         if (superintendent is not null)
         {
-            logger.LogInformation("Employee record already exists for {Email} (ID: {Id})", demoEmail, superintendent.Id);
+            // Update email if demo config changed
+            if (superintendent.Email != demoEmail)
+            {
+                logger.LogInformation("Updating DEMO-SUP email from {OldEmail} to {NewEmail}", superintendent.Email, demoEmail);
+                superintendent.Email = demoEmail;
+                await db.SaveChangesAsync(ct);
+            }
+            logger.LogInformation("Employee record already exists for {EmployeeNumber} (ID: {Id})", supEmployeeNumber, superintendent.Id);
         }
         else
         {
