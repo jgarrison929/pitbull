@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.AI.Providers;
 using Pitbull.AI.Services;
+using Pitbull.Api.Validation;
 using Pitbull.Core.Data;
 using Pitbull.Documents.Domain;
 
@@ -22,6 +23,10 @@ public class AiDocumentController(
     IAiService aiService,
     PitbullDbContext db) : ControllerBase
 {
+    private const int MaxAdditionalContextLength = 8000;
+
+    // TODO: Add per-user rate limiting via middleware (e.g., 10 requests/minute for document analysis)
+
     private Guid GetTenantId()
     {
         var tenantClaim = User.FindFirst("tenant_id")?.Value;
@@ -41,6 +46,9 @@ public class AiDocumentController(
     {
         if (request.FileId == Guid.Empty)
             return BadRequest(new { error = "fileId is required", code = "VALIDATION_ERROR" });
+
+        if (AiInputSanitizer.ValidateLength(request.AdditionalContext, MaxAdditionalContextLength, "additionalContext") is { } ctxErr)
+            return BadRequest(new { error = ctxErr, code = "VALIDATION_ERROR" });
 
         var file = await db.Set<FileAttachment>()
             .AsNoTracking()
@@ -93,16 +101,16 @@ public class AiDocumentController(
     {
         var lines = new List<string>
         {
-            $"File Name: {file.FileName}",
-            $"Content Type: {file.ContentType}",
+            $"File Name: {AiInputSanitizer.SanitizeMetadata(file.FileName)}",
+            $"Content Type: {AiInputSanitizer.SanitizeMetadata(file.ContentType)}",
             $"File Size: {file.FileSize} bytes",
         };
 
         if (!string.IsNullOrWhiteSpace(file.RelatedEntityType))
-            lines.Add($"Related To: {file.RelatedEntityType} ({file.RelatedEntityId})");
+            lines.Add($"Related To: {AiInputSanitizer.SanitizeMetadata(file.RelatedEntityType)} ({file.RelatedEntityId})");
 
         if (!string.IsNullOrWhiteSpace(additionalContext))
-            lines.Add($"\nAdditional Context:\n{additionalContext}");
+            lines.Add($"\nAdditional Context:\n{AiInputSanitizer.Sanitize(additionalContext)}");
 
         return string.Join("\n", lines);
     }

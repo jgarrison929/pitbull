@@ -60,10 +60,15 @@ export function AiChatPanel() {
         body: { message: text, history },
       });
 
+      const reply =
+        result && typeof result.reply === "string"
+          ? result.reply
+          : "Sorry, I received an unexpected response. Please try again.";
+
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: result.reply,
+        content: reply,
         timestamp: new Date(),
       };
 

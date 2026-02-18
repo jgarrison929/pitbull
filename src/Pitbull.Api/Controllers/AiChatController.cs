@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.AI.Providers;
 using Pitbull.AI.Services;
+using Pitbull.Api.Validation;
 
 namespace Pitbull.Api.Controllers;
 
@@ -18,6 +19,11 @@ namespace Pitbull.Api.Controllers;
 [Tags("AI")]
 public class AiChatController(IAiService aiService) : ControllerBase
 {
+    private const int MaxMessageLength = 4000;
+    private const int MaxHistoryItems = 20;
+
+    // TODO: Add per-user rate limiting via middleware (e.g., 20 requests/minute for chat)
+
     private Guid GetTenantId()
     {
         var tenantClaim = User.FindFirst("tenant_id")?.Value;
@@ -37,10 +43,30 @@ public class AiChatController(IAiService aiService) : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Message))
             return BadRequest(new { error = "message is required", code = "VALIDATION_ERROR" });
 
+        if (AiInputSanitizer.ValidateLength(request.Message, MaxMessageLength, "message") is { } msgErr)
+            return BadRequest(new { error = msgErr, code = "VALIDATION_ERROR" });
+
+        if (AiInputSanitizer.ValidateCollectionSize(request.History, MaxHistoryItems, "history") is { } histSizeErr)
+            return BadRequest(new { error = histSizeErr, code = "VALIDATION_ERROR" });
+
+        // Validate individual history messages as well
+        if (request.History is { Count: > 0 })
+        {
+            foreach (var msg in request.History)
+            {
+                if (AiInputSanitizer.ValidateLength(msg.Content, MaxMessageLength, "history message") is { } histErr)
+                    return BadRequest(new { error = histErr, code = "VALIDATION_ERROR" });
+            }
+        }
+
+        var sanitizedMessage = AiInputSanitizer.Sanitize(request.Message);
+        if (string.IsNullOrWhiteSpace(sanitizedMessage))
+            return BadRequest(new { error = "message is required", code = "VALIDATION_ERROR" });
+
         var conversationContext = BuildConversationContext(request.History);
         var userPrompt = string.IsNullOrWhiteSpace(conversationContext)
-            ? request.Message
-            : $"{conversationContext}\n\nUser: {request.Message}";
+            ? sanitizedMessage
+            : $"{conversationContext}\n\nUser: {sanitizedMessage}";
 
         var aiRequest = new AiCompletionRequest(
             SystemPrompt: """
@@ -83,7 +109,7 @@ public class AiChatController(IAiService aiService) : ControllerBase
         // Include last 10 messages to keep context manageable
         var recent = history.Count > 10 ? history[^10..] : history;
         var lines = recent.Select(m =>
-            $"{(m.Role == "user" ? "User" : "Assistant")}: {m.Content}");
+            $"{(m.Role == "user" ? "User" : "Assistant")}: {AiInputSanitizer.Sanitize(m.Content)}");
         return string.Join("\n", lines);
     }
 }

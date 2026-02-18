@@ -61,7 +61,10 @@ export function SmartField({
           context: context || undefined,
         },
       });
-      setSuggestion(result.suggestion);
+
+      if (result && typeof result.suggestion === "string" && result.suggestion.trim()) {
+        setSuggestion(result.suggestion);
+      }
     } catch {
       setSuggestion(null);
     } finally {

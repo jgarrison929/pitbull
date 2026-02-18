@@ -33,7 +33,30 @@ export function AiDocumentAnalysisButton({ fileId, fileName }: AiDocumentAnalysi
         body: { fileId },
       });
 
-      const parsed = JSON.parse(result.analysis) as AiDocumentAnalysis;
+      if (!result.analysis || typeof result.analysis !== "string") {
+        setError("Received an invalid response from AI. Please try again.");
+        return;
+      }
+
+      let parsed: AiDocumentAnalysis;
+      try {
+        parsed = JSON.parse(result.analysis) as AiDocumentAnalysis;
+      } catch {
+        setError("AI returned a malformed response. Please try again.");
+        return;
+      }
+
+      // Validate response shape — ensure arrays exist to prevent render crashes
+      parsed = {
+        documentType: parsed.documentType ?? null,
+        dates: Array.isArray(parsed.dates) ? parsed.dates : [],
+        amounts: Array.isArray(parsed.amounts) ? parsed.amounts : [],
+        parties: Array.isArray(parsed.parties) ? parsed.parties : [],
+        keyTerms: Array.isArray(parsed.keyTerms) ? parsed.keyTerms : [],
+        summary: parsed.summary ?? null,
+        recommendations: Array.isArray(parsed.recommendations) ? parsed.recommendations : [],
+      };
+
       setAnalysis(parsed);
     } catch {
       setError("Failed to analyze document. Please try again.");
