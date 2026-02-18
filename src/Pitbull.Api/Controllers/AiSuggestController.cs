@@ -38,7 +38,7 @@ public class AiSuggestController(IAiService aiService, PitbullDbContext db) : Co
     [HttpPost("suggest")]
     [ProducesResponseType(typeof(AiSuggestResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Suggest(
         [FromBody] AiSuggestRequest request, CancellationToken ct)
     {
@@ -85,7 +85,7 @@ public class AiSuggestController(IAiService aiService, PitbullDbContext db) : Co
         var result = await aiService.CompleteAsync(tenantId, aiRequest, null, ct);
 
         if (!result.IsSuccess)
-            return StatusCode(502, new { error = result.Error, code = "AI_ERROR" });
+            return StatusCode(503, new { error = result.Error, code = result.ErrorCode });
 
         return Ok(new AiSuggestResponse(
             Suggestion: result.Value!.Content.Trim(),

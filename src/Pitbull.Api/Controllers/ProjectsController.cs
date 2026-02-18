@@ -35,7 +35,7 @@ public class ProjectsController(
     /// <remarks>
     /// Creates a new construction project within the current tenant.
     /// The project number must be unique within the tenant.
-    /// Note: enum values in JSON request bodies are numeric by default (System.Text.Json).
+    /// Enum values are serialized as strings (e.g. "type": "Commercial").
     ///
     /// Sample request:
     ///
@@ -43,7 +43,7 @@ public class ProjectsController(
     ///     {
     ///         "name": "Highway Bridge Renovation",
     ///         "number": "PRJ-2026-001",
-    ///         "type": 0,
+    ///         "type": "Commercial",
     ///         "contractAmount": 2500000.00,
     ///         "clientName": "State DOT",
     ///         "startDate": "2026-03-01"

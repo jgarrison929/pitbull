@@ -31,7 +31,7 @@ public class BidsController(IBidService bidService) : ControllerBase
     /// <remarks>
     /// Creates a new bid/estimate within the current tenant.
     /// The bid number must be unique within the tenant.
-    /// Note: enum values in JSON request bodies are numeric by default (System.Text.Json).
+    /// Enum values are serialized as strings (e.g. "category": "Labor").
     /// Optionally include line items for detailed cost breakdown.
     ///
     /// Sample request:
@@ -47,7 +47,7 @@ public class BidsController(IBidService bidService) : ControllerBase
     ///         "items": [
     ///             {
     ///                 "description": "Concrete work",
-    ///                 "category": 1,
+    ///                 "category": "Labor",
     ///                 "quantity": 500,
     ///                 "unitCost": 125.00
     ///             }
