@@ -97,6 +97,8 @@ builder.Services.AddPitbullAiModule(builder.Configuration);
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IRoleService, Pitbull.Api.Services.RoleService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IComplianceDocumentService, Pitbull.Api.Services.ComplianceDocumentService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IDataImportService, Pitbull.Api.Services.DataImportService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IDataExportService, Pitbull.Api.Services.DataExportService>();
 
 // TimeTracking singleton services (don't require DI scope)
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();

@@ -72,6 +72,7 @@ const adminItems = [
   { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖" },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜" },
   { label: "Compliance", href: "/admin/compliance", icon: "✅" },
+  { label: "Data Import", href: "/admin/data-import", icon: "🗂️" },
 ];
 
 function MobileNavItem({

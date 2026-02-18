@@ -41,6 +41,7 @@ public class PitbullDbContext(
     public DbSet<ComplianceDocument> ComplianceDocuments => Set<ComplianceDocument>();
     public DbSet<TeamInvitation> TeamInvitations => Set<TeamInvitation>();
     public DbSet<OnboardingChecklist> OnboardingChecklists => Set<OnboardingChecklist>();
+    public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
