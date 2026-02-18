@@ -102,6 +102,7 @@ export default function PaymentApplicationDetailPage() {
   const [approvedBy, setApprovedBy] = useState("");
   const [approvedAmount, setApprovedAmount] = useState("");
   const [approveNotes, setApproveNotes] = useState("");
+  const [rejectReason, setRejectReason] = useState("");
   const [reviewedBy, setReviewedBy] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
   const [paidAmount, setPaidAmount] = useState("");
@@ -233,20 +234,19 @@ export default function PaymentApplicationDetailPage() {
   };
 
   const handleReject = async () => {
+    if (!rejectReason.trim()) { toast.error("Rejection reason is required"); return; }
     setActionLoading(true);
     try {
-      // Use update endpoint to change status to rejected
-      await api(`/api/paymentapplications/${id}`, {
-        method: "PUT",
+      await api(`/api/paymentapplications/${id}/reject`, {
+        method: "POST",
         body: {
-          id,
-          workCompletedThisPeriod: detail?.g702.totalCompletedAndStoredToDate || 0,
-          storedMaterials: 0,
-          status: PaymentApplicationStatus.Rejected,
+          rejectedBy: "Current User",
+          reason: rejectReason.trim(),
         },
       });
       toast.success("Payment application rejected");
       setShowRejectConfirm(false);
+      setRejectReason("");
       await loadDetail();
     } catch {
       toast.error("Failed to reject");
@@ -719,7 +719,7 @@ export default function PaymentApplicationDetailPage() {
       </Card>
 
       {/* Notes & Timeline */}
-      {(detail.notes || detail.approvedBy || detail.reviewedBy || detail.paidDate) && (
+      {(detail.notes || detail.approvedBy || detail.reviewedBy || detail.paidDate || detail.rejectedBy) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Activity</CardTitle>
@@ -742,6 +742,19 @@ export default function PaymentApplicationDetailPage() {
                 <div className="flex items-center gap-3">
                   <Badge variant="outline" className="shrink-0">Approved</Badge>
                   <span>by {detail.approvedBy} on {formatDate(detail.approvedDate)}</span>
+                </div>
+              )}
+              {detail.rejectedDate && detail.rejectedBy && (
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="shrink-0 border-red-300 text-red-700 dark:text-red-400">Rejected</Badge>
+                    <span>by {detail.rejectedBy} on {formatDate(detail.rejectedDate)}</span>
+                  </div>
+                  {detail.rejectionReason && (
+                    <p className="text-sm text-red-700 dark:text-red-400 ml-[calc(theme(spacing.3)+4.5rem)]">
+                      Reason: {detail.rejectionReason}
+                    </p>
+                  )}
                 </div>
               )}
               {detail.paidDate && (
@@ -778,17 +791,33 @@ export default function PaymentApplicationDetailPage() {
         variant="warning"
       />
 
-      <ConfirmDialog
-        open={showRejectConfirm}
-        onOpenChange={setShowRejectConfirm}
-        title="Reject Payment Application?"
-        description="This will reject the payment application. The subcontractor will need to resubmit."
-        onConfirm={handleReject}
-        isLoading={actionLoading}
-        loadingText="Rejecting..."
-        confirmLabel="Reject"
-        variant="danger"
-      />
+      <Dialog open={showRejectConfirm} onOpenChange={setShowRejectConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reject Payment Application</DialogTitle>
+            <DialogDescription>
+              This will reject the payment application. The subcontractor will need to resubmit.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Rejection Reason *</Label>
+              <Textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+                placeholder="Explain why this application is being rejected..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRejectConfirm(false)} disabled={actionLoading}>Cancel</Button>
+            <LoadingButton onClick={handleReject} loading={actionLoading} loadingText="Rejecting..." variant="destructive">
+              Reject
+            </LoadingButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Review Dialog */}
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>

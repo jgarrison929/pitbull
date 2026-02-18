@@ -167,6 +167,34 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         return Result.Success(await BuildDetailDto(payApp, cancellationToken));
     }
 
+    public async Task<Result<PaymentApplicationDetailDto>> RejectAsync(
+        Guid id, RejectPaymentApplicationRequest request, CancellationToken cancellationToken = default)
+    {
+        var payApp = await db.Set<PaymentApplication>()
+            .FirstOrDefaultAsync(pa => pa.Id == id && !pa.IsDeleted, cancellationToken);
+
+        if (payApp is null)
+            return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
+
+        var rejectableStatuses = new[]
+        {
+            PaymentApplicationStatus.Submitted,
+            PaymentApplicationStatus.Reviewed
+        };
+
+        if (!rejectableStatuses.Contains(payApp.Status))
+            return Result.Failure<PaymentApplicationDetailDto>(
+                "Only submitted or reviewed applications can be rejected", "INVALID_STATUS");
+
+        payApp.Status = PaymentApplicationStatus.Rejected;
+        payApp.RejectedBy = request.RejectedBy;
+        payApp.RejectionReason = request.Reason;
+        payApp.RejectedDate = DateTime.UtcNow;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return Result.Success(await BuildDetailDto(payApp, cancellationToken));
+    }
+
     public async Task<Result<PaymentApplicationDetailDto>> MarkPaidAsync(
         Guid id, MarkPaymentApplicationPaidRequest request, CancellationToken cancellationToken = default)
     {
@@ -415,6 +443,9 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
             PaidDate: payApp.PaidDate,
             ApprovedBy: payApp.ApprovedBy,
             ReviewedBy: payApp.ReviewedBy,
+            RejectedBy: payApp.RejectedBy,
+            RejectionReason: payApp.RejectionReason,
+            RejectedDate: payApp.RejectedDate,
             InvoiceNumber: payApp.InvoiceNumber,
             CheckNumber: payApp.CheckNumber,
             Notes: payApp.Notes,

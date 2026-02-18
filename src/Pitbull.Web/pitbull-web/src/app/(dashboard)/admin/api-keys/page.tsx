@@ -17,6 +17,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { TableSkeleton } from "@/components/skeletons";
 import { Key, Plus, Copy, Trash2, Ban, AlertTriangle } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -164,7 +165,7 @@ export default function ApiKeysPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-center text-muted-foreground py-8">Loading...</p>
+            <TableSkeleton headers={["Name", "Key Prefix", "Status", "Scopes", "Expires", "Last Used", "Created", "Actions"]} rows={5} />
           ) : keys.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No API keys yet. Create one to get started.</p>
           ) : (

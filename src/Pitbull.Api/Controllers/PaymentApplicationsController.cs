@@ -285,6 +285,19 @@ public class PaymentApplicationsController(
     }
 
     /// <summary>
+    /// Reject a submitted or reviewed payment application
+    /// </summary>
+    [HttpPost("{id:guid}/reject")]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectPaymentApplicationRequest request)
+    {
+        var result = await payAppService.RejectAsync(id, request);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
     /// Approve a reviewed payment application
     /// </summary>
     [HttpPost("{id:guid}/approve")]

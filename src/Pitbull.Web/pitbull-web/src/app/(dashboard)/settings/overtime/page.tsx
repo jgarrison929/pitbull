@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,9 @@ import {
   RotateCcw,
   AlertTriangle,
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import api from "@/lib/api";
 
 // ─── Types ────────────────────────────────────────────────
 interface OvertimeRules {
@@ -55,7 +57,15 @@ interface Holiday {
   recurring: boolean;
 }
 
-const STORAGE_KEY = "pitbull-overtime-rules";
+interface CompanySettingsDto {
+  overtimeEnabled: boolean;
+  dailyOtThreshold: number;
+  weeklyOtThreshold: number;
+  dailyDtThreshold: number;
+  californiaOtRules: boolean;
+}
+
+const LOCAL_RULES_KEY = "pitbull-overtime-local-rules";
 
 const DEFAULT_RULES: OvertimeRules = {
   dailyOtThreshold: 8,
@@ -75,19 +85,17 @@ const DEFAULT_RULES: OvertimeRules = {
   enabled: true,
 };
 
-function loadRules(): OvertimeRules {
+function loadLocalRules(): Pick<OvertimeRules, "saturdayRule" | "sundayRule" | "holidays" | "holidayRule"> {
   if (typeof window === "undefined") return DEFAULT_RULES;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored) as OvertimeRules;
-  } catch {
-    // ignore
-  }
-  return DEFAULT_RULES;
+    const stored = localStorage.getItem(LOCAL_RULES_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return { saturdayRule: DEFAULT_RULES.saturdayRule, sundayRule: DEFAULT_RULES.sundayRule, holidays: DEFAULT_RULES.holidays, holidayRule: DEFAULT_RULES.holidayRule };
 }
 
-function saveRules(rules: OvertimeRules) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
+function saveLocalRules(rules: Pick<OvertimeRules, "saturdayRule" | "sundayRule" | "holidays" | "holidayRule">) {
+  localStorage.setItem(LOCAL_RULES_KEY, JSON.stringify(rules));
 }
 
 // ─── Preview calculation ──────────────────────────────────
@@ -134,7 +142,9 @@ function computePreview(
 
 // ─── Component ────────────────────────────────────────────
 export default function OvertimeRulesPage() {
-  const [rules, setRules] = useState<OvertimeRules>(loadRules);
+  const [rules, setRules] = useState<OvertimeRules>(DEFAULT_RULES);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showAddHoliday, setShowAddHoliday] = useState(false);
   const [newHoliday, setNewHoliday] = useState({ name: "", date: "", recurring: true });
@@ -142,6 +152,31 @@ export default function OvertimeRulesPage() {
   // Preview state
   const [previewHours, setPreviewHours] = useState(10);
   const [previewDay, setPreviewDay] = useState<"weekday" | "saturday" | "sunday" | "holiday">("weekday");
+
+  // Load settings from API + local storage on mount
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await api<CompanySettingsDto>("/api/admin/company");
+        const local = loadLocalRules();
+        setRules({
+          enabled: data.overtimeEnabled,
+          dailyOtThreshold: data.dailyOtThreshold,
+          weeklyOtThreshold: data.weeklyOtThreshold,
+          dailyDtThreshold: data.dailyDtThreshold,
+          saturdayRule: local.saturdayRule,
+          sundayRule: local.sundayRule,
+          holidays: local.holidays,
+          holidayRule: local.holidayRule,
+        });
+      } catch {
+        toast.error("Failed to load overtime settings");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   const preview = useMemo(
     () => computePreview(previewHours, rules, previewDay),
@@ -156,10 +191,31 @@ export default function OvertimeRulesPage() {
     []
   );
 
-  const handleSave = () => {
-    saveRules(rules);
-    setHasChanges(false);
-    toast.success("Overtime rules saved");
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await api("/api/admin/company", {
+        method: "PUT",
+        body: {
+          overtimeEnabled: rules.enabled,
+          dailyOtThreshold: rules.dailyOtThreshold,
+          weeklyOtThreshold: rules.weeklyOtThreshold,
+          dailyDtThreshold: rules.dailyDtThreshold,
+        },
+      });
+      saveLocalRules({
+        saturdayRule: rules.saturdayRule,
+        sundayRule: rules.sundayRule,
+        holidays: rules.holidays,
+        holidayRule: rules.holidayRule,
+      });
+      setHasChanges(false);
+      toast.success("Overtime rules saved");
+    } catch {
+      toast.error("Failed to save overtime settings");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleReset = () => {
@@ -215,11 +271,11 @@ export default function OvertimeRulesPage() {
           </Button>
           <Button
             onClick={handleSave}
-            disabled={!hasChanges}
+            disabled={!hasChanges || isSaving}
             className="gap-2 bg-amber-500 hover:bg-amber-600"
           >
             <Save className="h-4 w-4" />
-            Save Rules
+            {isSaving ? "Saving..." : "Save Rules"}
           </Button>
         </div>
       </div>
@@ -241,6 +297,13 @@ export default function OvertimeRulesPage() {
         </AlertDescription>
       </Alert>
 
+      {isLoading ? (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-64 w-full" />
+          ))}
+        </div>
+      ) : (
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Daily Thresholds */}
         <Card>
@@ -611,6 +674,7 @@ export default function OvertimeRulesPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Add Holiday Dialog */}
       <Dialog open={showAddHoliday} onOpenChange={setShowAddHoliday}>

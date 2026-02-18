@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import {
   formatDate,
   formatHours,
@@ -48,9 +49,7 @@ const ALL = "__all__";
 
 function getWeekRange(): { start: string; end: string } {
   const now = new Date();
-  const day = (now.getDay() + 6) % 7;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - day);
+  const monday = getWeekStartFn(now, 1); // Monday start
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
 

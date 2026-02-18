@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
+import { FileText } from "lucide-react";
 
 interface ProjectModulePageProps {
   projectId: string;
@@ -85,10 +88,13 @@ export function ProjectModulePage({
             />
           </div>
 
-          {loading ? <p className="text-sm text-muted-foreground">Loading...</p> : null}
+          {loading ? <TableSkeleton headers={["Title", "Status", "Created"]} rows={5} /> : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
           {!loading && !error ? (
+            items.length === 0 ? (
+              <EmptyState icon={FileText} title="No records found" description={`No ${title.toLowerCase()} have been created yet.`} />
+            ) : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -98,14 +104,7 @@ export function ProjectModulePage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-muted-foreground">
-                      No records found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((item) => (
+                {items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell>{item.title || item.name || item.id}</TableCell>
                       <TableCell>
@@ -113,10 +112,10 @@ export function ProjectModulePage({
                       </TableCell>
                       <TableCell>{new Date(item.createdAt).toLocaleDateString()}</TableCell>
                     </TableRow>
-                  ))
-                )}
+                  ))}
               </TableBody>
             </Table>
+            )
           ) : null}
         </CardContent>
       </Card>

@@ -1,9 +1,51 @@
 import { API_BASE_URL } from "./config";
-import { getToken, removeToken } from "./auth";
+import {
+  getToken,
+  setToken,
+  removeToken,
+  getRefreshToken,
+  setRefreshToken,
+  removeRefreshToken,
+} from "./auth";
 import { reportError } from "./error-reporter";
 import { posthog } from "./posthog";
 
 const ACTIVE_COMPANY_KEY = "pitbull_active_company_id";
+
+// Shared refresh promise prevents concurrent 401s from triggering multiple refreshes
+let refreshPromise: Promise<string | null> | null = null;
+
+async function tryRefreshToken(): Promise<string | null> {
+  const token = getToken();
+  const refreshToken = getRefreshToken();
+
+  if (!token || !refreshToken) return null;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, refreshToken }),
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    setToken(data.token);
+    if (data.refreshToken) setRefreshToken(data.refreshToken);
+    return data.token;
+  } catch {
+    return null;
+  }
+}
+
+function clearAuthAndRedirect(): void {
+  removeToken();
+  removeRefreshToken();
+  if (typeof window !== "undefined") {
+    window.location.href = "/login";
+  }
+}
 
 interface ApiOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
@@ -48,11 +90,46 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   });
 
   if (response.status === 401) {
-    removeToken();
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
+    // Try to refresh the token (shared promise deduplicates concurrent 401s)
+    if (!refreshPromise) {
+      refreshPromise = tryRefreshToken().finally(() => {
+        refreshPromise = null;
+      });
     }
-    throw new ApiError(401, "Unauthorized");
+
+    const newToken = await refreshPromise;
+
+    if (newToken) {
+      // Retry the original request with the new token
+      headers["Authorization"] = `Bearer ${newToken}`;
+      const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...rest,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      if (retryResponse.status === 401) {
+        clearAuthAndRedirect();
+        throw new ApiError(401, "Session expired");
+      }
+
+      if (retryResponse.status === 204) return undefined as T;
+
+      if (!retryResponse.ok) {
+        const errorData = await retryResponse.json().catch(() => null);
+        throw new ApiError(
+          retryResponse.status,
+          errorData?.message || `Request failed with status ${retryResponse.status}`,
+          errorData
+        );
+      }
+
+      return retryResponse.json() as Promise<T>;
+    }
+
+    // Refresh failed — clear everything and redirect to login
+    clearAuthAndRedirect();
+    throw new ApiError(401, "Session expired");
   }
 
   if (!response.ok) {
@@ -133,9 +210,41 @@ async function uploadFiles<T>(
   });
 
   if (response.status === 401) {
-    removeToken();
-    if (typeof window !== "undefined") window.location.href = "/login";
-    throw new ApiError(401, "Unauthorized");
+    if (!refreshPromise) {
+      refreshPromise = tryRefreshToken().finally(() => {
+        refreshPromise = null;
+      });
+    }
+
+    const newToken = await refreshPromise;
+
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (retryResponse.status === 401) {
+        clearAuthAndRedirect();
+        throw new ApiError(401, "Session expired");
+      }
+
+      if (!retryResponse.ok) {
+        const errorData = await retryResponse.json().catch(() => null);
+        throw new ApiError(
+          retryResponse.status,
+          errorData?.message || `Upload failed with status ${retryResponse.status}`,
+          errorData
+        );
+      }
+
+      return retryResponse.json() as Promise<T>;
+    }
+
+    clearAuthAndRedirect();
+    throw new ApiError(401, "Session expired");
   }
 
   if (!response.ok) {

@@ -1015,6 +1015,9 @@ export interface PaymentApplicationDetail {
   paidDate?: string | null;
   approvedBy?: string | null;
   reviewedBy?: string | null;
+  rejectedBy?: string | null;
+  rejectionReason?: string | null;
+  rejectedDate?: string | null;
   invoiceNumber?: string | null;
   checkNumber?: string | null;
   notes?: string | null;

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 import api from "@/lib/api";
-import { getToken, setToken, removeToken, decodeToken, isTokenExpired } from "@/lib/auth";
+import { getToken, setToken, removeToken, setRefreshToken, removeRefreshToken, decodeToken, isTokenExpired } from "@/lib/auth";
 import { posthog } from "@/lib/posthog";
 
 function buildUserFromToken(token: string): User | null {
@@ -52,6 +52,7 @@ interface RegisterData {
 
 interface AuthResponse {
   token: string;
+  refreshToken?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     setToken(response.token);
+    if (response.refreshToken) setRefreshToken(response.refreshToken);
     const u = buildUserFromToken(response.token);
     setUser(u);
 
@@ -93,11 +95,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     setToken(response.token);
+    if (response.refreshToken) setRefreshToken(response.refreshToken);
     setUser(buildUserFromToken(response.token));
   }, []);
 
   const logout = useCallback(() => {
     removeToken();
+    removeRefreshToken();
     setUser(null);
 
     // Reset PostHog identity on logout

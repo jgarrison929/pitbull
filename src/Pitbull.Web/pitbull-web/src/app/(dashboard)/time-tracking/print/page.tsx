@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
+import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import type {
   TimeEntry,
   PagedResult,
@@ -62,14 +63,11 @@ function formatHours(hours: number): string {
   return hours.toFixed(1);
 }
 
-function getWeekStart(dateStr: string): Date {
-  const d = new Date(dateStr);
-  const day = d.getDay();
-  const diff = d.getDate() - day; // Sunday = 0
-  return new Date(d.getFullYear(), d.getMonth(), diff);
+function getWeekStartLocal(dateStr: string): Date {
+  return getWeekStartFn(new Date(dateStr), 1); // Monday start
 }
 
-function getWeekEnd(weekStart: Date): Date {
+function getWeekEndLocal(weekStart: Date): Date {
   const end = new Date(weekStart);
   end.setDate(end.getDate() + 6);
   return end;
@@ -88,7 +86,7 @@ function groupByWeek(entries: TimeEntry[]): WeekGroup[] {
   const weekMap = new Map<string, TimeEntry[]>();
 
   for (const entry of entries) {
-    const ws = getWeekStart(entry.date);
+    const ws = getWeekStartLocal(entry.date);
     const key = ws.toISOString().split("T")[0];
     if (!weekMap.has(key)) {
       weekMap.set(key, []);
@@ -102,7 +100,7 @@ function groupByWeek(entries: TimeEntry[]): WeekGroup[] {
   for (const key of sortedKeys) {
     const weekEntries = weekMap.get(key)!;
     const ws = new Date(key);
-    const we = getWeekEnd(ws);
+    const we = getWeekEndLocal(ws);
 
     weekEntries.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()

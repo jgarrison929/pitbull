@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Clock } from "lucide-react";
 import api from "@/lib/api";
+import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import type { TimeEntry } from "@/lib/types";
 
 // ── Types ──────────────────────────────────────────────
@@ -45,16 +46,14 @@ function formatDateShort(d: Date): string {
 }
 
 function getWeekLabel(d: Date): string {
-  const start = new Date(d);
-  start.setDate(d.getDate() - d.getDay());
+  const start = getWeekStartFn(d, 1); // Monday start
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   return `${formatDateShort(start)} – ${formatDateShort(end)}`;
 }
 
 function getWeekKey(d: Date): string {
-  const start = new Date(d);
-  start.setDate(d.getDate() - d.getDay());
+  const start = getWeekStartFn(d, 1); // Monday start
   return start.toISOString().split("T")[0];
 }
 

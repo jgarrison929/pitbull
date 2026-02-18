@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Activity, Database, Users, Briefcase, FileText, HardHat, Clock, Key, RefreshCw,
 } from "lucide-react";
@@ -82,6 +83,18 @@ export default function SystemHealthPage() {
           Refresh
         </Button>
       </div>
+
+      {!health && isLoading && (
+        <div className="space-y-4">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-40 w-full" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full" />
+            ))}
+          </div>
+        </div>
+      )}
 
       {health && (
         <>

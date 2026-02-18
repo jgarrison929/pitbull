@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/skeletons";
 import { AlertTriangle, Edit, Plus, ShieldCheck, Trash2 } from "lucide-react";
 
 const ENTITY_TYPES = ["Employee", "Subcontractor", "Company"] as const;
@@ -403,7 +404,7 @@ export default function CompliancePage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <p className="text-sm text-muted-foreground">Loading...</p>
+            <TableSkeleton headers={["Entity", "Doc Type", "Number", "Issued", "Expires", "Status", "Actions"]} rows={6} />
           ) : (
             <div className="overflow-x-auto">
             <Table>

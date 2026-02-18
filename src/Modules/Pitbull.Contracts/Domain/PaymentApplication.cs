@@ -54,6 +54,11 @@ public class PaymentApplication : BaseEntity, ICompanyScoped
     public decimal? ApprovedAmount { get; set; } // May differ from requested
     public string? Notes { get; set; }
 
+    // Rejection
+    public string? RejectedBy { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime? RejectedDate { get; set; }
+
     // Payment
     public decimal? PaidAmount { get; set; }
     public string? PaidReference { get; set; }

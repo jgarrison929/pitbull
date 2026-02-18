@@ -1,4 +1,5 @@
 const TOKEN_KEY = "pitbull_token";
+const REFRESH_TOKEN_KEY = "pitbull_refresh_token";
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -16,6 +17,21 @@ export function removeToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
   document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
+}
+
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setRefreshToken(token: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+export function removeRefreshToken(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 interface JwtPayload {

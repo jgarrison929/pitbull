@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Wrench, Clock, ExternalLink } from "lucide-react";
 import api from "@/lib/api";
+import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import type { Equipment, TimeEntry } from "@/lib/types";
 
 interface EquipmentUtilizationData {
@@ -16,11 +17,7 @@ interface EquipmentUtilizationData {
 }
 
 function getWeekStart(): string {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = now.getDate() - day;
-  const start = new Date(now.setDate(diff));
-  return start.toISOString().split("T")[0];
+  return getWeekStartFn(new Date(), 1).toISOString().split("T")[0];
 }
 
 function getMonthStart(): string {

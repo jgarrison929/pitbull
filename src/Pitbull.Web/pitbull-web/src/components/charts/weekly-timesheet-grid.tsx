@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import type { TimeEntry } from "@/lib/types";
 
 // ── Types ──────────────────────────────────────────────
@@ -81,9 +82,8 @@ function getHeatColor(hours: number, maxHours: number): string {
 
 function getWeekStartDate(weeksAgo: number): Date {
   const d = new Date();
-  d.setDate(d.getDate() - d.getDay() - weeksAgo * 7);
-  d.setHours(0, 0, 0, 0);
-  return d;
+  d.setDate(d.getDate() - weeksAgo * 7);
+  return getWeekStartFn(d, 1); // Monday start
 }
 
 // ── Component ──────────────────────────────────────────

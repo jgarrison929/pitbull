@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using FluentValidation;
 using Microsoft.AspNetCore.Identity;
@@ -212,10 +213,16 @@ public class AuthController(
                 // Get user's roles for JWT
                 var roles = await roleSeeder.GetUserRolesAsync(user);
 
+                // Generate and store refresh token
+                var refreshToken = GenerateRefreshToken();
+                user.RefreshToken = refreshToken;
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                await userManager.UpdateAsync(user);
+
                 await transaction.CommitAsync();
 
                 var token = await GenerateJwtTokenAsync(user);
-                actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
+                actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
             }
             catch
             {
@@ -295,7 +302,77 @@ public class AuthController(
         }
 
         var token = await GenerateJwtTokenAsync(user);
-        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
+
+        // Generate and store refresh token
+        var refreshToken = GenerateRefreshToken();
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        await userManager.UpdateAsync(user);
+
+        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
+    }
+
+    /// <summary>
+    /// Refresh an expired access token using a refresh token
+    /// </summary>
+    /// <remarks>
+    /// Accepts an expired access token and a valid refresh token, then returns
+    /// a new access token and rotated refresh token. The old refresh token is
+    /// invalidated after use.
+    ///
+    /// **Rate limited:** Standard API rate limit.
+    ///
+    /// Sample request:
+    ///
+    ///     POST /api/auth/refresh
+    ///     {
+    ///         "token": "expired-jwt-token",
+    ///         "refreshToken": "valid-refresh-token"
+    ///     }
+    ///
+    /// </remarks>
+    /// <param name="request">Expired access token and refresh token</param>
+    /// <returns>New JWT token and rotated refresh token</returns>
+    /// <response code="200">Token refreshed successfully</response>
+    /// <response code="401">Invalid or expired refresh token</response>
+    [HttpPost("refresh")]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.RefreshToken))
+            return this.UnauthorizedError("Token and refresh token are required");
+
+        // Extract user identity from the expired access token
+        var principal = GetPrincipalFromExpiredToken(request.Token);
+        if (principal is null)
+            return this.UnauthorizedError("Invalid access token");
+
+        var userId = principal.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return this.UnauthorizedError("Invalid access token");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null ||
+            user.RefreshToken != request.RefreshToken ||
+            user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+        {
+            return this.UnauthorizedError("Invalid or expired refresh token");
+        }
+
+        // Generate new token pair and rotate refresh token
+        var newAccessToken = await GenerateJwtTokenAsync(user);
+        var newRefreshToken = GenerateRefreshToken();
+
+        user.RefreshToken = newRefreshToken;
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        await userManager.UpdateAsync(user);
+
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+
+        return Ok(new AuthResponse(newAccessToken, user.Id, user.FullName, user.Email!, roles.ToArray(), newRefreshToken));
     }
 
     /// <summary>
@@ -411,7 +488,12 @@ public class AuthController(
         var roles = await roleSeeder.GetUserRolesAsync(user);
         var token = await GenerateJwtTokenAsync(user);
 
-        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray()));
+        var refreshToken = GenerateRefreshToken();
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        await userManager.UpdateAsync(user);
+
+        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
     }
 
     /// <summary>
@@ -616,6 +698,41 @@ public class AuthController(
         return Ok(new { message = "Password has been reset successfully" });
     }
 
+    private static string GenerateRefreshToken()
+    {
+        var randomBytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(randomBytes);
+    }
+
+    private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
+        var validationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = true,
+            ValidateIssuer = true,
+            ValidIssuer = configuration["Jwt:Issuer"],
+            ValidAudience = configuration["Jwt:Audience"],
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = key,
+            ValidateLifetime = false // Allow expired tokens
+        };
+
+        try
+        {
+            var principal = new JwtSecurityTokenHandler()
+                .ValidateToken(token, validationParameters, out var securityToken);
+            if (securityToken is not JwtSecurityToken jwtToken ||
+                !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
+                return null;
+            return principal;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {
         var key = new SymmetricSecurityKey(
@@ -738,12 +855,14 @@ public record LoginRequest(
 /// <param name="FullName">User's display name</param>
 /// <param name="Email">User's email address</param>
 /// <param name="Roles">User's assigned roles (e.g., Admin, Manager, User)</param>
+/// <param name="RefreshToken">Refresh token for obtaining new access tokens</param>
 public record AuthResponse(
     string Token,
     Guid UserId,
     string FullName,
     string Email,
-    string[] Roles);
+    string[] Roles,
+    string? RefreshToken = null);
 
 public record UpdateProfileRequest(
     string FirstName,
@@ -755,3 +874,12 @@ public record ForgotPasswordRequest(
 public record ResetPasswordRequest(
     string Token,
     string NewPassword);
+
+/// <summary>
+/// Refresh token request containing the expired access token and valid refresh token
+/// </summary>
+/// <param name="Token">The expired JWT access token</param>
+/// <param name="RefreshToken">The refresh token issued at login</param>
+public record RefreshTokenRequest(
+    string Token,
+    string RefreshToken);

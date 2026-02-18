@@ -40,6 +40,7 @@ import {
   Layers,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import { useAuth } from "@/contexts/auth-context";
 import type {
   AuditLog,
@@ -326,8 +327,7 @@ export default function AuditLogsPage() {
 
   const handleSetThisWeek = () => {
     const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfWeek = getWeekStartFn(today, 1); // Monday start
     setStartDate(formatDateForInput(startOfWeek));
     setEndDate(formatDateForInput(today));
     setPage(1);

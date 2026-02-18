@@ -30,6 +30,9 @@ public interface IPaymentApplicationService
     Task<Result<PaymentApplicationDetailDto>> ApproveAsync(
         Guid id, ApprovePaymentApplicationRequest request, CancellationToken cancellationToken = default);
 
+    Task<Result<PaymentApplicationDetailDto>> RejectAsync(
+        Guid id, RejectPaymentApplicationRequest request, CancellationToken cancellationToken = default);
+
     Task<Result<PaymentApplicationDetailDto>> MarkPaidAsync(
         Guid id, MarkPaymentApplicationPaidRequest request, CancellationToken cancellationToken = default);
 

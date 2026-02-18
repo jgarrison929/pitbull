@@ -78,6 +78,9 @@ public sealed record PaymentApplicationDetailDto(
     DateTime? PaidDate,
     string? ApprovedBy,
     string? ReviewedBy,
+    string? RejectedBy,
+    string? RejectionReason,
+    DateTime? RejectedDate,
     string? InvoiceNumber,
     string? CheckNumber,
     string? Notes,
@@ -103,6 +106,11 @@ public sealed record ApprovePaymentApplicationRequest(
     decimal? ApprovedAmount,
     DateOnly? RevenueRecognitionDate,
     string? Notes
+);
+
+public sealed record RejectPaymentApplicationRequest(
+    string RejectedBy,
+    string Reason
 );
 
 public sealed record MarkPaymentApplicationPaidRequest(

@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Download, Upload, History, FileUp, CheckCircle2 } from "lucide-react";
+import { TableSkeleton } from "@/components/skeletons";
 
 const IMPORT_TYPES = [
   { value: "employees", label: "Employees" },
@@ -524,7 +525,7 @@ export default function DataImportPage() {
             </CardHeader>
             <CardContent>
               {isHistoryLoading ? (
-                <p className="text-sm text-muted-foreground">Loading history...</p>
+                <TableSkeleton headers={["Type", "Status", "Total", "Valid", "Errors", "Created", "Completed"]} rows={4} />
               ) : (
                 <Table>
                   <TableHeader>

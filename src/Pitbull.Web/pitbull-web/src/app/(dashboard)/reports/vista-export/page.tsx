@@ -26,6 +26,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import api from "@/lib/api";
+import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import { getToken } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/config";
 import { toast } from "sonner";
@@ -54,8 +55,7 @@ function formatDate(date: Date): string {
 
 function getDatePresets() {
   const today = new Date();
-  const thisMonday = new Date(today);
-  thisMonday.setDate(today.getDate() - today.getDay() + 1);
+  const thisMonday = getWeekStartFn(today, 1); // Monday start
   const lastMonday = new Date(thisMonday);
   lastMonday.setDate(thisMonday.getDate() - 7);
   const lastSunday = new Date(thisMonday);
