@@ -153,10 +153,10 @@ builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api
 
 // Email service: Resend in production, console stub in development
 var resendApiKey = builder.Configuration["Email:Resend:ApiKey"];
-if (string.IsNullOrEmpty(resendApiKey))
+if (string.IsNullOrWhiteSpace(resendApiKey))
     resendApiKey = Environment.GetEnvironmentVariable("RESEND_API_KEY");
 
-if (!string.IsNullOrEmpty(resendApiKey))
+if (!string.IsNullOrWhiteSpace(resendApiKey))
 {
     builder.Services.AddOptions();
     builder.Services.AddHttpClient<Resend.ResendClient>();

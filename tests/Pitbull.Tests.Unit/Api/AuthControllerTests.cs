@@ -148,7 +148,8 @@ public class AuthControllerTests
             regVal.Object,
             loginVal.Object,
             tc,
-            Mock.Of<Pitbull.Api.Services.IEmailService>());
+            Mock.Of<Pitbull.Api.Services.IEmailService>(),
+            Mock.Of<ILogger<AuthController>>());
 
         // Set up HttpContext with claims
         var claims = new List<Claim>();

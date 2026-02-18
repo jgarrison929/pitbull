@@ -36,7 +36,8 @@ public class AuthController(
     IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator,
     Pitbull.Core.MultiTenancy.TenantContext tenantContext,
-    IEmailService emailService) : ControllerBase
+    IEmailService emailService,
+    ILogger<AuthController> logger) : ControllerBase
 {
     /// <summary>
     /// Register a new user account
@@ -652,7 +653,11 @@ public class AuthController(
         db.PasswordResetTokens.Add(resetToken);
         await db.SaveChangesAsync();
 
-        await emailService.SendPasswordResetAsync(user.Email!, user.FullName, plaintext);
+        _ = Task.Run(async () =>
+        {
+            try { await emailService.SendPasswordResetAsync(user.Email!, user.FullName, plaintext); }
+            catch (Exception ex) { logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email); }
+        });
 
         return Ok(new { message = successMessage });
     }

@@ -88,12 +88,18 @@ public class TeamInvitationService(
         var company = await db.Set<Company>()
             .FirstOrDefaultAsync(c => c.Id == request.CompanyId && !c.IsDeleted, ct);
 
-        await emailService.SendInvitationEmailAsync(
-            request.Email,
-            request.InvitedByName,
-            company?.Name ?? "your company",
-            plaintextToken,
-            ct);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await emailService.SendInvitationEmailAsync(
+                    request.Email,
+                    request.InvitedByName,
+                    company?.Name ?? "your company",
+                    plaintextToken);
+            }
+            catch (Exception ex) { logger.LogError(ex, "Failed to send invitation email to {Email}", request.Email); }
+        });
 
         logger.LogInformation("Created invitation {InvitationId} for {Email} to company {CompanyId}",
             invitation.Id, request.Email, request.CompanyId);
@@ -273,12 +279,18 @@ public class TeamInvitationService(
         invitation.ExpiresAt = DateTime.UtcNow.AddDays(7);
         await db.SaveChangesAsync(ct);
 
-        await emailService.SendInvitationEmailAsync(
-            invitation.Email,
-            invitation.InvitedBy,
-            invitation.Company?.Name ?? "your company",
-            plaintextToken,
-            ct);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await emailService.SendInvitationEmailAsync(
+                    invitation.Email,
+                    invitation.InvitedBy,
+                    invitation.Company?.Name ?? "your company",
+                    plaintextToken);
+            }
+            catch (Exception ex) { logger.LogError(ex, "Failed to resend invitation email to {Email}", invitation.Email); }
+        });
 
         logger.LogInformation("Resent invitation {InvitationId} to {Email}", invitationId, invitation.Email);
     }
