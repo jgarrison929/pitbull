@@ -34,10 +34,11 @@ import {
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingButton } from "@/components/ui/loading-button";
-import { Edit, Users, Search, UserPlus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Edit, Users, Search, UserPlus, Mail, Trash2, RotateCw } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import type { AdminUser, AdminListUsersResult, RoleInfo, UserStatus } from "@/lib/types";
+import type { AdminUser, AdminListUsersResult, RoleInfo, UserStatus, TeamInvitation } from "@/lib/types";
 import { toast } from "sonner";
 
 const statusBadgeClass: Record<string, string> = {
@@ -107,6 +108,12 @@ export default function UsersPage() {
   const [inviteRole, setInviteRole] = useState("Viewer");
   const [isInviting, setIsInviting] = useState(false);
 
+  // Invitations state
+  const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
+  const [isLoadingInvitations, setIsLoadingInvitations] = useState(true);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
   // Check admin access
   useEffect(() => {
     if (!isAdmin) {
@@ -149,12 +156,30 @@ export default function UsersPage() {
     }
   }, [isAdmin, fetchRoles]);
 
+  const fetchInvitations = useCallback(async () => {
+    setIsLoadingInvitations(true);
+    try {
+      const result = await api<TeamInvitation[]>("/api/invitation");
+      setInvitations(result);
+    } catch {
+      // Invitations may not be available in all contexts
+    } finally {
+      setIsLoadingInvitations(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isAdmin) {
       const debounce = setTimeout(fetchUsers, 300);
       return () => clearTimeout(debounce);
     }
   }, [isAdmin, fetchUsers]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchInvitations();
+    }
+  }, [isAdmin, fetchInvitations]);
 
   const openEditDialog = (user: AdminUser) => {
     setSelectedUser(user);
@@ -233,6 +258,7 @@ export default function UsersPage() {
       setInviteEmail("");
       setInviteRole("Viewer");
       fetchUsers();
+      fetchInvitations();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to send invitation";
       toast.error(message);
@@ -241,9 +267,38 @@ export default function UsersPage() {
     }
   };
 
+  const handleRevokeInvitation = async (id: string) => {
+    setRevokingId(id);
+    try {
+      await api(`/api/invitation/${id}`, { method: "DELETE" });
+      toast.success("Invitation revoked");
+      setInvitations((prev) => prev.filter((inv) => inv.id !== id));
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to revoke invitation";
+      toast.error(message);
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
+  const handleResendInvitation = async (id: string) => {
+    setResendingId(id);
+    try {
+      await api(`/api/invitation/${id}/resend`, { method: "POST" });
+      toast.success("Invitation resent");
+      fetchInvitations();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to resend invitation";
+      toast.error(message);
+    } finally {
+      setResendingId(null);
+    }
+  };
+
   // Calculate stats
   const adminCount = users.filter(u => u.roles.includes("Admin")).length;
   const activeCount = users.filter(u => u.status === "Active").length;
+  const pendingInvitations = invitations.filter(i => i.status === "Pending");
 
   if (!isAdmin) {
     return null;
@@ -266,6 +321,25 @@ export default function UsersPage() {
           Invite User
         </Button>
       </div>
+
+      <Tabs defaultValue="users">
+        <TabsList>
+          <TabsTrigger value="users">
+            <Users className="h-4 w-4 mr-1.5" />
+            Users ({totalCount})
+          </TabsTrigger>
+          <TabsTrigger value="invitations">
+            <Mail className="h-4 w-4 mr-1.5" />
+            Invitations
+            {pendingInvitations.length > 0 && (
+              <Badge variant="secondary" className="ml-1.5 bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                {pendingInvitations.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-6 mt-4">
 
       {/* Filters */}
       <Card>
@@ -494,6 +568,168 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        <TabsContent value="invitations" className="space-y-6 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Pending Invitations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingInvitations ? (
+                <CardListSkeleton rows={3} />
+              ) : invitations.length === 0 ? (
+                <EmptyState
+                  icon={Mail}
+                  title="No invitations"
+                  description="Invite users to join your organization using the button above."
+                />
+              ) : (
+                <>
+                  {/* Mobile card layout */}
+                  <div className="sm:hidden space-y-3">
+                    {invitations.map((inv) => (
+                      <div key={inv.id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{inv.email}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Invited by {inv.invitedBy}
+                            </p>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              inv.status === "Pending"
+                                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200"
+                                : inv.status === "Accepted"
+                                ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                                : inv.isExpired
+                                ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
+                                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                            }
+                          >
+                            {inv.isExpired ? "Expired" : inv.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className={roleBadgeClass[inv.role] || "bg-gray-100"}>
+                            {inv.role}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Sent {formatDate(inv.createdAt)}
+                          </span>
+                        </div>
+                        {inv.status === "Pending" && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleResendInvitation(inv.id)}
+                              disabled={resendingId === inv.id}
+                            >
+                              <RotateCw className={`h-3.5 w-3.5 mr-1 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                              Resend
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => handleRevokeInvitation(inv.id)}
+                              disabled={revokingId === inv.id}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-1" />
+                              Revoke
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop table layout */}
+                  <div className="hidden sm:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Invited By</TableHead>
+                          <TableHead>Sent</TableHead>
+                          <TableHead>Expires</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {invitations.map((inv) => (
+                          <TableRow key={inv.id}>
+                            <TableCell className="font-medium">{inv.email}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary" className={roleBadgeClass[inv.role] || "bg-gray-100"}>
+                                {inv.role}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={
+                                  inv.status === "Pending"
+                                    ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200"
+                                    : inv.status === "Accepted"
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                                    : inv.isExpired
+                                    ? "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200"
+                                    : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+                                }
+                              >
+                                {inv.isExpired ? "Expired" : inv.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{inv.invitedBy}</TableCell>
+                            <TableCell>{formatDate(inv.createdAt)}</TableCell>
+                            <TableCell>
+                              <span className={inv.isExpired ? "text-red-600" : ""}>
+                                {formatDate(inv.expiresAt)}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {inv.status === "Pending" && (
+                                <div className="flex gap-1 justify-end">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleResendInvitation(inv.id)}
+                                    disabled={resendingId === inv.id}
+                                    title="Resend invitation"
+                                  >
+                                    <RotateCw className={`h-4 w-4 ${resendingId === inv.id ? "animate-spin" : ""}`} />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleRevokeInvitation(inv.id)}
+                                    disabled={revokingId === inv.id}
+                                    title="Revoke invitation"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Edit User Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>

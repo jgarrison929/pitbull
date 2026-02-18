@@ -1284,6 +1284,26 @@ export interface RfiAttentionItem {
 }
 
 // ============================================
+// Team Invitation Types
+// ============================================
+
+export interface TeamInvitation {
+  id: string;
+  email: string;
+  role: string;
+  companyId: string;
+  companyName: string;
+  tenantName: string;
+  tenantId: string;
+  status: string;
+  invitedBy: string;
+  expiresAt: string;
+  isExpired: boolean;
+  canAccept: boolean;
+  createdAt: string;
+}
+
+// ============================================
 // AI Integration Types
 // ============================================
 

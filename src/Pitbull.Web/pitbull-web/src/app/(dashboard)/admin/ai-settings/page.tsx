@@ -194,6 +194,27 @@ export default function AiSettingsPage() {
         <CardContent>
           <div className="space-y-3 text-sm">
             <div className="rounded-lg border p-3">
+              <p className="font-medium">AI Chat Assistant</p>
+              <p className="text-muted-foreground">
+                In-app chat assistant for construction questions — budgets, schedules, RFI drafting,
+                and industry best practices. Available via the floating button on every page.
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="font-medium">Smart Field Suggestions</p>
+              <p className="text-muted-foreground">
+                AI-powered suggestions for text fields on forms. Click the sparkle icon on any
+                smart field to get contextual suggestions for descriptions, scope of work, and more.
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="font-medium">Document Analysis</p>
+              <p className="text-muted-foreground">
+                Extract structured data from uploaded documents — dates, amounts, parties, key terms,
+                and actionable recommendations for subcontracts, change orders, and insurance certificates.
+              </p>
+            </div>
+            <div className="rounded-lg border p-3">
               <p className="font-medium">Daily Report Summary</p>
               <p className="text-muted-foreground">
                 Generate executive summaries from daily field reports including weather, crew, and
