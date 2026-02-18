@@ -215,6 +215,23 @@ public sealed class DemoBootstrapper(
         {
             logger.LogInformation("Demo user {Email} already exists (ID: {UserId}, TenantId: {TenantId})",
                 demo.UserEmail, user.Id, user.TenantId);
+
+            // Ensure demo user password stays in sync with config
+            if (!string.IsNullOrWhiteSpace(demo.UserPassword))
+            {
+                var passwordValid = await userManager.CheckPasswordAsync(user, demo.UserPassword);
+                if (!passwordValid)
+                {
+                    logger.LogInformation("Resetting demo user password to match config");
+                    var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+                    var resetResult = await userManager.ResetPasswordAsync(user, resetToken, demo.UserPassword);
+                    if (resetResult.Succeeded)
+                        logger.LogInformation("Demo user password reset successfully");
+                    else
+                        logger.LogWarning("Failed to reset demo user password: {Errors}",
+                            string.Join(", ", resetResult.Errors.Select(e => e.Description)));
+                }
+            }
         }
 
         // Ensure user has access to the default company
