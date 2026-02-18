@@ -12,6 +12,8 @@ using Pitbull.TimeTracking.Features.GetEmployeeStats;
 using Pitbull.TimeTracking.Features.GetMyCrew;
 using Pitbull.TimeTracking.Features.ListEmployees;
 using Pitbull.TimeTracking.Features.UpdateEmployee;
+using Microsoft.EntityFrameworkCore;
+using Pitbull.Core.Data;
 using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Api.Controllers;
@@ -26,7 +28,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Employees")]
-public class EmployeesController(IEmployeeService employeeService) : ControllerBase
+public class EmployeesController(IEmployeeService employeeService, PitbullDbContext db) : ControllerBase
 {
     /// <summary>
     /// Create a new employee
@@ -350,6 +352,45 @@ public class EmployeesController(IEmployeeService employeeService) : ControllerB
         }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// Get certifications for a specific employee
+    /// </summary>
+    /// <param name="id">Employee unique identifier</param>
+    /// <returns>List of employee certifications</returns>
+    /// <response code="200">Certifications list</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Employee not found</response>
+    [HttpGet("{id:guid}/certifications")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCertifications(Guid id)
+    {
+        var employeeExists = await db.Set<TimeTracking.Domain.Employee>()
+            .AnyAsync(e => e.Id == id);
+        if (!employeeExists)
+            return NotFound(new { error = "Employee not found" });
+
+        var certifications = await db.Set<TimeTracking.Domain.EmployeeCertification>()
+            .AsNoTracking()
+            .Where(c => c.EmployeeId == id)
+            .OrderByDescending(c => c.IssuedDate)
+            .Select(c => new
+            {
+                c.Id,
+                c.CertificationType,
+                c.CertificationName,
+                c.CertificationNumber,
+                c.IssuedDate,
+                c.ExpiresDate,
+                c.IssuingAuthority,
+                VerificationStatus = c.VerificationStatus.ToString()
+            })
+            .ToListAsync();
+
+        return Ok(certifications);
     }
 }
 

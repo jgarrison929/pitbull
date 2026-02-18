@@ -68,6 +68,13 @@ public class ContractsService(PitbullDbContext db) : IContractsService
 
     public async Task<Result<SubcontractDto>> CreateSubcontractAsync(CreateSubcontractCommand command, CancellationToken cancellationToken = default)
     {
+        // Validate project exists (prevents FK constraint violation)
+        var projectExists = await db.Database
+            .SqlQueryRaw<int>("SELECT 1 AS \"Value\" FROM projects WHERE id = {0} AND is_deleted = false LIMIT 1", command.ProjectId)
+            .AnyAsync(cancellationToken);
+        if (!projectExists)
+            return Result.Failure<SubcontractDto>("Project not found", "NOT_FOUND");
+
         // Check for duplicate subcontract number within same project
         var exists = await db.Set<Subcontract>()
             .AnyAsync(s => s.ProjectId == command.ProjectId

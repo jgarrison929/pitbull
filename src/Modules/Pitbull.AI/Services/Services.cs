@@ -118,30 +118,39 @@ public class AiService(
         string? providerOverride = null,
         CancellationToken ct = default)
     {
-        var provider = ResolveProvider(request.Capability, providerOverride);
-        if (provider is null)
-            return Result.Failure<AiCompletionResult>("No AI provider available for requested capability", "NO_PROVIDER");
+        // Try preferred provider first, then fall back to any provider with a valid key
+        var candidateProviders = GetCandidateProviders(request.Capability, providerOverride);
+        
+        foreach (var provider in candidateProviders)
+        {
+            var apiKeyResult = await aiApiKeyService.GetDecryptedKeyAsync(tenantId, provider.Name, ct);
+            var apiKey = apiKeyResult.IsSuccess && !string.IsNullOrWhiteSpace(apiKeyResult.Value)
+                ? apiKeyResult.Value!
+                : GetFallbackApiKey(provider.Name);
 
-        var apiKeyResult = await aiApiKeyService.GetDecryptedKeyAsync(tenantId, provider.Name, ct);
-        var apiKey = apiKeyResult.IsSuccess && !string.IsNullOrWhiteSpace(apiKeyResult.Value)
-            ? apiKeyResult.Value!
-            : GetFallbackApiKey(provider.Name);
+            if (!string.IsNullOrWhiteSpace(apiKey))
+                return await provider.CompleteAsync(request, apiKey, ct);
+        }
 
-        if (string.IsNullOrWhiteSpace(apiKey))
-            return Result.Failure<AiCompletionResult>("AI API key is not configured", "AI_NOT_CONFIGURED");
-
-        return await provider.CompleteAsync(request, apiKey, ct);
+        return Result.Failure<AiCompletionResult>(
+            "No AI provider has an API key configured. Add a key in Settings → AI.",
+            "AI_NOT_CONFIGURED");
     }
 
-    private IAiProvider? ResolveProvider(AiCapability capability, string? providerOverride)
+    /// <summary>
+    /// Returns candidate providers ordered by preference. The first one with a valid
+    /// API key wins. This way, if a user only has an Anthropic key, text generation
+    /// still works even though OpenAI is preferred.
+    /// </summary>
+    private IReadOnlyList<IAiProvider> GetCandidateProviders(AiCapability capability, string? providerOverride)
     {
         if (!string.IsNullOrWhiteSpace(providerOverride))
         {
             var forced = providers.FirstOrDefault(p =>
                 string.Equals(p.Name, providerOverride, StringComparison.OrdinalIgnoreCase));
             if (forced is not null && forced.Capabilities.Contains(capability))
-                return forced;
-            return null;
+                return [forced];
+            return [];
         }
 
         var preferredProvider = capability switch
@@ -151,10 +160,18 @@ public class AiService(
             _ => "openai"
         };
 
-        return providers.FirstOrDefault(p =>
-                   string.Equals(p.Name, preferredProvider, StringComparison.OrdinalIgnoreCase) &&
-                   p.Capabilities.Contains(capability))
-               ?? providers.FirstOrDefault(p => p.Capabilities.Contains(capability));
+        // Preferred first, then all others that support the capability
+        var capable = providers.Where(p => p.Capabilities.Contains(capability)).ToList();
+        var preferred = capable.FirstOrDefault(p =>
+            string.Equals(p.Name, preferredProvider, StringComparison.OrdinalIgnoreCase));
+
+        if (preferred is not null)
+        {
+            var rest = capable.Where(p => p != preferred).ToList();
+            return [preferred, .. rest];
+        }
+
+        return capable;
     }
 
     private string? GetFallbackApiKey(string providerName)

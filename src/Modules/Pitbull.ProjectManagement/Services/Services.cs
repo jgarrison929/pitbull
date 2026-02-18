@@ -218,6 +218,12 @@ public abstract class PmServiceBase
     protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct)
         where T : BaseEntity, ICompanyScoped, new()
     {
+        // Validate project exists (prevents FK violation on SaveChanges)
+        var projectExists = await Db.Set<Pitbull.Projects.Domain.Project>()
+            .AnyAsync(p => p.Id == projectId, ct);
+        if (!projectExists)
+            return Result.Failure<PmEntityDto>("Project not found", "NOT_FOUND");
+
         if (!await HasCurrentUserProjectAccessAsync(projectId, ct))
             return Result.Failure<PmEntityDto>("Not authorized to access this project", "UNAUTHORIZED");
         if (request.ReferenceId.HasValue)
