@@ -203,6 +203,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
   }
 
   async function handleDeleteFile(fileId: string) {
+    if (!confirm("Delete this file? This action cannot be undone.")) return;
     try {
       await api(`/api/files/${fileId}`, { method: "DELETE" });
       setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));

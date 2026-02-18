@@ -25,7 +25,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FileText, Mail, TrendingUp } from "lucide-react";
+import { FileText, TrendingUp } from "lucide-react";
 import api from "@/lib/api";
 import { BidStatus, type PagedResult, type Bid, type UpdateBidCommand } from "@/lib/types";
 import { toast } from "sonner";
@@ -45,16 +45,6 @@ interface BidScoreBreakdown {
   priceScore: number;
   experienceScore: number;
   complianceScore: number;
-}
-
-interface NotificationPlaceholder {
-  id: string;
-  bidId: string;
-  bidNumber: string;
-  bidName: string;
-  fromStatus: BidStatus;
-  toStatus: BidStatus;
-  queuedAt: string;
 }
 
 function statusColor(status: BidStatus) {
@@ -172,7 +162,6 @@ export default function BidsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
   const [selectedBidIds, setSelectedBidIds] = useState<string[]>([]);
   const [updatingStatusById, setUpdatingStatusById] = useState<Record<string, boolean>>({});
-  const [notifications, setNotifications] = useState<NotificationPlaceholder[]>([]);
   const [scoreConfig, setScoreConfig] = useState<BidScoreConfig>({
     price: 45,
     experience: 30,
@@ -309,21 +298,7 @@ export default function BidsPage() {
         prev.map((entry) => (entry.id === bid.id ? { ...entry, status: nextStatus } : entry))
       );
 
-      const placeholder: NotificationPlaceholder = {
-        id: `${bid.id}-${Date.now()}`,
-        bidId: bid.id,
-        bidNumber: bid.number,
-        bidName: bid.name,
-        fromStatus: bid.status,
-        toStatus: nextStatus,
-        queuedAt: new Date().toISOString(),
-      };
-
-      setNotifications((prev) => [placeholder, ...prev].slice(0, 10));
-
-      toast.success(
-        `Bid status changed to ${statusLabel(nextStatus)}. Email placeholder queued.`
-      );
+      toast.success(`Bid status updated to ${statusLabel(nextStatus)}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update bid status");
     } finally {
@@ -732,33 +707,6 @@ export default function BidsPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Email Notification Queue (Placeholder)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {notifications.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No placeholder notifications yet. Change a bid status to queue one.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {notifications.map((entry) => (
-                <div key={entry.id} className="rounded-md border px-3 py-2 text-sm">
-                  <span className="font-medium">{entry.bidNumber}</span>
-                  <span className="ml-2 text-muted-foreground">{entry.bidName}</span>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {statusLabel(entry.fromStatus)} to {statusLabel(entry.toStatus)} | queued {new Date(entry.queuedAt).toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -268,6 +268,7 @@ export default function UsersPage() {
   };
 
   const handleRevokeInvitation = async (id: string) => {
+    if (!confirm("Revoke this invitation? The recipient will no longer be able to join.")) return;
     setRevokingId(id);
     try {
       await api(`/api/invitation/${id}`, { method: "DELETE" });

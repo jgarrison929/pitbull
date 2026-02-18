@@ -275,6 +275,7 @@ export default function CompliancePage() {
   };
 
   const deleteDocument = async (id: string) => {
+    if (!confirm("Delete this compliance document? This action cannot be undone.")) return;
     try {
       await api(`/api/compliance-documents/${id}`, { method: "DELETE" });
       toast.success("Compliance document deleted");

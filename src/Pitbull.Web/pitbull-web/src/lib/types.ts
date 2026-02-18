@@ -77,6 +77,7 @@ export interface Bid {
   number: string;
   name: string;
   description: string;
+  notes?: string;
   status: BidStatus;
   owner: string;
   estimatedValue: number;

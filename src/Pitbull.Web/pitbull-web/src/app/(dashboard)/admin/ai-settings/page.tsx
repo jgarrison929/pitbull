@@ -77,6 +77,7 @@ export default function AiSettingsPage() {
   }
 
   async function revokeKey(providerName: string) {
+    if (!confirm(`Revoke the ${providerName} API key? AI features using this provider will stop working.`)) return;
     setSaving(true);
     try {
       await api(`/api/ai/settings/keys/${providerName}`, { method: "DELETE" });

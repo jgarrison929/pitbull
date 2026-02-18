@@ -166,6 +166,7 @@ export default function SOVPage() {
 
   const handleDeleteLineItem = async (lineItemId: string) => {
     if (!sov) return;
+    if (!confirm("Remove this line item from the schedule of values?")) return;
     try {
       await api(`/api/sov/${sov.id}/line-items/${lineItemId}`, {
         method: "DELETE",
