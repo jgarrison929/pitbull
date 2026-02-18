@@ -25,7 +25,7 @@ public class EmployeesControllerTests
     public EmployeesControllerTests()
     {
         _serviceMock = new Mock<IEmployeeService>();
-        _controller = new EmployeesController(_serviceMock.Object);
+        _controller = new EmployeesController(_serviceMock.Object, null!);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

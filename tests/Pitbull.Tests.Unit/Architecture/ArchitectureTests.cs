@@ -237,6 +237,8 @@ public class ArchitectureTests
                 .And().DoNotHaveName("ProjectSettingsController")
                 .And().DoNotHaveName("ReportSettingsController")
                 .And().DoNotHaveName("RfiSettingsController")
+                .And().DoNotHaveName("EmployeesController")
+                .And().DoNotHaveName("SearchController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 

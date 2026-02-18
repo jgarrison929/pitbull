@@ -283,7 +283,7 @@ public class PayPeriodServiceTests
     private static PayPeriodService CreateServiceWithoutDb()
     {
         // PayPeriodService uses db and tenantContext only for async methods, not for calculations
-        return new PayPeriodService(null!, Mock.Of<ITenantContext>());
+        return new PayPeriodService(null!, Mock.Of<ITenantContext>(), Mock.Of<ICompanyContext>());
     }
 
     #endregion
