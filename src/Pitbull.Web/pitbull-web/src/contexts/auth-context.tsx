@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { getToken, setToken, removeToken, decodeToken, isTokenExpired } from "@/lib/auth";
-import { posthog } from "@/lib/posthog";
 
 function buildUserFromToken(token: string): User | null {
   if (!token || isTokenExpired(token)) return null;
@@ -17,15 +16,6 @@ function buildUserFromToken(token: string): User | null {
     roles: payload.roles,
     tenantId: payload.tenantId,
   };
-}
-
-function identifyPostHogUser(user: User) {
-  posthog.identify(user.id, {
-    email: user.email,
-    name: user.name,
-    roles: user.roles,
-    tenant_id: user.tenantId,
-  });
 }
 
 interface User {
@@ -69,9 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     if (typeof window === "undefined") return null;
     const token = getToken();
-    const restored = token ? buildUserFromToken(token) : null;
-    if (restored) identifyPostHogUser(restored);
-    return restored;
+    return token ? buildUserFromToken(token) : null;
   });
 
   // We initialize from localStorage in the lazy initializer, so no effect needed.
@@ -84,9 +72,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     setToken(response.token);
-    const loggedInUser = buildUserFromToken(response.token);
-    setUser(loggedInUser);
-    if (loggedInUser) identifyPostHogUser(loggedInUser);
+    setUser(buildUserFromToken(response.token));
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
@@ -96,15 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     setToken(response.token);
-    const registeredUser = buildUserFromToken(response.token);
-    setUser(registeredUser);
-    if (registeredUser) identifyPostHogUser(registeredUser);
+    setUser(buildUserFromToken(response.token));
   }, []);
 
   const logout = useCallback(() => {
     removeToken();
     setUser(null);
-    posthog.reset();
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }

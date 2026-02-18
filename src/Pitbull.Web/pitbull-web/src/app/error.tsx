@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { posthog } from "@/lib/posthog";
 
 export default function Error({
   error,
@@ -12,13 +11,8 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Log to error reporting service in production
     console.error("[App Error]", error);
-    posthog.capture('frontend_error', {
-      error_message: error.message,
-      error_digest: error.digest,
-      error_stack: error.stack?.substring(0, 500),
-      page: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
-    });
   }, [error]);
 
   return (

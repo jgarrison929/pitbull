@@ -1,7 +1,6 @@
 import { API_BASE_URL } from "./config";
 import { getToken, removeToken } from "./auth";
 import { reportError } from "./error-reporter";
-import { posthog } from "./posthog";
 
 const ACTIVE_COMPANY_KEY = "pitbull_active_company_id";
 
@@ -41,23 +40,11 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     }
   }
 
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...rest,
-      headers,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-  } catch (error) {
-    // Network failure (DNS, CORS, offline, etc.)
-    posthog.capture('api_network_error', {
-      endpoint,
-      method: (rest.method as string) || 'GET',
-      error_message: error instanceof Error ? error.message : String(error),
-      page: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
-    });
-    throw error;
-  }
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...rest,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
 
   if (response.status === 401) {
     removeToken();
@@ -81,15 +68,6 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
         message: `API ${(rest.method as string) || "GET"} ${endpoint} returned ${response.status}`,
       });
     }
-
-    // Track all API errors in PostHog
-    posthog.capture('api_error', {
-      endpoint,
-      method: (rest.method as string) || 'GET',
-      status_code: response.status,
-      status_text: response.statusText,
-      page: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
-    });
 
     throw new ApiError(
       response.status,
