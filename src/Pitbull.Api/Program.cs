@@ -30,6 +30,7 @@ using Pitbull.ProjectManagement.Storage;
 using MassTransit;
 using Pitbull.Api.Data;
 using Pitbull.Core.Messaging;
+using PostHog;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,6 +56,12 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Documents.Features.DocumentsModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Notifications.Features.NotificationsModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.SystemAdmin.Features.SystemAdminModuleMarker).Assembly);
+
+// PostHog server-side analytics (optional — only if API key is configured)
+if (!string.IsNullOrEmpty(builder.Configuration["PostHog:ProjectApiKey"]))
+{
+    builder.AddPostHog();
+}
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
@@ -130,6 +137,11 @@ builder.Services.AddScoped<Pitbull.Api.Services.INotificationPreferenceService, 
 builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor>(
     sp => sp.GetRequiredService<AuditInterceptor>());
+
+// PostHog DB performance interceptor (slow query tracking, N+1 detection)
+builder.Services.AddScoped<Pitbull.Api.Infrastructure.PostHogDbInterceptor>();
+builder.Services.AddScoped<Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor>(
+    sp => sp.GetRequiredService<Pitbull.Api.Infrastructure.PostHogDbInterceptor>());
 
 // SystemAdmin module services
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, Pitbull.SystemAdmin.Services.TenantSettingsService>();
@@ -402,6 +414,9 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
 
 // Global exception handling (must be first in pipeline)
 app.UseMiddleware<ExceptionMiddleware>();
+
+// Request performance tracking (slow requests, N+1 detection — sends to PostHog)
+app.UseMiddleware<RequestPerformanceMiddleware>();
 
 // Security headers (early in pipeline for all responses)
 app.UseMiddleware<SecurityHeadersMiddleware>();

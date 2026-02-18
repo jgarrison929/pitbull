@@ -51,7 +51,8 @@ public static class ServiceCollectionExtensions
                     npgsql.EnableRetryOnFailure(3);
                 })
             .AddInterceptors(serviceProvider.GetRequiredService<TenantConnectionInterceptor>())
-            .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>().ToArray());
+            .AddInterceptors(serviceProvider.GetServices<ISaveChangesInterceptor>().ToArray())
+            .AddInterceptors(serviceProvider.GetServices<DbCommandInterceptor>().ToArray());
 
             // Development: Enable detailed errors and N+1 query warnings
             if (isDevelopment)

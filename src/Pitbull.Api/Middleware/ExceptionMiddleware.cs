@@ -2,10 +2,15 @@ using System.Net;
 using System.Text.Json;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using PostHog;
 
 namespace Pitbull.Api.Middleware;
 
-public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger, IHostEnvironment env)
+public class ExceptionMiddleware(
+    RequestDelegate next,
+    ILogger<ExceptionMiddleware> logger,
+    IHostEnvironment env,
+    IPostHogClient? posthog = null)
 {
     public async Task InvokeAsync(HttpContext context)
     {
@@ -58,6 +63,27 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
             catch (Exception saveEx)
             {
                 logger.LogWarning(saveEx, "Failed to save diagnostic error to database");
+            }
+
+            // Send to PostHog for analytics dashboard (fire-and-forget)
+            try
+            {
+                posthog?.Capture(
+                    "pitbull-api",
+                    "server_error",
+                    new Dictionary<string, object>
+                    {
+                        ["error_type"] = ex.GetType().Name,
+                        ["error_message"] = ex.Message,
+                        ["endpoint"] = context.Request.Path.Value ?? "unknown",
+                        ["method"] = context.Request.Method,
+                        ["status_code"] = 500,
+                        ["stack_trace"] = (ex.StackTrace ?? "")[..Math.Min(500, ex.StackTrace?.Length ?? 0)]
+                    });
+            }
+            catch (Exception phEx)
+            {
+                logger.LogDebug(phEx, "Failed to capture server error event to PostHog");
             }
 
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
