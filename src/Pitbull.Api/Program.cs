@@ -151,8 +151,23 @@ builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pi
 // Diagnostics service (production error tracking)
 builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api.Services.DiagnosticsService>();
 
-// Customer onboarding services
-builder.Services.AddScoped<Pitbull.Api.Services.IEmailService, Pitbull.Api.Services.ConsoleEmailService>();
+// Email service: Resend in production, console stub in development
+var resendApiKey = builder.Configuration["Email:Resend:ApiKey"];
+if (string.IsNullOrEmpty(resendApiKey))
+    resendApiKey = Environment.GetEnvironmentVariable("RESEND_API_KEY");
+
+if (!string.IsNullOrEmpty(resendApiKey))
+{
+    builder.Services.AddOptions();
+    builder.Services.AddHttpClient<Resend.ResendClient>();
+    builder.Services.Configure<Resend.ResendClientOptions>(o => o.ApiToken = resendApiKey);
+    builder.Services.AddTransient<Resend.IResend, Resend.ResendClient>();
+    builder.Services.AddScoped<Pitbull.Api.Services.IEmailService, Pitbull.Api.Services.ResendEmailService>();
+}
+else
+{
+    builder.Services.AddScoped<Pitbull.Api.Services.IEmailService, Pitbull.Api.Services.ConsoleEmailService>();
+}
 builder.Services.AddScoped<Pitbull.Api.Services.ITenantProvisioningService, Pitbull.Api.Services.TenantProvisioningService>();
 builder.Services.AddScoped<Pitbull.Api.Services.ITeamInvitationService, Pitbull.Api.Services.TeamInvitationService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IOnboardingService, Pitbull.Api.Services.OnboardingService>();
