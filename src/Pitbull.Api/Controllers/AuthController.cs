@@ -37,6 +37,7 @@ public class AuthController(
     IValidator<LoginRequest> loginValidator,
     Pitbull.Core.MultiTenancy.TenantContext tenantContext,
     IEmailService emailService,
+    IServiceScopeFactory scopeFactory,
     ILogger<AuthController> logger) : ControllerBase
 {
     /// <summary>
@@ -655,7 +656,9 @@ public class AuthController(
 
         _ = Task.Run(async () =>
         {
-            try { await emailService.SendPasswordResetAsync(user.Email!, user.FullName, plaintext); }
+            using var scope = scopeFactory.CreateScope();
+            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
+            try { await email.SendPasswordResetAsync(user.Email!, user.FullName, plaintext); }
             catch (Exception ex) { logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email); }
         });
 

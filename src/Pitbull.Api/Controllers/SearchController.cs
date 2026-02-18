@@ -37,22 +37,13 @@ public class SearchController(PitbullDbContext db) : ControllerBase
         var term = q.Trim();
         var results = new List<SearchResultItem>();
 
-        // Run all searches in parallel
-        var projectsTask = SearchProjects(term, ct);
-        var employeesTask = SearchEmployees(term, ct);
-        var contractsTask = SearchContracts(term, ct);
-        var bidsTask = SearchBids(term, ct);
-        var rfisTask = SearchRfis(term, ct);
-        var costCodesTask = SearchCostCodes(term, ct);
-
-        await Task.WhenAll(projectsTask, employeesTask, contractsTask, bidsTask, rfisTask, costCodesTask);
-
-        results.AddRange(await projectsTask);
-        results.AddRange(await employeesTask);
-        results.AddRange(await contractsTask);
-        results.AddRange(await bidsTask);
-        results.AddRange(await rfisTask);
-        results.AddRange(await costCodesTask);
+        // Run searches sequentially — DbContext is not thread-safe
+        results.AddRange(await SearchProjects(term, ct));
+        results.AddRange(await SearchEmployees(term, ct));
+        results.AddRange(await SearchContracts(term, ct));
+        results.AddRange(await SearchBids(term, ct));
+        results.AddRange(await SearchRfis(term, ct));
+        results.AddRange(await SearchCostCodes(term, ct));
 
         var totalCount = results.Count;
         var limited = results.Take(50).ToList();

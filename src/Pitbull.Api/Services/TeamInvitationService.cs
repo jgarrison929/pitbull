@@ -25,6 +25,7 @@ public class TeamInvitationService(
     RoleSeeder roleSeeder,
     ITenantContext tenantContext,
     IEmailService emailService,
+    IServiceScopeFactory scopeFactory,
     ILogger<TeamInvitationService> logger) : ITeamInvitationService
 {
     private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase)
@@ -90,9 +91,11 @@ public class TeamInvitationService(
 
         _ = Task.Run(async () =>
         {
+            using var scope = scopeFactory.CreateScope();
+            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
             try
             {
-                await emailService.SendInvitationEmailAsync(
+                await email.SendInvitationEmailAsync(
                     request.Email,
                     request.InvitedByName,
                     company?.Name ?? "your company",
@@ -281,9 +284,11 @@ public class TeamInvitationService(
 
         _ = Task.Run(async () =>
         {
+            using var scope = scopeFactory.CreateScope();
+            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
             try
             {
-                await emailService.SendInvitationEmailAsync(
+                await email.SendInvitationEmailAsync(
                     invitation.Email,
                     invitation.InvitedBy,
                     invitation.Company?.Name ?? "your company",
