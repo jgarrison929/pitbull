@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -138,6 +139,14 @@ public class AuthControllerTests
 
         var roleSeeder = CreateRoleSeeder(rmMock, umMock, db);
 
+        var scopeFactoryMock = new Mock<IServiceScopeFactory>();
+        var scopeMock = new Mock<IServiceScope>();
+        var spMock = new Mock<IServiceProvider>();
+        spMock.Setup(sp => sp.GetService(typeof(Pitbull.Api.Services.IEmailService)))
+            .Returns(Mock.Of<Pitbull.Api.Services.IEmailService>());
+        scopeMock.Setup(s => s.ServiceProvider).Returns(spMock.Object);
+        scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
+
         var controller = new AuthController(
             umMock.Object,
             smMock.Object,
@@ -149,6 +158,7 @@ public class AuthControllerTests
             loginVal.Object,
             tc,
             Mock.Of<Pitbull.Api.Services.IEmailService>(),
+            scopeFactoryMock.Object,
             Mock.Of<ILogger<AuthController>>());
 
         // Set up HttpContext with claims

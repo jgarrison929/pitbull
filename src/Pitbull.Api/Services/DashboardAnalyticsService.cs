@@ -28,69 +28,58 @@ public sealed class DashboardAnalyticsService(
         var lastWeekStart = thisWeekStart.AddDays(-7);
         var lastWeekEnd = thisWeekStart.AddDays(-1);
 
+        // Queries run sequentially because DbContext is not thread-safe.
         // Each sub-task is wrapped in SafeAsync so a single failure
         // returns a sensible default instead of crashing the whole dashboard.
-        var activeProjectsTask = SafeAsync("ActiveProjects",
+        var activeProjects = await SafeAsync("ActiveProjects",
             () => db.Set<Project>().AsNoTracking()
                 .CountAsync(p => p.Status != ProjectStatus.Completed, cancellationToken), 0);
 
-        var totalEmployeesTask = SafeAsync("TotalEmployees",
+        var totalEmployees = await SafeAsync("TotalEmployees",
             () => db.Set<Employee>().AsNoTracking()
                 .CountAsync(e => e.IsActive, cancellationToken), 0);
 
-        var hoursThisWeekTask = SafeAsync("HoursThisWeek",
+        var hoursThisWeek = await SafeAsync("HoursThisWeek",
             () => SumHoursInRange(thisWeekStart, thisWeekEnd, cancellationToken), 0m);
 
-        var hoursLastWeekTask = SafeAsync("HoursLastWeek",
+        var hoursLastWeek = await SafeAsync("HoursLastWeek",
             () => SumHoursInRange(lastWeekStart, lastWeekEnd, cancellationToken), 0m);
 
-        var pendingApprovalsTask = SafeAsync("PendingApprovals",
+        var pendingApprovals = await SafeAsync("PendingApprovals",
             () => db.Set<TimeEntry>().AsNoTracking()
                 .CountAsync(te => te.Status == TimeEntryStatus.Submitted, cancellationToken), 0);
 
-        var openRfisTask = SafeAsync("OpenRFIs",
+        var openRfis = await SafeAsync("OpenRFIs",
             () => db.Set<Rfi>().AsNoTracking()
                 .CountAsync(r => r.Status != RfiStatus.Closed, cancellationToken), 0);
 
-        var recentActivityTask = SafeAsync("RecentActivity",
+        var recentActivity = await SafeAsync("RecentActivity",
             () => GetRecentActivityAsync(cancellationToken),
             (IReadOnlyList<RecentActivityDto>)Array.Empty<RecentActivityDto>());
 
-        var budgetHealthTask = SafeAsync("BudgetHealth",
+        var budgetHealth = await SafeAsync("BudgetHealth",
             () => GetProjectBudgetHealthAsync(cancellationToken),
             (IReadOnlyList<ProjectBudgetHealthDto>)Array.Empty<ProjectBudgetHealthDto>());
 
-        var laborHoursTrendTask = SafeAsync("LaborHoursTrend",
+        var laborHoursTrend = await SafeAsync("LaborHoursTrend",
             () => GetLaborHoursTrendAsync(thisWeekStart, cancellationToken),
             (IReadOnlyList<LaborHoursTrendDto>)Array.Empty<LaborHoursTrendDto>());
 
-        var deadlinesTask = SafeAsync("UpcomingDeadlines",
+        var deadlines = await SafeAsync("UpcomingDeadlines",
             () => GetUpcomingDeadlinesAsync(cancellationToken),
             (IReadOnlyList<UpcomingDeadlineDto>)Array.Empty<UpcomingDeadlineDto>());
 
-        await Task.WhenAll(
-            activeProjectsTask,
-            totalEmployeesTask,
-            hoursThisWeekTask,
-            hoursLastWeekTask,
-            pendingApprovalsTask,
-            openRfisTask,
-            recentActivityTask,
-            budgetHealthTask,
-            laborHoursTrendTask,
-            deadlinesTask);
-
         return new DashboardAnalyticsDto(
-            ActiveProjects: activeProjectsTask.Result,
-            TotalEmployees: totalEmployeesTask.Result,
-            HoursThisWeek: hoursThisWeekTask.Result,
-            HoursLastWeek: hoursLastWeekTask.Result,
-            PendingApprovals: pendingApprovalsTask.Result,
-            OpenRFIs: openRfisTask.Result,
-            UpcomingDeadlines: deadlinesTask.Result,
-            RecentActivity: recentActivityTask.Result,
-            ProjectBudgetHealth: budgetHealthTask.Result,
-            LaborHoursTrend: laborHoursTrendTask.Result);
+            ActiveProjects: activeProjects,
+            TotalEmployees: totalEmployees,
+            HoursThisWeek: hoursThisWeek,
+            HoursLastWeek: hoursLastWeek,
+            PendingApprovals: pendingApprovals,
+            OpenRFIs: openRfis,
+            UpcomingDeadlines: deadlines,
+            RecentActivity: recentActivity,
+            ProjectBudgetHealth: budgetHealth,
+            LaborHoursTrend: laborHoursTrend);
     }
 
     private async Task<T> SafeAsync<T>(string name, Func<Task<T>> factory, T fallback)
