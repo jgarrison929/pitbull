@@ -14,15 +14,13 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/ai")]
 [Authorize]
-[EnableRateLimiting("api")]
+[EnableRateLimiting("ai-chat")]
 [Produces("application/json")]
 [Tags("AI")]
 public class AiChatController(IAiService aiService) : ControllerBase
 {
     private const int MaxMessageLength = 4000;
     private const int MaxHistoryItems = 20;
-
-    // TODO: Add per-user rate limiting via middleware (e.g., 20 requests/minute for chat)
 
     private Guid GetTenantId()
     {

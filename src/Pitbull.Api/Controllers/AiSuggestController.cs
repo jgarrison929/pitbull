@@ -17,7 +17,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/ai")]
 [Authorize]
-[EnableRateLimiting("api")]
+[EnableRateLimiting("ai-suggest")]
 [Produces("application/json")]
 [Tags("AI")]
 public class AiSuggestController(IAiService aiService, PitbullDbContext db) : ControllerBase
@@ -25,8 +25,6 @@ public class AiSuggestController(IAiService aiService, PitbullDbContext db) : Co
     private const int MaxFieldValueLength = 2000;
     private const int MaxContextValueLength = 2000;
     private const int MaxContextEntries = 50;
-
-    // TODO: Add per-user rate limiting via middleware (e.g., 30 requests/minute for suggestions)
 
     private Guid GetTenantId()
     {

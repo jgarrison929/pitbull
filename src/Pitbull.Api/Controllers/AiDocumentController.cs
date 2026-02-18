@@ -16,7 +16,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/ai")]
 [Authorize]
-[EnableRateLimiting("api")]
+[EnableRateLimiting("ai-document")]
 [Produces("application/json")]
 [Tags("AI")]
 public class AiDocumentController(
@@ -24,8 +24,6 @@ public class AiDocumentController(
     PitbullDbContext db) : ControllerBase
 {
     private const int MaxAdditionalContextLength = 8000;
-
-    // TODO: Add per-user rate limiting via middleware (e.g., 10 requests/minute for document analysis)
 
     private Guid GetTenantId()
     {
