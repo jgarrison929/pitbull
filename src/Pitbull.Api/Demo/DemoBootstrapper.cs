@@ -251,7 +251,11 @@ public sealed class DemoBootstrapper(
         if (string.IsNullOrWhiteSpace(demoEmail))
             return;
 
+        // Use IgnoreQueryFilters to bypass RLS/tenant filters during bootstrap.
+        // The unique constraint on EmployeeNumber is global, so we must find the
+        // existing record regardless of tenant context state.
         var superintendent = await db.Set<Employee>()
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(e => e.Email == demoEmail && !e.IsDeleted, ct);
 
         if (superintendent is not null)
@@ -283,6 +287,7 @@ public sealed class DemoBootstrapper(
         // Always ensure crew members point to this superintendent
         var crewNumbers = new[] { "DEMO-007", "DEMO-008", "DEMO-009", "DEMO-010", "DEMO-011", "DEMO-012", "DEMO-013", "DEMO-014" };
         var crewMembers = await db.Set<Employee>()
+            .IgnoreQueryFilters()
             .Where(e => crewNumbers.Contains(e.EmployeeNumber) && !e.IsDeleted)
             .ToListAsync(ct);
 
@@ -301,6 +306,7 @@ public sealed class DemoBootstrapper(
 
         // Always ensure superintendent is assigned to active seed projects
         var projects = await db.Set<Pitbull.Projects.Domain.Project>()
+            .IgnoreQueryFilters()
             .Where(p => !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active)
             .Take(3)
             .ToListAsync(ct);
@@ -309,6 +315,7 @@ public sealed class DemoBootstrapper(
         foreach (var project in projects)
         {
             var alreadyAssigned = await db.Set<ProjectAssignment>()
+                .IgnoreQueryFilters()
                 .AnyAsync(pa => pa.EmployeeId == superintendent.Id && pa.ProjectId == project.Id && !pa.IsDeleted, ct);
 
             if (!alreadyAssigned)
