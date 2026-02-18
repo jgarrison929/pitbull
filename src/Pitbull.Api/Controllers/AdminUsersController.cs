@@ -171,7 +171,9 @@ public class AdminUsersController(
 
     /// <summary>
     /// Bootstrap: Make current user an Admin (one-time setup)
-    /// Only works if no admin exists in the tenant yet, OR if already authenticated as admin
+    /// Only works if no admin exists in the tenant yet. Once an admin exists,
+    /// this endpoint is permanently disabled — use the normal user management
+    /// endpoints to grant admin roles.
     /// </summary>
     [HttpPost("bootstrap-admin")]
     [AllowAnonymous] // Allow first-time setup
@@ -189,7 +191,9 @@ public class AdminUsersController(
         // Ensure roles exist for the tenant
         var tenantId = user.TenantId;
 
-        // Guard: check if an admin already exists for this tenant
+        // Guard: once an admin exists for this tenant, bootstrap is permanently disabled.
+        // This prevents privilege escalation — any authenticated user could previously
+        // call this endpoint to grant themselves admin access.
         var adminRoleNameForCheck = $"{tenantId}:Admin";
         var existingAdminRole = await roleManager.FindByNameAsync(adminRoleNameForCheck);
         if (existingAdminRole != null)
@@ -197,10 +201,10 @@ public class AdminUsersController(
             var adminExists = await db.UserRoles
                 .AnyAsync(ur => ur.RoleId == existingAdminRole.Id);
 
-            if (adminExists && !(User.Identity?.IsAuthenticated == true))
+            if (adminExists)
             {
                 return StatusCode(StatusCodes.Status403Forbidden,
-                    new { error = "Bootstrap is only available when no admin exists for this tenant" });
+                    new { error = "Bootstrap is disabled — an admin already exists for this tenant. Use the admin user management API to grant roles." });
             }
         }
         var adminRoleName = $"{tenantId}:Admin";

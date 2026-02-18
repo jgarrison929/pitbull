@@ -206,9 +206,10 @@ public class AdminUsersControllerTests
     }
 
     [Fact]
-    public async Task BootstrapAdmin_WhenAdminExists_AndAuthenticatedAsAdmin_ShouldSucceed()
+    public async Task BootstrapAdmin_WhenAdminExists_AndAuthenticatedAsAdmin_ShouldReturn403()
     {
-        // Arrange
+        // Arrange — bootstrap is permanently disabled once an admin exists,
+        // even for authenticated admins. Use the admin user management API instead.
         using var db = TestDbContextFactory.Create();
         var userManagerMock = CreateMockUserManager();
         var roleManagerMock = CreateMockRoleManager();
@@ -264,36 +265,19 @@ public class AdminUsersControllerTests
             .Setup(r => r.FindByNameAsync($"{TestTenantId}:Admin"))
             .ReturnsAsync(adminRole);
 
-        // FindByNameAsync for other roles
-        roleManagerMock
-            .Setup(r => r.FindByNameAsync(It.Is<string>(s => s != $"{TestTenantId}:Admin")))
-            .ReturnsAsync((AppRole?)null);
-
-        roleManagerMock
-            .Setup(r => r.CreateAsync(It.IsAny<AppRole>()))
-            .ReturnsAsync(IdentityResult.Success);
-
-        // Target user is not yet in any role
-        userManagerMock
-            .Setup(u => u.IsInRoleAsync(targetUser, It.IsAny<string>()))
-            .ReturnsAsync(false);
-
-        userManagerMock
-            .Setup(u => u.AddToRoleAsync(targetUser, It.IsAny<string>()))
-            .ReturnsAsync(IdentityResult.Success);
-
-        // Controller IS authenticated as Admin
+        // Controller IS authenticated as Admin — should still be denied
         var controller = CreateController(db, userManagerMock, roleManagerMock,
             isAuthenticated: true, authenticatedRole: $"{TestTenantId}:Admin");
 
         // Act
         var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "promote@test.com" });
 
-        // Assert
-        result.Should().BeOfType<OkObjectResult>();
+        // Assert — 403 because bootstrap is disabled once an admin exists
+        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(403);
 
-        // Verify the user was added to admin role
-        userManagerMock.Verify(u => u.AddToRoleAsync(targetUser, $"{TestTenantId}:Admin"), Times.Once);
+        // Verify no role assignments were made
+        userManagerMock.Verify(u => u.AddToRoleAsync(It.IsAny<AppUser>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
