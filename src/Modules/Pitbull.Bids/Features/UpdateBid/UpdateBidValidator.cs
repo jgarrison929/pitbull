@@ -38,9 +38,9 @@ public class UpdateBidValidator : AbstractValidator<UpdateBidCommand>
 
         // Date validation
         RuleFor(x => x.DueDate)
-            .GreaterThan(x => x.BidDate)
+            .GreaterThanOrEqualTo(x => x.BidDate)
             .When(x => x.BidDate.HasValue && x.DueDate.HasValue)
-            .WithMessage("Due date must be after bid date");
+            .WithMessage("Due date must be on or after bid date");
 
         RuleFor(x => x.BidDate)
             .LessThanOrEqualTo(DateTime.UtcNow.AddYears(1))

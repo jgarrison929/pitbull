@@ -87,7 +87,7 @@ public sealed class UpdateBidValidatorTests
         );
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.DueDate)
-            .WithErrorMessage("Due date must be after bid date");
+            .WithErrorMessage("Due date must be on or after bid date");
     }
 
     [Fact]
