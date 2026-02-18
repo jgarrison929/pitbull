@@ -1,6 +1,7 @@
 import { API_BASE_URL } from "./config";
 import { getToken, removeToken } from "./auth";
 import { reportError } from "./error-reporter";
+import { posthog } from "./posthog";
 
 const ACTIVE_COMPANY_KEY = "pitbull_active_company_id";
 
@@ -57,16 +58,31 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
 
-    // Report 5xx errors to diagnostic tracking
-    if (response.status >= 500) {
-      reportError({
-        source: "frontend",
-        level: "error",
-        httpStatusCode: response.status,
-        requestMethod: (rest.method as string) || "GET",
-        requestPath: endpoint,
-        message: `API ${(rest.method as string) || "GET"} ${endpoint} returned ${response.status}`,
-      });
+    // Report errors to diagnostic tracking + PostHog
+    if (response.status >= 400) {
+      const method = (rest.method as string) || "GET";
+
+      if (response.status >= 500) {
+        reportError({
+          source: "frontend",
+          level: "error",
+          httpStatusCode: response.status,
+          requestMethod: method,
+          requestPath: endpoint,
+          message: `API ${method} ${endpoint} returned ${response.status}`,
+        });
+      }
+
+      // Send all 4xx/5xx to PostHog for observability
+      if (posthog.__loaded) {
+        posthog.capture("api_error", {
+          status: response.status,
+          method,
+          endpoint,
+          error_message: errorData?.message || `${response.status} ${response.statusText}`,
+          severity: response.status >= 500 ? "error" : "warning",
+        });
+      }
     }
 
     throw new ApiError(

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import api from "@/lib/api";
 import { getToken, setToken, removeToken, decodeToken, isTokenExpired } from "@/lib/auth";
+import { posthog } from "@/lib/posthog";
 
 function buildUserFromToken(token: string): User | null {
   if (!token || isTokenExpired(token)) return null;
@@ -72,7 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     setToken(response.token);
-    setUser(buildUserFromToken(response.token));
+    const u = buildUserFromToken(response.token);
+    setUser(u);
+
+    // Identify user in PostHog
+    if (u && posthog.__loaded) {
+      posthog.identify(u.id, {
+        email: u.email,
+        name: u.name,
+        tenant_id: u.tenantId,
+      });
+    }
   }, []);
 
   const register = useCallback(async (data: RegisterData) => {
@@ -88,6 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(() => {
     removeToken();
     setUser(null);
+
+    // Reset PostHog identity on logout
+    if (posthog.__loaded) {
+      posthog.reset();
+    }
+
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }

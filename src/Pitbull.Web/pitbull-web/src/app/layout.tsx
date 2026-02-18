@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/contexts/theme-context";
 import { Toaster } from "@/components/ui/sonner";
 import { RootErrorBoundary } from "@/components/root-error-boundary";
 import { GlobalErrorHandlers } from "@/components/global-error-handlers";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
@@ -83,16 +84,18 @@ export default function RootLayout({
       >
         <RootErrorBoundary>
           <GlobalErrorHandlers />
-          <ThemeProvider>
-            <AuthProvider>
-              <CompanyProvider>
-                <TooltipProvider>
-                  {children}
-                  <Toaster position="top-right" richColors />
-                </TooltipProvider>
-              </CompanyProvider>
-            </AuthProvider>
-          </ThemeProvider>
+          <PostHogProvider>
+            <ThemeProvider>
+              <AuthProvider>
+                <CompanyProvider>
+                  <TooltipProvider>
+                    {children}
+                    <Toaster position="top-right" richColors />
+                  </TooltipProvider>
+                </CompanyProvider>
+              </AuthProvider>
+            </ThemeProvider>
+          </PostHogProvider>
         </RootErrorBoundary>
       </body>
     </html>
