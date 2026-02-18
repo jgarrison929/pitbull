@@ -27,6 +27,8 @@ public sealed class PmSubmittalServiceTests
     public async Task CreateSubmittal_WithTitleAndStatus_PersistsAndReturnsDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateSubmittalAsync(ProjectId,
@@ -42,6 +44,8 @@ public sealed class PmSubmittalServiceTests
     public async Task UpdateSubmittal_UpdatesStatusAndSetsUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "Draft Package", Status: "Draft"))).Value!;
@@ -63,6 +67,8 @@ public sealed class PmSubmittalServiceTests
     public async Task AddWorkflowEvent_AssignsSubmittalIdAndParsesToStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var submittal = (await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -80,6 +86,8 @@ public sealed class PmSubmittalServiceTests
     public async Task AddAttachment_AssignsSubmittalIdFromReferenceId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var submittal = (await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -96,8 +104,12 @@ public sealed class PmSubmittalServiceTests
     public async Task ListSubmittals_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(Title: "Project A"));
         await service.CreateSubmittalAsync(otherProjectId, new PmUpsertRequest(Title: "Project B"));
@@ -113,6 +125,8 @@ public sealed class PmSubmittalServiceTests
     public async Task CreateSubmittal_AutoIncrementsSubmittalNumber()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var first = (await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(Title: "S-001"))).Value!;
@@ -129,6 +143,8 @@ public sealed class PmSubmittalServiceTests
     public async Task CreateSubmittal_DefaultsToDraftStatus_WhenNoStatusProvided()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(Title: "No Status"));
@@ -144,6 +160,8 @@ public sealed class PmSubmittalServiceTests
     public async Task UpdateSubmittal_ClosedSubmittal_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "Closed One", Status: "Closed"))).Value!;
@@ -160,6 +178,8 @@ public sealed class PmSubmittalServiceTests
     public async Task UpdateSubmittal_TransitionToSubmitted_SetsSubmittedDate()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "To Submit", Status: "Draft"))).Value!;
@@ -177,6 +197,8 @@ public sealed class PmSubmittalServiceTests
     public async Task UpdateSubmittal_TransitionToApproved_SetsReturnedDate()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "To Approve", Status: "Draft"))).Value!;
@@ -194,6 +216,8 @@ public sealed class PmSubmittalServiceTests
     public async Task UpdateSubmittal_ReviseAndResubmit_IncrementsRevisionNumber()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "Rev Test", Status: "InReview"))).Value!;
@@ -212,6 +236,8 @@ public sealed class PmSubmittalServiceTests
     public async Task AddWorkflowEvent_PopulatesFromStatusFromCurrentSubmittalStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var submittal = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Status: "InReview"))).Value!;
@@ -245,6 +271,8 @@ public sealed class PmCommunicationServiceTests
     public async Task CreateCommunication_WithStatus_ParsesEnum()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateCommunicationAsync(ProjectId,
@@ -261,6 +289,8 @@ public sealed class PmCommunicationServiceTests
     public async Task UpdateCommunication_UpdatesStatusAndUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateCommunicationAsync(ProjectId,
             new PmUpsertRequest(Status: "Open"))).Value!;
@@ -279,6 +309,8 @@ public sealed class PmCommunicationServiceTests
     public async Task AddAttachment_AssignsCommunicationIdFromReferenceId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var communication = (await service.CreateCommunicationAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -296,8 +328,12 @@ public sealed class PmCommunicationServiceTests
     public async Task ListCommunications_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateCommunicationAsync(ProjectId, new PmUpsertRequest(Status: "Open"));
         await service.CreateCommunicationAsync(otherProjectId, new PmUpsertRequest(Status: "Open"));
@@ -328,6 +364,8 @@ public sealed class PmMeetingServiceTests
     public async Task CreateMeeting_WithTitleAndStatus_ReturnsDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateMeetingAsync(ProjectId,
@@ -343,6 +381,8 @@ public sealed class PmMeetingServiceTests
     public async Task AddAgendaItem_AssignsMeetingIdFromReferenceId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Kickoff"))).Value!;
@@ -361,6 +401,8 @@ public sealed class PmMeetingServiceTests
     public async Task AddMinutes_AssignsMeetingIdAndMinuteText()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Coordination"))).Value!;
@@ -379,6 +421,8 @@ public sealed class PmMeetingServiceTests
     public async Task AddActionItem_ThenUpdateActionItem_ParsesTaskStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Progress Review"))).Value!;
@@ -399,8 +443,12 @@ public sealed class PmMeetingServiceTests
     public async Task ListMyActionItems_ProjectFilter_OnlyReturnsItemsFromMeetingsInProject()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
         var currentUserId = Guid.NewGuid();
 
         var meetingA = (await service.CreateMeetingAsync(ProjectId, new PmUpsertRequest(Title: "A"))).Value!;
@@ -427,6 +475,8 @@ public sealed class PmMeetingServiceTests
     public async Task UpdateMeeting_CompletedMeeting_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Done Meeting", Status: "Scheduled"))).Value!;
@@ -446,6 +496,8 @@ public sealed class PmMeetingServiceTests
     public async Task UpdateMeeting_CanceledMeeting_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Cancel Me", Status: "Scheduled"))).Value!;
@@ -463,6 +515,8 @@ public sealed class PmMeetingServiceTests
     public async Task UpdateMeeting_InvalidTransition_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Meeting", Status: "Scheduled"))).Value!;
@@ -479,6 +533,8 @@ public sealed class PmMeetingServiceTests
     public async Task UpdateMeeting_TransitionToInProgress_SetsActualStart()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Start Me", Status: "Scheduled"))).Value!;
@@ -495,6 +551,8 @@ public sealed class PmMeetingServiceTests
     public async Task UpdateMeeting_TransitionToCompleted_SetsActualEnd()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "End Me", Status: "Scheduled"))).Value!;
@@ -513,6 +571,8 @@ public sealed class PmMeetingServiceTests
     public async Task AddAgendaItem_CanceledMeeting_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Canceled", Status: "Scheduled"))).Value!;
@@ -530,6 +590,8 @@ public sealed class PmMeetingServiceTests
     public async Task AddMinutes_CanceledMeeting_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Canceled", Status: "Scheduled"))).Value!;
@@ -547,6 +609,8 @@ public sealed class PmMeetingServiceTests
     public async Task AddActionItem_CanceledMeeting_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Canceled", Status: "Scheduled"))).Value!;

@@ -27,6 +27,8 @@ public sealed class NarrativeServiceTests
     public async Task UpdateNarrative_PublishedNarrative_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateNarrativeAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -47,6 +49,8 @@ public sealed class NarrativeServiceTests
     public async Task SubmitNarrative_RequiresDraftStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateNarrativeAsync(ProjectId,
             new PmUpsertRequest(Data: new Dictionary<string, object?>
@@ -67,6 +71,8 @@ public sealed class NarrativeServiceTests
     public async Task SubmitNarrative_RequiresExecutiveSummary()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateNarrativeAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -82,6 +88,8 @@ public sealed class NarrativeServiceTests
     public async Task PublishNarrative_RequiresApprovedStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateNarrativeAsync(ProjectId,
             new PmUpsertRequest(Data: new Dictionary<string, object?>
@@ -100,6 +108,8 @@ public sealed class NarrativeServiceTests
     public async Task PublishNarrative_FromApproved_SetsFinalizedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateNarrativeAsync(ProjectId,
             new PmUpsertRequest(Data: new Dictionary<string, object?>

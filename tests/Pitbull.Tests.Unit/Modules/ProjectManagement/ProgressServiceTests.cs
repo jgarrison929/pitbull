@@ -29,6 +29,8 @@ public sealed class ProgressServiceTests
     public async Task CreateProgressEntry_ReturnsSuccessWithDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateProgressEntryAsync(ProjectId,
@@ -43,6 +45,8 @@ public sealed class ProgressServiceTests
     public async Task GetProgressEntry_Existing_ReturnsSuccess()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -57,6 +61,8 @@ public sealed class ProgressServiceTests
     public async Task GetProgressEntry_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.GetProgressEntryAsync(ProjectId, Guid.NewGuid());
@@ -69,6 +75,8 @@ public sealed class ProgressServiceTests
     public async Task UpdateProgressEntry_SetsUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -85,6 +93,8 @@ public sealed class ProgressServiceTests
     public async Task UpdateProgressEntry_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.UpdateProgressEntryAsync(ProjectId, Guid.NewGuid(),
@@ -102,6 +112,8 @@ public sealed class ProgressServiceTests
     public async Task ListProgressEntries_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 4; i++)
@@ -119,8 +131,12 @@ public sealed class ProgressServiceTests
     public async Task ListProgressEntries_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateProgressEntryAsync(ProjectId, new PmUpsertRequest());
         await service.CreateProgressEntryAsync(otherProjectId, new PmUpsertRequest());
@@ -139,6 +155,8 @@ public sealed class ProgressServiceTests
     public async Task ApproveProgressEntry_SetsStatusToApproved()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -158,6 +176,8 @@ public sealed class ProgressServiceTests
     public async Task ApproveProgressEntry_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ApproveProgressEntryAsync(ProjectId, Guid.NewGuid());
@@ -174,6 +194,8 @@ public sealed class ProgressServiceTests
     public async Task LinkTimeEntry_CreatesLink()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var entry = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -195,6 +217,8 @@ public sealed class ProgressServiceTests
     public async Task LinkTimeEntry_MissingReferenceId_ReturnsValidationError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var entry = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -210,6 +234,8 @@ public sealed class ProgressServiceTests
     public async Task LinkTimeEntry_ProgressEntryNotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.LinkTimeEntryAsync(ProjectId, Guid.NewGuid(),
@@ -227,6 +253,8 @@ public sealed class ProgressServiceTests
     public async Task ListEarnedValueSnapshots_ReturnsEmpty_WhenNoneExist()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ListEarnedValueSnapshotsAsync(ProjectId, new PmListQuery());
@@ -239,6 +267,8 @@ public sealed class ProgressServiceTests
     public async Task ListSCurve_ReturnsEmpty_WhenNoneExist()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ListSCurveAsync(ProjectId, new PmListQuery());
@@ -255,6 +285,8 @@ public sealed class ProgressServiceTests
     public async Task UpdateProgressEntry_ApprovedEntry_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -276,6 +308,8 @@ public sealed class ProgressServiceTests
     public async Task ApproveProgressEntry_AlreadyApproved_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -292,6 +326,8 @@ public sealed class ProgressServiceTests
     public async Task ApproveProgressEntry_FromSubmitted_Succeeds()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest(Status: "Submitted"))).Value!;
@@ -312,6 +348,8 @@ public sealed class ProgressServiceTests
     public async Task LinkTimeEntry_DuplicateLink_ReturnsDuplicateLink()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var entry = (await service.CreateProgressEntryAsync(ProjectId,
             new PmUpsertRequest())).Value!;

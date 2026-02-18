@@ -29,6 +29,8 @@ public sealed class DailyReportServiceTests
     public async Task CreateDailyReport_ReturnsSuccessWithDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateDailyReportAsync(ProjectId,
@@ -44,6 +46,8 @@ public sealed class DailyReportServiceTests
     public async Task GetDailyReport_Existing_ReturnsSuccess()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -58,6 +62,8 @@ public sealed class DailyReportServiceTests
     public async Task GetDailyReport_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.GetDailyReportAsync(ProjectId, Guid.NewGuid());
@@ -70,6 +76,8 @@ public sealed class DailyReportServiceTests
     public async Task UpdateDailyReport_SetsUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -87,6 +95,8 @@ public sealed class DailyReportServiceTests
     public async Task UpdateDailyReport_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.UpdateDailyReportAsync(ProjectId, Guid.NewGuid(),
@@ -100,6 +110,8 @@ public sealed class DailyReportServiceTests
     public async Task ListDailyReports_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 5; i++)
@@ -117,8 +129,12 @@ public sealed class DailyReportServiceTests
     public async Task ListDailyReports_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest());
         await service.CreateDailyReportAsync(otherProjectId, new PmUpsertRequest());
@@ -137,6 +153,8 @@ public sealed class DailyReportServiceTests
     public async Task SubmitDailyReport_SetsStatusToSubmitted()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -156,6 +174,8 @@ public sealed class DailyReportServiceTests
     public async Task SubmitDailyReport_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.SubmitDailyReportAsync(ProjectId, Guid.NewGuid());
@@ -168,6 +188,8 @@ public sealed class DailyReportServiceTests
     public async Task ApproveDailyReport_SetsStatusToApproved()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -187,6 +209,8 @@ public sealed class DailyReportServiceTests
     public async Task ApproveDailyReport_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ApproveDailyReportAsync(ProjectId, Guid.NewGuid());
@@ -203,6 +227,8 @@ public sealed class DailyReportServiceTests
     public async Task AddPhoto_CreatesPhotoLinkedToReport()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var report = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -226,6 +252,8 @@ public sealed class DailyReportServiceTests
     public async Task RollupDailyReport_CreatesRollupBetweenReports()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var parent = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -248,6 +276,8 @@ public sealed class DailyReportServiceTests
     public async Task RollupDailyReport_MissingReferenceId_ReturnsValidationError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var parent = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -263,6 +293,8 @@ public sealed class DailyReportServiceTests
     public async Task RollupDailyReport_ParentNotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var child = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -278,6 +310,8 @@ public sealed class DailyReportServiceTests
     public async Task RollupDailyReport_ChildNotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var parent = (await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -297,6 +331,8 @@ public sealed class DailyReportServiceTests
     public async Task CreateDailyReport_SetsCompanyId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest());
@@ -311,6 +347,8 @@ public sealed class DailyReportServiceTests
     public async Task CreateDailyReport_SetsCreatedAtTimestamp()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var before = DateTime.UtcNow;
@@ -326,6 +364,8 @@ public sealed class DailyReportServiceTests
     public async Task UpdateDailyReport_PreservesCreatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
         var originalCreatedAt = created.CreatedAt;
@@ -345,6 +385,8 @@ public sealed class DailyReportServiceTests
     public async Task ListDailyReports_ExcludesSoftDeleted()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var toDelete = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
@@ -366,6 +408,8 @@ public sealed class DailyReportServiceTests
     public async Task GetDailyReport_SoftDeleted_ReturnsNotFound()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -388,6 +432,8 @@ public sealed class DailyReportServiceTests
     public async Task SubmitDailyReport_SetsUpdatedAtTimestamp()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -403,6 +449,8 @@ public sealed class DailyReportServiceTests
     public async Task ApproveDailyReport_SetsUpdatedAtTimestamp()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
         await service.SubmitDailyReportAsync(ProjectId, created.Id);
@@ -423,6 +471,8 @@ public sealed class DailyReportServiceTests
     public async Task ListDailyReports_Page2_ReturnsRemainingItems()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 5; i++)
@@ -441,6 +491,8 @@ public sealed class DailyReportServiceTests
     public async Task ListDailyReports_EmptyProject_ReturnsEmptyPage()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ListDailyReportsAsync(ProjectId, new PmListQuery());
@@ -458,6 +510,8 @@ public sealed class DailyReportServiceTests
     public async Task AddPhoto_MultiplePhotos_AllLinkedToSameReport()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -474,6 +528,8 @@ public sealed class DailyReportServiceTests
     public async Task AddPhoto_SetsCompanyId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -491,6 +547,8 @@ public sealed class DailyReportServiceTests
     public async Task RollupDailyReport_SetsCompanyIdOnRollup()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var parent = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
         var child = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
@@ -506,6 +564,8 @@ public sealed class DailyReportServiceTests
     public async Task RollupDailyReport_BothNotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.RollupDailyReportAsync(ProjectId, Guid.NewGuid(),
@@ -523,6 +583,8 @@ public sealed class DailyReportServiceTests
     public async Task CreateDailyReport_DuplicateDateAndType_ReturnsDuplicateReport()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var reportDate = new DateTime(2026, 2, 15, 0, 0, 0, DateTimeKind.Utc);
@@ -548,6 +610,8 @@ public sealed class DailyReportServiceTests
     public async Task UpdateDailyReport_ApprovedReport_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -564,6 +628,8 @@ public sealed class DailyReportServiceTests
     public async Task SubmitDailyReport_NonDraftStatus_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -581,6 +647,8 @@ public sealed class DailyReportServiceTests
     public async Task ApproveDailyReport_AlreadyApproved_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 

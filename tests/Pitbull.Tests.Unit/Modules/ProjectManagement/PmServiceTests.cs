@@ -27,6 +27,8 @@ public sealed class PmServiceDailyReportTests
     public async Task CreateDailyReport_WithStatus_ParsesEnumAndReturnsDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateDailyReportAsync(ProjectId,
@@ -44,6 +46,8 @@ public sealed class PmServiceDailyReportTests
     public async Task ApproveDailyReport_SetsApprovedAndUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -63,8 +67,12 @@ public sealed class PmServiceDailyReportTests
     public async Task RollupDailyReport_ChildInDifferentProject_ReturnsNotFound()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         var parent = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
         var childFromOtherProject = (await service.CreateDailyReportAsync(otherProjectId, new PmUpsertRequest())).Value!;
@@ -80,6 +88,8 @@ public sealed class PmServiceDailyReportTests
     public async Task AddPhoto_UsesReferenceIdAsDocumentId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -111,6 +121,8 @@ public sealed class PmServiceSubmittalTests
     public async Task CreateSubmittal_WithTitleAndStatus_ReturnsDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateSubmittalAsync(ProjectId,
@@ -126,6 +138,8 @@ public sealed class PmServiceSubmittalTests
     public async Task UpdateSubmittal_UpdatesTitleAndStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "Initial", Status: "Draft"))).Value!;
@@ -146,8 +160,12 @@ public sealed class PmServiceSubmittalTests
     public async Task ListSubmittals_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(Title: "Our Submittal"));
         await service.CreateSubmittalAsync(otherProjectId, new PmUpsertRequest(Title: "Other Submittal"));
@@ -163,6 +181,8 @@ public sealed class PmServiceSubmittalTests
     public async Task AddWorkflowEvent_AssignsSubmittalIdFromReferenceId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var submittal = (await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -180,6 +200,8 @@ public sealed class PmServiceSubmittalTests
     public async Task AddAttachment_AssignsSubmittalIdFromReferenceId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var submittal = (await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest())).Value!;
 
@@ -196,6 +218,8 @@ public sealed class PmServiceSubmittalTests
     public async Task GetSubmittal_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.GetSubmittalAsync(ProjectId, Guid.NewGuid());

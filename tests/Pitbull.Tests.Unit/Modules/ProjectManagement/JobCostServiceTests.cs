@@ -29,6 +29,8 @@ public sealed class JobCostServiceTests
     public async Task CreateBudget_ReturnsSuccessWithDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateBudgetAsync(ProjectId,
@@ -43,6 +45,8 @@ public sealed class JobCostServiceTests
     public async Task UpdateBudget_SetsNameAndUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateBudgetAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -60,6 +64,8 @@ public sealed class JobCostServiceTests
     public async Task UpdateBudget_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.UpdateBudgetAsync(ProjectId, Guid.NewGuid(),
@@ -73,6 +79,8 @@ public sealed class JobCostServiceTests
     public async Task ListBudgets_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 4; i++)
@@ -90,8 +98,12 @@ public sealed class JobCostServiceTests
     public async Task ListBudgets_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         var ours = (await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest())).Value!;
         await service.CreateBudgetAsync(otherProjectId, new PmUpsertRequest());
@@ -111,6 +123,8 @@ public sealed class JobCostServiceTests
     public async Task CreateCommitment_ReturnsSuccessWithDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateCommitmentAsync(ProjectId,
@@ -125,8 +139,12 @@ public sealed class JobCostServiceTests
     public async Task ListCommitments_ReturnsOnlyProjectCommitments()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateCommitmentAsync(ProjectId, new PmUpsertRequest());
         await service.CreateCommitmentAsync(otherProjectId, new PmUpsertRequest());
@@ -145,6 +163,8 @@ public sealed class JobCostServiceTests
     public async Task CreateForecast_ReturnsSuccessWithDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateForecastAsync(ProjectId,
@@ -159,6 +179,8 @@ public sealed class JobCostServiceTests
     public async Task ListForecasts_ReturnsOnlyProjectForecasts()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         await service.CreateForecastAsync(ProjectId, new PmUpsertRequest());
@@ -178,6 +200,8 @@ public sealed class JobCostServiceTests
     public async Task ListActuals_ReturnsEmpty_WhenNoActualsExist()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ListActualsAsync(ProjectId, new PmListQuery());
@@ -190,6 +214,8 @@ public sealed class JobCostServiceTests
     public async Task RebuildActuals_ReturnsSuccessWithCount()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.RebuildActualsAsync(ProjectId);
@@ -203,6 +229,8 @@ public sealed class JobCostServiceTests
     public async Task RebuildActuals_UpdatesTimestampsOnAllActuals()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         // Seed actuals directly since there's no CreateActualAsync on the service
@@ -239,8 +267,12 @@ public sealed class JobCostServiceTests
     public async Task RebuildActuals_IgnoresOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
         var pastTime = DateTime.UtcNow.AddDays(-10);
 
         db.Set<PmJobCostActual>().Add(new PmJobCostActual
@@ -264,6 +296,8 @@ public sealed class JobCostServiceTests
     public async Task RebuildActuals_ReturnsCorrectUpdatedCount()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 5; i++)
@@ -293,6 +327,8 @@ public sealed class JobCostServiceTests
     public async Task CreateBudget_SetsCompanyId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest());
@@ -307,6 +343,8 @@ public sealed class JobCostServiceTests
     public async Task CreateBudget_SetsCreatedAtTimestamp()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var before = DateTime.UtcNow;
@@ -322,6 +360,8 @@ public sealed class JobCostServiceTests
     public async Task ListBudgets_Page2_ReturnsRemainingItems()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 5; i++)
@@ -340,6 +380,8 @@ public sealed class JobCostServiceTests
     public async Task UpdateBudget_PreservesCreatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest())).Value!;
         var originalCreatedAt = created.CreatedAt;
@@ -358,6 +400,8 @@ public sealed class JobCostServiceTests
     public async Task CreateCommitment_SetsCompanyId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateCommitmentAsync(ProjectId, new PmUpsertRequest());
@@ -372,6 +416,8 @@ public sealed class JobCostServiceTests
     public async Task ListCommitments_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 4; i++)
@@ -393,6 +439,8 @@ public sealed class JobCostServiceTests
     public async Task CreateForecast_SetsCompanyId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateForecastAsync(ProjectId, new PmUpsertRequest());
@@ -407,6 +455,8 @@ public sealed class JobCostServiceTests
     public async Task ListForecasts_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 4; i++)
@@ -424,8 +474,12 @@ public sealed class JobCostServiceTests
     public async Task ListForecasts_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateForecastAsync(ProjectId, new PmUpsertRequest());
         await service.CreateForecastAsync(otherProjectId, new PmUpsertRequest());
@@ -444,6 +498,8 @@ public sealed class JobCostServiceTests
     public async Task ListActuals_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 4; i++)
@@ -471,8 +527,12 @@ public sealed class JobCostServiceTests
     public async Task ListActuals_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         db.Set<PmJobCostActual>().Add(new PmJobCostActual
         {
@@ -506,6 +566,8 @@ public sealed class JobCostServiceTests
     public async Task CreateBudget_DuplicateCostCodeAndPhase_ReturnsDuplicateBudget()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var costCodeId = Guid.NewGuid();
         var phaseId = Guid.NewGuid();
@@ -536,6 +598,8 @@ public sealed class JobCostServiceTests
     public async Task CreateBudget_ComputesCurrentBudget()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest(
@@ -555,6 +619,8 @@ public sealed class JobCostServiceTests
     public async Task UpdateBudget_RecomputesCurrentBudget()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest(
             Data: new Dictionary<string, object?>

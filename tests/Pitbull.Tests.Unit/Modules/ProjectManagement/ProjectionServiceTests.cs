@@ -29,6 +29,8 @@ public sealed class ProjectionServiceTests
     public async Task CreateMonthlyProjection_ReturnsSuccessWithDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateMonthlyProjectionAsync(ProjectId,
@@ -43,6 +45,8 @@ public sealed class ProjectionServiceTests
     public async Task GetMonthlyProjection_Existing_ReturnsSuccess()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -57,6 +61,8 @@ public sealed class ProjectionServiceTests
     public async Task GetMonthlyProjection_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.GetMonthlyProjectionAsync(ProjectId, Guid.NewGuid());
@@ -69,6 +75,8 @@ public sealed class ProjectionServiceTests
     public async Task UpdateMonthlyProjection_SetsUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -85,6 +93,8 @@ public sealed class ProjectionServiceTests
     public async Task UpdateMonthlyProjection_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.UpdateMonthlyProjectionAsync(ProjectId, Guid.NewGuid(),
@@ -102,6 +112,8 @@ public sealed class ProjectionServiceTests
     public async Task ListMonthlyProjections_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 4; i++)
@@ -119,8 +131,12 @@ public sealed class ProjectionServiceTests
     public async Task ListMonthlyProjections_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateMonthlyProjectionAsync(ProjectId, new PmUpsertRequest());
         await service.CreateMonthlyProjectionAsync(otherProjectId, new PmUpsertRequest());
@@ -139,6 +155,8 @@ public sealed class ProjectionServiceTests
     public async Task SubmitMonthlyProjection_SetsStatusToSubmitted()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -158,6 +176,8 @@ public sealed class ProjectionServiceTests
     public async Task SubmitMonthlyProjection_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.SubmitMonthlyProjectionAsync(ProjectId, Guid.NewGuid());
@@ -170,6 +190,8 @@ public sealed class ProjectionServiceTests
     public async Task ApproveMonthlyProjection_SetsStatusToApproved()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -189,6 +211,8 @@ public sealed class ProjectionServiceTests
     public async Task ApproveMonthlyProjection_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ApproveMonthlyProjectionAsync(ProjectId, Guid.NewGuid());
@@ -205,6 +229,8 @@ public sealed class ProjectionServiceTests
     public async Task UpdateMonthlyProjection_LockedProjection_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -229,6 +255,8 @@ public sealed class ProjectionServiceTests
     public async Task SubmitMonthlyProjection_NonDraft_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -246,6 +274,8 @@ public sealed class ProjectionServiceTests
     public async Task ApproveMonthlyProjection_NotSubmitted_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest())).Value!;
@@ -265,6 +295,8 @@ public sealed class ProjectionServiceTests
     public async Task UpdateMonthlyProjection_ComputesAdjustedContractValue()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest(Data: new Dictionary<string, object?>
@@ -287,6 +319,8 @@ public sealed class ProjectionServiceTests
     public async Task SubmitMonthlyProjection_ComputesAdjustedContractValue()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateMonthlyProjectionAsync(ProjectId,
             new PmUpsertRequest(Data: new Dictionary<string, object?>

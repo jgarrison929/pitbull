@@ -29,6 +29,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateSchedule_ReturnsSuccessWithDto()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateScheduleAsync(ProjectId,
@@ -45,6 +47,8 @@ public sealed class ScheduleServiceTests
     public async Task GetSchedule_Existing_ReturnsSuccess()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Test Schedule"))).Value!;
@@ -60,6 +64,8 @@ public sealed class ScheduleServiceTests
     public async Task GetSchedule_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.GetScheduleAsync(ProjectId, Guid.NewGuid());
@@ -72,6 +78,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateSchedule_SetsNameAndUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Original"))).Value!;
@@ -90,6 +98,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateSchedule_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.UpdateScheduleAsync(ProjectId, Guid.NewGuid(),
@@ -103,6 +113,8 @@ public sealed class ScheduleServiceTests
     public async Task DeleteSchedule_SoftDeletes()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "To Delete"))).Value!;
@@ -124,6 +136,8 @@ public sealed class ScheduleServiceTests
     public async Task DeleteSchedule_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.DeleteScheduleAsync(ProjectId, Guid.NewGuid());
@@ -140,6 +154,8 @@ public sealed class ScheduleServiceTests
     public async Task ListSchedules_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 5; i++)
@@ -159,6 +175,8 @@ public sealed class ScheduleServiceTests
     public async Task ListSchedules_SearchByName_FiltersResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         await service.CreateScheduleAsync(ProjectId, new PmUpsertRequest(Name: "Master Schedule"));
@@ -176,8 +194,12 @@ public sealed class ScheduleServiceTests
     public async Task ListSchedules_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateScheduleAsync(ProjectId, new PmUpsertRequest(Name: "Our Schedule"));
         await service.CreateScheduleAsync(otherProjectId, new PmUpsertRequest(Name: "Other Schedule"));
@@ -193,6 +215,8 @@ public sealed class ScheduleServiceTests
     public async Task ListSchedules_ExcludesSoftDeleted()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var created = (await service.CreateScheduleAsync(ProjectId,
@@ -215,6 +239,8 @@ public sealed class ScheduleServiceTests
     public async Task RecalculateCriticalPath_SetsTimestampAndReturnsAction()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "CPM Schedule"))).Value!;
@@ -237,6 +263,8 @@ public sealed class ScheduleServiceTests
     public async Task RecalculateCriticalPath_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.RecalculateCriticalPathAsync(ProjectId, Guid.NewGuid());
@@ -253,6 +281,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateBaseline_CreatesBaselineWithDefaults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Baseline Target"))).Value!;
@@ -276,6 +306,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateBaseline_WithCustomNameAndType_AppliesThem()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;
@@ -294,6 +326,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateBaseline_ScheduleNotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateBaselineAsync(ProjectId, Guid.NewGuid(),
@@ -311,6 +345,8 @@ public sealed class ScheduleServiceTests
     public async Task DeleteDependency_SoftDeletesCorrectEntity()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;
@@ -328,6 +364,8 @@ public sealed class ScheduleServiceTests
     public async Task DeleteDependency_WrongSchedule_ReturnsNotFound()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule A"))).Value!;
@@ -351,6 +389,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateSchedule_WithStatus_ParsesEnum()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
@@ -373,6 +413,8 @@ public sealed class ScheduleServiceTests
     public async Task AddActivity_CreatesActivityLinkedToSchedule()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Master"))).Value!;
@@ -394,6 +436,8 @@ public sealed class ScheduleServiceTests
     public async Task AddActivity_ScheduleNotFound_ReturnsNotFound()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.AddActivityAsync(ProjectId, Guid.NewGuid(),
@@ -407,6 +451,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateActivity_SetsNameAndUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;
@@ -427,6 +473,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateActivity_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;
@@ -446,6 +494,8 @@ public sealed class ScheduleServiceTests
     public async Task ImportSchedule_CreatesImportLogEntry()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.ImportScheduleAsync(ProjectId,
@@ -464,6 +514,8 @@ public sealed class ScheduleServiceTests
     public async Task ListImports_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 4; i++)
@@ -481,8 +533,12 @@ public sealed class ScheduleServiceTests
     public async Task ListImports_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.ImportScheduleAsync(ProjectId, new PmUpsertRequest(Name: "Our Import"));
         await service.ImportScheduleAsync(otherProjectId, new PmUpsertRequest(Name: "Other Import"));
@@ -501,6 +557,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateBaseline_WithSourceVersion_StoresIt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;
@@ -525,6 +583,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateSchedule_SetsCompanyId()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateScheduleAsync(ProjectId,
@@ -540,6 +600,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateSchedule_SetsCreatedAtToUtcNow()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var before = DateTime.UtcNow;
@@ -556,6 +618,8 @@ public sealed class ScheduleServiceTests
     public async Task ListSchedules_Page2_ReturnsRemainingItems()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 5; i++)
@@ -574,6 +638,8 @@ public sealed class ScheduleServiceTests
     public async Task DeleteSchedule_SetsDeletedAtTimestamp()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Timestamp Delete"))).Value!;
@@ -596,6 +662,8 @@ public sealed class ScheduleServiceTests
     public async Task CreateSchedule_NoStatus_DefaultsToDraft()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateScheduleAsync(ProjectId,
@@ -612,6 +680,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateSchedule_InvalidTransition_DraftToBaselined_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
@@ -627,6 +697,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateSchedule_InvalidTransition_DraftToArchived_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
@@ -642,6 +714,8 @@ public sealed class ScheduleServiceTests
     public async Task UpdateSchedule_ValidTransition_ActiveToBaselined_Succeeds()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
@@ -657,6 +731,8 @@ public sealed class ScheduleServiceTests
     public async Task RecalculateCriticalPath_ArchivedSchedule_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule", Status: "Draft"))).Value!;
@@ -678,6 +754,8 @@ public sealed class ScheduleServiceTests
     public async Task AddDependency_PredecessorNotInSchedule_ReturnsValidationError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;
@@ -698,6 +776,8 @@ public sealed class ScheduleServiceTests
     public async Task AddDependency_SuccessorNotInSchedule_ReturnsValidationError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;
@@ -718,6 +798,8 @@ public sealed class ScheduleServiceTests
     public async Task AddDependency_SameActivity_ReturnsValidationError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var schedule = (await service.CreateScheduleAsync(ProjectId,
             new PmUpsertRequest(Name: "Schedule"))).Value!;

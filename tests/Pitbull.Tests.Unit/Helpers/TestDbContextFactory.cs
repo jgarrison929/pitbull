@@ -62,6 +62,29 @@ public static class TestDbContextFactory
     }
 
     /// <summary>
+    /// Seeds a Project entity into the in-memory database so PM services
+    /// can pass the "project exists" check in CreateAsync.
+    /// </summary>
+    public static async Task SeedProjectAsync(PitbullDbContext db, Guid projectId, Guid? companyId = null)
+    {
+        // Avoid duplicate seeding if called multiple times with the same projectId
+        if (await db.Set<Pitbull.Projects.Domain.Project>().AnyAsync(p => p.Id == projectId))
+            return;
+
+        db.Set<Pitbull.Projects.Domain.Project>().Add(new Pitbull.Projects.Domain.Project
+        {
+            Id = projectId,
+            TenantId = TestTenantId,
+            CompanyId = companyId ?? TestCompanyId,
+            Name = "Test Project",
+            Number = "PRJ-TEST-001",
+            CreatedAt = DateTime.UtcNow,
+            Status = Pitbull.Projects.Domain.ProjectStatus.Active
+        });
+        await db.SaveChangesAsync();
+    }
+
+    /// <summary>
     /// Creates a second DbContext pointing to the same in-memory database
     /// but with a different tenant, useful for tenant isolation tests.
     /// </summary>

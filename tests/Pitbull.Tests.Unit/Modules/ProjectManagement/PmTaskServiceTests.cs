@@ -29,6 +29,8 @@ public sealed class PmTaskServiceTests
     public async Task CreateTask_ReturnsSuccessWithTitle()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.CreateTaskAsync(ProjectId,
@@ -43,6 +45,8 @@ public sealed class PmTaskServiceTests
     public async Task GetTask_Existing_ReturnsSuccess()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateTaskAsync(ProjectId,
             new PmUpsertRequest(Title: "Task A"))).Value!;
@@ -58,6 +62,8 @@ public sealed class PmTaskServiceTests
     public async Task GetTask_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.GetTaskAsync(ProjectId, Guid.NewGuid());
@@ -70,6 +76,8 @@ public sealed class PmTaskServiceTests
     public async Task UpdateTask_SetsTitleAndUpdatedAt()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateTaskAsync(ProjectId,
             new PmUpsertRequest(Title: "Original"))).Value!;
@@ -86,6 +94,8 @@ public sealed class PmTaskServiceTests
     public async Task UpdateTask_NotFound_ReturnsError()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         var result = await service.UpdateTaskAsync(ProjectId, Guid.NewGuid(),
@@ -99,6 +109,8 @@ public sealed class PmTaskServiceTests
     public async Task UpdateTask_WithStatus_ParsesEnum()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateTaskAsync(ProjectId,
             new PmUpsertRequest(Title: "Task"))).Value!;
@@ -117,6 +129,8 @@ public sealed class PmTaskServiceTests
     public async Task UpdateTask_WithDescription_SetsField()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateTaskAsync(ProjectId,
             new PmUpsertRequest(Title: "Task"))).Value!;
@@ -132,6 +146,8 @@ public sealed class PmTaskServiceTests
     public async Task UpdateTask_WithDueDate_SetsField()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateTaskAsync(ProjectId,
             new PmUpsertRequest(Title: "Task"))).Value!;
@@ -152,6 +168,8 @@ public sealed class PmTaskServiceTests
     public async Task ListTasks_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
 
         for (var i = 0; i < 5; i++)
@@ -169,8 +187,12 @@ public sealed class PmTaskServiceTests
     public async Task ListTasks_ExcludesOtherProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
 
         await service.CreateTaskAsync(ProjectId, new PmUpsertRequest(Title: "Our Task"));
         await service.CreateTaskAsync(otherProjectId, new PmUpsertRequest(Title: "Other Task"));
@@ -186,8 +208,12 @@ public sealed class PmTaskServiceTests
     public async Task ListMyTasks_FiltersByAssignedUserAcrossProjects()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
         var currentUserId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
 
@@ -211,8 +237,12 @@ public sealed class PmTaskServiceTests
     public async Task ListMyTasks_WithProjectFilter_ReturnsOnlyThatProject()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var otherProjectId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, otherProjectId);
         var currentUserId = Guid.NewGuid();
 
         await service.CreateTaskAsync(ProjectId, new PmUpsertRequest(
@@ -237,6 +267,8 @@ public sealed class PmTaskServiceTests
     public async Task AddTaskComment_CreatesCommentLinkedToTask()
     {
         using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var task = (await service.CreateTaskAsync(ProjectId,
             new PmUpsertRequest(Title: "Task"))).Value!;

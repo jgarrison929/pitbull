@@ -49,7 +49,7 @@ public class AiServiceTests
             providerOverride: "openai");
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("NO_PROVIDER");
+        result.ErrorCode.Should().Be("AI_NOT_CONFIGURED");
     }
 
     [Fact]
@@ -190,7 +190,7 @@ public class AiServiceTests
             new AiCompletionRequest("sys", "user", AiCapability.Embedding));
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("NO_PROVIDER");
+        result.ErrorCode.Should().Be("AI_NOT_CONFIGURED");
     }
 
     [Fact]
