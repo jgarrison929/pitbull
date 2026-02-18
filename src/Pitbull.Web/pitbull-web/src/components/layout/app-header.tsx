@@ -15,7 +15,8 @@ import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/s
 import { AppSidebarMobile } from "./app-sidebar-mobile";
 import { NotificationCenter } from "./notification-center";
 import { ConnectionStatus } from "./connection-status";
-import { Sun, Moon, Monitor, Building2 } from "lucide-react";
+import { Sun, Moon, Monitor, Building2, Settings } from "lucide-react";
+import Link from "next/link";
 import {
   Tooltip,
   TooltipContent,
@@ -177,7 +178,12 @@ export function AppHeader() {
             <p className="text-xs text-muted-foreground">{user?.email}</p>
           </div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>Settings</DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/settings/profile" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Profile & Settings
+            </Link>
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={logout} className="text-red-600">
             Sign Out

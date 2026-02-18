@@ -42,6 +42,7 @@ public class PitbullDbContext(
     public DbSet<TeamInvitation> TeamInvitations => Set<TeamInvitation>();
     public DbSet<OnboardingChecklist> OnboardingChecklists => Set<OnboardingChecklist>();
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
@@ -494,6 +495,16 @@ public class PitbullDbContext(
                 .HasForeignKey(c => c.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(c => new { c.TenantId, c.UserId, c.CompanyId }).IsUnique();
+        });
+
+        // PasswordResetToken configuration (not BaseEntity — no tenant/soft-delete filters)
+        builder.Entity<PasswordResetToken>(e =>
+        {
+            e.ToTable("password_reset_tokens");
+            e.HasKey(t => t.Id);
+            e.Property(t => t.TokenHash).HasMaxLength(100).IsRequired();
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => t.UserId);
         });
 
         // Apply module-specific configurations FIRST so all entity types are registered

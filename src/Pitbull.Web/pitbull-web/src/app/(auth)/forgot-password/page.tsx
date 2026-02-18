@@ -7,20 +7,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Mail } from "lucide-react";
+import api from "@/lib/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const isValidEmail = (value: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (!isValidEmail(email.trim())) {
+      return;
+    }
+
     setIsLoading(true);
 
-    // Placeholder - simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setSubmitted(true);
-    setIsLoading(false);
+    try {
+      await api("/api/auth/forgot-password", {
+        method: "POST",
+        body: { email: email.trim() },
+      });
+    } catch {
+      // Silently handle — we always show the same message to prevent email enumeration
+    } finally {
+      setSubmitted(true);
+      setIsLoading(false);
+    }
   }
 
   return (

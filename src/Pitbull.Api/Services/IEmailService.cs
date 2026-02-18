@@ -9,6 +9,7 @@ public interface IEmailService
     Task SendInvitationEmailAsync(string toEmail, string inviterName, string companyName, string inviteToken, CancellationToken ct = default);
     Task SendEmailVerificationAsync(string toEmail, string userName, string verificationToken, CancellationToken ct = default);
     Task SendWelcomeEmailAsync(string toEmail, string userName, string companyName, CancellationToken ct = default);
+    Task SendPasswordResetAsync(string toEmail, string userName, string resetToken, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -39,6 +40,14 @@ public class ConsoleEmailService(ILogger<ConsoleEmailService> logger) : IEmailSe
         logger.LogInformation(
             "[EMAIL STUB] Welcome email sent to {Email} | User: {User} | Company: {Company}",
             toEmail, userName, companyName);
+        return Task.CompletedTask;
+    }
+
+    public Task SendPasswordResetAsync(string toEmail, string userName, string resetToken, CancellationToken ct = default)
+    {
+        logger.LogInformation(
+            "[EMAIL STUB] Password reset sent to {Email} | User: {User} | Token: {TokenPrefix}...",
+            toEmail, userName, resetToken[..Math.Min(8, resetToken.Length)]);
         return Task.CompletedTask;
     }
 }

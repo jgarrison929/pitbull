@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
@@ -21,65 +21,70 @@ import {
   Users,
   FileSpreadsheet,
   HelpCircle,
-  Truck,
+  FileText,
+  Hash,
   Filter,
   SortAsc,
   SortDesc,
   Loader2,
 } from "lucide-react";
 import api from "@/lib/api";
-import type {
-  Project,
-  Bid,
-  Rfi,
-  ListEmployeesResult,
-  ListEquipmentResult,
-  PagedResult,
-} from "@/lib/types";
-import { projectStatusLabel } from "@/lib/projects";
 import { cn } from "@/lib/utils";
 
-type EntityType = "all" | "projects" | "employees" | "equipment" | "bids" | "rfis";
+type EntityType = "all" | "project" | "employee" | "contract" | "bid" | "rfi" | "costcode";
 type SortMode = "relevance" | "date";
 
-interface SearchResult {
+interface SearchResultItem {
+  type: string;
   id: string;
-  type: EntityType;
   title: string;
   subtitle: string;
-  badge?: string;
-  badgeClass?: string;
-  href: string;
-  date?: string;
+  url: string;
+}
+
+interface SearchResponse {
+  results: SearchResultItem[];
+  totalCount: number;
 }
 
 const ENTITY_TABS: { value: EntityType; label: string; icon: React.ReactNode }[] = [
   { value: "all", label: "All", icon: <Search className="h-3.5 w-3.5" /> },
-  { value: "projects", label: "Projects", icon: <FolderKanban className="h-3.5 w-3.5" /> },
-  { value: "employees", label: "Employees", icon: <Users className="h-3.5 w-3.5" /> },
-  { value: "equipment", label: "Equipment", icon: <Truck className="h-3.5 w-3.5" /> },
-  { value: "bids", label: "Bids", icon: <FileSpreadsheet className="h-3.5 w-3.5" /> },
-  { value: "rfis", label: "RFIs", icon: <HelpCircle className="h-3.5 w-3.5" /> },
+  { value: "project", label: "Projects", icon: <FolderKanban className="h-3.5 w-3.5" /> },
+  { value: "employee", label: "Employees", icon: <Users className="h-3.5 w-3.5" /> },
+  { value: "contract", label: "Contracts", icon: <FileText className="h-3.5 w-3.5" /> },
+  { value: "bid", label: "Bids", icon: <FileSpreadsheet className="h-3.5 w-3.5" /> },
+  { value: "rfi", label: "RFIs", icon: <HelpCircle className="h-3.5 w-3.5" /> },
+  { value: "costcode", label: "Cost Codes", icon: <Hash className="h-3.5 w-3.5" /> },
 ];
 
-const classificationLabels: Record<number, string> = {
-  0: "Hourly",
-  1: "Salaried",
-  2: "Contractor",
-  3: "Apprentice",
-  4: "Supervisor",
+const TYPE_BADGE_STYLES: Record<string, string> = {
+  project: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
+  employee: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
+  contract: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-200",
+  bid: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
+  rfi: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
+  costcode: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
 };
 
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "";
-  return new Date(dateStr).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+  project: <FolderKanban className="h-4 w-4" />,
+  employee: <Users className="h-4 w-4" />,
+  contract: <FileText className="h-4 w-4" />,
+  bid: <FileSpreadsheet className="h-4 w-4" />,
+  rfi: <HelpCircle className="h-4 w-4" />,
+  costcode: <Hash className="h-4 w-4" />,
+};
 
-export default function SearchPage() {
+const TYPE_LABELS: Record<string, string> = {
+  project: "Projects",
+  employee: "Employees",
+  contract: "Contracts",
+  bid: "Bids",
+  rfi: "RFIs",
+  costcode: "Cost Codes",
+};
+
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const initialQuery = searchParams.get("q") || "";
@@ -87,7 +92,7 @@ export default function SearchPage() {
   const [activeFilter, setActiveFilter] = useState<EntityType>("all");
   const [sortMode, setSortMode] = useState<SortMode>("relevance");
   const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<SearchResultItem[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -101,118 +106,14 @@ export default function SearchPage() {
 
     setIsLoading(true);
     setHasSearched(true);
-    const allResults: SearchResult[] = [];
-    const searchParam = encodeURIComponent(searchQuery.trim());
 
     try {
-      // Search projects
-      try {
-        const projects = await api<PagedResult<Project>>(
-          `/api/projects?search=${searchParam}&pageSize=20`
-        );
-        projects.items.forEach((p) => {
-          allResults.push({
-            id: p.id,
-            type: "projects",
-            title: p.name,
-            subtitle: `${p.number}${p.clientName ? ` · ${p.clientName}` : ""}`,
-            badge: projectStatusLabel(p.status),
-            badgeClass: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
-            href: `/projects/${p.id}`,
-            date: p.createdAt,
-          });
-        });
-      } catch {
-        // Projects search failed silently
-      }
-
-      // Search employees
-      try {
-        const employees = await api<ListEmployeesResult>(
-          `/api/employees?search=${searchParam}&pageSize=20`
-        );
-        employees.items.forEach((e) => {
-          allResults.push({
-            id: e.id,
-            type: "employees",
-            title: e.fullName,
-            subtitle: `${e.employeeNumber}${e.title ? ` · ${e.title}` : ""}`,
-            badge: classificationLabels[e.classification] || "Unknown",
-            badgeClass: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
-            href: `/employees/${e.id}`,
-            date: e.createdAt,
-          });
-        });
-      } catch {
-        // Employees search failed silently
-      }
-
-      // Search bids
-      try {
-        const bids = await api<PagedResult<Bid>>(
-          `/api/bids?search=${searchParam}&pageSize=20`
-        );
-        bids.items.forEach((b) => {
-          allResults.push({
-            id: b.id,
-            type: "bids",
-            title: b.name,
-            subtitle: `${b.number}${b.owner ? ` · ${b.owner}` : ""}`,
-            badge: b.status,
-            badgeClass: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
-            href: `/bids/${b.id}`,
-            date: b.bidDate || undefined,
-          });
-        });
-      } catch {
-        // Bids search failed silently
-      }
-
-      // Search RFIs
-      try {
-        const rfis = await api<PagedResult<Rfi>>(
-          `/api/rfis?search=${searchParam}&pageSize=20`
-        );
-        rfis.items.forEach((r) => {
-          allResults.push({
-            id: r.id,
-            type: "rfis",
-            title: `RFI #${String(r.number).padStart(3, "0")}: ${r.subject}`,
-            subtitle: r.ballInCourtName ? `Ball in court: ${r.ballInCourtName}` : "",
-            badge: r.status === 0 ? "Open" : r.status === 1 ? "Answered" : "Closed",
-            badgeClass: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
-            href: `/rfis/${r.id}`,
-            date: r.createdAt,
-          });
-        });
-      } catch {
-        // RFIs search failed silently
-      }
-
-      // Search equipment
-      try {
-        const equipment = await api<ListEquipmentResult>(
-          `/api/equipment?search=${searchParam}&pageSize=20`
-        );
-        equipment.items.forEach((eq) => {
-          allResults.push({
-            id: eq.id,
-            type: "equipment",
-            title: eq.name,
-            subtitle: `${eq.code}${eq.serialNumber ? ` · SN: ${eq.serialNumber}` : ""}`,
-            badge: eq.typeName,
-            badgeClass: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-200",
-            href: `/equipment/${eq.id}`,
-            date: eq.createdAt,
-          });
-        });
-      } catch {
-        // Equipment search failed silently
-      }
-
-      setResults(allResults);
+      const data = await api<SearchResponse>(
+        `/api/search?q=${encodeURIComponent(searchQuery.trim())}`
+      );
+      setResults(data.results);
     } catch {
-      // Overall search failed
+      setResults([]);
     } finally {
       setIsLoading(false);
     }
@@ -223,7 +124,6 @@ export default function SearchPage() {
     if (initialQuery) {
       performSearch(initialQuery);
     }
-    // Focus search input
     searchInputRef.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -233,12 +133,11 @@ export default function SearchPage() {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      // Update URL
       const params = new URLSearchParams();
       if (value.trim()) params.set("q", value.trim());
       router.replace(`/search${params.toString() ? `?${params}` : ""}`, { scroll: false });
       performSearch(value);
-    }, 400);
+    }, 300);
   }
 
   // Filter results by entity type
@@ -247,24 +146,14 @@ export default function SearchPage() {
     if (activeFilter !== "all") {
       r = r.filter((item) => item.type === activeFilter);
     }
-
-    // Sort
-    if (sortMode === "date") {
-      r = [...r].sort((a, b) => {
-        const dateA = a.date ? new Date(a.date).getTime() : 0;
-        const dateB = b.date ? new Date(b.date).getTime() : 0;
-        return dateB - dateA;
-      });
-    }
-
     return r;
-  }, [results, activeFilter, sortMode]);
+  }, [results, activeFilter]);
 
   // Group by type for "all" view
   const groupedResults = useMemo(() => {
     if (activeFilter !== "all") return null;
 
-    const groups: Record<string, SearchResult[]> = {};
+    const groups: Record<string, SearchResultItem[]> = {};
     filteredResults.forEach((r) => {
       if (!groups[r.type]) groups[r.type] = [];
       groups[r.type]!.push(r);
@@ -288,7 +177,7 @@ export default function SearchPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Search</h1>
         <p className="text-muted-foreground">
-          Find projects, employees, equipment, bids, and RFIs
+          Find projects, employees, contracts, bids, RFIs, and cost codes
         </p>
       </div>
 
@@ -310,7 +199,6 @@ export default function SearchPage() {
       {/* Filters and Sort */}
       {hasSearched && results.length > 0 && (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Entity type tabs */}
           <div className="flex items-center gap-1 overflow-x-auto pb-1">
             <Filter className="h-4 w-4 text-muted-foreground mr-1 shrink-0" />
             {ENTITY_TABS.map((tab) => {
@@ -336,7 +224,6 @@ export default function SearchPage() {
             })}
           </div>
 
-          {/* Sort */}
           <button
             onClick={() => setSortMode(sortMode === "relevance" ? "date" : "relevance")}
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -358,7 +245,7 @@ export default function SearchPage() {
             <EmptyState
               icon={Search}
               title="Start searching"
-              description="Enter a search term to find projects, employees, equipment, bids, and RFIs across your workspace."
+              description="Enter a search term to find projects, employees, contracts, bids, RFIs, and cost codes across your workspace."
             />
           </CardContent>
         </Card>
@@ -380,41 +267,36 @@ export default function SearchPage() {
           </CardContent>
         </Card>
       ) : activeFilter === "all" && groupedResults ? (
-        // Grouped results view
         <div className="space-y-6">
-          {Object.entries(groupedResults).map(([type, items]) => {
-            const tab = ENTITY_TABS.find((t) => t.value === type);
-            return (
-              <Card key={type}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      {tab?.icon}
-                      {tab?.label || type}
-                    </CardTitle>
-                    <CardDescription>{items.length} result{items.length !== 1 ? "s" : ""}</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-1 p-2 sm:p-6 sm:pt-0">
-                  {items.slice(0, 5).map((result) => (
-                    <SearchResultItem key={result.id} result={result} />
-                  ))}
-                  {items.length > 5 && (
-                    <Button
-                      variant="ghost"
-                      className="w-full text-sm text-muted-foreground"
-                      onClick={() => setActiveFilter(type as EntityType)}
-                    >
-                      Show all {items.length} {tab?.label?.toLowerCase() || type}
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+          {Object.entries(groupedResults).map(([type, items]) => (
+            <Card key={type}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    {TYPE_ICONS[type]}
+                    {TYPE_LABELS[type] || type}
+                  </CardTitle>
+                  <CardDescription>{items.length} result{items.length !== 1 ? "s" : ""}</CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-1 p-2 sm:p-6 sm:pt-0">
+                {items.slice(0, 5).map((result) => (
+                  <ResultItem key={result.id} result={result} />
+                ))}
+                {items.length > 5 && (
+                  <Button
+                    variant="ghost"
+                    className="w-full text-sm text-muted-foreground"
+                    onClick={() => setActiveFilter(type as EntityType)}
+                  >
+                    Show all {items.length} {TYPE_LABELS[type]?.toLowerCase() || type}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : (
-        // Flat results view (when filtered by type)
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">
@@ -423,7 +305,7 @@ export default function SearchPage() {
           </CardHeader>
           <CardContent className="space-y-1 p-2 sm:p-6 sm:pt-0">
             {filteredResults.map((result) => (
-              <SearchResultItem key={result.id} result={result} />
+              <ResultItem key={result.id} result={result} />
             ))}
           </CardContent>
         </Card>
@@ -432,30 +314,38 @@ export default function SearchPage() {
   );
 }
 
-function SearchResultItem({ result }: { result: SearchResult }) {
+function ResultItem({ result }: { result: SearchResultItem }) {
   return (
     <Link
-      href={result.href}
+      href={result.url}
       className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent/50"
     >
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-background">
+        {TYPE_ICONS[result.type] || <Search className="h-4 w-4" />}
+      </div>
       <div className="flex-1 min-w-0">
         <p className="font-medium truncate">{result.title}</p>
         {result.subtitle && (
           <p className="text-xs text-muted-foreground truncate">{result.subtitle}</p>
         )}
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {result.date && (
-          <span className="hidden sm:block text-xs text-muted-foreground">
-            {formatDate(result.date)}
-          </span>
-        )}
-        {result.badge && (
-          <Badge variant="secondary" className={result.badgeClass}>
-            {result.badge}
-          </Badge>
-        )}
-      </div>
+      <Badge variant="secondary" className={TYPE_BADGE_STYLES[result.type] || ""}>
+        {TYPE_LABELS[result.type] || result.type}
+      </Badge>
     </Link>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <SearchPageContent />
+    </Suspense>
   );
 }

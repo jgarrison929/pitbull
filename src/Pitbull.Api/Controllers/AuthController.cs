@@ -12,6 +12,7 @@ using Pitbull.Api.Demo;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
+using Pitbull.Api.Services;
 using Pitbull.Core.Domain;
 
 namespace Pitbull.Api.Controllers;
@@ -33,7 +34,8 @@ public class AuthController(
     IOptions<DemoOptions> demoOptions,
     IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator,
-    Pitbull.Core.MultiTenancy.TenantContext tenantContext) : ControllerBase
+    Pitbull.Core.MultiTenancy.TenantContext tenantContext,
+    IEmailService emailService) : ControllerBase
 {
     /// <summary>
     /// Register a new user account
@@ -478,6 +480,142 @@ public class AuthController(
         ));
     }
 
+    /// <summary>
+    /// Update the current user's profile (display name)
+    /// </summary>
+    [HttpPut("profile")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+            return this.UnauthorizedError("User not found");
+
+        var user = await userManager.FindByIdAsync(userId);
+        if (user is null)
+            return this.UnauthorizedError("User not found");
+
+        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+            return this.BadRequestError("First name and last name are required");
+
+        user.FirstName = request.FirstName.Trim();
+        user.LastName = request.LastName.Trim();
+
+        var result = await userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+            return this.BadRequestError("Failed to update profile");
+
+        // Return updated profile via the existing GetProfile logic
+        return await GetProfile();
+    }
+
+    /// <summary>
+    /// Request a password reset email
+    /// </summary>
+    /// <remarks>
+    /// Always returns 200 regardless of whether the email exists,
+    /// to prevent user enumeration attacks. Uses constant-time work
+    /// to prevent timing side-channel enumeration.
+    /// </remarks>
+    [HttpPost("forgot-password")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    [EnableRateLimiting("register")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        const string successMessage = "If an account exists with that email, a reset link has been sent.";
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return Ok(new { message = successMessage });
+
+        // Always generate a token to equalize CPU work regardless of email validity
+        var (plaintext, hash) = PasswordResetToken.GenerateToken();
+
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null)
+        {
+            // Simulate roughly the same latency as the real path
+            await Task.Delay(Random.Shared.Next(50, 150));
+            return Ok(new { message = successMessage });
+        }
+
+        // Delete expired/used tokens, invalidate remaining unused ones
+        await db.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && (t.IsUsed || t.ExpiresAt < DateTime.UtcNow))
+            .ExecuteDeleteAsync();
+
+        await db.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && !t.IsUsed)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsUsed, true));
+
+        var resetToken = new PasswordResetToken
+        {
+            UserId = user.Id,
+            TokenHash = hash,
+            ExpiresAt = DateTime.UtcNow.AddHours(1),
+        };
+        db.PasswordResetTokens.Add(resetToken);
+        await db.SaveChangesAsync();
+
+        await emailService.SendPasswordResetAsync(user.Email!, user.FullName, plaintext);
+
+        return Ok(new { message = successMessage });
+    }
+
+    /// <summary>
+    /// Reset password using a token from the forgot-password email
+    /// </summary>
+    [HttpPost("reset-password")]
+    [Microsoft.AspNetCore.Authorization.AllowAnonymous]
+    [EnableRateLimiting("register")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+            return this.BadRequestError("Token and new password are required");
+
+        if (request.NewPassword.Length < 8)
+            return this.BadRequestError("Password must be at least 8 characters");
+
+        var hash = PasswordResetToken.HashToken(request.Token);
+
+        // Atomic claim: mark the token as used in a single UPDATE WHERE.
+        // If two requests race, only one gets rowsAffected == 1.
+        var rowsAffected = await db.PasswordResetTokens
+            .Where(t => t.TokenHash == hash && !t.IsUsed && t.ExpiresAt > DateTime.UtcNow)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsUsed, true));
+
+        if (rowsAffected == 0)
+            return this.BadRequestError("Invalid or expired reset token");
+
+        var resetToken = await db.PasswordResetTokens
+            .AsNoTracking()
+            .FirstAsync(t => t.TokenHash == hash);
+
+        var user = await userManager.FindByIdAsync(resetToken.UserId.ToString());
+        if (user is null)
+            return this.BadRequestError("Invalid or expired reset token");
+
+        // Reset the password using Identity's token-based flow
+        var identityToken = await userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await userManager.ResetPasswordAsync(user, identityToken, request.NewPassword);
+
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            return this.BadRequestError(errors);
+        }
+
+        return Ok(new { message = "Password has been reset successfully" });
+    }
+
     private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {
         var key = new SymmetricSecurityKey(
@@ -606,3 +744,14 @@ public record AuthResponse(
     string FullName,
     string Email,
     string[] Roles);
+
+public record UpdateProfileRequest(
+    string FirstName,
+    string LastName);
+
+public record ForgotPasswordRequest(
+    string Email);
+
+public record ResetPasswordRequest(
+    string Token,
+    string NewPassword);
