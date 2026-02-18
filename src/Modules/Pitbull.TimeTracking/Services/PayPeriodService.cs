@@ -11,7 +11,7 @@ namespace Pitbull.TimeTracking.Services;
 /// <summary>
 /// Pay period operations including period lifecycle and configuration-based generation.
 /// </summary>
-public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext) : IPayPeriodService
+public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext, ICompanyContext companyContext) : IPayPeriodService
 {
     public (DateOnly StartDate, DateOnly EndDate) CalculatePeriodBoundaries(DateOnly date, PayPeriodConfiguration config)
     {
@@ -181,6 +181,7 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext)
         var period = new PayPeriod
         {
             TenantId = tenantContext.TenantId,
+            CompanyId = companyContext.IsResolved ? companyContext.CompanyId : Guid.Empty,
             StartDate = startDate,
             EndDate = endDate,
             Status = PayPeriodStatus.Open,
@@ -425,6 +426,7 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext)
             var period = new PayPeriod
             {
                 TenantId = tenantContext.TenantId,
+                CompanyId = companyContext.IsResolved ? companyContext.CompanyId : Guid.Empty,
                 StartDate = startDate,
                 EndDate = endDate,
                 Status = PayPeriodStatus.Open,

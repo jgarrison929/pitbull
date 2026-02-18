@@ -120,7 +120,7 @@ public class AiService(
     {
         // Try preferred provider first, then fall back to any provider with a valid key
         var candidateProviders = GetCandidateProviders(request.Capability, providerOverride);
-        
+
         foreach (var provider in candidateProviders)
         {
             var apiKeyResult = await aiApiKeyService.GetDecryptedKeyAsync(tenantId, provider.Name, ct);
@@ -129,7 +129,18 @@ public class AiService(
                 : GetFallbackApiKey(provider.Name);
 
             if (!string.IsNullOrWhiteSpace(apiKey))
-                return await provider.CompleteAsync(request, apiKey, ct);
+            {
+                try
+                {
+                    return await provider.CompleteAsync(request, apiKey, ct);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    return Result.Failure<AiCompletionResult>(
+                        $"AI provider '{provider.Name}' failed: {ex.Message}",
+                        "AI_PROVIDER_ERROR");
+                }
+            }
         }
 
         return Result.Failure<AiCompletionResult>(

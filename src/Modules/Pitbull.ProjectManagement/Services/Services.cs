@@ -240,6 +240,16 @@ public abstract class PmServiceBase
             CreatedAt = DateTime.UtcNow,
         };
 
+        // Default user FK fields to prevent FK violations when not provided by the client
+        var userId = GetCurrentUserId();
+        if (userId != Guid.Empty)
+        {
+            SetIfExists(entity, "AssignedByUserId", userId);
+            SetIfExists(entity, "PreparedByUserId", userId);
+            SetIfExists(entity, "CommentedByUserId", userId);
+            SetIfExists(entity, "AssigneeUserId", userId);
+        }
+
         SetIfExists(entity, "ProjectId", projectId);
         ApplyUpsert(entity, request);
 
@@ -426,6 +436,13 @@ public abstract class PmServiceBase
         return user?.Identity?.Name
                ?? user?.FindFirst(ClaimTypes.Email)?.Value
                ?? user?.FindFirst("email")?.Value;
+    }
+
+    protected Guid GetCurrentUserId()
+    {
+        var user = _httpContextAccessor.HttpContext?.User;
+        var sub = user?.FindFirst("sub")?.Value ?? user?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(sub, out var id) ? id : Guid.Empty;
     }
 
     private async Task<bool> HasCurrentUserProjectAccessAsync(Guid projectId, CancellationToken ct)

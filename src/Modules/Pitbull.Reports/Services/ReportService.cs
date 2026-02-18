@@ -58,8 +58,8 @@ public sealed class ReportService(PitbullDbContext db) : IReportService
             te.ProjectId,
             ProjectName = te.Project.Name,
             te.EmployeeId,
-            EmployeeNumber = te.Employee.EmployeeNumber,
-            EmployeeName = te.Employee.FirstName + " " + te.Employee.LastName,
+            EmployeeNumber = te.Employee != null ? te.Employee.EmployeeNumber : "N/A",
+            EmployeeName = te.Employee != null ? te.Employee.FirstName + " " + te.Employee.LastName : "Unknown",
             te.CostCodeId,
             CostCode = te.CostCode.Code,
             CostCodeDescription = te.CostCode.Description,
@@ -68,9 +68,9 @@ public sealed class ReportService(PitbullDbContext db) : IReportService
             te.RegularHours,
             OvertimeHours = te.OvertimeHours + te.DoubletimeHours,
             TotalHours = te.RegularHours + te.OvertimeHours + te.DoubletimeHours,
-            TotalCost = (te.RegularHours * te.Employee.BaseHourlyRate)
-                + (te.OvertimeHours * te.Employee.BaseHourlyRate * 1.5m)
-                + (te.DoubletimeHours * te.Employee.BaseHourlyRate * 2.0m)
+            TotalCost = (te.RegularHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m))
+                + (te.OvertimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 1.5m)
+                + (te.DoubletimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 2.0m)
         });
 
         var normalizedGroupBy = groupBy.Trim().ToLowerInvariant();
@@ -178,9 +178,9 @@ public sealed class ReportService(PitbullDbContext db) : IReportService
             .Select(g => new
             {
                 ProjectId = g.Key,
-                LaborCost = g.Sum(te => (te.RegularHours * te.Employee.BaseHourlyRate)
-                    + (te.OvertimeHours * te.Employee.BaseHourlyRate * 1.5m)
-                    + (te.DoubletimeHours * te.Employee.BaseHourlyRate * 2.0m)),
+                LaborCost = g.Sum(te => (te.RegularHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m))
+                    + (te.OvertimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 1.5m)
+                    + (te.DoubletimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 2.0m)),
                 EquipmentCost = g.Sum(te => te.EquipmentId.HasValue
                     ? te.EquipmentHours * (te.Equipment != null ? te.Equipment.HourlyRate : 0m)
                     : 0m)
@@ -307,8 +307,8 @@ public sealed class ReportService(PitbullDbContext db) : IReportService
             .Select(te => new
             {
                 te.EmployeeId,
-                EmployeeNumber = te.Employee.EmployeeNumber,
-                EmployeeName = te.Employee.FirstName + " " + te.Employee.LastName,
+                EmployeeNumber = te.Employee != null ? te.Employee.EmployeeNumber : "N/A",
+                EmployeeName = te.Employee != null ? te.Employee.FirstName + " " + te.Employee.LastName : "Unknown",
                 te.Date,
                 Hours = te.RegularHours + te.OvertimeHours + te.DoubletimeHours,
                 te.ProjectId
