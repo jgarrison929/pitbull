@@ -43,15 +43,47 @@ interface ParsedRow {
   errors: string[];
 }
 
+/** Parse a single CSV line respecting quoted fields (RFC 4180). */
+function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+
+    if (c === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (c === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += c;
+  }
+
+  result.push(current.trim());
+  return result;
+}
+
 function parseCSV(text: string): { headers: string[]; rows: ParsedRow[] } {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length < 2) return { headers: [], rows: [] };
 
-  const headers = lines[0].split(",").map((h) => h.trim());
+  const headers = parseCsvLine(lines[0]);
   const rows: ParsedRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(",").map((v) => v.trim());
+    const values = parseCsvLine(lines[i]);
     const data: Record<string, string> = {};
     headers.forEach((h, idx) => {
       data[h] = values[idx] || "";

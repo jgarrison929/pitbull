@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 
 interface DataMap {
   [key: string]: unknown;
@@ -362,7 +363,10 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading meetings...</p>
+            <>
+              <div className="sm:hidden"><CardListSkeleton rows={4} /></div>
+              <div className="hidden sm:block"><TableSkeleton headers={["Date", "Title", "Type", "Time", "Location", "Status", "Actions"]} rows={4} /></div>
+            </>
           ) : (
             <>
               {/* Mobile card layout */}

@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Mail, CheckCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 function VerifyEmailContent() {
@@ -19,34 +19,29 @@ function VerifyEmailContent() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
-            <Mail className="w-8 h-8 text-blue-600" />
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
 
           <h2 className="text-xl font-semibold text-slate-900 mb-2">
-            Check your email
+            Account created
           </h2>
 
           <p className="text-slate-500 mb-6">
-            We sent a verification link to{" "}
             {email ? (
-              <span className="font-medium text-slate-700">{email}</span>
+              <>
+                Your account for{" "}
+                <span className="font-medium text-slate-700">{email}</span>{" "}
+                is ready to use.
+              </>
             ) : (
-              "your email address"
+              "Your account is ready to use."
             )}
-            . Click the link to verify your account.
           </p>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-sm text-slate-500 justify-center">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              <span>Email verification is coming soon</span>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              For now, your account is active immediately. Email verification
-              will be enabled in a future update.
-            </p>
+          <div className="flex items-center gap-2 text-sm text-slate-500 justify-center">
+            <CheckCircle className="w-4 h-4 text-green-500" />
+            <span>No email verification required — you can sign in now</span>
           </div>
 
           <div className="mt-6">

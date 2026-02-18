@@ -38,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 
 interface DataMap {
   [key: string]: unknown;
@@ -544,7 +545,10 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading templates...</p>
+            <>
+              <div className="sm:hidden"><CardListSkeleton rows={3} /></div>
+              <div className="hidden sm:block"><TableSkeleton headers={["Name", "Type", "Engine", "Version", "Default", "Actions"]} rows={3} /></div>
+            </>
           ) : (
             <>
               {/* Mobile card layout */}
@@ -643,7 +647,10 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading generated documents...</p>
+            <>
+              <div className="sm:hidden"><CardListSkeleton rows={3} /></div>
+              <div className="hidden sm:block"><TableSkeleton headers={["Document Type", "Generated At", "Output Format"]} rows={3} /></div>
+            </>
           ) : generatedDocRows.length === 0 ? (
             <div className="rounded-lg border border-dashed p-4 text-center">
               <p className="text-sm text-muted-foreground">
