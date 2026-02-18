@@ -290,6 +290,11 @@ public class RfisController(IRfiService rfiService) : ControllerBase
 /// <param name="BallInCourtUserId">User ID of person who currently needs to take action</param>
 /// <param name="BallInCourtName">Display name of person who currently needs to take action</param>
 /// <param name="CreatedByName">Display name of person creating the RFI</param>
+/// <param name="SpecSection">Specification section reference (e.g., "03 30 00 - Cast-in-Place Concrete")</param>
+/// <param name="DrawingReferences">List of drawing sheet references related to this RFI</param>
+/// <param name="HasCostImpact">Whether this RFI is expected to have a cost impact</param>
+/// <param name="EstimatedCostImpact">Estimated dollar amount of the cost impact, if any</param>
+/// <param name="EstimatedDelayDays">Estimated schedule delay in days, if any</param>
 public record CreateRfiRequest(
     string Subject,
     string Question,
