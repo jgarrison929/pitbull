@@ -34,7 +34,7 @@ import {
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingButton } from "@/components/ui/loading-button";
-import { Edit, Users, Search } from "lucide-react";
+import { Edit, Users, Search, UserPlus } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
 import type { AdminUser, AdminListUsersResult, RoleInfo, UserStatus } from "@/lib/types";
@@ -52,6 +52,7 @@ const roleBadgeClass: Record<string, string> = {
   Manager: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
   Supervisor: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
   User: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
+  Viewer: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200",
 };
 
 const statusOptions: UserStatus[] = ["Active", "Inactive", "Locked", "Invited"];
@@ -99,6 +100,12 @@ export default function UsersPage() {
     roles: [] as string[],
   });
   const [isSaving, setIsSaving] = useState(false);
+
+  // Invite modal state
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("Viewer");
+  const [isInviting, setIsInviting] = useState(false);
 
   // Check admin access
   useEffect(() => {
@@ -209,6 +216,31 @@ export default function UsersPage() {
     }
   };
 
+  const handleInviteUser = async () => {
+    if (!inviteEmail.trim()) {
+      toast.error("Email is required");
+      return;
+    }
+
+    setIsInviting(true);
+    try {
+      await api("/api/invitation", {
+        method: "POST",
+        body: { email: inviteEmail.trim(), role: inviteRole },
+      });
+      toast.success(`Invitation sent to ${inviteEmail.trim()}`);
+      setInviteDialogOpen(false);
+      setInviteEmail("");
+      setInviteRole("Viewer");
+      fetchUsers();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to send invitation";
+      toast.error(message);
+    } finally {
+      setIsInviting(false);
+    }
+  };
+
   // Calculate stats
   const adminCount = users.filter(u => u.roles.includes("Admin")).length;
   const activeCount = users.filter(u => u.status === "Active").length;
@@ -226,6 +258,13 @@ export default function UsersPage() {
             Manage users and their roles within your organization
           </p>
         </div>
+        <Button
+          onClick={() => setInviteDialogOpen(true)}
+          className="bg-amber-500 hover:bg-amber-600"
+        >
+          <UserPlus className="h-4 w-4 mr-2" />
+          Invite User
+        </Button>
       </div>
 
       {/* Filters */}
@@ -559,6 +598,67 @@ export default function UsersPage() {
               className="bg-amber-500 hover:bg-amber-600"
             >
               Save Changes
+            </LoadingButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invite User Dialog */}
+      <Dialog open={inviteDialogOpen} onOpenChange={(open) => {
+        setInviteDialogOpen(open);
+        if (!open) {
+          setInviteEmail("");
+          setInviteRole("Viewer");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Invite User</DialogTitle>
+            <DialogDescription>
+              Send an invitation to join your organization
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="inviteEmail">Email Address</Label>
+              <Input
+                id="inviteEmail"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                placeholder="user@example.com"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Manager">Manager</SelectItem>
+                  <SelectItem value="Supervisor">Supervisor</SelectItem>
+                  <SelectItem value="User">User</SelectItem>
+                  <SelectItem value="Viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <LoadingButton
+              onClick={handleInviteUser}
+              loading={isInviting}
+              loadingText="Sending..."
+              className="bg-amber-500 hover:bg-amber-600"
+            >
+              Send Invitation
             </LoadingButton>
           </DialogFooter>
         </DialogContent>

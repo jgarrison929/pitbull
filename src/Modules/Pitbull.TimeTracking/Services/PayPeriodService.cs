@@ -76,6 +76,20 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext)
         return null;
     }
 
+    public async Task<Result<PayPeriodDto>> GetCurrentPeriodAsync(CancellationToken cancellationToken = default)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var period = await db.Set<PayPeriod>()
+            .AsNoTracking()
+            .Where(p => p.StartDate <= today && p.EndDate >= today)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (period == null)
+            return Result.Failure<PayPeriodDto>("No pay period found for today", "NOT_FOUND");
+
+        return Result.Success(PayPeriodMapper.ToDto(period));
+    }
+
     public async Task<Result<PagedResult<PayPeriodDto>>> ListPayPeriodsAsync(
         PayPeriodStatus? status,
         int page,

@@ -160,7 +160,7 @@ public sealed class UsersEndpointsTests(PostgresFixture db) : IAsyncLifetime
         await db.ResetAsync();
         var (client, auth, _) = await _factory.CreateAuthenticatedClientAsync();
 
-        var resp = await client.PostAsJsonAsync($"/api/users/{auth.UserId}/roles", new { Role = "InvalidRole123" });
+        var resp = await client.PostAsJsonAsync($"/api/users/{auth.UserId}/roles/by-name", new { Role = "InvalidRole123" });
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         var json = await resp.Content.ReadAsStringAsync();

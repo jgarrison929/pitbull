@@ -46,6 +46,20 @@ public class PayPeriodsController(IPayPeriodService payPeriodService) : Controll
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
     }
 
+    [HttpGet("current")]
+    [ProducesResponseType(typeof(PayPeriodDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetCurrent()
+    {
+        var result = await payPeriodService.GetCurrentPeriodAsync();
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? this.NotFoundError(result.Error ?? "No pay period found for today")
+                : this.BadRequestError(result.Error ?? "Request failed");
+
+        return Ok(result.Value);
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(PayPeriodDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(Guid id)
