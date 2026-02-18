@@ -52,7 +52,7 @@ public abstract class ApiIntegrationTestBase(PostgresFixture db) : IAsyncLifetim
             Assert.Fail($"Expected 201 Created from register but got {(int)registerResp.StatusCode}. Body: {body}");
         }
 
-        var auth = await registerResp.Content.ReadFromJsonAsync<AuthResponse>();
+        var auth = await registerResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
         Assert.NotNull(auth);
 
         var token = auth!.Token;

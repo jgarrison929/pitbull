@@ -70,7 +70,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode} {createResp.StatusCode}. Body: {body}");
         }
 
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Equal(create.Number, created.Number);
         Assert.Single(created.Items);
@@ -78,7 +78,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var getResp = await client.GetAsync($"/api/bids/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
-        var fetched = (await getResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var fetched = (await getResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(create.Number, fetched.Number);
 
@@ -110,7 +110,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var createResp = await clientTenantA.PostAsJsonAsync("/api/bids", create);
         createResp.EnsureSuccessStatusCode();
 
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
         var getAsOtherTenant = await clientTenantB.GetAsync($"/api/bids/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getAsOtherTenant.StatusCode);
@@ -136,7 +136,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/bids", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
         Assert.Equal(BidStatus.Draft, created.Status);
 
         // Update to Submitted status
@@ -161,7 +161,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Assert.Fail($"Expected 200 OK but got {(int)updateResp.StatusCode}. Body: {body}");
         }
 
-        var updated = (await updateResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var updated = (await updateResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
         Assert.Equal("Updated Bid Name", updated.Name);
         Assert.Equal(BidStatus.Submitted, updated.Status);
         Assert.Equal(150000m, updated.EstimatedValue);
@@ -188,7 +188,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/bids", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
         // Update with mismatched ID in body
         var differentId = Guid.NewGuid();
@@ -231,7 +231,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/bids", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
         // Update to Won
         var update = new
@@ -251,7 +251,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var updateResp = await client.PutAsJsonAsync($"/api/bids/{created.Id}", update);
         updateResp.EnsureSuccessStatusCode();
 
-        var updated = (await updateResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var updated = (await updateResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
         Assert.Equal(BidStatus.Won, updated.Status);
     }
 
@@ -320,7 +320,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/bids", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
         // Delete it
         var deleteResp = await client.DeleteAsync($"/api/bids/{created.Id}");
@@ -371,7 +371,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/bids", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
         // Update to Won status
         var update = new
@@ -425,7 +425,7 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/bids", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
         // Try to convert - should fail
         var convertResp = await client.PostAsJsonAsync($"/api/bids/{created.Id}/convert-to-project", new { projectNumber = "PRJ-TEST" });

@@ -48,7 +48,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create subcontract
         var subcontractCmd = new CreateSubcontractCommand(
@@ -70,7 +70,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var scResp = await client.PostAsJsonAsync("/api/subcontracts", subcontractCmd);
         scResp.EnsureSuccessStatusCode();
-        var subcontract = (await scResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var subcontract = (await scResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
 
         return (client, project.Id, subcontract.Id);
     }
@@ -111,7 +111,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
 
-        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Equal(coCmd.Title, created.Title);
         Assert.Equal(coCmd.Amount, created.Amount);
@@ -122,7 +122,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
         var getResp = await client.GetAsync($"/api/changeorders/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
-        var fetched = (await getResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var fetched = (await getResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(coCmd.ChangeOrderNumber, fetched.ChangeOrderNumber);
 
@@ -154,7 +154,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await clientA.PostAsJsonAsync("/api/changeorders", coCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
 
         // Create Tenant B client
         var (clientB, _, _) = await _factory.CreateAuthenticatedClientAsync();
@@ -213,7 +213,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await client.PostAsJsonAsync("/api/changeorders", coCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
         Assert.Equal(ChangeOrderStatus.Pending, created.Status);
         Assert.Null(created.ApprovedDate);
 
@@ -238,7 +238,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
             Assert.Fail($"Expected 200 OK but got {(int)updateResp.StatusCode}. Body: {body}");
         }
 
-        var updated = (await updateResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var updated = (await updateResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
         Assert.Equal(ChangeOrderStatus.Approved, updated.Status);
         Assert.NotNull(updated.ApprovedDate);
     }
@@ -263,7 +263,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await client.PostAsJsonAsync("/api/changeorders", coCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
 
         // Delete
         var deleteResp = await client.DeleteAsync($"/api/changeorders/{created.Id}");
@@ -293,7 +293,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var sc2Resp = await client.PostAsJsonAsync("/api/subcontracts", sc2Cmd);
         sc2Resp.EnsureSuccessStatusCode();
-        var subcontract2 = (await sc2Resp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var subcontract2 = (await sc2Resp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
 
         // Create change orders for each subcontract  
         var co1Cmd = new CreateChangeOrderCommand(
@@ -312,11 +312,11 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var co1Resp = await client.PostAsJsonAsync("/api/changeorders", co1Cmd);
         co1Resp.EnsureSuccessStatusCode();
-        var co1 = (await co1Resp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var co1 = (await co1Resp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
 
         var co2Resp = await client.PostAsJsonAsync("/api/changeorders", co2Cmd);
         co2Resp.EnsureSuccessStatusCode();
-        var co2 = (await co2Resp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var co2 = (await co2Resp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
 
         // Filter by first subcontract
         var filteredResp = await client.GetAsync($"/api/changeorders?subcontractId={subcontract1Id}");
@@ -344,7 +344,7 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await client.PostAsJsonAsync("/api/changeorders", firstCo);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
 
         // Approve this one using the typed command
         var updateCmd = new UpdateChangeOrderCommand(

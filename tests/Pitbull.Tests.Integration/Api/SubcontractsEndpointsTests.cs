@@ -70,7 +70,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create a subcontract
         var subcontractCmd = new CreateSubcontractCommand(
@@ -97,7 +97,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
 
-        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Equal(subcontractCmd.SubcontractorName, created.SubcontractorName);
         Assert.Equal(subcontractCmd.SubcontractNumber, created.SubcontractNumber);
@@ -109,7 +109,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
         var getResp = await client.GetAsync($"/api/subcontracts/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
-        var fetched = (await getResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var fetched = (await getResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(created.SubcontractNumber, fetched.SubcontractNumber);
 
@@ -143,7 +143,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await clientA.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         var subcontractCmd = new CreateSubcontractCommand(
             ProjectId: project.Id,
@@ -164,7 +164,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await clientA.PostAsJsonAsync("/api/subcontracts", subcontractCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
 
         // Tenant B should not see it
         var getAsOtherTenant = await clientB.GetAsync($"/api/subcontracts/{created.Id}");
@@ -197,7 +197,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         var scNumber = $"SC-DUP-{Guid.NewGuid():N}";
 
@@ -251,7 +251,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create subcontract
         var createCmd = new CreateSubcontractCommand(
@@ -273,7 +273,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await client.PostAsJsonAsync("/api/subcontracts", createCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
 
         // Update
         var updateCmd = new UpdateSubcontractCommand(
@@ -304,7 +304,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
             Assert.Fail($"Expected 200 OK but got {(int)updateResp.StatusCode}. Body: {body}");
         }
 
-        var updated = (await updateResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var updated = (await updateResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
         Assert.Equal("Updated Subcontractor Name", updated.SubcontractorName);
         Assert.Equal("updated@test.com", updated.SubcontractorEmail);
         Assert.Equal(SubcontractStatus.Executed, updated.Status);
@@ -332,7 +332,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create subcontract
         var createCmd = new CreateSubcontractCommand(
@@ -354,7 +354,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await client.PostAsJsonAsync("/api/subcontracts", createCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
 
         // Update with mismatched ID in body
         var differentId = Guid.NewGuid();
@@ -405,7 +405,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create subcontract
         var createCmd = new CreateSubcontractCommand(
@@ -427,7 +427,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var createResp = await client.PostAsJsonAsync("/api/subcontracts", createCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
 
         // Delete
         var deleteResp = await client.DeleteAsync($"/api/subcontracts/{created.Id}");
@@ -485,8 +485,8 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
         var p2Resp = await client.PostAsJsonAsync("/api/projects", project2Cmd);
         p1Resp.EnsureSuccessStatusCode();
         p2Resp.EnsureSuccessStatusCode();
-        var project1 = (await p1Resp.Content.ReadFromJsonAsync<ProjectDto>())!;
-        var project2 = (await p2Resp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project1 = (await p1Resp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
+        var project2 = (await p2Resp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create subcontract for each project
         var sc1Number = $"SC-P1-{Guid.NewGuid():N}"[..20];
@@ -543,7 +543,7 @@ public sealed class SubcontractsEndpointsTests(PostgresFixture db) : IAsyncLifet
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create subcontracts with different names
         var uniqueId = Guid.NewGuid().ToString("N")[..8];

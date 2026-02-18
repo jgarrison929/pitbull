@@ -98,7 +98,7 @@ public sealed class AdminAuditEndpointsTests(PostgresFixture db) : IAsyncLifetim
         var resp = await client.GetAsync("/api/admin/audit-logs/resource-types");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
-        var types = await resp.Content.ReadFromJsonAsync<List<string>>();
+        var types = await resp.Content.ReadFromJsonAsync<List<string>>(TestJsonOptions.Default);
         Assert.NotNull(types);
         // Returns empty list when no audit logs exist - that's correct behavior.
         // Resource types are derived from actual audit log entries, not hardcoded.
@@ -114,7 +114,7 @@ public sealed class AdminAuditEndpointsTests(PostgresFixture db) : IAsyncLifetim
         var resp = await client.GetAsync("/api/admin/audit-logs/actions");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
-        var actions = await resp.Content.ReadFromJsonAsync<List<string>>();
+        var actions = await resp.Content.ReadFromJsonAsync<List<string>>(TestJsonOptions.Default);
         Assert.NotNull(actions);
         Assert.NotEmpty(actions);
         // Should contain standard audit actions

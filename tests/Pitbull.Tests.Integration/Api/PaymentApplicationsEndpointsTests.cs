@@ -49,7 +49,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCmd);
         projectResp.EnsureSuccessStatusCode();
-        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Create subcontract
         var subcontractCmd = new CreateSubcontractCommand(
@@ -71,7 +71,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var scResp = await client.PostAsJsonAsync("/api/subcontracts", subcontractCmd);
         scResp.EnsureSuccessStatusCode();
-        var subcontract = (await scResp.Content.ReadFromJsonAsync<SubcontractDto>())!;
+        var subcontract = (await scResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
 
         return (client, project.Id, subcontract.Id);
     }
@@ -114,7 +114,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
 
-        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Equal(1, created.ApplicationNumber); // First application
         Assert.Equal(payAppCmd.WorkCompletedThisPeriod, created.WorkCompletedThisPeriod);
@@ -129,7 +129,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         var getResp = await client.GetAsync($"/api/paymentapplications/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
-        var fetched = (await getResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var fetched = (await getResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(created.ApplicationNumber, fetched.ApplicationNumber);
 
@@ -160,7 +160,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var createResp = await clientA.PostAsJsonAsync("/api/paymentapplications", payAppCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
         // Create Tenant B client
         var (clientB, _, _) = await _factory.CreateAuthenticatedClientAsync();
@@ -217,7 +217,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var resp1 = await client.PostAsJsonAsync("/api/paymentapplications", payApp1);
         resp1.EnsureSuccessStatusCode();
-        var created1 = (await resp1.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created1 = (await resp1.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
         Assert.Equal(1, created1.ApplicationNumber);
 
         // Second payment application
@@ -232,7 +232,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var resp2 = await client.PostAsJsonAsync("/api/paymentapplications", payApp2);
         resp2.EnsureSuccessStatusCode();
-        var created2 = (await resp2.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created2 = (await resp2.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
         Assert.Equal(2, created2.ApplicationNumber);
         // Previous work should carry forward
@@ -259,7 +259,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
         // Update it
         var updateCmd = new UpdatePaymentApplicationCommand(
@@ -276,7 +276,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         var updateResp = await client.PutAsJsonAsync($"/api/paymentapplications/{created.Id}", updateCmd);
         Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
 
-        var updated = (await updateResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var updated = (await updateResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
         Assert.Equal(25_000m, updated.WorkCompletedThisPeriod);
         Assert.Equal(3_000m, updated.StoredMaterials);
         Assert.Equal(PaymentApplicationStatus.Submitted, updated.Status);
@@ -325,7 +325,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
         // Try to update with different ID in body
         var updateCmd = new UpdatePaymentApplicationCommand(
@@ -363,7 +363,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
         // Delete it
         var deleteResp = await client.DeleteAsync($"/api/paymentapplications/{created.Id}");
@@ -405,7 +405,7 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
 
         var createResp = await client.PostAsJsonAsync("/api/paymentapplications", createCmd);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
         // Submit it
         var updateCmd = new UpdatePaymentApplicationCommand(

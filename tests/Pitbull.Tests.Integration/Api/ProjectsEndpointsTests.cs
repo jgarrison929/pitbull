@@ -73,7 +73,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode} {createResp.StatusCode}. Body: {body}");
         }
 
-        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Equal(create.Name, created.Name);
         Assert.Equal(create.Number, created.Number);
@@ -81,7 +81,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var getResp = await client.GetAsync($"/api/projects/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
-        var fetched = (await getResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var fetched = (await getResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(create.Number, fetched.Number);
 
@@ -123,7 +123,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var createResp = await clientTenantA.PostAsJsonAsync("/api/projects", create);
         createResp.EnsureSuccessStatusCode();
 
-        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         var getAsOtherTenant = await clientTenantB.GetAsync($"/api/projects/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, getAsOtherTenant.StatusCode);
@@ -150,7 +150,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/projects", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Update project
         var update = new UpdateProjectCommand(
@@ -174,7 +174,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Assert.Fail($"Expected 200 OK but got {(int)updateResp.StatusCode}. Body: {body}");
         }
 
-        var updated = (await updateResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var updated = (await updateResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
         Assert.Equal("Updated Name", updated.Name);
         Assert.Equal("Updated description", updated.Description);
         Assert.Equal(ProjectType.Industrial, updated.Type);
@@ -203,7 +203,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/projects", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Delete
         var deleteResp = await client.DeleteAsync($"/api/projects/{created.Id}");
@@ -366,7 +366,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/projects", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Get stats (should return zeros for new project)
         var statsResp = await client.GetAsync($"/api/projects/{created.Id}/stats");
@@ -440,7 +440,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/projects", create);
         createResp.EnsureSuccessStatusCode();
-        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var created = (await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Request AI summary - might return 503 if AI not configured, which is valid
         var summaryResp = await client.GetAsync($"/api/projects/{created.Id}/ai-summary");
@@ -474,7 +474,7 @@ public sealed class ProjectsEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await clientA.PostAsJsonAsync("/api/projects", create);
         createResp.EnsureSuccessStatusCode();
-        var project = (await createResp.Content.ReadFromJsonAsync<ProjectDto>())!;
+        var project = (await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default))!;
 
         // Tenant B should not be able to access tenant A's project AI summary
         var (clientB, _, _) = await _factory.CreateAuthenticatedClientAsync();

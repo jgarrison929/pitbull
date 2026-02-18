@@ -121,7 +121,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
             baseHourlyRate = 25.00m
         });
         employeeResp.EnsureSuccessStatusCode();
-        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>(TestJsonOptions.Default);
 
         // Create a project using proper command
         var projectCommand = CreateTestProjectCommand("Assignment");
@@ -131,7 +131,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
             var body = await projectResp.Content.ReadAsStringAsync();
             Assert.Fail($"Project create failed: {(int)projectResp.StatusCode}. Body: {body}");
         }
-        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>();
+        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default);
 
         // Assign employee to project
         var assignResp = await client.PostAsJsonAsync("/api/project-assignments", new
@@ -148,7 +148,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
             Assert.Fail($"Expected 201 Created but got {(int)assignResp.StatusCode}. Body: {body}");
         }
 
-        var assignment = await assignResp.Content.ReadFromJsonAsync<ProjectAssignmentDto>();
+        var assignment = await assignResp.Content.ReadFromJsonAsync<ProjectAssignmentDto>(TestJsonOptions.Default);
         Assert.NotNull(assignment);
         Assert.NotEqual(Guid.Empty, assignment!.Id);
         Assert.Equal(employee.Id, assignment.EmployeeId);
@@ -160,14 +160,14 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
         // Verify by getting assignments for the project
         var byProjectResp = await client.GetAsync($"/api/project-assignments/by-project/{project.Id}");
         Assert.Equal(HttpStatusCode.OK, byProjectResp.StatusCode);
-        var projectAssignments = await byProjectResp.Content.ReadFromJsonAsync<List<ProjectAssignmentDto>>();
+        var projectAssignments = await byProjectResp.Content.ReadFromJsonAsync<List<ProjectAssignmentDto>>(TestJsonOptions.Default);
         Assert.NotNull(projectAssignments);
         Assert.Contains(projectAssignments, a => a.Id == assignment.Id);
 
         // Verify by getting assignments for the employee
         var byEmployeeResp = await client.GetAsync($"/api/project-assignments/by-employee/{employee.Id}");
         Assert.Equal(HttpStatusCode.OK, byEmployeeResp.StatusCode);
-        var employeeAssignments = await byEmployeeResp.Content.ReadFromJsonAsync<List<ProjectAssignmentDto>>();
+        var employeeAssignments = await byEmployeeResp.Content.ReadFromJsonAsync<List<ProjectAssignmentDto>>(TestJsonOptions.Default);
         Assert.NotNull(employeeAssignments);
         Assert.Contains(employeeAssignments, a => a.Id == assignment.Id);
     }
@@ -188,13 +188,13 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
             baseHourlyRate = 25.00m
         });
         employeeResp.EnsureSuccessStatusCode();
-        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>(TestJsonOptions.Default);
 
         // Create project
         var projectCommand = CreateTestProjectCommand("Remove");
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCommand);
         projectResp.EnsureSuccessStatusCode();
-        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>();
+        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default);
 
         // Assign
         var assignResp = await client.PostAsJsonAsync("/api/project-assignments", new
@@ -204,7 +204,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
             role = (int)AssignmentRole.Worker
         });
         assignResp.EnsureSuccessStatusCode();
-        var assignment = await assignResp.Content.ReadFromJsonAsync<ProjectAssignmentDto>();
+        var assignment = await assignResp.Content.ReadFromJsonAsync<ProjectAssignmentDto>(TestJsonOptions.Default);
 
         // Remove by assignment ID
         var deleteResp = await client.DeleteAsync($"/api/project-assignments/{assignment!.Id}");
@@ -213,7 +213,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
         // Verify assignment is no longer active (activeOnly=true should not return it)
         var byProjectResp = await client.GetAsync($"/api/project-assignments/by-project/{project.Id}?activeOnly=true");
         Assert.Equal(HttpStatusCode.OK, byProjectResp.StatusCode);
-        var assignments = await byProjectResp.Content.ReadFromJsonAsync<List<ProjectAssignmentDto>>();
+        var assignments = await byProjectResp.Content.ReadFromJsonAsync<List<ProjectAssignmentDto>>(TestJsonOptions.Default);
         Assert.DoesNotContain(assignments!, a => a.Id == assignment.Id && a.IsActive);
     }
 
@@ -231,7 +231,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
         var projectCommand = CreateTestProjectCommand("NonExistEmp");
         var projectResp = await client.PostAsJsonAsync("/api/projects", projectCommand);
         projectResp.EnsureSuccessStatusCode();
-        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>();
+        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default);
 
         // Try to assign nonexistent employee
         var assignResp = await client.PostAsJsonAsync("/api/project-assignments", new
@@ -260,7 +260,7 @@ public sealed class ProjectAssignmentsEndpointsTests(PostgresFixture db) : IAsyn
             baseHourlyRate = 25.00m
         });
         employeeResp.EnsureSuccessStatusCode();
-        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>();
+        var employee = await employeeResp.Content.ReadFromJsonAsync<EmployeeDto>(TestJsonOptions.Default);
 
         // Try to assign to nonexistent project
         var assignResp = await client.PostAsJsonAsync("/api/project-assignments", new

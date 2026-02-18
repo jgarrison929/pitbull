@@ -49,7 +49,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync("/api/projects", createProject);
         createResp.EnsureSuccessStatusCode();
-        var project = await createResp.Content.ReadFromJsonAsync<ProjectDto>();
+        var project = await createResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default);
 
         return (client, project!.Id);
     }
@@ -75,7 +75,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var resp = await client.PostAsJsonAsync("/api/subcontracts", subcontractCmd);
         resp.EnsureSuccessStatusCode();
-        var subcontract = await resp.Content.ReadFromJsonAsync<SubcontractDto>();
+        var subcontract = await resp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default);
         return subcontract!.Id;
     }
 
@@ -113,7 +113,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Assert.Fail($"Expected 201 Created but got {(int)createResp.StatusCode}. Body: {body}");
         }
 
-        var created = await createResp.Content.ReadFromJsonAsync<RfiDto>();
+        var created = await createResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
         Assert.NotNull(created);
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Equal(1, created.Number); // First RFI in project should be number 1
@@ -126,7 +126,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var getResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{created.Id}");
         Assert.Equal(HttpStatusCode.OK, getResp.StatusCode);
 
-        var fetched = await getResp.Content.ReadFromJsonAsync<RfiDto>();
+        var fetched = await getResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
         Assert.NotNull(fetched);
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(created.Subject, fetched.Subject);
@@ -155,7 +155,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", createRequest);
         createResp.EnsureSuccessStatusCode();
-        var created = await createResp.Content.ReadFromJsonAsync<RfiDto>();
+        var created = await createResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         // Update RFI with answer (should transition to Answered)
         var updateRequest = new
@@ -170,7 +170,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var updateResp = await client.PutAsJsonAsync($"/api/projects/{projectId}/rfis/{created!.Id}", updateRequest);
         Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
 
-        var updated = await updateResp.Content.ReadFromJsonAsync<RfiDto>();
+        var updated = await updateResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
         Assert.NotNull(updated);
         Assert.Equal(RfiStatus.Answered, updated.Status);
         Assert.Equal("Use 4000 PSI concrete per spec section 03300.", updated.Answer);
@@ -190,7 +190,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Question = "First question"
         });
         rfi1Resp.EnsureSuccessStatusCode();
-        var rfi1 = await rfi1Resp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi1 = await rfi1Resp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         // Create second RFI
         var rfi2Resp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
@@ -199,7 +199,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Question = "Second question"
         });
         rfi2Resp.EnsureSuccessStatusCode();
-        var rfi2 = await rfi2Resp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi2 = await rfi2Resp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         // Create third RFI
         var rfi3Resp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", new
@@ -208,7 +208,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Question = "Third question"
         });
         rfi3Resp.EnsureSuccessStatusCode();
-        var rfi3 = await rfi3Resp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi3 = await rfi3Resp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         Assert.Equal(1, rfi1!.Number);
         Assert.Equal(2, rfi2!.Number);
@@ -228,7 +228,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Question = "This should not be visible to Tenant B"
         });
         createResp.EnsureSuccessStatusCode();
-        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         // Try to access as Tenant B (different client = different tenant)
         var (clientB, _, _) = await _factory.CreateAuthenticatedClientAsync();
@@ -259,7 +259,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Question = "Question that will be answered"
         });
         answeredResp.EnsureSuccessStatusCode();
-        var answeredRfi = await answeredResp.Content.ReadFromJsonAsync<RfiDto>();
+        var answeredRfi = await answeredResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         await client.PutAsJsonAsync($"/api/projects/{projectId}/rfis/{answeredRfi!.Id}", new
         {
@@ -330,13 +330,13 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", createRequest);
         createResp.EnsureSuccessStatusCode();
-        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         // Get cost impact
         var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi!.Id}/cost-impact");
         Assert.Equal(HttpStatusCode.OK, costImpactResp.StatusCode);
 
-        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>(TestJsonOptions.Default);
         Assert.NotNull(impact);
         Assert.Equal(rfi.Id, impact.RfiId);
         Assert.Equal(rfi.Number, impact.RfiNumber);
@@ -373,10 +373,10 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
 
         var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/rfis", createRequest);
         createResp.EnsureSuccessStatusCode();
-        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi = await createResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi!.Id}/cost-impact");
-        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>(TestJsonOptions.Default);
 
         // Should be 0 or 1 days open (just created)
         Assert.True(impact!.DaysOpen >= 0 && impact.DaysOpen <= 1);
@@ -406,7 +406,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var summaryResp = await client.GetAsync($"/api/projects/{projectId}/rfi-cost-summary");
         Assert.Equal(HttpStatusCode.OK, summaryResp.StatusCode);
 
-        var summary = await summaryResp.Content.ReadFromJsonAsync<ProjectRfiCostSummaryDto>();
+        var summary = await summaryResp.Content.ReadFromJsonAsync<ProjectRfiCostSummaryDto>(TestJsonOptions.Default);
         Assert.NotNull(summary);
         Assert.Equal(projectId, summary.ProjectId);
         Assert.Equal(3, summary.TotalRfis);
@@ -440,7 +440,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             DueDate = DateTime.UtcNow.AddDays(3)
         });
         createRfiResp.EnsureSuccessStatusCode();
-        var rfi = await createRfiResp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi = await createRfiResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         // Create a subcontract
         var subcontractId = await CreateSubcontractForProjectAsync(client, projectId);
@@ -478,7 +478,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi.Id}/cost-impact");
         Assert.Equal(HttpStatusCode.OK, costImpactResp.StatusCode);
 
-        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>(TestJsonOptions.Default);
         Assert.NotNull(impact);
         Assert.Equal(rfi.Id, impact.RfiId);
         Assert.Equal(2, impact.ChangeOrders.Count);
@@ -504,7 +504,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Priority = RfiPriority.Urgent
         });
         rfi1Resp.EnsureSuccessStatusCode();
-        var rfi1 = await rfi1Resp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi1 = await rfi1Resp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         var co1Cmd = new CreateChangeOrderCommand(
             SubcontractId: subcontractId,
@@ -527,7 +527,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Priority = RfiPriority.Normal
         });
         rfi2Resp.EnsureSuccessStatusCode();
-        var rfi2 = await rfi2Resp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi2 = await rfi2Resp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         var co2Cmd = new CreateChangeOrderCommand(
             SubcontractId: subcontractId,
@@ -555,7 +555,7 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var summaryResp = await client.GetAsync($"/api/projects/{projectId}/rfi-cost-summary");
         Assert.Equal(HttpStatusCode.OK, summaryResp.StatusCode);
 
-        var summary = await summaryResp.Content.ReadFromJsonAsync<ProjectRfiCostSummaryDto>();
+        var summary = await summaryResp.Content.ReadFromJsonAsync<ProjectRfiCostSummaryDto>(TestJsonOptions.Default);
         Assert.NotNull(summary);
         Assert.Equal(projectId, summary.ProjectId);
         Assert.Equal(3, summary.TotalRfis);
@@ -579,13 +579,13 @@ public sealed class RfisEndpointsTests(PostgresFixture db) : IAsyncLifetime
             Priority = RfiPriority.Normal
         });
         createRfiResp.EnsureSuccessStatusCode();
-        var rfi = await createRfiResp.Content.ReadFromJsonAsync<RfiDto>();
+        var rfi = await createRfiResp.Content.ReadFromJsonAsync<RfiDto>(TestJsonOptions.Default);
 
         // Get cost impact
         var costImpactResp = await client.GetAsync($"/api/projects/{projectId}/rfis/{rfi!.Id}/cost-impact");
         Assert.Equal(HttpStatusCode.OK, costImpactResp.StatusCode);
 
-        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>();
+        var impact = await costImpactResp.Content.ReadFromJsonAsync<RfiCostImpactDto>(TestJsonOptions.Default);
         Assert.NotNull(impact);
         Assert.Equal(rfi.Id, impact.RfiId);
         Assert.Empty(impact.ChangeOrders);

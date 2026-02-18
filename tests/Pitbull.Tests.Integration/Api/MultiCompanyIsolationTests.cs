@@ -55,7 +55,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         var accessibleResp = await client.GetAsync("/api/companies/accessible");
         Assert.Equal(HttpStatusCode.OK, accessibleResp.StatusCode);
 
-        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>();
+        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>(TestJsonOptions.Default);
         Assert.NotNull(companies);
         Assert.Single(companies);
         Assert.True(companies[0].IsDefault);
@@ -71,7 +71,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         var resp = await client.GetAsync("/api/companies/active");
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
 
-        var company = await resp.Content.ReadFromJsonAsync<CompanyResponse>();
+        var company = await resp.Content.ReadFromJsonAsync<CompanyResponse>(TestJsonOptions.Default);
         Assert.NotNull(company);
         Assert.True(company.IsDefault);
         Assert.True(company.IsActive);
@@ -94,7 +94,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         var createResp = await client.PostAsJsonAsync("/api/admin/companies", createReq);
         Assert.Equal(HttpStatusCode.Created, createResp.StatusCode);
 
-        var created = await createResp.Content.ReadFromJsonAsync<CompanyResponse>();
+        var created = await createResp.Content.ReadFromJsonAsync<CompanyResponse>(TestJsonOptions.Default);
         Assert.NotNull(created);
         Assert.Equal("02", created.Code);
         Assert.Equal("Second Company LLC", created.Name);
@@ -115,7 +115,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         var listResp = await client.GetAsync("/api/admin/companies");
         Assert.Equal(HttpStatusCode.OK, listResp.StatusCode);
 
-        var companies = await listResp.Content.ReadFromJsonAsync<List<CompanyResponse>>();
+        var companies = await listResp.Content.ReadFromJsonAsync<List<CompanyResponse>>(TestJsonOptions.Default);
         Assert.NotNull(companies);
         Assert.Equal(2, companies.Count);
     }
@@ -137,7 +137,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
             Name = "Second Company"
         });
         createResp.EnsureSuccessStatusCode();
-        var newCompany = await createResp.Content.ReadFromJsonAsync<CompanyResponse>();
+        var newCompany = await createResp.Content.ReadFromJsonAsync<CompanyResponse>(TestJsonOptions.Default);
         Assert.NotNull(newCompany);
 
         // Grant user access to the new company (user needs to be in UserCompanyAccess table)
@@ -154,7 +154,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
             password = "SecurePass123"
         });
         loginResp.EnsureSuccessStatusCode();
-        var newAuth = await loginResp.Content.ReadFromJsonAsync<AuthResponse>();
+        var newAuth = await loginResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
         Assert.NotNull(newAuth);
 
         // Update client auth header
@@ -168,7 +168,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         var switchResp = await client.PostAsync($"/api/companies/switch/{newCompany.Id}", null);
         Assert.Equal(HttpStatusCode.OK, switchResp.StatusCode);
 
-        var switchResult = await switchResp.Content.ReadFromJsonAsync<CompanySwitchResponse>();
+        var switchResult = await switchResp.Content.ReadFromJsonAsync<CompanySwitchResponse>(TestJsonOptions.Default);
         Assert.NotNull(switchResult);
 
         // Verify the new token has the switched company_id
@@ -278,7 +278,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
             Name = "Second Company"
         });
         createResp.EnsureSuccessStatusCode();
-        var company2 = await createResp.Content.ReadFromJsonAsync<CompanyResponse>();
+        var company2 = await createResp.Content.ReadFromJsonAsync<CompanyResponse>(TestJsonOptions.Default);
         Assert.NotNull(company2);
 
         // Grant user access
@@ -292,7 +292,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
             password = "SecurePass123"
         });
         loginResp.EnsureSuccessStatusCode();
-        var newAuth = await loginResp.Content.ReadFromJsonAsync<AuthResponse>();
+        var newAuth = await loginResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
         Assert.NotNull(newAuth);
 
         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", newAuth.Token);
@@ -322,7 +322,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
         // Get active company with header - should be Company 2
         var activeResp = await clientWithHeader.GetAsync("/api/companies/active");
         Assert.Equal(HttpStatusCode.OK, activeResp.StatusCode);
-        var activeCompany = await activeResp.Content.ReadFromJsonAsync<CompanyResponse>();
+        var activeCompany = await activeResp.Content.ReadFromJsonAsync<CompanyResponse>(TestJsonOptions.Default);
         Assert.NotNull(activeCompany);
         Assert.Equal(company2.Id, activeCompany.Id);
     }
@@ -353,7 +353,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
 
         // Should have exactly one accessible company
         var accessibleResp = await client.GetAsync("/api/companies/accessible");
-        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>();
+        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>(TestJsonOptions.Default);
         Assert.NotNull(companies);
         Assert.Single(companies);
     }
@@ -367,7 +367,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
 
         // Get the default company
         var accessibleResp = await client.GetAsync("/api/companies/accessible");
-        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>();
+        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>(TestJsonOptions.Default);
         var defaultCompany = companies?.FirstOrDefault(c => c.IsDefault);
         Assert.NotNull(defaultCompany);
 
@@ -412,14 +412,14 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
 
         // Get default company
         var accessibleResp = await client.GetAsync("/api/companies/accessible");
-        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>();
+        var companies = await accessibleResp.Content.ReadFromJsonAsync<List<CompanyResponse>>(TestJsonOptions.Default);
         var company = companies!.First();
 
         // List users for the company
         var listUsersResp = await client.GetAsync($"/api/admin/companies/{company.Id}/users");
         Assert.Equal(HttpStatusCode.OK, listUsersResp.StatusCode);
 
-        var users = await listUsersResp.Content.ReadFromJsonAsync<List<CompanyUserResponse>>();
+        var users = await listUsersResp.Content.ReadFromJsonAsync<List<CompanyUserResponse>>(TestJsonOptions.Default);
         Assert.NotNull(users);
         Assert.Single(users); // Just the registered user
 
@@ -429,7 +429,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
             Code = "02",
             Name = "Second Company"
         });
-        var newCompany = await createResp.Content.ReadFromJsonAsync<CompanyResponse>();
+        var newCompany = await createResp.Content.ReadFromJsonAsync<CompanyResponse>(TestJsonOptions.Default);
         Assert.NotNull(newCompany);
 
         // Grant current user access to new company
@@ -439,7 +439,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
 
         // List users for new company
         var listNewUsersResp = await client.GetAsync($"/api/admin/companies/{newCompany.Id}/users");
-        var newUsers = await listNewUsersResp.Content.ReadFromJsonAsync<List<CompanyUserResponse>>();
+        var newUsers = await listNewUsersResp.Content.ReadFromJsonAsync<List<CompanyUserResponse>>(TestJsonOptions.Default);
         Assert.NotNull(newUsers);
         Assert.Single(newUsers);
         Assert.Equal("Manager", newUsers[0].CompanyRole);
@@ -450,7 +450,7 @@ public sealed class MultiCompanyIsolationTests(PostgresFixture db) : IAsyncLifet
 
         // Verify access revoked
         var listAfterRevoke = await client.GetAsync($"/api/admin/companies/{newCompany.Id}/users");
-        var usersAfterRevoke = await listAfterRevoke.Content.ReadFromJsonAsync<List<CompanyUserResponse>>();
+        var usersAfterRevoke = await listAfterRevoke.Content.ReadFromJsonAsync<List<CompanyUserResponse>>(TestJsonOptions.Default);
         Assert.NotNull(usersAfterRevoke);
         Assert.Empty(usersAfterRevoke);
     }

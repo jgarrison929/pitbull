@@ -11,10 +11,7 @@ namespace Pitbull.Tests.Integration.Api;
 [Collection(DatabaseCollection.Name)]
 public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
+    private static readonly JsonSerializerOptions JsonOptions = TestJsonOptions.Default;
 
     private PitbullApiFactory _factory = null!;
 
@@ -111,7 +108,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             contractAmount = 100000m
         });
         projectResp.EnsureSuccessStatusCode();
-        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>();
+        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default);
 
         // Assign employee to project
         var assignResp = await client.PostAsJsonAsync("/api/project-assignments", new
@@ -180,7 +177,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             Assert.Fail($"Expected 201 Created but got {(int)entryResp.StatusCode}. Body: {body}");
         }
 
-        var entry = await entryResp.Content.ReadFromJsonAsync<TimeEntryDto>();
+        var entry = await entryResp.Content.ReadFromJsonAsync<TimeEntryDto>(TestJsonOptions.Default);
         Assert.NotNull(entry);
         Assert.NotEqual(Guid.Empty, entry!.Id);
         Assert.Equal(8.0m, entry.RegularHours);
@@ -345,7 +342,7 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
             contractAmount = 50000m
         });
         projectResp.EnsureSuccessStatusCode();
-        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>();
+        var project = await projectResp.Content.ReadFromJsonAsync<ProjectDto>(TestJsonOptions.Default);
 
         // Query time entries by project (should be empty but return 200)
         var resp = await client.GetAsync($"/api/time-entries/by-project/{project!.Id}");

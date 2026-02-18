@@ -14,10 +14,7 @@ namespace Pitbull.Tests.Integration.Api;
 [Collection(DatabaseCollection.Name)]
 public sealed class EmployeesEndpointsTests(PostgresFixture db) : IAsyncLifetime
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true
-    };
+    private static readonly JsonSerializerOptions JsonOptions = TestJsonOptions.Default;
 
     private PitbullApiFactory _factory = null!;
 

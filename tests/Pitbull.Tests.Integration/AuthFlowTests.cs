@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration;
 
@@ -33,7 +34,7 @@ public class AuthFlowTests(PitbullTestContainersFactory factory) : IClassFixture
         });
 
         registerResp.EnsureSuccessStatusCode();
-        var auth = await registerResp.Content.ReadFromJsonAsync<AuthResponse>();
+        var auth = await registerResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
         Assert.NotNull(auth);
         Assert.False(string.IsNullOrWhiteSpace(auth!.Token));
 
@@ -75,7 +76,7 @@ public class AuthFlowTests(PitbullTestContainersFactory factory) : IClassFixture
         var loginResp = await client.PostAsJsonAsync("/api/auth/login", new { email, password });
         loginResp.EnsureSuccessStatusCode();
 
-        var login = await loginResp.Content.ReadFromJsonAsync<AuthResponse>();
+        var login = await loginResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
         Assert.NotNull(login);
         Assert.False(string.IsNullOrWhiteSpace(login!.Token));
 

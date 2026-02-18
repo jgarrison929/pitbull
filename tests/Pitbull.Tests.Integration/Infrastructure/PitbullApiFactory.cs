@@ -55,7 +55,7 @@ public sealed class PitbullApiFactory(string connectionString) : WebApplicationF
 
         registerResponse.EnsureSuccessStatusCode();
 
-        var auth = (await registerResponse.Content.ReadFromJsonAsync<AuthResponse>())
+        var auth = (await registerResponse.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default))
             ?? throw new InvalidOperationException("Registration returned empty body");
 
         var tenantId = ExtractTenantId(auth.Token);
