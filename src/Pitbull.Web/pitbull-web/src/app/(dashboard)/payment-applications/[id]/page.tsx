@@ -240,7 +240,6 @@ export default function PaymentApplicationDetailPage() {
       await api(`/api/paymentapplications/${id}/reject`, {
         method: "POST",
         body: {
-          rejectedBy: "Current User",
           reason: rejectReason.trim(),
         },
       });

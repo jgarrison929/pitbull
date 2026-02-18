@@ -33,10 +33,14 @@ type StatusOption = {
 
 const statusOptions: StatusOption[] = [
   { value: SubcontractStatus.Draft, label: "Draft" },
+  { value: SubcontractStatus.PendingApproval, label: "Pending Approval" },
+  { value: SubcontractStatus.Issued, label: "Issued" },
   { value: SubcontractStatus.Executed, label: "Executed" },
   { value: SubcontractStatus.InProgress, label: "In Progress" },
   { value: SubcontractStatus.Complete, label: "Complete" },
-  { value: SubcontractStatus.ClosedOut, label: "Closed" },
+  { value: SubcontractStatus.ClosedOut, label: "Closed Out" },
+  { value: SubcontractStatus.Terminated, label: "Terminated" },
+  { value: SubcontractStatus.OnHold, label: "On Hold" },
 ];
 
 type CreateSubcontractPayload = {
@@ -158,12 +162,6 @@ export function SubcontractEditor({
         }
 
         if (subcontractRes) {
-          const statusValue = statusOptions.some(
-            (o) => o.value === subcontractRes.status
-          )
-            ? subcontractRes.status
-            : SubcontractStatus.Draft;
-
           setForm({
             projectId: subcontractRes.projectId,
             subcontractNumber: subcontractRes.subcontractNumber ?? "",
@@ -171,7 +169,7 @@ export function SubcontractEditor({
             originalValue: subcontractRes.originalValue?.toString() ?? "",
             retainagePercent:
               subcontractRes.retainagePercent?.toString() ?? "10",
-            status: statusValue,
+            status: subcontractRes.status,
             startDate: subcontractRes.startDate?.slice(0, 10) ?? "",
             completionDate: subcontractRes.completionDate?.slice(0, 10) ?? "",
             executionDate: subcontractRes.executionDate?.slice(0, 10) ?? "",
@@ -211,8 +209,16 @@ export function SubcontractEditor({
       toast.error("Project is required");
       return false;
     }
+    if (!form.subcontractNumber.trim()) {
+      toast.error("Subcontract number is required");
+      return false;
+    }
     if (!form.subcontractorName.trim()) {
       toast.error("Vendor / Sub Name is required");
+      return false;
+    }
+    if (!form.scopeOfWork.trim()) {
+      toast.error("Scope of work is required");
       return false;
     }
     const amount = Number(form.originalValue);
@@ -413,14 +419,16 @@ export function SubcontractEditor({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="subcontractNumber">Number</Label>
+              <Label htmlFor="subcontractNumber">
+                Number <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="subcontractNumber"
                 value={form.subcontractNumber}
                 onChange={(e) =>
                   updateField("subcontractNumber", e.target.value)
                 }
-                placeholder="SC-2026-001 (auto-generated if blank)"
+                placeholder="SC-2026-001"
               />
             </div>
             <div className="space-y-2">

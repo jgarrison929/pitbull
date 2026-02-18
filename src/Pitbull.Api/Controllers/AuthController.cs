@@ -368,7 +368,9 @@ public class AuthController(
 
         user.RefreshToken = newRefreshToken;
         user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-        await userManager.UpdateAsync(user);
+        var updateResult = await userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+            return StatusCode(500, new { error = "Failed to persist token rotation", code = "INTERNAL_ERROR" });
 
         var roles = await roleSeeder.GetUserRolesAsync(user);
 
@@ -431,6 +433,11 @@ public class AuthController(
             );
             return this.ValidationError(errors, "Password change failed");
         }
+
+        // Revoke refresh token so stolen tokens can't mint new access tokens
+        user.RefreshToken = null;
+        user.RefreshTokenExpiryTime = null;
+        await userManager.UpdateAsync(user);
 
         return Ok(new { message = "Password changed successfully" });
     }
@@ -694,6 +701,11 @@ public class AuthController(
             var errors = string.Join("; ", result.Errors.Select(e => e.Description));
             return this.BadRequestError(errors);
         }
+
+        // Revoke refresh token so stolen tokens can't mint new access tokens
+        user.RefreshToken = null;
+        user.RefreshTokenExpiryTime = null;
+        await userManager.UpdateAsync(user);
 
         return Ok(new { message = "Password has been reset successfully" });
     }

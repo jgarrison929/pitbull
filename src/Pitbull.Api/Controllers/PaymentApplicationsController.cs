@@ -293,7 +293,12 @@ public class PaymentApplicationsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectPaymentApplicationRequest request)
     {
-        var result = await payAppService.RejectAsync(id, request);
+        // Override client-supplied RejectedBy with authenticated user identity
+        var userName = User.FindFirst("full_name")?.Value
+            ?? User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+            ?? "Unknown";
+        var serverRequest = request with { RejectedBy = userName };
+        var result = await payAppService.RejectAsync(id, serverRequest);
         return this.HandleResult(result);
     }
 

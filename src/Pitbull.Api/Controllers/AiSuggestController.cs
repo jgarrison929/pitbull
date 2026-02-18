@@ -120,8 +120,13 @@ public class AiSuggestController(IAiService aiService, PitbullDbContext db) : Co
         if (recentRfis.Count == 0)
             return Ok(Array.Empty<SimilarRfiResult>());
 
-        // Build AI prompt to find similar RFIs
-        var rfiList = string.Join("\n", recentRfis.Select(r => $"- RFI-{r.Number:D3}: {r.Subject}"));
+        // Build AI prompt to find similar RFIs — sanitize DB-stored subjects
+        var rfiList = string.Join("\n", recentRfis.Select(r =>
+        {
+            var safeSubject = (r.Subject ?? "").Replace("\r", " ").Replace("\n", " ");
+            if (safeSubject.Length > 200) safeSubject = safeSubject[..200];
+            return $"- RFI-{r.Number:D3}: \"{AiInputSanitizer.Sanitize(safeSubject)}\"";
+        }));
         var userPrompt = $"""
             New RFI subject: "{AiInputSanitizer.Sanitize(request.Subject)}"
             {(string.IsNullOrWhiteSpace(request.Description) ? "" : $"Description: \"{AiInputSanitizer.Sanitize(request.Description)}\"")}
