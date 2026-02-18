@@ -70,7 +70,7 @@ public class ContractsService(PitbullDbContext db) : IContractsService
     {
         // Validate project exists (prevents FK constraint violation)
         var projectExists = await db.Database
-            .SqlQueryRaw<int>("SELECT 1 AS \"Value\" FROM projects WHERE id = {0} AND is_deleted = false LIMIT 1", command.ProjectId)
+            .SqlQueryRaw<int>("SELECT 1 AS \"Value\" FROM projects WHERE \"Id\" = {0} AND \"IsDeleted\" = false LIMIT 1", command.ProjectId)
             .AnyAsync(cancellationToken);
         if (!projectExists)
             return Result.Failure<SubcontractDto>("Project not found", "NOT_FOUND");

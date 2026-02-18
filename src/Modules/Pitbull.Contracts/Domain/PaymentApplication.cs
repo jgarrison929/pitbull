@@ -10,7 +10,7 @@ public class PaymentApplication : BaseEntity, ICompanyScoped
 {
     public Guid CompanyId { get; set; }
     public Guid SubcontractId { get; set; }
-    public Guid ScheduleOfValuesId { get; set; }
+    public Guid? ScheduleOfValuesId { get; set; }
     public int ApplicationNumber { get; set; } // Sequential: 1, 2, 3...
 
     // Billing period
