@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
@@ -13,20 +14,17 @@ import {
   reportItems,
   settingsItems,
   adminItems,
+  type NavItem as NavItemType,
 } from "./nav-items";
+import { findActiveHref } from "./nav-utils";
 
 function NavItem({
   item,
-  pathname,
+  isActive,
 }: {
-  item: { label: string; href: string; icon: string; disabled?: boolean };
-  pathname: string;
+  item: NavItemType;
+  isActive: boolean;
 }) {
-  const isActive =
-    item.href === "/"
-      ? pathname === "/"
-      : pathname === item.href || pathname.startsWith(item.href + "/");
-
   return (
     <Link
       href={item.disabled ? "#" : item.href}
@@ -70,6 +68,19 @@ export function AppSidebar() {
   const currentProjectId = projectMatch?.[1] || null;
   const projectManagementItems = getProjectManagementItems(currentProjectId);
 
+  // Compute the single active href across all nav items so only the most
+  // specific match highlights (fixes /settings also lighting up for /settings/notifications).
+  const activeHref = useMemo(() => {
+    const allItems = [
+      ...mainNavItems,
+      ...projectManagementItems,
+      ...reportItems,
+      ...settingsItems,
+      ...(user?.roles?.includes("Admin") ? adminItems : []),
+    ];
+    return findActiveHref(pathname, allItems);
+  }, [pathname, projectManagementItems, user?.roles]);
+
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar text-sidebar-foreground min-h-screen">
       {/* Logo */}
@@ -101,7 +112,7 @@ export function AppSidebar() {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {/* Main nav */}
         {mainNavItems.map((item) => (
-          <NavItem key={item.label} item={item} pathname={pathname} />
+          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 
         {/* Project Management Section */}
@@ -112,19 +123,19 @@ export function AppSidebar() {
           </p>
         )}
         {projectManagementItems.map((item) => (
-          <NavItem key={item.label} item={item} pathname={pathname} />
+          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 
         {/* Reports Section */}
         <SectionHeader label="Reports" />
         {reportItems.map((item) => (
-          <NavItem key={item.label} item={item} pathname={pathname} />
+          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 
         {/* Settings Section */}
         <SectionHeader label="Settings" />
         {settingsItems.map((item) => (
-          <NavItem key={item.label} item={item} pathname={pathname} />
+          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 
         {/* Admin Section - Only visible to admins */}
@@ -132,7 +143,7 @@ export function AppSidebar() {
           <>
             <SectionHeader label="Admin" />
             {adminItems.map((item) => (
-              <NavItem key={item.label} item={item} pathname={pathname} />
+              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
             ))}
           </>
         )}

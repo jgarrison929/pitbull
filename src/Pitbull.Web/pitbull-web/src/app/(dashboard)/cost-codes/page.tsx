@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,9 @@ import {
   Plus,
   Pencil,
   Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 import api from "@/lib/api";
 import {
@@ -97,15 +100,26 @@ const emptyFormData: CostCodeFormData = {
   isActive: true,
 };
 
+const DEFAULT_PAGE_SIZE = 25;
+
+type SortField = "code" | "description" | "division" | "type" | "status";
+type SortDirection = "asc" | "desc";
+
 export default function CostCodesPage() {
   const [costCodes, setCostCodes] = useState<CostCode[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Filters
   const [search, setSearch] = useState("");
   const [costTypeFilter, setCostTypeFilter] = useState<string>(ALL_VALUE);
   const [activeFilter, setActiveFilter] = useState<string>("true");
+
+  // Sorting + pagination
+  const [sortField, setSortField] = useState<SortField>("code");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [page, setPage] = useState(1);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -129,7 +143,8 @@ export default function CostCodesPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      params.set("pageSize", "100");
+      params.set("page", String(page));
+      params.set("pageSize", String(DEFAULT_PAGE_SIZE));
       if (search.trim()) params.set("search", search.trim());
       if (costTypeFilter !== ALL_VALUE) params.set("costType", costTypeFilter);
       if (activeFilter !== ALL_VALUE) params.set("isActive", activeFilter);
@@ -139,12 +154,13 @@ export default function CostCodesPage() {
       );
       setCostCodes(result.items);
       setTotalCount(result.totalCount);
+      setTotalPages(Math.max(result.totalPages || 1, 1));
     } catch {
       toast.error("Failed to load cost codes");
     } finally {
       setIsLoading(false);
     }
-  }, [search, costTypeFilter, activeFilter]);
+  }, [search, costTypeFilter, activeFilter, page]);
 
   useEffect(() => {
     fetchCostCodes();
@@ -158,6 +174,58 @@ export default function CostCodesPage() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, costTypeFilter, activeFilter]);
+
+  // Client-side sorting on the fetched page
+  const sortedCostCodes = useMemo(() => {
+    const copy = [...costCodes];
+    copy.sort((a, b) => {
+      const dir = sortDirection === "asc" ? 1 : -1;
+      switch (sortField) {
+        case "code":
+          return dir * a.code.localeCompare(b.code);
+        case "description":
+          return dir * a.description.localeCompare(b.description);
+        case "division":
+          return dir * (a.division || "").localeCompare(b.division || "");
+        case "type":
+          return dir * (costTypeLabels[a.costType] || "").localeCompare(costTypeLabels[b.costType] || "");
+        case "status": {
+          const aVal = a.isActive ? 1 : 0;
+          const bVal = b.isActive ? 1 : 0;
+          return dir * (aVal - bVal);
+        }
+        default:
+          return 0;
+      }
+    });
+    return copy;
+  }, [costCodes, sortField, sortDirection]);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+      return;
+    }
+    setSortField(field);
+    setSortDirection("asc");
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="ml-1 h-3.5 w-3.5 text-muted-foreground/60" />;
+    return sortDirection === "asc" ? (
+      <ArrowUp className="ml-1 h-3.5 w-3.5 text-amber-600" />
+    ) : (
+      <ArrowDown className="ml-1 h-3.5 w-3.5 text-amber-600" />
+    );
+  };
+
+  const pageStart = totalCount === 0 ? 0 : (page - 1) * DEFAULT_PAGE_SIZE + 1;
+  const pageEnd = totalCount === 0 ? 0 : Math.min(page * DEFAULT_PAGE_SIZE, totalCount);
 
   function openAddDialog() {
     setEditingCostCode(null);
@@ -411,16 +479,36 @@ export default function CostCodesPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Division</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>
+                      <button className="flex items-center hover:text-foreground" onClick={() => toggleSort("code")}>
+                        Code <SortIcon field="code" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button className="flex items-center hover:text-foreground" onClick={() => toggleSort("description")}>
+                        Description <SortIcon field="description" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button className="flex items-center hover:text-foreground" onClick={() => toggleSort("division")}>
+                        Division <SortIcon field="division" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button className="flex items-center hover:text-foreground" onClick={() => toggleSort("type")}>
+                        Type <SortIcon field="type" />
+                      </button>
+                    </TableHead>
+                    <TableHead>
+                      <button className="flex items-center hover:text-foreground" onClick={() => toggleSort("status")}>
+                        Status <SortIcon field="status" />
+                      </button>
+                    </TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {costCodes.map((code) => {
+                  {sortedCostCodes.map((code) => {
                     const TypeIcon = costTypeIcons[code.costType] || HelpCircle;
                     return (
                       <TableRow key={code.id}>
@@ -510,7 +598,7 @@ export default function CostCodesPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {costCodes.map((code) => {
+              {sortedCostCodes.map((code) => {
                 const TypeIcon = costTypeIcons[code.costType] || HelpCircle;
                 return (
                   <Card key={code.id}>
@@ -575,10 +663,35 @@ export default function CostCodesPage() {
           )}
         </div>
 
-        {/* Pagination info */}
+        {/* Pagination */}
         {!isLoading && costCodes.length > 0 && (
-          <div className="text-sm text-muted-foreground text-center">
-            Showing {costCodes.length} of {totalCount} cost codes
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              Showing {pageStart}-{pageEnd} of {totalCount}
+            </p>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                  disabled={page <= 1}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground px-2">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         )}
 

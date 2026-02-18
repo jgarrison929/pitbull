@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
@@ -13,22 +14,19 @@ import {
   reportItems,
   settingsItems,
   adminItems,
+  type NavItem as NavItemType,
 } from "./nav-items";
+import { findActiveHref } from "./nav-utils";
 
 function MobileNavItem({
   item,
-  pathname,
+  isActive,
   onNavigate,
 }: {
-  item: { label: string; href: string; icon: string; disabled?: boolean };
-  pathname: string;
+  item: NavItemType;
+  isActive: boolean;
   onNavigate?: () => void;
 }) {
-  const isActive =
-    item.href === "/"
-      ? pathname === "/"
-      : pathname === item.href || pathname.startsWith(item.href + "/");
-
   return (
     <Link
       href={item.disabled ? "#" : item.href}
@@ -72,6 +70,17 @@ export function AppSidebarMobile({ onNavigate }: { onNavigate?: () => void }) {
   const currentProjectId = projectMatch?.[1] || null;
   const projectManagementItems = getProjectManagementItems(currentProjectId);
 
+  const activeHref = useMemo(() => {
+    const allItems = [
+      ...mainNavItems,
+      ...projectManagementItems,
+      ...reportItems,
+      ...settingsItems,
+      ...(user?.roles?.includes("Admin") ? adminItems : []),
+    ];
+    return findActiveHref(pathname, allItems);
+  }, [pathname, projectManagementItems, user?.roles]);
+
   return (
     <div className="flex flex-col h-full text-white">
       <div className="flex items-center gap-3 px-6 py-5">
@@ -101,7 +110,7 @@ export function AppSidebarMobile({ onNavigate }: { onNavigate?: () => void }) {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {/* Main nav */}
         {mainNavItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
+          <MobileNavItem key={item.label} item={item} isActive={item.href === activeHref} onNavigate={onNavigate} />
         ))}
 
         {/* Project Management Section */}
@@ -112,19 +121,19 @@ export function AppSidebarMobile({ onNavigate }: { onNavigate?: () => void }) {
           </p>
         )}
         {projectManagementItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
+          <MobileNavItem key={item.label} item={item} isActive={item.href === activeHref} onNavigate={onNavigate} />
         ))}
 
         {/* Reports Section */}
         <SectionHeader label="Reports" />
         {reportItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
+          <MobileNavItem key={item.label} item={item} isActive={item.href === activeHref} onNavigate={onNavigate} />
         ))}
 
         {/* Settings Section */}
         <SectionHeader label="Settings" />
         {settingsItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
+          <MobileNavItem key={item.label} item={item} isActive={item.href === activeHref} onNavigate={onNavigate} />
         ))}
 
         {/* Admin Section - Only visible to admins */}
@@ -132,7 +141,7 @@ export function AppSidebarMobile({ onNavigate }: { onNavigate?: () => void }) {
           <>
             <SectionHeader label="Admin" />
             {adminItems.map((item) => (
-              <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
+              <MobileNavItem key={item.label} item={item} isActive={item.href === activeHref} onNavigate={onNavigate} />
             ))}
           </>
         )}
