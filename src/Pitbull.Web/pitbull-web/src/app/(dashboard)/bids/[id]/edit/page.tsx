@@ -20,6 +20,10 @@ import api from "@/lib/api";
 import { BidStatus, type Bid, type UpdateBidCommand } from "@/lib/types";
 import { toast } from "sonner";
 
+const MAX_NAME_LENGTH = 150;
+const MAX_DESCRIPTION_LENGTH = 1000;
+const MAX_NOTES_LENGTH = 500;
+
 export default function EditBidPage() {
   const params = useParams();
   const router = useRouter();
@@ -67,6 +71,22 @@ export default function EditBidPage() {
   async function handleSave() {
     if (!number.trim() || !name.trim()) {
       toast.error("Bid number and name are required");
+      return;
+    }
+    if (name.length > MAX_NAME_LENGTH) {
+      toast.error(`Name must be ${MAX_NAME_LENGTH} characters or less`);
+      return;
+    }
+    if (description.length > MAX_DESCRIPTION_LENGTH) {
+      toast.error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
+      return;
+    }
+    if (notes.length > MAX_NOTES_LENGTH) {
+      toast.error(`Notes must be ${MAX_NOTES_LENGTH} characters or less`);
+      return;
+    }
+    if (estimatedValue && (isNaN(Number(estimatedValue)) || Number(estimatedValue) < 0)) {
+      toast.error("Estimated value must be 0 or greater");
       return;
     }
     if (bidDate && dueDate && bidDate > dueDate) {
@@ -164,7 +184,7 @@ export default function EditBidPage() {
 
           <div className="space-y-2">
             <Label htmlFor="name">Bid Name</Label>
-            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input id="name" value={name} maxLength={MAX_NAME_LENGTH} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -198,12 +218,12 @@ export default function EditBidPage() {
 
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
-            <Textarea id="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea id="description" rows={3} maxLength={MAX_DESCRIPTION_LENGTH} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Notes</Label>
-            <Textarea id="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Textarea id="notes" rows={2} maxLength={MAX_NOTES_LENGTH} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
           <div className="flex justify-end gap-2">

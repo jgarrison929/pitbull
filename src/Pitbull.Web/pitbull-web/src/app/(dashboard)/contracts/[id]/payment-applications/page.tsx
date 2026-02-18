@@ -196,6 +196,10 @@ export default function PaymentApplicationsPage() {
       toast.error("Period start and end are required");
       return;
     }
+    if (createForm.periodEnd < createForm.periodStart) {
+      toast.error("Period end date must be on or after start date");
+      return;
+    }
 
     const workCompletedThisPeriod = parseFloat(createForm.workCompletedThisPeriod);
     const storedMaterials = parseFloat(createForm.storedMaterials);

@@ -67,11 +67,30 @@ const emptyForm: FormData = {
   approvedDate: "",
 };
 
-const statusOptions: Array<{ value: ChangeOrderStatus; label: string }> = [
+const allStatusOptions: Array<{ value: ChangeOrderStatus; label: string }> = [
   { value: 0, label: "Pending" },
+  { value: 1, label: "Under Review" },
   { value: 2, label: "Approved" },
   { value: 3, label: "Rejected" },
+  { value: 4, label: "Withdrawn" },
+  { value: 5, label: "Void" },
 ];
+
+// Valid transitions per status (mirrors backend ChangeOrderStatusTransitions)
+const allowedTransitions: Record<ChangeOrderStatus, ChangeOrderStatus[]> = {
+  0: [0, 1, 2, 3, 4],   // Pending → UnderReview, Approved, Rejected, Withdrawn
+  1: [1, 2, 3, 4],       // UnderReview → Approved, Rejected, Withdrawn
+  2: [2, 5],              // Approved → Void only
+  3: [3],                 // Rejected → terminal
+  4: [4],                 // Withdrawn → terminal
+  5: [5],                 // Void → terminal
+};
+
+function getStatusOptions(currentStatus: ChangeOrderStatus | null): Array<{ value: ChangeOrderStatus; label: string }> {
+  if (currentStatus === null) return [allStatusOptions[0]]; // create → Pending only
+  const allowed = allowedTransitions[currentStatus] ?? [currentStatus];
+  return allStatusOptions.filter((opt) => allowed.includes(opt.value));
+}
 
 function toIsoDate(value?: string | null): string {
   if (!value) return "";
@@ -391,7 +410,7 @@ export default function ChangeOrdersPage() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {statusOptions.map((opt) => (
+                    {getStatusOptions(editing?.status ?? null).map((opt) => (
                       <SelectItem key={opt.value} value={String(opt.value)}>
                         {opt.label}
                       </SelectItem>

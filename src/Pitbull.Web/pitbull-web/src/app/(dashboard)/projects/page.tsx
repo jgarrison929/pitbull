@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
 
 const ALL_VALUE = "__all__";
+const DEFAULT_PAGE_SIZE = 25;
 
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -48,32 +49,44 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
-  
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Register "n" shortcut to create new project
   useNewShortcut("/projects/new");
 
+  // Reset page when filters change
   useEffect(() => {
-    async function fetchProjects() {
-      setIsLoading(true);
-      try {
-        const params = new URLSearchParams();
-        params.set("pageSize", "50");
-        if (search.trim()) params.set("search", search.trim());
-        if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
-        const result = await api<PagedResult<Project>>(
-          `/api/projects?${params.toString()}`
-        );
-        setProjects(result.items);
-      } catch {
-        toast.error("Failed to load projects");
-      } finally {
-        setIsLoading(false);
-      }
+    setPage(1);
+  }, [search, statusFilter, activeCompany?.id]);
+
+  const fetchProjects = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("pageSize", String(DEFAULT_PAGE_SIZE));
+      if (search.trim()) params.set("search", search.trim());
+      if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
+      const result = await api<PagedResult<Project>>(
+        `/api/projects?${params.toString()}`
+      );
+      setProjects(result.items);
+      setTotalPages(result.totalPages);
+      setTotalCount(result.totalCount);
+    } catch {
+      toast.error("Failed to load projects");
+    } finally {
+      setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- activeCompany?.id triggers refetch on company switch
+  }, [page, search, statusFilter, activeCompany?.id]);
+
+  useEffect(() => {
     const timer = setTimeout(fetchProjects, 250);
     return () => clearTimeout(timer);
-    // Re-fetch when the active company changes
-  }, [activeCompany?.id, search, statusFilter]);
+  }, [fetchProjects]);
 
   return (
     <div className="space-y-6">
@@ -262,6 +275,37 @@ export default function ProjectsPage() {
                 </Table>
               </div>
             </>
+          )}
+
+          {/* Pagination */}
+          {!isLoading && projects.length > 0 && (
+            <div className="flex items-center justify-between pt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {(page - 1) * DEFAULT_PAGE_SIZE + 1}-
+                {Math.min(page * DEFAULT_PAGE_SIZE, totalCount)} of {totalCount}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

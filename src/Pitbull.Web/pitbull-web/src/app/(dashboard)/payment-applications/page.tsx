@@ -148,6 +148,10 @@ export default function PaymentApplicationsPage() {
       toast.error("Period dates are required");
       return;
     }
+    if (formPeriodEnd < formPeriodStart) {
+      toast.error("Period end date must be on or after start date");
+      return;
+    }
 
     setIsSubmitting(true);
     try {

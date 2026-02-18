@@ -281,9 +281,14 @@ public class ContractsService(PitbullDbContext db) : IContractsService
                     "DUPLICATE_CO_NUMBER");
         }
 
-        // Track status transitions for date tracking
+        // Validate status transition
         var oldStatus = changeOrder.Status;
         var newStatus = command.Status;
+
+        if (!ChangeOrderStatusTransitions.IsValid(oldStatus, newStatus))
+            return Result.Failure<ChangeOrderDto>(
+                $"Cannot transition from {oldStatus} to {newStatus}",
+                "INVALID_STATUS_TRANSITION");
 
         // Update fields
         changeOrder.ChangeOrderNumber = command.Number;
