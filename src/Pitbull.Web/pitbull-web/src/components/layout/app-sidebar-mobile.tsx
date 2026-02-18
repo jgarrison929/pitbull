@@ -7,80 +7,22 @@ import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { CompanySwitcher } from "./company-switcher";
 import { ProjectSwitcher } from "./project-switcher";
-
-const mainNavItems = [
-  { label: "Dashboard", href: "/", icon: "📊" },
-  { label: "Projects", href: "/projects", icon: "🏗️" },
-  { label: "Bids", href: "/bids", icon: "📋" },
-  { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
-  { label: "Employees", href: "/employees", icon: "👷" },
-  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
-  { label: "Equipment", href: "/equipment", icon: "🚜" },
-  { label: "Contracts", href: "/contracts", icon: "📄" },
-  { label: "Change Orders", href: "/change-orders", icon: "📝" },
-  { label: "Pay Apps", href: "/payment-applications", icon: "💵" },
-];
-
-function getProjectManagementItems(projectId: string | null) {
-  const base = projectId ? `/projects/${projectId}` : null;
-  return [
-    { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base },
-    { label: "Job Cost", href: base ? `${base}/job-cost` : "#", icon: "💰", disabled: !base },
-    { label: "RFIs", href: base ? `${base}/rfis` : "#", icon: "❓", disabled: !base },
-    { label: "Submittals", href: base ? `${base}/submittals` : "#", icon: "📬", disabled: !base },
-    { label: "Plans & Specs", href: base ? `${base}/plans-specs` : "#", icon: "📐", disabled: !base },
-    { label: "Communications", href: base ? `${base}/communications` : "#", icon: "💬", disabled: !base },
-    { label: "Daily Reports", href: base ? `${base}/daily-reports` : "#", icon: "📝", disabled: !base },
-    { label: "Progress", href: base ? `${base}/progress` : "#", icon: "📈", disabled: !base },
-    { label: "Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base },
-    { label: "Meetings", href: base ? `${base}/meetings` : "#", icon: "🤝", disabled: !base },
-    { label: "Documents", href: base ? `${base}/documents` : "#", icon: "📁", disabled: !base },
-    { label: "Tasks", href: base ? `${base}/tasks` : "#", icon: "✅", disabled: !base },
-    { label: "Narratives", href: base ? `${base}/narratives` : "#", icon: "📖", disabled: !base },
-  ];
-}
-
-const reportItems = [
-  { label: "Labor Cost", href: "/reports/labor-cost", icon: "💰" },
-  { label: "Project Profitability", href: "/reports/project-profitability", icon: "📈" },
-  { label: "Weekly Summary", href: "/reports/weekly-summary", icon: "📅" },
-  { label: "Financial Overview", href: "/reports/financial-overview", icon: "📊" },
-  { label: "Equipment Utilization", href: "/reports/equipment", icon: "🔧" },
-  { label: "Vista Export", href: "/reports/vista-export", icon: "📤" },
-];
-
-const settingsItems = [
-  { label: "Preferences", href: "/settings", icon: "⚙️" },
-  { label: "Notifications", href: "/settings/notifications", icon: "🔔" },
-  { label: "Overtime Rules", href: "/settings/overtime", icon: "⏰" },
-  { label: "Projects", href: "/settings/projects", icon: "🏗️" },
-  { label: "Contracts", href: "/settings/contracts", icon: "📄" },
-  { label: "Bids", href: "/settings/bids", icon: "📋" },
-  { label: "RFIs", href: "/settings/rfis", icon: "❓" },
-  { label: "Reports", href: "/settings/reports", icon: "📊" },
-  { label: "Company Setup", href: "/settings/company/setup", icon: "🧙" },
-];
-
-const adminItems = [
-  { label: "Company Settings", href: "/admin/company", icon: "🏢" },
-  { label: "Users", href: "/admin/users", icon: "👥" },
-  { label: "Roles & Permissions", href: "/admin/roles", icon: "🛡️" },
-  { label: "API Keys", href: "/admin/api-keys", icon: "🔑" },
-  { label: "System Health", href: "/admin/system-health", icon: "💚" },
-  { label: "Pay Periods", href: "/admin/pay-periods", icon: "📅" },
-  { label: "Companies", href: "/admin/companies", icon: "🏛️" },
-  { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖" },
-  { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜" },
-  { label: "Compliance", href: "/admin/compliance", icon: "✅" },
-  { label: "Data Import", href: "/admin/data-import", icon: "🗂️" },
-];
+import {
+  mainNavItems,
+  getProjectManagementItems,
+  reportItems,
+  settingsItems,
+  adminItems,
+} from "./nav-items";
 
 function MobileNavItem({
   item,
   pathname,
+  onNavigate,
 }: {
   item: { label: string; href: string; icon: string; disabled?: boolean };
   pathname: string;
+  onNavigate?: () => void;
 }) {
   const isActive =
     item.href === "/"
@@ -100,7 +42,7 @@ function MobileNavItem({
             ? "bg-amber-500/15 text-amber-400"
             : "text-neutral-300 hover:bg-white/5 hover:text-white"
       )}
-      onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+      onClick={item.disabled ? (e) => e.preventDefault() : onNavigate}
     >
       <span className="text-base">{item.icon}</span>
       {item.label}
@@ -123,7 +65,7 @@ function SectionHeader({ label }: { label: string }) {
   );
 }
 
-export function AppSidebarMobile() {
+export function AppSidebarMobile({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
@@ -161,7 +103,7 @@ export function AppSidebarMobile() {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {/* Main nav */}
         {mainNavItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} />
+          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
         ))}
 
         {/* Project Management Section */}
@@ -172,19 +114,19 @@ export function AppSidebarMobile() {
           </p>
         )}
         {projectManagementItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} />
+          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
         ))}
 
         {/* Reports Section */}
         <SectionHeader label="Reports" />
         {reportItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} />
+          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
         ))}
 
         {/* Settings Section */}
         <SectionHeader label="Settings" />
         {settingsItems.map((item) => (
-          <MobileNavItem key={item.label} item={item} pathname={pathname} />
+          <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
         ))}
 
         {/* Admin Section - Only visible to admins */}
@@ -192,7 +134,7 @@ export function AppSidebarMobile() {
           <>
             <SectionHeader label="Admin" />
             {adminItems.map((item) => (
-              <MobileNavItem key={item.label} item={item} pathname={pathname} />
+              <MobileNavItem key={item.label} item={item} pathname={pathname} onNavigate={onNavigate} />
             ))}
           </>
         )}

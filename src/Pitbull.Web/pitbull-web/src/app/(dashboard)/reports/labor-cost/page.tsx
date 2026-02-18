@@ -140,7 +140,7 @@ export default function LaborCostReportPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs items={[{ label: "Reports", href: "/reports/labor-cost" }, { label: "Labor Cost" }]} />
+      <Breadcrumbs items={[{ label: "Reports", href: "/reports" }, { label: "Labor Cost" }]} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

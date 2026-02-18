@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { useRequireAdmin } from "@/hooks/use-require-admin";
 
 interface SystemHealth {
   status: string;
@@ -41,6 +42,7 @@ function formatBytes(bytes: number | null) {
 }
 
 export default function SystemHealthPage() {
+  const { isAdmin } = useRequireAdmin();
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,6 +63,8 @@ export default function SystemHealthPage() {
   const statusColor = health?.status === "Healthy"
     ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300"
     : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
+
+  if (!isAdmin) return null;
 
   return (
     <div className="space-y-6">

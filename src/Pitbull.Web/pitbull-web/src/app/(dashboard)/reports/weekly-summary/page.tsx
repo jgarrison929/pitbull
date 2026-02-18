@@ -82,7 +82,7 @@ export default function WeeklySummaryPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs items={[{ label: "Reports", href: "/reports/labor-cost" }, { label: "Weekly Summary" }]} />
+      <Breadcrumbs items={[{ label: "Reports", href: "/reports" }, { label: "Weekly Summary" }]} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

@@ -453,7 +453,7 @@ export default function EmployeesPage() {
                 ))}
               </div>
 
-              <div className="hidden sm:block">
+              <div className="hidden sm:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

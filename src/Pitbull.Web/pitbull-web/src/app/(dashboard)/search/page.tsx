@@ -30,9 +30,10 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type EntityType = "all" | "project" | "employee" | "contract" | "bid" | "rfi" | "costcode";
-type SortMode = "relevance" | "date";
+type SortMode = "relevance" | "name";
 
 interface SearchResultItem {
   type: string;
@@ -112,8 +113,9 @@ function SearchPageContent() {
         `/api/search?q=${encodeURIComponent(searchQuery.trim())}`
       );
       setResults(data.results);
-    } catch {
+    } catch (err) {
       setResults([]);
+      toast.error(err instanceof Error ? err.message : "Search failed");
     } finally {
       setIsLoading(false);
     }
@@ -140,14 +142,17 @@ function SearchPageContent() {
     }, 300);
   }
 
-  // Filter results by entity type
+  // Filter and sort results
   const filteredResults = useMemo(() => {
     let r = results;
     if (activeFilter !== "all") {
       r = r.filter((item) => item.type === activeFilter);
     }
+    if (sortMode === "name") {
+      r = [...r].sort((a, b) => a.title.localeCompare(b.title));
+    }
     return r;
-  }, [results, activeFilter]);
+  }, [results, activeFilter, sortMode]);
 
   // Group by type for "all" view
   const groupedResults = useMemo(() => {
@@ -225,7 +230,7 @@ function SearchPageContent() {
           </div>
 
           <button
-            onClick={() => setSortMode(sortMode === "relevance" ? "date" : "relevance")}
+            onClick={() => setSortMode(sortMode === "relevance" ? "name" : "relevance")}
             className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
           >
             {sortMode === "relevance" ? (
@@ -233,7 +238,7 @@ function SearchPageContent() {
             ) : (
               <SortDesc className="h-3.5 w-3.5" />
             )}
-            Sort by: {sortMode === "relevance" ? "Relevance" : "Date"}
+            Sort by: {sortMode === "relevance" ? "Relevance" : "Name"}
           </button>
         </div>
       )}
@@ -314,10 +319,16 @@ function SearchPageContent() {
   );
 }
 
+function getResultUrl(result: SearchResultItem): string {
+  // Cost codes don't have detail pages — link to the list page
+  if (result.type === "costcode") return "/cost-codes";
+  return result.url;
+}
+
 function ResultItem({ result }: { result: SearchResultItem }) {
   return (
     <Link
-      href={result.url}
+      href={getResultUrl(result)}
       className="flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent/50"
     >
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border bg-background">

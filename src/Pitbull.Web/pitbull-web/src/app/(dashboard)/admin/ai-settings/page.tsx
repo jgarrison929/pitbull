@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useRequireAdmin } from "@/hooks/use-require-admin";
 
 interface AiKeyInfo {
   provider: string;
@@ -31,6 +32,7 @@ const PROVIDERS = [
 ];
 
 export default function AiSettingsPage() {
+  const { isAdmin } = useRequireAdmin();
   const [settings, setSettings] = useState<AiSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -91,6 +93,8 @@ export default function AiSettingsPage() {
       setSaving(false);
     }
   }
+
+  if (!isAdmin) return null;
 
   return (
     <div className="space-y-6">

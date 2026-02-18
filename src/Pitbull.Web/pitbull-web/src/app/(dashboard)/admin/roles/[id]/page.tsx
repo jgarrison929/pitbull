@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useRequireAdmin } from "@/hooks/use-require-admin";
 import {
   assignPermissions,
   assignUserRole,
@@ -46,6 +47,7 @@ interface UserOption {
 }
 
 export default function RoleDetailPage() {
+  const { isAdmin } = useRequireAdmin();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const roleId = params.id;
@@ -182,6 +184,8 @@ export default function RoleDetailPage() {
   if (isLoading || !role) {
     return <p className="py-8 text-sm text-muted-foreground">Loading role...</p>;
   }
+
+  if (!isAdmin) return null;
 
   return (
     <div className="space-y-6">

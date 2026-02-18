@@ -199,7 +199,7 @@ export default function FinancialOverviewPage() {
     <div className="space-y-6">
       <Breadcrumbs
         items={[
-          { label: "Reports", href: "/reports/labor-cost" },
+          { label: "Reports", href: "/reports" },
           { label: "Financial Overview" },
         ]}
       />

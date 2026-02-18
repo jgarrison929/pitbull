@@ -28,8 +28,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { createRole, deleteRole, listRoles, type RoleListItem } from "@/lib/rbac-api";
 import { Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useRequireAdmin } from "@/hooks/use-require-admin";
 
 export default function RolesPage() {
+  const { isAdmin } = useRequireAdmin();
   const [roles, setRoles] = useState<RoleListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -92,6 +94,8 @@ export default function RolesPage() {
     }
   }
 
+  if (!isAdmin) return null;
+
   return (
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: "Admin" }, { label: "Roles" }]} />
@@ -116,6 +120,7 @@ export default function RolesPage() {
           {isLoading ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Loading roles...</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -163,6 +168,7 @@ export default function RolesPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

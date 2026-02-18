@@ -20,6 +20,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Key, Plus, Copy, Trash2, Ban, AlertTriangle } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { useRequireAdmin } from "@/hooks/use-require-admin";
 
 interface ApiKey {
   id: string;
@@ -52,6 +53,7 @@ function formatDate(d: string | null) {
 }
 
 export default function ApiKeysPage() {
+  const { isAdmin } = useRequireAdmin();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -136,6 +138,8 @@ export default function ApiKeysPage() {
     }
   };
 
+  if (!isAdmin) return null;
+
   return (
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: "Admin" }, { label: "API Keys" }]} />
@@ -164,6 +168,7 @@ export default function ApiKeysPage() {
           ) : keys.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No API keys yet. Create one to get started.</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -203,6 +208,7 @@ export default function ApiKeysPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>

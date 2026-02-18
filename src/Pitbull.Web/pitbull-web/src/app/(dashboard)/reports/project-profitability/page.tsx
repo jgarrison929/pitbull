@@ -60,7 +60,7 @@ export default function ProjectProfitabilityPage() {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs items={[{ label: "Reports", href: "/reports/labor-cost" }, { label: "Project Profitability" }]} />
+      <Breadcrumbs items={[{ label: "Reports", href: "/reports" }, { label: "Project Profitability" }]} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>

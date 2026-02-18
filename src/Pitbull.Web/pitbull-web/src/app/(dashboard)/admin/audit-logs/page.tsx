@@ -802,7 +802,7 @@ export default function AuditLogsPage() {
               </div>
 
               {/* Desktop table layout */}
-              <div className="hidden sm:block">
+              <div className="hidden sm:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

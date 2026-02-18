@@ -335,6 +335,7 @@ export default function TimeTrackingApprovalPage() {
                 </p>
               </CardHeader>
               <CardContent>
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -419,6 +420,7 @@ export default function TimeTrackingApprovalPage() {
                     })}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           ))}

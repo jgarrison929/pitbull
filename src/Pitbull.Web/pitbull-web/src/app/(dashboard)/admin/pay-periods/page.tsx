@@ -26,6 +26,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TableSkeleton } from "@/components/skeletons";
 import { toast } from "sonner";
+import { useRequireAdmin } from "@/hooks/use-require-admin";
 
 enum PayPeriodStatus {
   Open = 0,
@@ -172,6 +173,7 @@ function calculateNextPeriodBounds(lastPeriod: PayPeriod | null, config: PayPeri
 }
 
 export default function AdminPayPeriodsPage() {
+  const { isAdmin } = useRequireAdmin();
   const [periods, setPeriods] = useState<PayPeriod[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -387,6 +389,8 @@ export default function AdminPayPeriodsPage() {
     return map;
   }, [summary]);
 
+  if (!isAdmin) return null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -431,6 +435,7 @@ export default function AdminPayPeriodsPage() {
             ) : periods.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No pay periods found.</p>
             ) : (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -487,6 +492,7 @@ export default function AdminPayPeriodsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             )}
           </CardContent>
         </Card>

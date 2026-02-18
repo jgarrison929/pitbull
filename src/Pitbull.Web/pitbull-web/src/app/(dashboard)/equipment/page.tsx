@@ -734,7 +734,7 @@ export default function EquipmentPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="rounded-md border">
+                <div className="rounded-md border overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -953,6 +953,7 @@ export default function EquipmentPage() {
                   ) : assignmentRows.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No assignments yet for this equipment.</p>
                   ) : (
+                    <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -997,6 +998,7 @@ export default function EquipmentPage() {
                         </TableRow>
                       </TableBody>
                     </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>

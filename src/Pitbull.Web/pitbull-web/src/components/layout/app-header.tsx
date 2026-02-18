@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -57,6 +58,7 @@ export function AppHeader() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { activeCompany } = useCompany();
   const breadcrumbs = getBreadcrumbs(pathname);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const cycleTheme = () => {
     // Cycle: light → dark → system → light
@@ -85,11 +87,11 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-white dark:bg-neutral-900 px-4 lg:px-6">
       {/* Mobile menu */}
-      <Sheet>
+      <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] text-lg"
             aria-label="Open navigation menu"
           >
@@ -98,7 +100,7 @@ export function AppHeader() {
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 bg-[#1a1a2e]">
           <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-          <AppSidebarMobile />
+          <AppSidebarMobile onNavigate={() => setMobileOpen(false)} />
         </SheetContent>
       </Sheet>
 

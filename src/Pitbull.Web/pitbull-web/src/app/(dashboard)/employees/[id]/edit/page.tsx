@@ -141,6 +141,15 @@ export default function EditEmployeePage({
   const [isActive, setIsActive] = useState(true);
   const [notes, setNotes] = useState("");
   const [selectedCerts, setSelectedCerts] = useState<string[]>([]);
+  const [initialCerts, setInitialCerts] = useState<
+    { id: string; certificationName: string }[]
+  >([]);
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [emergencyContactRelation, setEmergencyContactRelation] = useState("");
+  const [emergencyContactId, setEmergencyContactId] = useState<string | null>(
+    null
+  );
 
   // Supervisor search
   const [supervisorSearch, setSupervisorSearch] = useState("");
@@ -206,10 +215,46 @@ export default function EditEmployeePage({
           notes: "",
         }));
 
-        const result = await api<ListEmployeesResult>(
-          "/api/employees?isActive=true&pageSize=200"
-        );
+        const [result, certsResult, contactsResult] = await Promise.all([
+          api<ListEmployeesResult>("/api/employees?isActive=true&pageSize=200"),
+          api<{ id: string; certificationName: string }[]>(
+            `/api/employee-onboarding/${resolvedParams.id}/certifications`
+          ).catch(() => [] as { id: string; certificationName: string }[]),
+          api<
+            {
+              id: string;
+              name: string;
+              relationship: string;
+              phone: string;
+            }[]
+          >(
+            `/api/employee-onboarding/${resolvedParams.id}/emergency-contacts`
+          ).catch(
+            () =>
+              [] as {
+                id: string;
+                name: string;
+                relationship: string;
+                phone: string;
+              }[]
+          ),
+        ]);
         setSupervisors(result.items.filter((e) => e.id !== resolvedParams.id));
+
+        // Load existing certifications
+        if (certsResult.length > 0) {
+          setInitialCerts(certsResult);
+          setSelectedCerts(certsResult.map((c) => c.certificationName));
+        }
+
+        // Load primary emergency contact
+        if (contactsResult.length > 0) {
+          const primary = contactsResult[0];
+          setEmergencyContactId(primary.id);
+          setEmergencyContactName(primary.name);
+          setEmergencyContactPhone(primary.phone);
+          setEmergencyContactRelation(primary.relationship);
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to load employee";
         if (message.toLowerCase().includes("not found")) {
@@ -299,6 +344,72 @@ export default function EditEmployeePage({
         method: "PUT",
         body: command,
       });
+
+      // Sync certifications: add new, remove deselected
+      const followUps: Promise<unknown>[] = [];
+
+      const existingCertNames = new Set(
+        initialCerts.map((c) => c.certificationName)
+      );
+      const newCerts = selectedCerts.filter((n) => !existingCertNames.has(n));
+      const removedCerts = initialCerts.filter(
+        (c) => !selectedCerts.includes(c.certificationName)
+      );
+
+      for (const certName of newCerts) {
+        followUps.push(
+          api(
+            `/api/employee-onboarding/${resolvedParams.id}/certifications`,
+            {
+              method: "POST",
+              body: {
+                certificationType: certName,
+                certificationName: certName,
+                issuedDate: new Date().toISOString(),
+              },
+            }
+          )
+        );
+      }
+
+      for (const cert of removedCerts) {
+        followUps.push(
+          api(
+            `/api/employee-onboarding/${resolvedParams.id}/certifications/${cert.id}`,
+            { method: "DELETE" }
+          )
+        );
+      }
+
+      // Save emergency contact
+      if (emergencyContactName.trim() && emergencyContactPhone.trim()) {
+        if (!emergencyContactId) {
+          followUps.push(
+            api(
+              `/api/employee-onboarding/${resolvedParams.id}/emergency-contacts`,
+              {
+                method: "POST",
+                body: {
+                  name: emergencyContactName.trim(),
+                  relationship:
+                    emergencyContactRelation.trim() || "Not specified",
+                  phone: emergencyContactPhone.trim(),
+                  isPrimary: true,
+                },
+              }
+            )
+          );
+        }
+      }
+
+      const results = await Promise.allSettled(followUps);
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        toast.warning(
+          `Employee saved but ${failures.length} related record(s) failed to update`
+        );
+      }
+
       toast.success("Employee updated successfully");
       router.push(`/employees/${resolvedParams.id}`);
     } catch (err) {
@@ -720,9 +831,37 @@ export default function EditEmployeePage({
             icon={<Phone className="h-4 w-4" />}
             defaultOpen={false}
           >
-            <p className="text-sm text-muted-foreground">
-              Emergency contact fields will be available when the backend supports it. Placeholder for future use.
-            </p>
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="emergencyContactName">Contact Name</Label>
+                  <Input
+                    id="emergencyContactName"
+                    value={emergencyContactName}
+                    onChange={(e) => setEmergencyContactName(e.target.value)}
+                    placeholder="Jane Doe"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emergencyContactRelation">Relationship</Label>
+                  <Input
+                    id="emergencyContactRelation"
+                    value={emergencyContactRelation}
+                    onChange={(e) => setEmergencyContactRelation(e.target.value)}
+                    placeholder="Spouse, Parent, Sibling..."
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="emergencyContactPhone">Contact Phone</Label>
+                <Input
+                  id="emergencyContactPhone"
+                  value={emergencyContactPhone}
+                  onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                  placeholder="(555) 555-5555"
+                />
+              </div>
+            </div>
           </FormSection>
 
           {/* Section 4: Certifications */}

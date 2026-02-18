@@ -326,10 +326,49 @@ export default function NewEmployeePage() {
     };
 
     try {
-      await api<Employee>("/api/employees", {
+      const created = await api<Employee>("/api/employees", {
         method: "POST",
         body: command,
       });
+
+      // Save certifications and emergency contact via dedicated endpoints
+      const followUps: Promise<unknown>[] = [];
+
+      for (const certName of selectedCerts) {
+        followUps.push(
+          api(`/api/employee-onboarding/${created.id}/certifications`, {
+            method: "POST",
+            body: {
+              certificationType: certName,
+              certificationName: certName,
+              issuedDate: new Date().toISOString(),
+            },
+          })
+        );
+      }
+
+      if (emergencyContactName.trim() && emergencyContactPhone.trim()) {
+        followUps.push(
+          api(`/api/employee-onboarding/${created.id}/emergency-contacts`, {
+            method: "POST",
+            body: {
+              name: emergencyContactName.trim(),
+              relationship: emergencyContactRelation.trim() || "Not specified",
+              phone: emergencyContactPhone.trim(),
+              isPrimary: true,
+            },
+          })
+        );
+      }
+
+      const results = await Promise.allSettled(followUps);
+      const failures = results.filter((r) => r.status === "rejected");
+      if (failures.length > 0) {
+        toast.warning(
+          `Employee created but ${failures.length} related record(s) failed to save`
+        );
+      }
+
       clearDraft();
       toast.success("Employee created successfully");
       router.push("/employees");
@@ -757,7 +796,7 @@ export default function NewEmployeePage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Emergency contact info is stored locally and will be available when the backend supports it.
+                Emergency contact will be saved with the employee record.
               </p>
             </div>
           </FormSection>

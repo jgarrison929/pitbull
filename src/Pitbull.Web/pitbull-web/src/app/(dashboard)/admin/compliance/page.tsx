@@ -405,6 +405,7 @@ export default function CompliancePage() {
           {isLoading ? (
             <p className="text-sm text-muted-foreground">Loading...</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -458,6 +459,7 @@ export default function CompliancePage() {
                 )}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
