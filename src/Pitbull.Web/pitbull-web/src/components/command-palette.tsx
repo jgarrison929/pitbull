@@ -313,6 +313,15 @@ export function CommandPalette() {
         keywords: ["subcontracts", "agreements"],
       },
       {
+        id: "nav-wip-schedule",
+        title: "WIP Schedule",
+        subtitle: "View work-in-progress reports",
+        icon: <Landmark className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/accounting/wip"); close(); },
+        keywords: ["wip", "work in progress", "revenue", "over under billing"],
+      },
+      {
         id: "nav-chart-of-accounts",
         title: "Chart of Accounts",
         subtitle: "View GL account hierarchy",

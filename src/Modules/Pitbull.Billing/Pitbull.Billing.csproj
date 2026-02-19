@@ -2,6 +2,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pitbull.Core\Pitbull.Core.csproj" />
+    <ProjectReference Include="..\Pitbull.Contracts\Pitbull.Contracts.csproj" />
+    <ProjectReference Include="..\Pitbull.Projects\Pitbull.Projects.csproj" />
+    <ProjectReference Include="..\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
