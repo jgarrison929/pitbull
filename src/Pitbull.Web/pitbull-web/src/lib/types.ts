@@ -1389,6 +1389,14 @@ export interface RfiSettingsData {
 
 export interface ReportSettingsData {
   overtimeRules: string;
+  overtimeEnabled: boolean;
+  dailyOvertimeThreshold: number;
+  dailyDoubletimeThreshold: number;
+  weeklyOvertimeThreshold: number;
+  saturdayRule: string;
+  sundayRule: string;
+  holidayRule: string;
+  holidaysJson: string;
   reportBrandingName: string;
   reportLogoUrl: string;
   fiscalYearStartMonth: number;

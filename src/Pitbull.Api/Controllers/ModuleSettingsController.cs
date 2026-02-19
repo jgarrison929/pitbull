@@ -75,6 +75,14 @@ public class ModuleSettingsController(
 
     private static ReportSettingsDto MapReportSettings(ReportSettings s) => new(
         OvertimeRules: s.OvertimeRules,
+        OvertimeEnabled: s.OvertimeEnabled,
+        DailyOvertimeThreshold: s.DailyOvertimeThreshold,
+        DailyDoubletimeThreshold: s.DailyDoubletimeThreshold,
+        WeeklyOvertimeThreshold: s.WeeklyOvertimeThreshold,
+        SaturdayRule: s.SaturdayRule,
+        SundayRule: s.SundayRule,
+        HolidayRule: s.HolidayRule,
+        HolidaysJson: s.HolidaysJson,
         ReportBrandingName: s.ReportBrandingName,
         ReportLogoUrl: s.ReportLogoUrl,
         FiscalYearStartMonth: s.FiscalYearStartMonth);

@@ -336,6 +336,45 @@ public class PitbullDbContext(
                     .HasMaxLength(50)
                     .HasDefaultValue("Federal");
 
+                rpt.Property(p => p.OvertimeEnabled)
+                    .HasColumnName("ReportOvertimeEnabled")
+                    .HasDefaultValue(true);
+
+                rpt.Property(p => p.DailyOvertimeThreshold)
+                    .HasColumnName("ReportDailyOvertimeThreshold")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(8m);
+
+                rpt.Property(p => p.DailyDoubletimeThreshold)
+                    .HasColumnName("ReportDailyDoubletimeThreshold")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(12m);
+
+                rpt.Property(p => p.WeeklyOvertimeThreshold)
+                    .HasColumnName("ReportWeeklyOvertimeThreshold")
+                    .HasPrecision(5, 2)
+                    .HasDefaultValue(40m);
+
+                rpt.Property(p => p.SaturdayRule)
+                    .HasColumnName("ReportSaturdayRule")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("overtime");
+
+                rpt.Property(p => p.SundayRule)
+                    .HasColumnName("ReportSundayRule")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("doubletime");
+
+                rpt.Property(p => p.HolidayRule)
+                    .HasColumnName("ReportHolidayRule")
+                    .HasMaxLength(20)
+                    .HasDefaultValue("doubletime");
+
+                rpt.Property(p => p.HolidaysJson)
+                    .HasColumnName("ReportHolidaysJson")
+                    .HasColumnType("text")
+                    .HasDefaultValue("[]");
+
                 rpt.Property(p => p.ReportBrandingName)
                     .HasColumnName("ReportBrandingName")
                     .HasMaxLength(200)
