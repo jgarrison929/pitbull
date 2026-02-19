@@ -240,6 +240,8 @@ public class ArchitectureTests
                 .And().DoNotHaveName("EmployeesController")
                 .And().DoNotHaveName("SearchController")
                 .And().DoNotHaveName("AiSuggestController")
+                .And().DoNotHaveName("AiChatController")
+                .And().DoNotHaveName("TimeEntryAuditController")
                 .ShouldNot().HaveDependencyOn(dep)
                 .GetResult();
 

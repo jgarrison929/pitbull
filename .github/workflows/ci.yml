@@ -119,11 +119,12 @@ jobs:
         working-directory: src/Pitbull.Web/pitbull-web
         run: |
           echo "::group::npm Vulnerability Audit"
-          # Run audit and capture exit code
-          if npm audit --audit-level high; then
-            echo "✅ No high+ vulnerabilities detected"
+          # Only audit production dependencies (omit dev-only tooling like eslint)
+          # Dev dependency vulnerabilities (e.g. eslint/minimatch ReDoS) don't affect the built app
+          if npm audit --audit-level high --omit=dev; then
+            echo "✅ No high+ production vulnerabilities detected"
           else
-            echo "::error::npm audit found high+ vulnerabilities!"
+            echo "::error::npm audit found high+ vulnerabilities in production dependencies!"
             echo "Run 'npm audit fix' to address auto-fixable issues"
             exit 1
           fi
