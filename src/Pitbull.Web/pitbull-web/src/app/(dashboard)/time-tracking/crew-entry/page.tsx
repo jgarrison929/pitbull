@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,7 +21,7 @@ import { CopyLastWeekDialog } from "@/components/time-tracking/crew-entry/copy-l
 import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List, Save, Send } from "lucide-react";
+import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List, Save, Send, FolderKanban } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -81,7 +80,6 @@ function formatWeekEndingLabel(dateStr: string): string {
 }
 
 export default function CrewEntryPage() {
-  const router = useRouter();
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
@@ -106,7 +104,6 @@ export default function CrewEntryPage() {
     supervisorId,
     onSuccess: () => {
       setShowSummary(false);
-      router.push("/time-tracking");
     },
   });
 
@@ -118,7 +115,6 @@ export default function CrewEntryPage() {
     supervisorId,
     onSuccess: () => {
       setShowSummary(false);
-      router.push("/time-tracking");
     },
   });
 
@@ -130,7 +126,6 @@ export default function CrewEntryPage() {
     supervisorId,
     onSuccess: () => {
       setShowSummary(false);
-      router.push("/time-tracking");
     },
   });
 
@@ -390,7 +385,7 @@ export default function CrewEntryPage() {
     );
   }
 
-  // Empty crew state
+  // Empty crew state — no employees assigned
   if (crew.length === 0) {
     return (
       <div className="space-y-6">
@@ -409,14 +404,58 @@ export default function CrewEntryPage() {
           <CardContent className="pt-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Crew Assigned</h3>
+              <h3 className="text-lg font-semibold mb-2">Add Employees First</h3>
               <p className="text-muted-foreground max-w-md">
-                You don&apos;t have any crew members assigned to you yet. Contact your
-                administrator to assign employees to your supervision.
+                You don&apos;t have any crew members assigned to you yet. Add employees
+                and assign them to your supervision to start entering time.
               </p>
-              <Button asChild className="mt-6 min-h-[48px] touch-manipulation">
-                <Link href="/time-tracking">Back to Time Tracking</Link>
-              </Button>
+              <div className="flex gap-3 mt-6">
+                <Button asChild className="min-h-[48px] touch-manipulation bg-amber-500 hover:bg-amber-600">
+                  <Link href="/employees/new">Add Employees</Link>
+                </Button>
+                <Button variant="outline" asChild className="min-h-[48px] touch-manipulation">
+                  <Link href="/time-tracking">Back to Time Tracking</Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Empty projects state — crew exists but no active projects
+  if (projects.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" asChild title="Back to Time Tracking" aria-label="Back to Time Tracking" className="min-h-[44px] min-w-[44px]">
+            <Link href="/time-tracking">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Crew Time Entry</h1>
+            <p className="text-muted-foreground">Enter time for your crew</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Create a Project First</h3>
+              <p className="text-muted-foreground max-w-md">
+                Your crew needs at least one active project to log time against.
+                Create a project and assign your crew to it.
+              </p>
+              <div className="flex gap-3 mt-6">
+                <Button asChild className="min-h-[48px] touch-manipulation bg-amber-500 hover:bg-amber-600">
+                  <Link href="/projects/new">Create Project</Link>
+                </Button>
+                <Button variant="outline" asChild className="min-h-[48px] touch-manipulation">
+                  <Link href="/time-tracking">Back to Time Tracking</Link>
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

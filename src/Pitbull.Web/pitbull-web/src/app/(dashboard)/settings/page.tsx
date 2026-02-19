@@ -34,8 +34,10 @@ import {
   FolderOpen,
   Save,
   CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import api from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -105,6 +107,41 @@ interface ProjectOption {
   number: string;
 }
 
+interface CompanyOvertimeSettings {
+  overtimeEnabled: boolean;
+  dailyOvertimeThreshold: number;
+  weeklyOvertimeThreshold: number;
+  saturdayRule: string;
+  sundayRule: string;
+}
+
+interface CompanyTimecardSettings {
+  timecardMode: number;
+  weekStartDay: number;
+  requirePhase: boolean;
+  requireEquipment: boolean;
+}
+
+function StatusBadge({ configured, label }: { configured: boolean; label: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+        configured
+          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+          : "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200"
+      )}
+    >
+      {configured ? (
+        <CheckCircle2 className="h-3 w-3" />
+      ) : (
+        <AlertCircle className="h-3 w-3" />
+      )}
+      {label}
+    </span>
+  );
+}
+
 export default function SettingsPage() {
   const { isAdmin } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -114,6 +151,8 @@ export default function SettingsPage() {
   const [prefs, setPrefs] = useState<UserPreferences>(loadPrefs);
   const [prefsSaved, setPrefsSaved] = useState(false);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [overtimeSettings, setOvertimeSettings] = useState<CompanyOvertimeSettings | null>(null);
+  const [timecardSettings, setTimecardSettings] = useState<CompanyTimecardSettings | null>(null);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -122,14 +161,18 @@ export default function SettingsPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [profileData, projectsData] = await Promise.all([
+      const [profileData, projectsData, otData, tcData] = await Promise.all([
         api<UserProfile>("/api/auth/me"),
         api<{ items: ProjectOption[] }>("/api/projects?pageSize=100").catch(
           () => ({ items: [] as ProjectOption[] })
         ),
+        api<CompanyOvertimeSettings>("/api/companies/settings/reports").catch(() => null),
+        api<CompanyTimecardSettings>("/api/companies/settings/time-tracking").catch(() => null),
       ]);
       setProfile(profileData);
       setProjects(projectsData.items || []);
+      setOvertimeSettings(otData);
+      setTimecardSettings(tcData);
     } catch {
       toast.error("Failed to load profile");
     } finally {
@@ -309,7 +352,7 @@ export default function SettingsPage() {
               <Building2 className="h-5 w-5" />
               Organization
             </CardTitle>
-            <CardDescription>Your company information</CardDescription>
+            <CardDescription>Your company information and setup status</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -326,6 +369,43 @@ export default function SettingsPage() {
               <p className="font-mono text-sm text-muted-foreground">
                 {profile?.tenantId}
               </p>
+            </div>
+
+            {/* Configuration Status Summary */}
+            <div className="pt-4 border-t space-y-3">
+              <Label className="text-muted-foreground text-xs uppercase">
+                Configuration Status
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                <StatusBadge
+                  configured={overtimeSettings?.overtimeEnabled ?? false}
+                  label={
+                    overtimeSettings?.overtimeEnabled
+                      ? `Overtime: ${overtimeSettings.dailyOvertimeThreshold}h daily / ${overtimeSettings.weeklyOvertimeThreshold}h weekly`
+                      : "Overtime: Not configured"
+                  }
+                />
+                <StatusBadge
+                  configured={timecardSettings !== null}
+                  label={
+                    timecardSettings
+                      ? `Timecards: ${timecardSettings.timecardMode === 0 ? "Daily" : "Weekly"}`
+                      : "Timecards: Not configured"
+                  }
+                />
+                <StatusBadge
+                  configured={timecardSettings !== null}
+                  label={
+                    timecardSettings
+                      ? `Week Start: ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][timecardSettings.weekStartDay] || "Monday"}`
+                      : "Week Start: Not set"
+                  }
+                />
+                <StatusBadge
+                  configured={!!profile?.email}
+                  label={profile?.email ? "Email: Configured" : "Email: Not set"}
+                />
+              </div>
             </div>
 
             {isAdmin && (
@@ -690,27 +770,76 @@ export default function SettingsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium">Quick Admin Links</CardTitle>
+            <CardDescription>
+              Manage company-wide configuration
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/settings/overtime">Overtime Rules</Link>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/settings/time-tracking">Timecard Settings</Link>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/admin/pay-periods">Pay Periods</Link>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/admin/company">Company Settings</Link>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/admin/users">User Management</Link>
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <Link href="/admin/audit-logs">Audit Logs</Link>
-              </Button>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Link
+                href="/settings/overtime"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Overtime Rules</span>
+                </div>
+                {overtimeSettings?.overtimeEnabled ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                )}
+              </Link>
+              <Link
+                href="/settings/time-tracking"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Timecard Settings</span>
+                </div>
+                {timecardSettings ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                )}
+              </Link>
+              <Link
+                href="/admin/pay-periods"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Pay Periods</span>
+                </div>
+              </Link>
+              <Link
+                href="/admin/company"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Company Settings</span>
+                </div>
+              </Link>
+              <Link
+                href="/admin/users"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">User Management</span>
+                </div>
+              </Link>
+              <Link
+                href="/admin/audit-logs"
+                className="flex items-center justify-between p-3 rounded-lg border hover:bg-accent/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Key className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Audit Logs</span>
+                </div>
+              </Link>
             </div>
           </CardContent>
         </Card>

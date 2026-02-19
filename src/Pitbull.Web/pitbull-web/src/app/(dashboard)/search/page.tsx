@@ -27,10 +27,53 @@ import {
   SortAsc,
   SortDesc,
   Loader2,
+  History,
+  X,
+  Command,
 } from "lucide-react";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+const RECENT_SEARCHES_KEY = "pitbull:search-page-recent";
+const MAX_RECENT = 8;
+
+function getRecentSearches(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function addRecentSearch(query: string) {
+  try {
+    const recent = getRecentSearches().filter((r) => r !== query);
+    recent.unshift(query);
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+  } catch {
+    // localStorage may be unavailable
+  }
+}
+
+function removeRecentSearch(query: string) {
+  try {
+    const recent = getRecentSearches().filter((r) => r !== query);
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent));
+  } catch {
+    // ignore
+  }
+}
+
+function clearAllRecentSearches() {
+  try {
+    localStorage.removeItem(RECENT_SEARCHES_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 type EntityType = "all" | "project" | "employee" | "contract" | "bid" | "rfi" | "costcode";
 type SortMode = "relevance" | "name";
@@ -95,6 +138,7 @@ function SearchPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -113,6 +157,8 @@ function SearchPageContent() {
         `/api/search?q=${encodeURIComponent(searchQuery.trim())}`
       );
       setResults(data.results);
+      addRecentSearch(searchQuery.trim());
+      setRecentSearches(getRecentSearches());
     } catch (err) {
       setResults([]);
       toast.error(err instanceof Error ? err.message : "Search failed");
@@ -121,8 +167,9 @@ function SearchPageContent() {
     }
   }, []);
 
-  // Search on mount if query param exists
+  // Search on mount if query param exists; load recent searches
   useEffect(() => {
+    setRecentSearches(getRecentSearches());
     if (initialQuery) {
       performSearch(initialQuery);
     }
@@ -184,6 +231,14 @@ function SearchPageContent() {
         <p className="text-muted-foreground">
           Find projects, employees, contracts, bids, RFIs, and cost codes
         </p>
+        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+          <Command className="h-3 w-3" />
+          Tip: Press{" "}
+          <kbd className="rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+            {typeof navigator !== "undefined" && /Mac/.test(navigator.userAgent) ? "⌘" : "Ctrl"}+K
+          </kbd>{" "}
+          for quick search from anywhere
+        </p>
       </div>
 
       {/* Search Input */}
@@ -241,6 +296,59 @@ function SearchPageContent() {
             Sort by: {sortMode === "relevance" ? "Relevance" : "Name"}
           </button>
         </div>
+      )}
+
+      {/* Recent Searches */}
+      {!hasSearched && recentSearches.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <History className="h-4 w-4" />
+                Recent Searches
+              </CardTitle>
+              <button
+                type="button"
+                onClick={() => {
+                  clearAllRecentSearches();
+                  setRecentSearches([]);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear all
+              </button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-1 pt-0">
+            {recentSearches.map((recent) => (
+              <div key={recent} className="flex items-center group">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery(recent);
+                    router.replace(`/search?q=${encodeURIComponent(recent)}`, { scroll: false });
+                    performSearch(recent);
+                  }}
+                  className="flex-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-left transition-colors hover:bg-accent/50"
+                >
+                  <History className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span>{recent}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeRecentSearch(recent);
+                    setRecentSearches(getRecentSearches());
+                  }}
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Remove"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       )}
 
       {/* Results */}
