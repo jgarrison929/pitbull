@@ -245,7 +245,7 @@ public class InvitationController(
         var user = result.UserInfo!;
         var jwtToken = GenerateJwtToken(user);
 
-        return Ok(new AuthResponse(jwtToken, user.UserId, user.FullName, user.Email, user.Roles));
+        return Ok(new AuthResponse(jwtToken, user.UserId, user.FullName, user.Email, user.Roles, result.RefreshToken));
     }
 
     private string GenerateJwtToken(AcceptInvitationUserInfo user)

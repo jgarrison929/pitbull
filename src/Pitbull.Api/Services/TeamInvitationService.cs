@@ -1,4 +1,5 @@
 using System.Net.Mail;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Api.Infrastructure;
@@ -218,6 +219,11 @@ public class TeamInvitationService(
         };
         db.Set<UserCompanyAccess>().Add(access);
 
+        // Generate refresh token so the new user can maintain their session
+        var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+
         // Mark invitation as accepted
         invitation.Status = InvitationStatus.Accepted;
         invitation.AcceptedAt = DateTime.UtcNow;
@@ -233,7 +239,7 @@ public class TeamInvitationService(
 
         return AcceptInvitationResult.Succeeded(new AcceptInvitationUserInfo(
             user.Id, user.FullName, user.Email!, invitation.TenantId,
-            invitation.CompanyId, user.Type.ToString(), roles.ToArray()));
+            invitation.CompanyId, user.Type.ToString(), roles.ToArray()), refreshToken);
     }
 
     public async Task RevokeInvitationAsync(Guid invitationId, CancellationToken ct = default)
@@ -356,9 +362,10 @@ public class AcceptInvitationResult
     public string? Error { get; init; }
     public string? ErrorCode { get; init; }
     public AcceptInvitationUserInfo? UserInfo { get; init; }
+    public string? RefreshToken { get; init; }
 
-    public static AcceptInvitationResult Succeeded(AcceptInvitationUserInfo userInfo)
-        => new() { IsSuccess = true, UserInfo = userInfo };
+    public static AcceptInvitationResult Succeeded(AcceptInvitationUserInfo userInfo, string refreshToken)
+        => new() { IsSuccess = true, UserInfo = userInfo, RefreshToken = refreshToken };
 
     public static AcceptInvitationResult Failed(string error, string code)
         => new() { IsSuccess = false, Error = error, ErrorCode = code };
