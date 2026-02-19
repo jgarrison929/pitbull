@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\src\Modules\Pitbull.Bids\Pitbull.Bids.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.Contracts\Pitbull.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Billing\Pitbull.Billing.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.AI\Pitbull.AI.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.ProjectManagement\Pitbull.ProjectManagement.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.SystemAdmin\Pitbull.SystemAdmin.csproj" />

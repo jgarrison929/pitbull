@@ -1,0 +1,204 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import api from "@/lib/api";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { TableSkeleton } from "@/components/skeletons";
+
+interface WipReportLine {
+  id: string;
+  projectId: string;
+  projectNumber: string;
+  projectName: string;
+  contractAmount: number;
+  approvedChangeOrders: number;
+  revisedContractAmount: number;
+  totalCostToDate: number;
+  estimatedCostToComplete: number;
+  estimatedTotalCost: number;
+  percentComplete: number;
+  earnedRevenue: number;
+  billedToDate: number;
+  overUnderBilling: number;
+  overUnderClassification: "Flat" | "UnderBilled" | "OverBilled";
+}
+
+interface WipReport {
+  id: string;
+  reportDate: string;
+  fiscalYear: number;
+  periodNumber: number;
+  status: "Draft" | "Final";
+  statusName: string;
+  generatedById: string;
+  lines: WipReportLine[];
+}
+
+function formatCurrency(value: number): string {
+  return value.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+}
+
+function formatPercent(value: number): string {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+export default function WipReportDetailPage() {
+  const params = useParams<{ id: string }>();
+  const reportId = params?.id;
+
+  const [report, setReport] = useState<WipReport | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      if (!reportId) return;
+
+      setIsLoading(true);
+      try {
+        const result = await api<WipReport>(`/api/wip-reports/${reportId}`);
+        setReport(result);
+      } catch {
+        toast.error("Failed to load WIP report");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    load();
+  }, [reportId]);
+
+  const totals = useMemo(() => {
+    if (!report) {
+      return {
+        revisedContractAmount: 0,
+        totalCostToDate: 0,
+        estimatedCostToComplete: 0,
+        estimatedTotalCost: 0,
+        earnedRevenue: 0,
+        billedToDate: 0,
+        overUnderBilling: 0,
+      };
+    }
+
+    return report.lines.reduce(
+      (acc, line) => ({
+        revisedContractAmount: acc.revisedContractAmount + line.revisedContractAmount,
+        totalCostToDate: acc.totalCostToDate + line.totalCostToDate,
+        estimatedCostToComplete: acc.estimatedCostToComplete + line.estimatedCostToComplete,
+        estimatedTotalCost: acc.estimatedTotalCost + line.estimatedTotalCost,
+        earnedRevenue: acc.earnedRevenue + line.earnedRevenue,
+        billedToDate: acc.billedToDate + line.billedToDate,
+        overUnderBilling: acc.overUnderBilling + line.overUnderBilling,
+      }),
+      {
+        revisedContractAmount: 0,
+        totalCostToDate: 0,
+        estimatedCostToComplete: 0,
+        estimatedTotalCost: 0,
+        earnedRevenue: 0,
+        billedToDate: 0,
+        overUnderBilling: 0,
+      }
+    );
+  }, [report]);
+
+  if (isLoading) {
+    return <TableSkeleton headers={["Project", "Contract", "Cost", "%", "Earned", "Billed", "Over/Under"]} rows={8} />;
+  }
+
+  if (!report) {
+    return (
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight">WIP Report</h1>
+        <p className="text-muted-foreground">Report not found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">WIP Detail</h1>
+          <p className="text-muted-foreground">
+            {report.fiscalYear} Period {report.periodNumber} • {report.reportDate}
+          </p>
+        </div>
+        <Badge variant={report.status === "Final" ? "default" : "secondary"}>{report.statusName}</Badge>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">Work In Progress Schedule</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Project</TableHead>
+                <TableHead className="text-right">Revised Contract</TableHead>
+                <TableHead className="text-right">Cost To Date</TableHead>
+                <TableHead className="text-right">Est. To Complete</TableHead>
+                <TableHead className="text-right">Est. Total Cost</TableHead>
+                <TableHead className="text-right">% Complete</TableHead>
+                <TableHead className="text-right">Earned Revenue</TableHead>
+                <TableHead className="text-right">Billed To Date</TableHead>
+                <TableHead className="text-right">Over / Under</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {report.lines.map((line) => (
+                <TableRow key={line.id}>
+                  <TableCell>
+                    <div className="font-medium">{line.projectNumber}</div>
+                    <div className="text-xs text-muted-foreground">{line.projectName}</div>
+                  </TableCell>
+                  <TableCell className="text-right">{formatCurrency(line.revisedContractAmount)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(line.totalCostToDate)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(line.estimatedCostToComplete)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(line.estimatedTotalCost)}</TableCell>
+                  <TableCell className="text-right">{formatPercent(line.percentComplete)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(line.earnedRevenue)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(line.billedToDate)}</TableCell>
+                  <TableCell
+                    className={`text-right font-semibold ${
+                      line.overUnderBilling < 0 ? "text-red-600" : line.overUnderBilling > 0 ? "text-green-600" : ""
+                    }`}
+                  >
+                    {formatCurrency(line.overUnderBilling)}
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              <TableRow className="bg-muted/30 font-semibold">
+                <TableCell>Totals</TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.revisedContractAmount)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.totalCostToDate)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.estimatedCostToComplete)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.estimatedTotalCost)}</TableCell>
+                <TableCell className="text-right">
+                  {totals.estimatedTotalCost <= 0
+                    ? "0.00%"
+                    : formatPercent(totals.totalCostToDate / totals.estimatedTotalCost)}
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.earnedRevenue)}</TableCell>
+                <TableCell className="text-right">{formatCurrency(totals.billedToDate)}</TableCell>
+                <TableCell
+                  className={`text-right ${
+                    totals.overUnderBilling < 0 ? "text-red-600" : totals.overUnderBilling > 0 ? "text-green-600" : ""
+                  }`}
+                >
+                  {formatCurrency(totals.overUnderBilling)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
