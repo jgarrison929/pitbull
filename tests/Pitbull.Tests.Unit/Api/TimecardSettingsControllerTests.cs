@@ -124,7 +124,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Simple,
             DefaultProjectId: projectId,
             RequirePhase: true,
-            RequireEquipment: true);
+            RequireEquipment: true,
+            WeekStartDay: 1);
 
         var result = await _controller.Update(request);
 
@@ -146,7 +147,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Simple,
             DefaultProjectId: projectId,
             RequirePhase: true,
-            RequireEquipment: false);
+            RequireEquipment: false,
+            WeekStartDay: 1);
 
         await _controller.Update(request);
 
@@ -172,7 +174,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Detailed,
             DefaultProjectId: seededProjectId,
             RequirePhase: false,
-            RequireEquipment: false);
+            RequireEquipment: false,
+            WeekStartDay: 1);
         await _controller.Update(firstRequest);
 
         // Then clear it
@@ -181,7 +184,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Detailed,
             DefaultProjectId: null,
             RequirePhase: false,
-            RequireEquipment: false);
+            RequireEquipment: false,
+            WeekStartDay: 1);
 
         var result = await _controller.Update(clearRequest);
 
@@ -206,7 +210,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Detailed,
             DefaultProjectId: null,
             RequirePhase: false,
-            RequireEquipment: false);
+            RequireEquipment: false,
+            WeekStartDay: 1);
 
         var result = await controller.Update(request);
 
@@ -221,7 +226,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Detailed,
             DefaultProjectId: Guid.NewGuid(), // not seeded
             RequirePhase: false,
-            RequireEquipment: false);
+            RequireEquipment: false,
+            WeekStartDay: 1);
 
         var result = await _controller.Update(request);
 
@@ -237,7 +243,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Detailed,
             DefaultProjectId: null,
             RequirePhase: false,
-            RequireEquipment: false);
+            RequireEquipment: false,
+            WeekStartDay: 1);
 
         var dailyResult = await _controller.Update(dailyRequest);
         dailyResult.Should().BeOfType<OkObjectResult>();
@@ -248,7 +255,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Simple,
             DefaultProjectId: null,
             RequirePhase: false,
-            RequireEquipment: false);
+            RequireEquipment: false,
+            WeekStartDay: 1);
 
         var weeklyResult = await _controller.Update(weeklyRequest);
         weeklyResult.Should().BeOfType<OkObjectResult>();
@@ -263,7 +271,8 @@ public class TimecardSettingsControllerTests : IDisposable
             WeeklyEntryMode: WeeklyEntryMode.Simple,
             DefaultProjectId: projectId,
             RequirePhase: true,
-            RequireEquipment: true);
+            RequireEquipment: true,
+            WeekStartDay: 1);
 
         await _controller.Update(request);
 

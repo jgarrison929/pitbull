@@ -57,6 +57,7 @@ export const settingsItems: NavItem[] = [
   { label: "Preferences", href: "/settings", icon: "⚙️" },
   { label: "Notifications", href: "/settings/notifications", icon: "🔔" },
   { label: "Overtime Rules", href: "/settings/overtime", icon: "⏰" },
+  { label: "Timecards", href: "/settings/time-tracking", icon: "🕐" },
   { label: "Projects", href: "/settings/projects", icon: "🏗️" },
   { label: "Contracts", href: "/settings/contracts", icon: "📄" },
   { label: "Bids", href: "/settings/bids", icon: "📋" },

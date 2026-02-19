@@ -12,6 +12,7 @@ export interface TimeTrackingSettings {
   defaultProjectId: string | null;
   requirePhase: boolean;
   requireEquipment: boolean;
+  weekStartDay: number;
 }
 
 const DEFAULT_SETTINGS: TimeTrackingSettings = {
@@ -20,6 +21,7 @@ const DEFAULT_SETTINGS: TimeTrackingSettings = {
   defaultProjectId: null,
   requirePhase: false,
   requireEquipment: false,
+  weekStartDay: 1,
 };
 
 export interface UseTimecardSettingsReturn {
@@ -52,6 +54,7 @@ export function useTimecardSettings(): UseTimecardSettingsReturn {
             defaultProjectId: result.defaultProjectId || null,
             requirePhase: result.requirePhase ?? false,
             requireEquipment: result.requireEquipment ?? false,
+            weekStartDay: result.weekStartDay ?? 1,
           });
         }
       } catch (err) {

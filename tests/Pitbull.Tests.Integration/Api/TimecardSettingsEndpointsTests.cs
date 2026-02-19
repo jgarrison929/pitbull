@@ -99,7 +99,8 @@ public sealed class TimecardSettingsEndpointsTests(PostgresFixture db) : IAsyncL
             WeeklyEntryMode: WeeklyEntryMode.Simple,
             DefaultProjectId: null,
             RequirePhase: true,
-            RequireEquipment: true
+            RequireEquipment: true,
+            WeekStartDay: 1
         );
 
         var resp = await client.PutAsJsonAsync("/api/companies/settings/time-tracking", updateReq);
@@ -126,7 +127,8 @@ public sealed class TimecardSettingsEndpointsTests(PostgresFixture db) : IAsyncL
             WeeklyEntryMode: WeeklyEntryMode.Detailed,
             DefaultProjectId: null,
             RequirePhase: true,
-            RequireEquipment: false
+            RequireEquipment: false,
+            WeekStartDay: 1
         );
 
         var updateResp = await client.PutAsJsonAsync("/api/companies/settings/time-tracking", updateReq);
@@ -161,7 +163,8 @@ public sealed class TimecardSettingsEndpointsTests(PostgresFixture db) : IAsyncL
             "weeklyEntryMode": 0,
             "defaultProjectId": null,
             "requirePhase": false,
-            "requireEquipment": false
+            "requireEquipment": false,
+            "weekStartDay": 1
         }
         """;
 
@@ -182,7 +185,8 @@ public sealed class TimecardSettingsEndpointsTests(PostgresFixture db) : IAsyncL
             WeeklyEntryMode: WeeklyEntryMode.Simple,
             DefaultProjectId: Guid.NewGuid(),  // Non-existent project
             RequirePhase: false,
-            RequireEquipment: false
+            RequireEquipment: false,
+            WeekStartDay: 1
         );
 
         var resp = await client.PutAsJsonAsync("/api/companies/settings/time-tracking", updateReq);

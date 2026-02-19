@@ -100,11 +100,15 @@ public class TimecardSettingsController(
         var settings = company.TimecardSettings;
 
         // PUT replaces all settings. Apply all fields from request.
+        if (request.WeekStartDay < 0 || request.WeekStartDay > 6)
+            return BadRequest(new { error = "WeekStartDay must be between 0 (Sunday) and 6 (Saturday)" });
+
         settings.TimecardMode = request.TimecardMode;
         settings.WeeklyEntryMode = request.WeeklyEntryMode;
         settings.DefaultProjectId = request.DefaultProjectId;
         settings.RequirePhase = request.RequirePhase;
         settings.RequireEquipment = request.RequireEquipment;
+        settings.WeekStartDay = request.WeekStartDay;
 
         await db.SaveChangesAsync();
 
@@ -116,7 +120,8 @@ public class TimecardSettingsController(
         WeeklyEntryMode: settings.WeeklyEntryMode,
         DefaultProjectId: settings.DefaultProjectId,
         RequirePhase: settings.RequirePhase,
-        RequireEquipment: settings.RequireEquipment);
+        RequireEquipment: settings.RequireEquipment,
+        WeekStartDay: settings.WeekStartDay);
 }
 
 // ==========================================
@@ -128,11 +133,13 @@ public record TimecardSettingsResponse(
     WeeklyEntryMode WeeklyEntryMode,
     Guid? DefaultProjectId,
     bool RequirePhase,
-    bool RequireEquipment);
+    bool RequireEquipment,
+    int WeekStartDay);
 
 public record UpdateTimecardSettingsRequest(
     TimecardMode TimecardMode,
     WeeklyEntryMode WeeklyEntryMode,
     Guid? DefaultProjectId,
     bool RequirePhase,
-    bool RequireEquipment);
+    bool RequireEquipment,
+    int WeekStartDay);

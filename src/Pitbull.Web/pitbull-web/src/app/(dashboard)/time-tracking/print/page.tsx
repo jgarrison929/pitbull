@@ -6,6 +6,7 @@ import { Printer, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useWeekStartDay } from "@/hooks/use-week-start-day";
 import {
   Select,
   SelectContent,
@@ -63,8 +64,8 @@ function formatHours(hours: number): string {
   return hours.toFixed(1);
 }
 
-function getWeekStartLocal(dateStr: string): Date {
-  return getWeekStartFn(new Date(dateStr), 1); // Monday start
+function getWeekStartLocal(dateStr: string, startDay: number): Date {
+  return getWeekStartFn(new Date(dateStr), startDay);
 }
 
 function getWeekEndLocal(weekStart: Date): Date {
@@ -82,11 +83,11 @@ function getDefaultDateRange(): { start: string; end: string } {
   return { start: formatD(twoWeeksAgo), end: formatD(today) };
 }
 
-function groupByWeek(entries: TimeEntry[]): WeekGroup[] {
+function groupByWeek(entries: TimeEntry[], startDay: number): WeekGroup[] {
   const weekMap = new Map<string, TimeEntry[]>();
 
   for (const entry of entries) {
-    const ws = getWeekStartLocal(entry.date);
+    const ws = getWeekStartLocal(entry.date, startDay);
     const key = ws.toISOString().split("T")[0];
     if (!weekMap.has(key)) {
       weekMap.set(key, []);
@@ -121,6 +122,7 @@ function groupByWeek(entries: TimeEntry[]): WeekGroup[] {
 }
 
 export default function TimesheetPrintPage() {
+  const { weekStartDay } = useWeekStartDay();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -326,7 +328,7 @@ export default function TimesheetPrintPage() {
             {/* Per-employee sections */}
             {Array.from(byEmployee.entries()).map(
               ([empId, { name, entries: empEntries }]) => {
-                const weeks = groupByWeek(empEntries);
+                const weeks = groupByWeek(empEntries, weekStartDay);
                 const empTotalReg = empEntries.reduce(
                   (s, e) => s + e.regularHours,
                   0

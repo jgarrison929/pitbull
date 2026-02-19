@@ -57,4 +57,10 @@ public class TimecardSettings
     /// Whether Equipment is required on crew timecard entries.
     /// </summary>
     public bool RequireEquipment { get; set; } = false;
+
+    /// <summary>
+    /// Day the work week starts. 0 = Sunday, 1 = Monday (default), 6 = Saturday.
+    /// Used for week boundaries in time tracking, approval, and reporting.
+    /// </summary>
+    public int WeekStartDay { get; set; } = 1;
 }
