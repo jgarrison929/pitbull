@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderOpen, Clock3, Inbox, MessageCircle, RefreshCw, Activity } from "lucide-react";
+import { FolderOpen, Clock3, Inbox, MessageCircle, RefreshCw, Activity, AlertTriangle } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
@@ -102,10 +103,36 @@ function budgetBarColor(percentUsed: number): { bar: string; text: string } {
   return { bar: "bg-emerald-500", text: "text-emerald-600" };
 }
 
+interface OnboardingStatus {
+  hasCompany: boolean;
+  isSetupComplete: boolean;
+  isChecklistDismissed: boolean;
+}
+
 export default function DashboardPage() {
   const { activeCompany } = useCompany();
+  const router = useRouter();
   const [data, setData] = useState<DashboardAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [setupIncomplete, setSetupIncomplete] = useState(false);
+
+  // Gate: redirect to setup wizard if onboarding is not complete
+  useEffect(() => {
+    let cancelled = false;
+    async function checkSetup() {
+      try {
+        const status = await api<OnboardingStatus>("/api/onboarding/status");
+        if (!cancelled && !status.isSetupComplete) {
+          router.replace("/settings/company/setup");
+          setSetupIncomplete(true);
+        }
+      } catch {
+        // If endpoint fails, don't block the dashboard
+      }
+    }
+    checkSetup();
+    return () => { cancelled = true; };
+  }, [router]);
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -145,6 +172,29 @@ export default function DashboardPage() {
 
       {/* Onboarding checklist for new users */}
       <OnboardingChecklist />
+
+      {/* Setup incomplete banner */}
+      {setupIncomplete && (
+        <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              Complete your company setup to get started
+            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-300">
+              Set up your company profile, choose modules, and configure defaults.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-500/50 dark:text-amber-300"
+            onClick={() => router.push("/settings/company/setup")}
+          >
+            Go to Setup
+          </Button>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>
