@@ -490,7 +490,7 @@ export default function AdminPayPeriodsPage() {
                               <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); openActionDialog("unlock", period); }}>
                                 Unlock
                               </Button>
-                              <Button size="sm" onClick={(e) => { e.stopPropagation(); openActionDialog("close", period); }} className="bg-neutral-700 hover:bg-neutral-800 text-white">
+                              <Button size="sm" onClick={(e) => { e.stopPropagation(); openActionDialog("close", period); }} >
                                 Close
                               </Button>
                             </>

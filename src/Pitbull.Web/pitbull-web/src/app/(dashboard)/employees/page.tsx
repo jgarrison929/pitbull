@@ -390,6 +390,14 @@ export default function EmployeesPage() {
                 />
               </div>
             </>
+          ) : sortedEmployees.length === 0 && totalCount === 0 && !search.trim() && classificationFilter === ALL_VALUE && activeFilter === "true" ? (
+            <EmptyState
+              icon={Users}
+              title="No employees yet"
+              description="Add your first employee to start managing your workforce, labor rates, and certifications."
+              actionLabel="+ Add Your First Employee"
+              actionHref="/employees/new"
+            />
           ) : sortedEmployees.length === 0 ? (
             <EmptyState
               icon={Users}

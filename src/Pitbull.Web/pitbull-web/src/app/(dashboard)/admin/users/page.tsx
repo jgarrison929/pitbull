@@ -316,7 +316,7 @@ export default function UsersPage() {
         </div>
         <Button
           onClick={() => setInviteDialogOpen(true)}
-          className="bg-amber-500 hover:bg-amber-600"
+          className=""
         >
           <UserPlus className="h-4 w-4 mr-2" />
           Invite User
@@ -832,7 +832,7 @@ export default function UsersPage() {
               onClick={handleSaveUser}
               loading={isSaving}
               loadingText="Saving..."
-              className="bg-amber-500 hover:bg-amber-600"
+              className=""
             >
               Save Changes
             </LoadingButton>
@@ -893,7 +893,7 @@ export default function UsersPage() {
               onClick={handleInviteUser}
               loading={isInviting}
               loadingText="Sending..."
-              className="bg-amber-500 hover:bg-amber-600"
+              className=""
             >
               Send Invitation
             </LoadingButton>

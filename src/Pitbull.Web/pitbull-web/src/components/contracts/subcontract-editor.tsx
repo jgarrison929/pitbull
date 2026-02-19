@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ import {
   type Subcontract,
 } from "@/lib/types";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type StatusOption = {
   value: SubcontractStatus;
@@ -131,6 +133,7 @@ export function SubcontractEditor({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<string, string>>>({});
 
   const pageTitle = useMemo(
     () => (isEdit ? "Edit Subcontract" : "New Subcontract"),
@@ -205,45 +208,21 @@ export function SubcontractEditor({
   }
 
   function validate(): boolean {
-    if (!form.projectId) {
-      toast.error("Project is required");
-      return false;
-    }
-    if (!form.subcontractNumber.trim()) {
-      toast.error("Subcontract number is required");
-      return false;
-    }
-    if (!form.subcontractorName.trim()) {
-      toast.error("Vendor / Sub Name is required");
-      return false;
-    }
-    if (!form.scopeOfWork.trim()) {
-      toast.error("Scope of work is required");
-      return false;
-    }
+    const errors: Partial<Record<string, string>> = {};
+    if (!form.projectId) errors.projectId = "Project is required";
+    if (!form.subcontractNumber.trim()) errors.subcontractNumber = "Subcontract number is required";
+    if (!form.subcontractorName.trim()) errors.subcontractorName = "Vendor / Sub Name is required";
+    if (!form.scopeOfWork.trim()) errors.scopeOfWork = "Scope of work is required";
     const amount = Number(form.originalValue);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Amount must be greater than 0");
-      return false;
-    }
+    if (!Number.isFinite(amount) || amount <= 0) errors.originalValue = "Amount must be greater than 0";
     const retainage = Number(form.retainagePercent);
-    if (!Number.isFinite(retainage) || retainage < 0 || retainage > 100) {
-      toast.error("Retention % must be between 0 and 100");
-      return false;
-    }
-    if (
-      form.subcontractorEmail &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.subcontractorEmail)
-    ) {
-      toast.error("Contact email format is invalid");
-      return false;
-    }
-    if (
-      form.startDate &&
-      form.completionDate &&
-      form.startDate > form.completionDate
-    ) {
-      toast.error("End date must be on or after start date");
+    if (!Number.isFinite(retainage) || retainage < 0 || retainage > 100) errors.retainagePercent = "Retention % must be between 0 and 100";
+    if (form.subcontractorEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.subcontractorEmail)) errors.subcontractorEmail = "Contact email format is invalid";
+    if (form.startDate && form.completionDate && form.startDate > form.completionDate) errors.completionDate = "End date must be on or after start date";
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error("Please fix the highlighted fields");
       return false;
     }
     return true;
@@ -380,9 +359,12 @@ export function SubcontractEditor({
               </Label>
               <Select
                 value={form.projectId}
-                onValueChange={(value) => updateField("projectId", value)}
+                onValueChange={(value) => {
+                  updateField("projectId", value);
+                  if (fieldErrors.projectId) setFieldErrors((prev) => ({ ...prev, projectId: undefined }));
+                }}
               >
-                <SelectTrigger id="projectId">
+                <SelectTrigger id="projectId" className={cn(fieldErrors.projectId && "border-destructive")}>
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
@@ -393,6 +375,7 @@ export function SubcontractEditor({
                   ))}
                 </SelectContent>
               </Select>
+              {fieldErrors.projectId && <p className="text-sm text-destructive" role="alert">{fieldErrors.projectId}</p>}
             </div>
 
             <div className="space-y-2">
@@ -425,11 +408,14 @@ export function SubcontractEditor({
               <Input
                 id="subcontractNumber"
                 value={form.subcontractNumber}
-                onChange={(e) =>
-                  updateField("subcontractNumber", e.target.value)
-                }
+                onChange={(e) => {
+                  updateField("subcontractNumber", e.target.value);
+                  if (fieldErrors.subcontractNumber) setFieldErrors((prev) => ({ ...prev, subcontractNumber: undefined }));
+                }}
+                className={cn(fieldErrors.subcontractNumber && "border-destructive")}
                 placeholder="SC-2026-001"
               />
+              {fieldErrors.subcontractNumber && <p className="text-sm text-destructive" role="alert">{fieldErrors.subcontractNumber}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="tradeCode">Trade Code</Label>
@@ -449,10 +435,15 @@ export function SubcontractEditor({
             <Textarea
               id="scopeOfWork"
               value={form.scopeOfWork}
-              onChange={(e) => updateField("scopeOfWork", e.target.value)}
+              onChange={(e) => {
+                updateField("scopeOfWork", e.target.value);
+                if (fieldErrors.scopeOfWork) setFieldErrors((prev) => ({ ...prev, scopeOfWork: undefined }));
+              }}
+              className={cn(fieldErrors.scopeOfWork && "border-destructive")}
               placeholder="Describe the scope of work for this subcontract"
               rows={4}
             />
+            {fieldErrors.scopeOfWork && <p className="text-sm text-destructive" role="alert">{fieldErrors.scopeOfWork}</p>}
           </div>
         </CardContent>
       </Card>
@@ -471,11 +462,14 @@ export function SubcontractEditor({
               <Input
                 id="subcontractorName"
                 value={form.subcontractorName}
-                onChange={(e) =>
-                  updateField("subcontractorName", e.target.value)
-                }
+                onChange={(e) => {
+                  updateField("subcontractorName", e.target.value);
+                  if (fieldErrors.subcontractorName) setFieldErrors((prev) => ({ ...prev, subcontractorName: undefined }));
+                }}
+                className={cn(fieldErrors.subcontractorName && "border-destructive")}
                 placeholder="ABC Concrete Inc"
               />
+              {fieldErrors.subcontractorName && <p className="text-sm text-destructive" role="alert">{fieldErrors.subcontractorName}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="subcontractorContact">Contact Name</Label>
@@ -497,11 +491,14 @@ export function SubcontractEditor({
                 id="subcontractorEmail"
                 type="email"
                 value={form.subcontractorEmail}
-                onChange={(e) =>
-                  updateField("subcontractorEmail", e.target.value)
-                }
+                onChange={(e) => {
+                  updateField("subcontractorEmail", e.target.value);
+                  if (fieldErrors.subcontractorEmail) setFieldErrors((prev) => ({ ...prev, subcontractorEmail: undefined }));
+                }}
+                className={cn(fieldErrors.subcontractorEmail && "border-destructive")}
                 placeholder="jane@vendor.com"
               />
+              {fieldErrors.subcontractorEmail && <p className="text-sm text-destructive" role="alert">{fieldErrors.subcontractorEmail}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="subcontractorPhone">Phone</Label>
@@ -557,9 +554,14 @@ export function SubcontractEditor({
                 min="0"
                 step="0.01"
                 value={form.originalValue}
-                onChange={(e) => updateField("originalValue", e.target.value)}
+                onChange={(e) => {
+                  updateField("originalValue", e.target.value);
+                  if (fieldErrors.originalValue) setFieldErrors((prev) => ({ ...prev, originalValue: undefined }));
+                }}
+                className={cn(fieldErrors.originalValue && "border-destructive")}
                 placeholder="0.00"
               />
+              {fieldErrors.originalValue && <p className="text-sm text-destructive" role="alert">{fieldErrors.originalValue}</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="retainagePercent">Retainage %</Label>
@@ -570,11 +572,14 @@ export function SubcontractEditor({
                 max="100"
                 step="0.1"
                 value={form.retainagePercent}
-                onChange={(e) =>
-                  updateField("retainagePercent", e.target.value)
-                }
+                onChange={(e) => {
+                  updateField("retainagePercent", e.target.value);
+                  if (fieldErrors.retainagePercent) setFieldErrors((prev) => ({ ...prev, retainagePercent: undefined }));
+                }}
+                className={cn(fieldErrors.retainagePercent && "border-destructive")}
                 placeholder="10"
               />
+              {fieldErrors.retainagePercent && <p className="text-sm text-destructive" role="alert">{fieldErrors.retainagePercent}</p>}
             </div>
           </div>
         </CardContent>
@@ -611,8 +616,13 @@ export function SubcontractEditor({
                 id="completionDate"
                 type="date"
                 value={form.completionDate}
-                onChange={(e) => updateField("completionDate", e.target.value)}
+                onChange={(e) => {
+                  updateField("completionDate", e.target.value);
+                  if (fieldErrors.completionDate) setFieldErrors((prev) => ({ ...prev, completionDate: undefined }));
+                }}
+                className={cn(fieldErrors.completionDate && "border-destructive")}
               />
+              {fieldErrors.completionDate && <p className="text-sm text-destructive" role="alert">{fieldErrors.completionDate}</p>}
             </div>
           </div>
         </CardContent>
@@ -683,17 +693,14 @@ export function SubcontractEditor({
             Cancel
           </Link>
         </Button>
-        <Button
+        <LoadingButton
           onClick={handleSave}
           className="bg-amber-500 hover:bg-amber-600 text-white"
-          disabled={isSaving}
+          loading={isSaving}
+          loadingText="Saving..."
         >
-          {isSaving
-            ? "Saving..."
-            : isEdit
-              ? "Update Subcontract"
-              : "Create Subcontract"}
-        </Button>
+          {isEdit ? "Update Subcontract" : "Create Subcontract"}
+        </LoadingButton>
       </div>
     </div>
   );

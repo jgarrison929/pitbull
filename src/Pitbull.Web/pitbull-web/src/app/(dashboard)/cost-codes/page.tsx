@@ -489,28 +489,13 @@ export default function CostCodesPage() {
           {isLoading ? (
             <TableSkeleton headers={["Code", "Description", "Division", "Type", "Status", ""]} rows={10} />
           ) : costCodes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/20 mb-6">
-                <Layers className="h-10 w-10 text-blue-500" />
-              </div>
-              <h3 className="text-xl font-semibold tracking-tight mb-2">
-                No cost codes found
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-md mb-2">
-                Add your first cost code to start tracking job costs.
-                Cost codes categorize labor by type of work for budget tracking.
-              </p>
-              <p className="text-xs text-muted-foreground mb-6">
-                Press <kbd className="px-1.5 py-0.5 rounded bg-muted border text-xs font-mono">N</kbd> to add a new cost code
-              </p>
-              <Button
-                onClick={openAddDialog}
-                className="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Cost Code
-              </Button>
-            </div>
+            <EmptyState
+              icon={Layers}
+              title="No cost codes yet"
+              description="Add your first cost code to start tracking job costs. Cost codes categorize labor by type of work for budget tracking."
+              actionLabel="+ Add Your First Cost Code"
+              onAction={openAddDialog}
+            />
           ) : (
             <div className="rounded-md border overflow-x-auto">
               <Table>
@@ -615,24 +600,13 @@ export default function CostCodesPage() {
           {isLoading ? (
             <CardListSkeleton rows={5} />
           ) : costCodes.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/20 mb-4">
-                <Layers className="h-8 w-8 text-blue-500" />
-              </div>
-              <h3 className="text-lg font-semibold tracking-tight mb-1">
-                No cost codes yet
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                Add cost codes to categorize labor for job cost accounting.
-              </p>
-              <Button
-                onClick={openAddDialog}
-                className="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Cost Code
-              </Button>
-            </div>
+            <EmptyState
+              icon={Layers}
+              title="No cost codes yet"
+              description="Add cost codes to categorize labor for job cost accounting."
+              actionLabel="+ Add Your First Cost Code"
+              onAction={openAddDialog}
+            />
           ) : (
             <div className="space-y-3">
               {sortedCostCodes.map((code) => {

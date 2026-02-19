@@ -666,7 +666,7 @@ export default function CompanySettingsPage() {
                 </p>
                 <div className="flex h-6 rounded-full overflow-hidden text-[10px] font-medium">
                   <div
-                    className="bg-green-500 text-white flex items-center justify-center"
+                    className="bg-amber-400 text-white flex items-center justify-center"
                     style={{
                       width: `${((form.dailyOtThreshold ?? 8) / (form.dailyDtThreshold ?? 12)) * 100}%`,
                     }}
@@ -719,7 +719,7 @@ export default function CompanySettingsPage() {
                   type="file"
                   accept="image/png,image/jpeg,image/svg+xml"
                   className="hidden"
-                  onChange={() => toast.info("Logo upload coming soon")}
+                  onChange={() => toast.info("Logo upload feature coming soon")}
                 />
                 Choose File
               </label>
@@ -733,7 +733,7 @@ export default function CompanySettingsPage() {
             type="submit"
             loading={isSaving}
             loadingText="Saving..."
-            className="bg-amber-500 hover:bg-amber-600 min-w-[140px]"
+            className="min-w-[140px]"
             disabled={!hasChanges}
           >
             Save Changes

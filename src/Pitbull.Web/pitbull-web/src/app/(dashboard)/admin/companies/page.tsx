@@ -365,7 +365,7 @@ export default function CompaniesPage() {
         </div>
         <Button
           onClick={openCreateDialog}
-          className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] shrink-0"
+          className="min-h-[44px] shrink-0"
         >
           <Plus className="h-4 w-4 mr-2" />
           Add Company

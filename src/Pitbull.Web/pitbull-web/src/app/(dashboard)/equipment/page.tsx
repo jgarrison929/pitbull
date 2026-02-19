@@ -32,6 +32,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -720,19 +721,13 @@ export default function EquipmentPage() {
                   rows={8}
                 />
               ) : equipment.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/20 mb-6">
-                    <PackagePlus className="h-10 w-10 text-amber-500" />
-                  </div>
-                  <h3 className="text-xl font-semibold tracking-tight mb-2">No equipment found</h3>
-                  <p className="text-sm text-muted-foreground max-w-md mb-6">
-                    Add your first equipment item to start tracking usage and costs.
-                  </p>
-                  <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Equipment
-                  </Button>
-                </div>
+                <EmptyState
+                  icon={PackagePlus}
+                  title="No equipment yet"
+                  description="Add your first equipment item to start tracking usage and costs on projects."
+                  actionLabel="+ Add Your First Equipment"
+                  onAction={openAddDialog}
+                />
               ) : (
                 <div className="rounded-md border overflow-x-auto">
                   <Table>
@@ -818,19 +813,13 @@ export default function EquipmentPage() {
               {isLoading ? (
                 <CardListSkeleton rows={5} />
               ) : equipment.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed border-muted-foreground/20 rounded-lg">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-900/20 mb-4">
-                    <PackagePlus className="h-8 w-8 text-amber-500" />
-                  </div>
-                  <h3 className="text-lg font-semibold tracking-tight mb-1">No equipment yet</h3>
-                  <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                    Add equipment to track usage and costs on projects.
-                  </p>
-                  <Button onClick={openAddDialog} className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Equipment
-                  </Button>
-                </div>
+                <EmptyState
+                  icon={PackagePlus}
+                  title="No equipment yet"
+                  description="Add equipment to track usage and costs on projects."
+                  actionLabel="+ Add Your First Equipment"
+                  onAction={openAddDialog}
+                />
               ) : (
                 <div className="space-y-3">
                   {equipment.map((eq) => {

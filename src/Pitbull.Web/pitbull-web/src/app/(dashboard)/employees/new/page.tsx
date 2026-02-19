@@ -154,6 +154,7 @@ export default function NewEmployeePage() {
   const [supervisors, setSupervisors] = useState<Employee[]>([]);
 
   const [errors, setErrors] = useState<FormErrors>({});
+  const [touched, setTouched] = useState<Partial<Record<string, boolean>>>({});
 
   // Track form dirty state
   const formData = useMemo(() => ({
@@ -281,6 +282,23 @@ export default function NewEmployeePage() {
     );
   }
 
+  const validateSingleField = useCallback((field: string): string | undefined => {
+    switch (field) {
+      case "firstName": return !firstName.trim() ? "First name is required" : undefined;
+      case "lastName": return !lastName.trim() ? "Last name is required" : undefined;
+      case "email": return email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Please enter a valid email address" : undefined;
+      case "phone": return phone && !isValidPhoneNumber(phone) ? "Please enter a valid 10-digit phone number" : undefined;
+      case "baseHourlyRate": { const rate = parseFloat(baseHourlyRate); return isNaN(rate) || rate < 0 ? "Rate must be a positive number" : undefined; }
+      default: return undefined;
+    }
+  }, [firstName, lastName, email, phone, baseHourlyRate]);
+
+  const handleFieldBlur = useCallback((field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    const error = validateSingleField(field);
+    setErrors((prev) => ({ ...prev, [field]: error }));
+  }, [validateSingleField]);
+
   function validate(): FormErrors {
     const next: FormErrors = {};
     if (!firstName.trim()) next.firstName = "First name is required";
@@ -302,6 +320,7 @@ export default function NewEmployeePage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    setTouched({ firstName: true, lastName: true, email: true, phone: true, baseHourlyRate: true });
     const nextErrors = validate();
     setErrors(nextErrors);
 
@@ -501,29 +520,45 @@ export default function NewEmployeePage() {
               {/* Name Row */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name *</Label>
+                  <Label htmlFor="firstName">First Name <span className="text-destructive">*</span></Label>
                   <Input
                     id="firstName"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      if (touched.firstName) {
+                        const err = e.target.value.trim() ? undefined : "First name is required";
+                        setErrors((prev) => ({ ...prev, firstName: err }));
+                      }
+                    }}
+                    onBlur={() => handleFieldBlur("firstName")}
+                    className={cn(touched.firstName && errors.firstName && "border-destructive")}
                     placeholder="John"
                     required
                   />
-                  {errors.firstName && (
-                    <p className="text-sm text-destructive">{errors.firstName}</p>
+                  {touched.firstName && errors.firstName && (
+                    <p className="text-sm text-destructive" role="alert">{errors.firstName}</p>
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name *</Label>
+                  <Label htmlFor="lastName">Last Name <span className="text-destructive">*</span></Label>
                   <Input
                     id="lastName"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      if (touched.lastName) {
+                        const err = e.target.value.trim() ? undefined : "Last name is required";
+                        setErrors((prev) => ({ ...prev, lastName: err }));
+                      }
+                    }}
+                    onBlur={() => handleFieldBlur("lastName")}
+                    className={cn(touched.lastName && errors.lastName && "border-destructive")}
                     placeholder="Doe"
                     required
                   />
-                  {errors.lastName && (
-                    <p className="text-sm text-destructive">{errors.lastName}</p>
+                  {touched.lastName && errors.lastName && (
+                    <p className="text-sm text-destructive" role="alert">{errors.lastName}</p>
                   )}
                 </div>
               </div>
@@ -536,11 +571,19 @@ export default function NewEmployeePage() {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (touched.email && errors.email) {
+                        const valid = !e.target.value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.target.value);
+                        if (valid) setErrors((prev) => ({ ...prev, email: undefined }));
+                      }
+                    }}
+                    onBlur={() => handleFieldBlur("email")}
+                    className={cn(touched.email && errors.email && "border-destructive")}
                     placeholder="john.doe@example.com"
                   />
-                  {errors.email && (
-                    <p className="text-sm text-destructive">{errors.email}</p>
+                  {touched.email && errors.email && (
+                    <p className="text-sm text-destructive" role="alert">{errors.email}</p>
                   )}
                 </div>
                 <div className="space-y-2">
