@@ -9,6 +9,9 @@ using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
+using Pitbull.Core.CQRS;
+using Pitbull.TimeTracking.Features;
+using Pitbull.TimeTracking.Entities;
 using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Tests.Unit.Services;
@@ -347,6 +350,16 @@ public sealed class TimeEntryPhaseEquipmentTests
 
     #region Helper Methods
 
+    private static IPayPeriodService CreateMockPayPeriodService()
+    {
+        var mock = new Mock<IPayPeriodService>();
+        mock.Setup(x => x.GetCurrentPeriodAsync(It.IsAny<DateOnly?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success(new PayPeriodDto { Id = Guid.NewGuid(), StartDate = DateOnly.MinValue, EndDate = DateOnly.MaxValue, Status = PayPeriodStatus.Open }));
+        mock.Setup(x => x.ValidateTimeEntryDateAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string?)null);
+        return mock.Object;
+    }
+
     private static TimeEntryService CreateService(Pitbull.Core.Data.PitbullDbContext db)
     {
         return new TimeEntryService(
@@ -355,7 +368,7 @@ public sealed class TimeEntryPhaseEquipmentTests
             new UpdateTimeEntryValidator(),
             new BatchCreateTimeEntriesValidator(),
             new LaborCostCalculator(),
-            Mock.Of<IPayPeriodService>(),
+            CreateMockPayPeriodService(),
             NullLogger<TimeEntryService>.Instance
         );
     }
