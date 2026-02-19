@@ -4,7 +4,7 @@
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
-[![Tests](https://img.shields.io/badge/tests-1567%20passing-success)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1949%20passing-success)](tests/)
 [![License](https://img.shields.io/badge/license-Proprietary-red)](LICENSE)
 
 **Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
@@ -19,7 +19,7 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Alpha 0 Complete** (Feb 7, 2026 - 14 days early)
 - ✅ **Foundation:** Core auth, multi-tenancy, CQRS architecture, direct service injection
 - ✅ **Security:** Rate limiting, request size limits, JWT auth, RLS policies, HSTS, security headers
-- ✅ **Testing:** 1,567 tests passing (1,342 unit + 225 integration) — 100% controller coverage
+- ✅ **Testing:** 1,949 tests passing (1,686 unit + 263 integration) — 100% controller coverage
 - ✅ **CI/CD:** GitHub Actions, automated testing, Docker builds, vulnerability scanning
 - ✅ **Modules:** Projects, Bids, RFIs, TimeTracking, Employees, Contracts, Equipment
 - ✅ **Multi-Company:** Single tenant, multiple legal entities with compound RLS (TenantId + CompanyId)
@@ -30,14 +30,17 @@ Loyal. Tenacious. Won't let go. 🐕
 - ✅ **Job Costing:** Labor cost calculator, cost rollup reports, Vista export, phase tracking
 - 📋 **Next:** Mobile-first time entry, foreman batch entry, pay period workflows
 
-**Recent Wins (Feb 13-16, 2026):**
-- **⏱️ Crew Timecards:** Company-configurable time entry — daily/weekly modes, auto-assign cost codes, crew batch entry
-- **🧪 100% Controller Coverage:** All 23 API controllers have comprehensive unit tests (1,342 unit tests)
-- **🏢 Multi-Company:** Full multi-company architecture (ICompanyScoped, company switcher, 13 entities scoped)
-- **⏱️ Phase/Equipment Tracking:** PhaseId on time entries, Equipment entity with hourly/billing rates
-- **🔒 Security Hardening:** Bootstrap-admin fix, rate limiting on all endpoints, request size limits
-- **🧹 MediatR Removed:** All controllers use direct service injection
-- **📊 RFI Cost Impact:** End-to-end pipeline from RFI to cost tracking
+**Recent Wins (Feb 17-19, 2026):**
+- **🚀 50+ PRs merged in 48 hours** — massive polish sprint covering security, UX, and infrastructure
+- **📧 Resend Email:** Transactional email (verification, reset, invites) via example.com domain
+- **🔄 CAP Event Bus:** Migrated from MassTransit (commercial license) to DotNetCore.CAP (MIT)
+- **🤖 AI Context Awareness:** Chat detects current page, injects relevant system context
+- **🛡️ Security Hardening:** SQL injection fix, API error message leak prevention, per-user AI rate limits
+- **📊 Dashboard Overhaul:** Quick actions, activity feed, KPI cards, 16 loading skeletons
+- **📋 Breadcrumbs + Navigation:** 22 pages standardized, sidebar reordered to workflow sequence
+- **🧪 1,949 tests passing** (1,686 unit + 263 integration), 0 build warnings, 0 lint warnings
+- **📄 CSV Exports:** All report pages (labor, profitability, equipment) export to CSV
+- **🎨 Dark Mode + Accessibility:** Consistent theming, ARIA labels, keyboard shortcuts
 
 ## Stack
 
@@ -52,14 +55,18 @@ Loyal. Tenacious. Won't let go. 🐕
 ### Shipped (Alpha 0 + Alpha 1 WIP)
 - **Core** - Multi-tenancy, multi-company, auth, shared kernel, equipment tracking
 - **Projects** - Project management, cost codes, budgets, phases
-- **Bids** - Opportunity tracking, bid management, win/loss analytics
-- **TimeTracking** - Labor hours, phase/equipment tracking, approval workflow, pay periods
-- **Employees** - Employee management, project assignments
-- **Reports** - Labor cost reports, Vista/Viewpoint CSV export, RFI cost impact
-- **Contracts** - Subcontracts, change orders, AIA G702 payment applications
+- **ProjectManagement** - Schedule, submittals, RFIs, daily reports, meetings, tasks, documents, communications
+- **Bids** - Opportunity tracking, bid management, win/loss analytics, bid-to-project conversion
+- **TimeTracking** - Labor hours, phase/equipment tracking, crew entry, approval workflow, pay periods
+- **Employees** - Employee management, onboarding wizard, CSV import, certifications
+- **Reports** - Labor cost, profitability, equipment reports, CSV exports, Vista/Viewpoint export
+- **Contracts** - Subcontracts, change orders, AIA G702/G703 payment applications, billing progress
+- **AI** - Provider abstraction (OpenAI + Anthropic), context-aware chat, smart fields, per-user rate limits
+- **SystemAdmin** - RBAC admin, audit log, system health, API keys, user invitations
+- **Notifications** - In-app + email (Resend), notification preferences
+- **ComplianceDocuments** - Compliance tracking and document management
 
 ### MVP (Planned)
-- **Documents** - Cloud/local storage, versioning, full-text search
 - **Portal** - Subcontractor self-service portal
 - **Billing** - Owner billing, invoicing, retainage release
 

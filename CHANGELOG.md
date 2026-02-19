@@ -6,6 +6,80 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.13.0] - 2026-02-19
+
+### Added
+
+- **DotNetCore.CAP event bus** — replaced MassTransit with CAP (MIT-licensed) using PostgreSQL outbox + Redis Streams transport, with in-memory fallback for local dev (#221).
+- **Resend transactional email** — verification, password reset, and invitation emails via Resend with example.com domain (#206).
+- **Per-user AI rate limiting** — individual user quotas on AI endpoints to prevent abuse (#204).
+- **CSI cost code seeding** — new tenants receive standard CSI division codes out of the box (#234).
+- **Email notification decorator** — notification service wired to send emails on key events (#234).
+- **Approval audit trail page** — dedicated UI for reviewing time entry approvals and rejections (#235).
+- **AI chat context awareness** — AI chat detects current page and injects relevant system context (#235).
+- **Dashboard quick actions + activity feed** — one-click shortcuts and recent activity on the main dashboard (#237).
+- **Pay app print view** — print-friendly layout for G702/G703 payment applications (#237).
+- **File upload** on RFI create and daily report pages (#229).
+- **Project management page enhancements** — document categories, meeting attendees/minutes, submittal ball-in-court tracking (#249).
+- **Vista import UX improvements** — better error display, help center link, footer links (#248).
+- **Dark mode consistency + accessibility** — ARIA labels, app version footer, consistent dark theme (#247).
+- **404 page** for dashboard routes, onboarding celebration state, keyboard shortcuts (#245).
+- **CSV exports** for all report pages (labor cost, profitability, equipment) (#244).
+- **Bid-to-project conversion** preview and contract billing progress bar (#243).
+- **Crew entry UX** — recent search history, settings status indicators (#242).
+- **Empty states** for 6+ list pages with inline form validation (#240).
+- **Loading skeletons** on 16 routes (#239).
+- **Breadcrumbs** standardized across 22 pages (#252).
+- **823 new unit tests** — CSI seeding, email decorator, system health, audit controller (#254).
+
+### Security
+
+- **SQL injection fix** — `SystemHealthService.SafeCountAsync` now uses table name whitelist instead of string interpolation (#250).
+- **API error handling hardening** — controllers no longer leak exception messages in production; standardized ProblemDetails responses (#253).
+- **Bootstrap-admin privilege escalation** — disabled admin bootstrap endpoint once an admin exists (#203).
+- **AI prompt injection sanitization** — zero-width character bypass, metadata sanitization, collection bounds (#201, carried from v0.12.0 sprint).
+
+### Changed
+
+- **MassTransit → CAP migration** — MassTransit v9 requires commercial Massient license; migrated to CAP (MIT) with PostgreSQL outbox (#221).
+- **ESLint 9 → 10** upgrade (#207).
+- **Microsoft packages** upgraded to latest 9.0.x patches (#208).
+- **Tailwind CSS 4.1 → 4.2** with posthog-js and types/node bumps (#251).
+- **Sidebar navigation** reordered to match user workflow: daily use → resources → financial (#250, #230).
+- **Toast error patterns** standardized to title + description format across 28 call sites (#252).
+- **Dialog modals** — added max-height and overflow-y-auto to prevent viewport overflow (#251).
+
+### Fixed
+
+- **5 production 500 errors** — systemic `DateTime UTC normalization` converts all `DateTimeKind.Unspecified` to UTC before save (#238).
+- **DataProtection key persistence** — keys stored in PostgreSQL instead of ephemeral container filesystem (#222).
+- **Same-day bid validation** — bids with due date = today no longer rejected (#223).
+- **Bid categories** payload mismatch resolved (#222).
+- **Integration test enum deserialization** — 83 test failures fixed with shared `JsonStringEnumConverter` options (#225).
+- **MassTransit 9 production crash** — reverted to 8.3.6, then migrated to CAP (#221).
+- **5 PostHog-reported API bugs** — enum serialization, RFI DTO, AI 503, employee certifications (#219).
+- **Dashboard analytics** — sequential DbContext queries (thread-safety fix) (#218).
+- **Sidebar active-link detection** and cost-codes sorting/pagination (#226).
+- **Projects pagination**, bid validation, pay app dates, change order status transitions (#227).
+- **Loading skeletons**, CSV import parser, verify-email page (#228).
+- **Overtime settings** wired to backend API, removed localStorage usage (#231).
+- **Signup data persistence** — industryType and employeeRange saved from registration (#231).
+- **Setup gating redirect**, pay period date validation, company switch reload (#236).
+- **CI repair** — unit test constructor mismatches, architecture exclusions, npm audit scope (#241).
+- **Zero build warnings** — removed 12 unused parameters, fixed XML docs, cleaned lint (#246).
+
+### Stats
+
+- **PRs merged (Feb 18–19):** 50+
+- **Unit tests:** 1,686 passing
+- **Integration tests:** 263 passing
+- **Build warnings:** 0 (C# and TypeScript)
+- **Lint warnings:** 0
+- **Open issues:** 0
+- **Open PRs:** 0
+
+---
+
 ## [0.12.0] - 2026-02-17
 
 ### Added
