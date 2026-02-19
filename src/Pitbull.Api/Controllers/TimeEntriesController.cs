@@ -235,8 +235,16 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         {
             var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
             if (!userResult.IsSuccess)
-                return Unauthorized(new { error = userResult.Error });
-            approverId = employeeId;
+            {
+                if (IsCurrentUserAdmin())
+                    approverId = GetCurrentUserIdFromJwt();
+                else
+                    return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
+            }
+            else
+            {
+                approverId = employeeId;
+            }
         }
 
         var command = new UpdateTimeEntryCommand(
@@ -294,13 +302,19 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveTimeEntryRequest request)
     {
         var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
+        var approverId = employeeId;
         if (!userResult.IsSuccess)
-            return Unauthorized(new { error = userResult.Error });
+        {
+            if (IsCurrentUserAdmin())
+                approverId = GetCurrentUserIdFromJwt() ?? Guid.Empty;
+            else
+                return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
+        }
 
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: id,
             NewStatus: TimeEntryStatus.Approved,
-            ApproverId: employeeId,
+            ApproverId: approverId,
             ApproverNotes: request.Comments
         );
 
@@ -361,13 +375,19 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectTimeEntryRequest request)
     {
         var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
+        var approverId = employeeId;
         if (!userResult.IsSuccess)
-            return Unauthorized(new { error = userResult.Error });
+        {
+            if (IsCurrentUserAdmin())
+                approverId = GetCurrentUserIdFromJwt() ?? Guid.Empty;
+            else
+                return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
+        }
 
         var command = new UpdateTimeEntryCommand(
             TimeEntryId: id,
             NewStatus: TimeEntryStatus.Rejected,
-            ApproverId: employeeId,
+            ApproverId: approverId,
             ApproverNotes: request.Reason
         );
 
@@ -421,9 +441,15 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         [FromQuery] Guid? projectId,
         [FromQuery] Guid? supervisorId)
     {
-        var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
-        if (!userResult.IsSuccess)
-            return Unauthorized(new { error = userResult.Error });
+        Guid? employeeId = null;
+
+        if (!IsCurrentUserAdmin())
+        {
+            var (userResult, empId) = await GetCurrentEmployeeIdAsync();
+            if (!userResult.IsSuccess)
+                return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
+            employeeId = empId;
+        }
 
         var result = await timeEntryService.GetReviewQueueAsync(
             startDate,
@@ -452,7 +478,12 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
     {
         var (userResult, employeeId) = await GetCurrentEmployeeIdAsync();
         if (!userResult.IsSuccess)
-            return Unauthorized(new { error = userResult.Error });
+        {
+            if (IsCurrentUserAdmin())
+                employeeId = GetCurrentUserIdFromJwt() ?? Guid.Empty;
+            else
+                return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
+        }
 
         var parseFailures = new List<string>();
         var decisions = new List<TimeEntryReviewDecision>();
@@ -848,6 +879,15 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         };
     }
 
+    private bool IsCurrentUserAdmin() => User.IsInRole("Admin");
+
+    private Guid? GetCurrentUserIdFromJwt()
+    {
+        var id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+        return Guid.TryParse(id, out var guid) ? guid : null;
+    }
+
     private async Task<(Result, Guid)> GetCurrentEmployeeIdAsync()
     {
         var email = User.Identity?.Name
@@ -861,7 +901,9 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         var employee = await timeEntryService.GetEmployeeByEmailAsync(email);
         if (employee == null)
         {
-            return (Result.Failure("No matching employee record found for the current user.", "UNAUTHORIZED"), Guid.Empty);
+            return (Result.Failure(
+                "No employee record is linked to your user account. Contact your administrator to create an employee record or assign the Admin role.",
+                "NO_EMPLOYEE_RECORD"), Guid.Empty);
         }
 
         return (Result.Success(), employee.Id);

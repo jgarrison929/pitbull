@@ -559,32 +559,13 @@ public class TimeEntryService : ITimeEntryService
         DateOnly? endDate,
         Guid? projectId,
         Guid? supervisorId,
-        Guid currentEmployeeId,
+        Guid? currentEmployeeId,
         CancellationToken cancellationToken = default)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var daysSinceMonday = ((int)today.DayOfWeek + 6) % 7;
         var effectiveStart = startDate ?? today.AddDays(-daysSinceMonday);
         var effectiveEnd = endDate ?? effectiveStart.AddDays(6);
-
-        // Get the list of projects this user is authorized to approve for.
-        var approvableProjectIds = await _db.Set<ProjectAssignment>()
-            .Where(pa => pa.EmployeeId == currentEmployeeId &&
-                         pa.IsActive &&
-                         (pa.Role == AssignmentRole.Manager || pa.Role == AssignmentRole.Supervisor))
-            .Select(pa => pa.ProjectId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-
-        if (approvableProjectIds.Count == 0)
-        {
-            return Result.Success(new ReviewQueueResult(
-                StartDate: effectiveStart,
-                EndDate: effectiveEnd,
-                TotalEntries: 0, TotalProjects: 0, TotalRegularHours: 0, TotalOvertimeHours: 0,
-                TotalDoubletimeHours: 0, TotalHours: 0, Groups: []
-            ));
-        }
 
         var query = _db.Set<TimeEntry>()
             .Include(te => te.Employee)
@@ -593,8 +574,32 @@ public class TimeEntryService : ITimeEntryService
             .Where(te => !te.IsDeleted)
             .Where(te => te.Status == TimeEntryStatus.Submitted)
             .Where(te => te.Date >= effectiveStart && te.Date <= effectiveEnd)
-            .Where(te => approvableProjectIds.Contains(te.ProjectId)) // Filter by approvable projects
             .AsQueryable();
+
+        // When currentEmployeeId is provided, filter to projects where the user
+        // has Manager or Supervisor assignment. When null (admin), return all submitted entries.
+        if (currentEmployeeId.HasValue)
+        {
+            var approvableProjectIds = await _db.Set<ProjectAssignment>()
+                .Where(pa => pa.EmployeeId == currentEmployeeId.Value &&
+                             pa.IsActive &&
+                             (pa.Role == AssignmentRole.Manager || pa.Role == AssignmentRole.Supervisor))
+                .Select(pa => pa.ProjectId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            if (approvableProjectIds.Count == 0)
+            {
+                return Result.Success(new ReviewQueueResult(
+                    StartDate: effectiveStart,
+                    EndDate: effectiveEnd,
+                    TotalEntries: 0, TotalProjects: 0, TotalRegularHours: 0, TotalOvertimeHours: 0,
+                    TotalDoubletimeHours: 0, TotalHours: 0, Groups: []
+                ));
+            }
+
+            query = query.Where(te => approvableProjectIds.Contains(te.ProjectId));
+        }
 
         if (projectId.HasValue)
             query = query.Where(te => te.ProjectId == projectId.Value);

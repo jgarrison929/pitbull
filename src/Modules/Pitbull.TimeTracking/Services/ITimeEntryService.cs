@@ -68,7 +68,7 @@ public interface ITimeEntryService
         DateOnly? endDate,
         Guid? projectId,
         Guid? supervisorId,
-        Guid currentEmployeeId,
+        Guid? currentEmployeeId,
         CancellationToken cancellationToken = default);
 
     Task<Employee?> GetEmployeeByEmailAsync(string email, CancellationToken cancellationToken = default);

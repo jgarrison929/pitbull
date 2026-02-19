@@ -14,6 +14,8 @@ using Pitbull.TimeTracking.Features.GetLaborCostReport;
 using Pitbull.TimeTracking.Features.GetTimeEntriesByProject;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
+using Pitbull.TimeTracking.Features.GetReviewQueue;
+using Pitbull.TimeTracking.Features.ReviewTimeEntries;
 using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Tests.Unit.Api;
@@ -436,6 +438,50 @@ public class TimeEntriesControllerTests
         result.Should().BeOfType<BadRequestObjectResult>();
     }
 
+    [Fact]
+    public async Task Approve_AdminWithoutEmployeeRecord_Uses_JwtUserId()
+    {
+        // Arrange: admin user with no employee record
+        var adminUserId = Guid.NewGuid();
+        var adminController = CreateControllerForAdminWithoutEmployee(adminUserId);
+
+        var dto = CreateTestDto(status: TimeEntryStatus.Approved);
+        _serviceMock
+            .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
+            .ReturnsAsync(Result.Success(dto));
+
+        var request = new ApproveTimeEntryRequest("Admin approved");
+
+        // Act
+        var result = await adminController.Approve(TestId, request);
+
+        // Assert — should succeed using JWT user ID as approver
+        result.Should().BeOfType<OkObjectResult>();
+        _serviceMock.Verify(s => s.UpdateTimeEntryAsync(
+            It.Is<UpdateTimeEntryCommand>(c =>
+                c.TimeEntryId == TestId &&
+                c.NewStatus == TimeEntryStatus.Approved &&
+                c.ApproverId == adminUserId &&
+                c.ApproverNotes == "Admin approved"),
+            default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Approve_NonAdminWithoutEmployeeRecord_Returns400()
+    {
+        // Arrange: non-admin user with no employee record
+        var controller = CreateControllerForNonAdminWithoutEmployee();
+
+        var request = new ApproveTimeEntryRequest("Should fail");
+
+        // Act
+        var result = await controller.Approve(TestId, request);
+
+        // Assert — 400 with NO_EMPLOYEE_RECORD, not 401
+        var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        bad.StatusCode.Should().Be(400);
+    }
+
     #endregion
 
     #region Reject
@@ -516,6 +562,155 @@ public class TimeEntriesControllerTests
         var result = await _controller.Reject(TestId, request);
 
         result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task Reject_AdminWithoutEmployeeRecord_UsesJwtUserId()
+    {
+        var adminUserId = Guid.NewGuid();
+        var adminController = CreateControllerForAdminWithoutEmployee(adminUserId);
+
+        var dto = CreateTestDto(status: TimeEntryStatus.Rejected);
+        _serviceMock
+            .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
+            .ReturnsAsync(Result.Success(dto));
+
+        var request = new RejectTimeEntryRequest("Admin rejected");
+
+        var result = await adminController.Reject(TestId, request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        _serviceMock.Verify(s => s.UpdateTimeEntryAsync(
+            It.Is<UpdateTimeEntryCommand>(c =>
+                c.ApproverId == adminUserId &&
+                c.NewStatus == TimeEntryStatus.Rejected),
+            default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Reject_NonAdminWithoutEmployeeRecord_Returns400()
+    {
+        var controller = CreateControllerForNonAdminWithoutEmployee();
+        var request = new RejectTimeEntryRequest("Should fail");
+
+        var result = await controller.Reject(TestId, request);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    #endregion
+
+    #region ReviewQueue
+
+    [Fact]
+    public async Task GetReviewQueue_AdminWithoutEmployee_ReturnsAllSubmitted()
+    {
+        var adminController = CreateControllerForAdminWithoutEmployee(Guid.NewGuid());
+
+        var queueResult = new ReviewQueueResult(
+            StartDate: TestDate, EndDate: TestDate.AddDays(6),
+            TotalEntries: 5, TotalProjects: 2, TotalRegularHours: 40,
+            TotalOvertimeHours: 0, TotalDoubletimeHours: 0, TotalHours: 40,
+            Groups: []);
+        _serviceMock
+            .Setup(s => s.GetReviewQueueAsync(null, null, null, null, null, default))
+            .ReturnsAsync(Result.Success(queueResult));
+
+        var result = await adminController.GetReviewQueue(null, null, null, null);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().Be(queueResult);
+
+        // Verify null was passed as employeeId (admin sees all)
+        _serviceMock.Verify(s => s.GetReviewQueueAsync(
+            null, null, null, null, null, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetReviewQueue_NonAdminWithEmployee_PassesEmployeeId()
+    {
+        var queueResult = new ReviewQueueResult(
+            StartDate: TestDate, EndDate: TestDate.AddDays(6),
+            TotalEntries: 2, TotalProjects: 1, TotalRegularHours: 16,
+            TotalOvertimeHours: 0, TotalDoubletimeHours: 0, TotalHours: 16,
+            Groups: []);
+        _serviceMock
+            .Setup(s => s.GetReviewQueueAsync(null, null, null, null, TestApproverId, default))
+            .ReturnsAsync(Result.Success(queueResult));
+
+        var result = await _controller.GetReviewQueue(null, null, null, null);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.Value.Should().Be(queueResult);
+
+        // Verify employee ID was passed (non-admin filtered to their projects)
+        _serviceMock.Verify(s => s.GetReviewQueueAsync(
+            null, null, null, null, TestApproverId, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetReviewQueue_NonAdminWithoutEmployee_Returns400()
+    {
+        var controller = CreateControllerForNonAdminWithoutEmployee();
+
+        var result = await controller.GetReviewQueue(null, null, null, null);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    #endregion
+
+    #region Helpers
+
+    private TimeEntriesController CreateControllerForAdminWithoutEmployee(Guid adminUserId)
+    {
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "admin@test.com"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Admin"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, adminUserId.ToString())
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+        var controller = new TimeEntriesController(
+            _serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+
+        // No employee record for this admin
+        _serviceMock
+            .Setup(s => s.GetEmployeeByEmailAsync("admin@test.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Employee?)null);
+
+        return controller;
+    }
+
+    private TimeEntriesController CreateControllerForNonAdminWithoutEmployee()
+    {
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "noemployee@test.com"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "User")
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+        var controller = new TimeEntriesController(
+            _serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+
+        // No employee record
+        _serviceMock
+            .Setup(s => s.GetEmployeeByEmailAsync("noemployee@test.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Employee?)null);
+
+        return controller;
     }
 
     #endregion
