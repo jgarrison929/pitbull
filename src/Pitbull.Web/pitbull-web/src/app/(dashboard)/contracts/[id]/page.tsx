@@ -17,7 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Input } from "@/components/ui/input";
-import { FileText, Receipt, AlertCircle, Wallet, HandCoins, Landmark, Scale, ClipboardList } from "lucide-react";
+import { FileText, Receipt, AlertCircle, Wallet, HandCoins, Landmark, Scale, ClipboardList, TrendingUp } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import api from "@/lib/api";
 import type { Subcontract, ChangeOrder, PaymentApplication, PagedResult } from "@/lib/types";
 import {
@@ -392,6 +393,34 @@ export default function SubcontractDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Billing Progress */}
+      <Card>
+        <CardContent className="pt-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <TrendingUp className="h-4 w-4 text-amber-600" />
+              Billing Progress
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {formatPercent(billedPercent)} billed
+            </span>
+          </div>
+          <Progress value={Math.min(billedPercent, 100)} className="h-3" />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>Billed: {formatCurrency(subcontract.billedToDate)}</span>
+            <span>Contract: {formatCurrency(subcontract.currentValue)}</span>
+          </div>
+          {subcontract.originalValue !== subcontract.currentValue && (
+            <p className="text-xs text-muted-foreground">
+              Original: {formatCurrency(subcontract.originalValue)} &rarr; Current: {formatCurrency(subcontract.currentValue)}{" "}
+              <span className={subcontract.currentValue > subcontract.originalValue ? "text-amber-600" : "text-green-600"}>
+                ({subcontract.currentValue > subcontract.originalValue ? "+" : ""}{formatCurrency(subcontract.currentValue - subcontract.originalValue)} from change orders)
+              </span>
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

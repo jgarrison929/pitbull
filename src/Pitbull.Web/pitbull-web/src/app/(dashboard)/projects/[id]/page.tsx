@@ -8,8 +8,13 @@ import {
   Clock,
   ClipboardList,
   FileQuestion,
-  FolderClock,
   Users,
+  FileText,
+  FolderOpen,
+  BarChart3,
+  CheckSquare,
+  MessageSquare,
+  Briefcase,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,12 +31,16 @@ import {
 } from "@/lib/projects";
 import type {
   ListTimeEntriesResult,
+  PagedResult,
   Project,
   Rfi,
   RfiCostSummary,
+  Subcontract,
+  ChangeOrder,
   TimeEntry,
 } from "@/lib/types";
 import type { PmPagedResult } from "@/lib/pm-types";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface ProjectStats {
@@ -146,6 +155,7 @@ export default function ProjectDetailPage({
   const [team, setTeam] = useState<ProjectAssignmentSummary[]>([]);
   const [activities, setActivities] = useState<DashboardActivityItem[]>([]);
   const [pendingSubmittals, setPendingSubmittals] = useState(0);
+  const [openChangeOrders, setOpenChangeOrders] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -162,7 +172,7 @@ export default function ProjectDetailPage({
       try {
         const projectRequest = api<Project>(`/api/projects/${id}`);
 
-        const [projectData, statsData, rfiCostData, assignmentsData, timeEntriesData, rfisData, submittalsData] =
+        const [projectData, statsData, rfiCostData, assignmentsData, timeEntriesData, rfisData, submittalsData, subcontractsData] =
           await Promise.all([
             projectRequest,
             api<ProjectStats>(`/api/projects/${id}/stats`).catch(() => null),
@@ -174,6 +184,9 @@ export default function ProjectDetailPage({
             api<{ items: Rfi[] }>(`/api/projects/${id}/rfis?page=1&pageSize=8`).catch(() => ({ items: [] })),
             api<PmPagedResult>(`/api/projects/${id}/submittals?page=1&pageSize=200`).catch(
               () => ({ items: [], totalCount: 0, page: 1, pageSize: 200, totalPages: 0, hasPreviousPage: false, hasNextPage: false })
+            ),
+            api<PagedResult<Subcontract>>(`/api/subcontracts?projectId=${id}&pageSize=50`).catch(
+              () => ({ items: [] as Subcontract[], totalCount: 0, page: 1, pageSize: 50, totalPages: 0 })
             ),
           ]);
 
@@ -196,6 +209,25 @@ export default function ProjectDetailPage({
           pendingStatuses.has(getSubmittalStatus(row))
         ).length;
         setPendingSubmittals(pendingCount);
+
+        // Fetch change orders across all project subcontracts
+        let openCOs = 0;
+        if (subcontractsData.items.length > 0) {
+          try {
+            const coResults = await Promise.all(
+              subcontractsData.items.slice(0, 10).map((sc) =>
+                api<PagedResult<ChangeOrder>>(`/api/changeorders?subcontractId=${sc.id}&pageSize=50`).catch(() => ({ items: [] as ChangeOrder[], totalCount: 0, page: 1, pageSize: 50, totalPages: 0 }))
+              )
+            );
+            openCOs = coResults.reduce((sum, r) => {
+              // Status 0=Pending, 1=Under Review are "open"
+              return sum + r.items.filter((co) => co.status === 0 || co.status === 1).length;
+            }, 0);
+          } catch {
+            // Non-critical — leave at 0
+          }
+        }
+        setOpenChangeOrders(openCOs);
 
         const timeActivity: DashboardActivityItem[] = (timeEntriesData.items || []).map((entry: TimeEntry) => ({
           id: `time-${entry.id}`,
@@ -337,6 +369,34 @@ export default function ProjectDetailPage({
         </CardContent>
       </Card>
 
+      {/* Sub-Navigation Tabs */}
+      <div className="flex gap-1 border-b overflow-x-auto">
+        {[
+          { label: "Overview", href: `/projects/${id}`, icon: BarChart3, active: true },
+          { label: "RFIs", href: `/projects/${id}/rfis`, icon: FileQuestion },
+          { label: "Submittals", href: `/projects/${id}/submittals`, icon: ClipboardList },
+          { label: "Documents", href: `/projects/${id}/documents`, icon: FolderOpen },
+          { label: "Schedule", href: `/projects/${id}/schedule`, icon: Calendar },
+          { label: "Daily Reports", href: `/projects/${id}/daily-reports`, icon: FileText },
+          { label: "Tasks", href: `/projects/${id}/tasks`, icon: CheckSquare },
+          { label: "Job Cost", href: `/projects/${id}/job-cost`, icon: Briefcase },
+        ].map((tab) => (
+          <Link
+            key={tab.label}
+            href={tab.href}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors",
+              tab.active
+                ? "border-amber-500 text-amber-600"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
+            )}
+          >
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+          </Link>
+        ))}
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
@@ -345,6 +405,9 @@ export default function ProjectDetailPage({
               Hours Logged
             </div>
             <p className="mt-2 text-2xl font-bold">{(stats?.totalHours || 0).toFixed(1)}h</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatCurrency(stats?.totalLaborCost || 0)} labor cost
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -354,6 +417,9 @@ export default function ProjectDetailPage({
               Budget Consumed
             </div>
             <p className="mt-2 text-2xl font-bold">{budgetConsumedPercent.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {formatCurrency(project.contractAmount)} budget
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -363,15 +429,21 @@ export default function ProjectDetailPage({
               Open RFIs
             </div>
             <p className="mt-2 text-2xl font-bold">{rfiSummary?.openRfis ?? 0}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {pendingSubmittals} pending submittal{pendingSubmittals !== 1 ? "s" : ""}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FolderClock className="h-4 w-4" />
-              Pending Submittals
+              <FileText className="h-4 w-4" />
+              Open Change Orders
             </div>
-            <p className="mt-2 text-2xl font-bold">{pendingSubmittals}</p>
+            <p className="mt-2 text-2xl font-bold">{openChangeOrders}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              pending or under review
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -383,7 +455,21 @@ export default function ProjectDetailPage({
           </CardHeader>
           <CardContent>
             {activities.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recent activity available.</p>
+              <div className="text-center py-8">
+                <MessageSquare className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm font-medium mb-1">No activity yet</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Activity will appear here as time entries, RFIs, and submittals are created.
+                </p>
+                <div className="flex justify-center gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/time-tracking/new?projectId=${id}`}>Log Time</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/projects/${id}/rfis`}>Create RFI</Link>
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-3">
                 {activities.map((item) => (
@@ -412,7 +498,13 @@ export default function ProjectDetailPage({
           </CardHeader>
           <CardContent>
             {team.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No active team assignments.</p>
+              <div className="text-center py-6">
+                <Users className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm font-medium mb-1">No team assigned</p>
+                <p className="text-xs text-muted-foreground">
+                  Assign employees to this project from the employee management page.
+                </p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {team.map((member) => (
