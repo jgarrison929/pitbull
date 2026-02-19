@@ -560,7 +560,7 @@ export default function CommunicationsPage({ params }: { params: Promise<{ id: s
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Communication" : "New Communication"}</DialogTitle>
               <DialogDescription>

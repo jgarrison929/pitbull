@@ -482,7 +482,7 @@ export default function ProgressPage({ params }: { params: Promise<{ id: string 
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Progress Entry" : "New Progress Entry"}</DialogTitle>
             <DialogDescription>
