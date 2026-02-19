@@ -31,7 +31,7 @@ function getEntityIcon(type: string) {
     case "rfi":
       return <HelpCircle className="h-4 w-4 text-blue-500" />;
     default:
-      return <Activity className="h-4 w-4 text-gray-500" />;
+      return <Activity className="h-4 w-4 text-muted-foreground" />;
   }
 }
 

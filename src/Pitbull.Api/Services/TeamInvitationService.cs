@@ -24,7 +24,6 @@ public class TeamInvitationService(
     UserManager<AppUser> userManager,
     RoleSeeder roleSeeder,
     ITenantContext tenantContext,
-    IEmailService emailService,
     IServiceScopeFactory scopeFactory,
     ILogger<TeamInvitationService> logger) : ITeamInvitationService
 {

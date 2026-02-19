@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
 import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
@@ -167,8 +167,6 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
   const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
   const [pendingFiles, setPendingFiles] = useState<FileItem[]>([]);
   const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const loadFiles = useCallback(async () => {
     try {
       const files = await api<FileAttachment[]>(

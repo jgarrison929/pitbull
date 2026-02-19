@@ -31,12 +31,8 @@ export function initPostHog() {
     // Respect Do Not Track
     respect_dnt: true,
     // Don't track localhost in dev unless explicitly testing
-    loaded: (ph) => {
-      if (process.env.NODE_ENV === "development") {
-        // Uncomment to debug PostHog in dev:
-        // ph.debug();
-      }
-    },
+    // To enable PostHog debug mode in development:
+    // loaded: (ph) => { if (process.env.NODE_ENV === "development") ph.debug(); },
   });
 }
 

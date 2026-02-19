@@ -358,6 +358,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
     /// Get certifications for a specific employee
     /// </summary>
     /// <param name="id">Employee unique identifier</param>
+    /// <param name="ct">Cancellation token</param>
     /// <returns>List of employee certifications</returns>
     /// <response code="200">Certifications list</response>
     /// <response code="401">Not authenticated</response>

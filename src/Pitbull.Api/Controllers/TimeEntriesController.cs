@@ -31,7 +31,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Time Entries")]
-public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPublisher capPublisher, ITenantContext tenantContext, ICompanyContext companyContext, PitbullDbContext db) : ControllerBase
+public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPublisher capPublisher, ITenantContext tenantContext, ICompanyContext companyContext) : ControllerBase
 {
     private Dictionary<string, string?> TenantHeaders()
     {
