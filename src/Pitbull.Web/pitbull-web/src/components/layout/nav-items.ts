@@ -19,6 +19,9 @@ export const mainNavItems: NavItem[] = [
 ];
 
 export const financialItems: NavItem[] = [
+  { label: "Journal Entries", href: "/accounting/journal-entries", icon: "📓" },
+  { label: "Accounting Periods", href: "/accounting/periods", icon: "📆" },
+  { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
   { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾" },
   { label: "Vendors", href: "/vendors", icon: "🏢" },
   { label: "Customers", href: "/customers", icon: "🤝" },
