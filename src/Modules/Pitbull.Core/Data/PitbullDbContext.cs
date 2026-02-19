@@ -678,9 +678,13 @@ public class PitbullDbContext(
 
             foreach (var property in entry.Properties)
             {
-                if (property.CurrentValue is DateTime value && value.Kind == DateTimeKind.Unspecified)
+                if (property.CurrentValue is DateTime value && value.Kind != DateTimeKind.Utc)
                 {
-                    DateTime utcValue = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+                    // Npgsql 9.x requires DateTimeKind.Utc for timestamptz columns.
+                    // Handle both Unspecified (assume UTC) and Local (convert to UTC).
+                    DateTime utcValue = value.Kind == DateTimeKind.Local
+                        ? value.ToUniversalTime()
+                        : DateTime.SpecifyKind(value, DateTimeKind.Utc);
                     property.CurrentValue = utcValue;
                     property.Metadata.PropertyInfo?.SetValue(entry.Entity, utcValue);
                 }

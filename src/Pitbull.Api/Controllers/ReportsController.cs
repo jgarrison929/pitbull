@@ -30,6 +30,10 @@ public class ReportsController(IReportService reportService) : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (Exception)
+        {
+            return StatusCode(500, new { error = "Failed to generate labor cost report", code = "REPORT_ERROR" });
+        }
     }
 
     [HttpGet("project-profitability")]
@@ -47,6 +51,10 @@ public class ReportsController(IReportService reportService) : ControllerBase
         {
             return BadRequest(new { error = ex.Message });
         }
+        catch (Exception)
+        {
+            return StatusCode(500, new { error = "Failed to generate profitability report", code = "REPORT_ERROR" });
+        }
     }
 
     [HttpGet("equipment-utilization")]
@@ -63,6 +71,10 @@ public class ReportsController(IReportService reportService) : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { error = "Failed to generate equipment utilization report", code = "REPORT_ERROR" });
         }
     }
 

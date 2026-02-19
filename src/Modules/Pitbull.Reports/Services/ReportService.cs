@@ -53,93 +53,171 @@ public sealed class ReportService(PitbullDbContext db) : IReportService
             baseQuery = baseQuery.Where(te => te.ProjectId == projectId.Value);
         }
 
+        // Use a flat projection that avoids complex ternary expressions inside SQL.
+        // Employee navigation is required (EmployeeId is non-nullable FK), so null
+        // checks are not needed. CostCode is also required.  Phase is optional.
         var projection = baseQuery.Select(te => new
         {
             te.ProjectId,
             ProjectName = te.Project.Name,
             te.EmployeeId,
-            EmployeeNumber = te.Employee != null ? te.Employee.EmployeeNumber : "N/A",
-            EmployeeName = te.Employee != null ? te.Employee.FirstName + " " + te.Employee.LastName : "Unknown",
+            te.Employee.EmployeeNumber,
+            EmployeeFirstName = te.Employee.FirstName,
+            EmployeeLastName = te.Employee.LastName,
             te.CostCodeId,
-            CostCode = te.CostCode.Code,
-            CostCodeDescription = te.CostCode.Description,
+            CostCodeCode = te.CostCode.Code,
+            te.CostCode.Description,
             te.PhaseId,
             PhaseName = te.Phase != null ? te.Phase.Name : null,
             te.RegularHours,
-            OvertimeHours = te.OvertimeHours + te.DoubletimeHours,
-            TotalHours = te.RegularHours + te.OvertimeHours + te.DoubletimeHours,
-            TotalCost = (te.RegularHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m))
-                + (te.OvertimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 1.5m)
-                + (te.DoubletimeHours * (te.Employee != null ? te.Employee.BaseHourlyRate : 0m) * 2.0m)
+            te.OvertimeHours,
+            te.DoubletimeHours,
+            te.Employee.BaseHourlyRate
         });
 
         var normalizedGroupBy = groupBy.Trim().ToLowerInvariant();
 
-        List<LaborCostReportRow> rows = normalizedGroupBy switch
+        // Materialize grouped aggregates with SQL-safe expressions, then format labels in-memory.
+        List<LaborCostReportRow> rows;
+        switch (normalizedGroupBy)
         {
-            "employee" => await projection
-                .GroupBy(x => new { x.EmployeeId, x.EmployeeNumber, x.EmployeeName })
-                .Select(g => new LaborCostReportRow(
-                    g.Key.EmployeeId.ToString(),
-                    $"{g.Key.EmployeeNumber} - {g.Key.EmployeeName}",
-                    g.Sum(x => x.TotalHours),
-                    g.Sum(x => x.RegularHours),
-                    g.Sum(x => x.OvertimeHours),
-                    g.Sum(x => x.TotalCost)
-                ))
-                .OrderBy(r => r.GroupLabel)
-                .ToListAsync(cancellationToken),
+            case "employee":
+            {
+                var raw = await projection
+                    .GroupBy(x => new { x.EmployeeId, x.EmployeeNumber, x.EmployeeFirstName, x.EmployeeLastName })
+                    .Select(g => new
+                    {
+                        g.Key.EmployeeId,
+                        g.Key.EmployeeNumber,
+                        g.Key.EmployeeFirstName,
+                        g.Key.EmployeeLastName,
+                        TotalHours = g.Sum(x => x.RegularHours + x.OvertimeHours + x.DoubletimeHours),
+                        RegularHours = g.Sum(x => x.RegularHours),
+                        OvertimeHours = g.Sum(x => x.OvertimeHours + x.DoubletimeHours),
+                        TotalCost = g.Sum(x =>
+                            x.RegularHours * x.BaseHourlyRate
+                            + x.OvertimeHours * x.BaseHourlyRate * 1.5m
+                            + x.DoubletimeHours * x.BaseHourlyRate * 2.0m)
+                    })
+                    .OrderBy(r => r.EmployeeLastName).ThenBy(r => r.EmployeeFirstName)
+                    .ToListAsync(cancellationToken);
 
-            "costcode" => await projection
-                .GroupBy(x => new { x.CostCodeId, x.CostCode, x.CostCodeDescription })
-                .Select(g => new LaborCostReportRow(
-                    g.Key.CostCodeId.ToString(),
-                    $"{g.Key.CostCode} - {g.Key.CostCodeDescription}",
-                    g.Sum(x => x.TotalHours),
-                    g.Sum(x => x.RegularHours),
-                    g.Sum(x => x.OvertimeHours),
-                    g.Sum(x => x.TotalCost)
-                ))
-                .OrderBy(r => r.GroupLabel)
-                .ToListAsync(cancellationToken),
+                rows = raw.Select(r => new LaborCostReportRow(
+                    r.EmployeeId.ToString(),
+                    $"{r.EmployeeNumber} - {r.EmployeeFirstName} {r.EmployeeLastName}",
+                    r.TotalHours, r.RegularHours, r.OvertimeHours, r.TotalCost
+                )).ToList();
+                break;
+            }
+            case "costcode":
+            {
+                var raw = await projection
+                    .GroupBy(x => new { x.CostCodeId, x.CostCodeCode, x.Description })
+                    .Select(g => new
+                    {
+                        g.Key.CostCodeId,
+                        g.Key.CostCodeCode,
+                        g.Key.Description,
+                        TotalHours = g.Sum(x => x.RegularHours + x.OvertimeHours + x.DoubletimeHours),
+                        RegularHours = g.Sum(x => x.RegularHours),
+                        OvertimeHours = g.Sum(x => x.OvertimeHours + x.DoubletimeHours),
+                        TotalCost = g.Sum(x =>
+                            x.RegularHours * x.BaseHourlyRate
+                            + x.OvertimeHours * x.BaseHourlyRate * 1.5m
+                            + x.DoubletimeHours * x.BaseHourlyRate * 2.0m)
+                    })
+                    .OrderBy(r => r.CostCodeCode)
+                    .ToListAsync(cancellationToken);
 
-            "phase" => await projection
-                .GroupBy(x => new { x.PhaseId, x.PhaseName })
-                .Select(g => new LaborCostReportRow(
-                    g.Key.PhaseId.HasValue ? g.Key.PhaseId.Value.ToString() : "none",
-                    string.IsNullOrWhiteSpace(g.Key.PhaseName) ? "(No Phase)" : g.Key.PhaseName!,
-                    g.Sum(x => x.TotalHours),
-                    g.Sum(x => x.RegularHours),
-                    g.Sum(x => x.OvertimeHours),
-                    g.Sum(x => x.TotalCost)
-                ))
-                .OrderBy(r => r.GroupLabel)
-                .ToListAsync(cancellationToken),
+                rows = raw.Select(r => new LaborCostReportRow(
+                    r.CostCodeId.ToString(),
+                    $"{r.CostCodeCode} - {r.Description}",
+                    r.TotalHours, r.RegularHours, r.OvertimeHours, r.TotalCost
+                )).ToList();
+                break;
+            }
+            case "phase":
+            {
+                var raw = await projection
+                    .GroupBy(x => new { x.PhaseId, x.PhaseName })
+                    .Select(g => new
+                    {
+                        g.Key.PhaseId,
+                        g.Key.PhaseName,
+                        TotalHours = g.Sum(x => x.RegularHours + x.OvertimeHours + x.DoubletimeHours),
+                        RegularHours = g.Sum(x => x.RegularHours),
+                        OvertimeHours = g.Sum(x => x.OvertimeHours + x.DoubletimeHours),
+                        TotalCost = g.Sum(x =>
+                            x.RegularHours * x.BaseHourlyRate
+                            + x.OvertimeHours * x.BaseHourlyRate * 1.5m
+                            + x.DoubletimeHours * x.BaseHourlyRate * 2.0m)
+                    })
+                    .OrderBy(r => r.PhaseName)
+                    .ToListAsync(cancellationToken);
 
-            _ => throw new ArgumentException("groupBy must be one of: employee, costCode, phase", nameof(groupBy))
-        };
+                rows = raw.Select(r => new LaborCostReportRow(
+                    r.PhaseId?.ToString() ?? "none",
+                    string.IsNullOrWhiteSpace(r.PhaseName) ? "(No Phase)" : r.PhaseName,
+                    r.TotalHours, r.RegularHours, r.OvertimeHours, r.TotalCost
+                )).ToList();
+                break;
+            }
+            default:
+                throw new ArgumentException("groupBy must be one of: employee, costCode, phase", nameof(groupBy));
+        }
 
-        var totals = await projection
+        // Compute totals — use a simple aggregate to avoid GroupBy-on-constant translation issues.
+        var totalData = await baseQuery.Select(te => new
+            {
+                te.RegularHours,
+                te.OvertimeHours,
+                te.DoubletimeHours,
+                te.Employee.BaseHourlyRate
+            })
             .GroupBy(_ => 1)
-            .Select(g => new LaborCostSummary(
-                g.Sum(x => x.TotalHours),
-                g.Sum(x => x.RegularHours),
-                g.Sum(x => x.OvertimeHours),
-                g.Sum(x => x.TotalCost)))
-            .FirstOrDefaultAsync(cancellationToken)
-            ?? new LaborCostSummary(0m, 0m, 0m, 0m);
+            .Select(g => new
+            {
+                TotalHours = g.Sum(x => x.RegularHours + x.OvertimeHours + x.DoubletimeHours),
+                RegularHours = g.Sum(x => x.RegularHours),
+                OvertimeHours = g.Sum(x => x.OvertimeHours + x.DoubletimeHours),
+                TotalCost = g.Sum(x =>
+                    x.RegularHours * x.BaseHourlyRate
+                    + x.OvertimeHours * x.BaseHourlyRate * 1.5m
+                    + x.DoubletimeHours * x.BaseHourlyRate * 2.0m)
+            })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        var subtotals = await projection
+        var totals = totalData != null
+            ? new LaborCostSummary(totalData.TotalHours, totalData.RegularHours, totalData.OvertimeHours, totalData.TotalCost)
+            : new LaborCostSummary(0m, 0m, 0m, 0m);
+
+        var subtotalData = await baseQuery.Select(te => new
+            {
+                te.ProjectId,
+                ProjectName = te.Project.Name,
+                te.RegularHours,
+                te.OvertimeHours,
+                te.DoubletimeHours,
+                te.Employee.BaseHourlyRate
+            })
             .GroupBy(x => new { x.ProjectId, x.ProjectName })
-            .Select(g => new LaborCostSubtotal(
+            .Select(g => new
+            {
                 g.Key.ProjectName,
-                g.Sum(x => x.TotalHours),
-                g.Sum(x => x.RegularHours),
-                g.Sum(x => x.OvertimeHours),
-                g.Sum(x => x.TotalCost)
-            ))
-            .OrderBy(s => s.Label)
+                TotalHours = g.Sum(x => x.RegularHours + x.OvertimeHours + x.DoubletimeHours),
+                RegularHours = g.Sum(x => x.RegularHours),
+                OvertimeHours = g.Sum(x => x.OvertimeHours + x.DoubletimeHours),
+                TotalCost = g.Sum(x =>
+                    x.RegularHours * x.BaseHourlyRate
+                    + x.OvertimeHours * x.BaseHourlyRate * 1.5m
+                    + x.DoubletimeHours * x.BaseHourlyRate * 2.0m)
+            })
+            .OrderBy(s => s.ProjectName)
             .ToListAsync(cancellationToken);
+
+        var subtotals = subtotalData
+            .Select(s => new LaborCostSubtotal(s.ProjectName, s.TotalHours, s.RegularHours, s.OvertimeHours, s.TotalCost))
+            .ToList();
 
         return new LaborCostReportResponse(
             rangeFrom,

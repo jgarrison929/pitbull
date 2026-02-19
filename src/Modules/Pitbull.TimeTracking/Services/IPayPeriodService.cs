@@ -45,9 +45,9 @@ public interface IPayPeriodService
     Task<string?> ValidateTimeEntryDateAsync(DateOnly date, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the current pay period (containing today's date).
+    /// Get the pay period containing the given date (defaults to today).
     /// </summary>
-    Task<Result<PayPeriodDto>> GetCurrentPeriodAsync(CancellationToken cancellationToken = default);
+    Task<Result<PayPeriodDto>> GetCurrentPeriodAsync(DateOnly? date = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// List pay periods with filtering and pagination.

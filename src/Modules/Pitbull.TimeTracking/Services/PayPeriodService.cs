@@ -76,18 +76,25 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext,
         return null;
     }
 
-    public async Task<Result<PayPeriodDto>> GetCurrentPeriodAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<PayPeriodDto>> GetCurrentPeriodAsync(DateOnly? date = null, CancellationToken cancellationToken = default)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var period = await db.Set<PayPeriod>()
-            .AsNoTracking()
-            .Where(p => p.StartDate <= today && p.EndDate >= today)
-            .FirstOrDefaultAsync(cancellationToken);
+        try
+        {
+            var targetDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+            var period = await db.Set<PayPeriod>()
+                .AsNoTracking()
+                .Where(p => p.StartDate <= targetDate && p.EndDate >= targetDate)
+                .FirstOrDefaultAsync(cancellationToken);
 
-        if (period == null)
-            return Result.Failure<PayPeriodDto>("No pay period found for today", "NOT_FOUND");
+            if (period == null)
+                return Result.Failure<PayPeriodDto>($"No pay period found for {targetDate:yyyy-MM-dd}", "NOT_FOUND");
 
-        return Result.Success(PayPeriodMapper.ToDto(period));
+            return Result.Success(PayPeriodMapper.ToDto(period));
+        }
+        catch (Exception)
+        {
+            return Result.Failure<PayPeriodDto>("Failed to retrieve current pay period", "DATABASE_ERROR");
+        }
     }
 
     public async Task<Result<PagedResult<PayPeriodDto>>> ListPayPeriodsAsync(

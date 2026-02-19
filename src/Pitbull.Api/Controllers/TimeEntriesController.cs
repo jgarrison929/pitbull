@@ -315,14 +315,22 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
             };
         }
 
-        await capPublisher.PublishAsync("timeentries.approved", new TimeEntriesApproved
+        try
         {
-            BatchId = Guid.NewGuid(),
-            ApprovedById = employeeId,
-            TimeEntryIds = [id],
-            Count = 1,
-            ApprovedAt = DateTime.UtcNow
-        }, TenantHeaders());
+            await capPublisher.PublishAsync("timeentries.approved", new TimeEntriesApproved
+            {
+                BatchId = Guid.NewGuid(),
+                ApprovedById = employeeId,
+                TimeEntryIds = [id],
+                Count = 1,
+                ApprovedAt = DateTime.UtcNow
+            }, TenantHeaders());
+        }
+        catch (Exception ex)
+        {
+            HttpContext.RequestServices.GetService<ILogger<TimeEntriesController>>()?
+                .LogWarning(ex, "Failed to publish CAP event for time entry approval");
+        }
 
         return Ok(result.Value);
     }
@@ -374,14 +382,22 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
             };
         }
 
-        await capPublisher.PublishAsync("timeentries.rejected", new TimeEntriesRejected
+        try
         {
-            BatchId = Guid.NewGuid(),
-            RejectedById = employeeId,
-            TimeEntryIds = [id],
-            Count = 1,
-            RejectedAt = DateTime.UtcNow
-        }, TenantHeaders());
+            await capPublisher.PublishAsync("timeentries.rejected", new TimeEntriesRejected
+            {
+                BatchId = Guid.NewGuid(),
+                RejectedById = employeeId,
+                TimeEntryIds = [id],
+                Count = 1,
+                RejectedAt = DateTime.UtcNow
+            }, TenantHeaders());
+        }
+        catch (Exception ex)
+        {
+            HttpContext.RequestServices.GetService<ILogger<TimeEntriesController>>()?
+                .LogWarning(ex, "Failed to publish CAP event for time entry rejection");
+        }
 
         return Ok(result.Value);
     }
@@ -486,28 +502,36 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
             .Select(r => r.TimeEntryId)
             .ToList();
 
-        if (approvedIds.Count > 0)
+        try
         {
-            await capPublisher.PublishAsync("timeentries.approved", new TimeEntriesApproved
+            if (approvedIds.Count > 0)
             {
-                BatchId = Guid.NewGuid(),
-                ApprovedById = employeeId,
-                TimeEntryIds = approvedIds,
-                Count = approvedIds.Count,
-                ApprovedAt = DateTime.UtcNow
-            }, TenantHeaders());
-        }
+                await capPublisher.PublishAsync("timeentries.approved", new TimeEntriesApproved
+                {
+                    BatchId = Guid.NewGuid(),
+                    ApprovedById = employeeId,
+                    TimeEntryIds = approvedIds,
+                    Count = approvedIds.Count,
+                    ApprovedAt = DateTime.UtcNow
+                }, TenantHeaders());
+            }
 
-        if (rejectedIds.Count > 0)
-        {
-            await capPublisher.PublishAsync("timeentries.rejected", new TimeEntriesRejected
+            if (rejectedIds.Count > 0)
             {
-                BatchId = Guid.NewGuid(),
-                RejectedById = employeeId,
-                TimeEntryIds = rejectedIds,
-                Count = rejectedIds.Count,
-                RejectedAt = DateTime.UtcNow
-            }, TenantHeaders());
+                await capPublisher.PublishAsync("timeentries.rejected", new TimeEntriesRejected
+                {
+                    BatchId = Guid.NewGuid(),
+                    RejectedById = employeeId,
+                    TimeEntryIds = rejectedIds,
+                    Count = rejectedIds.Count,
+                    RejectedAt = DateTime.UtcNow
+                }, TenantHeaders());
+            }
+        }
+        catch (Exception ex)
+        {
+            HttpContext.RequestServices.GetService<ILogger<TimeEntriesController>>()?
+                .LogWarning(ex, "Failed to publish CAP event for bulk review");
         }
 
         return Ok(response);
@@ -641,29 +665,38 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
 
         var batchResult = result.Value!;
 
-        // Publish event
-        if (request.IsDraft)
+        // Publish event (fire-and-forget — never let event bus failures crash the request)
+        try
         {
-            await capPublisher.PublishAsync("timeentries.draftsaved", new TimeEntriesDraftSaved
+            if (request.IsDraft)
             {
-                BatchId = Guid.NewGuid(),
-                SavedById = request.SubmittedById ?? Guid.Empty,
-                Count = batchResult.SuccessCount,
-                SavedAt = DateTime.UtcNow
-            }, TenantHeaders());
+                await capPublisher.PublishAsync("timeentries.draftsaved", new TimeEntriesDraftSaved
+                {
+                    BatchId = Guid.NewGuid(),
+                    SavedById = request.SubmittedById ?? Guid.Empty,
+                    Count = batchResult.SuccessCount,
+                    SavedAt = DateTime.UtcNow
+                }, TenantHeaders());
+            }
+            else
+            {
+                await capPublisher.PublishAsync("timeentries.submitted", new TimeEntriesSubmitted
+                {
+                    BatchId = Guid.NewGuid(),
+                    SubmittedById = request.SubmittedById ?? Guid.Empty,
+                    TimeEntryIds = batchResult.Results
+                        .Where(r => r.Success && r.TimeEntryId.HasValue)
+                        .Select(r => r.TimeEntryId!.Value).ToList(),
+                    Count = batchResult.SuccessCount,
+                    SubmittedAt = DateTime.UtcNow
+                }, TenantHeaders());
+            }
         }
-        else
+        catch (Exception ex)
         {
-            await capPublisher.PublishAsync("timeentries.submitted", new TimeEntriesSubmitted
-            {
-                BatchId = Guid.NewGuid(),
-                SubmittedById = request.SubmittedById ?? Guid.Empty,
-                TimeEntryIds = batchResult.Results
-                    .Where(r => r.Success && r.TimeEntryId.HasValue)
-                    .Select(r => r.TimeEntryId!.Value).ToList(),
-                Count = batchResult.SuccessCount,
-                SubmittedAt = DateTime.UtcNow
-            }, TenantHeaders());
+            // Log but don't fail the request — time entries are already saved
+            HttpContext.RequestServices.GetService<ILogger<TimeEntriesController>>()?
+                .LogWarning(ex, "Failed to publish CAP event for batch time entry creation");
         }
 
         return StatusCode(StatusCodes.Status201Created, batchResult);
@@ -704,18 +737,26 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         var submitResult = result.Value!;
 
         // Publish event for successful submissions
-        if (submitResult.SuccessCount > 0)
+        try
         {
-            await capPublisher.PublishAsync("timeentries.submitted", new TimeEntriesSubmitted
+            if (submitResult.SuccessCount > 0)
             {
-                BatchId = Guid.NewGuid(),
-                SubmittedById = request.SubmittedById,
-                TimeEntryIds = submitResult.Results
-                    .Where(r => r.Success)
-                    .Select(r => r.TimeEntryId).ToList(),
-                Count = submitResult.SuccessCount,
-                SubmittedAt = DateTime.UtcNow
-            }, TenantHeaders());
+                await capPublisher.PublishAsync("timeentries.submitted", new TimeEntriesSubmitted
+                {
+                    BatchId = Guid.NewGuid(),
+                    SubmittedById = request.SubmittedById,
+                    TimeEntryIds = submitResult.Results
+                        .Where(r => r.Success)
+                        .Select(r => r.TimeEntryId).ToList(),
+                    Count = submitResult.SuccessCount,
+                    SubmittedAt = DateTime.UtcNow
+                }, TenantHeaders());
+            }
+        }
+        catch (Exception ex)
+        {
+            HttpContext.RequestServices.GetService<ILogger<TimeEntriesController>>()?
+                .LogWarning(ex, "Failed to publish CAP event for bulk submit");
         }
 
         return Ok(submitResult);

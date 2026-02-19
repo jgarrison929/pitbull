@@ -245,8 +245,8 @@ public class ContractsService(PitbullDbContext db) : IContractsService
             ReferenceNumber = command.ReferenceNumber,
             OriginatingRfiId = command.OriginatingRfiId,
             Status = command.Status,
-            SubmittedDate = command.RequestDate ?? DateTime.UtcNow,
-            ApprovedDate = command.ApprovedDate
+            SubmittedDate = NormalizeToUtc(command.RequestDate) ?? DateTime.UtcNow,
+            ApprovedDate = NormalizeToUtc(command.ApprovedDate)
         };
 
         if (changeOrder.Status == ChangeOrderStatus.Approved && !changeOrder.ApprovedDate.HasValue)
@@ -300,8 +300,8 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         changeOrder.DelayCost = command.CostImpact;
         changeOrder.Status = command.Status;
         changeOrder.ReferenceNumber = command.ReferenceNumber;
-        changeOrder.SubmittedDate = command.RequestDate ?? changeOrder.SubmittedDate;
-        changeOrder.ApprovedDate = command.ApprovedDate ?? changeOrder.ApprovedDate;
+        changeOrder.SubmittedDate = NormalizeToUtc(command.RequestDate) ?? changeOrder.SubmittedDate;
+        changeOrder.ApprovedDate = NormalizeToUtc(command.ApprovedDate) ?? changeOrder.ApprovedDate;
 
         // Set approval/rejection dates on status change
         if (oldStatus != newStatus)
@@ -599,6 +599,17 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         co.SubmittedDate,
         co.CreatedAt
     );
+
+    /// <summary>
+    /// Normalize a DateTime to UTC to avoid Npgsql 9.x DateTimeKind.Unspecified errors.
+    /// </summary>
+    private static DateTime? NormalizeToUtc(DateTime? value)
+    {
+        if (value is null) return null;
+        return value.Value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
+            : value.Value.ToUniversalTime();
+    }
 
     private static PaymentApplicationDto MapPaymentApplicationToDto(PaymentApplication pa) => new(
         pa.Id,

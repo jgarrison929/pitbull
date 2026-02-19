@@ -59,29 +59,36 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateChangeOrderRequest request)
     {
-        var command = new CreateChangeOrderCommand(
-            SubcontractId: request.SubcontractId,
-            ChangeOrderNumber: request.Number ?? request.ChangeOrderNumber ?? string.Empty,
-            Title: request.Title,
-            Description: request.Description,
-            Reason: request.Reason,
-            Amount: request.Amount,
-            DaysExtension: request.DaysExtension,
-            ReferenceNumber: request.ReferenceNumber,
-            OriginatingRfiId: request.OriginatingRfiId,
-            Status: request.Status ?? ChangeOrderStatus.Pending,
-            ScheduleImpactDays: request.ScheduleImpactDays ?? request.DaysExtension,
-            CostImpact: request.CostImpact,
-            RequestedBy: request.RequestedBy,
-            RequestDate: request.RequestDate ?? request.SubmittedDate,
-            ApprovedDate: request.ApprovedDate
-        );
+        try
+        {
+            var command = new CreateChangeOrderCommand(
+                SubcontractId: request.SubcontractId,
+                ChangeOrderNumber: request.Number ?? request.ChangeOrderNumber ?? string.Empty,
+                Title: request.Title,
+                Description: request.Description,
+                Reason: request.Reason,
+                Amount: request.Amount,
+                DaysExtension: request.DaysExtension,
+                ReferenceNumber: request.ReferenceNumber,
+                OriginatingRfiId: request.OriginatingRfiId,
+                Status: request.Status ?? ChangeOrderStatus.Pending,
+                ScheduleImpactDays: request.ScheduleImpactDays ?? request.DaysExtension,
+                CostImpact: request.CostImpact,
+                RequestedBy: request.RequestedBy,
+                RequestDate: request.RequestDate ?? request.SubmittedDate,
+                ApprovedDate: request.ApprovedDate
+            );
 
-        var result = await contractsService.CreateChangeOrderAsync(command);
-        if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+            var result = await contractsService.CreateChangeOrderAsync(command);
+            if (!result.IsSuccess)
+                return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
-        return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
+            return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
+        }
+        catch (Exception)
+        {
+            return StatusCode(500, new { error = "Failed to create change order", code = "DATABASE_ERROR" });
+        }
     }
 
     [NonAction]

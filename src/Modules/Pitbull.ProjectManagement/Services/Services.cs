@@ -367,7 +367,7 @@ public abstract class PmServiceBase
                 _ when targetType == typeof(decimal) => jsonElement.GetDecimal(),
                 _ when targetType == typeof(double) => jsonElement.GetDouble(),
                 _ when targetType == typeof(bool) => jsonElement.GetBoolean(),
-                _ when targetType == typeof(DateTime) => jsonElement.GetDateTime(),
+                _ when targetType == typeof(DateTime) => NormalizeDateTimeUtc(jsonElement.GetDateTime()),
                 _ when targetType.IsEnum => Enum.Parse(targetType, jsonElement.GetString() ?? string.Empty, true),
                 _ => Convert.ChangeType(jsonElement.ToString(), targetType)
             };
@@ -376,8 +376,20 @@ public abstract class PmServiceBase
         if (targetType.IsEnum && value is string enumString)
             return Enum.Parse(targetType, enumString, true);
 
+        if (targetType == typeof(DateTime) && value is DateTime dtVal)
+            return NormalizeDateTimeUtc(dtVal);
+
         return Convert.ChangeType(value, targetType);
     }
+
+    /// <summary>
+    /// Npgsql 9.x requires DateTimeKind.Utc for timestamptz parameters.
+    /// Ensure all DateTime values are explicitly UTC.
+    /// </summary>
+    private static DateTime NormalizeDateTimeUtc(DateTime value)
+        => value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            : value.ToUniversalTime();
 
     protected static Result<PmActionResultDto> Action(string message, Guid? id = null, object? data = null)
         => Result.Success(new PmActionResultDto(true, message, id, data));
@@ -865,26 +877,38 @@ public class DailyReportService : PmServiceBase, IDailyReportService
 
     public async Task<Result<PmEntityDto>> CreateDailyReportAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.Data is not null
-            && request.Data.TryGetValue("ReportDate", out var rdObj) && rdObj is not null
-            && request.Data.TryGetValue("ReportType", out var rtObj) && rtObj is not null)
+        try
         {
-            DateTime reportDate;
-            DailyReportType reportType;
-            try
+            if (request.Data is not null
+                && request.Data.TryGetValue("ReportDate", out var rdObj) && rdObj is not null
+                && request.Data.TryGetValue("ReportType", out var rtObj) && rtObj is not null)
             {
-                reportDate = ConvertValue<DateTime>(rdObj);
-                reportType = ConvertValue<DailyReportType>(rtObj);
-            }
-            catch { goto skip; }
+                DateTime reportDate;
+                DailyReportType reportType;
+                try
+                {
+                    reportDate = ConvertValue<DateTime>(rdObj);
+                    reportType = ConvertValue<DailyReportType>(rtObj);
+                }
+                catch { goto skip; }
 
-            var duplicate = await ProjectScoped<PmDailyReport>(projectId)
-                .AnyAsync(r => r.ReportDate.Date == reportDate.Date && r.ReportType == reportType, cancellationToken);
-            if (duplicate)
-                return Result.Failure<PmEntityDto>("A daily report already exists for this date and report type", "DUPLICATE_REPORT");
+                // Npgsql 9.x requires UTC DateTime for timestamptz comparisons.
+                // Convert to a UTC date-range check to avoid DateTimeKind.Unspecified errors.
+                var reportDateUtc = DateTime.SpecifyKind(reportDate.Date, DateTimeKind.Utc);
+                var reportDateNextUtc = reportDateUtc.AddDays(1);
+
+                var duplicate = await ProjectScoped<PmDailyReport>(projectId)
+                    .AnyAsync(r => r.ReportDate >= reportDateUtc && r.ReportDate < reportDateNextUtc && r.ReportType == reportType, cancellationToken);
+                if (duplicate)
+                    return Result.Failure<PmEntityDto>("A daily report already exists for this date and report type", "DUPLICATE_REPORT");
+            }
+            skip:
+            return await CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
         }
-        skip:
-        return await CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
+        catch (Exception)
+        {
+            return Result.Failure<PmEntityDto>("Failed to create daily report", "DATABASE_ERROR");
+        }
     }
 
     public Task<Result<PmEntityDto>> GetDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
