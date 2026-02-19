@@ -185,11 +185,13 @@ export default function AdminPayPeriodsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [createStartDate, setCreateStartDate] = useState("");
   const [createEndDate, setCreateEndDate] = useState("");
+  const [createDateError, setCreateDateError] = useState("");
 
   const [editOpen, setEditOpen] = useState(false);
   const [editPeriod, setEditPeriod] = useState<PayPeriod | null>(null);
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
+  const [editDateError, setEditDateError] = useState("");
 
   const [actionOpen, setActionOpen] = useState(false);
   const [actionType, setActionType] = useState<"lock" | "unlock" | "close" | null>(null);
@@ -250,6 +252,12 @@ export default function AdminPayPeriodsPage() {
     [periods, selectedPeriodId]
   );
 
+  function validateDateRange(start: string, end: string): string {
+    if (!start || !end) return "";
+    if (parseDateInput(end) < parseDateInput(start)) return "End date must be on or after start date";
+    return "";
+  }
+
   function openCreateDialog() {
     const now = new Date();
     const end = new Date(now);
@@ -257,6 +265,7 @@ export default function AdminPayPeriodsPage() {
 
     setCreateStartDate(toIsoDateOnly(now));
     setCreateEndDate(toIsoDateOnly(end));
+    setCreateDateError("");
     setCreateOpen(true);
   }
 
@@ -266,8 +275,9 @@ export default function AdminPayPeriodsPage() {
       return;
     }
 
-    if (parseDateInput(createEndDate) < parseDateInput(createStartDate)) {
-      toast.error("End date must be on or after start date");
+    const dateErr = validateDateRange(createStartDate, createEndDate);
+    if (dateErr) {
+      setCreateDateError(dateErr);
       return;
     }
 
@@ -295,6 +305,7 @@ export default function AdminPayPeriodsPage() {
     setEditPeriod(period);
     setEditStartDate(toDateInput(period.startDate));
     setEditEndDate(toDateInput(period.endDate));
+    setEditDateError("");
     setEditOpen(true);
   }
 
@@ -306,8 +317,9 @@ export default function AdminPayPeriodsPage() {
       return;
     }
 
-    if (parseDateInput(editEndDate) < parseDateInput(editStartDate)) {
-      toast.error("End date must be on or after start date");
+    const dateErr = validateDateRange(editStartDate, editEndDate);
+    if (dateErr) {
+      setEditDateError(dateErr);
       return;
     }
 
@@ -557,16 +569,17 @@ export default function AdminPayPeriodsPage() {
           <div className="grid gap-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="create-start">Start Date</Label>
-              <Input id="create-start" type="date" value={createStartDate} onChange={(e) => setCreateStartDate(e.target.value)} />
+              <Input id="create-start" type="date" value={createStartDate} onChange={(e) => { setCreateStartDate(e.target.value); setCreateDateError(validateDateRange(e.target.value, createEndDate)); }} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="create-end">End Date</Label>
-              <Input id="create-end" type="date" value={createEndDate} onChange={(e) => setCreateEndDate(e.target.value)} />
+              <Input id="create-end" type="date" value={createEndDate} onChange={(e) => { setCreateEndDate(e.target.value); setCreateDateError(validateDateRange(createStartDate, e.target.value)); }} className={createDateError ? "border-red-500" : ""} />
+              {createDateError && <p className="text-xs text-red-600">{createDateError}</p>}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={isSubmitting}>Cancel</Button>
-            <Button onClick={handleCreatePeriod} disabled={isSubmitting} className="bg-amber-500 hover:bg-amber-600 text-white">
+            <Button onClick={handleCreatePeriod} disabled={isSubmitting || !!createDateError} className="bg-amber-500 hover:bg-amber-600 text-white">
               {isSubmitting ? "Creating..." : "Create"}
             </Button>
           </DialogFooter>
@@ -582,16 +595,17 @@ export default function AdminPayPeriodsPage() {
           <div className="grid gap-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="edit-start">Start Date</Label>
-              <Input id="edit-start" type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} />
+              <Input id="edit-start" type="date" value={editStartDate} onChange={(e) => { setEditStartDate(e.target.value); setEditDateError(validateDateRange(e.target.value, editEndDate)); }} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-end">End Date</Label>
-              <Input id="edit-end" type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
+              <Input id="edit-end" type="date" value={editEndDate} onChange={(e) => { setEditEndDate(e.target.value); setEditDateError(validateDateRange(editStartDate, e.target.value)); }} className={editDateError ? "border-red-500" : ""} />
+              {editDateError && <p className="text-xs text-red-600">{editDateError}</p>}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={isSubmitting}>Cancel</Button>
-            <Button onClick={handleUpdatePeriod} disabled={isSubmitting}>Save</Button>
+            <Button onClick={handleUpdatePeriod} disabled={isSubmitting || !!editDateError}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

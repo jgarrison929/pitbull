@@ -110,30 +110,18 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         const { token } = await switchCompanyApi(companyId);
         setToken(token);
 
-        // Update local state
-        setActiveCompany(target);
+        // Persist the active company before reload
         if (typeof window !== "undefined") {
           localStorage.setItem(ACTIVE_COMPANY_KEY, companyId);
         }
 
-        // Dispatch a custom event so data-fetching hooks/components can re-fetch
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(
-            new CustomEvent("company-switched", {
-              detail: { companyId, companyCode: target.code, companyName: target.name },
-            })
-          );
-        }
+        // Full page reload ensures all data refetches with new company context
+        window.location.reload();
       } catch {
         // If switch fails (backend not ready), just update local state
         setActiveCompany(target);
         if (typeof window !== "undefined") {
           localStorage.setItem(ACTIVE_COMPANY_KEY, companyId);
-          window.dispatchEvent(
-            new CustomEvent("company-switched", {
-              detail: { companyId, companyCode: target.code, companyName: target.name },
-            })
-          );
         }
       }
     },
