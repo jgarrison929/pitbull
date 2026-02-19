@@ -134,6 +134,7 @@ builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pi
 
 // Cost code service (Core module - for job cost accounting)
 builder.Services.AddScoped<Pitbull.Core.Features.CostCode.ICostCodeService, Pitbull.Core.Features.CostCode.CostCodeService>();
+builder.Services.AddScoped<Pitbull.Core.Features.ChartOfAccounts.IChartOfAccountService, Pitbull.Core.Features.ChartOfAccounts.ChartOfAccountService>();
 builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentStorageProvider>();
 builder.Services.AddScoped<Pitbull.Reports.Services.IReportService, Pitbull.Reports.Services.ReportService>();
 

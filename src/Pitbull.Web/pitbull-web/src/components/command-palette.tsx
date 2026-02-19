@@ -18,6 +18,7 @@ import {
   Building2,
   Users,
   FileText,
+  Landmark,
   Settings,
   ChevronRight,
   Clock,
@@ -310,6 +311,15 @@ export function CommandPalette() {
         category: "navigation",
         action: () => { router.push("/contracts"); close(); },
         keywords: ["subcontracts", "agreements"],
+      },
+      {
+        id: "nav-chart-of-accounts",
+        title: "Chart of Accounts",
+        subtitle: "View GL account hierarchy",
+        icon: <Landmark className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/chart-of-accounts"); close(); },
+        keywords: ["financial", "gl", "ledger", "accounts"],
       },
       {
         id: "nav-employees",

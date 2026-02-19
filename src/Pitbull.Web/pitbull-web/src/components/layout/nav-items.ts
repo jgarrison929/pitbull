@@ -19,6 +19,7 @@ export const mainNavItems: NavItem[] = [
 ];
 
 export const financialItems: NavItem[] = [
+  { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾" },
   { label: "Vendors", href: "/vendors", icon: "🏢" },
   { label: "Customers", href: "/customers", icon: "🤝" },
   { label: "Contracts", href: "/contracts", icon: "📄" },
