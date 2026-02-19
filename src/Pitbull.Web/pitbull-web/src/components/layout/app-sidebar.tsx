@@ -122,9 +122,17 @@ export function AppSidebar() {
         {/* Project Management Section */}
         <SectionHeader label="Project Management" />
         {!currentProjectId && (
-          <p className="px-3 text-xs text-sidebar-foreground/40 italic pb-1">
-            Select a project to navigate
-          </p>
+          <div className="px-3 pb-1">
+            <p className="text-xs text-sidebar-foreground/40 italic">
+              Select a project to navigate
+            </p>
+            <Link
+              href="/projects"
+              className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
+            >
+              Go to Projects &rarr;
+            </Link>
+          </div>
         )}
         {projectManagementItems.map((item) => (
           <NavItem key={item.label} item={item} isActive={item.href === activeHref} />

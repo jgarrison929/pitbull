@@ -12,15 +12,15 @@ export const mainNavItems: NavItem[] = [
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
   { label: "Approvals", href: "/time-tracking/approval", icon: "✅" },
   { label: "Audit Trail", href: "/time-tracking/audit", icon: "📜" },
+  // Resources — setup once, reference as needed
+  { label: "Employees", href: "/employees", icon: "👷" },
+  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
+  { label: "Equipment", href: "/equipment", icon: "🚜" },
   // Financial workflow — in execution order
   { label: "Contracts", href: "/contracts", icon: "📄" },
   { label: "Change Orders", href: "/change-orders", icon: "📝" },
   { label: "Pay Apps", href: "/payment-applications", icon: "💵" },
   { label: "Bids", href: "/bids", icon: "📋" },
-  // Resources — setup once, reference as needed
-  { label: "Employees", href: "/employees", icon: "👷" },
-  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
-  { label: "Equipment", href: "/equipment", icon: "🚜" },
 ];
 
 export function getProjectManagementItems(projectId: string | null): NavItem[] {
