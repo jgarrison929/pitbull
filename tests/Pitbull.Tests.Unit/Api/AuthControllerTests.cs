@@ -157,7 +157,6 @@ public class AuthControllerTests
             regVal.Object,
             loginVal.Object,
             tc,
-            Mock.Of<Pitbull.Api.Services.IEmailService>(),
             scopeFactoryMock.Object,
             Mock.Of<ILogger<AuthController>>());
 

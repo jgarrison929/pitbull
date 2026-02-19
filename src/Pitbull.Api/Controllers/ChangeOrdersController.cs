@@ -46,7 +46,7 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     ///     }
     ///
     /// </remarks>
-    /// <param name="command">Change order creation details</param>
+    /// <param name="request">Change order creation details</param>
     /// <returns>The newly created change order</returns>
     /// <response code="201">Change order created successfully</response>
     /// <response code="400">Validation error or duplicate change order number</response>
@@ -184,7 +184,7 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     /// approval/rejection dates when transitioning to Approved or Rejected status.
     /// </remarks>
     /// <param name="id">Change order unique identifier</param>
-    /// <param name="command">Updated change order details</param>
+    /// <param name="request">Updated change order details</param>
     /// <returns>The updated change order</returns>
     /// <response code="200">Change order updated successfully</response>
     /// <response code="400">Validation error or ID mismatch</response>

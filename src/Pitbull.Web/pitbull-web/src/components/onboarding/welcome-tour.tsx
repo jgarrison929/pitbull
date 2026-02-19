@@ -111,7 +111,7 @@ export function WelcomeTour() {
 
       {/* Tour modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden">
+        <div className="bg-background rounded-2xl shadow-2xl border border-border w-full max-w-md overflow-hidden">
           {/* Header with gradient */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
             <div className="flex items-center justify-between mb-3">
@@ -133,7 +133,7 @@ export function WelcomeTour() {
 
           {/* Body */}
           <div className="p-6">
-            <p className="text-slate-600 leading-relaxed">{step.description}</p>
+            <p className="text-muted-foreground leading-relaxed">{step.description}</p>
 
             {/* Step dots */}
             <div className="flex justify-center gap-1.5 mt-6 mb-4">
@@ -142,10 +142,10 @@ export function WelcomeTour() {
                   key={i}
                   className={`w-2 h-2 rounded-full transition-colors ${
                     i === currentIndex
-                      ? "bg-blue-600"
+                      ? "bg-blue-600 dark:bg-blue-500"
                       : i < currentIndex
-                      ? "bg-blue-300"
-                      : "bg-slate-200"
+                      ? "bg-blue-300 dark:bg-blue-700"
+                      : "bg-muted"
                   }`}
                 />
               ))}

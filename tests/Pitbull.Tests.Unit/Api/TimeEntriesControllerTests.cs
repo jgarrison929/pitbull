@@ -39,7 +39,7 @@ public class TimeEntriesControllerTests
         _capMock = new Mock<ICapPublisher>();
         _tenantContextMock = new Mock<ITenantContext>();
         _companyContextMock = new Mock<ICompanyContext>();
-        _controller = new TimeEntriesController(_serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object, null!);
+        _controller = new TimeEntriesController(_serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object);
 
         // Set up JWT claims so GetCurrentEmployeeIdAsync() resolves an approver
         var claims = new[] { new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "approver@test.com") };

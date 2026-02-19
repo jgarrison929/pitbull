@@ -196,11 +196,11 @@ export default function ApiKeysPage() {
                     <TableCell>
                       <div className="flex gap-1">
                         {key.status === "Active" && (
-                          <Button variant="ghost" size="icon" onClick={() => handleRevoke(key.id)} title="Revoke">
+                          <Button variant="ghost" size="icon" onClick={() => handleRevoke(key.id)} title="Revoke" aria-label={`Revoke ${key.name}`}>
                             <Ban className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(key.id)} title="Delete">
+                        <Button variant="ghost" size="icon" onClick={() => handleDelete(key.id)} title="Delete" aria-label={`Delete ${key.name}`}>
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
@@ -286,7 +286,7 @@ export default function ApiKeysPage() {
                 <Label>API Key</Label>
                 <div className="flex gap-2">
                   <Input readOnly value={createdKey.plainTextKey} className="font-mono text-sm" />
-                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdKey.plainTextKey)}>
+                  <Button variant="outline" size="icon" onClick={() => copyToClipboard(createdKey.plainTextKey)} aria-label="Copy API key to clipboard">
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>

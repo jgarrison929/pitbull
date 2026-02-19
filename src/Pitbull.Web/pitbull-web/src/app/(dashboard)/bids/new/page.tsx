@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import api from "@/lib/api";
-import { BidStatus, type Bid, type CreateBidCommand, type CreateBidItemDto, type BidItemCategory } from "@/lib/types";
+import { BidStatus, type Bid, type CreateBidCommand, type BidItemCategory } from "@/lib/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";

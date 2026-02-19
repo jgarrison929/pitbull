@@ -151,6 +151,15 @@ export function AppSidebar() {
 
       <Separator className="bg-sidebar-border" />
 
+      {/* App Version */}
+      <div className="px-4 py-2 text-center">
+        <p className="text-[10px] text-sidebar-foreground/40">
+          Pitbull v0.12.0
+        </p>
+      </div>
+
+      <Separator className="bg-sidebar-border" />
+
       {/* User Info */}
       <div className="px-4 py-4">
         <div className="flex items-center gap-3">

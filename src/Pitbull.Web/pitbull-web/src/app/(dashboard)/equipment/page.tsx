@@ -787,6 +787,7 @@ export default function EquipmentPage() {
                                   size="icon"
                                   onClick={() => openEditDialog(eq)}
                                   className="min-h-[44px] min-w-[44px]"
+                                  aria-label={`Edit ${eq.name}`}
                                 >
                                   <Pencil className="h-4 w-4" />
                                 </Button>
@@ -795,6 +796,7 @@ export default function EquipmentPage() {
                                   size="icon"
                                   onClick={() => openDeleteDialog(eq)}
                                   className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
+                                  aria-label={`Delete ${eq.name}`}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -850,10 +852,10 @@ export default function EquipmentPage() {
                               </div>
                             </div>
                             <div className="flex gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(eq)} className="min-h-[44px] min-w-[44px]">
+                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(eq)} className="min-h-[44px] min-w-[44px]" aria-label={`Edit ${eq.name}`}>
                                 <Pencil className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(eq)} className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive">
+                              <Button variant="ghost" size="icon" onClick={() => openDeleteDialog(eq)} className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive" aria-label={`Delete ${eq.name}`}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>

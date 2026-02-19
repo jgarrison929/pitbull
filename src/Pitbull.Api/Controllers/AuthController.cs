@@ -36,7 +36,6 @@ public class AuthController(
     IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator,
     Pitbull.Core.MultiTenancy.TenantContext tenantContext,
-    IEmailService emailService,
     IServiceScopeFactory scopeFactory,
     ILogger<AuthController> logger) : ControllerBase
 {
