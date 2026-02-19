@@ -49,6 +49,8 @@ interface MeetingRow {
   endTime: string;
   location: string;
   description: string;
+  attendees: string;
+  minutes: string;
   isRecurring: boolean;
   recurrencePattern: string;
   status: string;
@@ -63,6 +65,8 @@ interface MeetingFormState {
   endTime: string;
   location: string;
   description: string;
+  attendees: string;
+  minutes: string;
   isRecurring: boolean;
   recurrencePattern: string;
   status: string;
@@ -142,6 +146,8 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
     endTime: "10:00",
     location: "",
     description: "",
+    attendees: "",
+    minutes: "",
     isRecurring: false,
     recurrencePattern: "",
     status: "Scheduled",
@@ -186,6 +192,8 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         endTime: asString(data.EndTime ?? data.endTime),
         location: asString(data.Location ?? data.location),
         description: asString(data.Description ?? data.description),
+        attendees: asString(data.Attendees ?? data.attendees),
+        minutes: asString(data.Minutes ?? data.minutes),
         isRecurring: asBool(data.IsRecurring ?? data.isRecurring),
         recurrencePattern: asString(data.RecurrencePattern ?? data.recurrencePattern),
         status: meeting.status || "Scheduled",
@@ -215,6 +223,8 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       endTime: "10:00",
       location: "",
       description: "",
+      attendees: "",
+      minutes: "",
       isRecurring: false,
       recurrencePattern: "",
       status: "Scheduled",
@@ -233,6 +243,8 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       endTime: row.endTime || "10:00",
       location: row.location,
       description: row.description,
+      attendees: row.attendees,
+      minutes: row.minutes,
       isRecurring: row.isRecurring,
       recurrencePattern: row.recurrencePattern,
       status: row.status,
@@ -261,6 +273,8 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         EndTime: form.endTime || null,
         Location: form.location || null,
         Description: form.description || null,
+        Attendees: form.attendees || null,
+        Minutes: form.minutes || null,
         IsRecurring: form.isRecurring,
         RecurrencePattern: form.isRecurring ? (form.recurrencePattern || null) : null,
       },
@@ -395,10 +409,18 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                         <span>{formatTime(row.startTime)} - {formatTime(row.endTime)}</span>
                         {row.location && <span>{row.location}</span>}
                       </div>
+                      {row.attendees && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          Attendees: {row.attendees}
+                        </p>
+                      )}
                       {row.isRecurring && (
                         <p className="text-xs text-muted-foreground">
                           Recurring: {row.recurrencePattern || "Yes"}
                         </p>
+                      )}
+                      {row.minutes && (
+                        <Badge variant="outline" className="text-xs w-fit">Minutes recorded</Badge>
                       )}
                       <div className="flex gap-2 pt-1">
                         <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
@@ -457,7 +479,15 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                                 {row.isRecurring && (
                                   <span className="ml-2 text-xs text-muted-foreground">(recurring)</span>
                                 )}
+                                {row.minutes && (
+                                  <Badge variant="outline" className="ml-2 text-xs">Minutes</Badge>
+                                )}
                               </div>
+                              {row.attendees && (
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[300px]">
+                                  {row.attendees}
+                                </p>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Badge variant="secondary">{meetingTypeLabel(row.meetingType)}</Badge>
@@ -598,13 +628,35 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="meeting-desc">Description</Label>
+              <Label htmlFor="meeting-attendees">Attendees</Label>
+              <Input
+                id="meeting-attendees"
+                value={form.attendees}
+                onChange={(e) => setForm((prev) => ({ ...prev, attendees: e.target.value }))}
+                placeholder="e.g. John Smith, Jane Doe, Bob Johnson"
+              />
+              <p className="text-xs text-muted-foreground">Comma-separated list of attendee names</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-desc">Agenda / Description</Label>
               <Textarea
                 id="meeting-desc"
                 value={form.description}
                 onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                 rows={3}
-                placeholder="Meeting agenda, purpose, and notes"
+                placeholder="Meeting agenda, purpose, and pre-meeting notes"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="meeting-minutes">Meeting Minutes</Label>
+              <Textarea
+                id="meeting-minutes"
+                value={form.minutes}
+                onChange={(e) => setForm((prev) => ({ ...prev, minutes: e.target.value }))}
+                rows={4}
+                placeholder="Post-meeting notes, decisions made, action items..."
               />
             </div>
 

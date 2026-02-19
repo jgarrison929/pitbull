@@ -84,6 +84,7 @@ interface SubmittalRow {
   submittedDate: string | null;
   revisionNumber: number;
   isSubstitutionRequest: boolean;
+  ballInCourt: string;
   createdAt: string;
 }
 
@@ -96,6 +97,7 @@ interface SubmittalFormState {
   description: string;
   requiredByDate: string;
   isSubstitutionRequest: boolean;
+  ballInCourt: string;
   status: string;
 }
 
@@ -193,6 +195,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
     description: "",
     requiredByDate: "",
     isSubstitutionRequest: false,
+    ballInCourt: "",
     status: "Draft",
   });
 
@@ -240,6 +243,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
         submittedDate: asString(data.SubmittedDate) || null,
         revisionNumber: asNumber(data.RevisionNumber),
         isSubstitutionRequest: asBool(data.IsSubstitutionRequest),
+        ballInCourt: asString(data.BallInCourt ?? data.ballInCourt),
         createdAt: sub.createdAt,
       };
     });
@@ -269,7 +273,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
 
   function openCreate() {
     setEditing(false);
-    setForm({ title: "", specSectionCode: "", specSectionTitle: "", submittalType: "ShopDrawing", description: "", requiredByDate: "", isSubstitutionRequest: false, status: "Draft" });
+    setForm({ title: "", specSectionCode: "", specSectionTitle: "", submittalType: "ShopDrawing", description: "", requiredByDate: "", isSubstitutionRequest: false, ballInCourt: "", status: "Draft" });
     setPendingFiles([]);
     setExistingFiles([]);
     setDialogOpen(true);
@@ -289,6 +293,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
       description: asString(data.Description),
       requiredByDate: row.requiredByDate ? row.requiredByDate.slice(0, 10) : "",
       isSubstitutionRequest: row.isSubstitutionRequest,
+      ballInCourt: row.ballInCourt,
       status: row.status,
     });
     setPendingFiles([]);
@@ -315,6 +320,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
         Description: form.description || null,
         RequiredByDate: form.requiredByDate || null,
         IsSubstitutionRequest: form.isSubstitutionRequest,
+        BallInCourt: form.ballInCourt || null,
       },
     };
 
@@ -495,7 +501,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                 <CardListSkeleton rows={3} />
               </div>
               <div className="hidden sm:block">
-                <TableSkeleton headers={["No.", "Title", "Spec Section", "Type", "Required By", "Status", "Actions"]} rows={5} />
+                <TableSkeleton headers={["No.", "Title", "Spec Section", "Type", "Required By", "Ball in Court", "Status", "Actions"]} rows={5} />
               </div>
             </>
           ) : (
@@ -536,6 +542,12 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                           Required by: {formatDate(row.requiredByDate)}
                         </p>
                       )}
+                      {row.ballInCourt && (
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <span className="text-muted-foreground">Ball in court:</span>
+                          <Badge variant="secondary" className="text-xs">{row.ballInCourt}</Badge>
+                        </div>
+                      )}
                       <div className="flex gap-2 pt-1">
                         <Button
                           variant="ghost"
@@ -575,6 +587,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                         <TableHead>Spec Section</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Required By</TableHead>
+                        <TableHead>Ball in Court</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="w-[100px]">Actions</TableHead>
                       </TableRow>
@@ -582,7 +595,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                     <TableBody>
                       {rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7}>
+                          <TableCell colSpan={8}>
                             <div className="flex flex-col items-center gap-3 py-6 text-center">
                               <p className="text-sm text-muted-foreground">
                                 No submittals yet. Create your first submittal to begin routing reviews.
@@ -612,6 +625,13 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                             <TableCell>{TYPE_LABELS[row.submittalType] || row.submittalType}</TableCell>
                             <TableCell className="font-mono text-sm">
                               {formatDate(row.requiredByDate)}
+                            </TableCell>
+                            <TableCell>
+                              {row.ballInCourt ? (
+                                <Badge variant="secondary" className="text-xs">{row.ballInCourt}</Badge>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <Badge variant={statusBadgeVariant(row.status)}>
@@ -740,7 +760,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
               />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select
@@ -758,6 +778,16 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sub-bic">Ball in Court</Label>
+                <Input
+                  id="sub-bic"
+                  value={form.ballInCourt}
+                  onChange={(e) => setForm((prev) => ({ ...prev, ballInCourt: e.target.value }))}
+                  placeholder="e.g. Architect, GC, Owner"
+                />
+                <p className="text-xs text-muted-foreground">Who needs to act next</p>
               </div>
               <div className="flex items-end pb-2">
                 <div className="flex items-center space-x-2">
