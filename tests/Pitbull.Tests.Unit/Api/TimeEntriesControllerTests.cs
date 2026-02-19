@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Pitbull.Api.Controllers;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
@@ -673,7 +674,153 @@ public class TimeEntriesControllerTests
 
     #endregion
 
+    #region GetCurrentEmployeeIdAsync FastPath
+
+    [Fact]
+    public async Task Approve_UserWithLinkedEmployeeId_UsesFastPath()
+    {
+        // Arrange: user has NameIdentifier claim AND AppUser.EmployeeId is set
+        var userId = Guid.NewGuid();
+        var linkedEmployeeId = Guid.NewGuid();
+        var controller = CreateControllerWithLinkedEmployee(userId, "linked@test.com", linkedEmployeeId);
+
+        var dto = CreateTestDto(status: TimeEntryStatus.Approved);
+        _serviceMock
+            .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
+            .ReturnsAsync(Result.Success(dto));
+
+        // Act
+        var result = await controller.Approve(TestId, new ApproveTimeEntryRequest("Fast path"));
+
+        // Assert — approver should be the linked EmployeeId, not from email lookup
+        result.Should().BeOfType<OkObjectResult>();
+        _serviceMock.Verify(s => s.UpdateTimeEntryAsync(
+            It.Is<UpdateTimeEntryCommand>(c =>
+                c.ApproverId == linkedEmployeeId &&
+                c.NewStatus == TimeEntryStatus.Approved),
+            default), Times.Once);
+
+        // The email fallback should NOT have been called
+        _serviceMock.Verify(
+            s => s.GetEmployeeByEmailAsync("linked@test.com", It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Approve_UserWithoutLinkedEmployeeId_FallsBackToEmailLookup()
+    {
+        // Arrange: user has NameIdentifier claim BUT AppUser.EmployeeId is null
+        var userId = Guid.NewGuid();
+        var emailEmployeeId = Guid.NewGuid();
+        var controller = CreateControllerWithoutLinkedEmployee(userId, "fallback@test.com", emailEmployeeId);
+
+        var dto = CreateTestDto(status: TimeEntryStatus.Approved);
+        _serviceMock
+            .Setup(s => s.UpdateTimeEntryAsync(It.IsAny<UpdateTimeEntryCommand>(), default))
+            .ReturnsAsync(Result.Success(dto));
+
+        // Act
+        var result = await controller.Approve(TestId, new ApproveTimeEntryRequest("Fallback path"));
+
+        // Assert — approver should come from the email-based employee lookup
+        result.Should().BeOfType<OkObjectResult>();
+        _serviceMock.Verify(s => s.UpdateTimeEntryAsync(
+            It.Is<UpdateTimeEntryCommand>(c =>
+                c.ApproverId == emailEmployeeId &&
+                c.NewStatus == TimeEntryStatus.Approved),
+            default), Times.Once);
+
+        // Email fallback WAS called
+        _serviceMock.Verify(
+            s => s.GetEmployeeByEmailAsync("fallback@test.com", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task Approve_UserWithoutLinkedEmployeeAndNoEmailMatch_Returns400()
+    {
+        // Arrange: user has NameIdentifier claim, AppUser.EmployeeId is null,
+        // AND no employee record matches their email
+        var userId = Guid.NewGuid();
+        var controller = CreateControllerWithoutLinkedEmployee(userId, "orphan@test.com", employeeIdFromEmail: null);
+
+        // Act
+        var result = await controller.Approve(TestId, new ApproveTimeEntryRequest("Should fail"));
+
+        // Assert — 400 with NO_EMPLOYEE_RECORD
+        var bad = result.Should().BeOfType<BadRequestObjectResult>().Subject;
+        bad.StatusCode.Should().Be(400);
+    }
+
+    #endregion
+
     #region Helpers
+
+    private TimeEntriesController CreateControllerWithLinkedEmployee(Guid userId, string email, Guid linkedEmployeeId)
+    {
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, email),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId.ToString()),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "User")
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+        var controller = new TimeEntriesController(
+            _serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+
+        // AppUser with EmployeeId linked
+        _serviceMock
+            .Setup(s => s.GetAppUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AppUser { Id = userId, EmployeeId = linkedEmployeeId });
+
+        return controller;
+    }
+
+    private TimeEntriesController CreateControllerWithoutLinkedEmployee(Guid userId, string email, Guid? employeeIdFromEmail)
+    {
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, email),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, userId.ToString()),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "User")
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+        var controller = new TimeEntriesController(
+            _serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+
+        // AppUser with NO EmployeeId
+        _serviceMock
+            .Setup(s => s.GetAppUserAsync(userId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AppUser { Id = userId, EmployeeId = null });
+
+        // Email-based fallback
+        if (employeeIdFromEmail.HasValue)
+        {
+            _serviceMock
+                .Setup(s => s.GetEmployeeByEmailAsync(email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new Employee { Id = employeeIdFromEmail.Value, FirstName = "Test", LastName = "User", Email = email, IsActive = true });
+        }
+        else
+        {
+            _serviceMock
+                .Setup(s => s.GetEmployeeByEmailAsync(email, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((Employee?)null);
+        }
+
+        return controller;
+    }
 
     private TimeEntriesController CreateControllerForAdminWithoutEmployee(Guid adminUserId)
     {
