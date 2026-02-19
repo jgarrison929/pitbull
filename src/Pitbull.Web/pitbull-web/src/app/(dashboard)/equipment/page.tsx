@@ -399,9 +399,7 @@ export default function EquipmentPage() {
 
       setDialogOpen(false);
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to save equipment"
-      );
+      toast.error("Failed to save equipment", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -420,9 +418,7 @@ export default function EquipmentPage() {
       setDeletingEquipment(null);
       await fetchEquipment();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Failed to delete equipment"
-      );
+      toast.error("Failed to delete equipment", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsDeleting(false);
     }
@@ -467,7 +463,7 @@ export default function EquipmentPage() {
       }));
       toast.success("Equipment assigned to project");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to assign equipment");
+      toast.error("Failed to assign equipment", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSavingWorkflow(false);
     }
@@ -484,7 +480,7 @@ export default function EquipmentPage() {
       }));
       toast.success("Equipment unassigned");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to unassign equipment");
+      toast.error("Failed to unassign equipment", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSavingWorkflow(false);
     }
@@ -521,7 +517,7 @@ export default function EquipmentPage() {
       }));
       toast.success("Maintenance and cost profile saved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save maintenance profile");
+      toast.error("Failed to save maintenance profile", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSavingWorkflow(false);
     }

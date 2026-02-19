@@ -21,6 +21,7 @@ import { CopyLastWeekDialog } from "@/components/time-tracking/crew-entry/copy-l
 import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List, Save, Send, FolderKanban } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
 import { toast } from "sonner";
@@ -465,6 +466,7 @@ export default function CrewEntryPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Time Tracking", href: "/time-tracking" }, { label: "Crew Entry" }]} />
       <OfflineIndicator />
 
       {/* Draft Status Banner */}

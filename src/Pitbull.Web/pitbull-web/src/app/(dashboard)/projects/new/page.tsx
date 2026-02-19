@@ -28,6 +28,7 @@ import type {
 } from "@/lib/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
@@ -414,7 +415,7 @@ export default function NewProjectPage() {
       toast.success("Project created successfully");
       router.push(`/projects/${project.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create project");
+      toast.error("Failed to create project", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -422,6 +423,7 @@ export default function NewProjectPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <Breadcrumbs items={[{ label: "Projects", href: "/projects" }, { label: "New Project" }]} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">New Project</h1>

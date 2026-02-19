@@ -17,6 +17,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import type { BidSettingsData } from "@/lib/types";
 
@@ -87,6 +88,13 @@ export default function BidSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/settings" },
+          { label: "Bids" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

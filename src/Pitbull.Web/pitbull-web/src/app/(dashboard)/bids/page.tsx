@@ -300,7 +300,7 @@ export default function BidsPage() {
 
       toast.success(`Bid status updated to ${statusLabel(nextStatus)}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update bid status");
+      toast.error("Failed to update bid status", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setUpdatingStatusById((prev) => ({ ...prev, [bid.id]: false }));
     }

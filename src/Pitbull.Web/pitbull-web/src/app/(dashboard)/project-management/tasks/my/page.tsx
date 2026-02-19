@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CheckCircle2, Circle, Clock, ListTodo, RefreshCw, Search } from "lucide-react";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import type { PmEntityDto, PmPagedResult } from "@/lib/pm-types";
 import { toast } from "sonner";
@@ -165,6 +166,7 @@ export default function MyTasksPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "My Tasks" }]} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">My Tasks</h1>

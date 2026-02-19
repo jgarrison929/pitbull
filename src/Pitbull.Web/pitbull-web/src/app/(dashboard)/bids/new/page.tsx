@@ -21,6 +21,7 @@ import api from "@/lib/api";
 import { BidStatus, type Bid, type CreateBidCommand, type BidItemCategory } from "@/lib/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
@@ -295,7 +296,7 @@ export default function NewBidPage() {
       toast.success("Bid created successfully");
       router.push(`/bids/${bid.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create bid");
+      toast.error("Failed to create bid", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -303,6 +304,7 @@ export default function NewBidPage() {
 
   return (
     <div className="max-w-4xl space-y-6">
+      <Breadcrumbs items={[{ label: "Bids", href: "/bids" }, { label: "New Bid" }]} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">New Bid</h1>

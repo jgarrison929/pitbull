@@ -33,6 +33,7 @@ import {
 import { SimpleTooltip } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import {
   HelpCircle,
   DollarSign,
@@ -711,6 +712,7 @@ export default function NewTimeEntryPage() {
       )}
 
       <div className="max-w-2xl space-y-6">
+        <Breadcrumbs items={[{ label: "Time Tracking", href: "/time-tracking" }, { label: "New Entry" }]} />
         <OfflineIndicator />
 
         <div>

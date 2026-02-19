@@ -45,6 +45,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { TableSkeleton } from "@/components/skeletons";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 const ALL = "__all__";
 
@@ -190,7 +191,7 @@ export default function TimeTrackingApprovalPage() {
 
       await fetchQueue();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to submit review");
+      toast.error("Failed to submit review", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -198,6 +199,7 @@ export default function TimeTrackingApprovalPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Time Tracking", href: "/time-tracking" }, { label: "Approval" }]} />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="mb-1 flex items-center gap-2">

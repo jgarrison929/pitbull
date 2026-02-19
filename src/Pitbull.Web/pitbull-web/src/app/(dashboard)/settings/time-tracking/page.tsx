@@ -23,6 +23,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 
 interface TimecardSettingsData {
@@ -109,6 +110,13 @@ export default function TimecardSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/settings" },
+          { label: "Time Tracking" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

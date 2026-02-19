@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +15,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
-import { ChevronRight, Download, Upload, CheckCircle2, XCircle, Info } from "lucide-react";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { Download, Upload, CheckCircle2, XCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { uploadFiles } from "@/lib/api";
 import type { ImportResultDto } from "@/lib/types/employee-onboarding";
@@ -175,14 +175,7 @@ export default function EmployeeImportPage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-        <Link href="/employees" className="hover:text-foreground transition-colors">
-          Employees
-        </Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">Import CSV</span>
-      </nav>
+      <Breadcrumbs items={[{ label: "Employees", href: "/employees" }, { label: "Import" }]} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

@@ -256,7 +256,7 @@ export default function RfiDetailPage({
       setIsEditing(false);
       toast.success("RFI updated successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update RFI");
+      toast.error("Failed to update RFI", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSaving(false);
     }

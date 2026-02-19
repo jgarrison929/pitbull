@@ -27,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import type {
   Company,
@@ -253,6 +254,13 @@ export default function CompanySetupWizard() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/settings" },
+          { label: "Company Setup" },
+        ]}
+      />
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Company Setup Wizard</h1>
