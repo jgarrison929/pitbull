@@ -10,7 +10,6 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 import { CommandPalette } from "@/components/command-palette";
 import { QuickActionFAB } from "@/components/layout/quick-action-fab";
-import { QuickAddTimeEntry } from "@/components/layout/quick-add-time-entry";
 import { AiChatPanel } from "@/components/ai-chat-panel";
 
 export default function DashboardLayout({
@@ -55,7 +54,7 @@ export default function DashboardLayout({
       <KeyboardShortcutsHelp />
       <CommandPalette />
       <QuickActionFAB />
-      <QuickAddTimeEntry />
+
       <AiChatPanel />
     </KeyboardShortcutsProvider>
   );
