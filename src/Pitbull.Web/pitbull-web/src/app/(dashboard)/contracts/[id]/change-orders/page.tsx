@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
-import { FileText, Pencil, Trash2 } from "lucide-react";
+import { ArrowRight, FileText, Pencil, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import type { ChangeOrder, ChangeOrderStatus, PagedResult, Subcontract } from "@/lib/types";
 import { changeOrderStatusBadgeClass, changeOrderStatusLabel, formatCurrency } from "@/lib/contracts";
@@ -270,7 +270,7 @@ export default function ChangeOrdersPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total COs</CardTitle>
@@ -293,6 +293,25 @@ export default function ChangeOrdersPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(approvedTotal)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Revised Contract Value</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {subcontract ? formatCurrency((subcontract.originalValue ?? 0) + approvedTotal) : "—"}
+            </div>
+            {subcontract && approvedTotal !== 0 && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                <span>{formatCurrency(subcontract.originalValue ?? 0)}</span>
+                <ArrowRight className="h-3 w-3" />
+                <span className={approvedTotal > 0 ? "text-amber-600" : "text-green-600"}>
+                  {approvedTotal > 0 ? "+" : ""}{formatCurrency(approvedTotal)}
+                </span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

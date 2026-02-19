@@ -237,11 +237,18 @@ export default function BidDetailPage({
                       onChange={(e) => setProjectNumber(e.target.value)}
                     />
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    <p>
-                      This will create a new project from{" "}
-                      <strong>{bid.number}</strong> — {bid.name}
-                    </p>
+                  <div className="rounded-lg border bg-muted/50 p-3 space-y-2">
+                    <p className="text-sm font-medium">Data that will carry over:</p>
+                    <div className="grid grid-cols-2 gap-1 text-sm">
+                      <span className="text-muted-foreground">Project Name</span>
+                      <span className="font-medium">{bid.name}</span>
+                      <span className="text-muted-foreground">Client / Owner</span>
+                      <span className="font-medium">{bid.owner || "—"}</span>
+                      <span className="text-muted-foreground">Estimated Value</span>
+                      <span className="font-medium font-mono">
+                        {bid.estimatedValue ? formatCurrency(bid.estimatedValue) : "—"}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <DialogFooter className="flex-col sm:flex-row gap-2">
