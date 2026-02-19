@@ -45,7 +45,7 @@ Loyal. Tenacious. Won't let go. 🐕
 ## Stack
 
 - **Backend:** .NET 9 / ASP.NET Core (modular monolith, CQRS with direct services)
-- **Frontend:** Next.js 16 + React 19 + Tailwind CSS + shadcn/ui
+- **Frontend:** Next.js 16 + React 19 + Tailwind CSS 4 + shadcn/ui
 - **Database:** PostgreSQL 17 (multi-tenant with Row-Level Security + compound company isolation)
 - **Cache:** Redis 7
 - **Auth:** ASP.NET Identity + JWT (cloud-native, multi-tenant)
@@ -76,10 +76,10 @@ Loyal. Tenacious. Won't let go. 🐕
 ## Quick Start
 
 ```bash
-# Start infrastructure
+# Start infrastructure (PostgreSQL + Redis)
 docker compose up -d
 
-# Run API
+# Run API (migrations auto-apply on startup)
 cd src/Pitbull.Api
 dotnet run
 
@@ -87,28 +87,49 @@ dotnet run
 # Health check at http://localhost:5000/health
 ```
 
+```bash
+# Run frontend (in a separate terminal)
+cd src/Pitbull.Web/pitbull-web
+npm ci
+npm run dev
+
+# Frontend at http://localhost:3000
+```
+
+## Screenshots
+
+> Screenshots coming soon — the UI is under active development. See the [frontend source](src/Pitbull.Web/pitbull-web/) for the current implementation.
+
 ## Architecture
 
 ```
 pitbull/
 ├── src/
-│   ├── Pitbull.Api/              # ASP.NET Core host
-│   ├── Pitbull.Web/              # Next.js frontend
+│   ├── Pitbull.Api/                  # ASP.NET Core host, controllers, middleware
+│   ├── Pitbull.Web/                  # Next.js 16 frontend
 │   ├── Modules/
-│   │   ├── Pitbull.Core/         # Shared kernel, multi-tenancy, equipment
-│   │   ├── Pitbull.Projects/     # Project management, phases, budgets
-│   │   ├── Pitbull.Bids/         # Bid management, win/loss analytics
-│   │   ├── Pitbull.RFIs/         # RFI tracking, cost impact
-│   │   ├── Pitbull.TimeTracking/ # Labor hours, approvals, pay periods
-│   │   ├── Pitbull.Contracts/    # Subcontracts, change orders, pay apps
-│   │   ├── Pitbull.Documents/    # Document management (planned)
-│   │   ├── Pitbull.Portal/       # Sub portal (planned)
-│   │   └── Pitbull.Billing/      # Billing & invoicing (planned)
+│   │   ├── Pitbull.Core/             # Shared kernel, multi-tenancy, employees, equipment
+│   │   ├── Pitbull.Projects/         # Project management, cost codes, budgets, phases
+│   │   ├── Pitbull.ProjectManagement/# Submittals, daily reports, meetings, tasks, docs
+│   │   ├── Pitbull.Bids/             # Bid management, win/loss analytics
+│   │   ├── Pitbull.RFIs/             # RFI tracking, cost impact
+│   │   ├── Pitbull.TimeTracking/     # Labor hours, approvals, pay periods
+│   │   ├── Pitbull.Contracts/        # Subcontracts, change orders, pay apps
+│   │   ├── Pitbull.Reports/          # Labor cost, profitability, CSV/Vista exports
+│   │   ├── Pitbull.AI/               # Claude + OpenAI chat, smart fields
+│   │   ├── Pitbull.SystemAdmin/      # RBAC admin, audit log, system health, API keys
+│   │   ├── Pitbull.Notifications/    # In-app + email (Resend), preferences
+│   │   ├── Pitbull.Documents/        # Document management (planned)
+│   │   ├── Pitbull.Portal/           # Subcontractor portal (planned)
+│   │   └── Pitbull.Billing/          # Billing & invoicing (planned)
 │   └── Infrastructure/
-│       ├── Pitbull.Email/
-│       ├── Pitbull.Storage/
-│       └── Pitbull.Messaging/
+│       ├── Pitbull.Email/            # Resend transactional email
+│       ├── Pitbull.Storage/          # File storage abstraction
+│       └── Pitbull.Messaging/        # CAP event bus (MIT)
 ├── tests/
+│   ├── Pitbull.Tests.Unit/           # 1,686 unit tests (XUnit + FluentAssertions)
+│   └── Pitbull.Tests.Integration/    # 263 integration tests (real PostgreSQL)
+├── docs/
 ├── deploy/
 └── docker-compose.yml
 ```
@@ -194,10 +215,12 @@ To enable: Set `ANTHROPIC_API_KEY` environment variable with your Anthropic API 
 
 ## Documentation
 
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute to this project
+- [Architecture Overview](docs/ARCHITECTURE.md) - Tech stack, module structure, deployment
+- [Architecture Design Docs](docs/architecture/) - Detailed design decisions (AI, cost codes, time tracking)
+- [Deployment Guide](docs/deployment/) - Railway and self-hosted deployment instructions
+- [Best Practices](docs/BEST-PRACTICES.md) - Development patterns and conventions
+- [Contributing Guide](CONTRIBUTING.md) - Development workflow and PR process
 - [Security Policy](.github/SECURITY.md) - Security practices and vulnerability reporting
-- [Architecture Docs](docs/architecture/) - System design and technical decisions
-- [Deployment Guide](docs/deployment/) - Deployment instructions and configuration
 - [API Reference](http://localhost:5000/swagger) - Interactive API documentation (when running locally)
 
 ## Contributing
