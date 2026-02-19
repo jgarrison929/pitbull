@@ -40,6 +40,8 @@ import {
   Layers,
 } from "lucide-react";
 import api from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/auth";
 import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import { useAuth } from "@/contexts/auth-context";
 import type {
@@ -373,11 +375,12 @@ export default function AuditLogsPage() {
       if (startDate) params.set("from", startDate);
       if (endDate) params.set("to", endDate);
 
+      const token = getToken();
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:5000"}/api/admin/audit-logs/export?${params.toString()}`,
+        `${API_BASE_URL}/api/admin/audit-logs/export?${params.toString()}`,
         {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         }
       );
