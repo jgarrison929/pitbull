@@ -33,7 +33,7 @@ public class CostCodesControllerTests : IDisposable
             new CreateCostCodeValidator(),
             new UpdateCostCodeValidator(),
             NullLogger<CostCodeService>.Instance);
-        _controller = new CostCodesController(service);
+        _controller = new CostCodesController(service, _db);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
