@@ -651,6 +651,8 @@ public class TimeEntryService : ITimeEntryService
 
     public async Task<Result<TimeEntryDto>> CreateTimeEntryAsync(CreateTimeEntryCommand command, CancellationToken cancellationToken = default)
     {
+        try
+        {
         var validationResult = await _createValidator.ValidateAsync(command, cancellationToken);
         if (!validationResult.IsValid)
         {
@@ -788,10 +790,9 @@ public class TimeEntryService : ITimeEntryService
 
         _db.Set<TimeEntry>().Add(timeEntry);
 
-        try
-        {
-            await _db.SaveChangesAsync(cancellationToken);
-            return Result.Success(TimeEntryMapper.ToDto(timeEntry));
+        await _db.SaveChangesAsync(cancellationToken);
+        return Result.Success(TimeEntryMapper.ToDto(timeEntry));
+
         }
         catch (Exception ex)
         {
