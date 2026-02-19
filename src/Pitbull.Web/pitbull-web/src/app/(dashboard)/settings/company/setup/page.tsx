@@ -117,6 +117,14 @@ const DEFAULT_RFI_SETTINGS: RfiSettingsData = {
 
 const DEFAULT_REPORT_SETTINGS: ReportSettingsData = {
   overtimeRules: "Federal",
+  overtimeEnabled: true,
+  dailyOvertimeThreshold: 8,
+  dailyDoubletimeThreshold: 12,
+  weeklyOvertimeThreshold: 40,
+  saturdayRule: "overtime",
+  sundayRule: "doubletime",
+  holidayRule: "doubletime",
+  holidaysJson: "[]",
   reportBrandingName: "",
   reportLogoUrl: "",
   fiscalYearStartMonth: 1,

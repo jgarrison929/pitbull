@@ -37,6 +37,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import type { ReportSettingsData } from "@/lib/types";
 
 // ─── Types ────────────────────────────────────────────────
 interface OvertimeRules {
@@ -57,15 +58,14 @@ interface Holiday {
   recurring: boolean;
 }
 
-interface CompanySettingsDto {
-  overtimeEnabled: boolean;
-  dailyOtThreshold: number;
-  weeklyOtThreshold: number;
-  dailyDtThreshold: number;
-  californiaOtRules: boolean;
-}
-
-const LOCAL_RULES_KEY = "pitbull-overtime-local-rules";
+const DEFAULT_HOLIDAYS: Holiday[] = [
+  { id: "1", name: "New Year's Day", date: "01-01", recurring: true },
+  { id: "2", name: "Memorial Day", date: "05-26", recurring: true },
+  { id: "3", name: "Independence Day", date: "07-04", recurring: true },
+  { id: "4", name: "Labor Day", date: "09-01", recurring: true },
+  { id: "5", name: "Thanksgiving", date: "11-27", recurring: true },
+  { id: "6", name: "Christmas Day", date: "12-25", recurring: true },
+];
 
 const DEFAULT_RULES: OvertimeRules = {
   dailyOtThreshold: 8,
@@ -73,29 +73,17 @@ const DEFAULT_RULES: OvertimeRules = {
   dailyDtThreshold: 12,
   saturdayRule: "overtime",
   sundayRule: "doubletime",
-  holidays: [
-    { id: "1", name: "New Year's Day", date: "01-01", recurring: true },
-    { id: "2", name: "Memorial Day", date: "05-26", recurring: true },
-    { id: "3", name: "Independence Day", date: "07-04", recurring: true },
-    { id: "4", name: "Labor Day", date: "09-01", recurring: true },
-    { id: "5", name: "Thanksgiving", date: "11-27", recurring: true },
-    { id: "6", name: "Christmas Day", date: "12-25", recurring: true },
-  ],
+  holidays: DEFAULT_HOLIDAYS,
   holidayRule: "doubletime",
   enabled: true,
 };
 
-function loadLocalRules(): Pick<OvertimeRules, "saturdayRule" | "sundayRule" | "holidays" | "holidayRule"> {
-  if (typeof window === "undefined") return DEFAULT_RULES;
+function parseHolidays(json: string): Holiday[] {
   try {
-    const stored = localStorage.getItem(LOCAL_RULES_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch { /* ignore */ }
-  return { saturdayRule: DEFAULT_RULES.saturdayRule, sundayRule: DEFAULT_RULES.sundayRule, holidays: DEFAULT_RULES.holidays, holidayRule: DEFAULT_RULES.holidayRule };
-}
-
-function saveLocalRules(rules: Pick<OvertimeRules, "saturdayRule" | "sundayRule" | "holidays" | "holidayRule">) {
-  localStorage.setItem(LOCAL_RULES_KEY, JSON.stringify(rules));
+    const parsed = JSON.parse(json);
+    if (Array.isArray(parsed)) return parsed;
+  } catch { /* use defaults */ }
+  return DEFAULT_HOLIDAYS;
 }
 
 // ─── Preview calculation ──────────────────────────────────
@@ -148,26 +136,27 @@ export default function OvertimeRulesPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [showAddHoliday, setShowAddHoliday] = useState(false);
   const [newHoliday, setNewHoliday] = useState({ name: "", date: "", recurring: true });
+  const [serverSettings, setServerSettings] = useState<ReportSettingsData | null>(null);
 
   // Preview state
   const [previewHours, setPreviewHours] = useState(10);
   const [previewDay, setPreviewDay] = useState<"weekday" | "saturday" | "sunday" | "holiday">("weekday");
 
-  // Load settings from API + local storage on mount
+  // Load settings from API on mount
   useEffect(() => {
     async function load() {
       try {
-        const data = await api<CompanySettingsDto>("/api/admin/company");
-        const local = loadLocalRules();
+        const data = await api<ReportSettingsData>("/api/companies/settings/reports");
+        setServerSettings(data);
         setRules({
           enabled: data.overtimeEnabled,
-          dailyOtThreshold: data.dailyOtThreshold,
-          weeklyOtThreshold: data.weeklyOtThreshold,
-          dailyDtThreshold: data.dailyDtThreshold,
-          saturdayRule: local.saturdayRule,
-          sundayRule: local.sundayRule,
-          holidays: local.holidays,
-          holidayRule: local.holidayRule,
+          dailyOtThreshold: data.dailyOvertimeThreshold,
+          weeklyOtThreshold: data.weeklyOvertimeThreshold,
+          dailyDtThreshold: data.dailyDoubletimeThreshold,
+          saturdayRule: (data.saturdayRule as OvertimeRules["saturdayRule"]) || "overtime",
+          sundayRule: (data.sundayRule as OvertimeRules["sundayRule"]) || "doubletime",
+          holidays: parseHolidays(data.holidaysJson),
+          holidayRule: (data.holidayRule as OvertimeRules["holidayRule"]) || "doubletime",
         });
       } catch {
         toast.error("Failed to load overtime settings");
@@ -192,23 +181,27 @@ export default function OvertimeRulesPage() {
   );
 
   const handleSave = async () => {
+    if (!serverSettings) return;
     setIsSaving(true);
     try {
-      await api("/api/admin/company", {
+      const updated = await api<ReportSettingsData>("/api/companies/settings/reports", {
         method: "PUT",
         body: {
+          overtimeRules: serverSettings.overtimeRules,
           overtimeEnabled: rules.enabled,
-          dailyOtThreshold: rules.dailyOtThreshold,
-          weeklyOtThreshold: rules.weeklyOtThreshold,
-          dailyDtThreshold: rules.dailyDtThreshold,
+          dailyOvertimeThreshold: rules.dailyOtThreshold,
+          dailyDoubletimeThreshold: rules.dailyDtThreshold,
+          weeklyOvertimeThreshold: rules.weeklyOtThreshold,
+          saturdayRule: rules.saturdayRule,
+          sundayRule: rules.sundayRule,
+          holidayRule: rules.holidayRule,
+          holidaysJson: JSON.stringify(rules.holidays),
+          reportBrandingName: serverSettings.reportBrandingName,
+          reportLogoUrl: serverSettings.reportLogoUrl,
+          fiscalYearStartMonth: serverSettings.fiscalYearStartMonth,
         },
       });
-      saveLocalRules({
-        saturdayRule: rules.saturdayRule,
-        sundayRule: rules.sundayRule,
-        holidays: rules.holidays,
-        holidayRule: rules.holidayRule,
-      });
+      setServerSettings(updated);
       setHasChanges(false);
       toast.success("Overtime rules saved");
     } catch {
