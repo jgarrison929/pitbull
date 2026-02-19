@@ -195,7 +195,7 @@ export default function LaborCostReportPage() {
           {isLoading ? (
             <TableSkeleton headers={[groupByLabel, "Hours", "Regular", "Overtime", "Cost"]} rows={8} />
           ) : !report || report.rows.length === 0 ? (
-            <EmptyState title="No data found" description="Try adjusting the date range or project filter." />
+            <EmptyState title="No data for this period" description="Try adjusting the date range or project filter." />
           ) : (
             <Table>
               <TableHeader>

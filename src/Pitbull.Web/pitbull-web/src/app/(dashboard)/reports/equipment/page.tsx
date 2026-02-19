@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/skeletons";
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { getEquipmentUtilizationReport, type EquipmentUtilizationReportResponse } from "@/lib/reports-api";
+import { csvRow, downloadCsvFile } from "@/lib/csv-utils";
 import { toast } from "sonner";
 
 function formatCurrency(value: number) {
@@ -58,6 +59,25 @@ export default function EquipmentUtilizationReportPage() {
     fetchReport();
   }, [fetchReport]);
 
+  const exportCsv = () => {
+    if (!report) return;
+    const rows = [
+      csvRow(["Equipment Code", "Name", "Type", "Hours Used", "Days Assigned", "Utilization %", "Cost"]),
+      ...report.rows.map((row) => csvRow([
+        row.equipmentCode, row.equipmentName, row.equipmentType,
+        row.totalHoursUsed.toFixed(2), row.daysAssigned,
+        row.utilizationPercent.toFixed(1), row.cost.toFixed(2),
+      ])),
+      csvRow([
+        "", "", "TOTAL", report.totals.totalHoursUsed.toFixed(2),
+        report.totals.totalDaysAssigned,
+        report.totals.averageUtilizationPercent.toFixed(1) + " avg",
+        report.totals.totalCost.toFixed(2),
+      ]),
+    ];
+    downloadCsvFile(rows, `equipment-utilization-${from}-to-${to}.csv`);
+  };
+
   return (
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: "Reports", href: "/reports" }, { label: "Equipment Utilization" }]} />
@@ -67,10 +87,16 @@ export default function EquipmentUtilizationReportPage() {
           <h1 className="text-2xl font-bold">Equipment Utilization</h1>
           <p className="text-muted-foreground">Usage and utilization rates by equipment.</p>
         </div>
-        <Button variant="outline" onClick={fetchReport}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportCsv} disabled={!report || report.rows.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button variant="outline" onClick={fetchReport}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -97,7 +123,7 @@ export default function EquipmentUtilizationReportPage() {
           {isLoading ? (
             <TableSkeleton headers={["Equipment", "Hours", "Days", "Utilization", "Cost"]} rows={10} />
           ) : !report || report.rows.length === 0 ? (
-            <EmptyState title="No equipment data" description="No utilization records in this date range." />
+            <EmptyState title="No data for this period" description="Try adjusting the date range." />
           ) : (
             <Table>
               <TableHeader>
