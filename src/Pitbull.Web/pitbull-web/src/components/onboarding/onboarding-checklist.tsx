@@ -119,9 +119,10 @@ export function OnboardingChecklist() {
       try {
         const data = await api<ChecklistData>("/api/onboarding/checklist");
         if (cancelled) return;
-        setChecklist(data);
-        if (data.dismissed || data.isFullyCompleted) {
+        if (data.dismissed) {
           setChecklist(null);
+        } else {
+          setChecklist(data);
         }
       } catch {
         // User might not have a checklist yet — that's fine
@@ -148,38 +149,68 @@ export function OnboardingChecklist() {
     (checklist.completedCount / checklist.totalItems) * 100
   );
 
+  if (checklist.isFullyCompleted) {
+    return (
+      <div className="border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 rounded-xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
+              <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-green-800 dark:text-green-200">
+                You&apos;re all set! 🎉
+              </h3>
+              <p className="text-xs text-green-600 dark:text-green-400">
+                All {checklist.totalItems} setup steps completed
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleDismiss}
+            className="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200"
+          >
+            <X className="w-3.5 h-3.5 mr-1" /> Dismiss
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-card border border-slate-200 dark:border-border rounded-xl shadow-sm overflow-hidden">
       {/* Header */}
       <div
-        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50"
+        className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-muted/50"
         onClick={() => setCollapsed(!collapsed)}
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-            <Rocket className="w-4 h-4 text-blue-600" />
+          <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+            <Rocket className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900">
+            <h3 className="font-semibold text-foreground">
               Getting Started
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               {checklist.completedCount} of {checklist.totalItems} complete
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-blue-600 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <span className="text-xs font-medium text-slate-500">{progress}%</span>
+          <span className="text-xs font-medium text-muted-foreground">{progress}%</span>
           {collapsed ? (
-            <ChevronDown className="w-4 h-4 text-slate-400" />
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
           ) : (
-            <ChevronUp className="w-4 h-4 text-slate-400" />
+            <ChevronUp className="w-4 h-4 text-muted-foreground" />
           )}
         </div>
       </div>
@@ -196,15 +227,15 @@ export function OnboardingChecklist() {
                   onClick={() => !completed && router.push(item.href)}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors ${
                     completed
-                      ? "bg-green-50 cursor-default"
-                      : "hover:bg-slate-50 cursor-pointer"
+                      ? "bg-green-50 dark:bg-green-950/30 cursor-default"
+                      : "hover:bg-muted/50 cursor-pointer"
                   }`}
                 >
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
                       completed
                         ? "bg-green-500 text-white"
-                        : "border-2 border-slate-300"
+                        : "border-2 border-muted-foreground/30"
                     }`}
                   >
                     {completed && <Check className="w-3.5 h-3.5" />}
@@ -213,19 +244,19 @@ export function OnboardingChecklist() {
                     <p
                       className={`text-sm font-medium ${
                         completed
-                          ? "text-green-700 line-through"
-                          : "text-slate-900"
+                          ? "text-green-700 dark:text-green-400 line-through"
+                          : "text-foreground"
                       }`}
                     >
                       {item.label}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">
+                    <p className="text-xs text-muted-foreground truncate">
                       {item.description}
                     </p>
                   </div>
                   <item.icon
                     className={`w-4 h-4 flex-shrink-0 ${
-                      completed ? "text-green-400" : "text-slate-300"
+                      completed ? "text-green-400" : "text-muted-foreground/40"
                     }`}
                   />
                 </button>
@@ -233,12 +264,12 @@ export function OnboardingChecklist() {
             })}
           </div>
 
-          <div className="mt-3 pt-3 border-t border-slate-100">
+          <div className="mt-3 pt-3 border-t border-border/50">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleDismiss}
-              className="text-slate-400 hover:text-slate-600"
+              className="text-muted-foreground hover:text-foreground"
             >
               <X className="w-3.5 h-3.5 mr-1" /> Dismiss checklist
             </Button>

@@ -120,7 +120,8 @@ const builtInShortcuts = [
   { key: "?", description: "Show keyboard shortcuts help", section: "General" },
   { key: "Escape", description: "Close modal/dialog", section: "General" },
   { key: "Ctrl+k", description: "Open command palette", section: "Navigation" },
-  { key: "n", description: "Quick-add time entry", section: "Time Entry" },
+  { key: "/", description: "Focus search on list pages", section: "Navigation" },
+  { key: "n", description: "Create new item on list pages", section: "Actions" },
 ];
 
 // ─── Component ───────────────────────────────────────────────────────────────
