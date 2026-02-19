@@ -136,8 +136,15 @@ builder.Services.AddScoped<Pitbull.Reports.Services.IReportService, Pitbull.Repo
 // Documents module (file attachments)
 builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbull.Documents.Services.FileStorageService>();
 
-// Notifications module
-builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService, Pitbull.Notifications.Services.NotificationService>();
+// Notifications module — decorator adds fire-and-forget email on notification creation
+builder.Services.AddScoped<Pitbull.Notifications.Services.NotificationService>();
+builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService>(sp =>
+    new Pitbull.Api.Services.EmailNotificationDecorator(
+        sp.GetRequiredService<Pitbull.Notifications.Services.NotificationService>(),
+        sp.GetRequiredService<Pitbull.Api.Services.IEmailService>(),
+        sp.GetRequiredService<Pitbull.Api.Services.INotificationPreferenceService>(),
+        sp.GetRequiredService<Pitbull.Core.Data.PitbullDbContext>(),
+        sp.GetRequiredService<ILogger<Pitbull.Api.Services.EmailNotificationDecorator>>()));
 builder.Services.AddScoped<Pitbull.Api.Services.INotificationPreferenceService, Pitbull.Api.Services.NotificationPreferenceService>();
 
 // Audit interceptor for automatic change tracking via EF SaveChanges

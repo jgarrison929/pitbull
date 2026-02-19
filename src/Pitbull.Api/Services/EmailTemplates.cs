@@ -95,6 +95,24 @@ public static class EmailTemplates
         return Wrap("Team Invitation", body);
     }
 
+    public static string NotificationEmail(string userName, string title, string message, string actionUrl)
+    {
+        var safeName = WebUtility.HtmlEncode(userName);
+        var safeTitle = WebUtility.HtmlEncode(title);
+        var safeMessage = WebUtility.HtmlEncode(message);
+        var body = $"""
+            <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">{safeTitle}</h2>
+            <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 8px;">
+            Hi {safeName},</p>
+            <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 8px;">
+            {safeMessage}</p>
+            {Button(actionUrl, "View in Pitbull")}
+            <p style="color:#94a3b8;font-size:13px;line-height:1.5;margin:16px 0 0;">
+            You received this email because you have email notifications enabled. You can change your preferences in Settings &gt; Notifications.</p>
+            """;
+        return Wrap(title, body);
+    }
+
     public static string WelcomeEmail(string userName, string companyName, string dashboardUrl)
     {
         var safeName = WebUtility.HtmlEncode(userName);
