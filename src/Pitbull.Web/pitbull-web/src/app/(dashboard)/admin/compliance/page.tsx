@@ -389,7 +389,7 @@ export default function CompliancePage() {
             <div className="space-y-2">
               <Label>Entity ID</Label>
               <Input
-                placeholder="Filter by entity GUID"
+                placeholder="Filter by ID..."
                 value={entityIdFilter}
                 onChange={(e) => setEntityIdFilter(e.target.value)}
               />
@@ -529,7 +529,7 @@ export default function CompliancePage() {
               <Input
                 value={form.entityId}
                 onChange={(e) => setForm((prev) => ({ ...prev, entityId: e.target.value }))}
-                placeholder="Entity GUID"
+                placeholder="Entity ID"
               />
             </div>
 
