@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Alert/AlertDescription available for future use via @/components/ui/alert
+import Link from "next/link";
 import {
   User,
   Shield,
@@ -321,7 +321,7 @@ export default function SettingsPage() {
 
             <div className="space-y-2">
               <Label className="text-muted-foreground text-xs uppercase">
-                Tenant ID
+                Company ID
               </Label>
               <p className="font-mono text-sm text-muted-foreground">
                 {profile?.tenantId}
@@ -336,10 +336,10 @@ export default function SettingsPage() {
                 </p>
                 <div className="flex gap-2">
                   <Button variant="outline" asChild className="flex-1">
-                    <a href="/admin/users">Manage Users</a>
+                    <Link href="/admin/users">Manage Users</Link>
                   </Button>
                   <Button variant="outline" asChild className="flex-1">
-                    <a href="/admin/company">Company Settings</a>
+                    <Link href="/admin/company">Company Settings</Link>
                   </Button>
                 </div>
               </div>
@@ -694,22 +694,22 @@ export default function SettingsPage() {
           <CardContent>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" size="sm" asChild>
-                <a href="/settings/overtime">Overtime Rules</a>
+                <Link href="/settings/overtime">Overtime Rules</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <a href="/settings/time-tracking">Timecard Settings</a>
+                <Link href="/settings/time-tracking">Timecard Settings</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <a href="/admin/pay-periods">Pay Periods</a>
+                <Link href="/admin/pay-periods">Pay Periods</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <a href="/admin/company">Company Settings</a>
+                <Link href="/admin/company">Company Settings</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <a href="/admin/users">User Management</a>
+                <Link href="/admin/users">User Management</Link>
               </Button>
               <Button variant="outline" size="sm" asChild>
-                <a href="/admin/audit-logs">Audit Logs</a>
+                <Link href="/admin/audit-logs">Audit Logs</Link>
               </Button>
             </div>
           </CardContent>

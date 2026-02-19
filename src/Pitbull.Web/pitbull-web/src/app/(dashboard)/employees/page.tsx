@@ -40,17 +40,6 @@ import { toast } from "sonner";
 const ALL_VALUE = "__all__";
 const DEFAULT_PAGE_SIZE = 20;
 
-const CERTIFICATION_TEMPLATES = [
-  "OSHA 10",
-  "OSHA 30",
-  "First Aid",
-  "CPR",
-  "Forklift",
-  "Scaffold",
-  "Hazmat",
-  "TWIC",
-] as const;
-
 const classificationLabels: Record<number, string> = {
   0: "Hourly",
   1: "Salaried",
@@ -692,16 +681,7 @@ export default function EmployeesPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      <p className="text-sm text-muted-foreground">No certifications returned by API for this employee.</p>
-                      <div className="flex flex-wrap gap-2 opacity-70">
-                        {CERTIFICATION_TEMPLATES.map((certification) => (
-                          <Badge key={certification} variant="outline">
-                            {certification}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
+                    <p className="text-sm text-muted-foreground">No certifications on file.</p>
                   )}
                 </div>
 
