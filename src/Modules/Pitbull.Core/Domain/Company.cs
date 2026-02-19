@@ -40,6 +40,19 @@ public class Company : BaseEntity
     public string? Website { get; set; }
     public string? Email { get; set; }
 
+    // Classification
+    /// <summary>
+    /// Industry type slug (e.g., "general-contractor", "specialty-contractor").
+    /// Collected during signup; stored as a plain string for flexibility.
+    /// </summary>
+    public string? IndustryType { get; set; }
+
+    /// <summary>
+    /// Employee range label (e.g., "1-10", "11-50", "500+").
+    /// Collected during signup; stored as a plain string for flexibility.
+    /// </summary>
+    public string? EmployeeRange { get; set; }
+
     // Branding
     public string? LogoUrl { get; set; }
     public string? PrimaryColor { get; set; }

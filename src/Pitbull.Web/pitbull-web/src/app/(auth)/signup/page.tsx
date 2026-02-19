@@ -39,14 +39,12 @@ const STEPS = [
 ] as const;
 
 const INDUSTRY_TYPES = [
-  "General Contractor",
-  "Specialty Contractor",
-  "Design-Build",
-  "Construction Management",
-  "Residential Builder",
-  "Heavy/Civil",
-  "Industrial",
-  "Other",
+  { value: "general-contractor", label: "General Contractor" },
+  { value: "specialty-contractor", label: "Specialty Contractor" },
+  { value: "design-build", label: "Design-Build" },
+  { value: "cm-at-risk", label: "Construction Management (CM at Risk)" },
+  { value: "owner-builder", label: "Owner-Builder" },
+  { value: "other", label: "Other" },
 ];
 
 const EMPLOYEE_RANGES = [
@@ -129,6 +127,8 @@ export default function SignupPage() {
         email,
         password,
         companyName: companyName || undefined,
+        industryType: industryType || undefined,
+        employeeRange: employeeRange || undefined,
       });
 
       // Send invitations (non-blocking — if they fail, the signup still succeeds)
@@ -345,8 +345,8 @@ export default function SignupPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {INDUSTRY_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
                       </SelectItem>
                     ))}
                   </SelectContent>

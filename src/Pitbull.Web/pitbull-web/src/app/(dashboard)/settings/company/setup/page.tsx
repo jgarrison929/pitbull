@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -123,6 +124,7 @@ const DEFAULT_REPORT_SETTINGS: ReportSettingsData = {
 
 // ─── Component ────────────────────────────────────────
 export default function CompanySetupWizard() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,6 +213,7 @@ export default function CompanySetupWizard() {
 
       await Promise.all(saves);
       toast.success("Company setup complete! All module settings saved.");
+      router.push("/");
     } catch {
       toast.error("Failed to save some settings. Please try again.");
     } finally {

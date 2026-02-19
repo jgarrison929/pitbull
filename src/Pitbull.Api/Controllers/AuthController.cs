@@ -190,6 +190,8 @@ public class AuthController(
                         TenantId = tenantId,
                         Code = "01",
                         Name = companyName,
+                        IndustryType = request.IndustryType,
+                        EmployeeRange = request.EmployeeRange,
                         IsDefault = true,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
@@ -850,13 +852,17 @@ public record CompanyBriefResponse(
 /// <param name="LastName">User's last name</param>
 /// <param name="TenantId">Optional existing tenant ID to join. If omitted, a new tenant is created.</param>
 /// <param name="CompanyName">Company name for the auto-created tenant. Defaults to "{FirstName}'s Company".</param>
+/// <param name="IndustryType">Optional industry type slug (e.g., "general-contractor", "specialty-contractor").</param>
+/// <param name="EmployeeRange">Optional employee range label (e.g., "1-10", "11-50", "500+").</param>
 public record RegisterRequest(
     string Email,
     string Password,
     string FirstName,
     string LastName,
     Guid TenantId = default,
-    string? CompanyName = null);
+    string? CompanyName = null,
+    string? IndustryType = null,
+    string? EmployeeRange = null);
 
 /// <summary>
 /// Login credentials
