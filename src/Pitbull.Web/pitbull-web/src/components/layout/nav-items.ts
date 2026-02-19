@@ -11,6 +11,7 @@ export const mainNavItems: NavItem[] = [
   { label: "Projects", href: "/projects", icon: "🏗️" },
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
   { label: "Approvals", href: "/time-tracking/approval", icon: "✅" },
+  { label: "Audit Trail", href: "/time-tracking/audit", icon: "📜" },
   // Financial workflow — in execution order
   { label: "Contracts", href: "/contracts", icon: "📄" },
   { label: "Change Orders", href: "/change-orders", icon: "📝" },

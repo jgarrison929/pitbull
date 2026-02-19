@@ -41,18 +41,71 @@ function getContextLabel(pathname: string): string | null {
   if (pathname === "/bids") return "Bids";
   if (pathname.match(/^\/contracts\/[^/]+/)) return "Contract Detail";
   if (pathname === "/contracts") return "Contracts";
+  if (pathname.startsWith("/time-tracking/approval")) return "Time Entry Approvals";
+  if (pathname.startsWith("/time-tracking/audit")) return "Approval Audit Trail";
   if (pathname.startsWith("/time-tracking")) return "Time Tracking";
   if (pathname.startsWith("/reports/labor-cost")) return "Labor Cost Report";
   if (pathname.startsWith("/reports/project-profitability")) return "Profitability Report";
+  if (pathname.startsWith("/reports/financial-overview")) return "Financial Overview Report";
+  if (pathname.startsWith("/reports/vista-export")) return "Vista Export";
   if (pathname.startsWith("/reports")) return "Reports";
   if (pathname.match(/^\/employees\/[^/]+/)) return "Employee Detail";
   if (pathname === "/employees") return "Employees";
   if (pathname.startsWith("/rfis")) return "RFIs";
   if (pathname.startsWith("/equipment")) return "Equipment";
+  if (pathname.startsWith("/cost-codes")) return "Cost Codes";
   if (pathname.startsWith("/change-orders")) return "Change Orders";
+  if (pathname.startsWith("/payment-applications")) return "Pay Applications";
   if (pathname.startsWith("/settings")) return "Settings";
   if (pathname.startsWith("/admin")) return "Admin";
   if (pathname === "/") return "Dashboard";
+  return null;
+}
+
+/**
+ * Build a rich page context string for the AI, including entity IDs
+ * extracted from the current route so the backend can look up real data.
+ */
+function buildPageContext(pathname: string): string | null {
+  // Project detail pages — extract project ID
+  const projectMatch = pathname.match(/^\/projects\/([^/]+)(\/([^/]+))?/);
+  if (projectMatch) {
+    const projectId = projectMatch[1];
+    const subPage = projectMatch[3];
+    const section = subPage
+      ? subPage.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "Overview";
+    return JSON.stringify({ page: "project_detail", projectId, section });
+  }
+
+  // Bid detail
+  const bidMatch = pathname.match(/^\/bids\/([^/]+)/);
+  if (bidMatch) {
+    return JSON.stringify({ page: "bid_detail", bidId: bidMatch[1] });
+  }
+
+  // Contract detail
+  const contractMatch = pathname.match(/^\/contracts\/([^/]+)/);
+  if (contractMatch) {
+    return JSON.stringify({ page: "contract_detail", contractId: contractMatch[1] });
+  }
+
+  // Employee detail
+  const employeeMatch = pathname.match(/^\/employees\/([^/]+)/);
+  if (employeeMatch) {
+    return JSON.stringify({ page: "employee_detail", employeeId: employeeMatch[1] });
+  }
+
+  // List/overview pages
+  if (pathname === "/") return JSON.stringify({ page: "dashboard" });
+  if (pathname === "/projects") return JSON.stringify({ page: "projects_list" });
+  if (pathname === "/bids") return JSON.stringify({ page: "bids_list" });
+  if (pathname === "/contracts") return JSON.stringify({ page: "contracts_list" });
+  if (pathname.startsWith("/time-tracking")) return JSON.stringify({ page: "time_tracking" });
+  if (pathname.startsWith("/cost-codes")) return JSON.stringify({ page: "cost_codes" });
+  if (pathname.startsWith("/reports")) return JSON.stringify({ page: "reports" });
+  if (pathname.startsWith("/payment-applications")) return JSON.stringify({ page: "pay_applications" });
+
   return null;
 }
 
@@ -169,6 +222,7 @@ export function AiChatPanel() {
             systemContext: contextLabel
               ? `User is on the ${contextLabel} page (${pathname})`
               : undefined,
+            pageContext: buildPageContext(pathname) || undefined,
           },
         });
 

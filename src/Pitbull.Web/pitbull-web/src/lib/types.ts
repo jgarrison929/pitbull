@@ -1322,6 +1322,7 @@ export interface AiChatRequest {
   message: string;
   history?: AiChatMessage[];
   systemContext?: string;
+  pageContext?: string;
 }
 
 export interface AiChatResponse {

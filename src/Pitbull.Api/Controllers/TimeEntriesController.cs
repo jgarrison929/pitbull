@@ -2,7 +2,10 @@ using DotNetCore.CAP;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
@@ -28,7 +31,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Time Entries")]
-public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPublisher capPublisher, ITenantContext tenantContext, ICompanyContext companyContext) : ControllerBase
+public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPublisher capPublisher, ITenantContext tenantContext, ICompanyContext companyContext, PitbullDbContext db) : ControllerBase
 {
     private Dictionary<string, string?> TenantHeaders()
     {
@@ -867,6 +870,99 @@ public record BatchCreateRequest(
     bool IsDraft = false,
     Guid? SubmittedById = null
 );
+
+// ── Audit Trail ─────────────────────────────────────────────────────
+
+/// <summary>
+/// Approval audit trail for time entries — who submitted, approved, or rejected what and when.
+/// </summary>
+[ApiController]
+[Route("api/time-entries/audit-trail")]
+[Authorize(Roles = "Admin,Manager,Supervisor")]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Tags("Time Entries")]
+public class TimeEntryAuditController(PitbullDbContext auditDb) : ControllerBase
+{
+    [HttpGet]
+    [ProducesResponseType(typeof(TimeEntryAuditListResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> List(
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        [FromQuery] string? action,
+        [FromQuery] string? search,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25)
+    {
+        var query = auditDb.Set<AuditLog>()
+            .AsNoTracking()
+            .Where(a => a.ResourceType == "TimeEntry");
+
+        // Filter to approval-related actions
+        var approvalActions = new[] { AuditAction.Create, AuditAction.Update, AuditAction.Approval, AuditAction.Rejection, AuditAction.StatusChange };
+        query = query.Where(a => approvalActions.Contains(a.Action));
+
+        if (from.HasValue)
+            query = query.Where(a => a.Timestamp >= from.Value.Date);
+        if (to.HasValue)
+            query = query.Where(a => a.Timestamp < to.Value.Date.AddDays(1));
+        if (!string.IsNullOrEmpty(action) && Enum.TryParse<AuditAction>(action, true, out var parsedAction))
+            query = query.Where(a => a.Action == parsedAction);
+        if (!string.IsNullOrEmpty(search))
+            query = query.Where(a =>
+                (a.UserName != null && a.UserName.Contains(search)) ||
+                (a.Description != null && a.Description.Contains(search)));
+
+        var totalCount = await query.CountAsync();
+        pageSize = Math.Clamp(pageSize, 1, 100);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        var items = await query
+            .OrderByDescending(a => a.Timestamp)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => new TimeEntryAuditDto
+            {
+                Id = a.Id,
+                Action = a.Action.ToString(),
+                UserName = a.UserName,
+                UserEmail = a.UserEmail,
+                Description = a.Description,
+                Changes = a.Changes,
+                Timestamp = a.Timestamp,
+            })
+            .ToListAsync();
+
+        return Ok(new TimeEntryAuditListResponse
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = totalPages,
+        });
+    }
+}
+
+public record TimeEntryAuditDto
+{
+    public Guid Id { get; init; }
+    public string Action { get; init; } = string.Empty;
+    public string? UserName { get; init; }
+    public string? UserEmail { get; init; }
+    public string Description { get; init; } = string.Empty;
+    public string? Changes { get; init; }
+    public DateTime Timestamp { get; init; }
+}
+
+public record TimeEntryAuditListResponse
+{
+    public List<TimeEntryAuditDto> Items { get; init; } = [];
+    public int TotalCount { get; init; }
+    public int Page { get; init; }
+    public int PageSize { get; init; }
+    public int TotalPages { get; init; }
+}
 
 public record BatchCreateItemRequest(
     DateOnly Date,
