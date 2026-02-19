@@ -496,7 +496,7 @@ export default function CompliancePage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingDoc ? "Edit" : "Add"} Compliance Document</DialogTitle>
             <DialogDescription>

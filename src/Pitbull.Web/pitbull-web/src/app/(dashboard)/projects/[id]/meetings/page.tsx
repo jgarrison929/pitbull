@@ -530,7 +530,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Meeting" : "New Meeting"}</DialogTitle>
             <DialogDescription>

@@ -290,7 +290,7 @@ export default function ChangeOrdersPage() {
 
               {/* Desktop table */}
               <div className="hidden sm:block">
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>CO #</TableHead>
@@ -345,7 +345,7 @@ export default function ChangeOrdersPage() {
                       <TableCell colSpan={2} />
                     </TableRow>
                   </TableBody>
-                </Table>
+                </Table></div>
               </div>
             </>
           )}

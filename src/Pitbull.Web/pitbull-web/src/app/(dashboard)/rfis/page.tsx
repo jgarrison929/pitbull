@@ -494,7 +494,7 @@ export default function RfisPage() {
 
               {/* Desktop table layout */}
               <div className="hidden sm:block">
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>RFI #</TableHead>
@@ -544,7 +544,7 @@ export default function RfisPage() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                </Table></div>
               </div>
             </>
           )}

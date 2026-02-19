@@ -227,7 +227,7 @@ export default function ProjectsPage() {
 
               {/* Desktop table layout */}
               <div className="hidden sm:block">
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Number</TableHead>
@@ -272,7 +272,7 @@ export default function ProjectsPage() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                </Table></div>
               </div>
             </>
           )}

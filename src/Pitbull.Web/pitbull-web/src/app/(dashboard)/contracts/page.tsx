@@ -248,7 +248,7 @@ export default function ContractsPage() {
 
               {/* Desktop table layout */}
               <div className="hidden sm:block">
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Number</TableHead>
@@ -293,7 +293,7 @@ export default function ContractsPage() {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                </Table></div>
               </div>
             </>
           )}

@@ -362,7 +362,7 @@ export default function PaymentApplicationsPage() {
 
               {/* Desktop table */}
               <div className="hidden sm:block">
-                <Table>
+                <div className="overflow-x-auto"><Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>#</TableHead>
@@ -428,7 +428,7 @@ export default function PaymentApplicationsPage() {
                       <TableCell colSpan={2} />
                     </TableRow>
                   </TableBody>
-                </Table>
+                </Table></div>
               </div>
             </>
           )}
