@@ -1,9 +1,12 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Pitbull.AI.Providers;
 using Pitbull.AI.Services;
 using Pitbull.Api.Validation;
+using Pitbull.Core.Data;
 
 namespace Pitbull.Api.Controllers;
 
@@ -17,7 +20,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("ai-chat")]
 [Produces("application/json")]
 [Tags("AI")]
-public class AiChatController(IAiService aiService) : ControllerBase
+public class AiChatController(IAiService aiService, PitbullDbContext db) : ControllerBase
 {
     private const int MaxMessageLength = 4000;
     private const int MaxHistoryItems = 20;
@@ -66,9 +69,8 @@ public class AiChatController(IAiService aiService) : ControllerBase
             ? sanitizedMessage
             : $"{conversationContext}\n\nUser: {sanitizedMessage}";
 
-        var contextClause = string.IsNullOrWhiteSpace(request.SystemContext)
-            ? ""
-            : $"\n\nThe user is currently viewing: {AiInputSanitizer.Sanitize(request.SystemContext)}\nHelp them with questions about their current context when possible.";
+        // Build enriched context from pageContext (entity data) + systemContext (page label)
+        var enrichedContext = await BuildEnrichedContextAsync(request.PageContext, request.SystemContext);
 
         var aiRequest = new AiCompletionRequest(
             SystemPrompt: $"""
@@ -83,7 +85,7 @@ public class AiChatController(IAiService aiService) : ControllerBase
 
                 Be concise, professional, and practical. Use construction industry terminology.
                 If you don't know something specific to the user's data, say so.
-                Format responses with markdown when helpful.{contextClause}
+                Format responses with markdown when helpful.{enrichedContext}
                 """,
             UserPrompt: userPrompt,
             Capability: AiCapability.TextGeneration,
@@ -111,6 +113,104 @@ public class AiChatController(IAiService aiService) : ControllerBase
             LatencyMs: (long)result.Value.Latency.TotalMilliseconds));
     }
 
+    private async Task<string> BuildEnrichedContextAsync(string? pageContext, string? systemContext)
+    {
+        var parts = new List<string>();
+
+        // Try to enrich with real entity data from pageContext
+        if (!string.IsNullOrWhiteSpace(pageContext))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(pageContext);
+                var root = doc.RootElement;
+                var page = root.GetProperty("page").GetString();
+
+                switch (page)
+                {
+                    case "project_detail" when root.TryGetProperty("projectId", out var pid)
+                        && Guid.TryParse(pid.GetString(), out var projectId):
+                    {
+                        var project = await db.Set<Pitbull.Projects.Domain.Project>()
+                            .AsNoTracking()
+                            .Where(p => p.Id == projectId)
+                            .Select(p => new { p.Name, p.Number, p.Status, p.ContractAmount, p.StartDate })
+                            .FirstOrDefaultAsync();
+                        if (project != null)
+                        {
+                            var section = root.TryGetProperty("section", out var s) ? s.GetString() : "Overview";
+                            parts.Add($"User is viewing Project \"{project.Name}\" (#{project.Number}), Status: {project.Status}, Contract: ${project.ContractAmount:N2}, Start: {project.StartDate?.ToString("MMM d, yyyy") ?? "N/A"}. Section: {section}.");
+                        }
+                        break;
+                    }
+                    case "bid_detail" when root.TryGetProperty("bidId", out var bid)
+                        && Guid.TryParse(bid.GetString(), out var bidId):
+                    {
+                        var b = await db.Set<Pitbull.Bids.Domain.Bid>()
+                            .AsNoTracking()
+                            .Where(x => x.Id == bidId)
+                            .Select(x => new { x.Name, x.Number, x.Status, x.EstimatedValue, x.DueDate })
+                            .FirstOrDefaultAsync();
+                        if (b != null)
+                            parts.Add($"User is viewing Bid \"{b.Name}\" (#{b.Number}), Status: {b.Status}, Estimated: ${b.EstimatedValue:N2}, Due: {b.DueDate?.ToString("MMM d, yyyy") ?? "N/A"}.");
+                        break;
+                    }
+                    case "contract_detail" when root.TryGetProperty("contractId", out var cid)
+                        && Guid.TryParse(cid.GetString(), out var contractId):
+                    {
+                        var c = await db.Set<Pitbull.Contracts.Domain.Subcontract>()
+                            .AsNoTracking()
+                            .Where(x => x.Id == contractId)
+                            .Select(x => new { x.SubcontractNumber, x.SubcontractorName, x.Status, x.CurrentValue })
+                            .FirstOrDefaultAsync();
+                        if (c != null)
+                            parts.Add($"User is viewing Contract #{c.SubcontractNumber} with {c.SubcontractorName}, Status: {c.Status}, Value: ${c.CurrentValue:N2}.");
+                        break;
+                    }
+                    case "dashboard":
+                        parts.Add("User is on the Dashboard — the main overview page showing key metrics and recent activity.");
+                        break;
+                    case "projects_list":
+                        parts.Add("User is on the Projects list — viewing all active projects.");
+                        break;
+                    case "bids_list":
+                        parts.Add("User is on the Bids list — viewing all bids in various stages.");
+                        break;
+                    case "contracts_list":
+                        parts.Add("User is on the Contracts list — viewing all subcontracts.");
+                        break;
+                    case "time_tracking":
+                        parts.Add("User is in Time Tracking — managing crew timecards, approvals, or time entry.");
+                        break;
+                    case "cost_codes":
+                        parts.Add("User is on the Cost Codes page — managing CSI division codes for job cost accounting.");
+                        break;
+                    case "reports":
+                        parts.Add("User is in the Reports section — labor cost, profitability, Vista export, etc.");
+                        break;
+                    case "pay_applications":
+                        parts.Add("User is managing Pay Applications (progress billing) for projects.");
+                        break;
+                }
+            }
+            catch
+            {
+                // Malformed pageContext — fall through to systemContext
+            }
+        }
+
+        // Fall back to systemContext label if no enriched data
+        if (parts.Count == 0 && !string.IsNullOrWhiteSpace(systemContext))
+        {
+            parts.Add($"The user is currently viewing: {AiInputSanitizer.Sanitize(systemContext)}");
+        }
+
+        if (parts.Count == 0)
+            return "";
+
+        return $"\n\n{string.Join(" ", parts)}\nHelp them with questions about their current context when possible.";
+    }
+
     private static string BuildConversationContext(List<AiChatMessage>? history)
     {
         if (history is not { Count: > 0 })
@@ -131,7 +231,8 @@ public record AiChatMessage(string Role, string Content);
 public record AiChatRequest(
     string Message,
     List<AiChatMessage>? History = null,
-    string? SystemContext = null);
+    string? SystemContext = null,
+    string? PageContext = null);
 
 public record AiChatResponse(
     string Reply,
