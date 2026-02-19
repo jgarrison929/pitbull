@@ -81,6 +81,7 @@ interface FileAttachment {
   createdAt: string;
   relatedEntityType: string | null;
   relatedEntityId: string | null;
+  category?: string;
 }
 
 interface FileItem {
@@ -96,6 +97,16 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+const FILE_CATEGORIES = ["Plans", "Specs", "Submittals", "Photos", "Correspondence", "Other"];
+const FILE_CATEGORY_LABELS: Record<string, string> = {
+  Plans: "Plans",
+  Specs: "Specs",
+  Submittals: "Submittals",
+  Photos: "Photos",
+  Correspondence: "Correspondence",
+  Other: "Other",
+};
 
 const TEMPLATE_TYPES = ["Transmittal", "MeetingMinutes", "DailyReport", "Letter", "Narrative"];
 const ENGINE_TYPES = ["Razor", "Handlebars"];
@@ -167,6 +178,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
   const [uploadedFiles, setUploadedFiles] = useState<FileAttachment[]>([]);
   const [pendingFiles, setPendingFiles] = useState<FileItem[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState("Other");
   const loadFiles = useCallback(async () => {
     try {
       const files = await api<FileAttachment[]>(
@@ -188,6 +200,7 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
       await uploadFiles<FileAttachment | FileAttachment[]>(endpoint, filesToUpload, {
         relatedEntityType: "Project",
         relatedEntityId: projectId,
+        category: uploadCategory,
       });
       toast.success(`${filesToUpload.length} file(s) uploaded`);
       setPendingFiles([]);
@@ -452,19 +465,34 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
             placeholder="Drag & drop project files here, or click to browse"
           />
           {pendingFiles.length > 0 && (
-            <Button
-              onClick={() => {
-                const realFiles = pendingFiles
-                  .map((f) => f.file)
-                  .filter((f): f is File => f !== undefined);
-                if (realFiles.length > 0) handleFileUpload(realFiles);
-              }}
-              disabled={uploading}
-              className="bg-amber-500 hover:bg-amber-600 text-white"
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              {uploading ? "Uploading..." : `Upload ${pendingFiles.length} file(s)`}
-            </Button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="space-y-1.5">
+                <Label htmlFor="file-category">Document Category</Label>
+                <Select value={uploadCategory} onValueChange={setUploadCategory}>
+                  <SelectTrigger id="file-category" className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FILE_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{FILE_CATEGORY_LABELS[cat]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                onClick={() => {
+                  const realFiles = pendingFiles
+                    .map((f) => f.file)
+                    .filter((f): f is File => f !== undefined);
+                  if (realFiles.length > 0) handleFileUpload(realFiles);
+                }}
+                disabled={uploading}
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {uploading ? "Uploading..." : `Upload ${pendingFiles.length} file(s)`}
+              </Button>
+            </div>
           )}
 
           {uploadedFiles.length > 0 && (
@@ -477,6 +505,11 @@ export default function DocumentsPage({ params }: { params: Promise<{ id: string
                     className="flex items-center gap-3 rounded-md border bg-accent/20 px-3 py-2 text-sm"
                   >
                     <span className="flex-1 truncate font-medium">{file.fileName}</span>
+                    {file.category && (
+                      <Badge variant="outline" className="text-xs">
+                        {FILE_CATEGORY_LABELS[file.category] || file.category}
+                      </Badge>
+                    )}
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {formatFileSize(file.fileSize)}
                     </span>
