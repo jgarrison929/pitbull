@@ -260,4 +260,227 @@ public class AdminAuditControllerTests
     }
 
     #endregion
+
+    #region GetLog
+
+    [Fact]
+    public async Task GetLog_ReturnsLog_WhenFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        var log = CreateLog(AuditAction.Update, "Bid");
+        await SeedLogs(db, log);
+
+        var result = await controller.GetLog(log.Id);
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var dto = okResult.Value.Should().BeOfType<AuditLogDto>().Subject;
+        dto.Id.Should().Be(log.Id);
+        dto.Action.Should().Be("Update");
+        dto.ResourceType.Should().Be("Bid");
+    }
+
+    [Fact]
+    public async Task GetLog_Returns404_WhenNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        var result = await controller.GetLog(Guid.NewGuid());
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    #endregion
+
+    #region GetSummary
+
+    [Fact]
+    public async Task GetSummary_ReturnsValidSummary()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        // Seed logs with today's timestamps (AuditLog.Create sets Timestamp = UtcNow)
+        var log1 = CreateLog(AuditAction.Create, "Project");
+        var log2 = CreateLog(AuditAction.Login, "User");
+        var log3 = CreateLog(AuditAction.Create, "Bid");
+        await SeedLogs(db, log1, log2, log3);
+
+        var result = await controller.GetSummary();
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var summary = okResult.Value.Should().BeOfType<AuditLogSummaryResponse>().Subject;
+        summary.TotalEventsToday.Should().Be(3);
+        summary.LoginCountToday.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetSummary_ActionCounts_GroupsByAction()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        await SeedLogs(db,
+            CreateLog(AuditAction.Create),
+            CreateLog(AuditAction.Create),
+            CreateLog(AuditAction.Delete));
+
+        var result = await controller.GetSummary();
+
+        var summary = (result as OkObjectResult)!.Value as AuditLogSummaryResponse;
+        summary!.ActionCounts.Should().Contain(a => a.Action == "Create" && a.Count == 2);
+        summary.ActionCounts.Should().Contain(a => a.Action == "Delete" && a.Count == 1);
+    }
+
+    [Fact]
+    public async Task GetSummary_RecentActivity_ReturnsUpTo10()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        var logs = Enumerable.Range(0, 15).Select(_ => CreateLog()).ToArray();
+        await SeedLogs(db, logs);
+
+        var result = await controller.GetSummary();
+
+        var summary = (result as OkObjectResult)!.Value as AuditLogSummaryResponse;
+        summary!.RecentActivity.Should().HaveCount(10);
+    }
+
+    [Fact]
+    public async Task GetSummary_EmptyDatabase_ReturnsZeroCounts()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        var result = await controller.GetSummary();
+
+        var summary = (result as OkObjectResult)!.Value as AuditLogSummaryResponse;
+        summary!.TotalEventsToday.Should().Be(0);
+        summary.LoginCountToday.Should().Be(0);
+        summary.RecentActivity.Should().BeEmpty();
+    }
+
+    #endregion
+
+    #region ExportCsv
+
+    [Fact]
+    public async Task ExportCsv_ReturnsFileResult()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        await SeedLogs(db, CreateLog());
+
+        var result = await controller.ExportCsv(null, null, null, null, null);
+
+        result.Should().BeOfType<FileContentResult>();
+        var file = (FileContentResult)result;
+        file.ContentType.Should().Be("text/csv");
+        file.FileDownloadName.Should().StartWith("audit-logs-");
+        file.FileDownloadName.Should().EndWith(".csv");
+    }
+
+    [Fact]
+    public async Task ExportCsv_ContainsHeaderRow()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        await SeedLogs(db, CreateLog());
+
+        var result = (FileContentResult)await controller.ExportCsv(null, null, null, null, null);
+        var csv = System.Text.Encoding.UTF8.GetString(result.FileContents);
+
+        csv.Should().StartWith("Timestamp,User,Email,Action,Resource Type,Resource ID,Description,IP Address,Success");
+    }
+
+    [Fact]
+    public async Task ExportCsv_ContainsLogData()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        await SeedLogs(db, CreateLog(AuditAction.Create, "Project"));
+
+        var result = (FileContentResult)await controller.ExportCsv(null, null, null, null, null);
+        var csv = System.Text.Encoding.UTF8.GetString(result.FileContents);
+        var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        lines.Should().HaveCountGreaterThan(1);
+        lines[1].Should().Contain("Create");
+        lines[1].Should().Contain("Project");
+    }
+
+    [Fact]
+    public async Task ExportCsv_FiltersByAction()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        await SeedLogs(db, CreateLog(AuditAction.Create), CreateLog(AuditAction.Delete));
+
+        var result = (FileContentResult)await controller.ExportCsv(null, "Create", null, null, null);
+        var csv = System.Text.Encoding.UTF8.GetString(result.FileContents);
+        var lines = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+        // Header + 1 data row (only Create)
+        lines.Should().HaveCount(2);
+    }
+
+    #endregion
+
+    #region ListLogs — search
+
+    [Fact]
+    public async Task ListLogs_Search_MatchesDescription()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+
+        await SeedLogs(db,
+            CreateLog(AuditAction.Create, "Project"),   // description = "Create Project"
+            CreateLog(AuditAction.Delete, "Bid"));       // description = "Delete Bid"
+
+        var result = await controller.ListLogs(null, null, null, null, null, null, search: "Project");
+
+        var response = ((OkObjectResult)result).Value as AuditLogListResponse;
+        response!.Items.Should().HaveCount(1);
+        response.Items[0].Description.Should().Contain("Project");
+    }
+
+    #endregion
+
+    #region ListLogs — pageSize clamping
+
+    [Fact]
+    public async Task ListLogs_ClampsPageSizeToMax100()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+        await SeedLogs(db, CreateLog());
+
+        var result = await controller.ListLogs(null, null, null, null, null, null, null, page: 1, pageSize: 200);
+
+        var response = ((OkObjectResult)result).Value as AuditLogListResponse;
+        response!.PageSize.Should().Be(100);
+    }
+
+    [Fact]
+    public async Task ListLogs_ClampsPageSizeToMin1()
+    {
+        using var db = TestDbContextFactory.Create();
+        var controller = CreateController(db);
+        await SeedLogs(db, CreateLog());
+
+        var result = await controller.ListLogs(null, null, null, null, null, null, null, page: 1, pageSize: 0);
+
+        var response = ((OkObjectResult)result).Value as AuditLogListResponse;
+        response!.PageSize.Should().Be(1);
+    }
+
+    #endregion
 }
