@@ -47,6 +47,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Database,
 } from "lucide-react";
 import api from "@/lib/api";
 import {
@@ -131,6 +132,10 @@ export default function CostCodesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingCostCode, setDeletingCostCode] = useState<CostCode | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Seed CSI dialog
+  const [seedDialogOpen, setSeedDialogOpen] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
 
   // Refs for keyboard shortcuts
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -317,6 +322,26 @@ export default function CostCodesPage() {
     }
   }
 
+  async function handleSeedCsi() {
+    setIsSeeding(true);
+    try {
+      const result = await api<{ seeded: number }>("/api/cost-codes/seed-csi", {
+        method: "POST",
+      });
+      toast.success(`Seeded ${result.seeded} standard CSI cost codes`);
+      setSeedDialogOpen(false);
+      fetchCostCodes();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to seed cost codes"
+      );
+    } finally {
+      setIsSeeding(false);
+    }
+  }
+
+  const showSeedButton = !isLoading && totalCount < 5;
+
   // Summary stats
   const laborCount = costCodes.filter((c) => c.costType === CostType.Labor).length;
   const materialCount = costCodes.filter((c) => c.costType === CostType.Material).length;
@@ -335,13 +360,25 @@ export default function CostCodesPage() {
               Standard construction cost codes for job cost accounting
             </p>
           </div>
-          <Button
-            onClick={openAddDialog}
-            className="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Cost Code
-          </Button>
+          <div className="flex gap-2">
+            {showSeedButton && (
+              <Button
+                variant="outline"
+                onClick={() => setSeedDialogOpen(true)}
+                className="min-h-[44px]"
+              >
+                <Database className="mr-2 h-4 w-4" />
+                Seed CSI Codes
+              </Button>
+            )}
+            <Button
+              onClick={openAddDialog}
+              className="bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Cost Code
+            </Button>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -858,6 +895,38 @@ export default function CostCodesPage() {
                 loadingText="Deleting..."
               >
                 Delete
+              </LoadingButton>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Seed CSI Codes Confirmation Dialog */}
+        <Dialog open={seedDialogOpen} onOpenChange={setSeedDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Seed Standard CSI Cost Codes</DialogTitle>
+              <DialogDescription>
+                This will create ~70 standard CSI MasterFormat division codes
+                (16 divisions with common sub-codes). These are the industry-standard
+                cost codes used by most commercial general contractors.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setSeedDialogOpen(false)}
+                disabled={isSeeding}
+              >
+                Cancel
+              </Button>
+              <LoadingButton
+                onClick={handleSeedCsi}
+                loading={isSeeding}
+                loadingText="Seeding..."
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Database className="mr-2 h-4 w-4" />
+                Seed Codes
               </LoadingButton>
             </DialogFooter>
           </DialogContent>

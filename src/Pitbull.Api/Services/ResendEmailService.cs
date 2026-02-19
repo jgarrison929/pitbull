@@ -47,6 +47,13 @@ public class ResendEmailService : IEmailService
         await SendAsync(toEmail, "Reset your password", html, ct);
     }
 
+    public async Task SendNotificationEmailAsync(string toEmail, string userName, string title, string message, string? actionUrl = null, CancellationToken ct = default)
+    {
+        var url = actionUrl ?? $"{_baseUrl}/";
+        var html = EmailTemplates.NotificationEmail(userName, title, message, url);
+        await SendAsync(toEmail, $"[Pitbull] {title}", html, ct);
+    }
+
     private async Task SendAsync(string toEmail, string subject, string htmlBody, CancellationToken ct)
     {
         try
