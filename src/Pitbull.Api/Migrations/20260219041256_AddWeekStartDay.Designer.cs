@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260219041256_AddWeekStartDay")]
+    partial class AddWeekStartDay
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -9733,46 +9736,11 @@ namespace Pitbull.Api.Migrations
                             b1.Property<Guid>("CompanyId")
                                 .HasColumnType("uuid");
 
-                            b1.Property<decimal>("DailyDoubletimeThreshold")
-                                .ValueGeneratedOnAdd()
-                                .HasPrecision(5, 2)
-                                .HasColumnType("numeric(5,2)")
-                                .HasDefaultValue(12m)
-                                .HasColumnName("ReportDailyDoubletimeThreshold");
-
-                            b1.Property<decimal>("DailyOvertimeThreshold")
-                                .ValueGeneratedOnAdd()
-                                .HasPrecision(5, 2)
-                                .HasColumnType("numeric(5,2)")
-                                .HasDefaultValue(8m)
-                                .HasColumnName("ReportDailyOvertimeThreshold");
-
                             b1.Property<int>("FiscalYearStartMonth")
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("integer")
                                 .HasDefaultValue(1)
                                 .HasColumnName("ReportFiscalYearStartMonth");
-
-                            b1.Property<string>("HolidayRule")
-                                .IsRequired()
-                                .ValueGeneratedOnAdd()
-                                .HasMaxLength(20)
-                                .HasColumnType("character varying(20)")
-                                .HasDefaultValue("doubletime")
-                                .HasColumnName("ReportHolidayRule");
-
-                            b1.Property<string>("HolidaysJson")
-                                .IsRequired()
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("text")
-                                .HasDefaultValue("[]")
-                                .HasColumnName("ReportHolidaysJson");
-
-                            b1.Property<bool>("OvertimeEnabled")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("boolean")
-                                .HasDefaultValue(true)
-                                .HasColumnName("ReportOvertimeEnabled");
 
                             b1.Property<string>("OvertimeRules")
                                 .IsRequired()
@@ -9797,29 +9765,6 @@ namespace Pitbull.Api.Migrations
                                 .HasColumnType("character varying(500)")
                                 .HasDefaultValue("")
                                 .HasColumnName("ReportLogoUrl");
-
-                            b1.Property<string>("SaturdayRule")
-                                .IsRequired()
-                                .ValueGeneratedOnAdd()
-                                .HasMaxLength(20)
-                                .HasColumnType("character varying(20)")
-                                .HasDefaultValue("overtime")
-                                .HasColumnName("ReportSaturdayRule");
-
-                            b1.Property<string>("SundayRule")
-                                .IsRequired()
-                                .ValueGeneratedOnAdd()
-                                .HasMaxLength(20)
-                                .HasColumnType("character varying(20)")
-                                .HasDefaultValue("doubletime")
-                                .HasColumnName("ReportSundayRule");
-
-                            b1.Property<decimal>("WeeklyOvertimeThreshold")
-                                .ValueGeneratedOnAdd()
-                                .HasPrecision(5, 2)
-                                .HasColumnType("numeric(5,2)")
-                                .HasDefaultValue(40m)
-                                .HasColumnName("ReportWeeklyOvertimeThreshold");
 
                             b1.HasKey("CompanyId");
 

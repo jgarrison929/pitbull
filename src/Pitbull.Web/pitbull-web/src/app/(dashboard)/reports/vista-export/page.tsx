@@ -14,6 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import {
   Download,
   FileSpreadsheet,
@@ -216,6 +217,8 @@ export default function VistaExportPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs items={[{ label: "Reports", href: "/reports" }, { label: "Vista Export" }]} />
+
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">

@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
+import { useWeekStartDay } from "@/hooks/use-week-start-day";
 import {
   formatDate,
   formatHours,
@@ -47,20 +48,21 @@ import { TableSkeleton } from "@/components/skeletons";
 
 const ALL = "__all__";
 
-function getWeekRange(): { start: string; end: string } {
+function getWeekRange(startDay: number): { start: string; end: string } {
   const now = new Date();
-  const monday = getWeekStartFn(now, 1); // Monday start
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  const weekStart = getWeekStartFn(now, startDay);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
 
   return {
-    start: monday.toISOString().split("T")[0] ?? getTodayISO(),
-    end: sunday.toISOString().split("T")[0] ?? getTodayISO(),
+    start: weekStart.toISOString().split("T")[0] ?? getTodayISO(),
+    end: weekEnd.toISOString().split("T")[0] ?? getTodayISO(),
   };
 }
 
 export default function TimeTrackingApprovalPage() {
-  const week = useMemo(() => getWeekRange(), []);
+  const { weekStartDay } = useWeekStartDay();
+  const week = useMemo(() => getWeekRange(weekStartDay), [weekStartDay]);
 
   const [queue, setQueue] = useState<ReviewQueueResult | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);

@@ -31,6 +31,7 @@ import {
   type LaborGroupBy,
 } from "@/lib/reports-api";
 import { toast } from "sonner";
+import { csvRow, downloadCsvFile } from "@/lib/csv-utils";
 
 interface ProjectOption {
   id: string;
@@ -112,30 +113,18 @@ export default function LaborCostReportPage() {
     if (!report) return;
 
     const rows = [
-      [groupByLabel, "Total Hours", "Regular Hours", "Overtime Hours", "Total Cost"].join(","),
-      ...report.rows.map((row) => [
-        `"${row.groupLabel}"`,
-        row.totalHours.toFixed(2),
-        row.regularHours.toFixed(2),
-        row.overtimeHours.toFixed(2),
-        row.totalCost.toFixed(2),
-      ].join(",")),
-      [
-        "TOTAL",
-        report.totals.totalHours.toFixed(2),
-        report.totals.regularHours.toFixed(2),
-        report.totals.overtimeHours.toFixed(2),
-        report.totals.totalCost.toFixed(2),
-      ].join(","),
+      csvRow([groupByLabel, "Total Hours", "Regular Hours", "Overtime Hours", "Total Cost"]),
+      ...report.rows.map((row) => csvRow([
+        row.groupLabel, row.totalHours.toFixed(2), row.regularHours.toFixed(2),
+        row.overtimeHours.toFixed(2), row.totalCost.toFixed(2),
+      ])),
+      csvRow([
+        "TOTAL", report.totals.totalHours.toFixed(2), report.totals.regularHours.toFixed(2),
+        report.totals.overtimeHours.toFixed(2), report.totals.totalCost.toFixed(2),
+      ]),
     ];
 
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `labor-cost-${from}-to-${to}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsvFile(rows, `labor-cost-${from}-to-${to}.csv`);
   };
 
   return (

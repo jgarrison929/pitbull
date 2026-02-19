@@ -131,6 +131,10 @@ public class PitbullDbContext(
                 ts.Property(t => t.RequireEquipment)
                     .HasColumnName("RequireEquipment")
                     .HasDefaultValue(false);
+
+                ts.Property(t => t.WeekStartDay)
+                    .HasColumnName("WeekStartDay")
+                    .HasDefaultValue(1);
             });
 
             // OvertimeSettings as owned entity (stored as columns on companies table)

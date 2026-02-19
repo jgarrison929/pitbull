@@ -697,6 +697,9 @@ export default function SettingsPage() {
                 <a href="/settings/overtime">Overtime Rules</a>
               </Button>
               <Button variant="outline" size="sm" asChild>
+                <a href="/settings/time-tracking">Timecard Settings</a>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
                 <a href="/admin/pay-periods">Pay Periods</a>
               </Button>
               <Button variant="outline" size="sm" asChild>

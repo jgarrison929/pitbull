@@ -26,6 +26,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import api from "@/lib/api";
+import { csvRow, downloadCsvFile } from "@/lib/csv-utils";
 import type {
   PagedResult,
   Subcontract,
@@ -137,61 +138,27 @@ export default function FinancialOverviewPage() {
 
   const exportCsv = () => {
     const rows = [
-      [
-        "Sub #",
-        "Subcontractor",
-        "Original Value",
-        "Approved COs",
-        "Current Value",
-        "Billed to Date",
-        "Paid to Date",
-        "Retainage Held",
-        "Balance to Finish",
-        "% Billed",
-      ].join(","),
+      csvRow(["Sub #", "Subcontractor", "Original Value", "Approved COs", "Current Value",
+        "Billed to Date", "Paid to Date", "Retainage Held", "Balance to Finish", "% Billed"]),
     ];
 
     for (const row of summaryRows) {
-      rows.push(
-        [
-          row.subcontractNumber,
-          `"${row.subcontractorName}"`,
-          row.originalValue.toFixed(2),
-          row.approvedCOs.toFixed(2),
-          row.currentValue.toFixed(2),
-          row.billedToDate.toFixed(2),
-          row.paidToDate.toFixed(2),
-          row.retainageHeld.toFixed(2),
-          row.balanceToFinish.toFixed(2),
-          row.percentBilled.toFixed(1),
-        ].join(",")
-      );
+      rows.push(csvRow([
+        row.subcontractNumber, row.subcontractorName,
+        row.originalValue.toFixed(2), row.approvedCOs.toFixed(2), row.currentValue.toFixed(2),
+        row.billedToDate.toFixed(2), row.paidToDate.toFixed(2), row.retainageHeld.toFixed(2),
+        row.balanceToFinish.toFixed(2), row.percentBilled.toFixed(1),
+      ]));
     }
 
-    rows.push(
-      [
-        "",
-        "GRAND TOTAL",
-        totalOriginalValue.toFixed(2),
-        totalApprovedCOValue.toFixed(2),
-        totalCurrentValue.toFixed(2),
-        totalBilledToDate.toFixed(2),
-        totalPaidToDate.toFixed(2),
-        totalRetainageHeld.toFixed(2),
-        (totalCurrentValue - totalBilledToDate).toFixed(2),
-        totalCurrentValue > 0
-          ? ((totalBilledToDate / totalCurrentValue) * 100).toFixed(1)
-          : "0.0",
-      ].join(",")
-    );
+    rows.push(csvRow([
+      "", "GRAND TOTAL", totalOriginalValue.toFixed(2), totalApprovedCOValue.toFixed(2),
+      totalCurrentValue.toFixed(2), totalBilledToDate.toFixed(2), totalPaidToDate.toFixed(2),
+      totalRetainageHeld.toFixed(2), (totalCurrentValue - totalBilledToDate).toFixed(2),
+      totalCurrentValue > 0 ? ((totalBilledToDate / totalCurrentValue) * 100).toFixed(1) : "0.0",
+    ]));
 
-    const blob = new Blob([rows.join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `financial-overview-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsvFile(rows, `financial-overview-${new Date().toISOString().split("T")[0]}.csv`);
     toast.success("CSV exported successfully");
   };
 
