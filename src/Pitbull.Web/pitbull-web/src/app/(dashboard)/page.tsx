@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderOpen, Clock3, Inbox, MessageCircle, RefreshCw, Activity, AlertTriangle } from "lucide-react";
+import { FolderOpen, Clock3, Inbox, MessageCircle, RefreshCw, Activity, AlertTriangle, Plus, ClipboardCheck, BarChart3 } from "lucide-react";
+import Link from "next/link";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/auth-context";
 import { useCompany } from "@/contexts/company-context";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { WelcomeTour } from "@/components/onboarding/welcome-tour";
@@ -38,6 +40,8 @@ interface ActivityItem {
   action: string;
   entity: string;
   timestamp: string;
+  resourceId?: string | null;
+  description?: string | null;
 }
 
 interface ProjectBudgetHealth {
@@ -97,6 +101,52 @@ function trendPercent(current: number, previous: number): number {
   return ((current - previous) / previous) * 100;
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  Create: "created",
+  Update: "updated",
+  Delete: "deleted",
+  Approval: "approved",
+  Rejection: "rejected",
+  StatusChange: "changed status of",
+  Login: "logged in",
+  Export: "exported",
+  Import: "imported",
+  Locked: "locked",
+  Unlocked: "unlocked",
+};
+
+const ENTITY_LABELS: Record<string, string> = {
+  Project: "a project",
+  Bid: "a bid",
+  TimeEntry: "a time entry",
+  Rfi: "an RFI",
+  Subcontract: "a contract",
+  PaymentApplication: "a pay app",
+  ChangeOrder: "a change order",
+  Employee: "an employee",
+  ScheduleOfValues: "a schedule of values",
+  PayPeriod: "a pay period",
+  CostCode: "a cost code",
+};
+
+const ENTITY_ROUTES: Record<string, string> = {
+  Project: "/projects",
+  Bid: "/bids",
+  TimeEntry: "/time-tracking",
+  Rfi: "/projects",
+  Subcontract: "/contracts",
+  PaymentApplication: "/payment-applications",
+  ChangeOrder: "/change-orders",
+  Employee: "/employees",
+};
+
+function activityLink(entity: string, resourceId?: string | null): string | null {
+  const base = ENTITY_ROUTES[entity];
+  if (!base) return null;
+  if (resourceId && entity !== "TimeEntry") return `${base}/${resourceId}`;
+  return base;
+}
+
 function budgetBarColor(percentUsed: number): { bar: string; text: string } {
   if (percentUsed >= 90) return { bar: "bg-red-500", text: "text-red-600" };
   if (percentUsed >= 75) return { bar: "bg-amber-500", text: "text-amber-600" };
@@ -111,6 +161,7 @@ interface OnboardingStatus {
 
 export default function DashboardPage() {
   const { activeCompany } = useCompany();
+  const { hasAnyRole } = useAuth();
   const router = useRouter();
   const [data, setData] = useState<DashboardAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -265,6 +316,41 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Quick Actions */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+        <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
+          <Link href="/projects/new">
+            <Plus className="h-5 w-5 text-amber-600" />
+            <span className="text-sm font-medium">New Project</span>
+          </Link>
+        </Button>
+        <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
+          <Link href="/time-tracking/crew-entry">
+            <Clock3 className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-medium">Enter Time</span>
+          </Link>
+        </Button>
+        {hasAnyRole(["Admin", "Manager", "Supervisor"]) && (
+          <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px] relative">
+            <Link href="/time-tracking/approval">
+              <ClipboardCheck className="h-5 w-5 text-green-600" />
+              <span className="text-sm font-medium">Approve Time</span>
+              {(data?.pendingApprovals ?? 0) > 0 && (
+                <Badge className="absolute -top-1.5 -right-1.5 h-5 min-w-5 px-1 text-[10px] bg-amber-500 text-white">
+                  {data!.pendingApprovals}
+                </Badge>
+              )}
+            </Link>
+          </Button>
+        )}
+        <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
+          <Link href="/reports">
+            <BarChart3 className="h-5 w-5 text-purple-600" />
+            <span className="text-sm font-medium">Run Reports</span>
+          </Link>
+        </Button>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -351,19 +437,42 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 max-h-[500px] overflow-y-auto">
             {isLoading && Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
-            {!isLoading && data?.recentActivity.map((item, index) => (
-              <div key={`${item.timestamp}-${index}`} className="flex items-start gap-3 rounded-md border p-3">
-                <Activity className="mt-0.5 h-4 w-4 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm">
-                    <span className="font-medium">{item.user}</span> did <span className="font-medium">{item.action}</span> on <span className="font-medium">{item.entity}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">{relativeTime(item.timestamp)}</p>
+            {!isLoading && data?.recentActivity.map((item, index) => {
+              const href = activityLink(item.entity, item.resourceId);
+              const actionLabel = ACTION_LABELS[item.action] || item.action.toLowerCase();
+              const entityLabel = ENTITY_LABELS[item.entity] || item.entity.toLowerCase();
+              const content = (
+                <>
+                  <Activity className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm">
+                      <span className="font-medium">{item.user}</span>{" "}
+                      {actionLabel}{" "}
+                      <span className="font-medium">{entityLabel}</span>
+                    </p>
+                    {item.description && (
+                      <p className="text-xs text-foreground/70 truncate">{item.description}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">{relativeTime(item.timestamp)}</p>
+                  </div>
+                </>
+              );
+              return href ? (
+                <Link
+                  key={`${item.timestamp}-${index}`}
+                  href={href}
+                  className="flex items-start gap-3 rounded-md border p-3 hover:bg-muted/50 transition-colors"
+                >
+                  {content}
+                </Link>
+              ) : (
+                <div key={`${item.timestamp}-${index}`} className="flex items-start gap-3 rounded-md border p-3">
+                  {content}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {!isLoading && (data?.recentActivity.length ?? 0) === 0 && <p className="text-sm text-muted-foreground">No recent activity.</p>}
           </CardContent>
         </Card>

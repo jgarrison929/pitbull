@@ -37,6 +37,7 @@ import {
   DollarSign,
   FileText,
   ArrowLeft,
+  Printer,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -362,6 +363,12 @@ export default function PaymentApplicationDetailPage() {
             <Link href="/payment-applications">
               <ArrowLeft className="h-4 w-4 mr-1.5" />
               Back
+            </Link>
+          </Button>
+          <Button variant="outline" size="sm" asChild className="min-h-[44px]">
+            <Link href={`/payment-applications/${id}/print`}>
+              <Printer className="h-4 w-4 mr-1.5" />
+              Print
             </Link>
           </Button>
           {isDraft && hasLineItemChanges && (

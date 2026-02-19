@@ -164,12 +164,14 @@ public sealed class DashboardAnalyticsService(
             .AsNoTracking()
             .Where(a => a.TenantId == tenantId)
             .OrderByDescending(a => a.Timestamp)
-            .Take(10)
+            .Take(20)
             .Select(a => new RecentActivityDto(
                 string.IsNullOrWhiteSpace(a.UserName) ? (a.UserEmail ?? "System") : a.UserName!,
                 a.Action.ToString(),
                 a.ResourceType,
-                a.Timestamp))
+                a.Timestamp,
+                a.ResourceId,
+                a.Description))
             .ToListAsync(cancellationToken);
     }
 
@@ -282,7 +284,9 @@ public sealed record RecentActivityDto(
     string User,
     string Action,
     string Entity,
-    DateTime Timestamp);
+    DateTime Timestamp,
+    string? ResourceId = null,
+    string? Description = null);
 
 public sealed record ProjectBudgetHealthDto(
     string Name,
