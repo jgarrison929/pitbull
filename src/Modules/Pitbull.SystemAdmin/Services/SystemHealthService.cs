@@ -68,13 +68,24 @@ public class SystemHealthService(PitbullDbContext db) : ISystemHealthService
         }
     }
 
+    private static readonly HashSet<string> AllowedTables = new(StringComparer.Ordinal)
+    {
+        "projects", "bids", "subcontracts", "time_entries",
+    };
+
     private async Task<int> SafeCountAsync(string tableName, CancellationToken ct)
     {
+        if (!AllowedTables.Contains(tableName))
+            return 0;
+
         try
         {
+            // Table names cannot be parameterized in SQL; the whitelist above prevents injection.
+#pragma warning disable EF1002
             return await db.Database
                 .SqlQueryRaw<int>($"SELECT count(*)::int AS \"Value\" FROM {tableName} WHERE is_deleted = false")
                 .FirstOrDefaultAsync(ct);
+#pragma warning restore EF1002
         }
         catch
         {
