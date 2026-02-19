@@ -1,0 +1,278 @@
+"use client";
+
+import Link from "next/link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import {
+  HardHat,
+  Clock,
+  FileText,
+  BarChart3,
+  Users,
+  Settings,
+  ChevronRight,
+  HelpCircle,
+  Wrench,
+  DollarSign,
+  Upload,
+  BookOpen,
+} from "lucide-react";
+
+const quickStartSteps = [
+  {
+    step: 1,
+    title: "Complete Company Setup",
+    description:
+      "Add your company name, address, tax ID, and contractor type in the company setup wizard.",
+    href: "/settings/company/setup",
+  },
+  {
+    step: 2,
+    title: "Import or Add Employees",
+    description:
+      "Add your workforce manually or bulk-import from Vista CSV. Employees are needed for time tracking.",
+    href: "/employees",
+  },
+  {
+    step: 3,
+    title: "Set Up Cost Codes",
+    description:
+      "Review the default cost code structure or import your own. Cost codes categorize labor and materials.",
+    href: "/cost-codes",
+  },
+  {
+    step: 4,
+    title: "Create Your First Project",
+    description:
+      "Add a project with its contract value, start/end dates, and assigned team members.",
+    href: "/projects",
+  },
+  {
+    step: 5,
+    title: "Start Tracking Time",
+    description:
+      "Enter daily time for your crew or use mobile entry. Approve timecards weekly for payroll export.",
+    href: "/time-tracking",
+  },
+];
+
+const featureCards = [
+  {
+    title: "Projects",
+    description: "Create and manage construction projects with budgets, schedules, and team assignments.",
+    icon: HardHat,
+    href: "/projects",
+  },
+  {
+    title: "Time Tracking",
+    description: "Daily crew time entry, approval workflows, overtime rules, and Vista payroll export.",
+    icon: Clock,
+    href: "/time-tracking",
+  },
+  {
+    title: "Bids & Estimating",
+    description: "Manage bid proposals and convert winning bids directly into active projects.",
+    icon: FileText,
+    href: "/bids",
+  },
+  {
+    title: "Contracts & Change Orders",
+    description: "Track subcontracts, change orders, and revised contract values.",
+    icon: DollarSign,
+    href: "/contracts",
+  },
+  {
+    title: "Reports",
+    description: "Labor cost, project profitability, weekly summary, and equipment utilization reports.",
+    icon: BarChart3,
+    href: "/reports",
+  },
+  {
+    title: "Equipment",
+    description: "Track equipment inventory, hourly rates, and utilization across projects.",
+    icon: Wrench,
+    href: "/equipment",
+  },
+  {
+    title: "Employee Management",
+    description: "Manage your workforce, pay rates, classifications, and certifications.",
+    icon: Users,
+    href: "/employees",
+  },
+  {
+    title: "Data Import",
+    description: "Bulk import projects, employees, cost codes, and time entries from Vista CSV files.",
+    icon: Upload,
+    href: "/admin/data-import",
+  },
+];
+
+const faqItems = [
+  {
+    question: "How do I import data from Trimble Vista?",
+    answer:
+      "Go to Admin > Data Import. Select the data type (employees, projects, cost codes, etc.), download the CSV template, fill it with your Vista data, then upload. Pitbull validates every row before importing.",
+  },
+  {
+    question: "How do I track employee time?",
+    answer:
+      "Navigate to Time Tracking and use daily entry or crew entry mode. Assign employees to projects and cost codes, enter hours, then submit for approval. Managers can approve or reject timecards.",
+  },
+  {
+    question: "How do I manage change orders?",
+    answer:
+      "Open a project, then go to its Change Orders tab. Add change orders with descriptions and amounts. Approved change orders automatically update the revised contract value.",
+  },
+  {
+    question: "How do I generate reports?",
+    answer:
+      "Visit the Reports section in the sidebar. Choose from weekly summary, labor cost, project profitability, financial overview, or equipment utilization. All reports support CSV export.",
+  },
+  {
+    question: "What are cost codes and how do I set them up?",
+    answer:
+      "Cost codes categorize project expenses (labor, materials, equipment, etc.). Go to Cost Codes to view defaults or import your own structure from Vista. Each time entry is tagged with a cost code.",
+  },
+  {
+    question: "How do I manage user access and roles?",
+    answer:
+      "Admins can manage users under Admin > Users. Assign roles like Admin, Manager, or Field to control what each user can see and do. Managers can approve time; field users can only enter time.",
+  },
+  {
+    question: "Can I use Pitbull on mobile devices?",
+    answer:
+      "Yes. The interface is fully responsive. Time tracking includes a dedicated mobile entry view optimized for phones, accessible from Time Tracking > Mobile Entry.",
+  },
+  {
+    question: "How do I export data for payroll?",
+    answer:
+      "Go to Admin > Data Import, switch to the Export tab, and select Time Entries with Vista format. Choose a date range to generate a Vista-compatible CSV file for payroll processing.",
+  },
+];
+
+export default function HelpPage() {
+  return (
+    <div className="space-y-8">
+      <Breadcrumbs items={[{ label: "Help" }]} />
+
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+          <BookOpen className="h-6 w-6 text-amber-500" />
+          Help Center
+        </h1>
+        <p className="text-muted-foreground">
+          Everything you need to get started with Pitbull Construction Solutions.
+        </p>
+      </div>
+
+      {/* Quick Start Guide */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Quick Start Guide</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ol className="space-y-4">
+            {quickStartSteps.map((item) => (
+              <li key={item.step} className="flex gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-sm font-bold">
+                  {item.step}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Link
+                    href={item.href}
+                    className="font-medium hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
+                  >
+                    {item.title}
+                  </Link>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {item.description}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </CardContent>
+      </Card>
+
+      {/* Feature Overview */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Feature Overview</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {featureCards.map((feature) => (
+            <Link key={feature.title} href={feature.href}>
+              <Card className="h-full hover:border-amber-300 dark:hover:border-amber-700 transition-colors cursor-pointer">
+                <CardContent className="pt-6">
+                  <feature.icon className="h-8 w-8 text-amber-500 mb-3" />
+                  <h3 className="font-semibold mb-1">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {feature.description}
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* FAQ */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">Frequently Asked Questions</h2>
+        <div className="space-y-3">
+          {faqItems.map((faq) => (
+            <Card key={faq.question}>
+              <CardContent className="pt-5 pb-5">
+                <div className="flex gap-3">
+                  <HelpCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="font-medium">{faq.question}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {faq.answer}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Support Info */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <Settings className="h-8 w-8 text-muted-foreground shrink-0" />
+            <div>
+              <h3 className="font-semibold">Need more help?</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Contact your system administrator or reach out to Pitbull support
+                at{" "}
+                <span className="font-medium text-foreground">
+                  support@pitbull.construction
+                </span>
+                . For keyboard shortcuts, press{" "}
+                <kbd className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 text-xs font-medium bg-muted border border-border rounded">
+                  ?
+                </kbd>{" "}
+                anywhere in the app.
+              </p>
+              <div className="flex gap-4 mt-3 text-sm">
+                <Link
+                  href="/privacy"
+                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  Privacy Policy <ChevronRight className="h-3 w-3" />
+                </Link>
+                <Link
+                  href="/terms"
+                  className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  Terms of Service <ChevronRight className="h-3 w-3" />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

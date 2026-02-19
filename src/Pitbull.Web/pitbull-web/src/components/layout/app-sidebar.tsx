@@ -13,10 +13,12 @@ import {
   getProjectManagementItems,
   reportItems,
   settingsItems,
+  helpItems,
   adminItems,
   type NavItem as NavItemType,
 } from "./nav-items";
 import { findActiveHref } from "./nav-utils";
+import { useKeyboardShortcuts } from "@/contexts/keyboard-shortcuts-context";
 
 function NavItem({
   item,
@@ -62,6 +64,7 @@ function SectionHeader({ label }: { label: string }) {
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { setHelpOpen } = useKeyboardShortcuts();
 
   // Extract current project ID from URL for project-scoped navigation
   const projectMatch = pathname.match(/^\/projects\/([a-f0-9-]+)/i);
@@ -76,6 +79,7 @@ export function AppSidebar() {
       ...projectManagementItems,
       ...reportItems,
       ...settingsItems,
+      ...helpItems,
       ...(user?.roles?.includes("Admin") ? adminItems : []),
     ];
     return findActiveHref(pathname, allItems);
@@ -147,12 +151,28 @@ export function AppSidebar() {
             ))}
           </>
         )}
+
+        {/* Help */}
+        {helpItems.map((item) => (
+          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
+        ))}
       </nav>
 
       <Separator className="bg-sidebar-border" />
 
-      {/* App Version */}
-      <div className="px-4 py-2 text-center">
+      {/* Footer Links */}
+      <div className="px-4 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+        <Link href="/help" className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">Help</Link>
+        <button
+          onClick={() => setHelpOpen(true)}
+          className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+        >
+          Shortcuts
+        </button>
+        <Link href="/privacy" className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">Privacy</Link>
+        <Link href="/terms" className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">Terms</Link>
+      </div>
+      <div className="px-4 pb-2 text-center">
         <p className="text-[10px] text-sidebar-foreground/40">
           Pitbull v0.12.0
         </p>
