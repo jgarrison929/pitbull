@@ -178,7 +178,7 @@ export default function SubcontractDetailPage() {
       toast.success("Subcontract deleted");
       router.push("/contracts");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete subcontract");
+      toast.error("Failed to delete subcontract", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsDeleting(false);
     }
@@ -237,7 +237,7 @@ export default function SubcontractDetailPage() {
       await persistWorkflow({ milestones });
       toast.success("Milestones saved");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save milestones");
+      toast.error("Failed to save milestones", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSavingMilestones(false);
     }
@@ -260,7 +260,7 @@ export default function SubcontractDetailPage() {
       setRetentionPercentInput(String(updated.retainagePercent));
       toast.success("Retention updated");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update retention");
+      toast.error("Failed to update retention", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSavingRetention(false);
     }
@@ -302,7 +302,7 @@ export default function SubcontractDetailPage() {
       await fetchData();
       toast.success("Payment application generated from milestone");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate payment application");
+      toast.error("Failed to generate payment application", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsGeneratingByMilestoneId(null);
     }

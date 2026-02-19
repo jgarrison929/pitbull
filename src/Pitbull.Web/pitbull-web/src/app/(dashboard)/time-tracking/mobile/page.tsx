@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 interface CostCodeListResult {
   items: CostCode[];
@@ -175,7 +176,7 @@ export default function MobileTimeEntryPage() {
           router.push("/time-tracking");
         }
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to save time entry");
+        toast.error("Failed to save time entry", { description: err instanceof Error ? err.message : undefined });
       } finally {
         setIsSubmitting(false);
       }
@@ -261,6 +262,7 @@ export default function MobileTimeEntryPage() {
 
   return (
     <div className="mx-auto w-full max-w-md space-y-4 px-3 py-4 sm:px-4">
+      <Breadcrumbs items={[{ label: "Time Tracking", href: "/time-tracking" }, { label: "Mobile" }]} />
       <div className="flex items-center gap-2">
         <Button
           asChild

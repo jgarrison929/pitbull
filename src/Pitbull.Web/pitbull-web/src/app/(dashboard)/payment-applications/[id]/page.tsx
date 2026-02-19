@@ -28,8 +28,8 @@ import {
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import {
-  ChevronRight,
   Save,
   Send,
   CheckCircle,
@@ -330,14 +330,7 @@ export default function PaymentApplicationDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-        <Link href="/payment-applications" className="hover:text-foreground transition-colors">
-          Payment Applications
-        </Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">App #{detail.applicationNumber}</span>
-      </nav>
+      <Breadcrumbs items={[{ label: "Payment Applications", href: "/payment-applications" }, { label: "Details" }]} />
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

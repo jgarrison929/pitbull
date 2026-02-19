@@ -122,7 +122,7 @@ export default function EditBidPage() {
       toast.success("Bid updated");
       router.push(`/bids/${updated.id}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update bid");
+      toast.error("Failed to update bid", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSaving(false);
     }

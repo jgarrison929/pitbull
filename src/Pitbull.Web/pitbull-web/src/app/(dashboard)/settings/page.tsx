@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/auth-context";
 import { useTheme } from "@/contexts/theme-context";
@@ -259,6 +260,12 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings" },
+        ]}
+      />
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>

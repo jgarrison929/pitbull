@@ -16,6 +16,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Save, RotateCcw, DollarSign, ShieldCheck, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import type { PaymentApplicationSettings } from "@/lib/types";
 
@@ -87,6 +88,13 @@ export default function PaymentApplicationSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/settings" },
+          { label: "Payment Applications" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

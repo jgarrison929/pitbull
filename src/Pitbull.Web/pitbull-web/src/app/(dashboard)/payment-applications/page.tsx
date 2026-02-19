@@ -172,7 +172,7 @@ export default function PaymentApplicationsPage() {
       fetchPayApps();
     } catch (err) {
       const error = err as Error;
-      toast.error(error.message || "Failed to create payment application");
+      toast.error("Failed to create payment application", { description: error instanceof Error ? error.message : undefined });
     } finally {
       setIsSubmitting(false);
     }

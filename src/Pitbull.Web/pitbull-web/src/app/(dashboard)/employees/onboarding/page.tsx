@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import {
   ChevronRight,
   ChevronLeft,
@@ -284,14 +284,7 @@ export default function OnboardingWizardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-        <Link href="/employees" className="hover:text-foreground transition-colors">
-          Employees
-        </Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground font-medium">New Onboarding</span>
-      </nav>
+      <Breadcrumbs items={[{ label: "Employees", href: "/employees" }, { label: "Onboarding" }]} />
 
       {/* Header */}
       <div>

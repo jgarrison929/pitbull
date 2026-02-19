@@ -16,6 +16,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Save, RotateCcw, FileText, ShieldCheck, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import type { ContractSettingsData } from "@/lib/types";
 
@@ -84,6 +85,13 @@ export default function ContractSettingsPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/settings" },
+          { label: "Contracts" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

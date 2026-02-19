@@ -161,7 +161,7 @@ function SearchPageContent() {
       setRecentSearches(getRecentSearches());
     } catch (err) {
       setResults([]);
-      toast.error(err instanceof Error ? err.message : "Search failed");
+      toast.error("Search failed", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsLoading(false);
     }

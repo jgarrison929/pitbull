@@ -219,7 +219,7 @@ export default function ChangeOrdersPage() {
       setDialogOpen(false);
       await fetchData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save change order");
+      toast.error("Failed to save change order", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -235,7 +235,7 @@ export default function ChangeOrdersPage() {
       setDeleting(null);
       await fetchData();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete change order");
+      toast.error("Failed to delete change order", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsDeleting(false);
     }

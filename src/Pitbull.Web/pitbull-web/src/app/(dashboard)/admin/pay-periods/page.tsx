@@ -218,7 +218,7 @@ export default function AdminPayPeriodsPage() {
         setSummary(null);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load pay periods");
+      toast.error("Failed to load pay periods", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsLoading(false);
     }
@@ -230,7 +230,7 @@ export default function AdminPayPeriodsPage() {
       const result = await api<PayPeriodSummary>(`/api/pay-periods/${payPeriodId}/summary`);
       setSummary(result);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load summary");
+      toast.error("Failed to load summary", { description: err instanceof Error ? err.message : undefined });
       setSummary(null);
     } finally {
       setIsSummaryLoading(false);
@@ -295,7 +295,7 @@ export default function AdminPayPeriodsPage() {
       setCreateOpen(false);
       await loadPeriods();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create pay period");
+      toast.error("Failed to create pay period", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -339,7 +339,7 @@ export default function AdminPayPeriodsPage() {
       await loadPeriods();
       if (selectedPeriodId) await loadSummary(selectedPeriodId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update pay period");
+      toast.error("Failed to update pay period", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -366,7 +366,7 @@ export default function AdminPayPeriodsPage() {
       await loadPeriods();
       if (selectedPeriodId) await loadSummary(selectedPeriodId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : `Failed to ${actionType} pay period`);
+      toast.error(`Failed to ${actionType} pay period`, { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -387,7 +387,7 @@ export default function AdminPayPeriodsPage() {
       toast.success("Next pay period generated");
       await loadPeriods();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate next period");
+      toast.error("Failed to generate next period", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }

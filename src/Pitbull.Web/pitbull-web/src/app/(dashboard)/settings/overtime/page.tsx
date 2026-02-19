@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import type { ReportSettingsData } from "@/lib/types";
 
@@ -249,6 +250,13 @@ export default function OvertimeRulesPage() {
 
   return (
     <div className="space-y-6">
+      <Breadcrumbs
+        items={[
+          { label: "Settings", href: "/settings" },
+          { label: "Overtime" },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

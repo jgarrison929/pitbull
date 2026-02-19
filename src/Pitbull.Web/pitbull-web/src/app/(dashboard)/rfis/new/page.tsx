@@ -22,6 +22,7 @@ import api from "@/lib/api";
 import type { Rfi, CreateRfiCommand, RfiPriority, Project, PagedResult } from "@/lib/types";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
 import {
@@ -312,7 +313,7 @@ export default function NewRfiPage() {
       toast.success("RFI created successfully");
       router.push(`/rfis/${rfi.id}?projectId=${selectedProjectId}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create RFI");
+      toast.error("Failed to create RFI", { description: err instanceof Error ? err.message : undefined });
     } finally {
       setIsSubmitting(false);
     }
@@ -322,6 +323,7 @@ export default function NewRfiPage() {
 
   return (
     <div className="max-w-3xl space-y-6">
+      <Breadcrumbs items={[{ label: "RFIs", href: "/rfis" }, { label: "New RFI" }]} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">New RFI</h1>

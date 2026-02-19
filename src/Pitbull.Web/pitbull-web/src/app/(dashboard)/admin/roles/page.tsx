@@ -69,7 +69,7 @@ export default function RolesPage() {
       toast.success("Role created");
       await fetchRoles();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to create role");
+      toast.error("Failed to create role", { description: error instanceof Error ? error.message : undefined });
     } finally {
       setIsCreating(false);
     }
@@ -90,7 +90,7 @@ export default function RolesPage() {
       toast.success("Role deleted");
       await fetchRoles();
     } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : "Failed to delete role");
+      toast.error("Failed to delete role", { description: error instanceof Error ? error.message : undefined });
     }
   }
 
