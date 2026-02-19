@@ -20,6 +20,19 @@ public class AppUser : IdentityUser<Guid>
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiryTime { get; set; }
 
+    /// <summary>
+    /// Optional link to the Employee record for this user.
+    /// When set, time tracking and approval workflows use this directly
+    /// instead of falling back to email-based lookup.
+    /// </summary>
+    public Guid? EmployeeId { get; set; }
+
+    /// <summary>
+    /// Optional default company for this user.
+    /// Used as the initial company context when the user logs in.
+    /// </summary>
+    public Guid? CompanyId { get; set; }
+
     // Navigation
     public Tenant Tenant { get; set; } = null!;
 }

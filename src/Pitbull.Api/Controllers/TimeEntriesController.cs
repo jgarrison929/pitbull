@@ -902,6 +902,17 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
 
     private async Task<(Result, Guid)> GetCurrentEmployeeIdAsync()
     {
+        // Fast path: explicit User→Employee link (set via Admin Users page)
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+        if (Guid.TryParse(userIdClaim, out var userId))
+        {
+            var appUser = await timeEntryService.GetAppUserAsync(userId);
+            if (appUser?.EmployeeId is { } linkedEmployeeId)
+                return (Result.Success(), linkedEmployeeId);
+        }
+
+        // Fallback: email-based lookup (backwards compatibility)
         var email = User.Identity?.Name
             ?? User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
             ?? User.FindFirst("email")?.Value;
@@ -914,7 +925,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         if (employee == null)
         {
             return (Result.Failure(
-                "Your user account has no linked employee record. An administrator must create one before you can perform this action.",
+                "Your user account has no linked employee record. An administrator must link your account to an employee or ensure your email matches an employee record.",
                 "NO_EMPLOYEE_RECORD"), Guid.Empty);
         }
 

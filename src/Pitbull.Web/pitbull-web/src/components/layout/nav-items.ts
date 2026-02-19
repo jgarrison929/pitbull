@@ -16,7 +16,11 @@ export const mainNavItems: NavItem[] = [
   { label: "Employees", href: "/employees", icon: "👷" },
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
   { label: "Equipment", href: "/equipment", icon: "🚜" },
-  // Financial workflow — in execution order
+];
+
+export const financialItems: NavItem[] = [
+  { label: "Vendors", href: "/vendors", icon: "🏢" },
+  { label: "Customers", href: "/customers", icon: "🤝" },
   { label: "Contracts", href: "/contracts", icon: "📄" },
   { label: "Change Orders", href: "/change-orders", icon: "📝" },
   { label: "Pay Apps", href: "/payment-applications", icon: "💵" },

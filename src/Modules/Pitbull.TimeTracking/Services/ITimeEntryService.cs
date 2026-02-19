@@ -1,4 +1,5 @@
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 using Pitbull.TimeTracking.Features.BatchCreateTimeEntries;
@@ -72,6 +73,8 @@ public interface ITimeEntryService
         CancellationToken cancellationToken = default);
 
     Task<Employee?> GetEmployeeByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    Task<AppUser?> GetAppUserAsync(Guid userId, CancellationToken cancellationToken = default);
 
     // Command operations
     Task<Result<TimeEntryDto>> CreateTimeEntryAsync(CreateTimeEntryCommand command, CancellationToken cancellationToken = default);

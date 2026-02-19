@@ -38,7 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Users, Search, UserPlus, Mail, Trash2, RotateCw } from "lucide-react";
 import api from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
-import type { AdminUser, AdminListUsersResult, RoleInfo, UserStatus, TeamInvitation } from "@/lib/types";
+import type { AdminUser, AdminListUsersResult, RoleInfo, UserStatus, TeamInvitation, Employee, Company } from "@/lib/types";
 import { toast } from "sonner";
 
 const statusBadgeClass: Record<string, string> = {
@@ -91,6 +91,10 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   
+  // Employee & Company data for linking
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
   // Edit modal state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
@@ -99,6 +103,8 @@ export default function UsersPage() {
     lastName: "",
     status: "" as UserStatus | "",
     roles: [] as string[],
+    companyId: "" as string,
+    employeeId: "" as string,
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -150,11 +156,31 @@ export default function UsersPage() {
     }
   }, []);
 
+  const fetchCompanies = useCallback(async () => {
+    try {
+      const result = await api<{ items: Company[] }>("/api/companies");
+      setCompanies(result.items ?? []);
+    } catch {
+      // Companies may not be available
+    }
+  }, []);
+
+  const fetchEmployees = useCallback(async () => {
+    try {
+      const result = await api<{ items: Employee[] }>("/api/employees?pageSize=500");
+      setEmployees(result.items ?? []);
+    } catch {
+      // Employees may not be available
+    }
+  }, []);
+
   useEffect(() => {
     if (isAdmin) {
       fetchRoles();
+      fetchCompanies();
+      fetchEmployees();
     }
-  }, [isAdmin, fetchRoles]);
+  }, [isAdmin, fetchRoles, fetchCompanies, fetchEmployees]);
 
   const fetchInvitations = useCallback(async () => {
     setIsLoadingInvitations(true);
@@ -188,6 +214,8 @@ export default function UsersPage() {
       lastName: user.lastName,
       status: user.status,
       roles: [...user.roles],
+      companyId: user.companyId ?? "",
+      employeeId: user.employeeId ?? "",
     });
     setEditDialogOpen(true);
   };
@@ -221,6 +249,8 @@ export default function UsersPage() {
             lastName: editForm.lastName,
             status: editForm.status,
             roles: editForm.roles,
+            companyId: editForm.companyId || null,
+            employeeId: editForm.employeeId || null,
           },
         }
       );
@@ -782,6 +812,51 @@ export default function UsersPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Employee Linking */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Company</Label>
+                <Select
+                  value={editForm.companyId}
+                  onValueChange={(value) => setEditForm(prev => ({ ...prev, companyId: value === "none" ? "" : value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No company linked" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No company linked</SelectItem>
+                    {companies.map(company => (
+                      <SelectItem key={company.id} value={company.id}>
+                        {company.shortName || company.name} ({company.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Employee</Label>
+                <Select
+                  value={editForm.employeeId}
+                  onValueChange={(value) => setEditForm(prev => ({ ...prev, employeeId: value === "none" ? "" : value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="No employee linked" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No employee linked</SelectItem>
+                    {employees.map(emp => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.fullName} ({emp.employeeNumber})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Links this login to an employee for time tracking
+                </p>
+              </div>
             </div>
 
             {/* Roles */}

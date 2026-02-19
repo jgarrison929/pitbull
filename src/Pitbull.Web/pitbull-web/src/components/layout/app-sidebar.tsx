@@ -10,6 +10,7 @@ import { CompanySwitcher } from "./company-switcher";
 import { ProjectSwitcher } from "./project-switcher";
 import {
   mainNavItems,
+  financialItems,
   getProjectManagementItems,
   reportItems,
   settingsItems,
@@ -76,6 +77,7 @@ export function AppSidebar() {
   const activeHref = useMemo(() => {
     const allItems = [
       ...mainNavItems,
+      ...financialItems,
       ...projectManagementItems,
       ...reportItems,
       ...settingsItems,
@@ -116,6 +118,12 @@ export function AppSidebar() {
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {/* Main nav */}
         {mainNavItems.map((item) => (
+          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
+        ))}
+
+        {/* Financial Section */}
+        <SectionHeader label="Financial" />
+        {financialItems.map((item) => (
           <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 

@@ -650,6 +650,13 @@ public class TimeEntryService : ITimeEntryService
             .FirstOrDefaultAsync(e => e.Email == email && e.IsActive, cancellationToken);
     }
 
+    public async Task<AppUser?> GetAppUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+    }
+
     #endregion
 
     #region Command Operations

@@ -298,4 +298,184 @@ public class AdminUsersControllerTests
     }
 
     #endregion
+
+    #region UpdateUser - Employee/Company Linking Tests
+
+    private static void SetupUserManagerForUpdateTests(Mock<UserManager<AppUser>> userManagerMock)
+    {
+        userManagerMock
+            .Setup(u => u.GetRolesAsync(It.IsAny<AppUser>()))
+            .ReturnsAsync(new List<string>());
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithEmployeeId_ShouldLinkEmployee()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        SetupUserManagerForUpdateTests(userManagerMock);
+
+        var employeeId = Guid.NewGuid();
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "user@test.com",
+            NormalizedEmail = "USER@TEST.COM",
+            UserName = "user@test.com",
+            NormalizedUserName = "USER@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "Test",
+            LastName = "User"
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: true, authenticatedRole: "Admin");
+
+        // Act
+        var result = await controller.UpdateUser(user.Id, new UpdateUserRequest
+        {
+            EmployeeId = employeeId
+        });
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+        var dto = ((OkObjectResult)result).Value as AdminUserDto;
+        dto.Should().NotBeNull();
+        dto!.EmployeeId.Should().Be(employeeId);
+
+        // Verify persisted
+        var updatedUser = await db.Users.FindAsync(user.Id);
+        updatedUser!.EmployeeId.Should().Be(employeeId);
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithCompanyId_ShouldLinkCompany()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        SetupUserManagerForUpdateTests(userManagerMock);
+
+        var companyId = Guid.NewGuid();
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "user@test.com",
+            NormalizedEmail = "USER@TEST.COM",
+            UserName = "user@test.com",
+            NormalizedUserName = "USER@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "Test",
+            LastName = "User"
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: true, authenticatedRole: "Admin");
+
+        // Act
+        var result = await controller.UpdateUser(user.Id, new UpdateUserRequest
+        {
+            CompanyId = companyId
+        });
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+        var dto = ((OkObjectResult)result).Value as AdminUserDto;
+        dto.Should().NotBeNull();
+        dto!.CompanyId.Should().Be(companyId);
+
+        // Verify persisted
+        var updatedUser = await db.Users.FindAsync(user.Id);
+        updatedUser!.CompanyId.Should().Be(companyId);
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithEmptyEmployeeId_ShouldUnlinkEmployee()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        SetupUserManagerForUpdateTests(userManagerMock);
+
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "user@test.com",
+            NormalizedEmail = "USER@TEST.COM",
+            UserName = "user@test.com",
+            NormalizedUserName = "USER@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "Test",
+            LastName = "User",
+            EmployeeId = Guid.NewGuid() // Previously linked
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: true, authenticatedRole: "Admin");
+
+        // Act — sending Guid.Empty means "unlink"
+        var result = await controller.UpdateUser(user.Id, new UpdateUserRequest
+        {
+            EmployeeId = Guid.Empty
+        });
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+        var dto = ((OkObjectResult)result).Value as AdminUserDto;
+        dto.Should().NotBeNull();
+        dto!.EmployeeId.Should().BeNull();
+
+        // Verify persisted
+        var updatedUser = await db.Users.FindAsync(user.Id);
+        updatedUser!.EmployeeId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithoutEmployeeId_ShouldNotChangeExistingLink()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        SetupUserManagerForUpdateTests(userManagerMock);
+
+        var existingEmployeeId = Guid.NewGuid();
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "user@test.com",
+            NormalizedEmail = "USER@TEST.COM",
+            UserName = "user@test.com",
+            NormalizedUserName = "USER@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "Test",
+            LastName = "User",
+            EmployeeId = existingEmployeeId
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: true, authenticatedRole: "Admin");
+
+        // Act — not sending EmployeeId at all should leave existing link intact
+        var result = await controller.UpdateUser(user.Id, new UpdateUserRequest
+        {
+            FirstName = "Updated"
+        });
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+        var dto = ((OkObjectResult)result).Value as AdminUserDto;
+        dto.Should().NotBeNull();
+        dto!.EmployeeId.Should().Be(existingEmployeeId);
+    }
+
+    #endregion
 }

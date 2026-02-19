@@ -126,6 +126,24 @@ public class AdminUsersController(
             user.Status = status;
         }
 
+        // Update employee link
+        if (request.EmployeeId.HasValue)
+        {
+            if (request.EmployeeId.Value == Guid.Empty)
+                user.EmployeeId = null; // Explicitly unlink
+            else
+                user.EmployeeId = request.EmployeeId.Value;
+        }
+
+        // Update company link
+        if (request.CompanyId.HasValue)
+        {
+            if (request.CompanyId.Value == Guid.Empty)
+                user.CompanyId = null; // Explicitly unlink
+            else
+                user.CompanyId = request.CompanyId.Value;
+        }
+
         // Update roles if provided (frontend sends short names like "Admin", DB stores "{tenantId}:Admin")
         if (request.Roles != null)
         {
@@ -285,7 +303,9 @@ public class AdminUsersController(
         Status = user.Status.ToString(),
         LastLoginAt = user.LastLoginAt,
         CreatedAt = user.CreatedAt,
-        Roles = roles
+        Roles = roles,
+        EmployeeId = user.EmployeeId,
+        CompanyId = user.CompanyId
     };
 }
 
@@ -305,6 +325,8 @@ public record AdminUserDto
     public DateTime? LastLoginAt { get; init; }
     public DateTime CreatedAt { get; init; }
     public List<string> Roles { get; init; } = [];
+    public Guid? EmployeeId { get; init; }
+    public Guid? CompanyId { get; init; }
 }
 
 public record AdminListUsersResult
@@ -321,6 +343,14 @@ public record UpdateUserRequest
     public string? LastName { get; init; }
     public string? Status { get; init; }
     public List<string>? Roles { get; init; }
+    /// <summary>
+    /// Link user to an employee record. Send Guid.Empty to unlink.
+    /// </summary>
+    public Guid? EmployeeId { get; init; }
+    /// <summary>
+    /// Set user's default company. Send Guid.Empty to unlink.
+    /// </summary>
+    public Guid? CompanyId { get; init; }
 }
 
 public record RoleDto

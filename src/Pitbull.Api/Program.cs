@@ -29,6 +29,7 @@ using Pitbull.AI.Features;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.ProjectManagement.Storage;
+using Pitbull.Billing.Features;
 using Pitbull.Api.Data;
 using Pitbull.Core.Messaging;
 using PostHog;
@@ -58,6 +59,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Documents.Features.DocumentsModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Notifications.Features.NotificationsModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.SystemAdmin.Features.SystemAdminModuleMarker).Assembly);
+PitbullDbContext.RegisterModuleAssembly(typeof(BillingModuleMarker).Assembly);
 
 // PostHog server-side analytics (optional — only if API key is configured)
 if (!string.IsNullOrEmpty(builder.Configuration["PostHog:ProjectApiKey"]))
@@ -94,6 +96,7 @@ builder.Services.AddPitbullModule<CreateTimeEntryCommand>(); // TimeTracking mod
 builder.Services.AddPitbullModule<CreateSubcontractCommand>(); // Contracts module
 builder.Services.AddPitbullModule<CreateProjectManagementModuleCommand>(); // ProjectManagement module
 builder.Services.AddPitbullModule<CreateAiModuleCommand>(); // AI module
+builder.Services.AddPitbullModule<BillingModuleMarker>(); // Billing module
 
 // Direct service registrations (MediatR migration)
 builder.Services.AddPitbullModuleServices<CreateProjectCommand>();
@@ -103,6 +106,7 @@ builder.Services.AddPitbullModuleServices<CreateTimeEntryCommand>(); // TimeTrac
 builder.Services.AddPitbullModuleServices<CreateSubcontractCommand>(); // Contracts module
 builder.Services.AddPitbullModuleServices<CreateProjectManagementModuleCommand>(); // ProjectManagement module
 builder.Services.AddPitbullModuleServices<CreateAiModuleCommand>(); // AI module
+builder.Services.AddPitbullModuleServices<BillingModuleMarker>(); // Billing module
 
 // AI module registration (providers + HttpClients)
 builder.Services.AddPitbullAiModule(builder.Configuration);

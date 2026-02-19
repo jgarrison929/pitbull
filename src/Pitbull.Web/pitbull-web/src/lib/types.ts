@@ -484,6 +484,8 @@ export interface AdminUser {
   roles: string[];
   createdAt: string;
   lastLoginAt: string | null;
+  employeeId: string | null;
+  companyId: string | null;
 }
 
 export type UserStatus = "Active" | "Inactive" | "Locked" | "Invited";
@@ -500,6 +502,8 @@ export interface AdminUpdateUserCommand {
   lastName?: string;
   roles?: string[];
   status?: UserStatus;
+  employeeId?: string | null;
+  companyId?: string | null;
 }
 
 // Audit Logs
