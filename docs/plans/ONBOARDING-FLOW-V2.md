@@ -17,9 +17,10 @@
 5. [The Absolute Minimum Dataset for Day 1](#5-the-absolute-minimum-dataset-for-day-1)
 6. [Chicken-and-Egg Resolutions](#6-chicken-and-egg-resolutions)
 7. [AI Autonomy Matrix](#7-ai-autonomy-matrix)
-8. [Debate Resolutions Log](#8-debate-resolutions-log)
-9. [Week 1 Deferred Work](#9-week-1-deferred-work)
-10. [Implementation Notes: What Exists Today](#10-implementation-notes-what-exists-today)
+8. [Predictive UX: Anticipatory Actions During Onboarding](#8-predictive-ux-anticipatory-actions-during-onboarding)
+9. [Debate Resolutions Log](#9-debate-resolutions-log)
+10. [Week 1 Deferred Work](#10-week-1-deferred-work)
+11. [Implementation Notes: What Exists Today](#11-implementation-notes-what-exists-today)
 
 ---
 
@@ -798,7 +799,79 @@ AI-suggested records that are human-confirmed use `CreatedBy = "{user-email}"` b
 
 ---
 
-## 8. Debate Resolutions Log
+## 8. Predictive UX: Anticipatory Actions During Onboarding
+
+> **Founder mandate:** The AI isn't answering questions — it's doing the work before you ask. Every module design must answer: *What would a great assistant do BEFORE being asked?*
+
+Predictive UX starts from minute zero. The onboarding flow isn't just data entry — it's teaching the system the patterns it will use to anticipate the customer's needs for the next 10 years.
+
+### Why This Matters During Onboarding
+
+Traditional ERP onboarding: "Enter your data. Click save. Repeat."
+AIERP onboarding: "We've already set up your crew sheets for tomorrow morning. Confirm?"
+
+Every piece of data entered during the 2-hour onboarding trains the prediction engine. By Day 2, the system is already working ahead of the user.
+
+### Predictive Actions by Onboarding Phase
+
+#### Phase 0 (Signup & Setup) — Predict the company's profile from its type
+
+| Moment | Anticipatory Action | Data Source |
+|---|---|---|
+| User selects "General Contractor" | Pre-enable all modules, set 10% retainage, enable sequential approval, set cost code depth to CSI Division + Sub-code | Industry defaults |
+| User enters company size "51-200" | Pre-configure: enable batch time entry, enable crew entry (foreman workflow), set pay period to weekly | Company size → workflow heuristics |
+| Company address entered (state) | Pre-fill state tax jurisdiction, workers' comp authority, suggest prevailing wage applicability | State → regulatory requirements |
+| Industry type "CM at Risk" selected | Adjust module defaults: enable owner billing, disable bid module (CM doesn't bid), enable fee tracking | Contractor type → module presets |
+
+#### Phase 1 (CSV Import) — Predict data structure from file contents
+
+| Moment | Anticipatory Action | Data Source |
+|---|---|---|
+| Employee CSV uploaded | Auto-detect columns, map fields, infer trade classification from job titles (e.g., "Journeyman Electrician" → `trade: electrical, classification: journeyman`) | AI column detection + NLP on job titles |
+| 3+ projects imported with similar names | Suggest project numbering convention (e.g., "2025-001, 2025-002" detected → set `projectNumberFormat: "YYYY-NNN"`) | Pattern recognition on project numbers |
+| Imported projects have owner names | Pre-create owner/client stub records for future billing, suggest primary contact | Unique owner names in project data |
+| Employee CSV has "Pay Rate" column | Pre-fill `Employee.PayRate` and infer pay type (hourly vs salary based on rate magnitude) | Rate value heuristics ($15-80/hr = hourly, $40K+ = salary) |
+
+#### Phase 2 (Configuration) — Predict assignments from imported data
+
+| Moment | Anticipatory Action | Data Source |
+|---|---|---|
+| Employees and projects both imported | Pre-generate assignment matrix: suggest which employees work on which projects based on trade matching | Employee trade + project type + CSI codes |
+| First pay period created | Pre-fill tomorrow's crew timecard grid with all active employees assigned to their projects | Assignment matrix + pay period dates |
+| Equipment records imported | Pre-associate equipment to projects where matching employees are assigned | Equipment type + project cost code correlation |
+
+#### Phase 3 (Financial Setup) — Predict billing structure from contract data
+
+| Moment | Anticipatory Action | Data Source |
+|---|---|---|
+| Subcontract created with amount | Suggest SOV line items by distributing contract amount across CSI divisions matching the sub's trade | Trade → CSI mapping + contract amount |
+| First SOV completed | Pre-fill payment application #1 as draft (all lines at 0%, ready for progress entry) | SOV structure + billing period |
+| Multiple subcontracts on same project | Generate subcontractor payment comparison matrix (who's billing what % vs. others) | SOV totals across subs on project |
+
+#### Phase 4 (First Workflows) — Predict the next action after each completed action
+
+| After This Action... | System Pre-Prepares... | Presented As... |
+|---|---|---|
+| First time entry submitted | Equipment hours entry pre-filled for equipment assigned to same project/employee | "Add equipment hours?" side panel |
+| First pay app submitted | Job cost report filtered to that project, auto-opened | Auto-navigate to report |
+| First job cost report viewed | Budget variance alert if any cost code > 85% | Inline alert on report |
+| Onboarding checklist 100% | "Your First Week" plan with predicted actions ranked by business impact | Dashboard widget |
+
+### The Day 2 Payoff
+
+Because the system learned patterns during onboarding, by Day 2:
+
+- **6:00 AM:** Every foreman's timecard grid is pre-populated with yesterday's crew assignments
+- **7:00 AM:** Equipment hours are suggested based on yesterday's labor hours at historical ratio
+- **5:00 PM:** Missing timecards flagged for employees who were assigned but didn't submit
+- **Monday AM:** Pay period summary pre-assembled for payroll manager
+- **20th of month:** Draft pay apps waiting for every PM with active contracts
+
+This is what makes AIERP different: the system observed one day of data entry and started predicting the second day. By Week 2, the user spends more time approving AI-prepared work than entering data.
+
+---
+
+## 9. Debate Resolutions Log
 
 | # | Topic | CFO Position | PM Position | HR Position | Payroll Position | AP/AR Position | Resolution | Risk Accepted |
 |---|-------|-------------|-------------|-------------|-----------------|----------------|------------|---------------|
@@ -815,7 +888,7 @@ AI-suggested records that are human-confirmed use `CreatedBy = "{user-email}"` b
 
 ---
 
-## 9. Week 1 Deferred Work
+## 10. Week 1 Deferred Work
 
 ### Day 2-3: Data Enrichment
 
@@ -850,7 +923,7 @@ AI-suggested records that are human-confirmed use `CreatedBy = "{user-email}"` b
 
 ---
 
-## 10. Implementation Notes: What Exists Today
+## 11. Implementation Notes: What Exists Today
 
 ### Existing Infrastructure (Ready to Use)
 

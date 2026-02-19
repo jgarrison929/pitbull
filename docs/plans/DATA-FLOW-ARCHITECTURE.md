@@ -17,6 +17,7 @@ moves from tenant provisioning through financial close.
 4. [Cross-Module Data Contracts](#4-cross-module-data-contracts)
 5. [The Chicken-and-Egg Problems](#5-the-chicken-and-egg-problems)
 6. [Future: GL Integration Points](#6-future-gl-integration-points)
+7. [Predictive Data Flows: Anticipatory Event Chains](#7-predictive-data-flows-anticipatory-event-chains)
 
 ---
 
@@ -1000,6 +1001,188 @@ src/Modules/Pitbull.GL/
 - Account mappings are per-Company (different companies may have different chart of accounts)
 - FiscalPeriod uses Company.FiscalYearStartMonth for period boundaries
 - Vista/Viewpoint export format is already partially implemented in Reports module
+
+---
+
+## 7. Predictive Data Flows: Anticipatory Event Chains
+
+> **Founder mandate:** The AI isn't answering questions — it's doing the work before you ask. This is what makes AIERP different from ERP+chatbot.
+
+Predictive UX requires a new category of data flow: **anticipatory event chains**. Unlike reactive flows (user action → system response), anticipatory flows fire **before** the user acts, based on temporal triggers, pattern detection, and entity state analysis.
+
+### 7.1 Anticipatory Event Architecture
+
+```mermaid
+graph TD
+    subgraph "Event Sources"
+        A[Clock Triggers] -->|6AM, 5PM, Pay Period Close| E[Prediction Engine]
+        B[Entity State Changes] -->|TimeEntry Created, Cert Updated| E
+        C[Pattern Detection] -->|5 days same crew, monthly billing cycle| E
+    end
+
+    subgraph "Prediction Engine"
+        E --> F{Evaluate Historical Patterns}
+        F --> G[Generate Draft Entities]
+        F --> H[Generate Alerts]
+        F --> I[Pre-compute Reports]
+    end
+
+    subgraph "Delivery"
+        G --> J[PendingDraft Table]
+        H --> K[Notification System]
+        I --> L[Cached Report Snapshots]
+    end
+
+    J --> M[User Dashboard: Pre-filled Forms]
+    K --> N[Push/Email/In-App Alerts]
+    L --> O[Instant Report Load]
+```
+
+### 7.2 Predictive Data Flow Chains by Module
+
+#### Chain 1: Yesterday's Crew → Tomorrow's Timecard
+
+```
+TimeEntry (Day N, approved)
+  → Pattern: Same Employee × Project × CostCode for 3+ consecutive days
+    → Draft TimeEntry[] for Day N+1 (status: "ai_draft", confidence: 85-99%)
+      → Crew Timecard Grid pre-populated at 6:00 AM
+        → Foreman modifies 2-3 entries instead of entering 15
+```
+
+**Entity dependencies:** `TimeEntry` → `Employee` → `ProjectAssignment` → `Project` + `CostCode`
+
+**New data contract:**
+| Field | Type | Source |
+|---|---|---|
+| `DraftTimeEntry.SourcePattern` | JSON | Last N matching entries |
+| `DraftTimeEntry.Confidence` | decimal | Pattern consistency score |
+| `DraftTimeEntry.ExpiresAt` | DateTime | End of draft day (auto-cleanup) |
+
+#### Chain 2: Labor Hours → Equipment Hours Suggestion
+
+```
+TimeEntry (with ProjectId + EquipmentId on assignment)
+  → Pattern: When labor hours submitted for Project X, equipment Y typically has Z hours
+    → Suggest EquipmentTimeEntry with pre-calculated hours
+      → Side panel: "Add 8 hrs for Excavator #102 on Project 2025-003?"
+```
+
+**Entity dependencies:** `TimeEntry` → `Equipment` (via `ProjectAssignment.EquipmentId` or `TimeEntry.EquipmentId`)
+
+**Cross-module data requirement:** TimeTracking must expose `GetEquipmentHoursCorrelation(projectId, employeeId)` as a query that the prediction engine consumes.
+
+#### Chain 3: Contract Due Date → Pre-filled Payment Application
+
+```
+Subcontract (with billing cycle: monthly)
+  → PayPeriod close OR calendar trigger (25th of month)
+    → Query: SOV line items + cumulative billed + TimeEntry labor costs since last billing
+      → Draft PaymentApplication with LineItems (stored_materials estimated, retainage calculated)
+        → PM Dashboard: "Payment App #3 for Acme Building ready for review"
+```
+
+**Entity dependencies:** `Subcontract` → `ScheduleOfValues` → `SOVLineItem` → `PaymentApplicationLineItem` + `TimeEntry` (labor costs) + `PaymentApplicationBookEntry` (GAAP vs Job Cost)
+
+**Key calculation:**
+```
+PercentComplete = (CumulativeLaborCost + CumulativeMaterialCost) / SOVLineItem.ScheduledValue
+WorkThisPeriod = CurrentPercentComplete - PreviouslyBilledPercent
+AmountThisPeriod = WorkThisPeriod × ScheduledValue
+RetainageThisPeriod = AmountThisPeriod × Subcontract.RetainagePercent
+```
+
+#### Chain 4: Invoice Upload → Auto-Matched PO
+
+```
+FileAttachment (vendor invoice PDF uploaded)
+  → AiDocumentController.AnalyzeDocument extracts: vendor name, amount, PO#, date, line items
+    → Fuzzy match: vendor name → Subcontract.SubcontractorName
+    → Exact match: PO# → Subcontract.Number
+    → Line item match: invoice lines → SOVLineItem descriptions
+      → Pre-fill SubcontractorPayment with matched data
+        → AP Specialist: "Invoice from Smith Electric ($45,200) matches Sub #2025-012. Approve?"
+```
+
+**Entity dependencies:** `FileAttachment` → AI analysis → `Subcontract` + `SOVLineItem` + `PaymentApplication`
+
+#### Chain 5: Certification Expiry → Proactive Compliance Alert
+
+```
+EmployeeCertification (ExpiresDate approaching)
+  → 30 days before: Notify employee + supervisor + HR
+  → 7 days before: Block assignment to cert-required projects
+  → Expired: Remove from active project assignments, notify PM of staffing gap
+    → Suggest replacement employee with same certification from assignment pool
+```
+
+**Entity dependencies:** `EmployeeCertification` → `Employee` → `ProjectAssignment` → `Project`
+
+**Cross-module alert chain:** TimeTracking (cert) → Core (notification) → Projects (assignment reassignment)
+
+#### Chain 6: Budget Threshold → Early Warning
+
+```
+TimeEntry created (increases actual cost on project/cost code)
+  → Calculate: ActualCost / ProjectBudget.BudgetedAmount per cost code
+    → At 85%: Alert PM — "Concrete (03) is at 85% of budget with 60% of work complete"
+    → At 95%: Escalate to Controller/CFO
+    → At 100%: Dashboard banner + suggest change order or budget reallocation
+      → Pre-fill budget transfer from under-budget cost codes
+```
+
+**Entity dependencies:** `TimeEntry` → `CostCode` → `ProjectBudget` → `Project`
+
+#### Chain 7: Pay Period Close → Payroll Dashboard Pre-Assembly
+
+```
+PayPeriod.EndDate - 1 day (clock trigger)
+  → Query: All unapproved TimeEntries in period → Alert supervisors
+  → Query: All approved TimeEntries → Group by Employee → Calculate gross pay
+  → Check: CertifiedPayrollRequired employees → Pre-fill WH-347
+  → Check: Overtime thresholds → Flag employees approaching/exceeding
+    → Payroll Manager Dashboard: Summary ready with exceptions highlighted
+```
+
+**Entity dependencies:** `PayPeriod` → `TimeEntry` → `Employee` → `EmployeeTaxCompliance`
+
+### 7.3 New Entity: PredictiveDraft
+
+All anticipatory actions produce `PredictiveDraft` records that bridge the gap between AI prediction and human confirmation:
+
+```
+PredictiveDraft
+  ├── Id (Guid, PK)
+  ├── TenantId, CompanyId (scoping)
+  ├── TargetEntityType (string: "TimeEntry", "PaymentApplication", etc.)
+  ├── TargetEntityData (JSON: serialized draft entity)
+  ├── TriggerType (string: "clock", "pattern", "threshold", "event")
+  ├── TriggerSource (string: description of what triggered this draft)
+  ├── Confidence (decimal: 0.0 - 1.0)
+  ├── Status (enum: Pending, Accepted, Modified, Rejected, Expired)
+  ├── PresentedToUserId (Guid: who saw this draft)
+  ├── ResolvedAt (DateTime?: when user acted)
+  ├── ModificationDelta (JSON?: what the user changed)
+  ├── CreatedAt, CreatedBy (audit: "ai-prediction-engine")
+  └── ExpiresAt (DateTime: auto-cleanup for stale drafts)
+```
+
+This entity is the **feedback loop**: accepted drafts increase pattern confidence, modifications teach correction patterns, rejections decrease confidence. All per-tenant, never crossing tenant boundaries.
+
+### 7.4 Predictive Data Flow Dependency Matrix
+
+| Prediction | Reads From | Writes To | Trigger |
+|---|---|---|---|
+| Tomorrow's crew timecard | TimeEntry (last 5 days), ProjectAssignment | PredictiveDraft (TimeEntry[]) | Clock: 6 AM |
+| Equipment hours suggestion | TimeEntry (labor), Equipment, ProjectAssignment | PredictiveDraft (TimeEntry) | Event: TimeEntry created |
+| Draft payment application | SOV, PayAppLineItem (cumulative), TimeEntry (period) | PredictiveDraft (PaymentApplication) | Clock: billing cycle date |
+| Invoice auto-match | FileAttachment (AI analysis), Subcontract, SOVLineItem | PredictiveDraft (SubcontractorPayment) | Event: file uploaded |
+| Cert expiry alert | EmployeeCertification, ProjectAssignment | Notification, ProjectAssignment (block) | Clock: daily scan |
+| Budget early warning | TimeEntry (cumulative cost), ProjectBudget | Notification | Event: TimeEntry created |
+| Payroll pre-assembly | PayPeriod, TimeEntry, Employee, EmployeeTaxCompliance | PredictiveDraft (PayrollSummary) | Clock: PayPeriod.EndDate - 1 |
+| Missing timecard alert | TimeEntry (today), ProjectAssignment (expected) | Notification | Clock: 5 PM |
+| RFI follow-up nudge | Rfi (Status=Open, age > 7 days) | Notification + email draft | Clock: daily scan |
+| Daily report reminder | TimeEntry (today exists), PmDailyReport (today missing) | Notification | Clock: 5 PM |
 
 ---
 

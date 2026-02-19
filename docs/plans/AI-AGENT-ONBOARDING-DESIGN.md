@@ -1209,7 +1209,141 @@ All AI agent settings are tenant-configurable via the existing `ModuleSettings` 
 
 ---
 
-## 11. Success Metrics
+## 11. Predictive UX: Anticipatory Agent Behaviors
+
+> **Founder mandate:** The AI isn't answering questions — it's doing the work before you ask. This is what makes AIERP different from ERP+chatbot. Every module must answer: *What would a great assistant do BEFORE being asked?*
+
+Predictive UX is the defining characteristic of Pitbull. Where traditional ERPs are reactive (user clicks, system responds) and ERP+chatbot is responsive (user asks, AI answers), AIERP is **anticipatory** (AI observes patterns, prepares work, presents completed drafts). The human's role shifts from *data entry operator* to *approver of pre-assembled work*.
+
+### 11.1 Predictive UX Architecture
+
+```mermaid
+graph LR
+    A[Event Stream] --> B[Pattern Engine]
+    B --> C{Confidence}
+    C -->|> 95%| D[Auto-Execute + Notify]
+    C -->|70-95%| E[Pre-fill Draft + Present]
+    C -->|< 70%| F[Suggest + Explain]
+    D --> G[Audit Trail: AI auto-executed]
+    E --> G
+    F --> G
+```
+
+**Implementation:** Predictive actions are powered by the CAP event bus (`Pitbull.Messaging`). When a domain event fires (e.g., `TimeEntryApproved`), predictive handlers evaluate historical patterns and queue anticipatory actions. The existing `AuditInterceptor` captures all AI-initiated writes with the agent's `AppUser` identity.
+
+**Confidence thresholds are tenant-configurable** via `ModuleSettings`:
+- **Auto-execute** (> 95% confidence): System acts autonomously, user sees notification only
+- **Pre-fill draft** (70-95%): System prepares the record, user reviews and submits with one click
+- **Suggest** (< 70%): System recommends action with explanation, user decides
+
+### 11.2 Module-by-Module Predictive Behaviors
+
+#### Time Tracking — "The crew sheet is ready before the foreman opens the app"
+
+| Trigger | Prediction | Action | Confidence Source |
+|---|---|---|---|
+| 6:00 AM daily | Pre-fill today's crew timecard from yesterday's entries | Draft `TimeEntry[]` for each employee on same project/cost code | Last 5 days of entries per employee |
+| Labor hours submitted | Suggest equipment hours for equipment assigned to that project | Pre-fill `TimeEntry` with `EquipmentId` and estimated hours | Equipment assignment + labor hours correlation |
+| Time entry without cost code | Auto-assign most-likely cost code based on employee's recent pattern | Pre-select cost code in form | Employee's last 10 entries for this project |
+| End of day (5:00 PM) | Flag missing timecards for employees who worked yesterday but not today | Dashboard alert + draft entries | Assignment matrix + attendance pattern |
+| Overtime threshold crossed | Alert supervisor before it happens, not after | Push notification at 38 hours (before 40) | Running weekly total |
+
+**What a great assistant does before being asked:** At 6:00 AM, every foreman's crew timecard grid is pre-populated with yesterday's crew on yesterday's projects. The foreman makes 3-4 corrections instead of entering 15 records from scratch. Equipment hours are pre-filled based on labor hours at the historical ratio for that project.
+
+#### Contracts & Billing — "The pay app is drafted before the PM remembers it's due"
+
+| Trigger | Prediction | Action | Confidence Source |
+|---|---|---|---|
+| Pay app due in 7 days | Pre-fill payment application with progress from time entries | Draft `PaymentApplication` with `LineItems` | SOV + cumulative labor costs since last billing |
+| Pay app due in 3 days (not started) | Nudge PM with pre-filled draft and one-click submit | Dashboard banner + email notification | Due date from contract terms |
+| Subcontractor invoice received | Auto-match to PO/subcontract line items | Pre-fill `SubcontractorPayment` with matched amounts | Invoice line items vs. SOV line items (fuzzy match) |
+| Change order approved | Update SOV, adjust remaining budget, update projected final cost | Draft SOV amendment + budget revision | Change order amount + affected cost codes |
+| Retainage threshold reached | Alert PM that retainage release is available | Dashboard notification + draft retainage release | Cumulative billed vs. contract value |
+
+**What a great assistant does before being asked:** On the 20th of every month, every PM with an active contract sees a pre-filled pay app on their dashboard. The system calculated progress-to-date from labor and material entries, applied retainage, and generated the AIA G702/G703 format. The PM reviews percentages, adjusts 2-3 lines, and submits.
+
+#### HR & Compliance — "The expiring cert alert arrives before the site visit"
+
+| Trigger | Prediction | Action | Confidence Source |
+|---|---|---|---|
+| Certification expires in 30 days | Alert employee + supervisor + HR | Email + dashboard badge + block-list for new assignments | `EmployeeCertification.ExpiresDate` |
+| Certification expires in 7 days | Escalate: block employee from time entry on certified-required projects | Enforcement + auto-reassignment suggestion | Cert type + project compliance requirements |
+| New employee created (CSV import) | Pre-fill compliance checklist based on role/trade | Draft `EmployeeTaxCompliance` + `EmployeeCertification` stubs | Employee trade/classification + state requirements |
+| I-9 Section 1 > 3 days old without Section 2 | Alert HR of federal compliance deadline | Dashboard alert + email to HR Director | `EmployeeTaxCompliance.I9Section1Date` |
+| Workers' comp audit approaching | Pre-assemble hours-by-classification report | Draft report in Reports module | Historical audit schedule + current classification data |
+
+**What a great assistant does before being asked:** 30 days before an OSHA cert expires, the employee, their supervisor, and HR all get notified. 7 days before, the employee is blocked from being assigned to projects requiring that cert. The system already identified a renewal class happening next week and included the registration link.
+
+#### Projects & Cost Codes — "The budget alert fires at 85%, not 100%"
+
+| Trigger | Prediction | Action | Confidence Source |
+|---|---|---|---|
+| Cost code hits 85% of budget | Alert PM + suggest reallocation from under-budget codes | Dashboard alert + draft budget transfer | `ProjectBudget` vs. actual costs from `TimeEntry` + equipment |
+| Project created from bid | Pre-populate phases, cost codes, and budget from bid items | Draft `Phase[]` + `ProjectBudget` from `BidItem[]` | Bid-to-project conversion data |
+| Similar project detected (same owner, type) | Suggest budget template from historical project | "Use budget from [Project X]?" prompt | Owner + project type + size correlation |
+| Weekly: project has labor but no daily reports | Nudge field superintendent to file daily report | Push notification + pre-filled report template | Missing `PmDailyReport` vs. `TimeEntry` dates |
+| RFI aging > 7 days without response | Escalate to PM + suggest follow-up email | Dashboard alert + draft email | `Rfi.Status == Open` + `Rfi.CreatedAt` age |
+
+#### Payroll — "The payroll dashboard is ready before the pay period closes"
+
+| Trigger | Prediction | Action | Confidence Source |
+|---|---|---|---|
+| Pay period end date - 1 day | Pre-assemble payroll summary dashboard | Draft summary with unapproved time flagged | `PayPeriod.EndDate` + unapproved `TimeEntry` count |
+| Pay period closes | Generate Vista/Viewpoint export file automatically | Draft export ready for download | Historical export pattern + pay period status |
+| Unapproved time > 24 hours before close | Escalate approval reminders to supervisors | Email + push notification per supervisor | Approval queue grouped by approver |
+| Certified payroll project detected | Pre-fill WH-347 (Davis-Bacon) form | Draft certified payroll report | `EmployeeTaxCompliance.CertifiedPayrollRequired` + project flags |
+| Payroll anomaly: employee hours inconsistent with last 4 periods | Flag for review before payroll run | Dashboard warning on payroll review screen | Statistical deviation from employee's rolling average |
+
+#### AP/AR — "The invoice is coded before AP opens it"
+
+| Trigger | Prediction | Action | Confidence Source |
+|---|---|---|---|
+| Vendor invoice uploaded (PDF) | AI extracts amounts, dates, PO# and auto-matches to subcontract | Pre-fill payment record with matched data | `AiDocumentController` extraction + fuzzy match to open POs |
+| Receivable aging > 45 days | Alert AR + draft follow-up email to owner/GC | Dashboard alert + email draft | `PaymentApplication.SubmittedDate` + payment terms |
+| Subcontractor payment application received | Cross-reference against SOV progress and approved change orders | Pre-fill review form with variance highlights | Sub's claimed % vs. field-observed % from daily reports |
+| Month-end approaching | Pre-assemble AR aging, AP aging, and cash position reports | Draft reports on dashboard | Calendar trigger + historical close pattern |
+
+### 11.3 Predictive UX During Onboarding (First 2 Hours)
+
+Predictive UX starts from minute zero:
+
+| Onboarding Moment | Anticipatory Action |
+|---|---|
+| User selects "General Contractor" as type | Pre-enable all modules, set 10% retainage, enable approval workflows |
+| Employee CSV uploaded | AI detects column headers, maps fields, flags missing SSNs, suggests trade classifications from job titles |
+| First 3 projects imported | AI suggests cost code structure based on project types, pre-creates phases from project names |
+| First employee assigned to project | AI pre-fills tomorrow's timecard grid for that employee on that project |
+| First subcontract created | AI suggests SOV line items based on contract amount + project type + CSI codes |
+| Setup wizard completed | AI generates a "Your First Week" dashboard with predicted next actions ranked by business impact |
+
+### 11.4 Learning Loop
+
+Predictive accuracy improves over time through a feedback loop:
+
+```
+Action Suggested → User Accepts/Modifies/Rejects → Feedback Stored → Model Adjusts
+```
+
+- **Accepted unchanged:** Confidence +5% for this pattern
+- **Accepted with modifications:** Learn the modification pattern (e.g., "PM always changes retainage to 5% on residential projects")
+- **Rejected:** Confidence -15%, review pattern for errors
+
+All learning is **per-tenant** — one company's patterns don't leak to another. Stored in `ModuleSettings` metadata as JSON, not in the AI model itself. No training data ever leaves the tenant boundary.
+
+### 11.5 The Predictive UX Manifesto
+
+> 1. **Don't ask — present.** Never show an empty form when you have data to pre-fill it.
+> 2. **Alert early, not late.** Budget warnings at 85%, not 100%. Cert expiry at 30 days, not expired.
+> 3. **Do the math.** If the system can calculate it, the user shouldn't type it.
+> 4. **Draft, don't suggest.** "Here's your pay app" beats "You should create a pay app."
+> 5. **Time-aware.** Know the pay period schedule, billing cycle, and certification calendar. Act on the calendar.
+> 6. **Role-aware.** A foreman sees crew timecards. A PM sees pay apps. A CFO sees job cost reports. Predict for the role.
+> 7. **Pattern-aware.** If this crew worked the same project the last 5 days, they're working it today.
+> 8. **Failure-aware.** If a prediction was wrong, learn from the correction immediately. Don't repeat mistakes.
+
+---
+
+## 13. Success Metrics
 
 | Metric | Target | Measurement |
 |---|---|---|
@@ -1220,10 +1354,15 @@ All AI agent settings are tenant-configurable via the existing `ModuleSettings` 
 | Anomaly false positive rate | < 20% | Dismissed anomalies / total flagged |
 | GAAP audit findings related to AI | 0 | Annual audit results |
 | AI-created draft correction rate | < 30% | Modifications at approval time |
+| **Predictive crew timecard acceptance** | **> 80%** | Drafts accepted unchanged / total presented |
+| **Predictive pay app draft usage** | **> 60%** | PMs who submit AI-drafted pay app vs. blank |
+| **Equipment hours suggestion uptake** | **> 50%** | Suggested entries confirmed / total suggested |
+| **Proactive cert alert → renewal action** | **> 70%** | Certs renewed before expiry / total alerts sent |
+| **Time saved per user per day (Week 2+)** | **> 30 min** | Pre-filled entries × avg manual entry time |
 
 ---
 
-## 12. Open Questions
+## 14. Open Questions
 
 1. **Cost allocation:** Should AI API costs (Anthropic/OpenAI token usage) be tracked per-tenant for billing purposes, or absorbed as platform cost?
 2. **Agent model selection:** Should different agents use different models (e.g., Haiku for anomaly detection, Sonnet for draft generation) to optimize cost vs. quality?
