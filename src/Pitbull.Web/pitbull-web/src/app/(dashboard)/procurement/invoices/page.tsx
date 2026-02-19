@@ -85,7 +85,7 @@ export default function ProcurementInvoicesPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <TableSkeleton rows={8} columns={5} />
+            <TableSkeleton rows={8} headers={["Invoice #", "Amount", "Status", "Match", "Actions"]} />
           ) : (
             <Table>
               <TableHeader>

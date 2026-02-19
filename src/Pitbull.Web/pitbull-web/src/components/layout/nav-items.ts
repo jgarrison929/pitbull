@@ -25,6 +25,8 @@ export const financialItems: NavItem[] = [
   { label: "Retention", href: "/accounting/retention", icon: "🔒" },
   { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋" },
   { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾" },
+  { label: "Payroll Runs", href: "/payroll/runs", icon: "🧮" },
+  { label: "Certified Payroll", href: "/payroll/certified", icon: "📄" },
   { label: "Purchase Orders", href: "/procurement/purchase-orders", icon: "🧱" },
   { label: "Vendor Invoices", href: "/procurement/invoices", icon: "🧾" },
   { label: "Vendors", href: "/vendors", icon: "🏢" },

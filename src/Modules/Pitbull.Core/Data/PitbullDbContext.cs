@@ -36,6 +36,9 @@ public class PitbullDbContext(
     public DbSet<WipReportLine> WipReportLines => Set<WipReportLine>();
     public DbSet<Vendor> Vendors => Set<Vendor>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<PayrollRun> PayrollRuns => Set<PayrollRun>();
+    public DbSet<PayrollRunLine> PayrollRunLines => Set<PayrollRunLine>();
+    public DbSet<CertifiedPayrollReport> CertifiedPayrollReports => Set<CertifiedPayrollReport>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     public DbSet<VendorInvoice> VendorInvoices => Set<VendorInvoice>();

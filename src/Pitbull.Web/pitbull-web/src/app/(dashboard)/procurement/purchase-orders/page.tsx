@@ -90,7 +90,7 @@ export default function PurchaseOrdersPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <TableSkeleton rows={8} columns={5} />
+            <TableSkeleton rows={8} headers={["PO #", "Vendor", "Status", "Total", "Actions"]} />
           ) : (
             <Table>
               <TableHeader>
