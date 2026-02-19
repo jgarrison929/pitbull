@@ -34,7 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Upload, History, FileUp, CheckCircle2 } from "lucide-react";
+import { Download, Upload, History, FileUp, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { TableSkeleton } from "@/components/skeletons";
 
 const IMPORT_TYPES = [
@@ -144,6 +144,8 @@ export default function DataImportPage() {
   const [toDate, setToDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [isExporting, setIsExporting] = useState(false);
 
+  const [importResult, setImportResult] = useState<ImportCommitResponse | null>(null);
+
   const [history, setHistory] = useState<ImportHistoryItem[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
 
@@ -237,6 +239,8 @@ export default function DataImportPage() {
       });
 
       setImportProgress(100);
+
+      setImportResult(result);
 
       if (result.status !== "Completed") {
         toast.error(result.message || "Import failed");
@@ -397,6 +401,40 @@ export default function DataImportPage() {
             </CardContent>
           </Card>
 
+          {/* Import Result Summary */}
+          {importResult && (
+            <Card className={importResult.status === "Completed"
+              ? "border-green-200 dark:border-green-800"
+              : "border-red-200 dark:border-red-800"}>
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  {importResult.status === "Completed" ? (
+                    <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400 shrink-0" />
+                  )}
+                  <div className="space-y-1">
+                    <h3 className="font-semibold text-lg">
+                      {importResult.status === "Completed" ? "Import Successful" : "Import Failed"}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{importResult.message}</p>
+                    <div className="flex gap-4 pt-2">
+                      <span className="text-sm"><strong>{importResult.importedRows}</strong> rows imported</span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => setImportResult(null)}
+                    >
+                      Dismiss
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {preview && (
             <Card>
               <CardHeader>
@@ -412,6 +450,13 @@ export default function DataImportPage() {
                   <Badge variant="outline">Import ID: {preview.importId.slice(0, 8)}</Badge>
                 </div>
 
+                {preview.rows.length > 5 && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Info className="h-4 w-4" />
+                    Showing first 5 of {preview.rows.length} rows
+                  </div>
+                )}
+
                 <div className="max-h-[520px] overflow-auto border rounded-lg">
                   <Table>
                     <TableHeader>
@@ -425,7 +470,7 @@ export default function DataImportPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {preview.rows.map((row) => (
+                      {preview.rows.slice(0, 5).map((row) => (
                         <TableRow key={row.rowNumber} className={row.isValid ? "bg-green-50/30" : "bg-red-50/30"}>
                           <TableCell>
                             <Badge className={row.isValid

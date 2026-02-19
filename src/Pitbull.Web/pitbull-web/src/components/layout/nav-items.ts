@@ -54,6 +54,10 @@ export const reportItems: NavItem[] = [
   { label: "Equipment Utilization", href: "/reports/equipment", icon: "🔧" },
 ];
 
+export const helpItems: NavItem[] = [
+  { label: "Help Center", href: "/help", icon: "❓" },
+];
+
 export const settingsItems: NavItem[] = [
   { label: "Preferences", href: "/settings", icon: "⚙️" },
   { label: "Notifications", href: "/settings/notifications", icon: "🔔" },
