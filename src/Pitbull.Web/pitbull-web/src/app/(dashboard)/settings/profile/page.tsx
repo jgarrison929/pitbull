@@ -18,6 +18,7 @@ import {
   Loader2,
   Bell,
   ArrowRight,
+  Building2,
 } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -195,12 +196,21 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
-                  <Mail className="h-3 w-3" />
-                  Email
-                </Label>
-                <p className="text-sm">{profile?.email}</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    Email
+                  </Label>
+                  <p className="text-sm">{profile?.email}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-xs uppercase flex items-center gap-1">
+                    <Building2 className="h-3 w-3" />
+                    Company
+                  </Label>
+                  <p className="text-sm">{profile?.tenantName || "—"}</p>
+                </div>
               </div>
 
               <div className="space-y-2">

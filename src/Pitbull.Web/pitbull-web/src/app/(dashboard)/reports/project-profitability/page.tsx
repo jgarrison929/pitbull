@@ -17,8 +17,9 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/skeletons";
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { getProjectProfitabilityReport, type ProjectProfitabilityReportResponse } from "@/lib/reports-api";
+import { csvRow, downloadCsvFile } from "@/lib/csv-utils";
 import { toast } from "sonner";
 
 function formatCurrency(value: number) {
@@ -58,6 +59,25 @@ export default function ProjectProfitabilityPage() {
     fetchReport();
   }, [fetchReport]);
 
+  const exportCsv = () => {
+    if (!report) return;
+    const rows = [
+      csvRow(["Project #", "Project Name", "Budget", "Labor", "Equipment", "Actual Cost", "Profit", "Margin %"]),
+      ...report.rows.map((row) => csvRow([
+        row.projectNumber, row.projectName, row.budget.toFixed(2),
+        row.laborCost.toFixed(2), row.equipmentCost.toFixed(2),
+        row.actualCost.toFixed(2), row.profit.toFixed(2),
+        row.profitMarginPercent.toFixed(1),
+      ])),
+      csvRow([
+        "", "TOTAL", report.totals.budget.toFixed(2), report.totals.laborCost.toFixed(2),
+        report.totals.equipmentCost.toFixed(2), report.totals.actualCost.toFixed(2),
+        report.totals.profit.toFixed(2), report.totals.profitMarginPercent.toFixed(1),
+      ]),
+    ];
+    downloadCsvFile(rows, `project-profitability-${from}-to-${to}.csv`);
+  };
+
   return (
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: "Reports", href: "/reports" }, { label: "Project Profitability" }]} />
@@ -67,10 +87,16 @@ export default function ProjectProfitabilityPage() {
           <h1 className="text-2xl font-bold">Project Profitability</h1>
           <p className="text-muted-foreground">Budget vs actual cost with margin ranking (worst first).</p>
         </div>
-        <Button variant="outline" onClick={fetchReport}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportCsv} disabled={!report || report.rows.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button variant="outline" onClick={fetchReport}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -97,7 +123,7 @@ export default function ProjectProfitabilityPage() {
           {isLoading ? (
             <TableSkeleton headers={["Project", "Budget", "Actual Cost", "Profit", "Margin"]} rows={10} />
           ) : !report || report.rows.length === 0 ? (
-            <EmptyState title="No data found" description="No projects matched this period." />
+            <EmptyState title="No data for this period" description="Try adjusting the date range." />
           ) : (
             <Table>
               <TableHeader>

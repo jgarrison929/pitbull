@@ -23,9 +23,10 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/skeletons";
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import api from "@/lib/api";
 import { getWeeklySummaryReport, type WeeklySummaryReportResponse } from "@/lib/reports-api";
+import { csvRow, downloadCsvFile } from "@/lib/csv-utils";
 import { toast } from "sonner";
 
 interface ProjectOption {
@@ -80,6 +81,25 @@ export default function WeeklySummaryPage() {
     fetchReport();
   }, [fetchReport]);
 
+  const exportCsv = () => {
+    if (!report) return;
+    const dayHeaders = report.days.map((d) => d.label);
+    const rows = [
+      csvRow(["Employee #", "Employee Name", ...dayHeaders, "Weekly Total"]),
+      ...report.rows.map((row) => csvRow([
+        row.employeeNumber, row.employeeName,
+        ...row.dayHours.map((h) => h.toFixed(2)),
+        row.weeklyTotal.toFixed(2),
+      ])),
+      csvRow([
+        "", "TOTAL",
+        ...report.totals.dayHours.map((h) => h.toFixed(2)),
+        report.totals.weeklyTotal.toFixed(2),
+      ]),
+    ];
+    downloadCsvFile(rows, `weekly-summary-${weekOf}.csv`);
+  };
+
   return (
     <div className="space-y-6">
       <Breadcrumbs items={[{ label: "Reports", href: "/reports" }, { label: "Weekly Summary" }]} />
@@ -89,10 +109,16 @@ export default function WeeklySummaryPage() {
           <h1 className="text-2xl font-bold">Weekly Timesheet Summary</h1>
           <p className="text-muted-foreground">Mon-Sun employee grid in standard construction format.</p>
         </div>
-        <Button variant="outline" onClick={fetchReport}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={exportCsv} disabled={!report || report.rows.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+          <Button variant="outline" onClick={fetchReport}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -127,7 +153,7 @@ export default function WeeklySummaryPage() {
           {isLoading ? (
             <TableSkeleton headers={["Employee", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total"]} rows={10} />
           ) : !report || report.rows.length === 0 ? (
-            <EmptyState title="No timesheet data" description="No time entries found for this week." />
+            <EmptyState title="No data for this period" description="Try adjusting the date range or project filter." />
           ) : (
             <Table>
               <TableHeader>
