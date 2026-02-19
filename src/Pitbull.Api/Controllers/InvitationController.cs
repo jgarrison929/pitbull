@@ -228,6 +228,9 @@ public class InvitationController(
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
             return this.BadRequestError("First name and last name are required");
 
+        if (request.FirstName.Length > 100 || request.LastName.Length > 100)
+            return this.BadRequestError("Name cannot exceed 100 characters");
+
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
 

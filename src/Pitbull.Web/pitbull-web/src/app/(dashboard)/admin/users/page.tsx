@@ -456,8 +456,8 @@ export default function UsersPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium">{user.fullName}</p>
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="font-medium truncate" title={user.fullName}>{user.fullName}</p>
+                        <p className="text-xs text-muted-foreground truncate" title={user.email}>
                           {user.email}
                         </p>
                       </div>
@@ -504,7 +504,7 @@ export default function UsersPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
+                      <TableHead className="w-[250px]">User</TableHead>
                       <TableHead>Roles</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
@@ -515,13 +515,12 @@ export default function UsersPage() {
                   <TableBody>
                     {users.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell>
-                          <div>
-                            <span className="font-medium">{user.fullName}</span>
-                            <br />
-                            <span className="text-xs text-muted-foreground">
+                        <TableCell className="max-w-[250px]">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate" title={user.fullName}>{user.fullName}</p>
+                            <p className="text-xs text-muted-foreground truncate" title={user.email}>
                               {user.email}
-                            </span>
+                            </p>
                           </div>
                         </TableCell>
                         <TableCell>

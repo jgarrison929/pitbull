@@ -108,9 +108,17 @@ public class AdminUsersController(
 
         // Update basic info
         if (!string.IsNullOrWhiteSpace(request.FirstName))
-            user.FirstName = request.FirstName;
+        {
+            if (request.FirstName.Trim().Length > 100)
+                return BadRequest(new { error = "First name cannot exceed 100 characters" });
+            user.FirstName = request.FirstName.Trim();
+        }
         if (!string.IsNullOrWhiteSpace(request.LastName))
-            user.LastName = request.LastName;
+        {
+            if (request.LastName.Trim().Length > 100)
+                return BadRequest(new { error = "Last name cannot exceed 100 characters" });
+            user.LastName = request.LastName.Trim();
+        }
         if (request.Status != null)
         {
             if (!Enum.TryParse<UserStatus>(request.Status, out var status))

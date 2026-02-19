@@ -596,6 +596,9 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
             return this.BadRequestError("First name and last name are required");
 
+        if (request.FirstName.Trim().Length > 100 || request.LastName.Trim().Length > 100)
+            return this.BadRequestError("Name cannot exceed 100 characters");
+
         user.FirstName = request.FirstName.Trim();
         user.LastName = request.LastName.Trim();
 
