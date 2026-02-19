@@ -11,7 +11,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Reports")]
-public class ReportsController(IReportService reportService) : ControllerBase
+public class ReportsController(IReportService reportService, ILogger<ReportsController> logger) : ControllerBase
 {
     [HttpGet("labor-cost")]
     public async Task<IActionResult> GetLaborCost(
@@ -28,7 +28,8 @@ public class ReportsController(IReportService reportService) : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Report parameter validation failed");
+            return BadRequest(new { error = "Invalid report parameters", code = "VALIDATION_ERROR" });
         }
         catch (Exception)
         {
@@ -49,7 +50,8 @@ public class ReportsController(IReportService reportService) : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Report parameter validation failed");
+            return BadRequest(new { error = "Invalid report parameters", code = "VALIDATION_ERROR" });
         }
         catch (Exception)
         {
@@ -70,7 +72,8 @@ public class ReportsController(IReportService reportService) : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Report parameter validation failed");
+            return BadRequest(new { error = "Invalid report parameters", code = "VALIDATION_ERROR" });
         }
         catch (Exception)
         {

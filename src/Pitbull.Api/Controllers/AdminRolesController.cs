@@ -16,7 +16,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - Roles")]
-public class AdminRolesController(RoleManager<AppRole> roleManager) : ControllerBase
+public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<AdminRolesController> logger) : ControllerBase
 {
     /// <summary>
     /// List all roles for the tenant
@@ -70,7 +70,10 @@ public class AdminRolesController(RoleManager<AppRole> roleManager) : Controller
 
         var result = await roleManager.CreateAsync(role);
         if (!result.Succeeded)
-            return BadRequest(new { error = string.Join(", ", result.Errors.Select(e => e.Description)) });
+        {
+            logger.LogWarning("Role creation failed: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+            return BadRequest(new { error = "Failed to create role", code = "ROLE_ERROR" });
+        }
 
         return StatusCode(StatusCodes.Status201Created, new AdminRoleDto
         {
@@ -100,7 +103,10 @@ public class AdminRolesController(RoleManager<AppRole> roleManager) : Controller
         var result = await roleManager.UpdateAsync(role);
 
         if (!result.Succeeded)
-            return BadRequest(new { error = string.Join(", ", result.Errors.Select(e => e.Description)) });
+        {
+            logger.LogWarning("Role update failed: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+            return BadRequest(new { error = "Failed to update role", code = "ROLE_ERROR" });
+        }
 
         return Ok(new AdminRoleDto
         {
@@ -128,7 +134,10 @@ public class AdminRolesController(RoleManager<AppRole> roleManager) : Controller
 
         var result = await roleManager.DeleteAsync(role);
         if (!result.Succeeded)
-            return BadRequest(new { error = string.Join(", ", result.Errors.Select(e => e.Description)) });
+        {
+            logger.LogWarning("Role deletion failed: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+            return BadRequest(new { error = "Failed to delete role", code = "ROLE_ERROR" });
+        }
 
         return NoContent();
     }

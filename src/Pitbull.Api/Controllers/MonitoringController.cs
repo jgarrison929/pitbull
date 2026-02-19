@@ -76,7 +76,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
                     Status: kvp.Value.Status.ToString(),
                     Description: kvp.Value.Description,
                     Duration: kvp.Value.Duration,
-                    Exception: kvp.Value.Exception?.Message,
+                    Exception: kvp.Value.Exception != null ? "Health check failed" : null,
                     Tags: kvp.Value.Tags.ToList()
                 )
             )

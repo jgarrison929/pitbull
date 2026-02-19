@@ -95,8 +95,8 @@ public class FilesController(IFileStorageService fileStorageService) : Controlle
         var result = await fileStorageService.GetByIdAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }
@@ -110,9 +110,9 @@ public class FilesController(IFileStorageService fileStorageService) : Controlle
 
         var result = await fileStorageService.DownloadAsync(id, userId.Value);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND" || result.ErrorCode == "FILE_MISSING"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+            return result.ErrorCode is "NOT_FOUND" or "FILE_MISSING"
+                ? NotFound(new { error = result.Error, code = result.ErrorCode })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         var download = result.Value!;
         return File(download.Content, download.ContentType, download.FileName);
@@ -141,8 +141,8 @@ public class FilesController(IFileStorageService fileStorageService) : Controlle
         var result = await fileStorageService.DeleteAsync(id, userId.Value);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return NoContent();
     }

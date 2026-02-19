@@ -15,7 +15,8 @@ namespace Pitbull.Api.Controllers;
 [Tags("Notification Preferences")]
 public class NotificationPreferencesController(
     INotificationPreferenceService notificationPreferenceService,
-    ITenantContext tenantContext) : ControllerBase
+    ITenantContext tenantContext,
+    ILogger<NotificationPreferencesController> logger) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<NotificationPreferenceDto>), StatusCodes.Status200OK)]
@@ -53,7 +54,8 @@ public class NotificationPreferencesController(
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Notification preference update failed");
+            return BadRequest(new { error = "Invalid notification preference request", code = "VALIDATION_ERROR" });
         }
     }
 
@@ -93,7 +95,8 @@ public class NotificationPreferencesController(
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Notification preference update failed");
+            return BadRequest(new { error = "Invalid notification preference request", code = "VALIDATION_ERROR" });
         }
     }
 

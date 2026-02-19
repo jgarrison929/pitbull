@@ -11,7 +11,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Compliance Documents")]
-public class ComplianceDocumentsController(IComplianceDocumentService complianceDocumentService) : ControllerBase
+public class ComplianceDocumentsController(IComplianceDocumentService complianceDocumentService, ILogger<ComplianceDocumentsController> logger) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ComplianceDocumentDto>), StatusCodes.Status200OK)]
@@ -32,7 +32,8 @@ public class ComplianceDocumentsController(IComplianceDocumentService compliance
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Compliance document validation failed");
+            return BadRequest(new { error = "Invalid compliance document request", code = "VALIDATION_ERROR" });
         }
     }
 
@@ -58,7 +59,8 @@ public class ComplianceDocumentsController(IComplianceDocumentService compliance
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Compliance document validation failed");
+            return BadRequest(new { error = "Invalid compliance document request", code = "VALIDATION_ERROR" });
         }
     }
 
@@ -76,7 +78,8 @@ public class ComplianceDocumentsController(IComplianceDocumentService compliance
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Compliance document validation failed");
+            return BadRequest(new { error = "Invalid compliance document request", code = "VALIDATION_ERROR" });
         }
     }
 
@@ -130,7 +133,8 @@ public class ComplianceDocumentsController(IComplianceDocumentService compliance
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Compliance document validation failed");
+            return BadRequest(new { error = "Invalid compliance document request", code = "VALIDATION_ERROR" });
         }
     }
 

@@ -66,8 +66,8 @@ public class ProjectAssignmentsController(IProjectAssignmentService projectAssig
         {
             return result.ErrorCode switch
             {
-                "EMPLOYEE_NOT_FOUND" or "PROJECT_NOT_FOUND" => NotFound(new { error = result.Error }),
-                "ALREADY_ASSIGNED" => Conflict(new { error = result.Error }),
+                "EMPLOYEE_NOT_FOUND" or "PROJECT_NOT_FOUND" => NotFound(new { error = result.Error, code = result.ErrorCode }),
+                "ALREADY_ASSIGNED" => Conflict(new { error = result.Error, code = "ALREADY_ASSIGNED" }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
         }
@@ -174,7 +174,7 @@ public class ProjectAssignmentsController(IProjectAssignmentService projectAssig
         if (!result.IsSuccess)
         {
             return result.ErrorCode is "NOT_FOUND" or "ASSIGNMENT_NOT_FOUND"
-                ? NotFound(new { error = result.Error })
+                ? NotFound(new { error = result.Error, code = result.ErrorCode })
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
         }
 
@@ -214,7 +214,7 @@ public class ProjectAssignmentsController(IProjectAssignmentService projectAssig
         if (!result.IsSuccess)
         {
             return result.ErrorCode is "NOT_FOUND" or "ASSIGNMENT_NOT_FOUND"
-                ? NotFound(new { error = result.Error })
+                ? NotFound(new { error = result.Error, code = result.ErrorCode })
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
         }
 

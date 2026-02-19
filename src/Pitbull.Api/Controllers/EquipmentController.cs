@@ -72,8 +72,8 @@ public class EquipmentController(IEquipmentService equipmentService) : Controlle
         var result = await equipmentService.GetEquipmentAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }
@@ -172,7 +172,7 @@ public class EquipmentController(IEquipmentService equipmentService) : Controlle
         {
             return result.ErrorCode switch
             {
-                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "NOT_FOUND" => NotFound(new { error = result.Error, code = "NOT_FOUND" }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
         }
@@ -202,8 +202,8 @@ public class EquipmentController(IEquipmentService equipmentService) : Controlle
         var result = await equipmentService.DeleteEquipmentAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return NoContent();
     }

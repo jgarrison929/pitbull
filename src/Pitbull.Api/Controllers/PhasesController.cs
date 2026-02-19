@@ -38,7 +38,9 @@ public class PhasesController(IProjectService projectService) : ControllerBase
     {
         var result = await projectService.GetProjectPhasesAsync(projectId, pageSize);
         if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error });
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }
@@ -59,8 +61,8 @@ public class PhasesController(IProjectService projectService) : ControllerBase
         var result = await projectService.GetPhaseAsync(projectId, phaseId);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }
