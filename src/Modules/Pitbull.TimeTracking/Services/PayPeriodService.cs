@@ -91,9 +91,11 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext,
 
             return Result.Success(PayPeriodMapper.ToDto(period));
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return Result.Failure<PayPeriodDto>("Failed to retrieve current pay period", "DATABASE_ERROR");
+            return Result.Failure<PayPeriodDto>(
+                $"Failed to retrieve current pay period: {ex.GetType().Name}",
+                "DATABASE_ERROR");
         }
     }
 

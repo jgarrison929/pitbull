@@ -676,6 +676,15 @@ public class TimeEntryService : ITimeEntryService
         if (!string.IsNullOrWhiteSpace(lockValidation))
             return Result.Failure<TimeEntryDto>(lockValidation, "PAY_PERIOD_LOCKED");
 
+        // Validate that a pay period exists for the entry date (when enforcement is enabled)
+        var payPeriodResult = await _payPeriodService.GetCurrentPeriodAsync(command.Date, cancellationToken);
+        if (!payPeriodResult.IsSuccess && payPeriodResult.ErrorCode == "NOT_FOUND")
+        {
+            return Result.Failure<TimeEntryDto>(
+                $"No pay period exists for {command.Date:yyyy-MM-dd}. Please ask an administrator to generate pay periods.",
+                "PAY_PERIOD_NOT_FOUND");
+        }
+
         // Validate that employee exists and is active
         var employee = await _db.Set<Employee>()
             .FirstOrDefaultAsync(e => e.Id == command.EmployeeId && e.IsActive, cancellationToken);
@@ -806,11 +815,21 @@ public class TimeEntryService : ITimeEntryService
         return Result.Success(TimeEntryMapper.ToDto(timeEntry));
 
         }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database error creating time entry for employee {EmployeeId} on {Date}",
+                command.EmployeeId, command.Date);
+            return Result.Failure<TimeEntryDto>(
+                $"Failed to create time entry: database constraint violation ({ex.InnerException?.GetType().Name ?? ex.GetType().Name})",
+                "DATABASE_ERROR");
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create time entry for employee {EmployeeId} on {Date}",
+            _logger.LogError(ex, "Unexpected error creating time entry for employee {EmployeeId} on {Date}",
                 command.EmployeeId, command.Date);
-            return Result.Failure<TimeEntryDto>("Failed to create time entry", "DATABASE_ERROR");
+            return Result.Failure<TimeEntryDto>(
+                $"Failed to create time entry: {ex.GetType().Name}",
+                "INTERNAL_ERROR");
         }
     }
 
