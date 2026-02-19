@@ -237,7 +237,10 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
             if (!userResult.IsSuccess)
             {
                 if (IsCurrentUserAdmin())
-                    approverId = GetCurrentUserIdFromJwt();
+                {
+                    approverId = GetCurrentUserIdFromJwt()
+                        ?? throw new InvalidOperationException("Admin user JWT is missing a user identifier claim.");
+                }
                 else
                     return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
             }
@@ -306,7 +309,10 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         if (!userResult.IsSuccess)
         {
             if (IsCurrentUserAdmin())
-                approverId = GetCurrentUserIdFromJwt() ?? Guid.Empty;
+            {
+                approverId = GetCurrentUserIdFromJwt()
+                    ?? throw new InvalidOperationException("Admin user JWT is missing a user identifier claim.");
+            }
             else
                 return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
         }
@@ -379,7 +385,10 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         if (!userResult.IsSuccess)
         {
             if (IsCurrentUserAdmin())
-                approverId = GetCurrentUserIdFromJwt() ?? Guid.Empty;
+            {
+                approverId = GetCurrentUserIdFromJwt()
+                    ?? throw new InvalidOperationException("Admin user JWT is missing a user identifier claim.");
+            }
             else
                 return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
         }
@@ -480,7 +489,10 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         if (!userResult.IsSuccess)
         {
             if (IsCurrentUserAdmin())
-                employeeId = GetCurrentUserIdFromJwt() ?? Guid.Empty;
+            {
+                employeeId = GetCurrentUserIdFromJwt()
+                    ?? throw new InvalidOperationException("Admin user JWT is missing a user identifier claim.");
+            }
             else
                 return BadRequest(new { error = userResult.Error, code = userResult.ErrorCode });
         }
@@ -902,7 +914,7 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
         if (employee == null)
         {
             return (Result.Failure(
-                "No employee record is linked to your user account. Contact your administrator to create an employee record or assign the Admin role.",
+                "Your user account has no linked employee record. An administrator must create one before you can perform this action.",
                 "NO_EMPLOYEE_RECORD"), Guid.Empty);
         }
 

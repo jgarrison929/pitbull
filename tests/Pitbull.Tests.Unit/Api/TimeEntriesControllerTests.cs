@@ -482,6 +482,19 @@ public class TimeEntriesControllerTests
         bad.StatusCode.Should().Be(400);
     }
 
+    [Fact]
+    public async Task Approve_AdminWithoutEmployeeOrJwtClaim_Throws()
+    {
+        // Arrange: admin user with no employee record AND no NameIdentifier claim
+        var controller = CreateControllerForAdminWithoutEmployeeOrClaim();
+
+        var request = new ApproveTimeEntryRequest("Should throw");
+
+        // Act & Assert — explicit failure, not silent Guid.Empty
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => controller.Approve(TestId, request));
+    }
+
     #endregion
 
     #region Reject
@@ -683,6 +696,31 @@ public class TimeEntriesControllerTests
         // No employee record for this admin
         _serviceMock
             .Setup(s => s.GetEmployeeByEmailAsync("admin@test.com", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Employee?)null);
+
+        return controller;
+    }
+
+    private TimeEntriesController CreateControllerForAdminWithoutEmployeeOrClaim()
+    {
+        // Admin role but NO NameIdentifier claim — simulates a misconfigured JWT
+        var claims = new[]
+        {
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "badmin@test.com"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Admin")
+        };
+        var identity = new System.Security.Claims.ClaimsIdentity(claims, "TestAuth");
+        var principal = new System.Security.Claims.ClaimsPrincipal(identity);
+
+        var controller = new TimeEntriesController(
+            _serviceMock.Object, _capMock.Object, _tenantContextMock.Object, _companyContextMock.Object);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext { User = principal }
+        };
+
+        _serviceMock
+            .Setup(s => s.GetEmployeeByEmailAsync("badmin@test.com", It.IsAny<CancellationToken>()))
             .ReturnsAsync((Employee?)null);
 
         return controller;
