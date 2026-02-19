@@ -48,6 +48,8 @@ interface RegisterData {
   password: string;
   companyName?: string;
   tenantId?: string;
+  industryType?: string;
+  employeeRange?: string;
 }
 
 interface AuthResponse {
