@@ -186,7 +186,7 @@ public class AdminUsersController(
         // Find the user by email
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null)
-            return NotFound(new { error = $"User with email {request.Email} not found" });
+            return NotFound(new { error = "User not found" });
 
         // Ensure roles exist for the tenant
         var tenantId = user.TenantId;
@@ -234,8 +234,7 @@ public class AdminUsersController(
         var result = await userManager.AddToRoleAsync(user, adminRoleName);
         if (!result.Succeeded)
         {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return BadRequest(new { error = $"Failed to add admin role: {errors}" });
+            return BadRequest(new { error = "Failed to assign admin role" });
         }
 
         // Also add all other roles for full access

@@ -15,7 +15,8 @@ namespace Pitbull.Api.Controllers;
 [Tags("Data Import/Export")]
 public class DataImportController(
     IDataImportService dataImportService,
-    IDataExportService dataExportService) : ControllerBase
+    IDataExportService dataExportService,
+    ILogger<DataImportController> logger) : ControllerBase
 {
     [HttpPost("import/employees")]
     [Authorize(Roles = "Admin,Manager")]
@@ -62,7 +63,8 @@ public class DataImportController(
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Import confirmation failed");
+            return BadRequest(new { error = "Import confirmation failed", code = "IMPORT_ERROR" });
         }
     }
 
@@ -93,7 +95,8 @@ public class DataImportController(
         }
         catch (Exception ex)
         {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Time entries export failed");
+            return BadRequest(new { error = "Export failed. Please try again.", code = "EXPORT_ERROR" });
         }
     }
 
@@ -143,13 +146,10 @@ public class DataImportController(
             var result = await dataImportService.PreviewAsync(type, file, cancellationToken);
             return Ok(result);
         }
-        catch (ArgumentException ex)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
-            return BadRequest(new { error = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { error = ex.Message });
+            logger.LogWarning(ex, "Import preview failed for type {Type}", type);
+            return BadRequest(new { error = "Import preview failed. Please check the file format.", code = "IMPORT_ERROR" });
         }
     }
 }

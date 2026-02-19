@@ -76,7 +76,7 @@ public class EmployeeOnboardingController(
         {
             return result.ErrorCode switch
             {
-                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "NOT_FOUND" => NotFound(new { error = result.Error, code = "NOT_FOUND" }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
         }
@@ -93,7 +93,7 @@ public class EmployeeOnboardingController(
     {
         var result = await onboardingService.DeleteEmergencyContactAsync(employeeId, contactId);
         if (!result.IsSuccess)
-            return NotFound(new { error = result.Error });
+            return NotFound(new { error = result.Error, code = "NOT_FOUND" });
         return NoContent();
     }
 
@@ -154,7 +154,7 @@ public class EmployeeOnboardingController(
         {
             return result.ErrorCode switch
             {
-                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "NOT_FOUND" => NotFound(new { error = result.Error, code = "NOT_FOUND" }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
         }
@@ -171,7 +171,7 @@ public class EmployeeOnboardingController(
     {
         var result = await onboardingService.DeleteCertificationAsync(employeeId, certificationId);
         if (!result.IsSuccess)
-            return NotFound(new { error = result.Error });
+            return NotFound(new { error = result.Error, code = "NOT_FOUND" });
         return NoContent();
     }
 
@@ -204,7 +204,7 @@ public class EmployeeOnboardingController(
         {
             return result.ErrorCode switch
             {
-                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "NOT_FOUND" => NotFound(new { error = result.Error, code = "NOT_FOUND" }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
         }
@@ -221,7 +221,7 @@ public class EmployeeOnboardingController(
     {
         var result = await onboardingService.DeleteUnionAffiliationAsync(employeeId, affiliationId);
         if (!result.IsSuccess)
-            return NotFound(new { error = result.Error });
+            return NotFound(new { error = result.Error, code = "NOT_FOUND" });
         return NoContent();
     }
 }

@@ -84,8 +84,8 @@ public class NotificationsController(INotificationService notificationService) :
         var result = await notificationService.MarkReadAsync(id, userId.Value);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return NoContent();
     }
@@ -111,8 +111,8 @@ public class NotificationsController(INotificationService notificationService) :
         var result = await notificationService.DeleteAsync(id, userId.Value);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return NoContent();
     }

@@ -11,7 +11,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Roles")]
-public class RolesController(IRoleService roleService) : ControllerBase
+public class RolesController(IRoleService roleService, ILogger<RolesController> logger) : ControllerBase
 {
     [HttpGet("roles")]
     [ProducesResponseType(typeof(IReadOnlyList<RoleListItemDto>), StatusCodes.Status200OK)]
@@ -28,7 +28,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
     {
         var role = await roleService.GetRoleAsync(id, ct);
         if (role is null)
-            return NotFound(new { message = "Role not found" });
+            return NotFound(new { error = "Role not found" });
 
         return Ok(role);
     }
@@ -39,7 +39,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
     public async Task<IActionResult> CreateRole([FromBody] RbacCreateRoleRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new { message = "Role name is required" });
+            return BadRequest(new { error = "Role name is required", code = "VALIDATION_ERROR" });
 
         try
         {
@@ -48,7 +48,8 @@ public class RolesController(IRoleService roleService) : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            logger.LogWarning(ex, "Role creation failed");
+            return BadRequest(new { error = "Role creation failed", code = "ROLE_ERROR" });
         }
     }
 
@@ -59,18 +60,19 @@ public class RolesController(IRoleService roleService) : ControllerBase
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] RbacUpdateRoleRequest request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new { message = "Role name is required" });
+            return BadRequest(new { error = "Role name is required", code = "VALIDATION_ERROR" });
 
         RoleDetailDto? updated;
         try
         {
             updated = await roleService.UpdateRoleAsync(id, new UpdateRoleDto(request.Name, request.Description), ct);
             if (updated is null)
-                return NotFound(new { message = "Role not found" });
+                return NotFound(new { error = "Role not found" });
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            logger.LogWarning(ex, "Role update failed");
+            return BadRequest(new { error = "Role update failed", code = "ROLE_ERROR" });
         }
 
         return Ok(updated);
@@ -86,13 +88,14 @@ public class RolesController(IRoleService roleService) : ControllerBase
         {
             var deleted = await roleService.DeleteRoleAsync(id, ct);
             if (!deleted)
-                return NotFound(new { message = "Role not found" });
+                return NotFound(new { error = "Role not found" });
 
             return NoContent();
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            logger.LogWarning(ex, "Role deletion failed");
+            return BadRequest(new { error = "Role deletion failed", code = "ROLE_ERROR" });
         }
     }
 
@@ -103,7 +106,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
     {
         var role = await roleService.AssignPermissionsAsync(id, request.PermissionIds, ct);
         if (role is null)
-            return NotFound(new { message = "Role not found" });
+            return NotFound(new { error = "Role not found" });
 
         return Ok(role);
     }
@@ -118,13 +121,14 @@ public class RolesController(IRoleService roleService) : ControllerBase
         {
             var role = await roleService.RemovePermissionsAsync(id, request.PermissionIds, ct);
             if (role is null)
-                return NotFound(new { message = "Role not found" });
+                return NotFound(new { error = "Role not found" });
 
             return Ok(role);
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new { message = ex.Message });
+            logger.LogWarning(ex, "Permission removal failed");
+            return BadRequest(new { error = "Permission removal failed", code = "ROLE_ERROR" });
         }
     }
 
@@ -143,7 +147,7 @@ public class RolesController(IRoleService roleService) : ControllerBase
     {
         var assigned = await roleService.AssignUserRoleAsync(id, request.RoleId, ct);
         if (!assigned)
-            return NotFound(new { message = "User or role not found" });
+            return NotFound(new { error = "User or role not found" });
 
         return NoContent();
     }

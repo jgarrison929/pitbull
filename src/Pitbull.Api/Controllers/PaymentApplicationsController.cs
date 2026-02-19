@@ -63,7 +63,13 @@ public class PaymentApplicationsController(
     {
         var result = await contractsService.CreatePaymentApplicationAsync(command);
         if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error, code = "NOT_FOUND" }),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
 
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
     }

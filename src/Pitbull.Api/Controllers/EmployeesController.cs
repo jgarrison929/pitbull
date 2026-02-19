@@ -91,7 +91,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         {
             return result.ErrorCode switch
             {
-                "DUPLICATE" => Conflict(new { error = result.Error }),
+                "DUPLICATE" => Conflict(new { error = result.Error, code = "DUPLICATE" }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
         }
@@ -135,7 +135,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
                         ?? User.FindFirst(ClaimTypes.Email)?.Value;
 
             if (string.IsNullOrEmpty(email))
-                return BadRequest(new { error = "Cannot resolve identity: no email claim in token", code = "MISSING_EMAIL_CLAIM" });
+                return Unauthorized(new { error = "Cannot resolve identity", code = "UNAUTHORIZED" });
 
             result = await employeeService.GetMyCrewByEmailAsync(email);
         }
@@ -182,8 +182,8 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         var result = await employeeService.GetEmployeeAsync(id);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }
@@ -254,8 +254,8 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         var result = await employeeService.GetEmployeeProjectsAsync(id, activeOnly);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }
@@ -308,7 +308,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         {
             return result.ErrorCode switch
             {
-                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "NOT_FOUND" => NotFound(new { error = result.Error, code = "NOT_FOUND" }),
                 "INVALID_SUPERVISOR" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
                 _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
             };
@@ -347,7 +347,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         if (!result.IsSuccess)
         {
             return result.ErrorCode == "EMPLOYEE_NOT_FOUND"
-                ? NotFound(new { error = result.Error })
+                ? NotFound(new { error = result.Error, code = "EMPLOYEE_NOT_FOUND" })
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
         }
 
@@ -372,7 +372,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         var employeeExists = await db.Set<TimeTracking.Domain.Employee>()
             .AnyAsync(e => e.Id == id, ct);
         if (!employeeExists)
-            return NotFound(new { error = "Employee not found" });
+            return NotFound(new { error = "Employee not found", code = "NOT_FOUND" });
 
         var certifications = await db.Set<TimeTracking.Domain.EmployeeCertification>()
             .AsNoTracking()
