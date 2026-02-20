@@ -24,6 +24,7 @@ interface ChatMessage extends AiChatMessage {
   timestamp: Date;
   errorCode?: string;
   msgType?: "divider" | "error";
+  confidenceScore?: number;
 }
 
 // ── Context Detection ────────────────────────────────────────────────
@@ -238,6 +239,7 @@ export function AiChatPanel() {
             role: "assistant",
             content: reply,
             timestamp: new Date(),
+            confidenceScore: result?.confidenceScore,
           },
         ]);
       } catch (err: unknown) {
@@ -440,8 +442,8 @@ export function AiChatPanel() {
                 <div
                   key={msg.id}
                   className={cn(
-                    "flex",
-                    msg.role === "user" ? "justify-end" : "justify-start"
+                    "flex flex-col",
+                    msg.role === "user" ? "items-end" : "items-start"
                   )}
                 >
                   <div
@@ -456,6 +458,29 @@ export function AiChatPanel() {
                       {msg.content}
                     </p>
                   </div>
+                  {msg.role === "assistant" &&
+                    msg.confidenceScore !== undefined && (
+                      <div className="flex items-center gap-1.5 mt-1 px-1">
+                        <div
+                          className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            msg.confidenceScore >= 0.7
+                              ? "bg-green-500"
+                              : msg.confidenceScore >= 0.5
+                                ? "bg-yellow-500"
+                                : "bg-red-500"
+                          )}
+                        />
+                        <span className="text-[10px] text-muted-foreground">
+                          {Math.round(msg.confidenceScore * 100)}% confidence
+                        </span>
+                        {msg.confidenceScore < 0.5 && (
+                          <span className="text-[10px] text-red-500 font-medium">
+                            — Low confidence, verify this response
+                          </span>
+                        )}
+                      </div>
+                    )}
                 </div>
               );
             })}

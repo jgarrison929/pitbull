@@ -11,7 +11,7 @@ public class AiUsageService(
     ITenantContext tenantContext) : IAiUsageService
 {
     public async Task LogUsageAsync(Guid userId, string provider, string model, int tokensIn, int tokensOut,
-                                    decimal estimatedCost, string? feature, int durationMs, CancellationToken ct = default)
+                                    decimal estimatedCost, string? feature, int durationMs, decimal confidenceScore = 0m, CancellationToken ct = default)
     {
         var record = new AiUsageRecord
         {
@@ -25,6 +25,7 @@ public class AiUsageService(
             EstimatedCost = estimatedCost,
             Feature = feature,
             DurationMs = durationMs,
+            ConfidenceScore = confidenceScore,
             RequestedAt = DateTime.UtcNow
         };
 

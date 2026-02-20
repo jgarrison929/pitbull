@@ -217,6 +217,9 @@ builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pi
 // Diagnostics service (production error tracking)
 builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api.Services.DiagnosticsService>();
 
+// Secrets management service (auditable config access for sensitive values)
+builder.Services.AddSingleton<Pitbull.Api.Services.ISecretsService, Pitbull.Api.Services.SecretsService>();
+
 // Email service: Resend in production, console stub in development
 var resendApiKey = builder.Configuration["Email:Resend:ApiKey"];
 if (string.IsNullOrWhiteSpace(resendApiKey))

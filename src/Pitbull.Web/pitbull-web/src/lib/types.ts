@@ -1334,6 +1334,7 @@ export interface AiChatResponse {
   model: string;
   provider: string;
   latencyMs: number;
+  confidenceScore: number;
 }
 
 export interface AiDocumentAnalysisRequest {

@@ -110,7 +110,8 @@ public class AiChatController(IAiService aiService, PitbullDbContext db) : Contr
             Reply: result.Value!.Content,
             Model: result.Value.Model,
             Provider: result.Value.Provider,
-            LatencyMs: (long)result.Value.Latency.TotalMilliseconds));
+            LatencyMs: (long)result.Value.Latency.TotalMilliseconds,
+            ConfidenceScore: result.Value.ConfidenceScore));
     }
 
     private async Task<string> BuildEnrichedContextAsync(string? pageContext, string? systemContext)
@@ -238,4 +239,5 @@ public record AiChatResponse(
     string Reply,
     string Model,
     string Provider,
-    long LatencyMs);
+    long LatencyMs,
+    decimal ConfidenceScore);
