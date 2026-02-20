@@ -24,3 +24,21 @@ public class AiApiKeyConfiguration : IEntityTypeConfiguration<AiApiKey>
         builder.HasIndex(x => new { x.TenantId, x.IsActive });
     }
 }
+
+public class AiUsageRecordConfiguration : IEntityTypeConfiguration<AiUsageRecord>
+{
+    public void Configure(EntityTypeBuilder<AiUsageRecord> builder)
+    {
+        builder.ToTable("ai_usage_records");
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.Provider).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Model).HasMaxLength(100).IsRequired();
+        builder.Property(x => x.Feature).HasMaxLength(50);
+        builder.Property(x => x.EstimatedCost).HasPrecision(18, 2);
+
+        builder.HasIndex(x => x.TenantId);
+        builder.HasIndex(x => new { x.TenantId, x.UserId, x.RequestedAt });
+        builder.HasIndex(x => new { x.TenantId, x.Provider });
+    }
+}

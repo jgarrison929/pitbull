@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { getToken } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +34,7 @@ export default function CertifiedPayrollPage() {
   const [projectId, setProjectId] = useState("");
   const [weekEnding, setWeekEnding] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   const fetchReports = useCallback(async () => {
     setIsLoading(true);
@@ -74,6 +77,43 @@ export default function CertifiedPayrollPage() {
     }
   }
 
+  async function handleDownloadWh347(reportPayrollRunId: string) {
+    try {
+      setDownloading(reportPayrollRunId);
+      const token = getToken();
+      if (!token) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const activeCompanyId = localStorage.getItem("pitbull_active_company_id");
+      if (activeCompanyId) headers["X-Company-Id"] = activeCompanyId;
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/payroll/certified/${reportPayrollRunId}/wh347-pdf`,
+        { headers }
+      );
+
+      if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `WH-347-${reportPayrollRunId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("WH-347 PDF downloaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to download WH-347 PDF");
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -112,7 +152,7 @@ export default function CertifiedPayrollPage() {
           {isLoading ? (
             <TableSkeleton
               rows={8}
-              headers={["Week Ending", "Project", "Payroll Run", "Form", "Status"]}
+              headers={["Week Ending", "Project", "Payroll Run", "Form", "Status", "Actions"]}
             />
           ) : (
             <Table>
@@ -123,6 +163,7 @@ export default function CertifiedPayrollPage() {
                   <TableHead>Payroll Run</TableHead>
                   <TableHead>Form</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -133,6 +174,16 @@ export default function CertifiedPayrollPage() {
                     <TableCell className="font-mono text-xs">{report.payrollRunId}</TableCell>
                     <TableCell>{report.whdFormNumber}</TableCell>
                     <TableCell><Badge variant="secondary">{report.statusName}</Badge></TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadWh347(report.payrollRunId)}
+                        disabled={downloading === report.payrollRunId}
+                      >
+                        {downloading === report.payrollRunId ? "Downloading..." : "Export WH-347 PDF"}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

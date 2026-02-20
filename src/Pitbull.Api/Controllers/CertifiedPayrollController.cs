@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Api.Services;
 using Pitbull.Billing.Features.CertifiedPayroll;
 using Pitbull.Billing.Services;
 using Pitbull.Core.Domain;
@@ -13,7 +14,9 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Certified Payroll")]
-public class CertifiedPayrollController(ICertifiedPayrollService certifiedPayrollService) : ControllerBase
+public class CertifiedPayrollController(
+    ICertifiedPayrollService certifiedPayrollService,
+    IPdfReportService pdfReportService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ListCertifiedPayrollReportsResult), StatusCodes.Status200OK)]
@@ -47,6 +50,22 @@ public class CertifiedPayrollController(ICertifiedPayrollService certifiedPayrol
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
+    }
+
+    [HttpGet("{payrollRunId:guid}/wh347-pdf")]
+    [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadWh347Pdf(Guid payrollRunId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var bytes = await pdfReportService.GenerateWh347PdfAsync(payrollRunId, cancellationToken);
+            return File(bytes, "application/pdf", $"WH-347-{payrollRunId:N}.pdf");
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new { error = "Payroll run not found", code = "PAYROLL_RUN_NOT_FOUND" });
+        }
     }
 }
 

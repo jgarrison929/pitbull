@@ -240,6 +240,166 @@ public class PdfReportServiceTests
     }
 
     [Fact]
+    public async Task GenerateWh347PdfAsync_NoPayrollRunLines_ReturnsEmptyReport()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+
+        var payPeriod = new PayPeriod
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            Name = "PP-Empty",
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-14)),
+            EndDate = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-7)),
+            Status = PayPeriodStatus.Closed
+        };
+        db.Set<PayPeriod>().Add(payPeriod);
+
+        var payrollRun = new PayrollRun
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            RunDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            PayPeriodId = payPeriod.Id,
+            Status = PayrollRunStatus.Approved,
+            TotalGross = 0m,
+            TotalNet = 0m,
+            EmployeeCount = 0
+        };
+        db.Set<PayrollRun>().Add(payrollRun);
+
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var bytes = await service.GenerateWh347PdfAsync(payrollRun.Id);
+
+        bytes.Should().NotBeNull();
+        bytes.Length.Should().BeGreaterThan(100);
+    }
+
+    [Fact]
+    public async Task GenerateWh347PdfAsync_WithDailyHours_IncludesBreakdown()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+
+        var payPeriod = new PayPeriod
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            Name = "PP-Daily",
+            StartDate = new DateOnly(2026, 2, 9),
+            EndDate = new DateOnly(2026, 2, 15),
+            Status = PayPeriodStatus.Closed
+        };
+        db.Set<PayPeriod>().Add(payPeriod);
+
+        var employee = new Employee
+        {
+            EmployeeNumber = "EMP-002",
+            FirstName = "Bob",
+            LastName = "Builder",
+            Classification = EmployeeClassification.Hourly,
+            BaseHourlyRate = 50m,
+            IsActive = true
+        };
+        db.Set<Employee>().Add(employee);
+
+        var costCodeId = Guid.NewGuid();
+        db.Set<CostCode>().Add(new CostCode
+        {
+            Id = costCodeId,
+            Code = "03-200",
+            Description = "Framing",
+            CostType = CostType.Labor,
+            IsActive = true,
+            IsCompanyStandard = true
+        });
+
+        var payrollRun = new PayrollRun
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            RunDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            PayPeriodId = payPeriod.Id,
+            Status = PayrollRunStatus.Approved,
+            TotalGross = 2_400m,
+            TotalNet = 1_800m,
+            EmployeeCount = 1
+        };
+        db.Set<PayrollRun>().Add(payrollRun);
+
+        db.Set<PayrollRunLine>().Add(new PayrollRunLine
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            PayrollRunId = payrollRun.Id,
+            EmployeeId = employee.Id,
+            RegularHours = 40m,
+            OvertimeHours = 8m,
+            DoubletimeHours = 0m,
+            RegularPay = 2_000m,
+            OvertimePay = 600m,
+            DoubletimePay = 0m,
+            GrossPay = 2_600m
+        });
+
+        db.Set<CertifiedPayrollReport>().Add(new CertifiedPayrollReport
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            PayrollRunId = payrollRun.Id,
+            ProjectId = ProjectId,
+            WeekEnding = new DateOnly(2026, 2, 15),
+            WHDFormNumber = "WH-347",
+            Status = CertifiedPayrollStatus.Draft
+        });
+
+        // Seed daily time entries (Mon-Fri 8hrs + Sat 8hrs OT)
+        for (var day = 0; day < 5; day++)
+        {
+            db.Set<TimeEntry>().Add(new TimeEntry
+            {
+                CompanyId = TestDbContextFactory.TestCompanyId,
+                Date = new DateOnly(2026, 2, 9).AddDays(day), // Mon-Fri
+                EmployeeId = employee.Id,
+                ProjectId = ProjectId,
+                CostCodeId = costCodeId,
+                RegularHours = 8m,
+                OvertimeHours = 0m,
+                DoubletimeHours = 0m,
+                Status = TimeEntryStatus.Approved
+            });
+        }
+        db.Set<TimeEntry>().Add(new TimeEntry
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            Date = new DateOnly(2026, 2, 14), // Saturday
+            EmployeeId = employee.Id,
+            ProjectId = ProjectId,
+            CostCodeId = costCodeId,
+            RegularHours = 0m,
+            OvertimeHours = 8m,
+            DoubletimeHours = 0m,
+            Status = TimeEntryStatus.Approved
+        });
+
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var bytes = await service.GenerateWh347PdfAsync(payrollRun.Id);
+
+        bytes.Should().NotBeNull();
+        bytes.Length.Should().BeGreaterThan(100);
+    }
+
+    [Fact]
+    public async Task GenerateWh347PdfAsync_PayrollRunNotFound_ThrowsKeyNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        Func<Task> act = () => service.GenerateWh347PdfAsync(Guid.NewGuid());
+
+        await act.Should().ThrowAsync<KeyNotFoundException>();
+    }
+
+    [Fact]
     public async Task GenerateAgedArPdfAsync_ReturnsNonEmptyBytes()
     {
         using var db = TestDbContextFactory.Create();
