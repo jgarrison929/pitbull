@@ -2,8 +2,10 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pitbull.Api.Controllers;
+using Pitbull.Api.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Features.ChartOfAccounts;
@@ -28,7 +30,8 @@ public class ChartOfAccountsControllerTests : IDisposable
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
         IChartOfAccountService service = new ChartOfAccountService(_db, NullLogger<ChartOfAccountService>.Instance);
-        _controller = new ChartOfAccountsController(service)
+        ICacheService cacheService = new CacheService(new MemoryCache(new MemoryCacheOptions()), tenantContext, companyContext);
+        _controller = new ChartOfAccountsController(service, cacheService)
         {
             ControllerContext = new ControllerContext
             {

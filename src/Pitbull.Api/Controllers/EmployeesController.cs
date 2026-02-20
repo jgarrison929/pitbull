@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
+using Pitbull.Api.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
@@ -28,7 +29,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Employees")]
-public class EmployeesController(IEmployeeService employeeService, PitbullDbContext db) : ControllerBase
+public class EmployeesController(IEmployeeService employeeService, PitbullDbContext db, ICacheService cacheService) : ControllerBase
 {
     /// <summary>
     /// Create a new employee
@@ -96,6 +97,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
             };
         }
 
+        cacheService.Remove(CacheKeys.Employees);
         return CreatedAtAction(nameof(GetById),
             new { id = result.Value!.Id }, result.Value);
     }
@@ -215,6 +217,27 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
+        // Cache only unfiltered default queries (dropdown-style "get all")
+        var isDefaultQuery = isActive is null && classification is null
+            && string.IsNullOrEmpty(search) && page == 1 && pageSize == 50;
+
+        if (isDefaultQuery)
+        {
+            var cached = await cacheService.GetOrCreateAsync(
+                CacheKeys.Employees,
+                async () =>
+                {
+                    var q = new ListEmployeesQuery(null, null, null) { Page = 1, PageSize = 50 };
+                    return await employeeService.GetEmployeesAsync(q);
+                },
+                CacheDurations.DropdownData);
+
+            if (!cached.IsSuccess)
+                return BadRequest(new { error = cached.Error });
+
+            return Ok(cached.Value);
+        }
+
         var query = new ListEmployeesQuery(isActive, classification, search)
         {
             Page = page,
@@ -314,6 +337,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
             };
         }
 
+        cacheService.Remove(CacheKeys.Employees);
         return Ok(result.Value);
     }
 

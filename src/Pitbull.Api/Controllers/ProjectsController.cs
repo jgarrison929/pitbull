@@ -12,6 +12,7 @@ using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
 using Pitbull.Projects.Services;
+// ICacheService already in Pitbull.Api.Services namespace
 
 namespace Pitbull.Api.Controllers;
 
@@ -27,7 +28,8 @@ namespace Pitbull.Api.Controllers;
 [Tags("Projects")]
 public class ProjectsController(
     IProjectService projectService,
-    IAiInsightsService aiInsightsService) : ControllerBase
+    IAiInsightsService aiInsightsService,
+    ICacheService cacheService) : ControllerBase
 {
     /// <summary>
     /// Create a new project
@@ -67,6 +69,7 @@ public class ProjectsController(
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
+        cacheService.Remove(CacheKeys.Projects);
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
     }
 
@@ -130,6 +133,27 @@ public class ProjectsController(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
+        // Cache only unfiltered default queries (dropdown-style "get all")
+        var isDefaultQuery = status is null && type is null
+            && string.IsNullOrEmpty(search) && page == 1 && pageSize == 10;
+
+        if (isDefaultQuery)
+        {
+            var cached = await cacheService.GetOrCreateAsync(
+                CacheKeys.Projects,
+                async () =>
+                {
+                    var q = new ListProjectsQuery(null, null, null) { Page = 1, PageSize = 10 };
+                    return await projectService.GetProjectsAsync(q);
+                },
+                CacheDurations.DropdownData);
+
+            if (!cached.IsSuccess)
+                return BadRequest(new { error = cached.Error });
+
+            return Ok(cached.Value);
+        }
+
         var query = new ListProjectsQuery(status, type, search)
         {
             Page = page,
@@ -183,6 +207,7 @@ public class ProjectsController(
             };
         }
 
+        cacheService.Remove(CacheKeys.Projects);
         return Ok(result.Value);
     }
 
@@ -211,6 +236,7 @@ public class ProjectsController(
                 ? this.NotFoundError(result.Error ?? "Project not found")
                 : this.BadRequestError(result.Error ?? "Delete failed");
 
+        cacheService.Remove(CacheKeys.Projects);
         return NoContent();
     }
 

@@ -3,8 +3,10 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pitbull.Api.Controllers;
+using Pitbull.Api.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Features.CostCode;
@@ -33,7 +35,8 @@ public class CostCodesControllerTests : IDisposable
             new CreateCostCodeValidator(),
             new UpdateCostCodeValidator(),
             NullLogger<CostCodeService>.Instance);
-        _controller = new CostCodesController(service, _db);
+        ICacheService cacheService = new CacheService(new MemoryCache(new MemoryCacheOptions()), tenantContext, companyContext);
+        _controller = new CostCodesController(service, _db, cacheService);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

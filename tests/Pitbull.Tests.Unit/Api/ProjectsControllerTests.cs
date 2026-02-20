@@ -28,7 +28,11 @@ public class ProjectsControllerTests
     {
         _projectServiceMock = new Mock<IProjectService>();
         _aiServiceMock = new Mock<IAiInsightsService>();
-        _controller = new ProjectsController(_projectServiceMock.Object, _aiServiceMock.Object);
+        var cacheServiceMock = new Mock<ICacheService>();
+        // Default mock: always pass through to factory
+        cacheServiceMock.Setup(c => c.GetOrCreateAsync(It.IsAny<string>(), It.IsAny<Func<Task<Result<PagedResult<ProjectDto>>>>>(), It.IsAny<TimeSpan>()))
+            .Returns<string, Func<Task<Result<PagedResult<ProjectDto>>>>, TimeSpan>((_, factory, _) => factory());
+        _controller = new ProjectsController(_projectServiceMock.Object, _aiServiceMock.Object, cacheServiceMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

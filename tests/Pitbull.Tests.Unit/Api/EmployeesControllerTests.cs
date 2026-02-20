@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Pitbull.Api.Controllers;
+using Pitbull.Api.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
@@ -25,7 +26,10 @@ public class EmployeesControllerTests
     public EmployeesControllerTests()
     {
         _serviceMock = new Mock<IEmployeeService>();
-        _controller = new EmployeesController(_serviceMock.Object, null!);
+        var cacheServiceMock = new Mock<ICacheService>();
+        cacheServiceMock.Setup(c => c.GetOrCreateAsync(It.IsAny<string>(), It.IsAny<Func<Task<Result<PagedResult<EmployeeDto>>>>>(), It.IsAny<TimeSpan>()))
+            .Returns<string, Func<Task<Result<PagedResult<EmployeeDto>>>>, TimeSpan>((_, factory, _) => factory());
+        _controller = new EmployeesController(_serviceMock.Object, null!, cacheServiceMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Api.Services;
 using Pitbull.Core.Features.ChartOfAccounts;
 
 namespace Pitbull.Api.Controllers;
@@ -11,7 +12,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Chart Of Accounts")]
-public class ChartOfAccountsController(IChartOfAccountService chartOfAccountService) : ControllerBase
+public class ChartOfAccountsController(IChartOfAccountService chartOfAccountService, ICacheService cacheService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ListChartOfAccountsResult), StatusCodes.Status200OK)]
@@ -38,11 +39,19 @@ public class ChartOfAccountsController(IChartOfAccountService chartOfAccountServ
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> GetTree()
     {
-        var result = await chartOfAccountService.GetTreeAsync();
-        if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+        var tree = await cacheService.GetOrCreateAsync(
+            CacheKeys.ChartOfAccountsTree,
+            async () =>
+            {
+                var result = await chartOfAccountService.GetTreeAsync();
+                return result;
+            },
+            CacheDurations.ReferenceData);
 
-        return Ok(result.Value);
+        if (!tree.IsSuccess)
+            return BadRequest(new { error = tree.Error, code = tree.ErrorCode });
+
+        return Ok(tree.Value);
     }
 
     [HttpGet("{id:guid}")]
@@ -84,6 +93,7 @@ public class ChartOfAccountsController(IChartOfAccountService chartOfAccountServ
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
+        cacheService.Remove(CacheKeys.ChartOfAccountsTree);
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
     }
 
@@ -120,6 +130,7 @@ public class ChartOfAccountsController(IChartOfAccountService chartOfAccountServ
             };
         }
 
+        cacheService.Remove(CacheKeys.ChartOfAccountsTree);
         return Ok(result.Value);
     }
 
@@ -136,6 +147,7 @@ public class ChartOfAccountsController(IChartOfAccountService chartOfAccountServ
                 ? NotFound(new { error = result.Error, code = result.ErrorCode })
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
+        cacheService.Remove(CacheKeys.ChartOfAccountsTree);
         return NoContent();
     }
 }

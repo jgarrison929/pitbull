@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Pitbull.Api.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Features.CostCode;
@@ -19,7 +20,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Cost Codes")]
-public class CostCodesController(ICostCodeService costCodeService, PitbullDbContext db) : ControllerBase
+public class CostCodesController(ICostCodeService costCodeService, PitbullDbContext db, ICacheService cacheService) : ControllerBase
 {
     /// <summary>
     /// List cost codes with optional filtering
@@ -35,6 +36,27 @@ public class CostCodesController(ICostCodeService costCodeService, PitbullDbCont
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100)
     {
+        // Cache only unfiltered default queries (dropdown-style "get all")
+        var isDefaultQuery = costType is null && isActive is null
+            && string.IsNullOrEmpty(search) && page == 1 && pageSize == 100;
+
+        if (isDefaultQuery)
+        {
+            var cached = await cacheService.GetOrCreateAsync(
+                CacheKeys.CostCodes,
+                async () =>
+                {
+                    var q = new ListCostCodesQuery(null, null, null, 1, 100);
+                    return await costCodeService.ListCostCodesAsync(q);
+                },
+                CacheDurations.ReferenceData);
+
+            if (!cached.IsSuccess)
+                return BadRequest(new { error = cached.Error });
+
+            return Ok(cached.Value);
+        }
+
         var query = new ListCostCodesQuery(costType, isActive, search, page, pageSize);
         var result = await costCodeService.ListCostCodesAsync(query);
 
@@ -85,6 +107,7 @@ public class CostCodesController(ICostCodeService costCodeService, PitbullDbCont
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
+        cacheService.Remove(CacheKeys.CostCodes);
         return CreatedAtAction(nameof(GetById),
             new { id = result.Value!.Id }, result.Value);
     }
@@ -119,6 +142,7 @@ public class CostCodesController(ICostCodeService costCodeService, PitbullDbCont
             };
         }
 
+        cacheService.Remove(CacheKeys.CostCodes);
         return Ok(result.Value);
     }
 
@@ -138,6 +162,7 @@ public class CostCodesController(ICostCodeService costCodeService, PitbullDbCont
                 ? NotFound(new { error = result.Error })
                 : BadRequest(new { error = result.Error });
 
+        cacheService.Remove(CacheKeys.CostCodes);
         return NoContent();
     }
     /// <summary>
@@ -160,6 +185,7 @@ public class CostCodesController(ICostCodeService costCodeService, PitbullDbCont
         db.Set<CostCode>().AddRange(codes);
         await db.SaveChangesAsync();
 
+        cacheService.Remove(CacheKeys.CostCodes);
         return StatusCode(StatusCodes.Status201Created, new { seeded = codes.Count });
     }
 }
