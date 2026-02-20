@@ -73,6 +73,11 @@ public class PitbullDbContext(
     // Deadline tracking
     public DbSet<DeadlineNotification> DeadlineNotifications => Set<DeadlineNotification>();
 
+    // Bank Reconciliation
+    public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
+    public DbSet<BankTransaction> BankTransactions => Set<BankTransaction>();
+    public DbSet<BankReconciliation> BankReconciliations => Set<BankReconciliation>();
+
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
 

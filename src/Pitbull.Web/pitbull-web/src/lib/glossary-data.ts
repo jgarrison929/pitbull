@@ -32,7 +32,8 @@ export const glossaryTerms: GlossaryTerm[] = [
   { id: "percent-complete", term: "Percent Complete Method", definition: "Revenue recognition method that recognizes revenue proportional to the percentage of total estimated costs incurred. Required under ASC 606 for most construction contracts.", category: "financial", aliases: ["POC", "Percentage of Completion"], relatedTerms: ["wip", "estimated-cost-at-completion"] },
   { id: "estimated-cost-at-completion", term: "Estimated Cost at Completion (EAC)", definition: "The total projected cost to complete a project, including costs already incurred plus estimated remaining costs. Drives the percent-complete calculation for WIP reporting.", category: "financial", aliases: ["EAC", "Cost to Complete"], relatedTerms: ["percent-complete", "wip"] },
   { id: "job-cost", term: "Job Costing", definition: "Tracking all costs (labor, materials, equipment, subcontractor) against specific projects and cost codes. The foundation of construction financial management.", category: "financial", aliases: ["Project Costing"], relatedTerms: ["cost-code", "budget-variance"] },
-  { id: "journal-entry", term: "Journal Entry", definition: "A record of a financial transaction in the general ledger. In construction, commonly used for allocations, accruals, WIP adjustments, and corrections.", category: "financial", relatedTerms: ["chart-of-accounts"] },
+  { id: "journal-entry", term: "Journal Entry", definition: "A record of a financial transaction in the general ledger. In construction, commonly used for allocations, accruals, WIP adjustments, and corrections.", category: "financial", relatedTerms: ["chart-of-accounts", "bank-reconciliation"] },
+  { id: "bank-reconciliation", term: "Bank Reconciliation", definition: "The process of matching transactions on a bank statement to journal entries in the general ledger. Ensures the GL cash balance agrees with the bank balance. Controllers perform this monthly to verify the books are accurate.", category: "financial", aliases: ["Bank Rec", "Statement Reconciliation"], relatedTerms: ["journal-entry", "chart-of-accounts"] },
   { id: "chart-of-accounts", term: "Chart of Accounts", definition: "The organized list of all general ledger accounts used by the company. In construction, typically structured around revenue, direct costs (by trade), overhead, and balance sheet accounts.", category: "financial", relatedTerms: ["journal-entry", "job-cost"] },
   { id: "budget-variance", term: "Budget Variance", definition: "The difference between the budgeted cost and actual cost for a cost code or project. Negative variance means over budget.", category: "financial", relatedTerms: ["job-cost", "cost-code"] },
   { id: "aia-billing", term: "AIA Billing", definition: "A standardized billing format developed by the American Institute of Architects. Uses forms G702 and G703. The industry standard for progress billing on commercial projects.", category: "billing", aliases: ["AIA Pay Application"], relatedTerms: ["g702", "g703", "sov"] },
@@ -98,6 +99,7 @@ export const PAGE_GLOSSARY_MAP: Record<string, string[]> = {
   "/procurement/purchase-orders": ["purchase-order", "committed-cost"],
   "/procurement/invoices": ["purchase-order", "committed-cost"],
   "/vendors": ["subcontract", "lien-waiver", "insurance-certificate"],
+  "/accounting/bank-reconciliation": ["bank-reconciliation", "journal-entry", "chart-of-accounts"],
 };
 
 export function getTermsForRoute(pathname: string): GlossaryTerm[] {
