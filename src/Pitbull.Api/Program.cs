@@ -33,10 +33,14 @@ using Pitbull.Billing.Features;
 using Pitbull.Api.Data;
 using Pitbull.Core.Messaging;
 using PostHog;
+using QuestPDF.Infrastructure;
 using Savorboard.CAP.InMemoryMessageQueue;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// QuestPDF community license
+QuestPDF.Settings.License = LicenseType.Community;
 
 // Validate configuration early to catch issues before startup
 EnvironmentValidator.ValidateRequiredConfiguration(builder.Configuration);
@@ -128,6 +132,7 @@ builder.Services.AddScoped<Pitbull.TimeTracking.Services.IEmployeeService, Pitbu
 // Dashboard service (Core module - migrated from MediatR)
 builder.Services.AddScoped<Pitbull.Core.Features.Dashboard.IDashboardService, Pitbull.Core.Features.Dashboard.DashboardService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IDashboardAnalyticsService, Pitbull.Api.Services.DashboardAnalyticsService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IPdfReportService, Pitbull.Api.Services.PdfReportService>();
 
 // Equipment service (Core module - for time entry equipment tracking)
 builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pitbull.Core.Features.Equipment.EquipmentService>();
@@ -502,18 +507,8 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     await db.Database.MigrateAsync();
 
     // Optional: bootstrap the public demo tenant + seed data
-    // Wrapped in try-catch to prevent crash-looping on seed errors
     var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
-    try
-    {
-        await demoBootstrapper.EnsureSeededIfEnabledAsync();
-    }
-    catch (Exception ex)
-    {
-        var startupLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger("Startup");
-        startupLogger.LogError(ex, "Demo bootstrapper failed — app will start without seed data");
-    }
+    await demoBootstrapper.EnsureSeededIfEnabledAsync();
 
     // Ensure Josh has Admin role on his existing tenant (idempotent startup seed)
     await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");

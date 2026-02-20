@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -247,6 +249,36 @@ export default function CustomersPage() {
     }
   }
 
+  async function exportAgedArPdf() {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const activeCompanyId = localStorage.getItem("pitbull_active_company_id");
+      if (activeCompanyId) headers["X-Company-Id"] = activeCompanyId;
+
+      const response = await fetch(`${API_BASE_URL}/api/reports/pdf/aged-ar`, { headers });
+      if (!response.ok) throw new Error(`Failed with status ${response.status}`);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `aged-ar-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Aged AR PDF exported");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to export Aged AR PDF");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -254,9 +286,12 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
           <p className="text-muted-foreground">Manage AR customer master records</p>
         </div>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreateDialog}>
-          + Add Customer
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportAgedArPdf}>Export PDF</Button>
+          <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreateDialog}>
+            + Add Customer
+          </Button>
+        </div>
       </div>
 
       <Card>

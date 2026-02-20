@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -69,6 +71,37 @@ export default function PayrollRunDetailPage() {
     }
   }
 
+  async function exportWh347Pdf() {
+    if (!runId) return;
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const activeCompanyId = localStorage.getItem("pitbull_active_company_id");
+      if (activeCompanyId) headers["X-Company-Id"] = activeCompanyId;
+
+      const response = await fetch(`${API_BASE_URL}/api/reports/pdf/wh347/${runId}`, { headers });
+      if (!response.ok) throw new Error(`Failed with status ${response.status}`);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `wh347-${runId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("WH-347 PDF exported");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to export WH-347 PDF");
+    }
+  }
+
   return (
     <div className="space-y-6">
       {isLoading ? (
@@ -100,9 +133,12 @@ export default function PayrollRunDetailPage() {
                 <p className="text-xl font-semibold">${run.totalNet.toFixed(2)}</p>
               </div>
               <div className="sm:col-span-3">
-                <Button onClick={approveRun} disabled={isApproving} className="bg-amber-500 hover:bg-amber-600 text-white">
-                  {isApproving ? "Approving..." : "Approve Run"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={exportWh347Pdf}>Export PDF</Button>
+                  <Button onClick={approveRun} disabled={isApproving} className="bg-amber-500 hover:bg-amber-600 text-white">
+                    {isApproving ? "Approving..." : "Approve Run"}
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

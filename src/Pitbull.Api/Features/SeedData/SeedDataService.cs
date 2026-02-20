@@ -41,11 +41,15 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         var bids = CreateBids();
         var costCodes = CreateCostCodes();
         var employees = CreateEmployees();
+        var customers = CreateCustomers();
+        var vendors = CreateVendors();
 
         db.Set<CostCode>().AddRange(costCodes);
         db.Set<Project>().AddRange(projects);
         db.Set<Bid>().AddRange(bids);
         db.Set<Employee>().AddRange(employees);
+        db.Set<Customer>().AddRange(customers);
+        db.Set<Vendor>().AddRange(vendors);
 
         // Save first to get IDs for relationships
         await db.SaveChangesAsync(cancellationToken);
@@ -69,6 +73,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Create payment applications for executed subcontracts
         var paymentApplications = CreatePaymentApplications(subcontracts);
         db.Set<PaymentApplication>().AddRange(paymentApplications);
+
+        var vendorInvoices = CreateVendorInvoices(vendors, subcontracts);
+        db.Set<VendorInvoice>().AddRange(vendorInvoices);
         await db.SaveChangesAsync(cancellationToken);
 
         var totalPhases = projects.Sum(p => p.Phases.Count);
@@ -89,9 +96,11 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             PaymentApplicationsCreated: paymentApplications.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
                      $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes, " +
-                     $"{employees.Count} employees, {assignments.Count} project assignments, " +
+                     $"{employees.Count} employees, {customers.Count} customers, {vendors.Count} vendors, " +
+                     $"{assignments.Count} project assignments, " +
                      $"{timeEntries.Count} time entries, {subcontracts.Count} subcontracts, " +
-                     $"{totalChangeOrders} change orders, {paymentApplications.Count} payment applications"
+                     $"{totalChangeOrders} change orders, {paymentApplications.Count} payment applications, " +
+                     $"{vendorInvoices.Count} vendor invoices"
         ));
     }
 
@@ -1091,6 +1100,76 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 TerminationDate = new DateOnly(2025, 11, 15),
                 IsActive = false,
                 Notes = "Resigned to start own business. Good rehire."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-016",
+                FirstName = "Priya",
+                FirstName = "Demo",
+                Email = "ppatel@demo.example",
+                Phone = "(555) 000-1016",
+                Title = "Project Coordinator",
+                Classification = EmployeeClassification.Salaried,
+                BaseHourlyRate = 41.00m,
+                HireDate = new DateOnly(2022, 8, 1),
+                IsActive = true,
+                Notes = "Coordinates RFIs, logs, and closeout documentation."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-017",
+                FirstName = "Ethan",
+                FirstName = "Demo",
+                Email = "ewalker@demo.example",
+                Phone = "(555) 000-1017",
+                Title = "Safety Manager",
+                Classification = EmployeeClassification.Supervisor,
+                BaseHourlyRate = 49.00m,
+                HireDate = new DateOnly(2020, 9, 14),
+                IsActive = true,
+                Notes = "Site safety audits and OSHA compliance."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-018",
+                FirstName = "Nina",
+                FirstName = "Demo",
+                Email = "nlopez@demo.example",
+                Phone = "(555) 000-1018",
+                Title = "Journeyman Electrician",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 44.50m,
+                HireDate = new DateOnly(2021, 11, 2),
+                IsActive = true,
+                Notes = "Commercial/industrial electrical specialist."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-019",
+                FirstName = "Omar",
+                FirstName = "Demo",
+                Email = "okhan@demo.example",
+                Phone = "(555) 000-1019",
+                Title = "Plumber",
+                Classification = EmployeeClassification.Hourly,
+                BaseHourlyRate = 40.00m,
+                HireDate = new DateOnly(2023, 3, 20),
+                IsActive = true,
+                Notes = "Rough-in and fixture installation."
+            },
+            new Employee
+            {
+                EmployeeNumber = "DEMO-020",
+                FirstName = "Grace",
+                FirstName = "Demo",
+                Email = "glee@demo.example",
+                Phone = "(555) 000-1020",
+                Title = "Field Engineer",
+                Classification = EmployeeClassification.Salaried,
+                BaseHourlyRate = 46.00m,
+                HireDate = new DateOnly(2024, 2, 5),
+                IsActive = true,
+                Notes = "Field layout, QA/QC, and coordination support."
             }
         ];
     }
@@ -1225,7 +1304,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     }
 
     /// <summary>
-    /// Creates 30 days of realistic time entries across employees and projects.
+    /// Creates 3 months of realistic time entries across employees and projects.
     /// </summary>
     private static List<TimeEntry> CreateTimeEntries(
         List<Employee> employees,
@@ -1247,8 +1326,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Get supervisor for approvals
         var genSuper = employees.First(e => e.EmployeeNumber == "DEMO-004");
 
-        // Create entries for the last 30 days (skip weekends for most)
-        for (int dayOffset = -30; dayOffset <= 0; dayOffset++)
+        // Create entries for the last 90 days (skip weekends for most)
+        for (int dayOffset = -90; dayOffset <= 0; dayOffset++)
         {
             var date = today.AddDays(dayOffset);
             var dayOfWeek = date.DayOfWeek;
@@ -1430,6 +1509,68 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         };
 
         return descriptions[random.Next(descriptions.Length)];
+    }
+
+    private static List<Customer> CreateCustomers()
+    {
+        return
+        [
+            new() { Name = "Riverside Health Partners LLC", Code = "CUST-001", ContactName = "Demo Contact 20", ContactEmail = "contact20@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Development Group", Code = "CUST-002", ContactName = "Demo Contact 21", ContactEmail = "contact21@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Logistics Inc.", Code = "CUST-003", ContactName = "Demo Contact 22", ContactEmail = "contact22@example.com", PaymentTerms = "Net 45", IsActive = true },
+            new() { Name = "California Department of Transportation", Code = "CUST-004", ContactName = "Demo Contact 23", ContactEmail = "contact23@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Lincoln Unified School District", Code = "CUST-005", ContactName = "Demo Contact 24", ContactEmail = "smorales@example.edu", PaymentTerms = "Net 30", IsActive = true }
+        ];
+    }
+
+    private static List<Vendor> CreateVendors()
+    {
+        return
+        [
+            new() { Name = "Summit Mechanical Systems Inc.", Code = "VEND-001", ContactName = "Demo Contact", ContactEmail = "trivera@summitmech.example", TradeClassification = "Mechanical", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Summit Electric Company", Code = "VEND-002", ContactName = "Maria Lopez", ContactEmail = "mlopez@summitelec.example", TradeClassification = "Electrical", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Capitol Plumbing & Medical Gas", Code = "VEND-003", ContactName = "Demo Contact", ContactEmail = "drichardson@summitplumb.example", TradeClassification = "Plumbing", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Sierra Drywall & Acoustical", Code = "VEND-004", ContactName = "Demo Contact", ContactEmail = "kmorrison@summitdrywall.example", TradeClassification = "Drywall", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Advanced Fire Protection Inc.", Code = "VEND-005", ContactName = "Demo Contact", ContactEmail = "rkim@advancedfire.com", TradeClassification = "Fire Protection", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Summit Sitework & Paving", Code = "VEND-006", ContactName = "Demo Contact", ContactEmail = "jwalsh@summitsite.example", TradeClassification = "Sitework", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Delta Steel Erectors", Code = "VEND-007", ContactName = "Demo Contact", ContactEmail = "mhuang@deltasteel.com", TradeClassification = "Structural Steel", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Golden State Bridge Works", Code = "VEND-008", ContactName = "Demo Contact", ContactEmail = "fdeluca@gsbridgeworks.com", TradeClassification = "Concrete", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "NorCal Ready Mix", Code = "VEND-009", ContactName = "Amanda Price", ContactEmail = "aprice@ncrmix.com", TradeClassification = "Concrete Supply", PaymentTerms = "Net 20", W9OnFile = true, IsActive = true },
+            new() { Name = "Capital Rentals & Equipment", Code = "VEND-010", ContactName = "Steven Clark", ContactEmail = "sclark@capitalrentals.example", TradeClassification = "Equipment Rental", PaymentTerms = "Net 15", W9OnFile = true, IsActive = true }
+        ];
+    }
+
+    private static List<VendorInvoice> CreateVendorInvoices(List<Vendor> vendors, List<Subcontract> subcontracts)
+    {
+        var invoices = new List<VendorInvoice>();
+        var now = DateOnly.FromDateTime(DateTime.UtcNow);
+        var random = new Random(77);
+        var invoiceNumber = 1000;
+
+        foreach (var subcontract in subcontracts.Where(x => x.Status is SubcontractStatus.InProgress or SubcontractStatus.Complete or SubcontractStatus.ClosedOut))
+        {
+            var vendor = vendors.FirstOrDefault(v => subcontract.SubcontractorName.Contains(v.Name.Split(' ')[0], StringComparison.OrdinalIgnoreCase))
+                         ?? vendors[random.Next(vendors.Count)];
+
+            var baseAmount = subcontract.CurrentValue / 10m;
+            for (var i = 0; i < 2; i++)
+            {
+                var invoiceDate = now.AddDays(-(45 - (i * 15)));
+                var dueDate = invoiceDate.AddDays(30);
+                var amount = Math.Round(baseAmount * (0.7m + (decimal)random.NextDouble() * 0.6m), 2);
+                invoices.Add(new VendorInvoice
+                {
+                    VendorId = vendor.Id,
+                    InvoiceNumber = $"INV-{invoiceNumber++}",
+                    InvoiceDate = invoiceDate,
+                    DueDate = dueDate,
+                    TotalAmount = amount,
+                    Status = dueDate < now ? VendorInvoiceStatus.Approved : VendorInvoiceStatus.Pending
+                });
+            }
+        }
+
+        return invoices;
     }
 
     /// <summary>

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,11 +81,44 @@ function formatCurrency(value: number): string {
 }
 
 export default function RetentionPage() {
+  async function exportPdf() {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const activeCompanyId = localStorage.getItem("pitbull_active_company_id");
+      if (activeCompanyId) headers["X-Company-Id"] = activeCompanyId;
+
+      const response = await fetch(`${API_BASE_URL}/api/reports/pdf/retention-summary`, { headers });
+      if (!response.ok) throw new Error(`Failed with status ${response.status}`);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `retention-summary-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Retention summary PDF exported");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to export retention summary PDF");
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Retention Management</h1>
-        <p className="text-muted-foreground">Manage retention policies and track retention holds across projects.</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Retention Management</h1>
+          <p className="text-muted-foreground">Manage retention policies and track retention holds across projects.</p>
+        </div>
+        <Button variant="outline" onClick={exportPdf}>Export PDF</Button>
       </div>
 
       <Tabs defaultValue="holds" className="space-y-4">
