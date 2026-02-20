@@ -14,7 +14,9 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("WIP Reports")]
-public class WipReportsController(IWipReportService wipReportService) : ControllerBase
+public class WipReportsController(
+    IWipReportService wipReportService,
+    IWipGlPostingService wipGlPostingService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ListWipReportsResult), StatusCodes.Status200OK)]
@@ -154,6 +156,29 @@ public class WipReportsController(IWipReportService wipReportService) : Controll
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
+    }
+
+    [HttpPost("{id:guid}/post-to-gl")]
+    [ProducesResponseType(typeof(WipGlPostResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> PostToGl(Guid id)
+    {
+        var result = await wipGlPostingService.PostToGlAsync(id, GetCurrentUserId());
+
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error, code = result.ErrorCode }),
+                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return Ok(result.Value);
     }
 
     private string GetCurrentUserId()

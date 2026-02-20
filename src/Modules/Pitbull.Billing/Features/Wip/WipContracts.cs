@@ -13,7 +13,10 @@ public record WipReportDto(
     string GeneratedById,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
-    IReadOnlyList<WipReportLineDto> Lines
+    IReadOnlyList<WipReportLineDto> Lines,
+    Guid? GlJournalEntryId = null,
+    DateTime? PostedToGlAt = null,
+    string? PostedToGlBy = null
 );
 
 public record WipReportListItemDto(
@@ -108,6 +111,15 @@ public record ListWipReportsResult(
     int Page,
     int PageSize,
     int TotalPages
+);
+
+public record WipGlPostResult(
+    Guid WipReportId,
+    Guid JournalEntryId,
+    string JournalEntryNumber,
+    decimal TotalDebits,
+    decimal TotalCredits,
+    int LineCount
 );
 
 public static class WipMapper

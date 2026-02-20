@@ -4,10 +4,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { TableSkeleton } from "@/components/skeletons";
+import { BookOpen, CheckCircle } from "lucide-react";
 
 interface WipReportLine {
   id: string;
@@ -36,6 +40,18 @@ interface WipReport {
   statusName: string;
   generatedById: string;
   lines: WipReportLine[];
+  glJournalEntryId: string | null;
+  postedToGlAt: string | null;
+  postedToGlBy: string | null;
+}
+
+interface WipGlPostResult {
+  wipReportId: string;
+  journalEntryId: string;
+  journalEntryNumber: string;
+  totalDebits: number;
+  totalCredits: number;
+  lineCount: number;
 }
 
 function formatCurrency(value: number): string {
@@ -52,6 +68,8 @@ export default function WipReportDetailPage() {
 
   const [report, setReport] = useState<WipReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -106,6 +124,29 @@ export default function WipReportDetailPage() {
     );
   }, [report]);
 
+  async function handlePostToGl() {
+    if (!reportId) return;
+
+    setIsPosting(true);
+    try {
+      const result = await api<WipGlPostResult>(`/api/wip-reports/${reportId}/post-to-gl`, {
+        method: "POST",
+      });
+      toast.success(`Posted to GL: ${result.journalEntryNumber} (${result.lineCount} lines)`);
+      setConfirmOpen(false);
+      // Reload report to reflect posted status
+      const updated = await api<WipReport>(`/api/wip-reports/${reportId}`);
+      setReport(updated);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to post to GL");
+    } finally {
+      setIsPosting(false);
+    }
+  }
+
+  const canPostToGl = report?.status === "Final" && !report?.glJournalEntryId;
+  const isPostedToGl = !!report?.glJournalEntryId;
+
   if (isLoading) {
     return <TableSkeleton headers={["Project", "Contract", "Cost", "%", "Earned", "Billed", "Over/Under"]} rows={8} />;
   }
@@ -125,11 +166,45 @@ export default function WipReportDetailPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">WIP Detail</h1>
           <p className="text-muted-foreground">
-            {report.fiscalYear} Period {report.periodNumber} • {report.reportDate}
+            {report.fiscalYear} Period {report.periodNumber} &bull; {report.reportDate}
           </p>
         </div>
-        <Badge variant={report.status === "Final" ? "default" : "secondary"}>{report.statusName}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={report.status === "Final" ? "default" : "secondary"}>{report.statusName}</Badge>
+          {isPostedToGl ? (
+            <Badge variant="outline" className="text-green-600 border-green-300">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Posted to GL
+            </Badge>
+          ) : canPostToGl ? (
+            <Button
+              size="sm"
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => setConfirmOpen(true)}
+            >
+              <BookOpen className="h-4 w-4 mr-1" />
+              Post to GL
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      {isPostedToGl && report.postedToGlAt && (
+        <Card className="border-green-200 bg-green-50/50">
+          <CardContent className="py-3 px-4 flex items-center gap-2 text-sm text-green-800">
+            <CheckCircle className="h-4 w-4" />
+            <span>
+              Posted to GL on {new Date(report.postedToGlAt).toLocaleDateString()} &mdash;{" "}
+              <a
+                href={`/accounting/journal-entries`}
+                className="underline hover:no-underline"
+              >
+                View Journal Entry
+              </a>
+            </span>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
@@ -199,6 +274,40 @@ export default function WipReportDetailPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Post WIP to General Ledger</DialogTitle>
+            <DialogDescription>
+              This will create journal entries for over/under billing adjustments.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <p>
+              This action creates a journal entry with debit/credit lines for each project
+              with over or under billing:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-muted-foreground">
+              <li><strong>Underbilled</strong> (earned &gt; billed): Debit Costs in Excess, Credit Revenue</li>
+              <li><strong>Overbilled</strong> (billed &gt; earned): Debit Revenue, Credit Billings in Excess</li>
+            </ul>
+            <p className="text-amber-600 font-medium">
+              This action cannot be undone from the WIP screen. The journal entry can be reversed
+              from the Journal Entries page.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <LoadingButton loading={isPosting} onClick={handlePostToGl}>
+              <BookOpen className="h-4 w-4 mr-1" />
+              Post to GL
+            </LoadingButton>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
