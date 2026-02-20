@@ -70,6 +70,9 @@ public class PitbullDbContext(
     public DbSet<BillingPeriod> BillingPeriods => Set<BillingPeriod>();
     public DbSet<BillingPackageDocument> BillingPackageDocuments => Set<BillingPackageDocument>();
 
+    // Deadline tracking
+    public DbSet<DeadlineNotification> DeadlineNotifications => Set<DeadlineNotification>();
+
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
 

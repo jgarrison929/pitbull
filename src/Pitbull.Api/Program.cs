@@ -175,6 +175,12 @@ builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService>(
         sp.GetRequiredService<ILogger<Pitbull.Api.Services.EmailNotificationDecorator>>()));
 builder.Services.AddScoped<Pitbull.Api.Services.INotificationPreferenceService, Pitbull.Api.Services.NotificationPreferenceService>();
 
+// Deadline notification background service — checks RFI/Submittal deadlines hourly
+builder.Services.Configure<Pitbull.Api.Services.DeadlineCheckOptions>(
+    builder.Configuration.GetSection(Pitbull.Api.Services.DeadlineCheckOptions.SectionName));
+builder.Services.AddScoped<Pitbull.Api.Services.IDeadlineNotificationTracker, Pitbull.Api.Services.DeadlineNotificationTracker>();
+builder.Services.AddHostedService<Pitbull.Api.Services.DeadlineCheckService>();
+
 // Audit interceptor for automatic change tracking via EF SaveChanges
 builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<Microsoft.EntityFrameworkCore.Diagnostics.ISaveChangesInterceptor>(

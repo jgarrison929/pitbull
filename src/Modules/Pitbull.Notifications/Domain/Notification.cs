@@ -26,6 +26,9 @@ public enum NotificationType
     PendingApproval,
     ChangeOrder,
     OverdueRfi,
+    UpcomingRfi,
+    OverdueSubmittal,
+    UpcomingSubmittal,
     RfiCreated,
     RfiAnswered,
     SystemUpdate
