@@ -147,6 +147,7 @@ export const adminItems: NavItem[] = [
   { label: "Roles & Permissions", href: "/admin/roles", icon: "🛡️", requiredPermission: "Admin.Roles" },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜", requiredPermission: "SystemAdmin.AuditLogs" },
   { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖", requiredPermission: "AI.Settings" },
+  { label: "AI Usage", href: "/admin/ai-usage", icon: "📊", requiredPermission: "AI.Settings" },
   { label: "API Keys", href: "/admin/api-keys", icon: "🔑", requiredPermission: "SystemAdmin.APIKeys" },
   { label: "System Health", href: "/admin/system-health", icon: "💚", requiredPermission: "SystemAdmin.Health" },
   { label: "Health Dashboard", href: "/admin/health", icon: "📡", requiredPermission: "SystemAdmin.Health" },

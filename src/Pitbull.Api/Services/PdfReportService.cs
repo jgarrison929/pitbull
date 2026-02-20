@@ -236,9 +236,10 @@ public sealed class PdfReportService(
             .Where(x => x.PayrollRunId == payrollRunId)
             .ToListAsync(cancellationToken);
 
+        var employeeIds = lines.Select(l => l.EmployeeId).Distinct().ToList();
         var employeeMap = await db.Set<Employee>()
             .AsNoTracking()
-            .Where(x => lines.Select(l => l.EmployeeId).Contains(x.Id))
+            .Where(x => employeeIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         var certifiedReport = await db.Set<CertifiedPayrollReport>()
@@ -248,6 +249,8 @@ public sealed class PdfReportService(
             .FirstOrDefaultAsync(cancellationToken);
 
         var projectName = "N/A";
+        var projectLocation = "";
+        var contractNumber = "";
         DateOnly? weekEnding = null;
         if (certifiedReport is not null)
         {
@@ -255,6 +258,8 @@ public sealed class PdfReportService(
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == certifiedReport.ProjectId, cancellationToken);
             projectName = project?.Name ?? "N/A";
+            projectLocation = project?.Address ?? "";
+            contractNumber = project?.Number ?? "";
             weekEnding = certifiedReport.WeekEnding;
         }
 
@@ -262,113 +267,321 @@ public sealed class PdfReportService(
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == run.PayPeriodId, cancellationToken);
 
-        var rows = lines.Select(line =>
+        // Query time entries for daily hour breakdown
+        var timeEntries = new List<TimeEntry>();
+        if (payPeriod is not null)
+        {
+            timeEntries = await db.Set<TimeEntry>()
+                .AsNoTracking()
+                .Where(x => employeeIds.Contains(x.EmployeeId))
+                .Where(x => x.Date >= payPeriod.StartDate && x.Date <= payPeriod.EndDate)
+                .ToListAsync(cancellationToken);
+        }
+
+        // Build daily hours lookup: EmployeeId -> DayOfWeek -> total hours
+        var dailyHoursLookup = timeEntries
+            .GroupBy(x => x.EmployeeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.GroupBy(te => te.Date.DayOfWeek)
+                      .ToDictionary(dg => dg.Key, dg => dg.Sum(te => te.RegularHours + te.OvertimeHours + te.DoubletimeHours)));
+
+        // Get company info
+        var companyName = GetCompanyName();
+        var company = await db.Set<Company>()
+            .AsNoTracking()
+            .Where(x => x.Id == companyContext.CompanyId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var companyAddress = company is not null
+            ? string.Join(", ", new[] { company.Address, company.City, company.State, company.ZipCode }.Where(s => !string.IsNullOrWhiteSpace(s)))
+            : "";
+
+        var wh347Rows = lines.Select(line =>
         {
             employeeMap.TryGetValue(line.EmployeeId, out var employee);
             var hourlyRate = line.RegularHours > 0 ? line.RegularPay / line.RegularHours : employee?.BaseHourlyRate ?? 0m;
-            var deductions = Math.Round(line.GrossPay * 0.22m, 2, MidpointRounding.AwayFromZero);
-            var netPay = line.GrossPay - deductions;
+            var fica = Math.Round(line.GrossPay * 0.0765m, 2, MidpointRounding.AwayFromZero);
+            var withholding = Math.Round(line.GrossPay * 0.12m, 2, MidpointRounding.AwayFromZero);
+            var otherDeductions = 0m;
+            var totalDeductions = fica + withholding + otherDeductions;
+            var netPay = line.GrossPay - totalDeductions;
 
-            return new Wh347Row(
+            dailyHoursLookup.TryGetValue(line.EmployeeId, out var dailyHours);
+            dailyHours ??= new Dictionary<DayOfWeek, decimal>();
+
+            return new Wh347DetailRow(
                 EmployeeName: employee?.FullName ?? line.EmployeeId.ToString(),
+                EmployeeNumber: employee?.EmployeeNumber ?? "",
                 Classification: employee?.Title ?? employee?.Classification.ToString() ?? "Worker",
                 StraightTimeHours: line.RegularHours,
                 OvertimeHours: line.OvertimeHours + line.DoubletimeHours,
                 Rate: hourlyRate,
                 GrossPay: line.GrossPay,
-                Deductions: deductions,
-                NetPay: netPay);
+                Fica: fica,
+                Withholding: withholding,
+                OtherDeductions: otherDeductions,
+                NetPay: netPay,
+                MonHours: dailyHours.GetValueOrDefault(DayOfWeek.Monday),
+                TueHours: dailyHours.GetValueOrDefault(DayOfWeek.Tuesday),
+                WedHours: dailyHours.GetValueOrDefault(DayOfWeek.Wednesday),
+                ThuHours: dailyHours.GetValueOrDefault(DayOfWeek.Thursday),
+                FriHours: dailyHours.GetValueOrDefault(DayOfWeek.Friday),
+                SatHours: dailyHours.GetValueOrDefault(DayOfWeek.Saturday),
+                SunHours: dailyHours.GetValueOrDefault(DayOfWeek.Sunday));
         }).OrderBy(x => x.EmployeeName).ToList();
 
-        var companyName = GetCompanyName();
-        var now = DateTime.UtcNow;
+        var weekEndingStr = weekEnding?.ToString("MM/dd/yyyy") ?? "N/A";
+        var periodStart = payPeriod?.StartDate;
+        var periodEnd = payPeriod?.EndDate;
 
         return Document.Create(document =>
         {
             document.Page(page =>
             {
-                page.Margin(20);
-                page.DefaultTextStyle(x => x.FontSize(9));
+                page.Size(PageSizes.Letter.Landscape());
+                page.Margin(18);
+                page.DefaultTextStyle(x => x.FontSize(7));
 
-                page.Header().Element(container =>
+                // HEADER
+                page.Header().Column(column =>
                 {
-                    container.Column(column =>
+                    // Title row
+                    column.Item().Row(row =>
                     {
-                        column.Item().Element(x => BuildLetterhead(x, "Certified Payroll Report (WH-347)", now));
-                        column.Item().PaddingTop(6).Row(row =>
+                        row.RelativeItem().Column(c =>
                         {
-                            row.RelativeItem().Text($"Contractor: {companyName}");
-                            row.RelativeItem().Text($"Project: {projectName}");
-                            row.RelativeItem().AlignRight().Text($"Run Date: {run.RunDate:MM/dd/yyyy}");
+                            c.Item().Text("U.S. Department of Labor").FontSize(6);
+                            c.Item().Text("PAYROLL").Bold().FontSize(12);
+                            c.Item().Text("(WH-347)").FontSize(7);
                         });
-
-                        var periodText = payPeriod is null
-                            ? "Payroll Period: N/A"
-                            : $"Payroll Period: {payPeriod.StartDate:MM/dd/yyyy} - {payPeriod.EndDate:MM/dd/yyyy}";
-
-                        column.Item().Row(row =>
+                        row.RelativeItem(2).AlignCenter().Column(c =>
                         {
-                            row.RelativeItem().Text(periodText);
-                            row.RelativeItem().AlignRight().Text($"Week Ending: {(weekEnding.HasValue ? weekEnding.Value.ToString("MM/dd/yyyy") : "N/A")}");
+                            c.Item().Text("Wage and Hour Division").FontSize(6);
+                            c.Item().PaddingTop(2).Text($"Week Ending: {weekEndingStr}").SemiBold().FontSize(8);
+                        });
+                        row.RelativeItem().AlignRight().Column(c =>
+                        {
+                            c.Item().Text("OMB No.: 1235-0008").FontSize(6);
+                            c.Item().Text("Exp.: 02/28/2026").FontSize(6);
                         });
                     });
+
+                    column.Item().PaddingTop(4).LineHorizontal(0.5f).LineColor(Colors.Black);
+
+                    // Info block
+                    column.Item().PaddingTop(3).Row(row =>
+                    {
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text(text =>
+                            {
+                                text.Span("Contractor: ").SemiBold();
+                                text.Span(companyName);
+                            });
+                            if (!string.IsNullOrWhiteSpace(companyAddress))
+                                c.Item().Text(text =>
+                                {
+                                    text.Span("Address: ").SemiBold();
+                                    text.Span(companyAddress);
+                                });
+                        });
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text(text =>
+                            {
+                                text.Span("Project: ").SemiBold();
+                                text.Span(projectName);
+                            });
+                            if (!string.IsNullOrWhiteSpace(projectLocation))
+                                c.Item().Text(text =>
+                                {
+                                    text.Span("Location: ").SemiBold();
+                                    text.Span(projectLocation);
+                                });
+                        });
+                        row.RelativeItem().Column(c =>
+                        {
+                            c.Item().Text(text =>
+                            {
+                                text.Span("Contract #: ").SemiBold();
+                                text.Span(contractNumber);
+                            });
+                            c.Item().Text(text =>
+                            {
+                                text.Span("Payroll #: ").SemiBold();
+                                text.Span(run.Id.ToString()[..8]);
+                            });
+                        });
+                    });
+
+                    column.Item().PaddingTop(3).LineHorizontal(0.5f).LineColor(Colors.Grey.Lighten1);
                 });
 
-                page.Content().PaddingTop(10).Column(column =>
+                // MAIN TABLE
+                page.Content().PaddingTop(4).Column(contentCol =>
                 {
-                    column.Item().Table(table =>
+                    contentCol.Item().Table(table =>
                     {
                         table.ColumnsDefinition(columns =>
                         {
-                            columns.RelativeColumn(2);
-                            columns.RelativeColumn(2);
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
-                            columns.RelativeColumn();
+                            columns.ConstantColumn(110); // (1) Name
+                            columns.ConstantColumn(32);  // (2) No. W/H Exemptions
+                            columns.ConstantColumn(70);  // (3) Work Classification
+                            columns.ConstantColumn(22);  // (4) OT/ST
+                            columns.ConstantColumn(28);  // Mon
+                            columns.ConstantColumn(28);  // Tue
+                            columns.ConstantColumn(28);  // Wed
+                            columns.ConstantColumn(28);  // Thu
+                            columns.ConstantColumn(28);  // Fri
+                            columns.ConstantColumn(28);  // Sat
+                            columns.ConstantColumn(28);  // Sun
+                            columns.ConstantColumn(36);  // Total Hours
+                            columns.ConstantColumn(44);  // Rate of Pay
+                            columns.ConstantColumn(52);  // Gross Amount
+                            columns.ConstantColumn(38);  // FICA
+                            columns.ConstantColumn(38);  // W/H
+                            columns.ConstantColumn(32);  // Other
+                            columns.ConstantColumn(52);  // Net Wages
                         });
 
+                        // Header row
                         table.Header(header =>
                         {
-                            header.Cell().Element(HeaderCell).Text("Employee");
-                            header.Cell().Element(HeaderCell).Text("Class");
-                            header.Cell().Element(HeaderCell).AlignRight().Text("ST Hrs");
-                            header.Cell().Element(HeaderCell).AlignRight().Text("OT Hrs");
-                            header.Cell().Element(HeaderCell).AlignRight().Text("Rate");
-                            header.Cell().Element(HeaderCell).AlignRight().Text("Gross");
-                            header.Cell().Element(HeaderCell).AlignRight().Text("Deduct.");
-                            header.Cell().Element(HeaderCell).AlignRight().Text("Net");
+                            header.Cell().Element(Wh347HeaderCell).Text("(1) Name, Address\n& Last 4 SSN");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("(2)\nExempt.");
+                            header.Cell().Element(Wh347HeaderCell).Text("(3) Work\nClassification");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("OT\nor ST");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Mon");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Tue");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Wed");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Thu");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Fri");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Sat");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Sun");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Total\nHours");
+                            header.Cell().Element(Wh347HeaderCell).AlignRight().Text("Rate\nof Pay");
+                            header.Cell().Element(Wh347HeaderCell).AlignRight().Text("Gross\nEarned");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("FICA");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("W/H");
+                            header.Cell().Element(Wh347HeaderCell).AlignCenter().Text("Other");
+                            header.Cell().Element(Wh347HeaderCell).AlignRight().Text("Net\nWages");
                         });
 
-                        foreach (var row in rows)
+                        // Employee rows — two sub-rows per employee: ST and OT
+                        foreach (var row in wh347Rows)
                         {
-                            table.Cell().Element(BodyCell).Text(row.EmployeeName);
-                            table.Cell().Element(BodyCell).Text(row.Classification);
-                            table.Cell().Element(BodyCell).AlignRight().Text(row.StraightTimeHours.ToString("N2"));
-                            table.Cell().Element(BodyCell).AlignRight().Text(row.OvertimeHours.ToString("N2"));
-                            table.Cell().Element(BodyCell).AlignRight().Text(Money(row.Rate));
-                            table.Cell().Element(BodyCell).AlignRight().Text(Money(row.GrossPay));
-                            table.Cell().Element(BodyCell).AlignRight().Text(Money(row.Deductions));
-                            table.Cell().Element(BodyCell).AlignRight().Text(Money(row.NetPay));
+                            var totalSt = row.StraightTimeHours;
+                            var totalOt = row.OvertimeHours;
+
+                            // ST row
+                            table.Cell().RowSpan(2).Element(BodyCell).Text($"{row.EmployeeName}\n#{row.EmployeeNumber}").FontSize(6);
+                            table.Cell().RowSpan(2).Element(BodyCell).AlignCenter().Text("");
+                            table.Cell().RowSpan(2).Element(BodyCell).Text(row.Classification).FontSize(6);
+                            table.Cell().Element(BodyCell).AlignCenter().Text("ST");
+                            // Daily hours for ST — show the day values on ST row
+                            table.Cell().Element(BodyCell).AlignCenter().Text(Hrs(row.MonHours));
+                            table.Cell().Element(BodyCell).AlignCenter().Text(Hrs(row.TueHours));
+                            table.Cell().Element(BodyCell).AlignCenter().Text(Hrs(row.WedHours));
+                            table.Cell().Element(BodyCell).AlignCenter().Text(Hrs(row.ThuHours));
+                            table.Cell().Element(BodyCell).AlignCenter().Text(Hrs(row.FriHours));
+                            table.Cell().Element(BodyCell).AlignCenter().Text(Hrs(row.SatHours));
+                            table.Cell().Element(BodyCell).AlignCenter().Text(Hrs(row.SunHours));
+                            table.Cell().Element(BodyCell).AlignCenter().Text(totalSt.ToString("N1"));
+                            table.Cell().RowSpan(2).Element(BodyCell).AlignRight().Text(Money(row.Rate));
+                            table.Cell().RowSpan(2).Element(BodyCell).AlignRight().Text(Money(row.GrossPay));
+                            table.Cell().RowSpan(2).Element(BodyCell).AlignRight().Text(Money(row.Fica)).FontSize(6);
+                            table.Cell().RowSpan(2).Element(BodyCell).AlignRight().Text(Money(row.Withholding)).FontSize(6);
+                            table.Cell().RowSpan(2).Element(BodyCell).AlignRight().Text(row.OtherDeductions > 0 ? Money(row.OtherDeductions) : "");
+                            table.Cell().RowSpan(2).Element(BodyCell).AlignRight().Text(Money(row.NetPay));
+
+                            // OT row
+                            table.Cell().Element(BodyCell).AlignCenter().Text("OT");
+                            // OT daily blanks
+                            for (var i = 0; i < 7; i++)
+                                table.Cell().Element(BodyCell).AlignCenter().Text("");
+                            table.Cell().Element(BodyCell).AlignCenter().Text(totalOt > 0 ? totalOt.ToString("N1") : "");
                         }
 
-                        table.Cell().Element(TotalCell).Text("TOTAL");
-                        table.Cell().Element(TotalCell).Text(string.Empty);
-                        table.Cell().Element(TotalCell).AlignRight().Text(rows.Sum(x => x.StraightTimeHours).ToString("N2"));
-                        table.Cell().Element(TotalCell).AlignRight().Text(rows.Sum(x => x.OvertimeHours).ToString("N2"));
-                        table.Cell().Element(TotalCell).AlignRight().Text(string.Empty);
-                        table.Cell().Element(TotalCell).AlignRight().Text(Money(rows.Sum(x => x.GrossPay)));
-                        table.Cell().Element(TotalCell).AlignRight().Text(Money(rows.Sum(x => x.Deductions)));
-                        table.Cell().Element(TotalCell).AlignRight().Text(Money(rows.Sum(x => x.NetPay)));
+                        // Totals row
+                        table.Cell().Element(TotalCell).Text("TOTALS");
+                        table.Cell().Element(TotalCell).Text("");
+                        table.Cell().Element(TotalCell).Text("");
+                        table.Cell().Element(TotalCell).Text("");
+                        table.Cell().Element(TotalCell).AlignCenter().Text(Hrs(wh347Rows.Sum(r => r.MonHours)));
+                        table.Cell().Element(TotalCell).AlignCenter().Text(Hrs(wh347Rows.Sum(r => r.TueHours)));
+                        table.Cell().Element(TotalCell).AlignCenter().Text(Hrs(wh347Rows.Sum(r => r.WedHours)));
+                        table.Cell().Element(TotalCell).AlignCenter().Text(Hrs(wh347Rows.Sum(r => r.ThuHours)));
+                        table.Cell().Element(TotalCell).AlignCenter().Text(Hrs(wh347Rows.Sum(r => r.FriHours)));
+                        table.Cell().Element(TotalCell).AlignCenter().Text(Hrs(wh347Rows.Sum(r => r.SatHours)));
+                        table.Cell().Element(TotalCell).AlignCenter().Text(Hrs(wh347Rows.Sum(r => r.SunHours)));
+                        table.Cell().Element(TotalCell).AlignCenter().Text((wh347Rows.Sum(r => r.StraightTimeHours) + wh347Rows.Sum(r => r.OvertimeHours)).ToString("N1"));
+                        table.Cell().Element(TotalCell).Text("");
+                        table.Cell().Element(TotalCell).AlignRight().Text(Money(wh347Rows.Sum(r => r.GrossPay)));
+                        table.Cell().Element(TotalCell).AlignRight().Text(Money(wh347Rows.Sum(r => r.Fica)));
+                        table.Cell().Element(TotalCell).AlignRight().Text(Money(wh347Rows.Sum(r => r.Withholding)));
+                        table.Cell().Element(TotalCell).AlignRight().Text(Money(wh347Rows.Sum(r => r.OtherDeductions)));
+                        table.Cell().Element(TotalCell).AlignRight().Text(Money(wh347Rows.Sum(r => r.NetPay)));
                     });
 
-                    column.Item().PaddingTop(24).Row(row =>
+                    // Statement of Compliance
+                    contentCol.Item().PaddingTop(12).Column(complianceCol =>
                     {
-                        row.RelativeItem().BorderTop(1).PaddingTop(4).Text("Authorized Signature");
-                        row.ConstantItem(30);
-                        row.RelativeItem().BorderTop(1).PaddingTop(4).Text("Date");
+                        complianceCol.Item().Text("STATEMENT OF COMPLIANCE").Bold().FontSize(8);
+                        complianceCol.Item().PaddingTop(4).Text(text =>
+                        {
+                            text.Span("I, ");
+                            text.Span("_______________________________").Underline();
+                            text.Span(" (Name of signatory party), ");
+                            text.Span("_______________________________").Underline();
+                            text.Span(" (Title),");
+                        });
+                        complianceCol.Item().Text("do hereby state:");
+                        complianceCol.Item().PaddingTop(2).Text(
+                            "(1) That I pay or supervise the payment of the persons employed on the " +
+                            $"{projectName} during the payroll period commencing on the " +
+                            $"{(periodStart.HasValue ? periodStart.Value.Day.ToString() : "___")} day of " +
+                            $"{(periodStart.HasValue ? periodStart.Value.ToString("MMMM, yyyy") : "___________, ______")}" +
+                            $" and ending the {(periodEnd.HasValue ? periodEnd.Value.Day.ToString() : "___")} day of " +
+                            $"{(periodEnd.HasValue ? periodEnd.Value.ToString("MMMM, yyyy") : "___________, ______")}; " +
+                            "that all persons employed on said project have been paid the full weekly wages earned, " +
+                            "that no rebates have been or will be made either directly or indirectly to or on behalf of said " +
+                            $"{companyName} from the full weekly wages earned by any person and that no " +
+                            "deductions have been made either directly or indirectly from the full wages earned by any person, " +
+                            "other than permissible deductions as defined in Regulations, Part 3 (29 CFR Subtitle A), " +
+                            "of the Secretary of Labor under the Copeland Act, as amended (48 Stat. 948, 63 Stat. 108, " +
+                            "72 Stat. 967; 76 Stat. 357; 40 U.S.C. \u00a7 3145), and described below:").FontSize(6);
+
+                        complianceCol.Item().PaddingTop(4).Text("_______________________________________________").FontSize(7);
+                        complianceCol.Item().Text("_______________________________________________").FontSize(7);
+
+                        complianceCol.Item().PaddingTop(4).Text(
+                            "(2) That any payrolls otherwise under this contract required to be submitted for the above period " +
+                            "are correct and complete; that the wage rates for laborers or mechanics contained therein are not " +
+                            "less than the applicable wage rates contained in any wage determination incorporated into the " +
+                            "contract; that the classifications set forth therein for each laborer or mechanic conform with " +
+                            "the work he performed.").FontSize(6);
+
+                        complianceCol.Item().PaddingTop(10).Row(row =>
+                        {
+                            row.RelativeItem().Column(c =>
+                            {
+                                c.Item().BorderBottom(1).PaddingBottom(16).Text("");
+                                c.Item().PaddingTop(2).Text("Signature").FontSize(6);
+                            });
+                            row.ConstantItem(30);
+                            row.RelativeItem().Column(c =>
+                            {
+                                c.Item().BorderBottom(1).PaddingBottom(16).Text("");
+                                c.Item().PaddingTop(2).Text("Date").FontSize(6);
+                            });
+                            row.ConstantItem(30);
+                            row.RelativeItem(2).Column(c =>
+                            {
+                                c.Item().BorderBottom(1).PaddingBottom(16).Text("");
+                                c.Item().PaddingTop(2).Text("Name and Title").FontSize(6);
+                            });
+                        });
                     });
                 });
 
@@ -695,15 +908,37 @@ public sealed class PdfReportService(
         decimal RetentionReleased,
         decimal Balance);
 
-    private sealed record Wh347Row(
+    private static IContainer Wh347HeaderCell(IContainer container)
+        => container
+            .Border(0.5f)
+            .BorderColor(Colors.Black)
+            .Background(Colors.Grey.Lighten4)
+            .PaddingVertical(2)
+            .PaddingHorizontal(2)
+            .DefaultTextStyle(x => x.SemiBold().FontSize(6));
+
+    private static string Hrs(decimal value)
+        => value > 0 ? value.ToString("N1") : "";
+
+    private sealed record Wh347DetailRow(
         string EmployeeName,
+        string EmployeeNumber,
         string Classification,
         decimal StraightTimeHours,
         decimal OvertimeHours,
         decimal Rate,
         decimal GrossPay,
-        decimal Deductions,
-        decimal NetPay);
+        decimal Fica,
+        decimal Withholding,
+        decimal OtherDeductions,
+        decimal NetPay,
+        decimal MonHours,
+        decimal TueHours,
+        decimal WedHours,
+        decimal ThuHours,
+        decimal FriHours,
+        decimal SatHours,
+        decimal SunHours);
 
     private sealed record AgedArRow(
         string CustomerName,

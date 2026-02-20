@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pitbull.Api.Controllers;
+using Pitbull.Api.Services;
 using Pitbull.Billing.Features.CertifiedPayroll;
 using Pitbull.Billing.Features.PayrollRuns;
 using Pitbull.Billing.Services;
@@ -42,7 +43,8 @@ public class PayrollComplianceControllerTests : IDisposable
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
 
-        _certifiedPayrollController = new CertifiedPayrollController(certifiedPayrollService)
+        IPdfReportService pdfReportService = new PdfReportService(_db, tenantContext, companyContext, NullLogger<PdfReportService>.Instance);
+        _certifiedPayrollController = new CertifiedPayrollController(certifiedPayrollService, pdfReportService)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
