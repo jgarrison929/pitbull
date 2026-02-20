@@ -25,6 +25,7 @@ import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
+import { CostForecastCard } from "@/components/dashboard/cost-forecast-card";
 import {
   projectStatusBadgeClass,
   projectStatusLabel,
@@ -396,6 +397,9 @@ export default function ProjectDetailPage({
           </Link>
         ))}
       </div>
+
+      {/* Cost Forecast */}
+      <CostForecastCard projectId={id} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>

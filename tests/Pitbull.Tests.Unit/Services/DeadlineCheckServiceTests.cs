@@ -22,7 +22,7 @@ public class DeadlineCheckServiceTests
     private static readonly Guid TestUserId = Guid.NewGuid();
     private static readonly Guid TestProjectId = Guid.NewGuid();
 
-    private static (DeadlineCheckService service, Mock<INotificationService> notifMock, PitbullDbContext db) CreateTestSetup()
+    private static (DeadlineCheckService service, Mock<INotificationService> notifMock, Mock<INotificationPreferenceService> prefMock, PitbullDbContext db) CreateTestSetup(bool preferencesEnabled = true)
     {
         var dbName = Guid.NewGuid().ToString();
         var db = TestDbContextFactory.Create(dbName: dbName);
@@ -32,6 +32,11 @@ public class DeadlineCheckServiceTests
             .Setup(n => n.CreateAsync(It.IsAny<CreateNotificationCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result<NotificationDto>.Success(new NotificationDto(
                 Guid.NewGuid(), TestUserId, "Test", "Test", NotificationType.Info, false, DateTime.UtcNow, null, null, null)));
+
+        var prefMock = new Mock<INotificationPreferenceService>();
+        prefMock
+            .Setup(p => p.IsNotificationEnabledAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(preferencesEnabled);
 
         // Each scope gets a fresh PitbullDbContext sharing the same in-memory DB name.
         // This prevents scope disposal from killing our test's db reference.
@@ -45,13 +50,14 @@ public class DeadlineCheckServiceTests
         services.AddScoped<PitbullDbContext>(_ => new PitbullDbContext(dbOptions, tenantCtx, companyCtx));
         services.AddScoped<INotificationService>(_ => notifMock.Object);
         services.AddScoped<IDeadlineNotificationTracker, DeadlineNotificationTracker>();
+        services.AddScoped<INotificationPreferenceService>(_ => prefMock.Object);
 
         var sp = services.BuildServiceProvider();
         var service = new DeadlineCheckService(
             sp.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new DeadlineCheckOptions { IntervalHours = 1 }),
             NullLogger<DeadlineCheckService>.Instance);
-        return (service, notifMock, db);
+        return (service, notifMock, prefMock, db);
     }
 
     private static Rfi CreateRfi(RfiStatus status = RfiStatus.Open, DateTime? dueDate = null, Guid? assignedTo = null)
@@ -78,7 +84,7 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task RfiDueWithin24Hours_SendsUpcomingNotification()
     {
-        var (service, notifMock, db) = CreateTestSetup();
+        var (service, notifMock, _, db) = CreateTestSetup();
         db.Set<Rfi>().Add(CreateRfi(dueDate: DateTime.UtcNow.AddHours(12)));
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
@@ -90,7 +96,7 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task RfiOverdue_SendsOverdueNotification()
     {
-        var (service, notifMock, db) = CreateTestSetup();
+        var (service, notifMock, _, db) = CreateTestSetup();
         db.Set<Rfi>().Add(CreateRfi(dueDate: DateTime.UtcNow.AddHours(-2)));
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
@@ -102,7 +108,7 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task RfiAlreadyNotified_NoDuplicate()
     {
-        var (service, notifMock, db) = CreateTestSetup();
+        var (service, notifMock, _, db) = CreateTestSetup();
         db.Set<Rfi>().Add(CreateRfi(dueDate: DateTime.UtcNow.AddHours(12)));
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
@@ -114,7 +120,7 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task ClosedRfi_NoNotification()
     {
-        var (service, notifMock, db) = CreateTestSetup();
+        var (service, notifMock, _, db) = CreateTestSetup();
         db.Set<Rfi>().Add(CreateRfi(status: RfiStatus.Closed, dueDate: DateTime.UtcNow.AddHours(-2)));
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
@@ -124,7 +130,7 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task RfiWithoutAssignee_NoNotification()
     {
-        var (service, notifMock, db) = CreateTestSetup();
+        var (service, notifMock, _, db) = CreateTestSetup();
         var rfi = CreateRfi(dueDate: DateTime.UtcNow.AddHours(-2));
         rfi.AssignedToUserId = null;
         rfi.BallInCourtUserId = null;
@@ -137,7 +143,7 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task TrackerRecordsSentNotifications()
     {
-        var (service, _, db) = CreateTestSetup();
+        var (service, _, _, db) = CreateTestSetup();
         var rfi = CreateRfi(dueDate: DateTime.UtcNow.AddHours(-2));
         db.Set<Rfi>().Add(rfi);
         await db.SaveChangesAsync();
@@ -151,7 +157,7 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task SubmittalDeadlineCheck_DoesNotThrow()
     {
-        var (service, _, db) = CreateTestSetup();
+        var (service, _, _, db) = CreateTestSetup();
         db.Set<PmSubmittal>().Add(CreateSubmittal(finalDueDate: DateTime.UtcNow.AddHours(12)));
         await db.SaveChangesAsync();
         // Submittal path with enum string conversion may have in-memory provider limitations.
@@ -163,11 +169,49 @@ public class DeadlineCheckServiceTests
     [Fact]
     public async Task ApprovedSubmittal_NoNotification()
     {
-        var (service, _, db) = CreateTestSetup();
+        var (service, _, _, db) = CreateTestSetup();
         db.Set<PmSubmittal>().Add(CreateSubmittal(status: SubmittalStatus.Approved, finalDueDate: DateTime.UtcNow.AddHours(-2)));
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
         var records = await db.DeadlineNotifications.Where(dn => dn.EntityType == "Submittal").ToListAsync();
         records.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RfiOverdue_PreferenceDisabled_NoNotification()
+    {
+        var (service, notifMock, prefMock, db) = CreateTestSetup(preferencesEnabled: false);
+        db.Set<Rfi>().Add(CreateRfi(dueDate: DateTime.UtcNow.AddHours(-2)));
+        await db.SaveChangesAsync();
+        await service.RunCheckAsync(CancellationToken.None);
+        prefMock.Verify(p => p.IsNotificationEnabledAsync(
+            TestUserId, TestDbContextFactory.TestTenantId, "rfi_overdue", It.IsAny<CancellationToken>()), Times.Once);
+        notifMock.Verify(n => n.CreateAsync(It.IsAny<CreateNotificationCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RfiUpcoming_PreferenceDisabled_NoNotification()
+    {
+        var (service, notifMock, prefMock, db) = CreateTestSetup(preferencesEnabled: false);
+        db.Set<Rfi>().Add(CreateRfi(dueDate: DateTime.UtcNow.AddHours(12)));
+        await db.SaveChangesAsync();
+        await service.RunCheckAsync(CancellationToken.None);
+        prefMock.Verify(p => p.IsNotificationEnabledAsync(
+            TestUserId, TestDbContextFactory.TestTenantId, "rfi_upcoming", It.IsAny<CancellationToken>()), Times.Once);
+        notifMock.Verify(n => n.CreateAsync(It.IsAny<CreateNotificationCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RfiOverdue_PreferenceEnabled_SendsNotification()
+    {
+        var (service, notifMock, prefMock, db) = CreateTestSetup(preferencesEnabled: true);
+        db.Set<Rfi>().Add(CreateRfi(dueDate: DateTime.UtcNow.AddHours(-2)));
+        await db.SaveChangesAsync();
+        await service.RunCheckAsync(CancellationToken.None);
+        prefMock.Verify(p => p.IsNotificationEnabledAsync(
+            TestUserId, TestDbContextFactory.TestTenantId, "rfi_overdue", It.IsAny<CancellationToken>()), Times.Once);
+        notifMock.Verify(n => n.CreateAsync(
+            It.Is<CreateNotificationCommand>(c => c.Type == NotificationType.OverdueRfi),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 }

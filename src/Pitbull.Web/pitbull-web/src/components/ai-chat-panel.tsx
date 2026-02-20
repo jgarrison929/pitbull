@@ -18,13 +18,18 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import type { AiChatMessage, AiChatResponse } from "@/lib/types";
+import {
+  DataEntryConfirmation,
+  type ParsedDataEntry,
+} from "@/components/dashboard/data-entry-confirmation";
 
 interface ChatMessage extends AiChatMessage {
   id: string;
   timestamp: Date;
   errorCode?: string;
-  msgType?: "divider" | "error";
+  msgType?: "divider" | "error" | "data_entry";
   confidenceScore?: number;
+  dataEntry?: ParsedDataEntry;
 }
 
 // ── Context Detection ────────────────────────────────────────────────
@@ -211,37 +216,71 @@ export function AiChatPanel() {
       setIsLoading(true);
 
       try {
-        const history: AiChatMessage[] = messages
-          .filter((m) => !m.msgType && (m.role === "user" || m.role === "assistant"))
-          .map((m) => ({ role: m.role, content: m.content }));
+        // Try data entry parsing first — if the backend recognizes it as
+        // a data entry command, show the confirmation card instead of
+        // a regular chat reply.
+        let handledAsDataEntry = false;
+        try {
+          const parsed = await api<ParsedDataEntry>("/api/data-entry/parse", {
+            method: "POST",
+            body: { text },
+          });
 
-        const result = await api<AiChatResponse>("/api/ai/chat", {
-          method: "POST",
-          body: {
-            message: text,
-            history: history.length > 0 ? history : undefined,
-            systemContext: contextLabel
-              ? `User is on the ${contextLabel} page (${pathname})`
-              : undefined,
-            pageContext: buildPageContext(pathname) || undefined,
-          },
-        });
+          if (
+            parsed &&
+            (parsed.entityType === "TimeEntry" || parsed.entityType === "DailyReport") &&
+            parsed.requiresConfirmation
+          ) {
+            handledAsDataEntry = true;
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: parsed.summary,
+                timestamp: new Date(),
+                msgType: "data_entry",
+                dataEntry: parsed,
+              },
+            ]);
+          }
+        } catch {
+          // Not a data entry command — fall through to normal chat
+        }
 
-        const reply =
-          result && typeof result.reply === "string"
-            ? result.reply
-            : "Sorry, I received an unexpected response.";
+        if (!handledAsDataEntry) {
+          const history: AiChatMessage[] = messages
+            .filter((m) => !m.msgType && (m.role === "user" || m.role === "assistant"))
+            .map((m) => ({ role: m.role, content: m.content }));
 
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: reply,
-            timestamp: new Date(),
-            confidenceScore: result?.confidenceScore,
-          },
-        ]);
+          const result = await api<AiChatResponse>("/api/ai/chat", {
+            method: "POST",
+            body: {
+              message: text,
+              history: history.length > 0 ? history : undefined,
+              systemContext: contextLabel
+                ? `User is on the ${contextLabel} page (${pathname})`
+                : undefined,
+              pageContext: buildPageContext(pathname) || undefined,
+            },
+          });
+
+          const reply =
+            result && typeof result.reply === "string"
+              ? result.reply
+              : "Sorry, I received an unexpected response.";
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              role: "assistant",
+              content: reply,
+              timestamp: new Date(),
+              confidenceScore: result?.confidenceScore,
+            },
+          ]);
+        }
       } catch (err: unknown) {
         let errorCode = "UNKNOWN";
         let errorMessage = "An unexpected error occurred.";
@@ -433,6 +472,26 @@ export function AiChatPanel() {
                         Retry
                       </Button>
                     )}
+                  </div>
+                );
+              }
+
+              // Data entry confirmation card
+              if (msg.msgType === "data_entry" && msg.dataEntry) {
+                return (
+                  <div key={msg.id} className="w-full">
+                    <DataEntryConfirmation
+                      entry={msg.dataEntry}
+                      onCancelled={() => {
+                        setMessages((prev) =>
+                          prev.map((m) =>
+                            m.id === msg.id
+                              ? { ...m, msgType: undefined, content: "Data entry cancelled." }
+                              : m
+                          )
+                        );
+                      }}
+                    />
                   </div>
                 );
               }

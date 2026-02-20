@@ -78,6 +78,9 @@ public class PitbullDbContext(
     public DbSet<BankTransaction> BankTransactions => Set<BankTransaction>();
     public DbSet<BankReconciliation> BankReconciliations => Set<BankReconciliation>();
 
+    // AI Predictions
+    public DbSet<CostPrediction> CostPredictions => Set<CostPrediction>();
+
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
 

@@ -55,12 +55,13 @@ public class DeadlineCheckService(
             var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
             var tracker = scope.ServiceProvider.GetRequiredService<IDeadlineNotificationTracker>();
             var notifSvc = scope.ServiceProvider.GetRequiredService<INotificationService>();
+            var prefSvc = scope.ServiceProvider.GetRequiredService<INotificationPreferenceService>();
 
             var now = DateTime.UtcNow;
             var tomorrow = now.AddHours(24);
 
-            await CheckRfiDeadlinesAsync(db, tracker, notifSvc, now, tomorrow, ct);
-            await CheckSubmittalDeadlinesAsync(db, tracker, notifSvc, now, tomorrow, ct);
+            await CheckRfiDeadlinesAsync(db, tracker, notifSvc, prefSvc, now, tomorrow, ct);
+            await CheckSubmittalDeadlinesAsync(db, tracker, notifSvc, prefSvc, now, tomorrow, ct);
 
             logger.LogInformation("Deadline check complete.");
         }
@@ -72,12 +73,12 @@ public class DeadlineCheckService(
     }
 
     private async Task CheckRfiDeadlinesAsync(PitbullDbContext db, IDeadlineNotificationTracker tracker,
-        INotificationService notifSvc, DateTime now, DateTime tomorrow, CancellationToken ct)
+        INotificationService notifSvc, INotificationPreferenceService prefSvc, DateTime now, DateTime tomorrow, CancellationToken ct)
     {
         var openRfis = await db.Set<Rfi>()
             .IgnoreQueryFilters()
             .Where(r => !r.IsDeleted && r.Status == RfiStatus.Open && r.DueDate.HasValue)
-            .Select(r => new { r.Id, r.Number, r.DueDate, r.AssignedToUserId, r.BallInCourtUserId, r.CompanyId })
+            .Select(r => new { r.Id, r.Number, r.DueDate, r.AssignedToUserId, r.BallInCourtUserId, r.CompanyId, r.TenantId })
             .ToListAsync(ct);
 
         foreach (var rfi in openRfis)
@@ -88,6 +89,9 @@ public class DeadlineCheckService(
 
             if (dueDate <= now && !await tracker.HasBeenNotifiedAsync("Rfi", rfi.Id, "Overdue", ct))
             {
+                if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "rfi_overdue", ct))
+                    continue;
+
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId.Value, Title: $"RFI #{rfi.Number} is overdue",
                     Message: $"RFI #{rfi.Number} was due on {dueDate:MMM d, yyyy} and is still open.",
@@ -97,6 +101,9 @@ public class DeadlineCheckService(
             }
             else if (dueDate > now && dueDate <= tomorrow && !await tracker.HasBeenNotifiedAsync("Rfi", rfi.Id, "Upcoming", ct))
             {
+                if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "rfi_upcoming", ct))
+                    continue;
+
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId.Value, Title: $"RFI #{rfi.Number} due tomorrow",
                     Message: $"RFI #{rfi.Number} is due on {dueDate:MMM d, yyyy}. Please respond before the deadline.",
@@ -111,13 +118,13 @@ public class DeadlineCheckService(
         [SubmittalStatus.Approved, SubmittalStatus.ApprovedAsNoted, SubmittalStatus.Rejected, SubmittalStatus.Closed];
 
     private async Task CheckSubmittalDeadlinesAsync(PitbullDbContext db, IDeadlineNotificationTracker tracker,
-        INotificationService notifSvc, DateTime now, DateTime tomorrow, CancellationToken ct)
+        INotificationService notifSvc, INotificationPreferenceService prefSvc, DateTime now, DateTime tomorrow, CancellationToken ct)
     {
         var submittals = await db.Set<PmSubmittal>()
             .IgnoreQueryFilters()
             .Where(s => !s.IsDeleted && !TerminalStatuses.Contains(s.Status))
             .Where(s => s.FinalDueDate.HasValue || s.RequiredByDate.HasValue)
-            .Select(s => new { s.Id, s.SubmittalNumber, s.FinalDueDate, s.RequiredByDate, s.CompanyId, s.CreatedBy })
+            .Select(s => new { s.Id, s.SubmittalNumber, s.FinalDueDate, s.RequiredByDate, s.CompanyId, s.TenantId, s.CreatedBy })
             .ToListAsync(ct);
 
         foreach (var sub in submittals)
@@ -128,6 +135,9 @@ public class DeadlineCheckService(
 
             if (dueDate.Value <= now && !await tracker.HasBeenNotifiedAsync("Submittal", sub.Id, "Overdue", ct))
             {
+                if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_overdue", ct))
+                    continue;
+
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId, Title: $"Submittal #{sub.SubmittalNumber} is overdue",
                     Message: $"Submittal #{sub.SubmittalNumber} was due on {dueDate.Value:MMM d, yyyy} and is still outstanding.",
@@ -137,6 +147,9 @@ public class DeadlineCheckService(
             }
             else if (dueDate.Value > now && dueDate.Value <= tomorrow && !await tracker.HasBeenNotifiedAsync("Submittal", sub.Id, "Upcoming", ct))
             {
+                if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_upcoming", ct))
+                    continue;
+
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId, Title: $"Submittal #{sub.SubmittalNumber} due tomorrow",
                     Message: $"Submittal #{sub.SubmittalNumber} is due on {dueDate.Value:MMM d, yyyy}. Please ensure it's submitted on time.",

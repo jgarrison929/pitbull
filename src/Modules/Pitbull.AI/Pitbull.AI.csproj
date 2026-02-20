@@ -10,6 +10,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pitbull.Core\Pitbull.Core.csproj" />
+    <ProjectReference Include="..\Pitbull.Projects\Pitbull.Projects.csproj" />
+    <ProjectReference Include="..\Pitbull.TimeTracking\Pitbull.TimeTracking.csproj" />
+    <ProjectReference Include="..\Pitbull.ProjectManagement\Pitbull.ProjectManagement.csproj" />
   </ItemGroup>
 
 </Project>

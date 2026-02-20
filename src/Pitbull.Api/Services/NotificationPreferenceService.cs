@@ -8,6 +8,7 @@ public interface INotificationPreferenceService
 {
     Task<IReadOnlyList<NotificationPreferenceDto>> GetPreferencesAsync(Guid userId, Guid tenantId, CancellationToken ct = default);
     Task<IReadOnlyList<NotificationPreferenceDto>> UpdatePreferencesAsync(Guid userId, Guid tenantId, IReadOnlyCollection<NotificationPreferenceUpdateDto> updates, CancellationToken ct = default);
+    Task<bool> IsNotificationEnabledAsync(Guid userId, Guid tenantId, string category, CancellationToken ct = default);
     Task<EmailDigestSettingDto> GetDigestAsync(Guid userId, Guid tenantId, CancellationToken ct = default);
     Task<EmailDigestSettingDto> UpdateDigestAsync(Guid userId, Guid tenantId, EmailDigestSettingUpdateDto update, CancellationToken ct = default);
 }
@@ -21,7 +22,11 @@ public sealed class NotificationPreferenceService(PitbullDbContext db) : INotifi
         "time_entry_rejected",
         "rfi_created",
         "rfi_responded",
+        "rfi_overdue",
+        "rfi_upcoming",
         "submittal_status_changed",
+        "submittal_overdue",
+        "submittal_upcoming",
         "daily_report_submitted",
         "document_uploaded",
         "pay_period_locked",
@@ -43,6 +48,21 @@ public sealed class NotificationPreferenceService(PitbullDbContext db) : INotifi
             .ToListAsync(ct);
 
         return preferences;
+    }
+
+    public async Task<bool> IsNotificationEnabledAsync(
+        Guid userId,
+        Guid tenantId,
+        string category,
+        CancellationToken ct = default)
+    {
+        var preference = await db.NotificationPreferences
+            .AsNoTracking()
+            .Where(p => p.TenantId == tenantId && p.UserId == userId && p.Category == category)
+            .FirstOrDefaultAsync(ct);
+
+        // If no preference exists, default to enabled (InApp = true)
+        return preference?.InApp ?? true;
     }
 
     public async Task<IReadOnlyList<NotificationPreferenceDto>> UpdatePreferencesAsync(

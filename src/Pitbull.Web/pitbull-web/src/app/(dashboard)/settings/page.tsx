@@ -596,95 +596,27 @@ export default function SettingsPage() {
         </Card>
 
         {/* Notifications Card */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
               Notification Preferences
             </CardTitle>
             <CardDescription>
-              Choose which notifications you&apos;d like to receive
+              Control in-app and email notifications by category, including deadlines
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div className="space-y-0.5">
-                  <Label>Time Entry Approvals</Label>
-                  <p className="text-xs text-muted-foreground">
-                    When your time entries are approved or rejected
-                  </p>
-                </div>
-                <Switch
-                  checked={prefs.notifyApprovals}
-                  onCheckedChange={(checked) =>
-                    updatePref("notifyApprovals", checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div className="space-y-0.5">
-                  <Label>Pay Period Reminders</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Before pay periods lock
-                  </p>
-                </div>
-                <Switch
-                  checked={prefs.notifyPayPeriod}
-                  onCheckedChange={(checked) =>
-                    updatePref("notifyPayPeriod", checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div className="space-y-0.5">
-                  <Label>Weekly Digest</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Weekly summary of project activity
-                  </p>
-                </div>
-                <Switch
-                  checked={prefs.notifyWeeklyDigest}
-                  onCheckedChange={(checked) =>
-                    updatePref("notifyWeeklyDigest", checked)
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-3 rounded-lg border">
-                <div className="space-y-0.5">
-                  <Label>Mentions &amp; Assignments</Label>
-                  <p className="text-xs text-muted-foreground">
-                    When you&apos;re mentioned or assigned to an RFI
-                  </p>
-                </div>
-                <Switch
-                  checked={prefs.notifyMentions}
-                  onCheckedChange={(checked) =>
-                    updatePref("notifyMentions", checked)
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <Button
-                onClick={savePrefs}
-                size="sm"
-                className="gap-2 bg-amber-500 hover:bg-amber-600"
-              >
-                <Save className="h-3.5 w-3.5" />
-                Save Preferences
-              </Button>
-              {prefsSaved && (
-                <span className="ml-3 text-sm text-green-600 inline-flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Saved
-                </span>
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Configure which notifications you receive for time entries, approvals,
+              RFIs, deadlines, and system events.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/settings/notifications">
+                <Bell className="mr-2 h-4 w-4" />
+                Manage Notifications
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 

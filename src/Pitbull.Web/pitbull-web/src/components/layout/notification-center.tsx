@@ -14,6 +14,8 @@ import {
   Shield,
   HelpCircle,
   Settings,
+  CalendarClock,
+  AlertTriangle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,9 +43,14 @@ export type NotificationType =
   | "OverdueRfi"
   | "RfiCreated"
   | "RfiAnswered"
-  | "SystemUpdate";
+  | "SystemUpdate"
+  | "RfiDeadlineApproaching"
+  | "SubmittalDeadlineApproaching"
+  | "OverdueSubmittal"
+  | "RetentionDeadline"
+  | "InspectionDeadline";
 
-export type NotificationCategory = "time_entry" | "approval" | "rfi" | "system";
+export type NotificationCategory = "time_entry" | "approval" | "rfi" | "deadline" | "system";
 
 export interface Notification {
   id: string;
@@ -67,7 +74,23 @@ interface PagedResult<T> {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+const DEADLINE_TYPES = new Set<NotificationType>([
+  "RfiDeadlineApproaching",
+  "SubmittalDeadlineApproaching",
+  "OverdueSubmittal",
+  "RetentionDeadline",
+  "InspectionDeadline",
+]);
+
+const URGENT_TYPES = new Set<NotificationType>([
+  "OverdueRfi",
+  "OverdueSubmittal",
+  "RfiDeadlineApproaching",
+  "SubmittalDeadlineApproaching",
+]);
+
 function getCategory(type: NotificationType): NotificationCategory {
+  if (DEADLINE_TYPES.has(type)) return "deadline";
   switch (type) {
     case "TimeEntrySubmitted":
     case "TimeEntryApproved":
@@ -85,12 +108,23 @@ function getCategory(type: NotificationType): NotificationCategory {
   }
 }
 
+function isUrgent(type: NotificationType): boolean {
+  return URGENT_TYPES.has(type);
+}
+
 function getNotificationIcon(type: NotificationType) {
   switch (type) {
     case "OverdueRfi":
+    case "OverdueSubmittal":
     case "Error":
     case "TimeEntryRejected":
       return <AlertCircle className="h-4 w-4 text-red-500" />;
+    case "RfiDeadlineApproaching":
+    case "SubmittalDeadlineApproaching":
+      return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+    case "RetentionDeadline":
+    case "InspectionDeadline":
+      return <CalendarClock className="h-4 w-4 text-orange-500" />;
     case "PendingApproval":
     case "ChangeOrder":
     case "Warning":
@@ -122,7 +156,19 @@ function getNotificationHref(n: Notification): string | undefined {
     case "OverdueRfi":
     case "RfiCreated":
     case "RfiAnswered":
+    case "RfiDeadlineApproaching":
       return "/rfis";
+    case "OverdueSubmittal":
+    case "SubmittalDeadlineApproaching":
+      return n.relatedEntityId
+        ? `/projects/${n.relatedEntityId}/submittals`
+        : undefined;
+    case "RetentionDeadline":
+      return "/payment-applications";
+    case "InspectionDeadline":
+      return n.relatedEntityId
+        ? `/projects/${n.relatedEntityId}/schedule`
+        : undefined;
     default:
       return undefined;
   }
@@ -153,6 +199,7 @@ const categoryConfig = {
   time_entry: { label: "Time Entry", icon: ClipboardList },
   approval: { label: "Approvals", icon: Shield },
   rfi: { label: "RFIs", icon: FileText },
+  deadline: { label: "Deadlines", icon: CalendarClock },
   system: { label: "System", icon: Settings },
 } as const;
 
@@ -166,6 +213,7 @@ function EmptyState({ category }: { category: CategoryTab }) {
     time_entry: "No time entry notifications",
     approval: "No pending approvals",
     rfi: "No RFI notifications",
+    deadline: "No deadline notifications",
     system: "No system notifications",
   };
 
@@ -193,11 +241,14 @@ function NotificationRow({
   onRead: (id: string) => void;
   onClick: (n: Notification) => void;
 }) {
+  const urgent = isUrgent(notification.type);
+
   return (
     <div
       className={cn(
         "flex cursor-pointer flex-col gap-1 px-3 py-3 hover:bg-accent/50 transition-colors border-b border-border/40 last:border-b-0",
-        !notification.isRead && "bg-primary/5 dark:bg-primary/10"
+        !notification.isRead && "bg-primary/5 dark:bg-primary/10",
+        urgent && !notification.isRead && "border-l-2 border-l-red-500"
       )}
       onClick={() => onClick(notification)}
       role="button"
@@ -218,7 +269,8 @@ function NotificationRow({
             <span
               className={cn(
                 "text-sm truncate",
-                !notification.isRead && "font-semibold"
+                !notification.isRead && "font-semibold",
+                urgent && !notification.isRead && "text-red-700 dark:text-red-400"
               )}
             >
               {notification.title}
@@ -383,7 +435,7 @@ export function NotificationCenter() {
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-[380px] p-0"
+        className="w-[420px] p-0"
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
         {/* Header */}
@@ -416,7 +468,7 @@ export function NotificationCenter() {
                   <TabsTrigger
                     key={key}
                     value={key}
-                    className="text-[11px] px-2 py-1 gap-1 flex-1 data-[state=active]:bg-background"
+                    className="text-[10px] px-1.5 py-1 gap-0.5 flex-1 data-[state=active]:bg-background"
                   >
                     {categoryConfig[key].label}
                     {count > 0 && (
@@ -458,9 +510,10 @@ export function NotificationCenter() {
             className="w-full text-xs text-muted-foreground hover:text-foreground"
             onClick={() => {
               setIsOpen(false);
-              router.push("/settings");
+              router.push("/settings/notifications");
             }}
           >
+            <Settings className="mr-1.5 h-3 w-3" />
             Notification Settings
           </Button>
         </div>

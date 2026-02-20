@@ -41,7 +41,7 @@ interface DigestSetting {
 interface CategoryMeta {
   key: string;
   label: string;
-  group: "Time Tracking" | "Project Management" | "Documents" | "System";
+  group: "Time Tracking" | "Project Management" | "Deadlines" | "Documents" | "System";
 }
 
 const CATEGORY_META: CategoryMeta[] = [
@@ -53,6 +53,12 @@ const CATEGORY_META: CategoryMeta[] = [
   { key: "rfi_responded", label: "RFI Responded", group: "Project Management" },
   { key: "submittal_status_changed", label: "Submittal Status Changed", group: "Project Management" },
   { key: "daily_report_submitted", label: "Daily Report Submitted", group: "Project Management" },
+  { key: "rfi_deadline_approaching", label: "RFI Deadline Approaching", group: "Deadlines" },
+  { key: "overdue_rfi", label: "Overdue RFI", group: "Deadlines" },
+  { key: "submittal_deadline_approaching", label: "Submittal Deadline Approaching", group: "Deadlines" },
+  { key: "overdue_submittal", label: "Overdue Submittal", group: "Deadlines" },
+  { key: "retention_deadline", label: "Retention Release Deadline", group: "Deadlines" },
+  { key: "inspection_deadline", label: "Inspection Deadline", group: "Deadlines" },
   { key: "document_uploaded", label: "Document Uploaded", group: "Documents" },
   { key: "system_announcement", label: "System Announcement", group: "System" },
 ];
@@ -90,6 +96,7 @@ export default function NotificationSettingsPage() {
     return {
       "Time Tracking": CATEGORY_META.filter((c) => c.group === "Time Tracking"),
       "Project Management": CATEGORY_META.filter((c) => c.group === "Project Management"),
+      Deadlines: CATEGORY_META.filter((c) => c.group === "Deadlines"),
       Documents: CATEGORY_META.filter((c) => c.group === "Documents"),
       System: CATEGORY_META.filter((c) => c.group === "System"),
     };

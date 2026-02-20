@@ -99,7 +99,10 @@ public class EmailNotificationDecorator(
         NotificationType.PendingApproval => "time_entry_submitted",
         NotificationType.RfiCreated => "rfi_created",
         NotificationType.RfiAnswered => "rfi_responded",
-        NotificationType.OverdueRfi => "rfi_created",
+        NotificationType.OverdueRfi => "rfi_overdue",
+        NotificationType.UpcomingRfi => "rfi_upcoming",
+        NotificationType.OverdueSubmittal => "submittal_overdue",
+        NotificationType.UpcomingSubmittal => "submittal_upcoming",
         NotificationType.SystemUpdate => "system_announcement",
         // Info, Success, Warning, Error, ChangeOrder — no email preference category
         _ => null,
