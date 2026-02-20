@@ -562,6 +562,11 @@ public class AuthController(
             .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
                 && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
 
+        // Backward compatibility: check Identity Admin role as fallback
+        // Existing users may only have roles in AspNetUserRoles (not yet migrated to RBAC UserRole table)
+        if (!isRbacAdmin)
+            isRbacAdmin = roles.Contains("Admin");
+
         string[] permissions;
         if (isRbacAdmin)
         {
@@ -833,6 +838,11 @@ public class AuthController(
             .AsNoTracking()
             .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
                 && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
+
+        // Backward compatibility: check Identity Admin role as fallback
+        // Existing users may only have roles in AspNetUserRoles (not yet migrated to RBAC UserRole table)
+        if (!isRbacAdmin)
+            isRbacAdmin = roles.Contains("Admin");
 
         if (isRbacAdmin)
         {
