@@ -444,7 +444,7 @@ public class ProjectJobCostController(IJobCostService jobCostService) : ProjectM
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Route("api/projects/{projectId:guid}/submittals")]
-public class SubmittalsController(ISubmittalService submittalService) : ProjectManagementControllerBase
+public class SubmittalsController(ISubmittalService submittalService, Pitbull.Api.Services.IPdfReportService pdfReportService) : ProjectManagementControllerBase
 {
     /// <summary>
     /// Creates a new submittal for the specified project.
@@ -560,6 +560,18 @@ public class SubmittalsController(ISubmittalService submittalService) : ProjectM
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Register(Guid projectId, [FromQuery] PmListQuery query)
         => HandleResult(await submittalService.ListSubmittalsAsync(projectId, query));
+
+    /// <summary>
+    /// Exports the submittal log as a PDF document.
+    /// </summary>
+    [HttpGet("export-pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportPdf(Guid projectId)
+    {
+        var bytes = await pdfReportService.GenerateSubmittalLogPdfAsync(projectId);
+        return File(bytes, "application/pdf", $"submittal-log-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
+    }
 }
 
 /// <summary>
@@ -2079,4 +2091,102 @@ public class ProjectDocumentsController(IDocumentService documentService) : Proj
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(Guid projectId, Guid documentId)
         => HandleAction(await documentService.DeleteDocumentAsync(projectId, documentId));
+}
+
+/// <summary>
+/// Punch list management endpoints for project close-out deficiency tracking.
+/// </summary>
+[ApiController]
+[Authorize]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Route("api/projects/{projectId:guid}/punch-list")]
+[Tags("Project Management")]
+public class PunchListController(IPunchListService punchListService, Pitbull.Api.Services.IPdfReportService pdfReportService) : ProjectManagementControllerBase
+{
+    /// <summary>
+    /// Creates a new punch list item for the specified project.
+    /// </summary>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await punchListService.CreatePunchListItemAsync(projectId, request));
+
+    /// <summary>
+    /// Gets a punch list item by ID.
+    /// </summary>
+    [HttpGet("{itemId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid itemId)
+        => HandleResult(await punchListService.GetPunchListItemAsync(projectId, itemId));
+
+    /// <summary>
+    /// Lists punch list items for the specified project.
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await punchListService.ListPunchListItemsAsync(projectId, query));
+
+    /// <summary>
+    /// Updates a punch list item. Enforces status workflow transitions.
+    /// </summary>
+    [HttpPut("{itemId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid itemId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await punchListService.UpdatePunchListItemAsync(projectId, itemId, request));
+
+    /// <summary>
+    /// Closes a punch list item that is in ReadyForInspection status.
+    /// </summary>
+    [HttpPost("{itemId:guid}/close")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Close(Guid projectId, Guid itemId)
+        => HandleResult(await punchListService.ClosePunchListItemAsync(projectId, itemId));
+
+    /// <summary>
+    /// Adds a photo to a punch list item.
+    /// </summary>
+    [HttpPost("{itemId:guid}/photos")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AddPhoto(Guid projectId, Guid itemId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await punchListService.AddPhotoAsync(projectId, itemId, request));
+
+    /// <summary>
+    /// Lists photos for a punch list item.
+    /// </summary>
+    [HttpGet("{itemId:guid}/photos")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListPhotos(Guid projectId, Guid itemId, [FromQuery] PmListQuery query)
+        => HandleResult(await punchListService.ListPhotosAsync(projectId, itemId, query));
+
+    /// <summary>
+    /// Gets a summary of punch list items by status, category, and priority.
+    /// </summary>
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Summary(Guid projectId)
+        => HandleResult(await punchListService.GetPunchListSummaryAsync(projectId));
+
+    /// <summary>
+    /// Exports the punch list as a PDF document.
+    /// </summary>
+    [HttpGet("export-pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportPdf(Guid projectId)
+    {
+        var bytes = await pdfReportService.GeneratePunchListPdfAsync(projectId);
+        return File(bytes, "application/pdf", $"punch-list-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
+    }
 }

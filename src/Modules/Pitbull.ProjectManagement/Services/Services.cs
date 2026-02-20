@@ -176,6 +176,11 @@ public abstract class PmServiceBase
                         !t.IsDeleted &&
                         t.Id == EF.Property<Guid>(e, "TaskId") &&
                         t.ProjectId == projectId)),
+                nameof(PmPunchListPhoto) => query.Where(e =>
+                    Db.Set<PmPunchListItem>().Any(p =>
+                        !p.IsDeleted &&
+                        p.Id == EF.Property<Guid>(e, "PunchListItemId") &&
+                        p.ProjectId == projectId)),
                 nameof(RfiAttachment) => query.Where(e =>
                     Db.Set<Rfi>().Any(r =>
                         !r.IsDeleted &&
@@ -314,7 +319,8 @@ public abstract class PmServiceBase
             foreach (var propName in new[]
                      {
                          "ReferenceId", "ScheduleId", "SubmittalId", "TaskId", "MeetingId", "CommunicationId", "DocumentId",
-                         "PlanSetId", "PlanSheetId", "SpecSectionId", "DailyReportId", "ProgressEntryId", "NarrativeId", "RfiId"
+                         "PlanSetId", "PlanSheetId", "SpecSectionId", "DailyReportId", "ProgressEntryId", "NarrativeId", "RfiId",
+                         "PunchListItemId"
                      })
             {
                 if (entity.GetType().GetProperty(propName) != null)
@@ -427,6 +433,8 @@ public abstract class PmServiceBase
                 await Db.Set<PmMeeting>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
             nameof(PmTaskComment) =>
                 await Db.Set<PmTask>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
+            nameof(PmPunchListPhoto) =>
+                await Db.Set<PmPunchListItem>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
             nameof(RfiAttachment) or nameof(RfiDistributionRecipient) or nameof(RfiCostImpactLink) =>
                 await Db.Set<Rfi>().AnyAsync(s => !s.IsDeleted && s.Id == referenceId && s.ProjectId == projectId, ct),
             _ => true
@@ -1361,4 +1369,135 @@ public class DocumentService : PmServiceBase, IDocumentService
         => UpdateAsync<PmDocument>(projectId, documentId, request, cancellationToken);
     public Task<Result> DeleteDocumentAsync(Guid projectId, Guid documentId, CancellationToken cancellationToken = default)
         => DeleteAsync<PmDocument>(projectId, documentId, cancellationToken);
+}
+
+public class PunchListService : PmServiceBase, IPunchListService
+{
+    public PunchListService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
+
+    public async Task<Result<PmEntityDto>> CreatePunchListItemAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var maxNumber = await ProjectScoped<PmPunchListItem>(projectId)
+            .MaxAsync(p => (int?)p.ItemNumber, cancellationToken) ?? 0;
+
+        var enriched = MergeData(request, "ItemNumber", maxNumber + 1);
+        if (string.IsNullOrWhiteSpace(request.Status))
+            enriched = enriched with { Status = "Open" };
+
+        var userId = GetCurrentUserId();
+        if (userId != Guid.Empty)
+            enriched = MergeData(enriched, "CreatedByUserId", userId);
+
+        return await CreateAsync<PmPunchListItem>(projectId, enriched, cancellationToken);
+    }
+
+    public Task<Result<PmEntityDto>> GetPunchListItemAsync(Guid projectId, Guid itemId, CancellationToken cancellationToken = default)
+        => GetAsync<PmPunchListItem>(projectId, itemId, cancellationToken);
+
+    public Task<Result<PagedResult<PmEntityDto>>> ListPunchListItemsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
+        => ListAsync(ProjectScoped<PmPunchListItem>(projectId), query, cancellationToken);
+
+    public async Task<Result<PmEntityDto>> UpdatePunchListItemAsync(Guid projectId, Guid itemId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var item = await ProjectScoped<PmPunchListItem>(projectId).FirstOrDefaultAsync(p => p.Id == itemId, cancellationToken);
+        if (item == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (item.Status == PunchListItemStatus.Closed)
+            return Result.Failure<PmEntityDto>("Cannot edit a closed punch list item", "INVALID_STATUS");
+
+        if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<PunchListItemStatus>(request.Status, true, out var newStatus) && newStatus != item.Status)
+        {
+            var valid = (item.Status, newStatus) switch
+            {
+                (PunchListItemStatus.Open, PunchListItemStatus.InProgress) => true,
+                (PunchListItemStatus.Open, PunchListItemStatus.Disputed) => true,
+                (PunchListItemStatus.InProgress, PunchListItemStatus.ReadyForInspection) => true,
+                (PunchListItemStatus.InProgress, PunchListItemStatus.Disputed) => true,
+                (PunchListItemStatus.ReadyForInspection, PunchListItemStatus.Closed) => true,
+                (PunchListItemStatus.ReadyForInspection, PunchListItemStatus.InProgress) => true,
+                (PunchListItemStatus.Disputed, PunchListItemStatus.Open) => true,
+                (PunchListItemStatus.Disputed, PunchListItemStatus.Closed) => true,
+                _ => false
+            };
+            if (!valid)
+                return Result.Failure<PmEntityDto>($"Invalid status transition from {item.Status} to {newStatus}", "INVALID_STATUS");
+
+            if (newStatus == PunchListItemStatus.Closed)
+            {
+                var userId = GetCurrentUserId();
+                request = MergeData(request, "ClosedAt", DateTime.UtcNow);
+                if (userId != Guid.Empty)
+                    request = MergeData(request, "ClosedByUserId", userId);
+            }
+            else if (newStatus == PunchListItemStatus.ReadyForInspection)
+            {
+                var userId = GetCurrentUserId();
+                request = MergeData(request, "InspectedAt", DateTime.UtcNow);
+                if (userId != Guid.Empty)
+                    request = MergeData(request, "InspectedByUserId", userId);
+            }
+        }
+
+        ApplyUpsert(item, request);
+        item.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(item));
+    }
+
+    public async Task<Result<PmActionResultDto>> ClosePunchListItemAsync(Guid projectId, Guid itemId, CancellationToken cancellationToken = default)
+    {
+        var item = await ProjectScoped<PmPunchListItem>(projectId).FirstOrDefaultAsync(p => p.Id == itemId, cancellationToken);
+        if (item == null)
+            return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (item.Status != PunchListItemStatus.ReadyForInspection && item.Status != PunchListItemStatus.Disputed)
+            return Result.Failure<PmActionResultDto>("Punch list item can only be closed from ReadyForInspection or Disputed status", "INVALID_STATUS");
+
+        var userId = GetCurrentUserId();
+        item.Status = PunchListItemStatus.Closed;
+        item.ClosedAt = DateTime.UtcNow;
+        if (userId != Guid.Empty)
+            item.ClosedByUserId = userId;
+        if (item.InspectedByUserId == null)
+        {
+            item.InspectedAt = DateTime.UtcNow;
+            if (userId != Guid.Empty)
+                item.InspectedByUserId = userId;
+        }
+        item.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Action("Punch list item closed", itemId, new { Status = item.Status.ToString(), item.ClosedAt });
+    }
+
+    public Task<Result<PmEntityDto>> AddPhotoAsync(Guid projectId, Guid itemId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+        => CreateAsync<PmPunchListPhoto>(projectId, request with { ReferenceId = itemId }, cancellationToken);
+
+    public async Task<Result<PagedResult<PmEntityDto>>> ListPhotosAsync(Guid projectId, Guid itemId, PmListQuery query, CancellationToken cancellationToken = default)
+    {
+        var hasItem = await ProjectScoped<PmPunchListItem>(projectId).AnyAsync(p => p.Id == itemId, cancellationToken);
+        if (!hasItem)
+            return Result.Failure<PagedResult<PmEntityDto>>("Not found", "NOT_FOUND");
+
+        return await ListAsync(Db.Set<PmPunchListPhoto>().Where(p => !p.IsDeleted && p.PunchListItemId == itemId), query, cancellationToken);
+    }
+
+    public async Task<Result<PmActionResultDto>> GetPunchListSummaryAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        var items = await ProjectScoped<PmPunchListItem>(projectId).AsNoTracking().ToListAsync(cancellationToken);
+        var summary = new
+        {
+            Total = items.Count,
+            Open = items.Count(i => i.Status == PunchListItemStatus.Open),
+            InProgress = items.Count(i => i.Status == PunchListItemStatus.InProgress),
+            ReadyForInspection = items.Count(i => i.Status == PunchListItemStatus.ReadyForInspection),
+            Closed = items.Count(i => i.Status == PunchListItemStatus.Closed),
+            Disputed = items.Count(i => i.Status == PunchListItemStatus.Disputed),
+            OverdueCount = items.Count(i => i.DueDate.HasValue && i.DueDate.Value < DateTime.UtcNow && i.Status != PunchListItemStatus.Closed),
+            ByCategory = items.GroupBy(i => i.Category.ToString()).ToDictionary(g => g.Key, g => g.Count()),
+            ByPriority = items.GroupBy(i => i.Priority.ToString()).ToDictionary(g => g.Key, g => g.Count())
+        };
+
+        return Action("Punch list summary", projectId, summary);
+    }
 }

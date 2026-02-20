@@ -99,6 +99,7 @@ export function getProjectManagementItems(projectId: string | null): NavItem[] {
     { label: "Progress", href: base ? `${base}/progress` : "#", icon: "📈", disabled: !base },
     { label: "Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base },
     { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base },
+    { label: "Punch List", href: base ? `${base}/punch-list` : "#", icon: "📋", disabled: !base },
     { label: "Documents", href: base ? `${base}/documents` : "#", icon: "📁", disabled: !base },
     { label: "Plans & Specs", href: base ? `${base}/plans-specs` : "#", icon: "📐", disabled: !base },
     { label: "Communications", href: base ? `${base}/communications` : "#", icon: "💬", disabled: !base },
