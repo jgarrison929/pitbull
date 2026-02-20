@@ -9,6 +9,8 @@ namespace Pitbull.Billing.Services;
 
 public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractService> logger) : IOwnerContractService
 {
+    private readonly ILogger<OwnerContractService> _logger = logger;
+
     // ── Owner Contracts ──
 
     public async Task<Result<ListOwnerContractsResult>> ListContractsAsync(ListOwnerContractsQuery query, CancellationToken ct = default)

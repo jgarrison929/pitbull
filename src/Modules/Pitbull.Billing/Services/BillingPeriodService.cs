@@ -9,6 +9,7 @@ namespace Pitbull.Billing.Services;
 
 public class BillingPeriodService(PitbullDbContext db, ILogger<BillingPeriodService> logger) : IBillingPeriodService
 {
+    private readonly ILogger<BillingPeriodService> _logger = logger;
     public async Task<Result<ListBillingPeriodsResult>> ListAsync(ListBillingPeriodsQuery query, CancellationToken ct = default)
     {
         IQueryable<BillingPeriod> q = db.Set<BillingPeriod>().AsNoTracking();
