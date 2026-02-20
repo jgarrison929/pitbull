@@ -1,293 +1,401 @@
-# CLAUDE.md - AI Assistant Guide for Pitbull
+# CLAUDE.md — AAI-ERP (Pitbull Construction Solutions)
 
-This document provides context for AI assistants working with the Pitbull Construction Solutions codebase.
+> **Agentic AI ERP** — One platform, one cost per user. The entire construction lifecycle from design through operations, powered by AI agents that understand the domain.
 
-## Project Overview
+## Project Identity
 
-**Pitbull** is an on-premise construction management SaaS platform for commercial general contractors. It's designed as a self-hosted alternative to expensive per-seat solutions like Procore.
+**Product:** Pitbull Construction Solutions (brand) / AAI-ERP (architecture philosophy)
+**Target:** Commercial General Contractors ($50M–$500M annual revenue)
+**Positioning:** Self-hosted alternative to Procore + Vista + Sage. One pane of glass for the entire org.
+**Philosophy:** The AI isn't a feature — it's the architecture. System of record that agents talk to natively.
 
-**Architecture:** Modular monolith with CQRS pattern, multi-tenant with PostgreSQL Row-Level Security.
+## Architecture
 
-## Technology Stack
+**Pattern:** Modular monolith with CQRS, multi-tenant + multi-company PostgreSQL Row-Level Security
+**Stack:** .NET 9 + Next.js 16 + PostgreSQL 17 + Redis (CAP event bus) + PostHog analytics
+**Deploy:** Railway (auto-deploy from main), self-hosted target
 
-| Layer | Technology |
-|-------|------------|
-| Backend | .NET 9, ASP.NET Core, Entity Framework Core 9, MediatR 12, FluentValidation |
-| Frontend | Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui |
-| Database | PostgreSQL 17 with RLS |
-| Cache | Redis 7 |
-| Auth | ASP.NET Identity + JWT |
+## Codebase Stats (Feb 2026)
+
+- **77 controllers**, **14 domain modules**, **37+ entities**, **2,025+ unit tests**, **100+ frontend pages**
+- **0 build warnings**, **0 known vulnerabilities**, **0 open issues**
+- 52+ EF migrations, 25 design specs, 8 functional role docs
+
+---
+
+## ⚠️ Settled Decisions — Do NOT Relitigate
+
+These decisions are final. Do not propose alternatives or revisit them.
+
+| Decision | Chosen | Rejected | Why |
+|----------|--------|----------|-----|
+| Architecture | Modular monolith | Microservices | Right for team size + stage. Module boundaries allow future extraction. |
+| Data access | Direct DbContext injection | Repository pattern | Less abstraction, CQRS handles read/write separation. |
+| Event bus | DotNetCore.CAP (MIT) | MassTransit | MassTransit v9 went commercial ($$$). CAP is MIT with PostgreSQL outbox. |
+| Mediator | Removed (Feb 13) | MediatR | MediatR v13 went commercial. Direct service injection. |
+| Frontend | Next.js App Router + shadcn/ui | MUI, Ant Design | Tailwind + shadcn = consistent, lightweight, accessible. |
+| Enum storage | String conversion in EF | Integer storage | Readable in DB, survives reordering. Always `HasConversion<string>()`. |
+| Time entries | UTC everywhere | Local time | Global fix in SaveChangesAsync. Npgsql 9.x requires strict UTC. |
+| Branch strategy | main only (no develop) | GitFlow | Single-branch simplicity. Feature branches → PR → main. |
+| Decimal precision | (18, 2) for money | (10, 2) | Construction contracts can be $100M+. Need headroom. |
+| Testing | In-memory DB for unit, real PostgreSQL for integration | Mocking DbContext | In-memory is faster, integration catches real query issues. |
+
+---
 
 ## Directory Structure
 
 ```
-pitbull/
+pitbull-private/
 ├── src/
-│   ├── Pitbull.Api/              # ASP.NET Core host (controllers, middleware, DI)
-│   │   ├── Controllers/          # REST API endpoints
-│   │   ├── Middleware/           # ExceptionMiddleware, TenantMiddleware
-│   │   ├── Migrations/           # EF Core migrations (auto-applied on startup)
-│   │   └── Program.cs            # DI composition root
+│   ├── Pitbull.Api/                    # ASP.NET Core host
+│   │   ├── Controllers/               # 77 REST API controllers
+│   │   ├── Middleware/                 # Tenant, Company, Exception, RateLimit
+│   │   ├── Migrations/                # 52+ EF Core migrations
+│   │   ├── Services/                  # Cross-cutting services
+│   │   └── Program.cs                 # DI composition root
 │   │
 │   ├── Modules/
-│   │   ├── Pitbull.Core/         # Shared kernel: DbContext, CQRS, multi-tenancy
-│   │   ├── Pitbull.Projects/     # Project management domain
-│   │   ├── Pitbull.Bids/         # Bid management domain
-│   │   ├── Pitbull.Contracts/    # Subcontracts (stub)
-│   │   ├── Pitbull.Documents/    # Documents (stub)
-│   │   ├── Pitbull.Portal/       # Sub portal (stub)
-│   │   ├── Pitbull.Billing/      # Billing (stub)
-│   │   └── Pitbull.RFIs/         # RFIs and submittals
+│   │   ├── Pitbull.Core/              # Shared kernel: DbContext, entities, multi-tenancy
+│   │   ├── Pitbull.Projects/          # Project CRUD, phases, cost codes
+│   │   ├── Pitbull.Bids/             # Bid management + bid-to-project conversion
+│   │   ├── Pitbull.Contracts/         # Subcontracts, SOV, change orders
+│   │   ├── Pitbull.Billing/           # AIA G702/G703, retention, lien waivers, AP/AR, vendors, customers, PO/invoice matching
+│   │   ├── Pitbull.TimeTracking/      # Time entries, crew entry, approval workflow, payroll
+│   │   ├── Pitbull.ProjectManagement/ # Schedule, RFIs, submittals, daily reports, meetings, tasks, documents
+│   │   ├── Pitbull.AI/               # AI chat, smart fields, document intelligence
+│   │   ├── Pitbull.Reports/          # Labor cost, profitability, equipment, CSV/PDF exports
+│   │   ├── Pitbull.Notifications/     # Email (Resend), in-app notifications
+│   │   ├── Pitbull.SystemAdmin/       # API keys, settings, compliance
+│   │   ├── Pitbull.Documents/         # File storage abstraction
+│   │   ├── Pitbull.RFIs/             # RFI-specific domain (legacy, merging into PM)
+│   │   └── Pitbull.Portal/           # External user portal (stub)
 │   │
-│   ├── Infrastructure/           # Cross-cutting (email, storage, messaging)
-│   │
-│   └── Pitbull.Web/pitbull-web/  # Next.js frontend
+│   └── Pitbull.Web/pitbull-web/       # Next.js 16 frontend
 │       └── src/
-│           ├── app/              # App Router routes
-│           │   ├── (auth)/       # Public auth pages (login, register)
-│           │   └── (dashboard)/  # Protected pages with sidebar
-│           ├── components/       # React components (ui/, layout/, skeletons/)
-│           ├── contexts/         # React Context (Auth)
-│           └── lib/              # Utilities (api.ts, auth.ts)
+│           ├── app/(auth)/            # Login, signup, verify, reset
+│           ├── app/(dashboard)/       # 100+ protected pages
+│           ├── components/            # UI components (ui/, layout/, dashboard/, skeletons/)
+│           ├── contexts/              # Auth, Company, Theme, KeyboardShortcuts
+│           └── lib/                   # api.ts, auth.ts, nav-utils.ts, types
 │
 ├── tests/
-│   ├── Pitbull.Tests.Unit/       # Unit tests (XUnit, in-memory DB)
-│   └── Pitbull.Tests.Integration/ # Integration tests (real PostgreSQL)
+│   ├── Pitbull.Tests.Unit/            # 2,025+ unit tests (XUnit, in-memory DB)
+│   └── Pitbull.Tests.Integration/     # Integration tests (real PostgreSQL)
 │
-├── docs/                         # Documentation
-│   ├── BEST-PRACTICES.md         # Comprehensive dev guide
-│   └── ADDING-A-MODULE.md        # New module tutorial
+├── docs/
+│   ├── plans/                         # 25 design specs
+│   ├── roles/                         # 8 functional role docs (CFO, PM, HR, etc.)
+│   ├── solutions/                     # Compound learning: past bugs, patterns, lessons
+│   ├── ARCHITECTURE.md
+│   ├── EXECUTIVE-REVIEW-FEB19.md      # 8-persona product review with prioritized roadmap
+│   └── EXECUTIVE-ROADMAP-COMPREHENSIVE.md
 │
-└── deploy/                       # Deployment scripts
+├── .claude/
+│   ├── settings.local.json            # Agent teams enabled, permissions
+│   └── skills/                        # Domain expertise for agent teams
+│       ├── erp-accounting/            # GAAP, GL, journal entries, WIP, cost allocation
+│       ├── erp-postgres/              # Schema conventions, migrations, RLS, read models
+│       ├── erp-contracts/             # Change orders, retention, lien waivers, AIA billing
+│       ├── erp-hr-payroll/            # Certified payroll, prevailing wage, Davis-Bacon
+│       ├── erp-project-management/    # Schedule, RFIs, submittals, daily reports
+│       ├── nextjs-shadcn/             # Component patterns, theming, responsive
+│       └── erp-architecture/          # Module boundaries, CQRS, event bus patterns
+│
+└── CLAUDE.md                          # This file
 ```
 
-## Key Patterns
+---
 
-### CQRS with MediatR
+## Module Boundaries — ENFORCED
 
-Commands and queries are separated. Both return `Result<T>` - never throw exceptions for business logic.
+Modules communicate through **well-defined interfaces only**. Do NOT create cross-module references.
 
-```csharp
-// Command example
-public record CreateProjectCommand(string Name, string Number) : ICommand<ProjectDto>;
+| Module | Owns | Can Reference |
+|--------|------|---------------|
+| Pitbull.Core | DbContext, BaseEntity, multi-tenancy, shared entities | Nothing (root) |
+| Pitbull.Projects | Project, CostCode, Phase | Core |
+| Pitbull.Bids | Bid, BidItem | Core, Projects |
+| Pitbull.Contracts | Subcontract, SOV, ChangeOrder | Core, Projects |
+| Pitbull.Billing | PaymentApp, Vendor, Customer, GL, WIP, Retention, LienWaiver, PO | Core, Projects, Contracts |
+| Pitbull.TimeTracking | TimeEntry, PayPeriod, PayrollRun, CrewAssignment | Core, Projects |
+| Pitbull.ProjectManagement | Schedule, RFI, Submittal, DailyReport, Meeting, Task | Core, Projects |
+| Pitbull.AI | AiService, providers | Core (query-only access to other modules via DbContext) |
+| Pitbull.Reports | Report generation | Core (read-only access) |
 
-// Query example
-public record GetProjectQuery(Guid Id) : IQuery<ProjectDto>;
+**Cross-module communication:** Use CAP events (PostgreSQL outbox + Redis Streams) for async. For sync, a module may query entities from another module's tables through the shared DbContext — but never import another module's services.
 
-// Handler returns Result
-return Result.Success(dto);
-return Result.Failure<ProjectDto>("Project not found", "NOT_FOUND");
-```
+---
 
-### Vertical Slice Architecture
-
-Each feature folder contains command/query, handler, and validator:
-
-```
-Features/
-  CreateProject/
-    CreateProjectCommand.cs    # Request + response DTO
-    CreateProjectHandler.cs    # Business logic
-    CreateProjectValidator.cs  # FluentValidation
-```
-
-### Multi-Tenancy
-
-Two enforcement layers:
-1. **Application:** TenantMiddleware resolves from JWT `tenant_id` claim
-2. **Database:** PostgreSQL RLS policies filter by `app.current_tenant`
-
-## Backend Conventions
+## Backend Patterns
 
 ### Controllers
-- `[Authorize]` at class level (only AuthController is public)
-- Route pattern: `[Route("api/[controller]")]`
-- Error response: `new { error = "message", code = "CODE" }`
+```csharp
+[ApiController]
+[Route("api/resource-name")]   // kebab-case
+[Authorize]                    // All controllers require auth (except AuthController)
+[EnableRateLimiting("api")]    // Rate limiting on all endpoints
+[Produces("application/json")]
+[Tags("Module Name")]          // Swagger grouping
+public class ResourceController(IResourceService service) : ControllerBase
+```
 
-### Handlers
-- Inject `PitbullDbContext` directly (no repository pattern)
-- Use `db.Set<T>()` to access entities
-- Always pass `CancellationToken`
-- Queries use `.AsNoTracking()`
+### Services (Direct Injection — No MediatR)
+```csharp
+public interface IResourceService
+{
+    Task<ResourceDto?> GetAsync(Guid id, CancellationToken ct);
+    Task<ResourceDto> CreateAsync(CreateResourceDto dto, CancellationToken ct);
+}
+
+public class ResourceService(PitbullDbContext db, ITenantContext tenant, ICompanyContext company) : IResourceService
+{
+    // Always filter by tenant + company
+    // Always use .AsNoTracking() for reads
+    // Always pass CancellationToken
+}
+```
 
 ### Entity Configuration
-- Table names: snake_case (`projects`, `bid_items`)
-- Enums stored as strings: `HasConversion<string>()`
-- Decimals: `HasPrecision(18, 2)` for money
-- Unique indexes include TenantId: `HasIndex(x => new { x.TenantId, x.Number })`
+```csharp
+// Table names: snake_case
+builder.ToTable("resource_items");
 
-### Error Codes
-Use uppercase strings: `NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_STATUS`, `ALREADY_CONVERTED`
+// Enums: ALWAYS string conversion
+builder.Property(x => x.Status).HasConversion<string>();
 
-## Frontend Conventions
+// Money: ALWAYS (18, 2)
+builder.Property(x => x.Amount).HasPrecision(18, 2);
 
-### API Calls
-Always use the typed `api()` wrapper, never raw `fetch`:
+// Unique indexes: ALWAYS include TenantId
+builder.HasIndex(x => new { x.TenantId, x.Number }).IsUnique();
 
+// Soft delete: IsDeleted bool with global query filter
+builder.HasQueryFilter(x => !x.IsDeleted && x.TenantId == tenantId);
+```
+
+### Multi-Tenancy (Two Layers)
+1. **Application:** TenantMiddleware + CompanyMiddleware resolve from JWT claims
+2. **Database:** PostgreSQL RLS policies: `set_config('app.current_tenant', ...)` and `set_config('app.current_company', ...)`
+
+### DateTime: UTC Everywhere
+```csharp
+// Global fix in SaveChangesAsync — converts all DateTimeKind.Unspecified to UTC
+// Npgsql 9.x strict UTC requirement
+// NEVER store or compare local times
+```
+
+### Error Responses
+```csharp
+return BadRequest(new { error = "Human-readable message" });  // Client
+logger.LogError(ex, "Detailed server error");                  // Server (Serilog JSON)
+// NEVER expose stack traces or internal details to clients
+```
+
+---
+
+## Frontend Patterns
+
+### API Calls — Always use typed wrapper
 ```typescript
-const projects = await api<PagedResult<Project>>("/api/projects");
-const bid = await api<Bid>("/api/bids", { method: "POST", body: {...} });
+const data = await api<ProjectDto>("/api/projects/" + id);
+const result = await api<ProjectDto>("/api/projects", { method: "POST", body: dto });
+// api() handles auth token, error responses, base URL
 ```
 
 ### Auth
-Use the `useAuth()` hook:
-
 ```typescript
 const { user, isAuthenticated, login, logout } = useAuth();
+// JWT with refresh token. Token stored in memory, refresh in httpOnly cookie.
 ```
 
+### Component Patterns
+- shadcn/ui base components in `components/ui/`
+- Feature components in `components/{feature}/`
+- Loading skeletons via `loading.tsx` per route
+- Empty states with call-to-action for list pages
+- Inline validation on forms
+- Breadcrumbs on every page (22+ pages)
+- Toast notifications for success/error
+- Dark mode support via `theme-context`
+
 ### Styling
-- Mobile-first with Tailwind (`sm:`, `md:`, `lg:`)
-- Minimum viewport: 375px (iPhone SE)
+- Tailwind CSS 4, mobile-first (`sm:`, `md:`, `lg:`)
+- Min viewport: 375px (iPhone SE)
 - Touch targets: 44px minimum
+- **NO markdown tables** in Discord/WhatsApp outputs
 
-### Components
-- shadcn/ui components in `src/components/ui/`
-- Loading states via `loading.tsx` files with skeleton components
+---
 
-## Common Commands
+## Construction Domain — Critical Context
+
+This is not generic SaaS. These domain concepts MUST be understood:
+
+### Financial
+- **Retainage/Retention:** Withholding (typically 5-10%) from each payment until project completion. Not optional — required by law in most states.
+- **AIA G702/G703:** Standard billing documents. G702 = Application for Payment, G703 = Continuation Sheet with line items. Every GC uses these.
+- **Schedule of Values (SOV):** Line-item breakdown of contract value. Each billing cycle, contractor reports % complete per line.
+- **WIP (Work in Progress):** Cost-to-cost calculation: (costs-to-date / estimated-total-cost) × contract-value. Determines overbilling/underbilling. Required for ASC 606 compliance.
+- **Lien Waiver:** Legal document waiving the right to file a mechanic's lien. Required before releasing retention or final payment.
+- **Journal Entry:** Double-entry accounting. Debits must equal credits. Period must be open.
+
+### Project Management
+- **RFI (Request for Information):** Formal question to architect/engineer. Tracked with response time, cost/schedule impact. PMs spend 30% of their day on these.
+- **Submittal:** Product data, shop drawings, samples sent to architect for approval. Ball-in-court tracking (who has it right now?).
+- **Change Order:** Modification to the contract scope/price. Must track cost impact and approval status.
+- **Punch List:** Close-out deficiency list. PM walks building with architect, documents items by location, assigns to responsible sub.
+- **Daily Report:** Field documentation: weather, manpower, activities, safety. Referenced in claims/disputes.
+
+### Labor & Payroll
+- **Prevailing Wage:** Government-mandated minimum pay rates for public works projects. Varies by trade and jurisdiction.
+- **Davis-Bacon Act:** Federal prevailing wage law. Certified payroll reports (WH-347) required weekly.
+- **Cost Code:** Numeric code categorizing work (CSI MasterFormat). Used for job costing and budget tracking.
+- **Phase Code:** Project phase (mobilization, foundation, structure, finishes, closeout). Combined with cost code for granular tracking.
+- **Crew Entry:** Foreman enters time for entire crew at once. Must be fast (< 30 seconds per entry).
+
+### Key Workflows
+1. **Bid → Project → Subcontracts → SOV → Monthly Billing (G702/G703) → Retention → Final Payment + Lien Waivers**
+2. **Time Entry → Supervisor Approval → Payroll Processing → Certified Payroll Reports**
+3. **RFI → Response → Schedule/Cost Impact → Change Order → Contract Amendment**
+
+---
+
+## Agent Team Configuration
+
+### Team Composition for Feature Work
+
+When building features, create teams with these roles:
+
+```
+Make a team that has:
+
+1. **Backend Architect** — .NET 9, C#, EF Core, PostgreSQL expert. Owns entities, services, 
+   controllers, migrations. Knows CQRS patterns, multi-tenancy, RLS.
+   Load skill: erp-architecture
+
+2. **Frontend Specialist** — React 19, Next.js 16, TypeScript, Tailwind, shadcn/ui expert. 
+   Owns pages, components, API integration. Knows the design system.
+   Load skill: nextjs-shadcn
+
+3. **Domain Expert** — Understands construction business workflows. Validates that entities, 
+   field names, and status flows match how GCs actually work.
+   Load skill: [relevant domain skill for the module]
+
+4. **Reviewer** — Reviews all output for patterns compliance, test coverage, security, 
+   and construction domain accuracy. References docs/solutions/ for past lessons.
+
+Message each other for handoffs and coordination:
+- Frontend needs to know what endpoints Backend is creating
+- Backend needs to know what data Frontend needs
+- Domain Expert validates business logic BEFORE implementation starts
+- Reviewer checks against docs/solutions/ for known issues
+```
+
+### Domain Skills (load based on module being built)
+
+| Module | Primary Skill | Secondary |
+|--------|--------------|-----------|
+| Billing, GL, WIP, AP/AR | erp-accounting | erp-contracts |
+| Contracts, Retention, Lien Waivers | erp-contracts | erp-accounting |
+| Time Tracking, Payroll | erp-hr-payroll | erp-architecture |
+| Schedule, RFIs, Submittals | erp-project-management | erp-architecture |
+| Any new module/entity | erp-architecture | erp-postgres |
+| UI work | nextjs-shadcn | erp-architecture |
+
+### Coordination Rules for Agent Teams
+
+1. **Domain Expert speaks first.** Before any code is written, the domain expert defines the business rules, entity relationships, and workflow states.
+2. **Backend and Frontend communicate.** When Backend creates an endpoint, they message Frontend with the DTO shape. When Frontend needs data, they message Backend with requirements.
+3. **Reviewer checks docs/solutions/.** Before approving, review past lessons for related patterns.
+4. **Single branch per team.** Create `feature/<name>` from main. All team members work on same branch.
+5. **Build verification is the last task.** `dotnet build` (0 warnings) + `npx next build` must both pass.
+
+---
+
+## Compound Learning — docs/solutions/
+
+After each feature ships, capture lessons in `docs/solutions/`:
+
+```markdown
+# docs/solutions/YYYY-MM-DD-feature-name.md
+
+## Problem
+What we were building and what went wrong / what we learned.
+
+## Solution
+What fixed it / what pattern emerged.
+
+## Pattern
+Reusable pattern for future work.
+
+## Files Affected
+List of files for future reference.
+```
+
+**Current known patterns:**
+- Migration duplication: When agents scaffold multiple migrations in same session, EF captures full model delta each time → duplicate AddColumn calls. **Always diff new migrations against recent ones.**
+- Service constructor changes: Adding new validation that touches service constructors breaks all test files that create that service. **Always check ALL test files.**
+- MassTransit → CAP: MassTransit v9 went commercial. **Always check licenses on major upgrades.**
+- DateTime UTC: Global SaveChangesAsync fix converts Unspecified → UTC. Don't add manual conversion.
+- Turbopack + worktrees: node_modules symlinks in worktrees break Turbopack. Avoid worktrees.
+
+---
+
+## Commands
 
 ### Backend
-
 ```bash
-# Start infrastructure (PostgreSQL + Redis)
-docker compose up -d
-
-# Run API (migrations auto-apply)
-cd src/Pitbull.Api && dotnet run
-
-# Build
-cd src/Pitbull.Api && dotnet build
-
-# Run unit tests
-cd tests/Pitbull.Tests.Unit && dotnet test
-
-# Add EF migration
-cd src/Pitbull.Api && dotnet ef migrations add <Name> -- --environment Development
+cd /mnt/c/pitbull-private
+dotnet build src/Pitbull.Api/Pitbull.Api.csproj           # Build (must be 0 warnings)
+dotnet test tests/Pitbull.Tests.Unit/                       # Unit tests
+dotnet test tests/Pitbull.Tests.Integration/                # Integration tests (needs PostgreSQL)
+cd src/Pitbull.Api && dotnet ef migrations add <Name>       # New migration
 ```
 
 ### Frontend
-
 ```bash
-cd src/Pitbull.Web/pitbull-web
-
-# Install dependencies
-npm ci
-
-# Development server
-npm run dev
-
-# Build (required before PR)
-npm run build
-
-# Lint (must pass with zero warnings)
-npm run lint
+cd /mnt/c/pitbull-private/src/Pitbull.Web/pitbull-web
+npm ci                    # Install deps
+npm run dev               # Dev server
+npx next build            # Production build (must succeed)
+npm run lint              # Lint (must be 0 warnings)
 ```
 
-## Git Workflow
-
-### Branching
-- `main` - production
-- `develop` - integration branch (PRs target here)
-- Feature branches: `feat/<name>`, `fix/<name>`, `docs/<name>`
-
-### Commits
-Use conventional commits:
-
-```
-feat: add bid-to-project conversion
-fix: resolve FK constraint on registration
-docs: update API documentation
-chore: update dependencies
+### Git
+```bash
+git checkout -b feature/<name>    # New feature branch from main
+git add -A && git commit -m "feat: description"
+# Conventional commits: feat:, fix:, docs:, chore:, refactor:, test:
 ```
 
 ### Before Every PR
 ```bash
-# Both must pass
-cd src/Pitbull.Api && dotnet build
-cd src/Pitbull.Web/pitbull-web && npm run build && npm run lint
+dotnet build src/Pitbull.Api/Pitbull.Api.csproj  # 0 warnings
+dotnet test tests/Pitbull.Tests.Unit/             # All pass
+cd src/Pitbull.Web/pitbull-web && npx next build  # Succeeds
 ```
 
-## API Endpoints
-
-Standard CRUD pattern:
-
-| Method | Route | Returns |
-|--------|-------|---------|
-| POST | `/api/{resource}` | 201 with created entity |
-| GET | `/api/{resource}/{id}` | 200 or 404 |
-| GET | `/api/{resource}` | 200 with PagedResult |
-| PUT | `/api/{resource}/{id}` | 200 with updated entity |
-| DELETE | `/api/{resource}/{id}` | 204 NoContent |
-
-Custom actions use verb routes: `POST /api/bids/{id}/convert-to-project`
-
-API documentation: `http://localhost:5000/swagger`
-
-## Known Issues
-
-1. **Subdomain tenant resolution not implemented** - TenantMiddleware placeholder returns null
-2. **PagedResult in wrong location** - Lives in Projects module, should be in Core
-
-## Testing
-
-### Unit Tests
-- Use `TestDbContextFactory.Create()` for in-memory DB
-- Test handlers directly, not controllers
-- Assert on `result.IsSuccess`, `result.ErrorCode`, `result.Value`
-
-```csharp
-[Fact]
-public async Task Handle_ValidCommand_ReturnsSuccess()
-{
-    using var db = TestDbContextFactory.Create();
-    var handler = new CreateProjectHandler(db);
-    var result = await handler.Handle(command, CancellationToken.None);
-    result.IsSuccess.Should().BeTrue();
-}
-```
-
-### CI Pipeline
-GitHub Actions runs on push/PR to `main` and `develop`:
-- Backend: restore, build, unit tests, integration tests (PostgreSQL service)
-- Frontend: install, build, lint
-
-## Key Files to Know
-
-| File | Purpose |
-|------|---------|
-| `src/Pitbull.Api/Program.cs` | DI composition, middleware pipeline |
-| `src/Modules/Pitbull.Core/Data/PitbullDbContext.cs` | EF context, SaveChanges with audit |
-| `src/Modules/Pitbull.Core/CQRS/` | ICommand, IQuery, Result, ValidationBehavior |
-| `src/Modules/Pitbull.Core/MultiTenancy/` | TenantMiddleware, ITenantContext |
-| `src/Pitbull.Web/pitbull-web/src/lib/api.ts` | Typed fetch wrapper |
-| `src/Pitbull.Web/pitbull-web/src/contexts/AuthContext.tsx` | Auth state management |
+---
 
 ## Environment Variables
 
 | Variable | Purpose |
 |----------|---------|
-| `ConnectionStrings__PitbullDb` | PostgreSQL connection string |
+| `ConnectionStrings__PitbullDb` | PostgreSQL connection |
 | `Jwt__Key` | JWT signing key (min 32 chars) |
-| `Cors__AllowedOrigins__0` | Allowed frontend origin |
-| `NEXT_PUBLIC_API_BASE_URL` | API URL (baked into frontend build) |
+| `RESEND_API_KEY` | Resend email service |
+| `Email__BaseUrl` | Frontend URL for email links |
+| `NEXT_PUBLIC_API_BASE_URL` | API URL for frontend |
+| `POSTHOG_API_KEY` | PostHog analytics |
 
-## Adding a New Feature
+---
 
-1. Create feature folder in appropriate module: `Features/<FeatureName>/`
-2. Add command/query record with DTO
-3. Add handler implementing `IRequestHandler`
-4. Add validator (optional) extending `AbstractValidator`
-5. Add controller endpoint in `Pitbull.Api/Controllers/`
-6. Add frontend page/component
-7. Write unit tests
+## Key Reference Docs
 
-See `docs/ADDING-A-MODULE.md` for creating entirely new modules.
-
-## Useful Documentation
-
-- `docs/BEST-PRACTICES.md` - Comprehensive patterns guide
-- `docs/ADDING-A-MODULE.md` - New module creation
-- `CONTRIBUTING.md` - Development workflow
-- `RLS-IMPLEMENTATION.md` - Row-Level Security details
-- `VISION.md` - Product roadmap
+| Doc | Purpose |
+|-----|---------|
+| `docs/EXECUTIVE-REVIEW-FEB19.md` | 8-persona review with all concerns + prioritized roadmap |
+| `docs/EXECUTIVE-ROADMAP-COMPREHENSIVE.md` | All 40 suggestions, 4 sprints planned |
+| `docs/ARCHITECTURE.md` | System architecture overview |
+| `docs/roles/*.md` | 8 functional role perspectives (CFO, PM, HR, etc.) |
+| `docs/plans/*.md` | 25+ design specs for upcoming features |
+| `docs/solutions/*.md` | Compound learning: past bugs, patterns, lessons |
