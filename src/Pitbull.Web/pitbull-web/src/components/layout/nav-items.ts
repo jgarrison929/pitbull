@@ -106,4 +106,6 @@ export const adminItems: NavItem[] = [
   { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖" },
   { label: "API Keys", href: "/admin/api-keys", icon: "🔑" },
   { label: "System Health", href: "/admin/system-health", icon: "💚" },
+  { label: "Health Dashboard", href: "/admin/health", icon: "📡" },
+  { label: "Feedback Inbox", href: "/admin/feedback", icon: "💬" },
 ];

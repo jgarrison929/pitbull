@@ -11,6 +11,7 @@ import { KeyboardShortcutsHelp } from "@/components/keyboard-shortcuts-help";
 import { CommandPalette } from "@/components/command-palette";
 import { QuickActionFAB } from "@/components/layout/quick-action-fab";
 import { AiChatPanel } from "@/components/ai-chat-panel";
+import { FeedbackWidget } from "@/components/layout/feedback-widget";
 
 export default function DashboardLayout({
   children,
@@ -54,6 +55,7 @@ export default function DashboardLayout({
       <KeyboardShortcutsHelp />
       <CommandPalette />
       <QuickActionFAB />
+      <FeedbackWidget />
 
       <AiChatPanel />
     </KeyboardShortcutsProvider>
