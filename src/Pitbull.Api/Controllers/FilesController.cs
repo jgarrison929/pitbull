@@ -12,7 +12,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Files")]
-public class FilesController(IFileStorageService fileStorageService) : ControllerBase
+public class FilesController(IFileStorageService fileStorageService, IFileValidationService fileValidationService) : ControllerBase
 {
     private Guid? GetUserId()
     {
@@ -33,6 +33,10 @@ public class FilesController(IFileStorageService fileStorageService) : Controlle
 
         if (file.Length == 0)
             return BadRequest(new { error = "File is empty" });
+
+        var validation = fileValidationService.ValidateFile(file.FileName, file.ContentType, file.Length);
+        if (!validation.IsSuccess)
+            return BadRequest(new { error = validation.Error, code = validation.ErrorCode });
 
         await using var stream = file.OpenReadStream();
         var command = new UploadFileCommand(
@@ -68,6 +72,10 @@ public class FilesController(IFileStorageService fileStorageService) : Controlle
         foreach (var file in files)
         {
             if (file.Length == 0) continue;
+
+            var validation = fileValidationService.ValidateFile(file.FileName, file.ContentType, file.Length);
+            if (!validation.IsSuccess)
+                return BadRequest(new { error = validation.Error, code = validation.ErrorCode, fileName = file.FileName });
 
             await using var stream = file.OpenReadStream();
             var command = new UploadFileCommand(

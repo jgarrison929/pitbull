@@ -146,6 +146,7 @@ builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentS
 builder.Services.AddScoped<Pitbull.Reports.Services.IReportService, Pitbull.Reports.Services.ReportService>();
 
 // Documents module (file attachments)
+builder.Services.AddSingleton<Pitbull.Documents.Services.IFileValidationService, Pitbull.Documents.Services.FileValidationService>();
 builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbull.Documents.Services.FileStorageService>();
 
 // Notifications module — decorator adds fire-and-forget email on notification creation

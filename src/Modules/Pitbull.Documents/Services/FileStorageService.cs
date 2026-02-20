@@ -7,7 +7,7 @@ using Pitbull.Documents.Domain;
 
 namespace Pitbull.Documents.Services;
 
-public class FileStorageService(PitbullDbContext db, IConfiguration configuration, ITenantContext tenantContext) : IFileStorageService
+public class FileStorageService(PitbullDbContext db, IConfiguration configuration, ITenantContext tenantContext, IFileValidationService fileValidationService) : IFileStorageService
 {
     private string GetBasePath()
     {
@@ -21,6 +21,10 @@ public class FileStorageService(PitbullDbContext db, IConfiguration configuratio
 
     public async Task<Result<FileAttachmentDto>> UploadAsync(UploadFileCommand command, CancellationToken ct = default)
     {
+        var validationResult = fileValidationService.ValidateFile(command.FileName, command.ContentType, command.FileSize);
+        if (!validationResult.IsSuccess)
+            return Result.Failure<FileAttachmentDto>(validationResult.Error!, validationResult.ErrorCode);
+
         var basePath = GetBasePath();
         var tenantFolder = tenantContext.TenantId != Guid.Empty ? tenantContext.TenantId.ToString("N") : "default";
         var entityFolder = command.RelatedEntityType ?? "general";

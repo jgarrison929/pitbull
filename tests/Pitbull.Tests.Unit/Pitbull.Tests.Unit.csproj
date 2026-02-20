@@ -35,6 +35,7 @@
     <ProjectReference Include="..\..\src\Modules\Pitbull.Billing\Pitbull.Billing.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.AI\Pitbull.AI.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.ProjectManagement\Pitbull.ProjectManagement.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Pitbull.Documents\Pitbull.Documents.csproj" />
     <ProjectReference Include="..\..\src\Modules\Pitbull.SystemAdmin\Pitbull.SystemAdmin.csproj" />
   </ItemGroup>
 
