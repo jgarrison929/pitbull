@@ -61,6 +61,10 @@ public enum NarrativeStatus { Draft = 0, Submitted = 1, Approved = 2, Published 
 public enum DocumentStorageProvider { LocalFileSystem = 0, S3Compatible = 1, AzureBlob = 2 }
 public enum TaskReferenceType { None = 0, Rfi = 1, Submittal = 2, Meeting = 3, DailyReport = 4, Narrative = 5, Other = 6 }
 
+public enum PunchListCategory { Architectural = 0, Structural = 1, Mechanical = 2, Electrical = 3, Plumbing = 4, FireProtection = 5, Sitework = 6, LifeSafety = 7, Finishes = 8, Other = 9 }
+public enum PunchListResponsiblePartyType { GeneralContractor = 0, Subcontractor = 1, Owner = 2, Architect = 3 }
+public enum PunchListItemStatus { Open = 0, InProgress = 1, ReadyForInspection = 2, Closed = 3, Disputed = 4 }
+
 // 4.1 Schedule
 public class PmSchedule : BaseEntity, ICompanyScoped
 {
@@ -830,4 +834,41 @@ public class PmDocumentVersion : BaseEntity, ICompanyScoped
     public Guid UploadedByUserId { get; set; }
     public DateTime UploadedAt { get; set; }
     public string? ChangeNote { get; set; }
+}
+
+// 4.15 Punch List
+public class PmPunchListItem : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid ProjectId { get; set; }
+    public int ItemNumber { get; set; }
+    public string Location { get; set; } = string.Empty;
+    public PunchListCategory Category { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public PunchListResponsiblePartyType ResponsiblePartyType { get; set; }
+    public Guid? ResponsibleSubcontractorId { get; set; }
+    public string? AssignedToName { get; set; }
+    public DateTime? DueDate { get; set; }
+    public PunchListItemStatus Status { get; set; }
+    public TaskPriority Priority { get; set; }
+    public decimal? CostImpact { get; set; }
+    public int? ScheduleImpactDays { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public Guid? ClosedByUserId { get; set; }
+    public DateTime? ClosedAt { get; set; }
+    public Guid? InspectedByUserId { get; set; }
+    public DateTime? InspectedAt { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class PmPunchListPhoto : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid PunchListItemId { get; set; }
+    public Guid DocumentId { get; set; }
+    public string? Caption { get; set; }
+    public DateTime? TakenAt { get; set; }
+    public Guid? TakenByUserId { get; set; }
+    public decimal? Latitude { get; set; }
+    public decimal? Longitude { get; set; }
 }

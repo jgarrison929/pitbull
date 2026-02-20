@@ -1,25 +1,33 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
+import { SimpleTooltip } from "@/components/ui/tooltip";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { CompanySwitcher } from "./company-switcher";
 import { ProjectSwitcher } from "./project-switcher";
 import {
-  mainNavItems,
-  financialItems,
+  coreNavItems,
+  resourceItems,
+  moduleGroups,
+  DEFAULT_PINNED_GROUPS,
   getProjectManagementItems,
   reportItems,
   settingsItems,
   helpItems,
   adminItems,
   type NavItem as NavItemType,
+  type ModuleGroup,
 } from "./nav-items";
 import { findActiveHref } from "./nav-utils";
 import { useKeyboardShortcuts } from "@/contexts/keyboard-shortcuts-context";
+
+const PINNED_KEY = "pitbull:sidebar:pinned";
+const EXPANDED_KEY = "pitbull:sidebar:expanded";
 
 function NavItem({
   item,
@@ -28,7 +36,7 @@ function NavItem({
   item: NavItemType;
   isActive: boolean;
 }) {
-  return (
+  const link = (
     <Link
       href={item.disabled ? "#" : item.href}
       className={cn(
@@ -50,6 +58,15 @@ function NavItem({
       )}
     </Link>
   );
+
+  if (item.tooltip) {
+    return (
+      <SimpleTooltip content={item.tooltip} side="right">
+        {link}
+      </SimpleTooltip>
+    );
+  }
+  return link;
 }
 
 function SectionHeader({ label }: { label: string }) {
@@ -58,6 +75,44 @@ function SectionHeader({ label }: { label: string }) {
       <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
         {label}
       </span>
+    </div>
+  );
+}
+
+function ModuleSection({
+  group,
+  isPinned,
+  onTogglePin,
+  activeHref,
+}: {
+  group: ModuleGroup;
+  isPinned: boolean;
+  onTogglePin: (id: string) => void;
+  activeHref: string | null;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between pt-4 pb-2 group">
+        <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+          {group.label}
+        </span>
+        <button
+          onClick={() => onTogglePin(group.id)}
+          className={cn(
+            "mr-2 text-xs transition-opacity",
+            isPinned
+              ? "text-amber-400 opacity-100"
+              : "text-sidebar-foreground/40 opacity-0 group-hover:opacity-100"
+          )}
+          title={isPinned ? "Unpin section" : "Pin section"}
+          aria-label={isPinned ? `Unpin ${group.label}` : `Pin ${group.label}`}
+        >
+          {isPinned ? "\u{1F4CC}" : "\u{1F4CC}"}
+        </button>
+      </div>
+      {group.items.map((item) => (
+        <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
+      ))}
     </div>
   );
 }
@@ -72,20 +127,65 @@ export function AppSidebar() {
   const currentProjectId = projectMatch?.[1] || null;
   const projectManagementItems = getProjectManagementItems(currentProjectId);
 
-  // Compute the single active href across all nav items so only the most
-  // specific match highlights (fixes /settings also lighting up for /settings/notifications).
-  const activeHref = useMemo(() => {
-    const allItems = [
-      ...mainNavItems,
-      ...financialItems,
+  // Pinned groups state with localStorage persistence
+  const [pinnedGroups, setPinnedGroups] = useState<string[]>(() => {
+    if (typeof window === "undefined") return DEFAULT_PINNED_GROUPS;
+    try {
+      const stored = localStorage.getItem(PINNED_KEY);
+      return stored ? JSON.parse(stored) : DEFAULT_PINNED_GROUPS;
+    } catch {
+      return DEFAULT_PINNED_GROUPS;
+    }
+  });
+
+  // "More Modules" collapsible state
+  const [isExpanded, setIsExpanded] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem(EXPANDED_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  // Persist pinned groups
+  useEffect(() => {
+    try { localStorage.setItem(PINNED_KEY, JSON.stringify(pinnedGroups)); } catch { /* noop */ }
+  }, [pinnedGroups]);
+
+  // Persist expanded state
+  useEffect(() => {
+    try { localStorage.setItem(EXPANDED_KEY, String(isExpanded)); } catch { /* noop */ }
+  }, [isExpanded]);
+
+  const togglePin = useCallback((id: string) => {
+    setPinnedGroups((prev) =>
+      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
+    );
+  }, []);
+
+  const pinnedModules = moduleGroups.filter((g) => pinnedGroups.includes(g.id));
+  const unpinnedModules = moduleGroups.filter((g) => !pinnedGroups.includes(g.id));
+
+  // Compute the single active href across all nav items
+  const allNavItems = useMemo(() => {
+    const moduleItems = moduleGroups.flatMap((g) => g.items);
+    return [
+      ...coreNavItems,
+      ...resourceItems,
+      ...moduleItems,
       ...projectManagementItems,
       ...reportItems,
       ...settingsItems,
       ...helpItems,
       ...(user?.roles?.includes("Admin") ? adminItems : []),
     ];
-    return findActiveHref(pathname, allItems);
-  }, [pathname, projectManagementItems, user?.roles]);
+  }, [projectManagementItems, user?.roles]);
+
+  const activeHref = useMemo(
+    () => findActiveHref(pathname, allNavItems),
+    [pathname, allNavItems]
+  );
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar text-sidebar-foreground min-h-screen">
@@ -116,16 +216,50 @@ export function AppSidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {/* Main nav */}
-        {mainNavItems.map((item) => (
+        {/* Core nav -- always visible */}
+        {coreNavItems.map((item) => (
           <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 
-        {/* Financial Section */}
-        <SectionHeader label="Financial" />
-        {financialItems.map((item) => (
+        {/* Resources */}
+        <SectionHeader label="Resources" />
+        {resourceItems.map((item) => (
           <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
+
+        {/* Pinned module groups */}
+        {pinnedModules.map((group) => (
+          <ModuleSection
+            key={group.id}
+            group={group}
+            isPinned={true}
+            onTogglePin={togglePin}
+            activeHref={activeHref}
+          />
+        ))}
+
+        {/* More Modules -- collapsible for unpinned groups */}
+        {unpinnedModules.length > 0 && (
+          <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+            <CollapsibleTrigger className="flex items-center justify-between w-full pt-4 pb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors">
+              <span>More Modules ({unpinnedModules.length})</span>
+              <span className={cn("transition-transform text-[10px]", isExpanded && "rotate-180")}>
+                &#x25BC;
+              </span>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              {unpinnedModules.map((group) => (
+                <ModuleSection
+                  key={group.id}
+                  group={group}
+                  isPinned={false}
+                  onTogglePin={togglePin}
+                  activeHref={activeHref}
+                />
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        )}
 
         {/* Project Management Section */}
         <SectionHeader label="Project Management" />
@@ -213,7 +347,7 @@ export function AppSidebar() {
             className="text-sidebar-foreground/60 hover:text-sidebar-foreground text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Sign out"
           >
-            ↗
+            &#x2197;
           </button>
         </div>
       </div>

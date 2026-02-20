@@ -161,6 +161,22 @@ builder.Services.AddScoped<Pitbull.Core.Features.ChartOfAccounts.IChartOfAccount
 builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentStorageProvider>();
 builder.Services.AddScoped<Pitbull.Reports.Services.IReportService, Pitbull.Reports.Services.ReportService>();
 
+// Project Management module services
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IScheduleService, Pitbull.ProjectManagement.Services.ScheduleService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IJobCostService, Pitbull.ProjectManagement.Services.JobCostService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ISubmittalService, Pitbull.ProjectManagement.Services.SubmittalService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IPlansSpecsService, Pitbull.ProjectManagement.Services.PlansSpecsService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ICommunicationService, Pitbull.ProjectManagement.Services.CommunicationService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IDailyReportService, Pitbull.ProjectManagement.Services.DailyReportService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IProgressService, Pitbull.ProjectManagement.Services.ProgressService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IProjectionService, Pitbull.ProjectManagement.Services.ProjectionService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IMeetingService, Pitbull.ProjectManagement.Services.MeetingService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IDocumentGenerationService, Pitbull.ProjectManagement.Services.DocumentGenerationService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ITaskService, Pitbull.ProjectManagement.Services.TaskService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.INarrativeService, Pitbull.ProjectManagement.Services.NarrativeService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IDocumentService, Pitbull.ProjectManagement.Services.DocumentService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IPunchListService, Pitbull.ProjectManagement.Services.PunchListService>();
+
 // Documents module (file attachments)
 builder.Services.AddSingleton<Pitbull.Documents.Services.IFileValidationService, Pitbull.Documents.Services.FileValidationService>();
 builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbull.Documents.Services.FileStorageService>();

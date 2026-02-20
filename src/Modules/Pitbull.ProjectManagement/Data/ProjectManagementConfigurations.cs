@@ -1300,3 +1300,66 @@ public class PmDocumentVersionConfiguration : IEntityTypeConfiguration<PmDocumen
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class PmPunchListItemConfiguration : IEntityTypeConfiguration<PmPunchListItem>
+{
+    public void Configure(EntityTypeBuilder<PmPunchListItem> builder)
+    {
+        builder.ConfigureBase("pm_punch_list_items");
+        builder.Property(x => x.Location).HasMaxLength(500).IsRequired();
+        builder.Property(x => x.Description).HasMaxLength(4000).IsRequired();
+        builder.Property(x => x.AssignedToName).HasMaxLength(200);
+        builder.Property(x => x.Notes).HasMaxLength(4000);
+        builder.Property(x => x.CostImpact).HasPrecision(18, 2);
+        builder.Property(x => x.Category).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.ResponsiblePartyType).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.Priority).HasConversion<string>().HasMaxLength(50);
+        builder.HasIndex(x => new { x.TenantId, x.ProjectId, x.ItemNumber }).IsUnique();
+        builder.HasIndex(x => new { x.ProjectId, x.Status, x.DueDate });
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Subcontract>()
+            .WithMany()
+            .HasForeignKey(x => x.ResponsibleSubcontractorId)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(x => x.ClosedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(x => x.InspectedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class PmPunchListPhotoConfiguration : IEntityTypeConfiguration<PmPunchListPhoto>
+{
+    public void Configure(EntityTypeBuilder<PmPunchListPhoto> builder)
+    {
+        builder.ConfigureBase("pm_punch_list_photos");
+        builder.Property(x => x.Caption).HasMaxLength(500);
+        builder.Property(x => x.Latitude).HasPrecision(10, 7);
+        builder.Property(x => x.Longitude).HasPrecision(10, 7);
+        builder.HasIndex(x => new { x.PunchListItemId, x.DocumentId }).IsUnique();
+        builder.HasOne<PmPunchListItem>()
+            .WithMany()
+            .HasForeignKey(x => x.PunchListItemId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<PmDocument>()
+            .WithMany()
+            .HasForeignKey(x => x.DocumentId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(x => x.TakenByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

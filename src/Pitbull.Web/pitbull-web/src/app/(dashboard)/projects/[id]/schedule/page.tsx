@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +48,7 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
+import { GanttChart, type GanttActivity, type GanttDependency } from "@/components/schedule/gantt-chart";
 import { Pencil, Trash2 } from "lucide-react";
 
 interface DataMap {
@@ -101,6 +103,19 @@ function asString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function asNumber(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
+function asBool(value: unknown): boolean {
+  return value === true || value === "true";
+}
+
 function formatDate(date: string | null): string {
   if (!date) return "-";
   const parsed = new Date(date);
@@ -147,6 +162,85 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ScheduleRow | null>(null);
+
+  // Gantt tab state
+  const [activeTab, setActiveTab] = useState("list");
+  const [ganttScheduleId, setGanttScheduleId] = useState<string | null>(null);
+  const [ganttActivities, setGanttActivities] = useState<GanttActivity[]>([]);
+  const [ganttDependencies, setGanttDependencies] = useState<GanttDependency[]>([]);
+  const [ganttLoading, setGanttLoading] = useState(false);
+
+  const loadGanttData = useCallback(async (scheduleId: string) => {
+    setGanttLoading(true);
+    try {
+      const [actResult, depResult] = await Promise.all([
+        api<PmPagedResult>(
+          `/api/projects/${projectId}/schedules/${scheduleId}/activities?page=1&pageSize=1000`
+        ).catch(() => ({ items: [] as PmEntityDto[], totalCount: 0, page: 1, pageSize: 1000 })),
+        api<PmPagedResult>(
+          `/api/projects/${projectId}/schedules/${scheduleId}/dependencies?page=1&pageSize=1000`
+        ).catch(() => ({ items: [] as PmEntityDto[], totalCount: 0, page: 1, pageSize: 1000 })),
+      ]);
+
+      const activities: GanttActivity[] = (actResult.items ?? []).map((item) => {
+        const data = asDataMap(item.data);
+        return {
+          id: item.id,
+          name: item.name || asString(data.Name) || "Untitled",
+          wbsCode: asString(data.WbsCode),
+          activityType: (asString(data.ActivityType) || "Task") as GanttActivity["activityType"],
+          status: (item.status || asString(data.Status) || "NotStarted") as GanttActivity["status"],
+          plannedStart: asString(data.PlannedStart) || null,
+          plannedFinish: asString(data.PlannedFinish) || null,
+          actualStart: asString(data.ActualStart) || null,
+          actualFinish: asString(data.ActualFinish) || null,
+          percentComplete: asNumber(data.PercentComplete),
+          isCritical: asBool(data.IsCritical),
+          totalFloatDays: data.TotalFloatDays != null ? asNumber(data.TotalFloatDays) : null,
+          parentActivityId: asString(data.ParentActivityId) || null,
+          sortOrder: asNumber(data.SortOrder),
+        };
+      });
+
+      const dependencies: GanttDependency[] = (depResult.items ?? []).map((item) => {
+        const data = asDataMap(item.data);
+        return {
+          id: item.id,
+          predecessorActivityId: asString(data.PredecessorActivityId),
+          successorActivityId: asString(data.SuccessorActivityId),
+          dependencyType: (asString(data.DependencyType) || "FS") as GanttDependency["dependencyType"],
+          lagDays: asNumber(data.LagDays),
+        };
+      });
+
+      setGanttActivities(activities);
+      setGanttDependencies(dependencies);
+    } catch (error) {
+      toast.error("Failed to load Gantt data", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setGanttLoading(false);
+    }
+  }, [projectId]);
+
+  // Load gantt data when schedule selection changes
+  useEffect(() => {
+    if (ganttScheduleId) {
+      void loadGanttData(ganttScheduleId);
+    } else {
+      setGanttActivities([]);
+      setGanttDependencies([]);
+    }
+  }, [ganttScheduleId, loadGanttData]);
+
+  // Auto-select first active schedule for gantt when switching to gantt tab
+  useEffect(() => {
+    if (activeTab === "gantt" && !ganttScheduleId && schedules.length > 0) {
+      const active = schedules.find((s) => s.status === "Active");
+      setGanttScheduleId(active?.id ?? schedules[0].id);
+    }
+  }, [activeTab, ganttScheduleId, schedules]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -350,6 +444,13 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
         </Card>
       </div>
 
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="list">List</TabsTrigger>
+          <TabsTrigger value="gantt">Gantt Chart</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="list" className="mt-4">
       <Card>
         <CardHeader>
           <CardTitle>Schedule List</CardTitle>
@@ -520,6 +621,58 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="gantt" className="mt-4">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <CardTitle>Gantt Chart</CardTitle>
+                  <CardDescription>
+                    Visual timeline of schedule activities, dependencies, and critical path.
+                  </CardDescription>
+                </div>
+                {rows.length > 0 && (
+                  <Select
+                    value={ganttScheduleId ?? ""}
+                    onValueChange={(value) => setGanttScheduleId(value)}
+                  >
+                    <SelectTrigger className="w-full sm:w-[240px]">
+                      <SelectValue placeholder="Select schedule" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rows.map((row) => (
+                        <SelectItem key={row.id} value={row.id}>
+                          {row.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading || ganttLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-sm text-muted-foreground">Loading schedule data...</div>
+                </div>
+              ) : rows.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-8 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No schedules yet. Create a schedule in the List tab first.
+                  </p>
+                </div>
+              ) : (
+                <GanttChart
+                  activities={ganttActivities}
+                  dependencies={ganttDependencies}
+                />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

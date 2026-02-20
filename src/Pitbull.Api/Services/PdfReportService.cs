@@ -20,6 +20,8 @@ public interface IPdfReportService
     Task<byte[]> GenerateRetentionSummaryPdfAsync(CancellationToken cancellationToken = default);
     Task<byte[]> GenerateWh347PdfAsync(Guid payrollRunId, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateAgedArPdfAsync(CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateSubmittalLogPdfAsync(Guid projectId, CancellationToken cancellationToken = default);
+    Task<byte[]> GeneratePunchListPdfAsync(Guid projectId, CancellationToken cancellationToken = default);
 }
 
 public sealed class PdfReportService(
@@ -463,6 +465,79 @@ public sealed class PdfReportService(
                 Money(rows.Sum(x => x.Ninety)),
                 Money(rows.Sum(x => x.NinetyPlus))
             ]);
+    }
+
+    public async Task<byte[]> GenerateSubmittalLogPdfAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Generating Submittal Log PDF for project {ProjectId}", projectId);
+
+        var project = await db.Set<Project>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+
+        var submittals = await db.Set<PmSubmittal>()
+            .AsNoTracking()
+            .Where(s => s.ProjectId == projectId && !s.IsDeleted)
+            .OrderBy(s => s.SubmittalNumber)
+            .ToListAsync(cancellationToken);
+
+        var rows = submittals.Select(s => new[]
+        {
+            s.SubmittalNumber.ToString(),
+            s.Title,
+            s.SpecSectionCode ?? string.Empty,
+            s.SubmittalType.ToString(),
+            s.Status.ToString(),
+            s.RequiredByDate?.ToString("MM/dd/yyyy") ?? string.Empty,
+            s.SubmittedDate?.ToString("MM/dd/yyyy") ?? string.Empty,
+            s.ReturnedDate?.ToString("MM/dd/yyyy") ?? string.Empty,
+            s.RevisionNumber.ToString()
+        }).ToList();
+
+        return BuildSimpleTablePdf(
+            $"Submittal Log — {project?.Name ?? "Unknown Project"}",
+            DateTime.UtcNow,
+            ["No.", "Title", "Spec Section", "Type", "Status", "Required By", "Submitted", "Returned", "Rev#"],
+            rows,
+            [$"Total: {submittals.Count} submittals", string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty]);
+    }
+
+    public async Task<byte[]> GeneratePunchListPdfAsync(Guid projectId, CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Generating Punch List PDF for project {ProjectId}", projectId);
+
+        var project = await db.Set<Project>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+
+        var items = await db.Set<PmPunchListItem>()
+            .AsNoTracking()
+            .Where(i => i.ProjectId == projectId && !i.IsDeleted)
+            .OrderBy(i => i.ItemNumber)
+            .ToListAsync(cancellationToken);
+
+        var rows = items.Select(i => new[]
+        {
+            i.ItemNumber.ToString(),
+            i.Location,
+            i.Category.ToString(),
+            i.Description.Length > 80 ? i.Description[..80] + "..." : i.Description,
+            i.ResponsiblePartyType.ToString(),
+            i.AssignedToName ?? string.Empty,
+            i.Status.ToString(),
+            i.Priority.ToString(),
+            i.DueDate?.ToString("MM/dd/yyyy") ?? string.Empty
+        }).ToList();
+
+        var openCount = items.Count(i => i.Status != PunchListItemStatus.Closed);
+        var closedCount = items.Count(i => i.Status == PunchListItemStatus.Closed);
+
+        return BuildSimpleTablePdf(
+            $"Punch List — {project?.Name ?? "Unknown Project"}",
+            DateTime.UtcNow,
+            ["#", "Location", "Category", "Description", "Resp. Party", "Assigned To", "Status", "Priority", "Due Date"],
+            rows,
+            [$"Total: {items.Count} (Open: {openCount}, Closed: {closedCount})", string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty]);
     }
 
     private byte[] BuildSimpleTablePdf(
