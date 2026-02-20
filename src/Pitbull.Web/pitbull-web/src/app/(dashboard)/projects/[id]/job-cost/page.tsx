@@ -2,6 +2,8 @@
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError } from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/auth";
 import { isValidGuid } from "@/lib/utils";
 import type { CostCode } from "@/lib/types";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
@@ -180,6 +182,36 @@ function JobCostContent({ params }: { params: Promise<{ id: string }> }) {
     return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
 
+  async function exportPdf() {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const activeCompanyId = localStorage.getItem("pitbull_active_company_id");
+      if (activeCompanyId) headers["X-Company-Id"] = activeCompanyId;
+
+      const response = await fetch(`${API_BASE_URL}/api/reports/pdf/project-cost/${projectId}`, { headers });
+      if (!response.ok) throw new Error(`Failed with status ${response.status}`);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `project-cost-${projectId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Project cost PDF exported");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to export project cost PDF");
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -187,7 +219,10 @@ function JobCostContent({ params }: { params: Promise<{ id: string }> }) {
           <h1 className="text-2xl font-bold tracking-tight">Job Cost</h1>
           <p className="text-muted-foreground">Budget vs actual by cost code for project execution control.</p>
         </div>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreate}>+ Add Budget Line</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportPdf}>Export PDF</Button>
+          <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreate}>+ Add Budget Line</Button>
+        </div>
       </div>
 
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">

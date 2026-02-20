@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -78,6 +80,36 @@ export default function WipReportsPage() {
     fetchReports();
   }, [fetchReports]);
 
+  async function exportPdf() {
+    try {
+      const token = getToken();
+      if (!token) {
+        toast.error("You must be logged in");
+        return;
+      }
+
+      const headers: Record<string, string> = { Authorization: `Bearer ${token}` };
+      const activeCompanyId = localStorage.getItem("pitbull_active_company_id");
+      if (activeCompanyId) headers["X-Company-Id"] = activeCompanyId;
+
+      const response = await fetch(`${API_BASE_URL}/api/reports/pdf/wip-schedule`, { headers });
+      if (!response.ok) throw new Error(`Failed with status ${response.status}`);
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `wip-schedule-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("WIP PDF exported");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to export WIP PDF");
+    }
+  }
+
   async function handleGenerate() {
     const parsedYear = Number(fiscalYear);
     const parsedPeriod = Number(periodNumber);
@@ -119,9 +151,12 @@ export default function WipReportsPage() {
           <h1 className="text-2xl font-bold tracking-tight">WIP Schedule</h1>
           <p className="text-muted-foreground">Work-in-progress snapshots by accounting period</p>
         </div>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setDialogOpen(true)}>
-          Generate WIP Report
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportPdf}>Export PDF</Button>
+          <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setDialogOpen(true)}>
+            Generate WIP Report
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
