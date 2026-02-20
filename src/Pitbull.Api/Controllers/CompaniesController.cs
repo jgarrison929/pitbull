@@ -175,7 +175,7 @@ public class CompaniesController(
 /// </summary>
 [ApiController]
 [Route("api/admin/companies")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Admin.Companies")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - Companies")]

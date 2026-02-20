@@ -45,7 +45,7 @@ public class TenantsController(PitbullDbContext db, ITenantContext tenantContext
     /// <response code="409">A tenant with this name already exists</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "Admin.Settings")]
     [ProducesResponseType(typeof(TenantResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

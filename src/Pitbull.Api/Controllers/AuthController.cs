@@ -12,9 +12,11 @@ using Microsoft.IdentityModel.Tokens;
 using Pitbull.Api.Demo;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Infrastructure;
+using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
 using Pitbull.Api.Services;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Entities;
 
 namespace Pitbull.Api.Controllers;
 
@@ -554,6 +556,30 @@ public class AuthController(
             .Select(x => new CompanyBriefResponse(x.c.Id, x.c.Code, x.c.Name))
             .ToList();
 
+        // Get RBAC permissions for profile response
+        var isRbacAdmin = await db.Set<UserRole>()
+            .AsNoTracking()
+            .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
+                && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
+
+        string[] permissions;
+        if (isRbacAdmin)
+        {
+            permissions = new[] { PermissionConstants.Wildcard };
+        }
+        else
+        {
+            permissions = await db.Set<RolePermission>()
+                .AsNoTracking()
+                .Where(rp => rp.TenantId == user.TenantId
+                    && db.Set<UserRole>()
+                        .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
+                .Select(rp => rp.Permission.Name)
+                .Distinct()
+                .OrderBy(p => p)
+                .ToArrayAsync();
+        }
+
         return Ok(new UserProfileResponse(
             Id: user.Id,
             Email: user.Email!,
@@ -568,7 +594,8 @@ public class AuthController(
             ActiveCompany: activeCompanyId != null
                 ? new CompanyBriefResponse(activeCompanyId.Id, activeCompanyId.Code, activeCompanyId.Name)
                 : null,
-            AccessibleCompanies: accessibleCompanies
+            AccessibleCompanies: accessibleCompanies,
+            Permissions: permissions
         ));
     }
 
@@ -801,6 +828,33 @@ public class AuthController(
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
+        // Add RBAC permission claims from the granular permission system
+        var isRbacAdmin = await db.Set<UserRole>()
+            .AsNoTracking()
+            .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
+                && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
+
+        if (isRbacAdmin)
+        {
+            claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
+        }
+        else
+        {
+            var userPermissions = await db.Set<RolePermission>()
+                .AsNoTracking()
+                .Where(rp => rp.TenantId == user.TenantId
+                    && db.Set<UserRole>()
+                        .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
+                .Select(rp => rp.Permission.Name)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var perm in userPermissions)
+            {
+                claims.Add(new Claim("permissions", perm));
+            }
+        }
+
         var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
 
         var token = new JwtSecurityToken(
@@ -838,7 +892,8 @@ public record UserProfileResponse(
     DateTime CreatedAt,
     DateTime? LastLoginAt,
     CompanyBriefResponse? ActiveCompany = null,
-    List<CompanyBriefResponse>? AccessibleCompanies = null);
+    List<CompanyBriefResponse>? AccessibleCompanies = null,
+    string[]? Permissions = null);
 
 public record CompanyBriefResponse(
     Guid Id,

@@ -4,6 +4,8 @@ export interface NavItem {
   icon: string;
   disabled?: boolean;
   tooltip?: string;
+  requiredPermission?: string;
+  requiredAnyPermission?: string[];
 }
 
 export interface ModuleGroup {
@@ -15,17 +17,17 @@ export interface ModuleGroup {
 // Core nav — always visible at top of sidebar
 export const coreNavItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: "📊" },
-  { label: "Projects", href: "/projects", icon: "🏗️" },
-  { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
-  { label: "Approvals", href: "/time-tracking/approval", icon: "✅" },
+  { label: "Projects", href: "/projects", icon: "🏗️", requiredPermission: "Projects.View" },
+  { label: "Time Tracking", href: "/time-tracking", icon: "⏱️", requiredPermission: "TimeTracking.View" },
+  { label: "Approvals", href: "/time-tracking/approval", icon: "✅", requiredPermission: "TimeTracking.Approve" },
 ];
 
 // Resources — always visible under "Resources" header
 export const resourceItems: NavItem[] = [
-  { label: "Employees", href: "/employees", icon: "👷" },
-  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️" },
-  { label: "Equipment", href: "/equipment", icon: "🚜" },
-  { label: "Audit Trail", href: "/time-tracking/audit", icon: "📜" },
+  { label: "Employees", href: "/employees", icon: "👷", requiredPermission: "Employees.View" },
+  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
+  { label: "Equipment", href: "/equipment", icon: "🚜", requiredPermission: "Equipment.View" },
+  { label: "Audit Trail", href: "/time-tracking/audit", icon: "📜", requiredPermission: "TimeTracking.View" },
 ];
 
 // Module groups — pinnable, collapsible in "More Modules"
@@ -34,46 +36,46 @@ export const moduleGroups: ModuleGroup[] = [
     id: "financial",
     label: "Financial",
     items: [
-      { label: "Journal Entries", href: "/accounting/journal-entries", icon: "📓" },
-      { label: "Accounting Periods", href: "/accounting/periods", icon: "📆" },
-      { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
-      { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾" },
-      { label: "Retention", href: "/accounting/retention", icon: "🔒" },
-      { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋" },
+      { label: "Journal Entries", href: "/accounting/journal-entries", icon: "📓", requiredPermission: "Accounting.ViewGL" },
+      { label: "Accounting Periods", href: "/accounting/periods", icon: "📆", requiredPermission: "Accounting.ManagePeriods" },
+      { label: "WIP Schedule", href: "/accounting/wip", icon: "📈", requiredPermission: "Accounting.ViewGL" },
+      { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾", requiredPermission: "Accounting.ViewGL" },
+      { label: "Retention", href: "/accounting/retention", icon: "🔒", requiredPermission: "Billing.View" },
+      { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋", requiredPermission: "Billing.LienWaivers" },
     ],
   },
   {
     id: "billing",
     label: "Billing",
     items: [
-      { label: "Owner Contracts", href: "/billing/contracts", icon: "📑" },
-      { label: "Billing Applications", href: "/billing/applications", icon: "💰" },
-      { label: "Aging Reports", href: "/billing/aging", icon: "📊" },
-      { label: "Pay Apps", href: "/payment-applications", icon: "💵" },
-      { label: "Bids", href: "/bids", icon: "📋" },
+      { label: "Owner Contracts", href: "/billing/contracts", icon: "📑", requiredPermission: "Billing.View" },
+      { label: "Billing Applications", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
+      { label: "Aging Reports", href: "/billing/aging", icon: "📊", requiredPermission: "Billing.View" },
+      { label: "Pay Apps", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
+      { label: "Bids", href: "/bids", icon: "📋", requiredPermission: "Bids.View" },
     ],
   },
   {
     id: "payroll",
     label: "Payroll",
     items: [
-      { label: "Payroll Runs", href: "/payroll/runs", icon: "🧮" },
-      { label: "Certified Payroll", href: "/payroll/certified", icon: "📄" },
-      { label: "Wage Determinations", href: "/payroll/wage-determinations", icon: "📚" },
-      { label: "Payroll Reviews", href: "/payroll/reviews", icon: "✅" },
-      { label: "Payroll Exports", href: "/payroll/exports", icon: "📤" },
+      { label: "Payroll Runs", href: "/payroll/runs", icon: "🧮", requiredPermission: "Payroll.View" },
+      { label: "Certified Payroll", href: "/payroll/certified", icon: "📄", requiredPermission: "Payroll.View" },
+      { label: "Wage Determinations", href: "/payroll/wage-determinations", icon: "📚", requiredPermission: "Payroll.View" },
+      { label: "Payroll Reviews", href: "/payroll/reviews", icon: "✅", requiredPermission: "Payroll.Process" },
+      { label: "Payroll Exports", href: "/payroll/exports", icon: "📤", requiredPermission: "Payroll.View" },
     ],
   },
   {
     id: "procurement",
     label: "Procurement",
     items: [
-      { label: "Purchase Orders", href: "/procurement/purchase-orders", icon: "🧱" },
-      { label: "Vendor Invoices", href: "/procurement/invoices", icon: "🧾" },
-      { label: "Vendors", href: "/vendors", icon: "🏢" },
-      { label: "Customers", href: "/customers", icon: "🤝" },
-      { label: "Contracts", href: "/contracts", icon: "📄" },
-      { label: "Change Orders", href: "/change-orders", icon: "📝" },
+      { label: "Purchase Orders", href: "/procurement/purchase-orders", icon: "🧱", requiredPermission: "AP.View" },
+      { label: "Vendor Invoices", href: "/procurement/invoices", icon: "🧾", requiredPermission: "AP.View" },
+      { label: "Vendors", href: "/vendors", icon: "🏢", requiredPermission: "AP.View" },
+      { label: "Customers", href: "/customers", icon: "🤝", requiredPermission: "AR.View" },
+      { label: "Contracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
+      { label: "Change Orders", href: "/change-orders", icon: "📝", requiredPermission: "Contracts.View" },
     ],
   },
 ];
@@ -91,30 +93,30 @@ export const financialItems: NavItem[] = moduleGroups.flatMap((g) => g.items);
 export function getProjectManagementItems(projectId: string | null): NavItem[] {
   const base = projectId ? `/projects/${projectId}` : null;
   return [
-    { label: "Daily Reports", href: base ? `${base}/daily-reports` : "#", icon: "📝", disabled: !base },
-    { label: "Tasks", href: base ? `${base}/tasks` : "#", icon: "✅", disabled: !base },
-    { label: "RFIs", href: base ? `${base}/rfis` : "#", icon: "❓", disabled: !base },
-    { label: "Submittals", href: base ? `${base}/submittals` : "#", icon: "📬", disabled: !base },
-    { label: "Job Cost", href: base ? `${base}/job-cost` : "#", icon: "💰", disabled: !base },
-    { label: "Progress", href: base ? `${base}/progress` : "#", icon: "📈", disabled: !base },
-    { label: "Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base },
-    { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base },
-    { label: "Punch List", href: base ? `${base}/punch-list` : "#", icon: "📋", disabled: !base },
-    { label: "Documents", href: base ? `${base}/documents` : "#", icon: "📁", disabled: !base },
-    { label: "Plans & Specs", href: base ? `${base}/plans-specs` : "#", icon: "📐", disabled: !base },
-    { label: "Communications", href: base ? `${base}/communications` : "#", icon: "💬", disabled: !base },
-    { label: "Meetings", href: base ? `${base}/meetings` : "#", icon: "🤝", disabled: !base },
-    { label: "Narratives", href: base ? `${base}/narratives` : "#", icon: "📖", disabled: !base },
+    { label: "Daily Reports", href: base ? `${base}/daily-reports` : "#", icon: "📝", disabled: !base, requiredPermission: "PM.DailyReports" },
+    { label: "Tasks", href: base ? `${base}/tasks` : "#", icon: "✅", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "RFIs", href: base ? `${base}/rfis` : "#", icon: "❓", disabled: !base, requiredPermission: "PM.RFIs" },
+    { label: "Submittals", href: base ? `${base}/submittals` : "#", icon: "📬", disabled: !base, requiredPermission: "PM.Submittals" },
+    { label: "Job Cost", href: base ? `${base}/job-cost` : "#", icon: "💰", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "Progress", href: base ? `${base}/progress` : "#", icon: "📈", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base, requiredPermission: "PM.Schedule" },
+    { label: "Punch List", href: base ? `${base}/punch-list` : "#", icon: "📋", disabled: !base, requiredPermission: "PM.PunchList" },
+    { label: "Documents", href: base ? `${base}/documents` : "#", icon: "📁", disabled: !base, requiredPermission: "Documents.View" },
+    { label: "Plans & Specs", href: base ? `${base}/plans-specs` : "#", icon: "📐", disabled: !base, requiredPermission: "Documents.View" },
+    { label: "Communications", href: base ? `${base}/communications` : "#", icon: "💬", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "Meetings", href: base ? `${base}/meetings` : "#", icon: "🤝", disabled: !base, requiredPermission: "PM.Meetings" },
+    { label: "Narratives", href: base ? `${base}/narratives` : "#", icon: "📖", disabled: !base, requiredPermission: "Projects.View" },
   ];
 }
 
 export const reportItems: NavItem[] = [
-  { label: "Weekly Summary", href: "/reports/weekly-summary", icon: "📅" },
-  { label: "Labor Cost", href: "/reports/labor-cost", icon: "💰" },
-  { label: "Project Profitability", href: "/reports/project-profitability", icon: "📈" },
-  { label: "Financial Overview", href: "/reports/financial-overview", icon: "📊" },
-  { label: "Vista Export", href: "/reports/vista-export", icon: "📤" },
-  { label: "Equipment Utilization", href: "/reports/equipment", icon: "🔧" },
+  { label: "Weekly Summary", href: "/reports/weekly-summary", icon: "📅", requiredPermission: "Reports.View" },
+  { label: "Labor Cost", href: "/reports/labor-cost", icon: "💰", requiredPermission: "Reports.View" },
+  { label: "Project Profitability", href: "/reports/project-profitability", icon: "📈", requiredPermission: "Reports.View" },
+  { label: "Financial Overview", href: "/reports/financial-overview", icon: "📊", requiredPermission: "Reports.View" },
+  { label: "Vista Export", href: "/reports/vista-export", icon: "📤", requiredPermission: "Reports.Export" },
+  { label: "Equipment Utilization", href: "/reports/equipment", icon: "🔧", requiredPermission: "Reports.View" },
 ];
 
 export const helpItems: NavItem[] = [
@@ -135,17 +137,17 @@ export const settingsItems: NavItem[] = [
 ];
 
 export const adminItems: NavItem[] = [
-  { label: "Company Settings", href: "/admin/company", icon: "🏢" },
-  { label: "Companies", href: "/admin/companies", icon: "🏛️" },
-  { label: "Users", href: "/admin/users", icon: "👥" },
-  { label: "Data Import", href: "/admin/data-import", icon: "🗂️" },
-  { label: "Pay Periods", href: "/admin/pay-periods", icon: "📅" },
-  { label: "Compliance", href: "/admin/compliance", icon: "✅" },
-  { label: "Roles & Permissions", href: "/admin/roles", icon: "🛡️" },
-  { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜" },
-  { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖" },
-  { label: "API Keys", href: "/admin/api-keys", icon: "🔑" },
-  { label: "System Health", href: "/admin/system-health", icon: "💚" },
-  { label: "Health Dashboard", href: "/admin/health", icon: "📡" },
-  { label: "Feedback Inbox", href: "/admin/feedback", icon: "💬" },
+  { label: "Company Settings", href: "/admin/company", icon: "🏢", requiredPermission: "Admin.Settings" },
+  { label: "Companies", href: "/admin/companies", icon: "🏛️", requiredPermission: "Admin.Companies" },
+  { label: "Users", href: "/admin/users", icon: "👥", requiredPermission: "Admin.Users" },
+  { label: "Data Import", href: "/admin/data-import", icon: "🗂️", requiredPermission: "Admin.DataImport" },
+  { label: "Pay Periods", href: "/admin/pay-periods", icon: "📅", requiredPermission: "Payroll.Process" },
+  { label: "Compliance", href: "/admin/compliance", icon: "✅", requiredPermission: "Admin.Settings" },
+  { label: "Roles & Permissions", href: "/admin/roles", icon: "🛡️", requiredPermission: "Admin.Roles" },
+  { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜", requiredPermission: "SystemAdmin.AuditLogs" },
+  { label: "AI Settings", href: "/admin/ai-settings", icon: "🤖", requiredPermission: "AI.Settings" },
+  { label: "API Keys", href: "/admin/api-keys", icon: "🔑", requiredPermission: "SystemAdmin.APIKeys" },
+  { label: "System Health", href: "/admin/system-health", icon: "💚", requiredPermission: "SystemAdmin.Health" },
+  { label: "Health Dashboard", href: "/admin/health", icon: "📡", requiredPermission: "SystemAdmin.Health" },
+  { label: "Feedback Inbox", href: "/admin/feedback", icon: "💬", requiredPermission: "Admin.Settings" },
 ];

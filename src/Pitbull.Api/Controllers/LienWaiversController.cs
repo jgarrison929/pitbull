@@ -10,7 +10,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/lien-waivers")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Billing.LienWaivers")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Lien Waivers")]

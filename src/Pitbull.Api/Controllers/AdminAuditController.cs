@@ -16,7 +16,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin/audit-logs")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "SystemAdmin.AuditLogs")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - Audit Logs")]

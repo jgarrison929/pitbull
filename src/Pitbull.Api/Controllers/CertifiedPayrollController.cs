@@ -9,7 +9,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/payroll/certified")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Payroll.CertifiedReport")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Certified Payroll")]

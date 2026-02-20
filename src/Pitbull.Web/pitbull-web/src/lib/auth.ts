@@ -39,6 +39,7 @@ interface JwtPayload {
   email: string;
   name: string;
   roles: string[];
+  permissions: string[];
   tenantId: string;
   companyId?: string;
   companyIds?: string[];
@@ -63,6 +64,13 @@ export function decodeToken(token: string): JwtPayload | null {
       roles = Array.isArray(roleClaim) ? roleClaim : [roleClaim];
     }
     
+    // Extract permissions claim (can be string or string[])
+    let permissions: string[] = [];
+    const permClaim = raw.permissions;
+    if (permClaim) {
+      permissions = Array.isArray(permClaim) ? permClaim : [permClaim];
+    }
+
     // Parse company_ids if present (comma-separated string)
     let companyIds: string[] = [];
     if (raw.company_ids) {
@@ -76,6 +84,7 @@ export function decodeToken(token: string): JwtPayload | null {
       ...raw,
       name: raw.full_name ?? raw.name ?? "",
       roles,
+      permissions,
       tenantId: raw.tenant_id ?? raw.tenantId ?? "",
       companyId: raw.company_id ?? raw.companyId ?? undefined,
       companyIds,

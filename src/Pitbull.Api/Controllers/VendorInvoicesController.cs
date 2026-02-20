@@ -9,7 +9,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/vendor-invoices")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "AP.View")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Vendor Invoices")]

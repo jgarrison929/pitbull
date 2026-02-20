@@ -12,7 +12,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Admin.DataImport")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Development")]

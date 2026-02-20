@@ -54,7 +54,7 @@ public class NotificationsController(INotificationService notificationService) :
     }
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "Admin.Settings")]
     [ProducesResponseType(typeof(NotificationDto), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create([FromBody] CreateNotificationRequest request)
     {

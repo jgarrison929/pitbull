@@ -51,7 +51,7 @@ public class FeedbackController(
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "Admin.Settings")]
     [ProducesResponseType(typeof(IReadOnlyList<FeedbackDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(
         [FromQuery] string? category,
@@ -71,7 +71,7 @@ public class FeedbackController(
     }
 
     [HttpPatch("{id:guid}/status")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "Admin.Settings")]
     [ProducesResponseType(typeof(FeedbackDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateFeedbackStatusRequest request, CancellationToken cancellationToken)

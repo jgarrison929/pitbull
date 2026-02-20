@@ -9,7 +9,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/payroll/wage-determinations")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Payroll.ViewRates")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Payroll Wage Determinations")]

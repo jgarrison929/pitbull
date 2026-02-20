@@ -9,7 +9,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/billing-periods")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Billing.View")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Billing Periods")]

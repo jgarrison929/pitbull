@@ -10,7 +10,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/retention")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Billing.ReleaseRetention")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Retention")]

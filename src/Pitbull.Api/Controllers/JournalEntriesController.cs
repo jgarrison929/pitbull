@@ -10,7 +10,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/journal-entries")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Accounting.PostJournals")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Journal Entries")]

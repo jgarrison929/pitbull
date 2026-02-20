@@ -170,7 +170,7 @@ public class CostCodesController(ICostCodeService costCodeService, PitbullDbCont
     /// Creates 16 divisions with common sub-codes for new tenants.
     /// </summary>
     [HttpPost("seed-csi")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "Admin.DataImport")]
     [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> SeedCsi()

@@ -15,6 +15,7 @@ function buildUserFromToken(token: string): User | null {
     email: payload.email,
     name: payload.name,
     roles: payload.roles,
+    permissions: payload.permissions,
     tenantId: payload.tenantId,
   };
 }
@@ -24,6 +25,7 @@ interface User {
   email: string;
   name: string;
   roles: string[];
+  permissions: string[];
   tenantId: string;
 }
 

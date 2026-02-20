@@ -10,7 +10,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/payroll/exports")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Payroll.Process")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Payroll Exports")]

@@ -9,7 +9,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/owner-contracts")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Contracts.View")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Owner Contracts")]

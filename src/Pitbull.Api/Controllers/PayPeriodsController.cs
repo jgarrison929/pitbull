@@ -171,7 +171,7 @@ public class PayPeriodsController(IPayPeriodService payPeriodService) : Controll
     }
 
     [HttpPut("configuration")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "Admin.Settings")]
     [ProducesResponseType(typeof(PayPeriodConfigurationDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> UpdateConfiguration([FromBody] UpdatePayPeriodConfigurationRequest request)
     {
@@ -194,7 +194,7 @@ public class PayPeriodsController(IPayPeriodService payPeriodService) : Controll
     }
 
     [HttpPost("generate")]
-    [Authorize(Roles = "Admin,Manager")]
+    [Authorize(Policy = "Admin.Settings")]
     [ProducesResponseType(typeof(GeneratePayPeriodsResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> Generate([FromBody] GeneratePayPeriodsRequest request)
     {

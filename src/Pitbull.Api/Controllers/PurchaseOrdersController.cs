@@ -10,7 +10,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/purchase-orders")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "AP.View")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Purchase Orders")]

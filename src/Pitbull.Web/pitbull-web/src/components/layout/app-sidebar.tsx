@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
+import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { SimpleTooltip } from "@/components/ui/tooltip";
@@ -117,9 +118,18 @@ function ModuleSection({
   );
 }
 
+function filterByPermission(items: NavItemType[], can: (p: string) => boolean, canAny: (p: string[]) => boolean): NavItemType[] {
+  return items.filter((item) => {
+    if (item.requiredPermission) return can(item.requiredPermission);
+    if (item.requiredAnyPermission) return canAny(item.requiredAnyPermission);
+    return true;
+  });
+}
+
 export function AppSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { can, canAny } = usePermissions();
   const { setHelpOpen } = useKeyboardShortcuts();
 
   // Extract current project ID from URL for project-scoped navigation
@@ -164,23 +174,36 @@ export function AppSidebar() {
     );
   }, []);
 
-  const pinnedModules = moduleGroups.filter((g) => pinnedGroups.includes(g.id));
-  const unpinnedModules = moduleGroups.filter((g) => !pinnedGroups.includes(g.id));
+  // Filter nav items by user permissions
+  const filteredCoreItems = useMemo(() => filterByPermission(coreNavItems, can, canAny), [can, canAny]);
+  const filteredResourceItems = useMemo(() => filterByPermission(resourceItems, can, canAny), [can, canAny]);
+  const filteredReportItems = useMemo(() => filterByPermission(reportItems, can, canAny), [can, canAny]);
+  const filteredAdminItems = useMemo(() => filterByPermission(adminItems, can, canAny), [can, canAny]);
+  const filteredProjectMgmtItems = useMemo(() => filterByPermission(projectManagementItems, can, canAny), [projectManagementItems, can, canAny]);
+
+  const filteredModuleGroups = useMemo(() => {
+    return moduleGroups
+      .map((g) => ({ ...g, items: filterByPermission(g.items, can, canAny) }))
+      .filter((g) => g.items.length > 0);
+  }, [can, canAny]);
+
+  const pinnedModules = filteredModuleGroups.filter((g) => pinnedGroups.includes(g.id));
+  const unpinnedModules = filteredModuleGroups.filter((g) => !pinnedGroups.includes(g.id));
 
   // Compute the single active href across all nav items
   const allNavItems = useMemo(() => {
-    const moduleItems = moduleGroups.flatMap((g) => g.items);
+    const moduleItems = filteredModuleGroups.flatMap((g) => g.items);
     return [
-      ...coreNavItems,
-      ...resourceItems,
+      ...filteredCoreItems,
+      ...filteredResourceItems,
       ...moduleItems,
-      ...projectManagementItems,
-      ...reportItems,
+      ...filteredProjectMgmtItems,
+      ...filteredReportItems,
       ...settingsItems,
       ...helpItems,
-      ...(user?.roles?.includes("Admin") ? adminItems : []),
+      ...filteredAdminItems,
     ];
-  }, [projectManagementItems, user?.roles]);
+  }, [filteredCoreItems, filteredResourceItems, filteredModuleGroups, filteredProjectMgmtItems, filteredReportItems, filteredAdminItems]);
 
   const activeHref = useMemo(
     () => findActiveHref(pathname, allNavItems),
@@ -217,15 +240,19 @@ export function AppSidebar() {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {/* Core nav -- always visible */}
-        {coreNavItems.map((item) => (
+        {filteredCoreItems.map((item) => (
           <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 
         {/* Resources */}
-        <SectionHeader label="Resources" />
-        {resourceItems.map((item) => (
-          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-        ))}
+        {filteredResourceItems.length > 0 && (
+          <>
+            <SectionHeader label="Resources" />
+            {filteredResourceItems.map((item) => (
+              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
+            ))}
+          </>
+        )}
 
         {/* Pinned module groups */}
         {pinnedModules.map((group) => (
@@ -262,29 +289,37 @@ export function AppSidebar() {
         )}
 
         {/* Project Management Section */}
-        <SectionHeader label="Project Management" />
-        {!currentProjectId && (
-          <div className="px-3 pb-1">
-            <p className="text-xs text-sidebar-foreground/40 italic">
-              Select a project to navigate
-            </p>
-            <Link
-              href="/projects"
-              className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
-            >
-              Go to Projects &rarr;
-            </Link>
-          </div>
+        {filteredProjectMgmtItems.length > 0 && (
+          <>
+            <SectionHeader label="Project Management" />
+            {!currentProjectId && (
+              <div className="px-3 pb-1">
+                <p className="text-xs text-sidebar-foreground/40 italic">
+                  Select a project to navigate
+                </p>
+                <Link
+                  href="/projects"
+                  className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
+                >
+                  Go to Projects &rarr;
+                </Link>
+              </div>
+            )}
+            {filteredProjectMgmtItems.map((item) => (
+              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
+            ))}
+          </>
         )}
-        {projectManagementItems.map((item) => (
-          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-        ))}
 
         {/* Reports Section */}
-        <SectionHeader label="Reports" />
-        {reportItems.map((item) => (
-          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-        ))}
+        {filteredReportItems.length > 0 && (
+          <>
+            <SectionHeader label="Reports" />
+            {filteredReportItems.map((item) => (
+              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
+            ))}
+          </>
+        )}
 
         {/* Settings Section */}
         <SectionHeader label="Settings" />
@@ -292,11 +327,11 @@ export function AppSidebar() {
           <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
         ))}
 
-        {/* Admin Section - Only visible to admins */}
-        {user?.roles?.includes("Admin") && (
+        {/* Admin Section - Only visible to users with admin permissions */}
+        {filteredAdminItems.length > 0 && (
           <>
             <SectionHeader label="Admin" />
-            {adminItems.map((item) => (
+            {filteredAdminItems.map((item) => (
               <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
             ))}
           </>

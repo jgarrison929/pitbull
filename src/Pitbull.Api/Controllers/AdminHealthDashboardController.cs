@@ -7,7 +7,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/health-dashboard")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "SystemAdmin.Health")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - Health Dashboard")]

@@ -10,7 +10,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin/system-health")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "SystemAdmin.Health")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Admin - System Health")]

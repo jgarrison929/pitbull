@@ -295,7 +295,19 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-builder.Services.AddAuthorization();
+// Permission-based authorization handler (RBAC)
+builder.Services.AddSingleton<Microsoft.AspNetCore.Authorization.IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+builder.Services.AddAuthorization(options =>
+{
+    // Register a policy for each permission in the system.
+    // Controllers use [Authorize(Policy = "Admin.Users")] etc.
+    foreach (var permission in Pitbull.Core.Constants.PermissionConstants.All)
+    {
+        options.AddPolicy(permission, policy =>
+            policy.Requirements.Add(new PermissionRequirement(permission)));
+    }
+});
 
 // HTTP Context access for audit fields in DbContext
 builder.Services.AddHttpContextAccessor();

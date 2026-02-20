@@ -2,15 +2,16 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Services;
+using Pitbull.Core.Constants;
 
 namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = PermissionConstants.AdminRoles)]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
-[Tags("Roles")]
+[Tags("Admin - RBAC")]
 public class RolesController(IRoleService roleService, ILogger<RolesController> logger) : ControllerBase
 {
     [HttpGet("roles")]
@@ -99,6 +100,14 @@ public class RolesController(IRoleService roleService, ILogger<RolesController> 
         }
     }
 
+    [HttpGet("permissions")]
+    [ProducesResponseType(typeof(IReadOnlyList<PermissionCategoryDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListPermissions(CancellationToken ct)
+    {
+        var permissions = await roleService.ListPermissionsByCategoryAsync(ct);
+        return Ok(permissions);
+    }
+
     [HttpPost("roles/{id:guid}/permissions")]
     [ProducesResponseType(typeof(RoleDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -132,15 +141,8 @@ public class RolesController(IRoleService roleService, ILogger<RolesController> 
         }
     }
 
-    [HttpGet("permissions")]
-    [ProducesResponseType(typeof(IReadOnlyList<PermissionCategoryDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListPermissions(CancellationToken ct)
-    {
-        var permissions = await roleService.ListPermissionsByCategoryAsync(ct);
-        return Ok(permissions);
-    }
-
     [HttpPost("users/{id:guid}/roles")]
+    [Authorize(Policy = PermissionConstants.AdminUsers)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AssignRoleToUser(Guid id, [FromBody] AssignUserRoleRequest request, CancellationToken ct)
@@ -150,6 +152,28 @@ public class RolesController(IRoleService roleService, ILogger<RolesController> 
             return NotFound(new { error = "User or role not found" });
 
         return NoContent();
+    }
+
+    [HttpDelete("users/{id:guid}/roles/{roleId:guid}")]
+    [Authorize(Policy = PermissionConstants.AdminUsers)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RemoveRoleFromUser(Guid id, Guid roleId, CancellationToken ct)
+    {
+        var removed = await roleService.RemoveUserRoleAsync(id, roleId, ct);
+        if (!removed)
+            return NotFound(new { error = "User role assignment not found" });
+
+        return NoContent();
+    }
+
+    [HttpGet("users/{id:guid}/permissions")]
+    [Authorize(Policy = PermissionConstants.AdminUsers)]
+    [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUserPermissions(Guid id, CancellationToken ct)
+    {
+        var permissions = await roleService.GetUserPermissionsAsync(id, ct);
+        return Ok(permissions);
     }
 }
 

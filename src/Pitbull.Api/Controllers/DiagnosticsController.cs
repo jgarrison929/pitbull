@@ -8,7 +8,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/diagnostics")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "SystemAdmin.Health")]
 [Produces("application/json")]
 [Tags("Diagnostics")]
 public class DiagnosticsController(IDiagnosticsService diagnosticsService) : ControllerBase

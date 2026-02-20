@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Entities;
@@ -18,52 +19,26 @@ public interface IRoleService
     Task<IReadOnlyList<PermissionCategoryDto>> ListPermissionsByCategoryAsync(CancellationToken ct = default);
     Task<bool> AssignUserRoleAsync(Guid userId, Guid roleId, CancellationToken ct = default);
     Task<bool> RemoveUserRoleAsync(Guid userId, Guid roleId, CancellationToken ct = default);
+    Task<IReadOnlyList<string>> GetUserPermissionsAsync(Guid userId, CancellationToken ct = default);
 }
 
 public sealed class RoleService(
     PitbullDbContext db,
     ITenantContext tenantContext) : IRoleService
 {
-    private static readonly PermissionSeed[] PermissionSeeds =
-    [
-        new("Projects.View", "Projects", "View projects"),
-        new("Projects.Create", "Projects", "Create new projects"),
-        new("Projects.Edit", "Projects", "Edit existing projects"),
-        new("Projects.Delete", "Projects", "Delete projects"),
+    // Build permission seeds from PermissionConstants.ByCategory (single source of truth)
+    private static readonly PermissionSeed[] PermissionSeeds = PermissionConstants.ByCategory
+        .SelectMany(cat => cat.Value.Select(p => new PermissionSeed(p.Name, cat.Key, p.Description)))
+        .ToArray();
 
-        new("TimeTracking.View", "TimeTracking", "View time entries"),
-        new("TimeTracking.Create", "TimeTracking", "Create time entries"),
-        new("TimeTracking.Approve", "TimeTracking", "Approve submitted time entries"),
-
-        new("Admin.Users", "Admin", "Manage users"),
-        new("Admin.Roles", "Admin", "Manage roles and permissions"),
-        new("Admin.Settings", "Admin", "Manage tenant settings"),
-
-        new("Reports.View", "Reports", "View reports"),
-        new("Reports.Export", "Reports", "Export report data"),
-
-        new("Bids.View", "Bids", "View bids"),
-        new("Bids.Create", "Bids", "Create bids"),
-        new("Bids.Edit", "Bids", "Edit bids"),
-
-        new("Contracts.View", "Contracts", "View contracts"),
-        new("Contracts.Create", "Contracts", "Create contracts"),
-        new("Contracts.Edit", "Contracts", "Edit contracts"),
-
-        new("Equipment.View", "Equipment", "View equipment"),
-        new("Equipment.Manage", "Equipment", "Manage equipment")
-    ];
-
-    private static readonly RoleSeed[] RoleSeeds =
-    [
-        new("Admin", "Full system access", true, ["*"]),
-        new("ProjectManager", "Project and reporting management", true,
-            ["Projects.", "TimeTracking.", "Reports."]),
-        new("Foreman", "Crew and daily time entry", true,
-            ["TimeTracking.View", "TimeTracking.Create", "Projects.View"]),
-        new("Viewer", "Read-only access", true,
-            [".View"])
-    ];
+    // Build role seeds from PermissionConstants.RoleTemplates
+    private static readonly RoleSeed[] RoleSeeds = PermissionConstants.RoleTemplates.All
+        .Select(name => new RoleSeed(
+            name,
+            PermissionConstants.RoleTemplates.Descriptions[name],
+            true,
+            PermissionConstants.RoleTemplates.PermissionRules[name]))
+        .ToArray();
 
     public async Task<IReadOnlyList<RoleListItemDto>> ListRolesAsync(CancellationToken ct = default)
     {
@@ -351,40 +326,84 @@ public sealed class RoleService(
         return tenantId;
     }
 
+    public async Task<IReadOnlyList<string>> GetUserPermissionsAsync(Guid userId, CancellationToken ct = default)
+    {
+        var tenantId = GetTenantId();
+        await EnsureSeededAsync(tenantId, ct);
+
+        // Get all RBAC role IDs for this user
+        var roleIds = await db.UserRolesMap
+            .AsNoTracking()
+            .Where(ur => ur.TenantId == tenantId && ur.UserId == userId)
+            .Select(ur => ur.RoleId)
+            .ToListAsync(ct);
+
+        if (roleIds.Count == 0)
+            return Array.Empty<string>();
+
+        // Check if user has Admin role (wildcard)
+        var hasAdmin = await db.RbacRoles
+            .AsNoTracking()
+            .AnyAsync(r => r.TenantId == tenantId && roleIds.Contains(r.Id) && r.Name == PermissionConstants.RoleTemplates.Admin, ct);
+
+        if (hasAdmin)
+            return new[] { PermissionConstants.Wildcard };
+
+        // Collect distinct permission names from all assigned roles
+        var permissions = await db.RolePermissions
+            .AsNoTracking()
+            .Where(rp => rp.TenantId == tenantId && roleIds.Contains(rp.RoleId))
+            .Select(rp => rp.Permission.Name)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToListAsync(ct);
+
+        return permissions;
+    }
+
     public async Task EnsureSeededAsync(Guid tenantId, CancellationToken ct)
     {
-        var existingPermissions = await db.Permissions
+        // Seed permissions — add any missing ones (supports upgrade from 20 → 59)
+        var existingPermissionNames = await db.Permissions
             .Where(p => p.TenantId == tenantId)
+            .Select(p => p.Name)
             .ToListAsync(ct);
 
-        if (existingPermissions.Count == 0)
-        {
-            foreach (var seed in PermissionSeeds)
-            {
-                db.Permissions.Add(new Permission
-                {
-                    Id = Guid.NewGuid(),
-                    TenantId = tenantId,
-                    Name = seed.Name,
-                    Category = seed.Category,
-                    Description = seed.Description,
-                    CreatedAt = DateTime.UtcNow
-                });
-            }
+        var existingSet = new HashSet<string>(existingPermissionNames, StringComparer.OrdinalIgnoreCase);
+        var added = false;
 
-            await db.SaveChangesAsync(ct);
-            existingPermissions = await db.Permissions
-                .Where(p => p.TenantId == tenantId)
-                .ToListAsync(ct);
+        foreach (var seed in PermissionSeeds)
+        {
+            if (existingSet.Contains(seed.Name))
+                continue;
+
+            db.Permissions.Add(new Permission
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                Name = seed.Name,
+                Category = seed.Category,
+                Description = seed.Description,
+                CreatedAt = DateTime.UtcNow
+            });
+            added = true;
         }
 
-        var existingRoles = await db.RbacRoles
+        if (added)
+            await db.SaveChangesAsync(ct);
+
+        // Seed roles — add any missing ones (supports upgrade from 4 → 8)
+        var existingRoleNames = await db.RbacRoles
             .Where(r => r.TenantId == tenantId)
+            .Select(r => r.Name)
             .ToListAsync(ct);
+
+        var existingRoleSet = new HashSet<string>(existingRoleNames, StringComparer.OrdinalIgnoreCase);
+        var rolesAdded = false;
 
         foreach (var seed in RoleSeeds)
         {
-            if (existingRoles.Any(r => r.Name == seed.Name))
+            if (existingRoleSet.Contains(seed.Name))
                 continue;
 
             db.RbacRoles.Add(new Role
@@ -396,10 +415,13 @@ public sealed class RoleService(
                 IsSystem = seed.IsSystem,
                 CreatedAt = DateTime.UtcNow
             });
+            rolesAdded = true;
         }
 
-        await db.SaveChangesAsync(ct);
+        if (rolesAdded)
+            await db.SaveChangesAsync(ct);
 
+        // Assign permissions to roles
         var permissionByName = await db.Permissions
             .Where(p => p.TenantId == tenantId)
             .ToDictionaryAsync(p => p.Name, p => p.Id, ct);
@@ -408,6 +430,8 @@ public sealed class RoleService(
             .Where(r => r.TenantId == tenantId)
             .ToDictionaryAsync(r => r.Name, r => r.Id, ct);
 
+        var assignmentsAdded = false;
+
         foreach (var roleSeed in RoleSeeds)
         {
             if (!roleByName.TryGetValue(roleSeed.Name, out var roleId))
@@ -415,13 +439,16 @@ public sealed class RoleService(
 
             var targetPermissionIds = ResolvePermissionIds(roleSeed.PermissionRules, permissionByName);
 
+            var existingAssignments = await db.RolePermissions
+                .Where(rp => rp.TenantId == tenantId && rp.RoleId == roleId)
+                .Select(rp => rp.PermissionId)
+                .ToListAsync(ct);
+
+            var existingAssignmentSet = new HashSet<Guid>(existingAssignments);
+
             foreach (var permissionId in targetPermissionIds)
             {
-                var exists = await db.RolePermissions.AnyAsync(
-                    rp => rp.TenantId == tenantId && rp.RoleId == roleId && rp.PermissionId == permissionId,
-                    ct);
-
-                if (exists)
+                if (existingAssignmentSet.Contains(permissionId))
                     continue;
 
                 db.RolePermissions.Add(new RolePermission
@@ -430,10 +457,12 @@ public sealed class RoleService(
                     RoleId = roleId,
                     PermissionId = permissionId
                 });
+                assignmentsAdded = true;
             }
         }
 
-        await db.SaveChangesAsync(ct);
+        if (assignmentsAdded)
+            await db.SaveChangesAsync(ct);
     }
 
     private static List<Guid> ResolvePermissionIds(string[] rules, IReadOnlyDictionary<string, Guid> permissionByName)

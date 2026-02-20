@@ -10,7 +10,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/wip-reports")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Accounting.ViewWIP")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("WIP Reports")]

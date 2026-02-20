@@ -19,7 +19,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "Admin.Users")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [ApiExplorerSettings(GroupName = "v1")]
