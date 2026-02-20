@@ -135,8 +135,8 @@ const PARTY_LABELS: Record<string, string> = {
   Architect: "Architect",
 };
 
-// TaskPriority enum (shared)
-const PRIORITIES = ["Low", "Normal", "High", "Urgent"];
+// TaskPriority enum (shared) — matches backend: Low, Normal, High, Critical
+const PRIORITIES = ["Low", "Normal", "High", "Critical"];
 
 function asDataMap(value: unknown): DataMap {
   return value && typeof value === "object" ? (value as DataMap) : {};
@@ -178,7 +178,6 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
 
 function priorityBadgeVariant(priority: string): "default" | "secondary" | "outline" | "destructive" {
   switch (priority) {
-    case "Urgent":
     case "Critical":
       return "destructive";
     case "High":
