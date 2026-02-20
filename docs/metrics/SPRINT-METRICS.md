@@ -80,3 +80,4 @@ After each sprint merge, add a row with:
 | erp-postgres | .claude/skills/erp-postgres/ | Feb 20 | Schema conventions, RLS patterns |
 | Compound lessons | docs/solutions/2026-02-compound-lessons.md | Feb 20 07:25 | 8+ patterns from sprint failures |
 | Compound plugin | compound-engineering (every-marketplace) | Feb 20 11:34 | Auto-capture lessons after each sprint |
+| 9 - Mobile/Competitive | f019736 | 15:25 | ~95m | 1,953 | +0 | 2,241 | 0 | 0 | ✅ | Mobile daily reports, competitive matrix, bottom nav |
