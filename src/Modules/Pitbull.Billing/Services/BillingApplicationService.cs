@@ -1,0 +1,352 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Pitbull.Billing.Features.AiaBilling;
+using Pitbull.Core.CQRS;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+
+namespace Pitbull.Billing.Services;
+
+public class BillingApplicationService(PitbullDbContext db, ILogger<BillingApplicationService> logger) : IBillingApplicationService
+{
+    public async Task<Result<ListBillingApplicationsResult>> ListAsync(ListBillingApplicationsQuery query, CancellationToken ct = default)
+    {
+        IQueryable<BillingApplication> q = db.Set<BillingApplication>().AsNoTracking();
+
+        if (query.ProjectId.HasValue) q = q.Where(a => a.ProjectId == query.ProjectId.Value);
+        if (query.OwnerContractId.HasValue) q = q.Where(a => a.OwnerContractId == query.OwnerContractId.Value);
+        if (query.Status.HasValue) q = q.Where(a => a.Status == query.Status.Value);
+
+        int totalCount = await q.CountAsync(ct);
+        int page = Math.Max(query.Page, 1);
+        int pageSize = Math.Clamp(query.PageSize, 1, 100);
+
+        List<BillingApplication> items = await q
+            .OrderByDescending(a => a.ApplicationNumber)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync(ct);
+
+        return Result.Success(new ListBillingApplicationsResult(
+            Items: items.Select(a => MapToDto(a, null)).ToList(),
+            TotalCount: totalCount, Page: page, PageSize: pageSize,
+            TotalPages: (int)Math.Ceiling((double)totalCount / pageSize)));
+    }
+
+    public async Task<Result<BillingApplicationDto>> GetAsync(Guid id, CancellationToken ct = default)
+    {
+        var app = await db.Set<BillingApplication>().AsNoTracking()
+            .Include(a => a.LineItems.OrderBy(l => l.SortOrder))
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (app is null) return Result.Failure<BillingApplicationDto>("Billing application not found", "NOT_FOUND");
+        return Result.Success(MapToDto(app, app.LineItems.Select(MapLineToDto).ToList()));
+    }
+
+    public async Task<Result<BillingApplicationDto>> CreateAsync(CreateBillingApplicationCommand cmd, CancellationToken ct = default)
+    {
+        // Validate SOV exists and is active
+        var sov = await db.Set<OwnerScheduleOfValues>().AsNoTracking()
+            .Include(s => s.LineItems.OrderBy(l => l.SortOrder))
+            .FirstOrDefaultAsync(s => s.Id == cmd.OwnerScheduleOfValuesId, ct);
+        if (sov is null) return Result.Failure<BillingApplicationDto>("Schedule of Values not found", "NOT_FOUND");
+        if (sov.Status != OwnerSOVStatus.Active && sov.Status != OwnerSOVStatus.Locked)
+            return Result.Failure<BillingApplicationDto>("SOV must be Active or Locked to create a billing application", "INVALID_STATUS");
+
+        var contract = await db.Set<OwnerContract>().AsNoTracking().FirstOrDefaultAsync(c => c.Id == cmd.OwnerContractId, ct);
+        if (contract is null) return Result.Failure<BillingApplicationDto>("Owner contract not found", "NOT_FOUND");
+
+        // Determine next application number
+        int lastAppNumber = await db.Set<BillingApplication>()
+            .Where(a => a.OwnerContractId == cmd.OwnerContractId)
+            .MaxAsync(a => (int?)a.ApplicationNumber, ct) ?? 0;
+        int nextNumber = lastAppNumber + 1;
+
+        // Get prior application for carry-forward
+        BillingApplication? priorApp = null;
+        List<BillingApplicationLineItem>? priorLines = null;
+        if (lastAppNumber > 0)
+        {
+            priorApp = await db.Set<BillingApplication>().AsNoTracking()
+                .Include(a => a.LineItems)
+                .FirstOrDefaultAsync(a => a.OwnerContractId == cmd.OwnerContractId && a.ApplicationNumber == lastAppNumber, ct);
+            priorLines = priorApp?.LineItems.ToList();
+        }
+
+        // Create billing application
+        BillingApplication app = new()
+        {
+            ProjectId = contract.ProjectId,
+            OwnerContractId = cmd.OwnerContractId,
+            OwnerScheduleOfValuesId = cmd.OwnerScheduleOfValuesId,
+            ApplicationNumber = nextNumber,
+            PeriodFrom = cmd.PeriodFrom,
+            PeriodThrough = cmd.PeriodThrough,
+            ApplicationDate = cmd.ApplicationDate,
+            OriginalContractSum = contract.OriginalContractSum,
+            NetChangeByChangeOrders = contract.ApprovedChangeOrderAmount,
+            ContractSumToDate = contract.ContractSumToDate,
+            RetainagePercentWork = contract.DefaultRetainagePercent,
+            RetainagePercentMaterials = contract.RetainagePercentMaterials,
+            Status = BillingApplicationStatus.Draft
+        };
+
+        // Create line items from SOV with carry-forward
+        List<BillingApplicationLineItem> lineItems = [];
+        foreach (var sovLine in sov.LineItems.OrderBy(l => l.SortOrder))
+        {
+            var priorLine = priorLines?.FirstOrDefault(pl => pl.OwnerSOVLineItemId == sovLine.Id);
+
+            var lineItem = new BillingApplicationLineItem
+            {
+                BillingApplicationId = app.Id,
+                OwnerSOVLineItemId = sovLine.Id,
+                ItemNumber = sovLine.ItemNumber,
+                Description = sovLine.Description,
+                ScheduledValue = sovLine.ScheduledValue,
+                SortOrder = sovLine.SortOrder,
+                WorkCompletedPrevious = priorLine?.TotalCompletedAndStored ?? 0,
+                MaterialsStoredToDate = priorLine?.MaterialsStoredToDate ?? 0,
+                RetainagePercent = sovLine.RetainagePercent,
+                CostCodeId = sovLine.CostCodeId
+            };
+
+            // If carrying forward stored materials, they become "previous" + carried stored
+            if (priorLine is not null)
+            {
+                lineItem.WorkCompletedPrevious = priorLine.WorkCompletedPrevious + priorLine.WorkCompletedThisPeriod;
+                lineItem.MaterialsStoredToDate = priorLine.MaterialsStoredToDate;
+            }
+
+            CalculateLineItem(lineItem, app);
+            lineItems.Add(lineItem);
+        }
+
+        app.LineItems = lineItems;
+        CalculateG702(app, lineItems);
+
+        // Set previous certificates from prior app
+        app.LessPreviousCertificates = priorApp?.TotalEarnedLessRetainage ?? 0;
+        app.CurrentPaymentDue = app.TotalEarnedLessRetainage - app.LessPreviousCertificates;
+        app.BalanceToFinishIncludingRetainage = app.ContractSumToDate - app.TotalEarnedLessRetainage;
+
+        db.Set<BillingApplication>().Add(app);
+        await db.SaveChangesAsync(ct);
+
+        return Result.Success(MapToDto(app, lineItems.Select(MapLineToDto).ToList()));
+    }
+
+    public async Task<Result<BillingApplicationDto>> RecalculateAsync(Guid billingApplicationId, CancellationToken ct = default)
+    {
+        var app = await db.Set<BillingApplication>()
+            .Include(a => a.LineItems.OrderBy(l => l.SortOrder))
+            .FirstOrDefaultAsync(a => a.Id == billingApplicationId, ct);
+
+        if (app is null) return Result.Failure<BillingApplicationDto>("Billing application not found", "NOT_FOUND");
+        if (app.Status != BillingApplicationStatus.Draft)
+            return Result.Failure<BillingApplicationDto>("Only draft applications can be recalculated", "INVALID_STATUS");
+
+        var lines = app.LineItems.ToList();
+        foreach (var line in lines)
+            CalculateLineItem(line, app);
+
+        CalculateG702(app, lines);
+
+        // Get previous certificates
+        var priorApp = await db.Set<BillingApplication>().AsNoTracking()
+            .FirstOrDefaultAsync(a => a.OwnerContractId == app.OwnerContractId && a.ApplicationNumber == app.ApplicationNumber - 1, ct);
+        app.LessPreviousCertificates = priorApp?.TotalEarnedLessRetainage ?? 0;
+        app.CurrentPaymentDue = app.TotalEarnedLessRetainage - app.LessPreviousCertificates;
+        app.BalanceToFinishIncludingRetainage = app.ContractSumToDate - app.TotalEarnedLessRetainage;
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success(MapToDto(app, lines.Select(MapLineToDto).ToList()));
+    }
+
+    public async Task<Result<BillingApplicationLineItemDto>> UpdateLineAsync(UpdateBillingApplicationLineCommand cmd, CancellationToken ct = default)
+    {
+        var app = await db.Set<BillingApplication>().FirstOrDefaultAsync(a => a.Id == cmd.BillingApplicationId, ct);
+        if (app is null) return Result.Failure<BillingApplicationLineItemDto>("Billing application not found", "NOT_FOUND");
+        if (app.Status != BillingApplicationStatus.Draft)
+            return Result.Failure<BillingApplicationLineItemDto>("Only draft applications can be modified", "INVALID_STATUS");
+
+        var line = await db.Set<BillingApplicationLineItem>()
+            .FirstOrDefaultAsync(l => l.Id == cmd.LineItemId && l.BillingApplicationId == cmd.BillingApplicationId, ct);
+        if (line is null) return Result.Failure<BillingApplicationLineItemDto>("Line item not found", "NOT_FOUND");
+
+        if (cmd.WorkCompletedThisPeriod < 0)
+            return Result.Failure<BillingApplicationLineItemDto>("Work completed this period cannot be negative", "VALIDATION_ERROR");
+
+        line.WorkCompletedThisPeriod = cmd.WorkCompletedThisPeriod;
+        line.MaterialsStoredToDate = cmd.MaterialsStoredToDate;
+        CalculateLineItem(line, app);
+
+        decimal totalCompleted = line.TotalCompletedAndStored;
+        if (totalCompleted > line.ScheduledValue)
+            return Result.Failure<BillingApplicationLineItemDto>(
+                $"Line {line.ItemNumber} total ({totalCompleted:C2}) exceeds scheduled value ({line.ScheduledValue:C2})", "EXCEEDS_SCHEDULED");
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success(MapLineToDto(line));
+    }
+
+    public async Task<Result<BillingApplicationDto>> BulkUpdateLinesAsync(BulkUpdateBillingLinesCommand cmd, CancellationToken ct = default)
+    {
+        var app = await db.Set<BillingApplication>()
+            .Include(a => a.LineItems.OrderBy(l => l.SortOrder))
+            .FirstOrDefaultAsync(a => a.Id == cmd.BillingApplicationId, ct);
+
+        if (app is null) return Result.Failure<BillingApplicationDto>("Billing application not found", "NOT_FOUND");
+        if (app.Status != BillingApplicationStatus.Draft)
+            return Result.Failure<BillingApplicationDto>("Only draft applications can be modified", "INVALID_STATUS");
+
+        var lines = app.LineItems.ToList();
+        foreach (var update in cmd.Lines)
+        {
+            var line = lines.FirstOrDefault(l => l.Id == update.LineItemId);
+            if (line is null) continue;
+
+            if (update.WorkCompletedThisPeriod < 0)
+                return Result.Failure<BillingApplicationDto>($"Work completed cannot be negative on line {line.ItemNumber}", "VALIDATION_ERROR");
+
+            line.WorkCompletedThisPeriod = update.WorkCompletedThisPeriod;
+            line.MaterialsStoredToDate = update.MaterialsStoredToDate;
+            CalculateLineItem(line, app);
+
+            if (line.TotalCompletedAndStored > line.ScheduledValue)
+                return Result.Failure<BillingApplicationDto>(
+                    $"Line {line.ItemNumber} total ({line.TotalCompletedAndStored:C2}) exceeds scheduled value ({line.ScheduledValue:C2})", "EXCEEDS_SCHEDULED");
+        }
+
+        CalculateG702(app, lines);
+
+        var priorApp = await db.Set<BillingApplication>().AsNoTracking()
+            .FirstOrDefaultAsync(a => a.OwnerContractId == app.OwnerContractId && a.ApplicationNumber == app.ApplicationNumber - 1, ct);
+        app.LessPreviousCertificates = priorApp?.TotalEarnedLessRetainage ?? 0;
+        app.CurrentPaymentDue = app.TotalEarnedLessRetainage - app.LessPreviousCertificates;
+        app.BalanceToFinishIncludingRetainage = app.ContractSumToDate - app.TotalEarnedLessRetainage;
+
+        await db.SaveChangesAsync(ct);
+        return Result.Success(MapToDto(app, lines.Select(MapLineToDto).ToList()));
+    }
+
+    // ── Workflow ──
+
+    public async Task<Result<BillingApplicationDto>> SubmitForReviewAsync(Guid id, CancellationToken ct = default)
+        => await TransitionStatus(id, BillingApplicationStatus.Draft, BillingApplicationStatus.PmReview, ct);
+
+    public async Task<Result<BillingApplicationDto>> ApproveReviewAsync(Guid id, CancellationToken ct = default)
+        => await TransitionStatus(id, BillingApplicationStatus.PmReview, BillingApplicationStatus.ReadyToSubmit, ct);
+
+    public async Task<Result<BillingApplicationDto>> RejectReviewAsync(Guid id, string? comments, CancellationToken ct = default)
+    {
+        var result = await TransitionStatus(id, BillingApplicationStatus.PmReview, BillingApplicationStatus.PmRejected, ct);
+        if (result.IsSuccess && comments is not null)
+        {
+            var app = await db.Set<BillingApplication>().FirstOrDefaultAsync(a => a.Id == id, ct);
+            if (app is not null)
+            {
+                app.InternalNotes = string.IsNullOrWhiteSpace(app.InternalNotes)
+                    ? $"Rejection: {comments}"
+                    : $"{app.InternalNotes}\nRejection: {comments}";
+                await db.SaveChangesAsync(ct);
+            }
+        }
+        return result;
+    }
+
+    public async Task<Result<BillingApplicationDto>> SubmitToOwnerAsync(Guid id, CancellationToken ct = default)
+        => await TransitionStatus(id, BillingApplicationStatus.ReadyToSubmit, BillingApplicationStatus.SubmittedToOwner, ct);
+
+    public async Task<Result<BillingApplicationDto>> VoidAsync(Guid id, CancellationToken ct = default)
+    {
+        var app = await db.Set<BillingApplication>()
+            .Include(a => a.LineItems.OrderBy(l => l.SortOrder))
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+        if (app is null) return Result.Failure<BillingApplicationDto>("Billing application not found", "NOT_FOUND");
+        if (app.Status == BillingApplicationStatus.Paid)
+            return Result.Failure<BillingApplicationDto>("Cannot void a paid billing application", "INVALID_STATUS");
+
+        app.Status = BillingApplicationStatus.Void;
+        await db.SaveChangesAsync(ct);
+        return Result.Success(MapToDto(app, app.LineItems.Select(MapLineToDto).ToList()));
+    }
+
+    // ── Calculation Engine ──
+
+    private static void CalculateLineItem(BillingApplicationLineItem line, BillingApplication app)
+    {
+        // G703 Column G = D + E + F
+        line.TotalCompletedAndStored = line.WorkCompletedPrevious + line.WorkCompletedThisPeriod + line.MaterialsStoredToDate;
+
+        // G703 Column H = G / C (capped at 100%)
+        line.PercentComplete = line.ScheduledValue != 0
+            ? Math.Min(Math.Round(line.TotalCompletedAndStored / line.ScheduledValue * 100, 2), 100m)
+            : 0;
+
+        // G703 Column I = C - G
+        line.BalanceToFinish = line.ScheduledValue - line.TotalCompletedAndStored;
+
+        // Retainage
+        decimal rate = line.RetainagePercent ?? app.RetainagePercentWork;
+        line.RetainageAmount = Math.Round(line.TotalCompletedAndStored * rate / 100, 2);
+    }
+
+    private static void CalculateG702(BillingApplication app, List<BillingApplicationLineItem> lines)
+    {
+        // Line 4: Total completed and stored (sum of G703 Column G)
+        app.TotalCompletedAndStoredToDate = lines.Sum(l => l.TotalCompletedAndStored);
+
+        // Line 5: Retainage
+        decimal completedWork = lines.Sum(l => l.WorkCompletedPrevious + l.WorkCompletedThisPeriod);
+        decimal storedMaterials = lines.Sum(l => l.MaterialsStoredToDate);
+
+        app.RetainageOnCompletedWork = lines.Sum(l =>
+        {
+            decimal rate = l.RetainagePercent ?? app.RetainagePercentWork;
+            return Math.Round((l.WorkCompletedPrevious + l.WorkCompletedThisPeriod) * rate / 100, 2);
+        });
+
+        app.RetainageOnStoredMaterials = lines.Sum(l =>
+            Math.Round(l.MaterialsStoredToDate * app.RetainagePercentMaterials / 100, 2));
+
+        app.TotalRetainage = app.RetainageOnCompletedWork + app.RetainageOnStoredMaterials;
+
+        // Line 6: Total earned less retainage
+        app.TotalEarnedLessRetainage = app.TotalCompletedAndStoredToDate - app.TotalRetainage;
+    }
+
+    private async Task<Result<BillingApplicationDto>> TransitionStatus(Guid id, BillingApplicationStatus expectedStatus, BillingApplicationStatus newStatus, CancellationToken ct)
+    {
+        var app = await db.Set<BillingApplication>()
+            .Include(a => a.LineItems.OrderBy(l => l.SortOrder))
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+
+        if (app is null) return Result.Failure<BillingApplicationDto>("Billing application not found", "NOT_FOUND");
+        if (app.Status != expectedStatus)
+            return Result.Failure<BillingApplicationDto>($"Application must be in {expectedStatus} status (currently {app.Status})", "INVALID_STATUS");
+
+        app.Status = newStatus;
+        await db.SaveChangesAsync(ct);
+        return Result.Success(MapToDto(app, app.LineItems.Select(MapLineToDto).ToList()));
+    }
+
+    // ── Mappers ──
+
+    private static BillingApplicationDto MapToDto(BillingApplication a, IReadOnlyList<BillingApplicationLineItemDto>? lines) => new(
+        a.Id, a.ProjectId, a.OwnerContractId, a.OwnerScheduleOfValuesId,
+        a.ApplicationNumber, a.PeriodFrom, a.PeriodThrough, a.ApplicationDate,
+        a.OriginalContractSum, a.NetChangeByChangeOrders, a.ContractSumToDate,
+        a.TotalCompletedAndStoredToDate,
+        a.RetainageOnCompletedWork, a.RetainageOnStoredMaterials, a.TotalRetainage,
+        a.RetainagePercentWork, a.RetainagePercentMaterials,
+        a.TotalEarnedLessRetainage, a.LessPreviousCertificates,
+        a.CurrentPaymentDue, a.BalanceToFinishIncludingRetainage,
+        a.Status, a.InternalNotes, a.BillingNarrative,
+        a.CreatedAt, a.UpdatedAt, lines);
+
+    private static BillingApplicationLineItemDto MapLineToDto(BillingApplicationLineItem l) => new(
+        l.Id, l.OwnerSOVLineItemId, l.ItemNumber, l.Description, l.ScheduledValue,
+        l.SortOrder, l.WorkCompletedPrevious, l.WorkCompletedThisPeriod,
+        l.MaterialsStoredToDate, l.TotalCompletedAndStored, l.PercentComplete,
+        l.BalanceToFinish, l.RetainagePercent, l.RetainageAmount);
+}

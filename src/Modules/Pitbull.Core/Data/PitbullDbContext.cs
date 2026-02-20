@@ -60,6 +60,15 @@ public class PitbullDbContext(
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
+    // AIA Billing
+    public DbSet<OwnerContract> OwnerContracts => Set<OwnerContract>();
+    public DbSet<OwnerScheduleOfValues> OwnerSchedulesOfValues => Set<OwnerScheduleOfValues>();
+    public DbSet<OwnerSOVLineItem> OwnerSOVLineItems => Set<OwnerSOVLineItem>();
+    public DbSet<BillingApplication> BillingApplications => Set<BillingApplication>();
+    public DbSet<BillingApplicationLineItem> BillingApplicationLineItems => Set<BillingApplicationLineItem>();
+    public DbSet<BillingPeriod> BillingPeriods => Set<BillingPeriod>();
+    public DbSet<BillingPackageDocument> BillingPackageDocuments => Set<BillingPackageDocument>();
+
     // Module assemblies to scan for IEntityTypeConfiguration
     private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
 
