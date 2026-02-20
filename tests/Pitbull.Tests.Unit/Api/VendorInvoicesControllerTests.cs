@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
+using Pitbull.AI.Services;
 using Pitbull.Api.Controllers;
 using Pitbull.Billing.Features.PurchaseOrders;
 using Pitbull.Billing.Features.VendorInvoices;
@@ -43,7 +45,10 @@ public class VendorInvoicesControllerTests : IDisposable
             }
         };
 
-        _vendorInvoicesController = new VendorInvoicesController(vendorInvoiceService)
+        _vendorInvoicesController = new VendorInvoicesController(
+            vendorInvoiceService,
+            new Mock<IInvoiceExtractionService>().Object,
+            NullLogger<VendorInvoicesController>.Instance)
         {
             ControllerContext = new ControllerContext
             {

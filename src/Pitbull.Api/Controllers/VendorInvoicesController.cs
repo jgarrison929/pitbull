@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.AI.Services;
 using Pitbull.Billing.Features.VendorInvoices;
 using Pitbull.Billing.Services;
 using Pitbull.Core.Domain;
@@ -13,7 +14,10 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Vendor Invoices")]
-public class VendorInvoicesController(IVendorInvoiceService vendorInvoiceService) : ControllerBase
+public class VendorInvoicesController(
+    IVendorInvoiceService vendorInvoiceService,
+    IInvoiceExtractionService invoiceExtractionService,
+    ILogger<VendorInvoicesController> logger) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ListVendorInvoicesResult), StatusCodes.Status200OK)]
@@ -149,6 +153,30 @@ public class VendorInvoicesController(IVendorInvoiceService vendorInvoiceService
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return NoContent();
+    }
+
+    [HttpPost("extract")]
+    [EnableRateLimiting("ai-document")]
+    [ProducesResponseType(typeof(InvoiceExtractionResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Extract(
+        [FromBody] InvoiceExtractionRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Text))
+            return BadRequest(new { error = "Invoice text is required." });
+
+        try
+        {
+            var result = await invoiceExtractionService.ExtractAsync(request.Text, cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Invoice extraction failed");
+            return BadRequest(new { error = "Invoice extraction failed. Please try again." });
+        }
     }
 }
 

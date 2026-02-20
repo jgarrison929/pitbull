@@ -31,5 +31,7 @@ public enum NotificationType
     UpcomingSubmittal,
     RfiCreated,
     RfiAnswered,
-    SystemUpdate
+    SystemUpdate,
+    RetentionDeadline,
+    InspectionDeadline
 }

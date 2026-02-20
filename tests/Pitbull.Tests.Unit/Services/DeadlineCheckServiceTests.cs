@@ -185,7 +185,7 @@ public class DeadlineCheckServiceTests
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
         prefMock.Verify(p => p.IsNotificationEnabledAsync(
-            TestUserId, TestDbContextFactory.TestTenantId, "rfi_overdue", It.IsAny<CancellationToken>()), Times.Once);
+            TestUserId, TestDbContextFactory.TestTenantId, "overdue_rfi", It.IsAny<CancellationToken>()), Times.Once);
         notifMock.Verify(n => n.CreateAsync(It.IsAny<CreateNotificationCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -197,7 +197,7 @@ public class DeadlineCheckServiceTests
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
         prefMock.Verify(p => p.IsNotificationEnabledAsync(
-            TestUserId, TestDbContextFactory.TestTenantId, "rfi_upcoming", It.IsAny<CancellationToken>()), Times.Once);
+            TestUserId, TestDbContextFactory.TestTenantId, "rfi_deadline_approaching", It.IsAny<CancellationToken>()), Times.Once);
         notifMock.Verify(n => n.CreateAsync(It.IsAny<CreateNotificationCommand>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -209,7 +209,7 @@ public class DeadlineCheckServiceTests
         await db.SaveChangesAsync();
         await service.RunCheckAsync(CancellationToken.None);
         prefMock.Verify(p => p.IsNotificationEnabledAsync(
-            TestUserId, TestDbContextFactory.TestTenantId, "rfi_overdue", It.IsAny<CancellationToken>()), Times.Once);
+            TestUserId, TestDbContextFactory.TestTenantId, "overdue_rfi", It.IsAny<CancellationToken>()), Times.Once);
         notifMock.Verify(n => n.CreateAsync(
             It.Is<CreateNotificationCommand>(c => c.Type == NotificationType.OverdueRfi),
             It.IsAny<CancellationToken>()), Times.Once);

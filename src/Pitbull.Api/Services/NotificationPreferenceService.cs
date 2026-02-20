@@ -20,16 +20,18 @@ public sealed class NotificationPreferenceService(PitbullDbContext db) : INotifi
         "time_entry_submitted",
         "time_entry_approved",
         "time_entry_rejected",
+        "pay_period_locked",
         "rfi_created",
         "rfi_responded",
-        "rfi_overdue",
-        "rfi_upcoming",
         "submittal_status_changed",
-        "submittal_overdue",
-        "submittal_upcoming",
         "daily_report_submitted",
+        "rfi_deadline_approaching",
+        "overdue_rfi",
+        "submittal_deadline_approaching",
+        "overdue_submittal",
+        "retention_deadline",
+        "inspection_deadline",
         "document_uploaded",
-        "pay_period_locked",
         "system_announcement"
     ];
 

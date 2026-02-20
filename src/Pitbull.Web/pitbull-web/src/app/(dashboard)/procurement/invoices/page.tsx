@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/skeletons";
+import { Plus } from "lucide-react";
 
 interface InvoiceMatchResult {
   variancePercent: number;
@@ -74,9 +76,17 @@ export default function ProcurementInvoicesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Vendor Invoices</h1>
-        <p className="text-muted-foreground">Review invoice matching status and resolve variances</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Vendor Invoices</h1>
+          <p className="text-muted-foreground">Review invoice matching status and resolve variances</p>
+        </div>
+        <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white">
+          <Link href="/procurement/invoices/new">
+            <Plus className="mr-2 h-4 w-4" />
+            New Invoice
+          </Link>
+        </Button>
       </div>
 
       <Card>

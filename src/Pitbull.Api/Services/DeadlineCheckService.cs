@@ -89,7 +89,7 @@ public class DeadlineCheckService(
 
             if (dueDate <= now && !await tracker.HasBeenNotifiedAsync("Rfi", rfi.Id, "Overdue", ct))
             {
-                if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "rfi_overdue", ct))
+                if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "overdue_rfi", ct))
                     continue;
 
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
@@ -101,7 +101,7 @@ public class DeadlineCheckService(
             }
             else if (dueDate > now && dueDate <= tomorrow && !await tracker.HasBeenNotifiedAsync("Rfi", rfi.Id, "Upcoming", ct))
             {
-                if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "rfi_upcoming", ct))
+                if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "rfi_deadline_approaching", ct))
                     continue;
 
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
@@ -135,7 +135,7 @@ public class DeadlineCheckService(
 
             if (dueDate.Value <= now && !await tracker.HasBeenNotifiedAsync("Submittal", sub.Id, "Overdue", ct))
             {
-                if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_overdue", ct))
+                if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "overdue_submittal", ct))
                     continue;
 
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
@@ -147,7 +147,7 @@ public class DeadlineCheckService(
             }
             else if (dueDate.Value > now && dueDate.Value <= tomorrow && !await tracker.HasBeenNotifiedAsync("Submittal", sub.Id, "Upcoming", ct))
             {
-                if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_upcoming", ct))
+                if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_deadline_approaching", ct))
                     continue;
 
                 await notifSvc.CreateAsync(new CreateNotificationCommand(

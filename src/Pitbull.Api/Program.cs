@@ -135,6 +135,7 @@ builder.Services.AddScoped<Pitbull.Api.Services.IRoleService, Pitbull.Api.Servic
 builder.Services.AddScoped<Pitbull.Api.Services.IComplianceDocumentService, Pitbull.Api.Services.ComplianceDocumentService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IDataImportService, Pitbull.Api.Services.DataImportService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IDataExportService, Pitbull.Api.Services.DataExportService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IIntegrationExportService, Pitbull.Api.Services.IntegrationExportService>();
 
 // TimeTracking singleton services (don't require DI scope)
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
