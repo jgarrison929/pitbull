@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingButton } from "@/components/ui/loading-button";
-import { TableSkeleton } from "@/components/skeletons";
+import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 
 const ALL = "__all__";
@@ -315,10 +315,17 @@ export default function TimeTrackingApprovalPage() {
       </Card>
 
       {isLoading ? (
-        <TableSkeleton
-          headers={["", "Employee", "Date", "Hours", "Status", "Decision", "Comment", "Action"]}
-          rows={8}
-        />
+        <>
+          <div className="sm:hidden">
+            <CardListSkeleton rows={6} />
+          </div>
+          <div className="hidden sm:block">
+            <TableSkeleton
+              headers={["", "Employee", "Date", "Hours", "Status", "Decision", "Comment", "Action"]}
+              rows={8}
+            />
+          </div>
+        </>
       ) : !queue || queue.groups.length === 0 ? (
         <EmptyState
           icon={CheckCircle}
@@ -338,7 +345,67 @@ export default function TimeTrackingApprovalPage() {
                 </p>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
+                {/* Mobile card layout */}
+                <div className="sm:hidden space-y-3">
+                  {group.entries.map((entry) => {
+                    const decision = decisionById[entry.id] ?? "approve";
+
+                    return (
+                      <div key={entry.id} className="rounded-lg border p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">{entry.employeeName}</p>
+                            <p className="text-xs text-muted-foreground">{formatDate(entry.date)}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-mono text-sm font-semibold">{formatHours(entry.totalHours)}h</span>
+                            <Badge variant="secondary" className={`${timeEntryStatusBadgeClass(entry.status)} text-xs`}>
+                              {timeEntryStatusLabel(entry.status)}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <Input
+                          placeholder={decision === "reject" ? "Rejection reason (required)" : "Optional comment"}
+                          value={commentById[entry.id] ?? ""}
+                          onChange={(e) =>
+                            setCommentById((prev) => ({ ...prev, [entry.id]: e.target.value }))
+                          }
+                          className="h-11 text-base"
+                        />
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            className="h-12 bg-emerald-600 text-white hover:bg-emerald-700 touch-manipulation"
+                            onClick={() => {
+                              setDecisionById((prev) => ({ ...prev, [entry.id]: "approve" }));
+                              submitReview([entry.id]);
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            <CheckCircle className="mr-2 h-5 w-5" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="h-12 border-destructive/50 text-destructive hover:bg-destructive/10 touch-manipulation"
+                            onClick={() => {
+                              setDecisionById((prev) => ({ ...prev, [entry.id]: "reject" }));
+                              submitReview([entry.id]);
+                            }}
+                            disabled={isSubmitting}
+                          >
+                            <XCircle className="mr-2 h-5 w-5" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop table layout */}
+                <div className="hidden sm:block overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>

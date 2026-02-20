@@ -275,7 +275,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Real-time construction KPIs and activity.</p>
@@ -283,9 +283,10 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="min-h-[44px] sm:min-h-0">
                 <LayoutDashboard className="mr-2 h-4 w-4" />
-                {dashboardLayout === "default" ? "Overview" : dashboardLayout === "pm" ? "PM View" : dashboardLayout === "controller" ? "Controller" : dashboardLayout === "field" ? "Field" : "Executive"}
+                <span className="hidden sm:inline">{dashboardLayout === "default" ? "Overview" : dashboardLayout === "pm" ? "PM View" : dashboardLayout === "controller" ? "Controller" : dashboardLayout === "field" ? "Field" : "Executive"}</span>
+                <span className="sm:hidden">View</span>
                 <ChevronDown className="ml-2 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
@@ -297,7 +298,7 @@ export default function DashboardPage() {
               <DropdownMenuItem onClick={() => switchLayout("executive")}>Executive</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={fetchAnalytics}>
+          <Button variant="outline" size="sm" onClick={fetchAnalytics} className="min-h-[44px] sm:min-h-0">
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>

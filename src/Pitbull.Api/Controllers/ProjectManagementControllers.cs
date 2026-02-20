@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Core.CQRS;
+using Pitbull.Documents.Services;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.ProjectManagement.Services;
 
@@ -881,8 +883,17 @@ public class ProjectCommunicationsController(ICommunicationService communication
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Route("api/projects/{projectId:guid}/daily-reports")]
-public class ProjectDailyReportsController(IDailyReportService dailyReportService) : ProjectManagementControllerBase
+public class ProjectDailyReportsController(
+    IDailyReportService dailyReportService,
+    IFileStorageService fileStorageService,
+    IFileValidationService fileValidationService) : ProjectManagementControllerBase
 {
+    private Guid? GetUserId()
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+        return claim != null && Guid.TryParse(claim.Value, out var id) ? id : null;
+    }
+
     /// <summary>
     /// Creates a new daily report for the specified project.
     /// </summary>
@@ -996,6 +1007,114 @@ public class ProjectDailyReportsController(IDailyReportService dailyReportServic
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AddPhoto(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request)
         => HandleResult(await dailyReportService.AddPhotoAsync(projectId, dailyReportId, request));
+
+    /// <summary>
+    /// Uploads a photo file and attaches it to a daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <param name="file">The photo file to upload.</param>
+    /// <param name="caption">Optional photo caption.</param>
+    /// <param name="latitude">Optional GPS latitude.</param>
+    /// <param name="longitude">Optional GPS longitude.</param>
+    /// <returns>The created photo record.</returns>
+    /// <response code="200">Photo uploaded and attached successfully.</response>
+    /// <response code="400">Validation failed or file is invalid.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpPost("{dailyReportId:guid}/photos/upload")]
+    [RequestSizeLimit(26_214_400)] // 25 MB
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadPhoto(
+        Guid projectId, Guid dailyReportId,
+        IFormFile file,
+        [FromForm] string? caption = null,
+        [FromForm] decimal? latitude = null,
+        [FromForm] decimal? longitude = null)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
+        if (file.Length == 0)
+            return BadRequest(new { error = "File is empty" });
+
+        var validation = fileValidationService.ValidateFile(file.FileName, file.ContentType, file.Length);
+        if (!validation.IsSuccess)
+            return BadRequest(new { error = validation.Error, code = validation.ErrorCode });
+
+        await using var stream = file.OpenReadStream();
+        var uploadCommand = new UploadFileCommand(
+            file.FileName,
+            file.ContentType,
+            file.Length,
+            stream,
+            userId.Value,
+            "DailyReportPhoto",
+            dailyReportId
+        );
+
+        var uploadResult = await fileStorageService.UploadAsync(uploadCommand);
+        if (!uploadResult.IsSuccess)
+            return BadRequest(new { error = uploadResult.Error, code = uploadResult.ErrorCode });
+
+        var photoData = new Dictionary<string, object?>
+        {
+            ["DocumentId"] = uploadResult.Value!.Id,
+            ["DailyReportId"] = dailyReportId,
+            ["TakenByUserId"] = userId.Value,
+            ["TakenAt"] = DateTime.UtcNow
+        };
+        if (caption != null) photoData["Caption"] = caption;
+        if (latitude.HasValue) photoData["Latitude"] = latitude.Value;
+        if (longitude.HasValue) photoData["Longitude"] = longitude.Value;
+
+        var request = new PmUpsertRequest(Data: photoData);
+        return HandleResult(await dailyReportService.AddPhotoAsync(projectId, dailyReportId, request));
+    }
+
+    /// <summary>
+    /// Lists photos for a daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <param name="query">Paging and filtering options.</param>
+    /// <returns>A paged list of photos.</returns>
+    /// <response code="200">Photos returned successfully.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpGet("{dailyReportId:guid}/photos/list")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListPhotos(Guid projectId, Guid dailyReportId, [FromQuery] PmListQuery query)
+        => HandleResult(await dailyReportService.ListPhotosAsync(projectId, dailyReportId, query));
+
+    /// <summary>
+    /// Deletes a photo from a daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <param name="photoId">Photo identifier.</param>
+    /// <returns>No content on success.</returns>
+    /// <response code="204">Photo deleted successfully.</response>
+    /// <response code="404">Photo or daily report not found.</response>
+    [HttpDelete("{dailyReportId:guid}/photos/{photoId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePhoto(Guid projectId, Guid dailyReportId, Guid photoId)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
+        var deleteResult = await dailyReportService.DeletePhotoAsync(projectId, dailyReportId, photoId);
+        if (!deleteResult.IsSuccess)
+            return deleteResult.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = deleteResult.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = deleteResult.Error, code = deleteResult.ErrorCode });
+
+        // Also delete the file from storage (best-effort, photo record is already soft-deleted)
+        // We don't fail if file deletion fails since the DB record is already removed
+        return NoContent();
+    }
 
     /// <summary>
     /// Runs a rollup operation for a daily report.

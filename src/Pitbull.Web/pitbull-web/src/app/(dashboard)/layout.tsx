@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { QuickActionFAB } from "@/components/layout/quick-action-fab";
 import { AiChatPanel } from "@/components/ai-chat-panel";
 import { FeedbackWidget } from "@/components/layout/feedback-widget";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
 export default function DashboardLayout({
   children,
@@ -45,7 +46,7 @@ export default function DashboardLayout({
         <AppSidebar />
         <div className="flex-1 flex flex-col">
           <AppHeader />
-          <main className="flex-1 p-4 lg:p-6 bg-muted/30">
+          <main className="flex-1 p-4 lg:p-6 bg-muted/30 pb-16 sm:pb-0">
             <ErrorBoundary section="Dashboard">
               {children}
             </ErrorBoundary>
@@ -58,6 +59,7 @@ export default function DashboardLayout({
       <FeedbackWidget />
 
       <AiChatPanel />
+      <MobileBottomNav />
     </KeyboardShortcutsProvider>
   );
 }
