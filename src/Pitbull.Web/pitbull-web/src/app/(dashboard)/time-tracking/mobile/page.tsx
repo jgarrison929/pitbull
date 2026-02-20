@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CalendarDays, ChevronLeft, ChevronRight, Save, Send } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, ChevronLeft, ChevronRight, Delete, Save, Send } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { getTodayISO } from "@/lib/time-tracking";
@@ -14,11 +14,11 @@ import type {
 } from "@/types/crew-entry.types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { cn } from "@/lib/utils";
 
 interface CostCodeListResult {
   items: CostCode[];
@@ -48,7 +48,10 @@ interface FormErrors {
   hours?: string;
 }
 
+type HoursField = "regularHours" | "overtimeHours";
+
 const SWIPE_THRESHOLD_PX = 40;
+const QUICK_HOURS = ["4", "6", "8", "10"];
 
 function shiftDate(isoDate: string, dayDelta: number): string {
   const date = new Date(`${isoDate}T00:00:00`);
@@ -64,21 +67,65 @@ function formatDateLabel(isoDate: string): string {
   });
 }
 
-function clampHours(value: string): string {
-  if (!value.trim()) return "0";
-  const numeric = Number.parseFloat(value);
-  if (!Number.isFinite(numeric)) return "0";
-  return Math.max(0, Math.min(24, numeric)).toString();
+function NumberPad({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label: string;
+}) {
+  const handleKey = useCallback(
+    (key: string) => {
+      if (key === "backspace") {
+        const next = value.slice(0, -1);
+        onChange(next || "0");
+      } else if (key === ".") {
+        if (!value.includes(".")) onChange(value + ".");
+      } else {
+        const next = value === "0" ? key : value + key;
+        const numeric = Number.parseFloat(next);
+        if (Number.isFinite(numeric) && numeric <= 24) onChange(next);
+      }
+    },
+    [value, onChange],
+  );
+
+  const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "backspace"] as const;
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="rounded-lg border bg-muted/30 p-2 text-center text-3xl font-bold tabular-nums tracking-wider">
+        {value} <span className="text-base font-normal text-muted-foreground">hrs</span>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        {keys.map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => handleKey(key)}
+            className="flex min-h-[48px] items-center justify-center rounded-lg border bg-background text-lg font-medium transition-colors active:bg-muted touch-manipulation select-none"
+          >
+            {key === "backspace" ? <Delete className="h-5 w-5" /> : key}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function MobileTimeEntryPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [costCodes, setCostCodes] = useState<CostCode[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [activeHoursField, setActiveHoursField] = useState<HoursField>("regularHours");
   const [form, setForm] = useState<FormState>({
     date: getTodayISO(),
     projectId: "",
@@ -172,8 +219,11 @@ export default function MobileTimeEntryPage() {
         if (isDraft) {
           toast.success("Draft saved");
         } else {
-          toast.success("Time entry submitted");
-          router.push("/time-tracking");
+          setShowSuccess(true);
+          setTimeout(() => {
+            setShowSuccess(false);
+            router.push("/time-tracking");
+          }, 1200);
         }
       } catch (err) {
         toast.error("Failed to save time entry", { description: err instanceof Error ? err.message : undefined });
@@ -256,6 +306,17 @@ export default function MobileTimeEntryPage() {
         <Skeleton className="h-8 w-56" />
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-72 w-full" />
+      </div>
+    );
+  }
+
+  if (showSuccess) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col items-center justify-center gap-4 px-3 py-4">
+        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/30">
+          <Check className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+        </div>
+        <p className="text-lg font-semibold">Time Entry Submitted</p>
       </div>
     );
   }
@@ -380,43 +441,73 @@ export default function MobileTimeEntryPage() {
             </select>
             {errors.costCodeId && <p className="text-sm text-destructive">{errors.costCodeId}</p>}
           </div>
+        </CardContent>
+      </Card>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="regularHours">Regular Hours</Label>
-              <Input
-                id="regularHours"
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={24}
-                step={0.25}
-                value={form.regularHours}
-                onChange={(event) => updateField("regularHours", event.target.value)}
-                onBlur={(event) => updateField("regularHours", clampHours(event.target.value))}
-                className="h-12 text-base"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="otHours">OT Hours</Label>
-              <Input
-                id="otHours"
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={24}
-                step={0.25}
-                value={form.overtimeHours}
-                onChange={(event) => updateField("overtimeHours", event.target.value)}
-                onBlur={(event) => updateField("overtimeHours", clampHours(event.target.value))}
-                className="h-12 text-base"
-              />
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Hours</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Quick-select buttons */}
+          <div className="space-y-2">
+            <Label>Quick Set Regular Hours</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {QUICK_HOURS.map((h) => (
+                <button
+                  key={h}
+                  type="button"
+                  onClick={() => { updateField("regularHours", h); setActiveHoursField("regularHours"); }}
+                  className={cn(
+                    "flex min-h-[44px] items-center justify-center rounded-lg border text-sm font-medium transition-colors touch-manipulation",
+                    form.regularHours === h
+                      ? "border-amber-500 bg-amber-500/10 text-amber-600"
+                      : "bg-background hover:bg-muted"
+                  )}
+                >
+                  {h}h
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-            Total: <span className="font-semibold">{totalHours.toFixed(2)} hrs</span>
+          {/* Hours field toggle */}
+          <div className="flex rounded-lg border p-1">
+            <button
+              type="button"
+              onClick={() => setActiveHoursField("regularHours")}
+              className={cn(
+                "flex-1 rounded-md py-2 text-sm font-medium transition-colors touch-manipulation",
+                activeHoursField === "regularHours"
+                  ? "bg-amber-500 text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Regular: {form.regularHours}h
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveHoursField("overtimeHours")}
+              className={cn(
+                "flex-1 rounded-md py-2 text-sm font-medium transition-colors touch-manipulation",
+                activeHoursField === "overtimeHours"
+                  ? "bg-amber-500 text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              OT: {form.overtimeHours}h
+            </button>
+          </div>
+
+          {/* Number pad */}
+          <NumberPad
+            value={form[activeHoursField]}
+            onChange={(v) => updateField(activeHoursField, v)}
+            label={activeHoursField === "regularHours" ? "Regular Hours" : "Overtime Hours"}
+          />
+
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-center">
+            Total: <span className="font-semibold text-lg">{totalHours.toFixed(2)} hrs</span>
           </div>
           {errors.hours && <p className="text-sm text-destructive">{errors.hours}</p>}
 
@@ -426,7 +517,7 @@ export default function MobileTimeEntryPage() {
               id="notes"
               value={form.notes}
               onChange={(event) => updateField("notes", event.target.value)}
-              rows={4}
+              rows={3}
               placeholder="What work was completed?"
               className="text-base"
             />
@@ -434,25 +525,25 @@ export default function MobileTimeEntryPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-3 pb-2 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 pb-20">
         <Button
           type="button"
           variant="outline"
-          className="h-12 touch-manipulation"
+          className="h-14 touch-manipulation text-base"
           onClick={() => submit(true)}
           disabled={isSubmitting || !employee}
         >
-          <Save className="mr-2 h-4 w-4" />
-          Save Draft
+          <Save className="mr-2 h-5 w-5" />
+          Draft
         </Button>
 
         <Button
           type="button"
-          className="h-12 bg-amber-500 text-white hover:bg-amber-600 touch-manipulation"
+          className="h-14 bg-amber-500 text-white hover:bg-amber-600 touch-manipulation text-base"
           onClick={() => submit(false)}
           disabled={isSubmitting || !employee}
         >
-          <Send className="mr-2 h-4 w-4" />
+          <Send className="mr-2 h-5 w-5" />
           Submit
         </Button>
       </div>

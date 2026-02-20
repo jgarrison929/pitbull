@@ -969,6 +969,33 @@ public class DailyReportService : PmServiceBase, IDailyReportService
     }
     public Task<Result<PmEntityDto>> AddPhotoAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmDailyReportPhoto>(projectId, request with { ReferenceId = dailyReportId }, cancellationToken);
+
+    public async Task<Result<PagedResult<PmEntityDto>>> ListPhotosAsync(Guid projectId, Guid dailyReportId, PmListQuery query, CancellationToken cancellationToken = default)
+    {
+        var hasReport = await ProjectScoped<PmDailyReport>(projectId).AnyAsync(r => r.Id == dailyReportId, cancellationToken);
+        if (!hasReport)
+            return Result.Failure<PagedResult<PmEntityDto>>("Daily report not found", "NOT_FOUND");
+
+        return await ListAsync(Db.Set<PmDailyReportPhoto>().Where(p => !p.IsDeleted && p.DailyReportId == dailyReportId), query, cancellationToken);
+    }
+
+    public async Task<Result> DeletePhotoAsync(Guid projectId, Guid dailyReportId, Guid photoId, CancellationToken cancellationToken = default)
+    {
+        var hasReport = await ProjectScoped<PmDailyReport>(projectId).AnyAsync(r => r.Id == dailyReportId, cancellationToken);
+        if (!hasReport)
+            return Result.Failure("Daily report not found", "NOT_FOUND");
+
+        var photo = await Db.Set<PmDailyReportPhoto>().FirstOrDefaultAsync(p => p.Id == photoId && p.DailyReportId == dailyReportId && !p.IsDeleted, cancellationToken);
+        if (photo == null)
+            return Result.Failure("Photo not found", "NOT_FOUND");
+
+        photo.IsDeleted = true;
+        photo.DeletedAt = DateTime.UtcNow;
+        photo.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     public async Task<Result<PmActionResultDto>> RollupDailyReportAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
         if (!request.ReferenceId.HasValue)

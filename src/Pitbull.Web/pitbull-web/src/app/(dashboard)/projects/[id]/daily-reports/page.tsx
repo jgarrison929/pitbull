@@ -38,8 +38,9 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
-import { Plus, Pencil, Trash2, FileText, CheckCircle, Sparkles, Send, Paperclip } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, CheckCircle, Sparkles, Send, Paperclip, Camera, Download, ImageIcon } from "lucide-react";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
+import { getDownloadUrl } from "@/lib/api";
 
 interface FileItem {
   id: string;
@@ -176,6 +177,11 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
   const [aiSummary, setAiSummary] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMeta, setAiMeta] = useState<{ model: string; provider: string; latencyMs: number } | null>(null);
+
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryReportId, setGalleryReportId] = useState<string | null>(null);
+  const [galleryPhotos, setGalleryPhotos] = useState<FileAttachmentInfo[]>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -433,6 +439,23 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  async function openGallery(reportId: string) {
+    setGalleryReportId(reportId);
+    setGalleryPhotos([]);
+    setGalleryLoading(true);
+    setGalleryOpen(true);
+    try {
+      const files = await api<FileAttachmentInfo[]>(
+        `/api/files?entityType=DailyReport&entityId=${reportId}`
+      );
+      setGalleryPhotos(files.filter((f) => f.contentType.startsWith("image/")));
+    } catch {
+      setGalleryPhotos([]);
+    } finally {
+      setGalleryLoading(false);
+    }
+  }
+
   async function requestAiSummary(reportId: string) {
     setAiSummary("");
     setAiMeta(null);
@@ -644,6 +667,18 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                               disabled={saving}
                             >
                               <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {row.attachmentCount > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openGallery(row.id)}
+                              title="View Photos"
+                              aria-label="View Photos"
+                              className="min-h-[44px] min-w-[44px]"
+                            >
+                              <ImageIcon className="h-4 w-4" />
                             </Button>
                           )}
                           <Button
@@ -977,6 +1012,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                   maxSizeMB={10}
                   maxFiles={10}
                   disabled={saving}
+                  enableCamera
                   placeholder="Drop photos, PDFs, or documents here"
                 />
               </div>
@@ -1051,6 +1087,70 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setAiSummaryOpen(false)}>Close</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Photo Gallery Dialog */}
+        <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
+          <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5 text-amber-500" />
+                Report Photos
+              </DialogTitle>
+              <DialogDescription>
+                {galleryPhotos.length} photo(s) attached to this report.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              {galleryLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : galleryPhotos.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No photos attached to this report.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {galleryPhotos.map((photo) => (
+                    <div
+                      key={photo.id}
+                      className="relative group rounded-lg overflow-hidden border bg-muted aspect-square"
+                    >
+                      <img
+                        src={getDownloadUrl(photo.id)}
+                        alt={photo.fileName}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3">
+                        <p className="text-xs text-white truncate">{photo.fileName}</p>
+                        <p className="text-xs text-white/70">
+                          {(photo.fileSize / 1024).toFixed(0)} KB
+                        </p>
+                      </div>
+                      <a
+                        href={getDownloadUrl(photo.id)}
+                        download={photo.fileName}
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Button variant="secondary" size="icon" className="h-8 w-8">
+                          <Download className="h-4 w-4" />
+                          <span className="sr-only">Download {photo.fileName}</span>
+                        </Button>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGalleryOpen(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
