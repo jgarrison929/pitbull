@@ -25,6 +25,8 @@ import {
   Truck,
   History,
   ArrowRight,
+  MessageSquare,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -356,6 +358,24 @@ export function CommandPalette() {
         category: "navigation",
         action: () => { router.push("/payroll/wage-determinations"); close(); },
         keywords: ["prevailing wage", "rates", "davis-bacon", "compliance"],
+      },
+      {
+        id: "nav-admin-health-dashboard",
+        title: "Admin Health Dashboard",
+        subtitle: "Live uptime, latency, memory, and error telemetry",
+        icon: <Activity className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/admin/health"); close(); },
+        keywords: ["admin", "health", "monitoring", "uptime", "errors"],
+      },
+      {
+        id: "nav-admin-feedback",
+        title: "Admin Feedback Inbox",
+        subtitle: "Review and triage in-app user feedback",
+        icon: <MessageSquare className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/admin/feedback"); close(); },
+        keywords: ["admin", "feedback", "bug", "feature request"],
       },
       {
         id: "nav-payroll-reviews",

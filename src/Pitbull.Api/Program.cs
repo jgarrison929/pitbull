@@ -31,16 +31,21 @@ using Pitbull.TimeTracking.Features.CreateTimeEntry;
 using Pitbull.ProjectManagement.Storage;
 using Pitbull.Billing.Features;
 using Pitbull.Api.Data;
+using Pitbull.Api.Services;
 using Pitbull.Core.Messaging;
 using PostHog;
 using QuestPDF.Infrastructure;
 using Savorboard.CAP.InMemoryMessageQueue;
 using Serilog;
+using Serilog.Formatting.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // QuestPDF community license
 QuestPDF.Settings.License = LicenseType.Community;
+
+// In-memory error store powers the admin health dashboard "recent errors" panel.
+var inMemoryErrorStore = new InMemoryErrorLogStore();
 
 // Validate configuration early to catch issues before startup
 EnvironmentValidator.ValidateRequiredConfiguration(builder.Configuration);
@@ -49,7 +54,9 @@ EnvironmentValidator.ValidateRequiredConfiguration(builder.Configuration);
 builder.Host.UseSerilog((context, config) => config
     .ReadFrom.Configuration(context.Configuration)
     .Enrich.FromLogContext()
-    .WriteTo.Console());
+    .Enrich.WithProperty("Application", "PitbullApi")
+    .WriteTo.Console(new JsonFormatter())
+    .WriteTo.Sink(new InMemorySerilogErrorSink(inMemoryErrorStore)));
 
 // Register module assemblies for EF configuration discovery
 PitbullDbContext.RegisterModuleAssembly(typeof(PitbullDbContext).Assembly); // Core module
@@ -73,6 +80,9 @@ if (!string.IsNullOrEmpty(builder.Configuration["PostHog:ProjectApiKey"]))
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);
+builder.Services.AddSingleton<IErrorLogStore>(inMemoryErrorStore);
+builder.Services.AddSingleton<IRequestMetricsStore, RequestMetricsStore>();
+builder.Services.AddScoped<IHealthDashboardService, HealthDashboardService>();
 
 // Persist DataProtection keys to PostgreSQL so encrypted data survives redeploys.
 builder.Services.AddDataProtection()
@@ -133,6 +143,7 @@ builder.Services.AddScoped<Pitbull.TimeTracking.Services.IEmployeeService, Pitbu
 builder.Services.AddScoped<Pitbull.Core.Features.Dashboard.IDashboardService, Pitbull.Core.Features.Dashboard.DashboardService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IDashboardAnalyticsService, Pitbull.Api.Services.DashboardAnalyticsService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IPdfReportService, Pitbull.Api.Services.PdfReportService>();
+builder.Services.AddScoped<Pitbull.Core.Features.Feedback.IFeedbackService, Pitbull.Core.Features.Feedback.FeedbackService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Aging.IAgingReportService, Pitbull.Billing.Features.Aging.AgingReportService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Wip.IWipGlPostingService, Pitbull.Billing.Features.Wip.WipGlPostingService>();
 
@@ -499,6 +510,7 @@ var app = builder.Build();
 
 // Handle forwarded headers from reverse proxy (must be very early)
 app.UseForwardedHeaders();
+app.UseSerilogRequestLogging();
 
 // Auto-migrate database on startup (skipped in integration tests where
 // PostgresFixture applies migrations once to avoid parallel race conditions).
@@ -519,6 +531,7 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
 
 // Global exception handling (must be first in pipeline)
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<RequestMetricsMiddleware>();
 
 // Request performance tracking (slow requests, N+1 detection — sends to PostHog)
 app.UseMiddleware<RequestPerformanceMiddleware>();
@@ -556,7 +569,6 @@ app.UseSwaggerUI(c =>
 // Response compression (before other middlewares that generate responses)
 app.UseResponseCompression();
 
-app.UseSerilogRequestLogging();
 app.UseRequestTimeouts();
 app.UseRateLimiter();
 app.UseAuthentication();

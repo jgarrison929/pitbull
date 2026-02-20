@@ -57,6 +57,7 @@ public class PitbullDbContext(
     public DbSet<TeamInvitation> TeamInvitations => Set<TeamInvitation>();
     public DbSet<OnboardingChecklist> OnboardingChecklists => Set<OnboardingChecklist>();
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+    public DbSet<Feedback> Feedback => Set<Feedback>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
@@ -563,6 +564,21 @@ public class PitbullDbContext(
                 .HasForeignKey(c => c.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(c => new { c.TenantId, c.UserId, c.CompanyId }).IsUnique();
+        });
+
+        // Feedback configuration
+        builder.Entity<Feedback>(e =>
+        {
+            e.ToTable("feedback");
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Page).HasMaxLength(1000).IsRequired();
+            e.Property(f => f.UserRole).HasMaxLength(100).IsRequired();
+            e.Property(f => f.Category).HasMaxLength(50).IsRequired();
+            e.Property(f => f.Message).HasMaxLength(4000).IsRequired();
+            e.Property(f => f.ContactEmail).HasMaxLength(256);
+            e.Property(f => f.Status).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(f => new { f.TenantId, f.CreatedAt });
+            e.HasIndex(f => new { f.TenantId, f.Category });
         });
 
         // PasswordResetToken configuration (not BaseEntity — no tenant/soft-delete filters)
