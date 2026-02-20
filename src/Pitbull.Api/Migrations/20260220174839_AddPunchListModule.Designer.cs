@@ -12,8 +12,8 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    [Migration("20260220163413_AddPunchListEntities")]
-    partial class AddPunchListEntities
+    [Migration("20260220174839_AddPunchListModule")]
+    partial class AddPunchListModule
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
