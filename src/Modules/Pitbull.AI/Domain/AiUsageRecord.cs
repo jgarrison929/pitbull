@@ -12,5 +12,6 @@ public class AiUsageRecord : BaseEntity, ITenantScoped
     public decimal EstimatedCost { get; set; }
     public string? Feature { get; set; }
     public int DurationMs { get; set; }
+    public decimal ConfidenceScore { get; set; }
     public DateTime RequestedAt { get; set; }
 }

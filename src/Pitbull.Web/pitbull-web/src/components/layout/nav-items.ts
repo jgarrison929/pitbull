@@ -151,5 +151,6 @@ export const adminItems: NavItem[] = [
   { label: "API Keys", href: "/admin/api-keys", icon: "🔑", requiredPermission: "SystemAdmin.APIKeys" },
   { label: "System Health", href: "/admin/system-health", icon: "💚", requiredPermission: "SystemAdmin.Health" },
   { label: "Health Dashboard", href: "/admin/health", icon: "📡", requiredPermission: "SystemAdmin.Health" },
+  { label: "Secrets", href: "/admin/secrets", icon: "🔐", requiredPermission: "Admin.Settings" },
   { label: "Feedback Inbox", href: "/admin/feedback", icon: "💬", requiredPermission: "Admin.Settings" },
 ];

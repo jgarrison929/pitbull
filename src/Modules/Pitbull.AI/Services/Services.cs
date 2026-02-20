@@ -132,7 +132,14 @@ public class AiService(
             {
                 try
                 {
-                    return await provider.CompleteAsync(request, apiKey, ct);
+                    var result = await provider.CompleteAsync(request, apiKey, ct);
+                    if (result.IsSuccess)
+                    {
+                        var confidence = ConfidenceScorer.Calculate(request, result.Value!);
+                        var scored = result.Value! with { ConfidenceScore = confidence };
+                        return Result.Success(scored);
+                    }
+                    return result;
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {

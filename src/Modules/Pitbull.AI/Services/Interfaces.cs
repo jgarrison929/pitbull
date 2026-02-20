@@ -23,7 +23,7 @@ public interface IAiService
 public interface IAiUsageService
 {
     Task LogUsageAsync(Guid userId, string provider, string model, int tokensIn, int tokensOut,
-                       decimal estimatedCost, string? feature, int durationMs, CancellationToken ct = default);
+                       decimal estimatedCost, string? feature, int durationMs, decimal confidenceScore = 0m, CancellationToken ct = default);
     Task<AiUsageSummaryDto> GetUsageSummaryAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
     Task<List<AiUsageByUserDto>> GetUsageByUserAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
     Task<List<AiUsageByProviderDto>> GetUsageByProviderAsync(DateOnly from, DateOnly to, CancellationToken ct = default);

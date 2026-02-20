@@ -26,7 +26,8 @@ public record AiCompletionResult(
     int OutputTokens,
     string Model,
     string Provider,
-    TimeSpan Latency
+    TimeSpan Latency,
+    decimal ConfidenceScore = 0m
 );
 
 public interface IAiProvider

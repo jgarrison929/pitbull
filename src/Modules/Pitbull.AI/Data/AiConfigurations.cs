@@ -36,6 +36,7 @@ public class AiUsageRecordConfiguration : IEntityTypeConfiguration<AiUsageRecord
         builder.Property(x => x.Model).HasMaxLength(100).IsRequired();
         builder.Property(x => x.Feature).HasMaxLength(50);
         builder.Property(x => x.EstimatedCost).HasPrecision(18, 2);
+        builder.Property(x => x.ConfidenceScore).HasPrecision(5, 4);
 
         builder.HasIndex(x => x.TenantId);
         builder.HasIndex(x => new { x.TenantId, x.UserId, x.RequestedAt });
