@@ -148,7 +148,7 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         {
             RunDate = command.RunDate,
             PayPeriodId = command.PayPeriodId,
-            Status = PayrollRunStatus.Processing
+            Status = PayrollRunStatus.Submitted
         };
 
         foreach (IGrouping<Guid, TimeEntry> group in approvedEntries.GroupBy(x => x.EmployeeId))
