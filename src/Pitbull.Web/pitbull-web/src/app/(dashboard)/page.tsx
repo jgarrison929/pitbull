@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderOpen, Clock3, Inbox, MessageCircle, RefreshCw, Activity, AlertTriangle, Plus, ClipboardCheck, BarChart3 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { FolderOpen, Clock3, Inbox, MessageCircle, RefreshCw, Activity, AlertTriangle, Plus, ClipboardCheck, BarChart3, LayoutDashboard, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -14,6 +15,10 @@ import { useAuth } from "@/contexts/auth-context";
 import { useCompany } from "@/contexts/company-context";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
 import { WelcomeTour } from "@/components/onboarding/welcome-tour";
+import { PmDashboard } from "@/components/dashboard/role-views/pm-dashboard";
+import { ControllerDashboard } from "@/components/dashboard/role-views/controller-dashboard";
+import { FieldDashboard } from "@/components/dashboard/role-views/field-dashboard";
+import { ExecutiveDashboard } from "@/components/dashboard/role-views/executive-dashboard";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -166,6 +171,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [setupIncomplete, setSetupIncomplete] = useState(false);
+  const [dashboardLayout, setDashboardLayout] = useState<string>("default");
 
   // Gate: redirect to setup wizard if onboarding is not complete
   useEffect(() => {
@@ -184,6 +190,28 @@ export default function DashboardPage() {
     checkSetup();
     return () => { cancelled = true; };
   }, [router]);
+
+  // Load saved dashboard layout preference
+  useEffect(() => {
+    async function loadPref() {
+      try {
+        const pref = await api<{ layout: string }>("/api/dashboard/preferences");
+        if (pref.layout) setDashboardLayout(pref.layout);
+      } catch {
+        // Preference endpoint unavailable — use default
+      }
+    }
+    loadPref();
+  }, []);
+
+  const switchLayout = useCallback(async (layout: string) => {
+    setDashboardLayout(layout);
+    try {
+      await api("/api/dashboard/preferences", { method: "PUT", body: { layout } });
+    } catch {
+      // Save failed — layout still switches locally
+    }
+  }, []);
 
   const fetchAnalytics = useCallback(async () => {
     try {
@@ -252,12 +280,38 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Real-time construction KPIs and activity.</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchAnalytics}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                {dashboardLayout === "default" ? "Overview" : dashboardLayout === "pm" ? "PM View" : dashboardLayout === "controller" ? "Controller" : dashboardLayout === "field" ? "Field" : "Executive"}
+                <ChevronDown className="ml-2 h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => switchLayout("default")}>Overview (Default)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchLayout("pm")}>Project Manager</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchLayout("controller")}>Controller / CFO</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchLayout("field")}>Field Supervisor</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchLayout("executive")}>Executive</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="outline" size="sm" onClick={fetchAnalytics}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
+      {/* Role-specific dashboard views */}
+      {dashboardLayout === "pm" && <PmDashboard data={data} isLoading={isLoading} />}
+      {dashboardLayout === "controller" && <ControllerDashboard data={data} isLoading={isLoading} />}
+      {dashboardLayout === "field" && <FieldDashboard data={data} isLoading={isLoading} />}
+      {dashboardLayout === "executive" && <ExecutiveDashboard data={data} isLoading={isLoading} />}
+
+      {/* Default dashboard view */}
+      {dashboardLayout === "default" && <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -477,6 +531,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+      </>}
     </div>
   );
 }
