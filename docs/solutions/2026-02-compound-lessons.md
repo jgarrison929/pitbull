@@ -44,3 +44,11 @@
 **Solution:** Mark frozen enums with comment `// FROZEN — DO NOT REORDER`. Add new values at end only.
 **Pattern:** All enums stored as integers in DB are implicitly frozen. String-stored enums are safe to reorder but shouldn't be without migration.
 **Files:** Any enum used as an entity property.
+
+## Agent Team Migration Snapshot Corruption (Feb 20)
+**Problem:** Agent team created punch list entities, but the migration it generated only had ALTER/ADD COLUMN — no CREATE TABLE. The model snapshot was updated to include the new tables, but the migration assumed they already existed. Production crashed on deploy because tables didn't exist.
+**Root Cause:** Agent team likely scaffolded entities first (updating snapshot), then ran a second migration add that only captured the delta from the already-updated snapshot. Two-step entity creation in one session = broken migration.
+**Solution:** Reset model snapshot to last known-good state (git show <commit>:path > path), then regenerate migration. New migration correctly has CREATE TABLE.
+**Pattern:** After any agent team builds new entities, ALWAYS verify the migration has CREATE TABLE (not just ALTER). Run `grep "CreateTable" <migration>.cs` before committing. If empty or missing, reset snapshot and regenerate.
+**Prevention:** Add to compound review checklist: "Does the migration create new tables? Verify with grep."
+**Files:** `src/Pitbull.Api/Migrations/`
