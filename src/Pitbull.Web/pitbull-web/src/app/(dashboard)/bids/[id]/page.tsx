@@ -212,11 +212,17 @@ export default function BidDetailPage({
           <Button asChild variant="outline" className="min-h-[44px]">
             <Link href={`/bids/${bid.id}/edit`}>Edit Bid</Link>
           </Button>
-          {bid.status === BidStatus.Won && (
+          {bid.status === BidStatus.Won && !bid.projectId && (
+            <>
+            <Button asChild className="bg-green-600 hover:bg-green-700 text-white min-h-[44px]">
+              <Link href={`/bids/${bid.id}/convert`}>
+                Convert to Project
+              </Link>
+            </Button>
             <Dialog open={convertOpen} onOpenChange={setConvertOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700 text-white min-h-[44px]">
-                  🏗️ Convert to Project
+                <Button variant="outline" className="min-h-[44px]">
+                  Quick Convert
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -271,6 +277,14 @@ export default function BidDetailPage({
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            </>
+          )}
+          {bid.status === BidStatus.Won && bid.projectId && (
+            <Button asChild variant="outline" className="min-h-[44px]">
+              <Link href={`/projects/${bid.projectId}`}>
+                View Project
+              </Link>
+            </Button>
           )}
         </div>
       </div>

@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { RfiCostImpactSection } from "@/components/rfis";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import { WorkflowStepper, type WorkflowStep } from "@/components/ui/workflow-stepper";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
@@ -91,6 +92,21 @@ function priorityColor(priority: RfiPriority) {
     case 3: return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300";
     default: return "";
   }
+}
+
+function buildRfiWorkflowSteps(status: RfiStatus): WorkflowStep[] {
+  const steps: { label: string; order: number }[] = [
+    { label: "Open", order: 0 },
+    { label: "Answered", order: 1 },
+    { label: "Closed", order: 2 },
+  ];
+  return steps.map((step) => ({
+    label: step.label,
+    status:
+      step.order < status ? "completed" :
+      step.order === status ? "current" :
+      "upcoming",
+  }));
 }
 
 // Mock team members for avatar selector
@@ -325,6 +341,18 @@ export default function RfiDetailPage({
           )}
         </div>
       </div>
+
+      {/* Workflow Progress */}
+      <WorkflowStepper
+        steps={buildRfiWorkflowSteps(rfi.status)}
+        className="sm:hidden"
+        orientation="vertical"
+      />
+      <WorkflowStepper
+        steps={buildRfiWorkflowSteps(rfi.status)}
+        className="hidden sm:flex"
+        orientation="horizontal"
+      />
 
       {isEditing ? (
         /* Edit Mode - Accordion Sections */

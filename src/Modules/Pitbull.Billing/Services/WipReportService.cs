@@ -273,7 +273,10 @@ public class WipReportService(
             GeneratedById: report.GeneratedById,
             CreatedAt: report.CreatedAt,
             UpdatedAt: report.UpdatedAt,
-            Lines: lineDtos);
+            Lines: lineDtos,
+            GlJournalEntryId: report.GlJournalEntryId,
+            PostedToGlAt: report.PostedToGlAt,
+            PostedToGlBy: report.PostedToGlBy);
     }
 
     private static WipReportLineDto MapLineToDto(WipReportLine line, IReadOnlyDictionary<Guid, Project> projectsById)

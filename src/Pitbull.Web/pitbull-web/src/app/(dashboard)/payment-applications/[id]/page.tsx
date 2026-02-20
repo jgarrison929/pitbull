@@ -42,6 +42,7 @@ import {
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { PaymentApplicationStatus } from "@/lib/types";
+import { WorkflowStepper, type WorkflowStep } from "@/components/ui/workflow-stepper";
 import type {
   PaymentApplicationDetail,
   PaymentApplicationLineItemInput,
@@ -74,6 +75,44 @@ const ALLOWED_ACTIONS: Record<number, string[]> = {
   [PaymentApplicationStatus.Paid]: [],
   [PaymentApplicationStatus.Void]: [],
 };
+
+function buildPayAppWorkflowSteps(status: PaymentApplicationStatus): WorkflowStep[] {
+  // Normal flow: Draft -> Submitted -> Reviewed -> Approved -> Paid
+  // Rejected/Void are terminal states shown via the current step label
+  const flow = [
+    { label: "Draft", value: PaymentApplicationStatus.Draft },
+    { label: "Submitted", value: PaymentApplicationStatus.Submitted },
+    { label: "Reviewed", value: PaymentApplicationStatus.Reviewed },
+    { label: "Approved", value: PaymentApplicationStatus.Approved },
+    { label: "Paid", value: PaymentApplicationStatus.Paid },
+  ];
+
+  if (status === PaymentApplicationStatus.Rejected) {
+    // Show flow up to Reviewed, then Rejected as current
+    return [
+      { label: "Draft", status: "completed" },
+      { label: "Submitted", status: "completed" },
+      { label: "Reviewed", status: "completed" },
+      { label: "Rejected", status: "overdue" },
+    ];
+  }
+
+  if (status === PaymentApplicationStatus.Void) {
+    return [
+      { label: "Draft", status: "completed" },
+      { label: "Void", status: "overdue" },
+    ];
+  }
+
+  const currentIndex = flow.findIndex((s) => s.value === status);
+  return flow.map((step, i) => ({
+    label: step.label,
+    status:
+      i < currentIndex ? "completed" as const :
+      i === currentIndex ? "current" as const :
+      "upcoming" as const,
+  }));
+}
 
 // ─── Main Component ────────────────────────────────────────
 
@@ -435,6 +474,18 @@ export default function PaymentApplicationDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Workflow Progress */}
+      <WorkflowStepper
+        steps={buildPayAppWorkflowSteps(detail.status)}
+        className="sm:hidden"
+        orientation="vertical"
+      />
+      <WorkflowStepper
+        steps={buildPayAppWorkflowSteps(detail.status)}
+        className="hidden sm:flex"
+        orientation="horizontal"
+      />
 
       {/* G702 Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

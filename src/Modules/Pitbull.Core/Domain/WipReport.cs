@@ -9,6 +9,15 @@ public class WipReport : BaseEntity, ICompanyScoped
     public WipReportStatus Status { get; set; } = WipReportStatus.Draft;
     public string GeneratedById { get; set; } = string.Empty;
 
+    /// <summary>FK to the journal entry created when this report was posted to GL. Null = not posted.</summary>
+    public Guid? GlJournalEntryId { get; set; }
+
+    /// <summary>When this report was posted to GL.</summary>
+    public DateTime? PostedToGlAt { get; set; }
+
+    /// <summary>User who posted to GL.</summary>
+    public string? PostedToGlBy { get; set; }
+
     public List<WipReportLine> Lines { get; set; } = [];
 }
 

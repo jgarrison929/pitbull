@@ -16,6 +16,9 @@ public class WipReportConfiguration : IEntityTypeConfiguration<WipReport>
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(r => r.PostedToGlBy)
+            .HasMaxLength(100);
+
         builder.HasMany(r => r.Lines)
             .WithOne(l => l.WipReport)
             .HasForeignKey(l => l.WipReportId)

@@ -45,6 +45,7 @@ import {
   AlertDialogTitle,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { WorkflowStepper, type WorkflowStep } from "@/components/ui/workflow-stepper";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
@@ -167,6 +168,42 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
     default:
       return "outline";
   }
+}
+
+function buildSubmittalWorkflowSteps(status: string): WorkflowStep[] {
+  // Normal flow: Draft -> Submitted -> In Review -> Approved -> Closed
+  // Branching statuses: ApprovedAsNoted (same as Approved), ReviseAndResubmit/Rejected (terminal)
+  const normalFlow = ["Draft", "Submitted", "InReview", "Approved", "Closed"];
+
+  if (status === "Rejected") {
+    return [
+      { label: "Draft", status: "completed" },
+      { label: "Submitted", status: "completed" },
+      { label: "In Review", status: "completed" },
+      { label: "Rejected", status: "overdue" },
+    ];
+  }
+
+  if (status === "ReviseAndResubmit") {
+    return [
+      { label: "Draft", status: "completed" },
+      { label: "Submitted", status: "completed" },
+      { label: "In Review", status: "completed" },
+      { label: "Revise & Resubmit", status: "overdue" },
+    ];
+  }
+
+  // ApprovedAsNoted maps to the same position as Approved
+  const effectiveStatus = status === "ApprovedAsNoted" ? "Approved" : status;
+  const currentIndex = normalFlow.indexOf(effectiveStatus);
+
+  return normalFlow.map((step, i) => ({
+    label: step === "InReview" ? "In Review" : step,
+    status:
+      i < currentIndex ? "completed" as const :
+      i === currentIndex ? "current" as const :
+      "upcoming" as const,
+  }));
 }
 
 function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
@@ -684,6 +721,14 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
               Define submittal details, spec section, type, and review requirements.
             </DialogDescription>
           </DialogHeader>
+
+          {editing && (
+            <WorkflowStepper
+              steps={buildSubmittalWorkflowSteps(form.status)}
+              orientation="horizontal"
+              className="py-2"
+            />
+          )}
 
           <div className="space-y-4 py-2">
             <div className="space-y-2">
