@@ -51,11 +51,12 @@ public static class PermissionConstants
     public const string ARManageCustomers = "AR.ManageCustomers";
     public const string ARApplyPayments = "AR.ApplyPayments";
 
-    // -- Accounting (4) --
+    // -- Accounting (5) --
     public const string AccountingViewGL = "Accounting.ViewGL";
     public const string AccountingPostJournals = "Accounting.PostJournals";
     public const string AccountingManagePeriods = "Accounting.ManagePeriods";
     public const string AccountingViewWIP = "Accounting.ViewWIP";
+    public const string AccountingManageBankAccounts = "Accounting.ManageBankAccounts";
 
     // -- Payroll (4) --
     public const string PayrollView = "Payroll.View";
@@ -131,7 +132,7 @@ public static class PermissionConstants
         // AR
         ARView, ARCreate, ARManageCustomers, ARApplyPayments,
         // Accounting
-        AccountingViewGL, AccountingPostJournals, AccountingManagePeriods, AccountingViewWIP,
+        AccountingViewGL, AccountingPostJournals, AccountingManagePeriods, AccountingViewWIP, AccountingManageBankAccounts,
         // Payroll
         PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates,
         // PM
@@ -217,6 +218,7 @@ public static class PermissionConstants
                 (AccountingPostJournals, "Post journal entries"),
                 (AccountingManagePeriods, "Manage accounting periods"),
                 (AccountingViewWIP, "View WIP reports"),
+                (AccountingManageBankAccounts, "Manage bank accounts and reconciliation"),
             },
             ["Payroll"] = new[]
             {

@@ -42,6 +42,7 @@ export const moduleGroups: ModuleGroup[] = [
       { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾", requiredPermission: "Accounting.ViewGL" },
       { label: "Retention", href: "/accounting/retention", icon: "🔒", requiredPermission: "Billing.View" },
       { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋", requiredPermission: "Billing.LienWaivers" },
+      { label: "Bank Reconciliation", href: "/accounting/bank-reconciliation", icon: "🏦", requiredPermission: "Accounting.ManageBankAccounts" },
     ],
   },
   {

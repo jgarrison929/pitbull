@@ -151,6 +151,7 @@ builder.Services.AddScoped<Pitbull.Api.Services.IPdfReportService, Pitbull.Api.S
 builder.Services.AddScoped<Pitbull.Core.Features.Feedback.IFeedbackService, Pitbull.Core.Features.Feedback.FeedbackService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Aging.IAgingReportService, Pitbull.Billing.Features.Aging.AgingReportService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Wip.IWipGlPostingService, Pitbull.Billing.Features.Wip.WipGlPostingService>();
+builder.Services.AddScoped<Pitbull.Billing.Features.BankReconciliation.IBankReconciliationService, Pitbull.Billing.Features.BankReconciliation.BankReconciliationService>();
 
 // Equipment service (Core module - for time entry equipment tracking)
 builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pitbull.Core.Features.Equipment.EquipmentService>();
