@@ -9,6 +9,7 @@ using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Bids.Features.ListBids;
 using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Bids.Services;
+using Pitbull.Contracts.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.Tests.Unit.Helpers;
 
@@ -461,7 +462,7 @@ public class BidServiceTests
 
         // Assert
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("INVALID_STATE");
+        result.ErrorCode.Should().Be("INVALID_STATUS");
         result.Error.Should().Contain("Only won bids");
     }
 
@@ -475,6 +476,432 @@ public class BidServiceTests
 
         // Act
         var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_AlreadyConverted_ReturnsError()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Already Converted Bid",
+            Number = "BID-AC-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 300_000m,
+            ProjectId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(bid.Id, "PRJ-002");
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("ALREADY_CONVERTED");
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_DuplicateProjectNumber_ReturnsError()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var existingProject = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "Existing Project",
+            Number = "PRJ-DUPE",
+            Status = ProjectStatus.Active,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(existingProject);
+
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Bid to Convert",
+            Number = "BID-DUPE-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 200_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(bid.Id, "PRJ-DUPE");
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("DUPLICATE_NUMBER");
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_WithCustomProjectName_UsesOverride()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Original Bid Name",
+            Number = "BID-CUSTOM-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 400_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(
+            BidId: bid.Id,
+            ProjectNumber: "PRJ-CUSTOM",
+            ProjectName: "Custom Project Name"
+        );
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ProjectName.Should().Be("Custom Project Name");
+
+        var project = await db.Set<Project>().FindAsync(result.Value.ProjectId);
+        project!.Name.Should().Be("Custom Project Name");
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_WithBudget_CreatesProjectBudget()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Budget Bid",
+            Number = "BID-BUD-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 750_000m,
+            Items = new List<BidItem>
+            {
+                new() { Id = Guid.NewGuid(), Description = "Concrete", Category = BidItemCategory.Material, Quantity = 100, UnitCost = 150, TotalCost = 15_000m },
+                new() { Id = Guid.NewGuid(), Description = "Labor", Category = BidItemCategory.Labor, Quantity = 200, UnitCost = 75, TotalCost = 15_000m }
+            },
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(
+            BidId: bid.Id,
+            ProjectNumber: "PRJ-BUD",
+            CreateBudget: true
+        );
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.BudgetId.Should().NotBeNull();
+
+        var budget = await db.Set<ProjectBudget>().FindAsync(result.Value.BudgetId);
+        budget.Should().NotBeNull();
+        budget!.OriginalContractAmount.Should().Be(750_000m);
+        budget.TotalBudget.Should().Be(750_000m);
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_WithSubcontracts_CreatesSubcontracts()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Subcontract Bid",
+            Number = "BID-SC-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 1_000_000m,
+            Items = new List<BidItem>
+            {
+                new() { Id = Guid.NewGuid(), Description = "Electrical Sub", Category = BidItemCategory.Subcontractor, Quantity = 1, UnitCost = 200_000, TotalCost = 200_000m },
+                new() { Id = Guid.NewGuid(), Description = "Plumbing Sub", Category = BidItemCategory.Subcontractor, Quantity = 1, UnitCost = 150_000, TotalCost = 150_000m },
+                new() { Id = Guid.NewGuid(), Description = "Concrete Material", Category = BidItemCategory.Material, Quantity = 500, UnitCost = 100, TotalCost = 50_000m }
+            },
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(
+            BidId: bid.Id,
+            ProjectNumber: "PRJ-SC",
+            CreateSubcontracts: true
+        );
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.SubcontractsCreated.Should().Be(2);
+
+        var subcontracts = db.Set<Subcontract>().Where(s => s.ProjectId == result.Value.ProjectId).ToList();
+        subcontracts.Should().HaveCount(2);
+        subcontracts.Should().Contain(s => s.SubcontractorName == "Electrical Sub");
+        subcontracts.Should().Contain(s => s.SubcontractorName == "Plumbing Sub");
+        subcontracts.All(s => s.Status == SubcontractStatus.Draft).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_WithLocationOverrides_SetsProjectLocation()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Location Bid",
+            Number = "BID-LOC-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 600_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(
+            BidId: bid.Id,
+            ProjectNumber: "PRJ-LOC",
+            Address: "123 Main St",
+            City: "Springfield",
+            State: "IL",
+            ZipCode: "62701"
+        );
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var project = await db.Set<Project>().FindAsync(result.Value!.ProjectId);
+        project!.Address.Should().Be("123 Main St");
+        project.City.Should().Be("Springfield");
+        project.State.Should().Be("IL");
+        project.ZipCode.Should().Be("62701");
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_LinksBidToProject()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Link Test Bid",
+            Number = "BID-LINK-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 350_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(bid.Id, "PRJ-LINK");
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+
+        var updatedBid = await db.Set<Bid>().FindAsync(bid.Id);
+        updatedBid!.ProjectId.Should().Be(result.Value!.ProjectId);
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_SetsProjectStatusToPreConstruction()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Status Test Bid",
+            Number = "BID-STATUS-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 250_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(bid.Id, "PRJ-STATUS");
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var project = await db.Set<Project>().FindAsync(result.Value!.ProjectId);
+        project!.Status.Should().Be(ProjectStatus.PreConstruction);
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_SetsOriginalBudgetFromBidValue()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Budget Value Bid",
+            Number = "BID-BV-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 1_250_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(bid.Id, "PRJ-BV");
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        var project = await db.Set<Project>().FindAsync(result.Value!.ProjectId);
+        project!.OriginalBudget.Should().Be(1_250_000m);
+        project.ContractAmount.Should().Be(1_250_000m);
+    }
+
+    #endregion
+
+    #region GetConversionPreviewAsync
+
+    [Fact]
+    public async Task GetConversionPreviewAsync_WonBid_ReturnsPreview()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Preview Bid",
+            Number = "BID-PRV-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 500_000m,
+            Owner = "John Doe",
+            Description = "Preview test",
+            Items = new List<BidItem>
+            {
+                new() { Id = Guid.NewGuid(), Description = "Concrete", Category = BidItemCategory.Material, Quantity = 100, UnitCost = 50, TotalCost = 5_000m },
+                new() { Id = Guid.NewGuid(), Description = "Electrician", Category = BidItemCategory.Subcontractor, Quantity = 1, UnitCost = 80_000, TotalCost = 80_000m }
+            },
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetConversionPreviewAsync(bid.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.BidId.Should().Be(bid.Id);
+        result.Value.BidName.Should().Be("Preview Bid");
+        result.Value.EstimatedValue.Should().Be(500_000m);
+        result.Value.Items.Should().HaveCount(2);
+        result.Value.Items[0].SuggestedCostCode.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task GetConversionPreviewAsync_NonWonBid_ReturnsError()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Not Won",
+            Number = "BID-NW-001",
+            Status = BidStatus.Submitted,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetConversionPreviewAsync(bid.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task GetConversionPreviewAsync_AlreadyConverted_ReturnsError()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Already Converted Preview",
+            Number = "BID-ACP-001",
+            Status = BidStatus.Won,
+            ProjectId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetConversionPreviewAsync(bid.Id);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("ALREADY_CONVERTED");
+    }
+
+    [Fact]
+    public async Task GetConversionPreviewAsync_NonExistentBid_ReturnsNotFound()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        // Act
+        var result = await service.GetConversionPreviewAsync(Guid.NewGuid());
 
         // Assert
         result.IsSuccess.Should().BeFalse();

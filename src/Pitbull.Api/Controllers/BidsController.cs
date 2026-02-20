@@ -188,26 +188,67 @@ public class BidsController(IBidService bidService) : ControllerBase
     }
 
     /// <summary>
+    /// Get conversion preview for a won bid
+    /// </summary>
+    /// <remarks>
+    /// Returns preview data for the bid-to-project conversion wizard,
+    /// including bid details and suggested cost code mappings for each bid item.
+    /// The bid must have status "Won" and must not have been converted already.
+    /// </remarks>
+    /// <param name="id">Bid unique identifier</param>
+    /// <returns>Conversion preview with suggested mappings</returns>
+    /// <response code="200">Preview data returned</response>
+    /// <response code="400">Bid cannot be converted</response>
+    /// <response code="404">Bid not found</response>
+    [HttpGet("{id:guid}/conversion-preview")]
+    [ProducesResponseType(typeof(BidConversionPreviewDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetConversionPreview(Guid id)
+    {
+        var result = await bidService.GetConversionPreviewAsync(id);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => NotFound(new { error = result.Error }),
+                "INVALID_STATUS" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
+                "ALREADY_CONVERTED" => Conflict(new { error = result.Error, code = result.ErrorCode }),
+                _ => BadRequest(new { error = result.Error })
+            };
+        }
+
+        return Ok(result.Value);
+    }
+
+    /// <summary>
     /// Convert a won bid to a project
     /// </summary>
     /// <remarks>
     /// Converts a bid with status "Won" into a new project.
     /// The bid must have a status of "Won" and must not have already been converted.
     /// A new project is created with data carried over from the bid.
+    /// Optionally creates a project budget and subcontracts from bid items.
     ///
     /// Sample request:
     ///
     ///     POST /api/bids/{id}/convert-to-project
     ///     {
-    ///         "projectNumber": "PRJ-2026-010"
+    ///         "projectNumber": "PRJ-2026-010",
+    ///         "projectName": "Highway Bridge Project",
+    ///         "createBudget": true,
+    ///         "createSubcontracts": true,
+    ///         "costCodeMappings": [
+    ///             { "bidItemId": "...", "costCode": "03-100", "description": "Concrete" }
+    ///         ]
     ///     }
     ///
     /// </remarks>
     /// <param name="id">Bid unique identifier (must have status "Won")</param>
-    /// <param name="request">Conversion details including the new project number</param>
+    /// <param name="request">Conversion details including the new project number and wizard options</param>
     /// <returns>Conversion result with new project details</returns>
     /// <response code="200">Bid converted to project successfully</response>
-    /// <response code="400">Bid is not in "Won" status</response>
+    /// <response code="400">Bid is not in "Won" status or validation error</response>
     /// <response code="401">Not authenticated</response>
     /// <response code="404">Bid not found</response>
     /// <response code="409">Bid has already been converted to a project</response>
@@ -221,7 +262,29 @@ public class BidsController(IBidService bidService) : ControllerBase
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> ConvertToProject(Guid id, [FromBody] ConvertToProjectRequest request)
     {
-        var result = await bidService.ConvertToProjectAsync(new ConvertBidToProjectCommand(id, request.ProjectNumber));
+        var command = new ConvertBidToProjectCommand(
+            BidId: id,
+            ProjectNumber: request.ProjectNumber,
+            ProjectName: request.ProjectName,
+            Description: request.Description,
+            ProjectType: request.ProjectType,
+            Address: request.Address,
+            City: request.City,
+            State: request.State,
+            ZipCode: request.ZipCode,
+            ClientName: request.ClientName,
+            ClientContact: request.ClientContact,
+            ClientEmail: request.ClientEmail,
+            ClientPhone: request.ClientPhone,
+            StartDate: request.StartDate,
+            EstimatedCompletionDate: request.EstimatedCompletionDate,
+            CreateBudget: request.CreateBudget,
+            CreateSubcontracts: request.CreateSubcontracts,
+            CostCodeMappings: request.CostCodeMappings?.Select(m =>
+                new CostCodeMappingDto(m.BidItemId, m.CostCode, m.Description)).ToList()
+        );
+
+        var result = await bidService.ConvertToProjectAsync(command);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -229,6 +292,7 @@ public class BidsController(IBidService bidService) : ControllerBase
                 "NOT_FOUND" => NotFound(new { error = result.Error }),
                 "INVALID_STATUS" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
                 "ALREADY_CONVERTED" => Conflict(new { error = result.Error, code = result.ErrorCode }),
+                "DUPLICATE_NUMBER" => Conflict(new { error = result.Error, code = result.ErrorCode }),
                 _ => BadRequest(new { error = result.Error })
             };
         }
@@ -266,7 +330,30 @@ public class BidsController(IBidService bidService) : ControllerBase
 }
 
 /// <summary>
-/// Request to convert a won bid into a project
+/// Request to convert a won bid into a project with wizard options
 /// </summary>
-/// <param name="ProjectNumber">Unique project number for the new project (e.g., "PRJ-2026-010")</param>
-public record ConvertToProjectRequest(string ProjectNumber);
+public record ConvertToProjectRequest(
+    string ProjectNumber,
+    string? ProjectName = null,
+    string? Description = null,
+    int ProjectType = 0,
+    string? Address = null,
+    string? City = null,
+    string? State = null,
+    string? ZipCode = null,
+    string? ClientName = null,
+    string? ClientContact = null,
+    string? ClientEmail = null,
+    string? ClientPhone = null,
+    DateTime? StartDate = null,
+    DateTime? EstimatedCompletionDate = null,
+    bool CreateBudget = true,
+    bool CreateSubcontracts = false,
+    List<CostCodeMappingRequest>? CostCodeMappings = null
+);
+
+public record CostCodeMappingRequest(
+    Guid BidItemId,
+    string CostCode,
+    string? Description = null
+);

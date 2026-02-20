@@ -24,6 +24,7 @@ export const financialItems: NavItem[] = [
   { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
   { label: "Owner Contracts", href: "/billing/contracts", icon: "📑" },
   { label: "Billing Applications", href: "/billing/applications", icon: "💰" },
+  { label: "Aging Reports", href: "/billing/aging", icon: "📊" },
   { label: "Retention", href: "/accounting/retention", icon: "🔒" },
   { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋" },
   { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾" },

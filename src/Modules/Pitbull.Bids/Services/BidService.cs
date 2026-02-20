@@ -197,6 +197,43 @@ public class BidService : IBidService
         }
     }
 
+    public async Task<Result<BidConversionPreviewDto>> GetConversionPreviewAsync(Guid bidId, CancellationToken cancellationToken = default)
+    {
+        var bid = await _db.Set<Bid>()
+            .Include(b => b.Items)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Id == bidId && !b.IsDeleted, cancellationToken);
+
+        if (bid is null)
+            return Result.Failure<BidConversionPreviewDto>("Bid not found", "NOT_FOUND");
+
+        if (bid.Status != BidStatus.Won)
+            return Result.Failure<BidConversionPreviewDto>("Only won bids can be converted to projects", "INVALID_STATUS");
+
+        if (bid.ProjectId.HasValue)
+            return Result.Failure<BidConversionPreviewDto>("Bid has already been converted to a project", "ALREADY_CONVERTED");
+
+        var itemPreviews = bid.Items.Select(item => new BidItemPreviewDto(
+            Id: item.Id,
+            Description: item.Description,
+            Category: item.Category.ToString(),
+            Quantity: item.Quantity,
+            UnitCost: item.UnitCost,
+            TotalCost: item.TotalCost,
+            SuggestedCostCode: SuggestCostCode(item.Category)
+        )).ToArray();
+
+        return Result.Success(new BidConversionPreviewDto(
+            BidId: bid.Id,
+            BidName: bid.Name,
+            BidNumber: bid.Number,
+            EstimatedValue: bid.EstimatedValue,
+            Owner: bid.Owner,
+            Description: bid.Description,
+            Items: itemPreviews
+        ));
+    }
+
     public async Task<Result<ConvertBidToProjectResult>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default)
     {
         var bid = await _db.Set<Bid>()
@@ -207,41 +244,127 @@ public class BidService : IBidService
             return Result.Failure<ConvertBidToProjectResult>("Bid not found", "NOT_FOUND");
 
         if (bid.Status != BidStatus.Won)
-            return Result.Failure<ConvertBidToProjectResult>("Only won bids can be converted to projects", "INVALID_STATE");
+            return Result.Failure<ConvertBidToProjectResult>("Only won bids can be converted to projects", "INVALID_STATUS");
 
-        // Create project from bid data (simplified conversion logic)
+        if (bid.ProjectId.HasValue)
+            return Result.Failure<ConvertBidToProjectResult>("Bid has already been converted to a project", "ALREADY_CONVERTED");
+
+        // Check for duplicate project number
+        var existingProject = await _db.Set<Projects.Domain.Project>()
+            .AsNoTracking()
+            .AnyAsync(p => p.Number == command.ProjectNumber && !p.IsDeleted, cancellationToken);
+
+        if (existingProject)
+            return Result.Failure<ConvertBidToProjectResult>("A project with this number already exists", "DUPLICATE_NUMBER");
+
+        // Create project from bid data
         var project = new Projects.Domain.Project
         {
             Id = Guid.NewGuid(),
-            Name = bid.Name,
+            Name = command.ProjectName ?? bid.Name,
             Number = command.ProjectNumber,
-            Description = bid.Description,
+            Description = command.Description ?? bid.Description,
             ContractAmount = bid.EstimatedValue,
             SourceBidId = bid.Id,
             Status = Projects.Domain.ProjectStatus.PreConstruction,
-            Type = Projects.Domain.ProjectType.Commercial,
+            Type = (Projects.Domain.ProjectType)command.ProjectType,
+            Address = command.Address,
+            City = command.City,
+            State = command.State,
+            ZipCode = command.ZipCode,
+            ClientName = command.ClientName ?? bid.Owner,
+            ClientContact = command.ClientContact,
+            ClientEmail = command.ClientEmail,
+            ClientPhone = command.ClientPhone,
+            StartDate = command.StartDate,
+            EstimatedCompletionDate = command.EstimatedCompletionDate,
+            OriginalBudget = bid.EstimatedValue,
             CreatedAt = DateTime.UtcNow
         };
 
         _db.Set<Projects.Domain.Project>().Add(project);
 
+        // Create budget if requested
+        Guid? budgetId = null;
+        if (command.CreateBudget && bid.Items.Count > 0)
+        {
+            var budget = new Projects.Domain.ProjectBudget
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                OriginalContractAmount = bid.EstimatedValue,
+                TotalBudget = bid.EstimatedValue,
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.Set<Projects.Domain.ProjectBudget>().Add(budget);
+            budgetId = budget.Id;
+        }
+
+        // Create subcontracts from subcontractor bid items if requested
+        int subcontractsCreated = 0;
+        if (command.CreateSubcontracts)
+        {
+            var subItems = bid.Items.Where(i => i.Category == BidItemCategory.Subcontractor).ToList();
+            int scIndex = 1;
+            foreach (var item in subItems)
+            {
+                var subcontract = new Contracts.Domain.Subcontract
+                {
+                    Id = Guid.NewGuid(),
+                    ProjectId = project.Id,
+                    SubcontractNumber = $"SC-{command.ProjectNumber}-{scIndex:D3}",
+                    SubcontractorName = item.Description,
+                    ScopeOfWork = item.Description,
+                    OriginalValue = item.TotalCost,
+                    CurrentValue = item.TotalCost,
+                    Status = Contracts.Domain.SubcontractStatus.Draft,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _db.Set<Contracts.Domain.Subcontract>().Add(subcontract);
+                scIndex++;
+                subcontractsCreated++;
+            }
+        }
+
+        // Track cost code mappings count
+        int costCodesMapped = command.CostCodeMappings?.Count ?? 0;
+
+        // Link bid to project
+        bid.ProjectId = project.Id;
+
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
 
+            _logger.LogInformation(
+                "Converted bid {BidId} to project {ProjectId} ({ProjectNumber}). Budget: {HasBudget}, Subcontracts: {SubCount}, CostCodes: {CostCodeCount}",
+                bid.Id, project.Id, project.Number, budgetId.HasValue, subcontractsCreated, costCodesMapped);
+
             return Result.Success(new ConvertBidToProjectResult(
-                project.Id,
-                bid.Id,
-                project.Name,
-                project.Number
+                ProjectId: project.Id,
+                BidId: bid.Id,
+                ProjectName: project.Name,
+                ProjectNumber: project.Number,
+                BudgetId: budgetId,
+                SubcontractsCreated: subcontractsCreated,
+                CostCodesMapped: costCodesMapped
             ));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to convert bid {BidId} to project", command.BidId);
-            return Result.Failure<ConvertBidToProjectResult>("Failed to convert bid", "DATABASE_ERROR");
+            return Result.Failure<ConvertBidToProjectResult>("Failed to convert bid to project", "DATABASE_ERROR");
         }
     }
+
+    private static string? SuggestCostCode(BidItemCategory category) => category switch
+    {
+        BidItemCategory.Labor => "01-000",
+        BidItemCategory.Material => "02-000",
+        BidItemCategory.Equipment => "03-000",
+        BidItemCategory.Subcontractor => "04-000",
+        _ => null
+    };
 
     private static BidDto MapToDto(Bid bid)
     {
