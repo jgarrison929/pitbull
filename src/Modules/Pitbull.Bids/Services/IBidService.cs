@@ -24,4 +24,30 @@ public interface IBidService
 
     // Special operations
     Task<Result<ConvertBidToProjectResult>> ConvertToProjectAsync(ConvertBidToProjectCommand command, CancellationToken cancellationToken = default);
+
+    // Wizard data
+    Task<Result<BidConversionPreviewDto>> GetConversionPreviewAsync(Guid bidId, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Preview data for the bid-to-project conversion wizard.
+/// </summary>
+public record BidConversionPreviewDto(
+    Guid BidId,
+    string BidName,
+    string BidNumber,
+    decimal EstimatedValue,
+    string? Owner,
+    string? Description,
+    IReadOnlyList<BidItemPreviewDto> Items
+);
+
+public record BidItemPreviewDto(
+    Guid Id,
+    string Description,
+    string Category,
+    decimal Quantity,
+    decimal UnitCost,
+    decimal TotalCost,
+    string? SuggestedCostCode
+);

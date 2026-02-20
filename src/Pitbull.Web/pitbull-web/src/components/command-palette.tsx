@@ -394,6 +394,15 @@ export function CommandPalette() {
         keywords: ["billing", "aia", "g702", "g703", "pay app", "application"],
       },
       {
+        id: "nav-aging-reports",
+        title: "Aging Reports",
+        subtitle: "AP/AR aging analysis by vendor and project",
+        icon: <Landmark className="h-4 w-4" />,
+        category: "navigation",
+        action: () => { router.push("/billing/aging"); close(); },
+        keywords: ["aging", "ap", "ar", "accounts payable", "accounts receivable", "overdue"],
+      },
+      {
         id: "nav-purchase-orders",
         title: "Purchase Orders",
         subtitle: "View procurement commitments",
