@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
@@ -463,6 +464,54 @@ public sealed class RoleService(
 
         if (assignmentsAdded)
             await db.SaveChangesAsync(ct);
+
+        // Auto-migrate Identity Admin users → RBAC Admin role
+        // Ensures backward compatibility for users created before Sprint 3 RBAC
+        if (roleByName.TryGetValue(PermissionConstants.RoleTemplates.Admin, out var rbacAdminRoleId))
+        {
+            var identityAdminRoleName = $"{tenantId}:Admin";
+            var identityRoleId = await db.Set<AppRole>()
+                .AsNoTracking()
+                .Where(r => r.Name == identityAdminRoleName)
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync(ct);
+
+            if (identityRoleId != Guid.Empty)
+            {
+                var identityAdminUserIds = await db.Set<IdentityUserRole<Guid>>()
+                    .AsNoTracking()
+                    .Where(ur => ur.RoleId == identityRoleId)
+                    .Select(ur => ur.UserId)
+                    .ToListAsync(ct);
+
+                if (identityAdminUserIds.Count > 0)
+                {
+                    var alreadyMigrated = await db.UserRolesMap
+                        .AsNoTracking()
+                        .Where(ur => ur.TenantId == tenantId && ur.RoleId == rbacAdminRoleId
+                            && identityAdminUserIds.Contains(ur.UserId))
+                        .Select(ur => ur.UserId)
+                        .ToListAsync(ct);
+
+                    var alreadyMigratedSet = new HashSet<Guid>(alreadyMigrated);
+                    var migrated = false;
+
+                    foreach (var userId in identityAdminUserIds.Where(id => !alreadyMigratedSet.Contains(id)))
+                    {
+                        db.UserRolesMap.Add(new UserRole
+                        {
+                            TenantId = tenantId,
+                            UserId = userId,
+                            RoleId = rbacAdminRoleId
+                        });
+                        migrated = true;
+                    }
+
+                    if (migrated)
+                        await db.SaveChangesAsync(ct);
+                }
+            }
+        }
     }
 
     private static List<Guid> ResolvePermissionIds(string[] rules, IReadOnlyDictionary<string, Guid> permissionByName)
