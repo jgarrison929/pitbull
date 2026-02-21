@@ -57,13 +57,13 @@ public sealed class ListTimeEntriesHandler(PitbullDbContext db)
         var totalCount = await query.CountAsync(cancellationToken);
 
         // Apply ordering and pagination
-        var items = await query
+        var entities = await query
             .OrderByDescending(te => te.Date)
             .ThenBy(te => te.Employee.LastName)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(te => TimeEntryMapper.ToDto(te))
             .ToListAsync(cancellationToken);
+        var items = TimeEntryMapper.ToDto(entities);
 
         var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
 

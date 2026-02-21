@@ -8,6 +8,8 @@ import { RootErrorBoundary } from "@/components/root-error-boundary";
 import { GlobalErrorHandlers } from "@/components/global-error-handlers";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -89,6 +91,8 @@ export default function RootLayout({
               <AuthProvider>
                 <CompanyProvider>
                   <TooltipProvider>
+                    <ServiceWorkerRegister />
+                    <PwaInstallPrompt />
                     {children}
                     <Toaster position="top-right" richColors />
                   </TooltipProvider>

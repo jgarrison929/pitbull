@@ -40,12 +40,22 @@ public static class TimeEntryMapper
             SubmittedByName: timeEntry.SubmittedBy?.FullName,
             SubmittedAt: timeEntry.SubmittedAt,
             CreatedAt: timeEntry.CreatedAt,
-            UpdatedAt: timeEntry.UpdatedAt
+            UpdatedAt: timeEntry.UpdatedAt,
+            Latitude: timeEntry.Latitude,
+            Longitude: timeEntry.Longitude,
+            GpsAccuracy: timeEntry.GpsAccuracy,
+            GpsCapturedAt: timeEntry.GpsCapturedAt
         );
+    }
+
+    public static TimeEntryDto ToDtoWithGeofence(TimeEntry timeEntry, string? geofenceWarning)
+    {
+        var dto = ToDto(timeEntry);
+        return dto with { GeofenceWarning = geofenceWarning };
     }
 
     public static List<TimeEntryDto> ToDto(IEnumerable<TimeEntry> timeEntries)
     {
-        return timeEntries.Select(ToDto).ToList();
+        return timeEntries.Select(te => ToDto(te)).ToList();
     }
 }

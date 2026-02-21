@@ -36,5 +36,10 @@ public record TimeEntryDto(
     string? SubmittedByName,
     DateTime? SubmittedAt,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    decimal? Latitude = null,
+    decimal? Longitude = null,
+    decimal? GpsAccuracy = null,
+    DateTime? GpsCapturedAt = null,
+    string? GeofenceWarning = null
 );

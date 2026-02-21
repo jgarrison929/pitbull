@@ -27,6 +27,11 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(p => p.Status).HasConversion<string>().HasMaxLength(50);
         builder.Property(p => p.Type).HasConversion<string>().HasMaxLength(50);
 
+        // GPS / Geofence fields
+        builder.Property(p => p.Latitude).HasPrecision(10, 7);
+        builder.Property(p => p.Longitude).HasPrecision(10, 7);
+        builder.Property(p => p.GeofenceRadiusMeters).HasPrecision(10, 2);
+
         builder.HasIndex(p => new { p.TenantId, p.Number }).IsUnique();
         builder.HasIndex(p => p.Status);
 

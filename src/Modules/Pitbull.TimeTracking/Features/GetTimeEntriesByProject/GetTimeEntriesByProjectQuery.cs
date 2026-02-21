@@ -101,13 +101,13 @@ public sealed class GetTimeEntriesByProjectHandler(PitbullDbContext db)
         }
 
         // Apply ordering and pagination
-        var items = await query
+        var entities = await query
             .OrderByDescending(te => te.Date)
             .ThenBy(te => te.Employee.LastName)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
-            .Select(te => TimeEntryMapper.ToDto(te))
             .ToListAsync(cancellationToken);
+        var items = TimeEntryMapper.ToDto(entities);
 
         return Result.Success(new ProjectTimeEntriesResult(
             ProjectId: project.Id,

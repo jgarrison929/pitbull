@@ -239,6 +239,7 @@ public sealed class TimeEntryBulkSubmitTests
             new BatchCreateTimeEntriesValidator(),
             new LaborCostCalculator(),
             Mock.Of<IPayPeriodService>(),
+            new GeofenceService(),
             NullLogger<TimeEntryService>.Instance
         );
     }

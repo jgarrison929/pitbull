@@ -37,6 +37,7 @@ public class TimeEntryService : ITimeEntryService
     private readonly IValidator<BatchCreateTimeEntriesCommand> _batchValidator;
     private readonly ILaborCostCalculator _costCalculator;
     private readonly IPayPeriodService _payPeriodService;
+    private readonly IGeofenceService _geofenceService;
     private readonly ILogger<TimeEntryService> _logger;
 
     /// <summary>
@@ -79,6 +80,7 @@ public class TimeEntryService : ITimeEntryService
         IValidator<BatchCreateTimeEntriesCommand> batchValidator,
         ILaborCostCalculator costCalculator,
         IPayPeriodService payPeriodService,
+        IGeofenceService geofenceService,
         ILogger<TimeEntryService> logger)
     {
         _db = db;
@@ -87,6 +89,7 @@ public class TimeEntryService : ITimeEntryService
         _batchValidator = batchValidator;
         _costCalculator = costCalculator;
         _payPeriodService = payPeriodService;
+        _geofenceService = geofenceService;
         _logger = logger;
     }
 
@@ -149,13 +152,13 @@ public class TimeEntryService : ITimeEntryService
         var totalCount = await query.CountAsync(cancellationToken);
 
         // Apply ordering and pagination
-        var items = await query
+        var entities = await query
             .OrderByDescending(te => te.Date)
             .ThenBy(te => te.Employee.LastName)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(te => TimeEntryMapper.ToDto(te))
             .ToListAsync(cancellationToken);
+        var items = TimeEntryMapper.ToDto(entities);
 
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
@@ -300,13 +303,13 @@ public class TimeEntryService : ITimeEntryService
         }
 
         // Apply ordering and pagination
-        var items = await query
+        var entities = await query
             .OrderByDescending(te => te.Date)
             .ThenBy(te => te.Employee.LastName)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(te => TimeEntryMapper.ToDto(te))
             .ToListAsync(cancellationToken);
+        var items = TimeEntryMapper.ToDto(entities);
 
         return Result.Success(new ProjectTimeEntriesResult(
             ProjectId: project.Id,
@@ -607,12 +610,12 @@ public class TimeEntryService : ITimeEntryService
         if (supervisorId.HasValue)
             query = query.Where(te => te.Employee.SupervisorId == supervisorId.Value);
 
-        var entries = await query
+        var entryEntities = await query
             .OrderBy(te => te.ProjectId)
             .ThenByDescending(te => te.Date)
             .ThenBy(te => te.Employee.LastName)
-            .Select(te => TimeEntryMapper.ToDto(te))
             .ToListAsync(cancellationToken);
+        var entries = TimeEntryMapper.ToDto(entryEntities);
 
         var groups = entries
             .GroupBy(e => new { e.ProjectId, e.ProjectNumber, e.ProjectName })
@@ -806,13 +809,32 @@ public class TimeEntryService : ITimeEntryService
             OvertimeHours = command.OvertimeHours,
             DoubletimeHours = command.DoubletimeHours,
             Description = command.Description,
-            Status = TimeEntryStatus.Submitted
+            Status = TimeEntryStatus.Submitted,
+            Latitude = command.Latitude,
+            Longitude = command.Longitude,
+            GpsAccuracy = command.GpsAccuracy,
+            GpsCapturedAt = command.GpsCapturedAt,
         };
 
         _db.Set<TimeEntry>().Add(timeEntry);
 
         await _db.SaveChangesAsync(cancellationToken);
-        return Result.Success(TimeEntryMapper.ToDto(timeEntry));
+
+        // Geofence validation — warning only, does not block entry creation
+        string? geofenceWarning = null;
+        if (command.Latitude.HasValue && command.Longitude.HasValue
+            && project.Latitude.HasValue && project.Longitude.HasValue
+            && project.GeofenceRadiusMeters.HasValue)
+        {
+            var geofenceResult = _geofenceService.ValidateLocation(
+                command.Latitude.Value, command.Longitude.Value,
+                project.Latitude.Value, project.Longitude.Value,
+                project.GeofenceRadiusMeters.Value);
+
+            geofenceWarning = geofenceResult.Warning;
+        }
+
+        return Result.Success(TimeEntryMapper.ToDtoWithGeofence(timeEntry, geofenceWarning));
 
         }
         catch (DbUpdateException ex)
@@ -1384,6 +1406,10 @@ public class TimeEntryService : ITimeEntryService
             existingEntry.OvertimeHours = item.OvertimeHours;
             existingEntry.DoubletimeHours = item.DoubletimeHours;
             existingEntry.Description = item.Description;
+            existingEntry.Latitude = item.Latitude;
+            existingEntry.Longitude = item.Longitude;
+            existingEntry.GpsAccuracy = item.GpsAccuracy;
+            existingEntry.GpsCapturedAt = item.GpsCapturedAt;
             existingEntry.Employee = employee;
 
             return Result.Success(new BatchTimeEntryUpsert(existingEntry, IsNew: false));
@@ -1402,6 +1428,10 @@ public class TimeEntryService : ITimeEntryService
             OvertimeHours = item.OvertimeHours,
             DoubletimeHours = item.DoubletimeHours,
             Description = item.Description,
+            Latitude = item.Latitude,
+            Longitude = item.Longitude,
+            GpsAccuracy = item.GpsAccuracy,
+            GpsCapturedAt = item.GpsCapturedAt,
             Employee = employee
         };
 
