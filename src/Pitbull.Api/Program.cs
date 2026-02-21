@@ -591,8 +591,16 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     await db.Database.MigrateAsync();
 
     // Optional: bootstrap the public demo tenant + seed data
-    var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
-    await demoBootstrapper.EnsureSeededIfEnabledAsync();
+    try
+    {
+        var demoBootstrapper = scope.ServiceProvider.GetRequiredService<DemoBootstrapper>();
+        await demoBootstrapper.EnsureSeededIfEnabledAsync();
+    }
+    catch (Exception ex)
+    {
+        var startupLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        startupLogger.LogWarning(ex, "DemoBootstrapper failed — skipping seed refresh. App continues normally.");
+    }
 
     // Ensure Josh has Admin role on his existing tenant (idempotent startup seed)
     await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");
