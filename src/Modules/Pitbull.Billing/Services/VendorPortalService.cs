@@ -20,6 +20,12 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
         if (vendor is null)
             return Result.Failure<VendorPortalTokenDto>("Vendor not found", "NOT_FOUND");
 
+        var projectExists = await db.Set<Pitbull.Projects.Domain.Project>()
+            .AsNoTracking()
+            .AnyAsync(p => p.Id == projectId, ct);
+        if (!projectExists)
+            return Result.Failure<VendorPortalTokenDto>("Project not found", "NOT_FOUND");
+
         var tokenBytes = RandomNumberGenerator.GetBytes(32);
         var tokenString = Convert.ToBase64String(tokenBytes)
             .Replace('+', '-')

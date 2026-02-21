@@ -98,8 +98,9 @@ public class AccountingPeriodsController(IAccountingPeriodService accountingPeri
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Close(Guid id)
     {
-        Guid userId = GetCurrentUserId();
-        var result = await accountingPeriodService.ClosePeriodAsync(id, userId);
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized(new { error = "Valid user identity required" });
+        var result = await accountingPeriodService.ClosePeriodAsync(id, userId.Value);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -147,10 +148,10 @@ public class AccountingPeriodsController(IAccountingPeriodService accountingPeri
         return StatusCode(StatusCodes.Status201Created, result.Value);
     }
 
-    private Guid GetCurrentUserId()
+    private Guid? GetCurrentUserId()
     {
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return Guid.TryParse(userId, out Guid parsed) ? parsed : Guid.Empty;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
     }
 }
 

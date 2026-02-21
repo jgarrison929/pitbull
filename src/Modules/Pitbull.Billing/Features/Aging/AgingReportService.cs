@@ -80,13 +80,15 @@ public class AgingReportService(
         try
         {
             // Outstanding billing applications: submitted but not paid/void
+            // PartiallyPaid excluded: CurrentPaymentDue reflects the full billed amount
+            // and the schema has no AmountReceived field to compute the true outstanding balance.
+            // Including PartiallyPaid would overstate AR exposure.
             var outstandingStatuses = new[]
             {
                 BillingApplicationStatus.SubmittedToOwner,
                 BillingApplicationStatus.Disputed,
                 BillingApplicationStatus.ArchitectCertified,
                 BillingApplicationStatus.PaymentDue,
-                BillingApplicationStatus.PartiallyPaid,
             };
 
             var applications = await db.Set<BillingApplication>()

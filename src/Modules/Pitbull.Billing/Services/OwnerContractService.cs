@@ -103,8 +103,18 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
             contract.OriginalContractSum = cmd.OriginalContractSum.Value;
             contract.ContractSumToDate = cmd.OriginalContractSum.Value + contract.ApprovedChangeOrderAmount;
         }
-        if (cmd.DefaultRetainagePercent.HasValue) contract.DefaultRetainagePercent = cmd.DefaultRetainagePercent.Value;
-        if (cmd.RetainagePercentMaterials.HasValue) contract.RetainagePercentMaterials = cmd.RetainagePercentMaterials.Value;
+        if (cmd.DefaultRetainagePercent.HasValue)
+        {
+            if (cmd.DefaultRetainagePercent.Value < 0 || cmd.DefaultRetainagePercent.Value > 100)
+                return Result.Failure<OwnerContractDto>("Retainage percent must be between 0 and 100", "VALIDATION_ERROR");
+            contract.DefaultRetainagePercent = cmd.DefaultRetainagePercent.Value;
+        }
+        if (cmd.RetainagePercentMaterials.HasValue)
+        {
+            if (cmd.RetainagePercentMaterials.Value < 0 || cmd.RetainagePercentMaterials.Value > 100)
+                return Result.Failure<OwnerContractDto>("Materials retainage percent must be between 0 and 100", "VALIDATION_ERROR");
+            contract.RetainagePercentMaterials = cmd.RetainagePercentMaterials.Value;
+        }
         if (cmd.ContractDate.HasValue) contract.ContractDate = cmd.ContractDate.Value;
         if (cmd.PaymentTermsDays.HasValue) contract.PaymentTermsDays = cmd.PaymentTermsDays.Value;
 

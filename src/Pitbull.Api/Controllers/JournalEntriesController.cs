@@ -145,8 +145,9 @@ public class JournalEntriesController(IJournalEntryService journalEntryService) 
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Post(Guid id)
     {
-        Guid userId = GetCurrentUserId();
-        var result = await journalEntryService.PostJournalEntryAsync(id, userId);
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized(new { error = "Valid user identity required" });
+        var result = await journalEntryService.PostJournalEntryAsync(id, userId.Value);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -167,8 +168,9 @@ public class JournalEntriesController(IJournalEntryService journalEntryService) 
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Reverse(Guid id)
     {
-        Guid userId = GetCurrentUserId();
-        var result = await journalEntryService.ReverseJournalEntryAsync(id, userId);
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized(new { error = "Valid user identity required" });
+        var result = await journalEntryService.ReverseJournalEntryAsync(id, userId.Value);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -181,10 +183,10 @@ public class JournalEntriesController(IJournalEntryService journalEntryService) 
         return Ok(result.Value);
     }
 
-    private Guid GetCurrentUserId()
+    private Guid? GetCurrentUserId()
     {
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return Guid.TryParse(userId, out Guid parsed) ? parsed : Guid.Empty;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
     }
 }
 

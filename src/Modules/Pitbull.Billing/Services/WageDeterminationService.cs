@@ -81,12 +81,21 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
             if (rate.WorkClassificationId == Guid.Empty)
                 continue;
 
+            if (rate.BaseRate < 0)
+                return Result.Failure<WageDeterminationDto>("Base rate cannot be negative", "VALIDATION_ERROR");
+            if (rate.FringeRate < 0)
+                return Result.Failure<WageDeterminationDto>("Fringe rate cannot be negative", "VALIDATION_ERROR");
+
+            decimal totalRate = rate.TotalRate <= 0 ? rate.BaseRate + rate.FringeRate : rate.TotalRate;
+            if (totalRate < 0)
+                return Result.Failure<WageDeterminationDto>("Total rate cannot be negative", "VALIDATION_ERROR");
+
             determination.Rates.Add(new WageDeterminationRate
             {
                 WorkClassificationId = rate.WorkClassificationId,
                 BaseRate = rate.BaseRate,
                 FringeRate = rate.FringeRate,
-                TotalRate = rate.TotalRate <= 0 ? rate.BaseRate + rate.FringeRate : rate.TotalRate
+                TotalRate = totalRate
             });
         }
 
@@ -138,12 +147,21 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
                 if (rate.WorkClassificationId == Guid.Empty)
                     continue;
 
+                if (rate.BaseRate < 0)
+                    return Result.Failure<WageDeterminationDto>("Base rate cannot be negative", "VALIDATION_ERROR");
+                if (rate.FringeRate < 0)
+                    return Result.Failure<WageDeterminationDto>("Fringe rate cannot be negative", "VALIDATION_ERROR");
+
+                decimal totalRate = rate.TotalRate <= 0 ? rate.BaseRate + rate.FringeRate : rate.TotalRate;
+                if (totalRate < 0)
+                    return Result.Failure<WageDeterminationDto>("Total rate cannot be negative", "VALIDATION_ERROR");
+
                 determination.Rates.Add(new WageDeterminationRate
                 {
                     WorkClassificationId = rate.WorkClassificationId,
                     BaseRate = rate.BaseRate,
                     FringeRate = rate.FringeRate,
-                    TotalRate = rate.TotalRate <= 0 ? rate.BaseRate + rate.FringeRate : rate.TotalRate
+                    TotalRate = totalRate
                 });
             }
         }

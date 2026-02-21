@@ -359,8 +359,12 @@ public class TimeEntryService : ITimeEntryService
         if (endDate.HasValue)
             query = query.Where(te => te.Date <= endDate.Value);
 
+        // Always exclude rejected entries from cost reports; they represent invalid work.
+        // When approvedOnly is true (the default from the API), only show approved entries.
         if (approvedOnly)
             query = query.Where(te => te.Status == TimeEntryStatus.Approved);
+        else
+            query = query.Where(te => te.Status != TimeEntryStatus.Rejected);
 
         // Execute query
         var timeEntries = await query.ToListAsync(cancellationToken);

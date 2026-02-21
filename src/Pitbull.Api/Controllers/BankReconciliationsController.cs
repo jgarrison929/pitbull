@@ -109,8 +109,9 @@ public class BankReconciliationsController(IBankReconciliationService service) :
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Complete(Guid id)
     {
-        Guid userId = GetCurrentUserId();
-        var command = new CompleteReconciliationCommand(id, userId);
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized(new { error = "Valid user identity required" });
+        var command = new CompleteReconciliationCommand(id, userId.Value);
 
         var result = await service.CompleteReconciliationAsync(command);
         if (!result.IsSuccess)
@@ -124,10 +125,10 @@ public class BankReconciliationsController(IBankReconciliationService service) :
         return Ok(result.Value);
     }
 
-    private Guid GetCurrentUserId()
+    private Guid? GetCurrentUserId()
     {
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return Guid.TryParse(userId, out Guid parsed) ? parsed : Guid.Empty;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
     }
 }
 

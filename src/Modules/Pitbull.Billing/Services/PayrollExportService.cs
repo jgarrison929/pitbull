@@ -119,14 +119,33 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
             decimal deductions = decimal.Round(line.GrossPay * 0.20m, 2, MidpointRounding.AwayFromZero);
             decimal netPay = line.GrossPay - deductions;
 
-            foreach (TimeEntry entry in employeeEntries)
-            {
-                decimal entryHours = entry.RegularHours + entry.OvertimeHours + entry.DoubletimeHours;
-                decimal ratio = totalEntryHours <= 0 ? 0m : entryHours / totalEntryHours;
-                decimal gross = decimal.Round(line.GrossPay * ratio, 2, MidpointRounding.AwayFromZero);
-                decimal entryDeductions = decimal.Round(deductions * ratio, 2, MidpointRounding.AwayFromZero);
-                decimal entryNet = gross - entryDeductions;
+            // Largest-remainder method: allocate gross and deductions per entry,
+            // then distribute rounding remainders so lines sum exactly to totals.
+            var allocations = new (decimal gross, decimal ded)[employeeEntries.Count];
+            decimal allocatedGross = 0m, allocatedDed = 0m;
 
+            for (int i = 0; i < employeeEntries.Count; i++)
+            {
+                decimal entryHours = employeeEntries[i].RegularHours + employeeEntries[i].OvertimeHours + employeeEntries[i].DoubletimeHours;
+                decimal ratio = totalEntryHours <= 0 ? 0m : entryHours / totalEntryHours;
+                allocations[i] = (
+                    decimal.Round(line.GrossPay * ratio, 2, MidpointRounding.AwayFromZero),
+                    decimal.Round(deductions * ratio, 2, MidpointRounding.AwayFromZero));
+                allocatedGross += allocations[i].gross;
+                allocatedDed += allocations[i].ded;
+            }
+
+            // Push rounding remainder onto the last entry
+            if (employeeEntries.Count > 0)
+            {
+                int last = employeeEntries.Count - 1;
+                allocations[last].gross += line.GrossPay - allocatedGross;
+                allocations[last].ded += deductions - allocatedDed;
+            }
+
+            for (int i = 0; i < employeeEntries.Count; i++)
+            {
+                var entry = employeeEntries[i];
                 export.Lines.Add(new PayrollExportLine
                 {
                     EmployeeId = employee.Id,
@@ -136,9 +155,9 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
                     OvertimeHours = entry.OvertimeHours,
                     DoubletimeHours = entry.DoubletimeHours,
                     HourlyRate = employee.BaseHourlyRate,
-                    GrossPay = gross,
-                    Deductions = entryDeductions,
-                    NetPay = entryNet,
+                    GrossPay = allocations[i].gross,
+                    Deductions = allocations[i].ded,
+                    NetPay = allocations[i].gross - allocations[i].ded,
                     ProjectId = entry.ProjectId,
                     CostCodeId = entry.CostCodeId,
                     WorkClassificationId = null

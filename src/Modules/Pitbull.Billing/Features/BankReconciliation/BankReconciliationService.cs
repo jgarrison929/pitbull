@@ -328,6 +328,11 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
 
         beginningBalance = lastCompleted?.StatementEndingBalance ?? account.OpeningBalance;
 
+        if (lastCompleted is not null && command.StatementDate <= lastCompleted.StatementDate)
+            return Result.Failure<BankReconciliationDto>(
+                $"Statement date must be after the last completed reconciliation ({lastCompleted.StatementDate:d})",
+                "VALIDATION_ERROR");
+
         var reconciliation = new BankRecEntity
         {
             BankAccountId = command.BankAccountId,
