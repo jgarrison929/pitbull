@@ -90,7 +90,11 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
             request.Description,
             request.PhaseId,
             request.EquipmentId,
-            request.EquipmentHours
+            request.EquipmentHours,
+            request.Latitude,
+            request.Longitude,
+            request.GpsAccuracy,
+            request.GpsCapturedAt
         );
 
         var result = await timeEntryService.CreateTimeEntryAsync(command);
@@ -695,7 +699,8 @@ public class TimeEntriesController(ITimeEntryService timeEntryService, ICapPubli
             request.Entries.Select(e => new BatchTimeEntryItem(
                 e.Date, e.EmployeeId, e.ProjectId, e.CostCodeId ?? Guid.Empty,
                 e.RegularHours, e.OvertimeHours, e.DoubletimeHours,
-                e.Description, e.PhaseId, e.EquipmentId, e.EquipmentHours, e.TimeEntryId
+                e.Description, e.PhaseId, e.EquipmentId, e.EquipmentHours, e.TimeEntryId,
+                e.Latitude, e.Longitude, e.GpsAccuracy, e.GpsCapturedAt
             )).ToList(),
             request.AllowPartialSuccess,
             request.IsDraft,
@@ -945,7 +950,11 @@ public record CreateTimeEntryRequest(
     string? Description = null,
     Guid? PhaseId = null,
     Guid? EquipmentId = null,
-    decimal EquipmentHours = 0
+    decimal EquipmentHours = 0,
+    decimal? Latitude = null,
+    decimal? Longitude = null,
+    decimal? GpsAccuracy = null,
+    DateTime? GpsCapturedAt = null
 );
 
 public record UpdateTimeEntryRequest(
@@ -1082,7 +1091,11 @@ public record BatchCreateItemRequest(
     Guid? PhaseId = null,
     Guid? EquipmentId = null,
     decimal EquipmentHours = 0,
-    Guid? TimeEntryId = null
+    Guid? TimeEntryId = null,
+    decimal? Latitude = null,
+    decimal? Longitude = null,
+    decimal? GpsAccuracy = null,
+    DateTime? GpsCapturedAt = null
 );
 
 public record BulkSubmitRequest(

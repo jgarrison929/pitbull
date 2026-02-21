@@ -20,6 +20,23 @@ public class Project : BaseEntity, ICompanyScoped
     public string? State { get; set; }
     public string? ZipCode { get; set; }
 
+    // GPS / Geofence
+    /// <summary>
+    /// Project site latitude (WGS 84) for geofence validation of time entries
+    /// </summary>
+    public decimal? Latitude { get; set; }
+
+    /// <summary>
+    /// Project site longitude (WGS 84) for geofence validation of time entries
+    /// </summary>
+    public decimal? Longitude { get; set; }
+
+    /// <summary>
+    /// Geofence radius in meters. Time entries outside this radius get a warning.
+    /// Default: 200 meters.
+    /// </summary>
+    public decimal? GeofenceRadiusMeters { get; set; }
+
     // Client
     public string? ClientName { get; set; }
     public string? ClientContact { get; set; }

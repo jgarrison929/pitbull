@@ -30,7 +30,11 @@ public record BatchTimeEntryItem(
     Guid? PhaseId = null,
     Guid? EquipmentId = null,
     decimal EquipmentHours = 0,
-    Guid? TimeEntryId = null
+    Guid? TimeEntryId = null,
+    decimal? Latitude = null,
+    decimal? Longitude = null,
+    decimal? GpsAccuracy = null,
+    DateTime? GpsCapturedAt = null
 );
 
 /// <summary>

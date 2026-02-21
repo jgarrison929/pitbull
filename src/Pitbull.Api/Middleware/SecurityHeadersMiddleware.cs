@@ -27,7 +27,7 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
 
         // Permissions-Policy: Disable all browser features for API endpoints
         context.Response.Headers.Append("Permissions-Policy",
-            "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()");
+            "geolocation=(self), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()");
 
         // Strict-Transport-Security (HSTS): Force HTTPS for 1 year
         // Note: Only send on HTTPS or when X-Forwarded-Proto indicates HTTPS (reverse proxy)

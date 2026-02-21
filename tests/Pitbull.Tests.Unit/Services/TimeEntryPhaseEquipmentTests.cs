@@ -369,6 +369,7 @@ public sealed class TimeEntryPhaseEquipmentTests
             new BatchCreateTimeEntriesValidator(),
             new LaborCostCalculator(),
             CreateMockPayPeriodService(),
+            new GeofenceService(),
             NullLogger<TimeEntryService>.Instance
         );
     }

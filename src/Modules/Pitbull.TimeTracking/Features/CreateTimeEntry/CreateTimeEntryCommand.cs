@@ -23,5 +23,9 @@ public record CreateTimeEntryCommand(
     string? Description = null,
     Guid? PhaseId = null,
     Guid? EquipmentId = null,
-    decimal EquipmentHours = 0
+    decimal EquipmentHours = 0,
+    decimal? Latitude = null,
+    decimal? Longitude = null,
+    decimal? GpsAccuracy = null,
+    DateTime? GpsCapturedAt = null
 ) : ICommand<TimeEntryDto>;

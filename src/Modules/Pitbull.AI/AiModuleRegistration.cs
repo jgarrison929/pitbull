@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Pitbull.AI.Providers;
+using Pitbull.AI.Services;
+using Pitbull.AI.Services.Handlers;
 
 namespace Pitbull.AI;
 
@@ -21,6 +23,14 @@ public static class AiModuleRegistration
 
         services.AddScoped<IAiProvider, AnthropicProvider>();
         services.AddScoped<IAiProvider, OpenAiProvider>();
+
+        // Feature handlers (discovered via IEnumerable<IAiFeatureHandler>)
+        services.AddScoped<IAiFeatureHandler, InvoiceExtractionHandler>();
+        services.AddScoped<IAiFeatureHandler, SmartFieldHandler>();
+        services.AddScoped<IAiFeatureHandler, CostPredictionHandler>();
+
+        // Orchestrator (routes feature requests to handlers)
+        services.AddScoped<IAiOrchestrator, AiOrchestrator>();
 
         return services;
     }

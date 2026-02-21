@@ -277,6 +277,7 @@ public sealed class AutoCostCodeAssignmentTests
             new BatchCreateTimeEntriesValidator(),
             new LaborCostCalculator(),
             CreateMockPayPeriodService(),
+            new GeofenceService(),
             NullLogger<TimeEntryService>.Instance
         );
     }

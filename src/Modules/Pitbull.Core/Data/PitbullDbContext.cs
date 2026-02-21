@@ -59,6 +59,8 @@ public class PitbullDbContext(
     public DbSet<TeamInvitation> TeamInvitations => Set<TeamInvitation>();
     public DbSet<OnboardingChecklist> OnboardingChecklists => Set<OnboardingChecklist>();
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
+    public DbSet<MigrationProject> MigrationProjects => Set<MigrationProject>();
+    public DbSet<FieldMapping> FieldMappings => Set<FieldMapping>();
     public DbSet<Feedback> Feedback => Set<Feedback>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();

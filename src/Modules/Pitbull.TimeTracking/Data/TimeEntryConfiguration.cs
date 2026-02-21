@@ -51,6 +51,19 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasMaxLength(500)
             .HasComment("Reason for rejection if status is Rejected");
 
+        // GPS location fields
+        builder.Property(te => te.Latitude)
+            .HasPrecision(10, 7)
+            .HasComment("Latitude (WGS 84) when time entry was created");
+
+        builder.Property(te => te.Longitude)
+            .HasPrecision(10, 7)
+            .HasComment("Longitude (WGS 84) when time entry was created");
+
+        builder.Property(te => te.GpsAccuracy)
+            .HasPrecision(8, 2)
+            .HasComment("GPS accuracy in meters at time of capture");
+
         // Indexes for common queries
         builder.HasIndex(te => new { te.Date, te.EmployeeId })
             .HasDatabaseName("IX_time_entries_date_employee");

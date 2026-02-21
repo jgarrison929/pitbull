@@ -108,6 +108,27 @@ public class TimeEntry : BaseEntity, ICompanyScoped
     /// </summary>
     public Guid? SubmittedById { get; set; }
 
+    // GPS location capture for prevailing wage compliance
+    /// <summary>
+    /// Latitude of the device when the time entry was created (WGS 84)
+    /// </summary>
+    public decimal? Latitude { get; set; }
+
+    /// <summary>
+    /// Longitude of the device when the time entry was created (WGS 84)
+    /// </summary>
+    public decimal? Longitude { get; set; }
+
+    /// <summary>
+    /// GPS accuracy in meters at time of capture
+    /// </summary>
+    public decimal? GpsAccuracy { get; set; }
+
+    /// <summary>
+    /// When the GPS position was captured (may differ from entry creation time)
+    /// </summary>
+    public DateTime? GpsCapturedAt { get; set; }
+
     // Navigation properties
     public Employee? SubmittedBy { get; set; }
     public Employee Employee { get; set; } = null!;
