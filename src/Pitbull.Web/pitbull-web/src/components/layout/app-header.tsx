@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
-import { AppSidebarMobile } from "./app-sidebar-mobile";
+import { AppSidebar } from "./app-sidebar";
 import { NotificationCenter } from "./notification-center";
 import { ConnectionStatus } from "./connection-status";
 import { HelpPanel } from "@/components/help/help-panel";
@@ -101,9 +101,11 @@ export function AppHeader() {
               &#x2630;
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0 bg-[#1a1a2e]">
+          <SheetContent side="left" className="w-64 p-0 bg-sidebar">
             <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            <AppSidebarMobile onNavigate={() => setMobileOpen(false)} />
+            <div className="flex flex-col h-full [&_aside]:flex [&_aside]:flex-col [&_aside]:min-h-0 [&_aside]:h-full [&_aside]:w-full [&_aside]:lg:w-full">
+              <AppSidebar variant="mobile" onNavigate={() => setMobileOpen(false)} />
+            </div>
           </SheetContent>
         </Sheet>
 

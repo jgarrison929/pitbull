@@ -3,17 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Clock,
-  FileText,
-  MoreHorizontal,
-  FolderKanban,
-  CheckSquare,
-  Users,
-  Truck,
-  Settings,
-} from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -21,50 +11,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useAuth } from "@/contexts/auth-context";
+import { getRoleDefaults, workspaces } from "./workspaces";
 
-interface TabItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  matchPaths?: string[];
-}
-
-const tabs: TabItem[] = [
-  {
-    label: "Dashboard",
-    href: "/",
-    icon: LayoutDashboard,
-    matchPaths: ["/"],
-  },
-  {
-    label: "Time Entry",
-    href: "/time-tracking",
-    icon: Clock,
-    matchPaths: ["/time-tracking"],
-  },
-  {
-    label: "Daily Reports",
-    href: "/daily-reports/mobile",
-    icon: FileText,
-    matchPaths: ["/daily-reports"],
-  },
-];
-
-interface MoreLink {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const moreLinks: MoreLink[] = [
-  { label: "Projects", href: "/projects", icon: FolderKanban },
-  { label: "Approvals", href: "/time-tracking/approval", icon: CheckSquare },
-  { label: "Employees", href: "/employees", icon: Users },
-  { label: "Equipment", href: "/equipment", icon: Truck },
-  { label: "Settings", href: "/settings", icon: Settings },
-];
-
-function isTabActive(pathname: string, tab: TabItem): boolean {
+function isTabActive(
+  pathname: string,
+  tab: { href: string; matchPaths?: string[] }
+): boolean {
   if (tab.href === "/") {
     return pathname === "/";
   }
@@ -77,6 +30,10 @@ function isTabActive(pathname: string, tab: TabItem): boolean {
 export function MobileBottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { user } = useAuth();
+
+  const roleConfig = getRoleDefaults(user?.roles);
+  const mobileTabs = roleConfig.mobileTabs;
 
   return (
     <>
@@ -86,9 +43,8 @@ export function MobileBottomNav() {
         aria-label="Mobile navigation"
       >
         <div className="flex items-center justify-around">
-          {tabs.map((tab) => {
+          {mobileTabs.map((tab) => {
             const active = isTabActive(pathname, tab);
-            const Icon = tab.icon;
             return (
               <Link
                 key={tab.href}
@@ -100,7 +56,7 @@ export function MobileBottomNav() {
                     : "text-muted-foreground"
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <span className="text-base leading-none">{tab.icon}</span>
                 <span>{tab.label}</span>
               </Link>
             );
@@ -125,16 +81,17 @@ export function MobileBottomNav() {
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent side="bottom" className="rounded-t-xl">
           <SheetHeader>
-            <SheetTitle>Navigation</SheetTitle>
+            <SheetTitle>Workspaces</SheetTitle>
           </SheetHeader>
           <div className="grid grid-cols-3 gap-3 px-4 pb-6">
-            {moreLinks.map((link) => {
-              const Icon = link.icon;
-              const active = pathname.startsWith(link.href);
+            {workspaces.map((ws) => {
+              const firstHref =
+                ws.items.length > 0 ? ws.items[0].href : "/";
+              const active = pathname.startsWith(firstHref) && firstHref !== "/";
               return (
                 <Link
-                  key={link.href}
-                  href={link.href}
+                  key={ws.id}
+                  href={firstHref}
                   onClick={() => setMoreOpen(false)}
                   className={cn(
                     "flex min-h-[44px] flex-col items-center justify-center gap-1.5 rounded-lg border p-3 text-xs transition-colors",
@@ -143,8 +100,8 @@ export function MobileBottomNav() {
                       : "border-border text-muted-foreground hover:bg-muted"
                   )}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{link.label}</span>
+                  <span className="text-lg leading-none">{ws.icon}</span>
+                  <span>{ws.label}</span>
                 </Link>
               );
             })}
