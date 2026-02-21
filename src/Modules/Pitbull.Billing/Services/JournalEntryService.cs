@@ -85,9 +85,35 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
         if (totalDebits == 0)
             return Result.Failure<JournalEntryDto>("Entry must have non-zero amounts", "VALIDATION_ERROR");
 
-        // Generate entry number
-        int count = await db.Set<JournalEntry>().CountAsync(cancellationToken);
-        string entryNumber = $"JE-{command.EntryDate.Year}-{(count + 1):D6}";
+        // Validate accounting period allows entry creation
+        var period = await db.Set<AccountingPeriod>()
+            .FirstOrDefaultAsync(p =>
+                p.StartDate <= command.EntryDate && p.EndDate >= command.EntryDate,
+                cancellationToken);
+
+        if (period is not null && period.Status == PeriodStatus.HardClosed)
+            return Result.Failure<JournalEntryDto>(
+                $"Accounting period {period.PeriodName} is closed. Cannot create entries in a closed period.",
+                "PERIOD_CLOSED");
+
+        // Validate all GL accounts exist and are active
+        var accountIds = command.Lines.Select(l => l.GlAccountId).Distinct().ToList();
+        var activeAccounts = await db.Set<ChartOfAccount>().AsNoTracking()
+            .Where(a => accountIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.IsActive, a.AccountNumber })
+            .ToListAsync(cancellationToken);
+
+        foreach (var acctId in accountIds)
+        {
+            var acct = activeAccounts.FirstOrDefault(a => a.Id == acctId);
+            if (acct is null)
+                return Result.Failure<JournalEntryDto>($"GL account {acctId} not found", "INVALID_ACCOUNT");
+            if (!acct.IsActive)
+                return Result.Failure<JournalEntryDto>($"GL account {acct.AccountNumber} is inactive", "INACTIVE_ACCOUNT");
+        }
+
+        // Generate entry number using Max to avoid race with Count
+        string entryNumber = await GenerateEntryNumberAsync(command.EntryDate.Year, cancellationToken);
 
         JournalEntry entry = new()
         {
@@ -252,6 +278,22 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
                 $"Accounting period {period.PeriodName} is closed. Cannot post to a closed period.",
                 "PERIOD_CLOSED");
 
+        // Validate all GL accounts exist and are active
+        var accountIds = entry.Lines.Select(l => l.GlAccountId).Distinct().ToList();
+        var activeAccounts = await db.Set<ChartOfAccount>().AsNoTracking()
+            .Where(a => accountIds.Contains(a.Id))
+            .Select(a => new { a.Id, a.IsActive, a.AccountNumber })
+            .ToListAsync(cancellationToken);
+
+        foreach (var acctId in accountIds)
+        {
+            var acct = activeAccounts.FirstOrDefault(a => a.Id == acctId);
+            if (acct is null)
+                return Result.Failure<JournalEntryDto>($"GL account {acctId} not found", "INVALID_ACCOUNT");
+            if (!acct.IsActive)
+                return Result.Failure<JournalEntryDto>($"GL account {acct.AccountNumber} is inactive", "INACTIVE_ACCOUNT");
+        }
+
         entry.Status = JournalEntryStatus.Posted;
         entry.PostedByUserId = postedByUserId;
         entry.PostedAt = DateTime.UtcNow;
@@ -281,8 +323,8 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
             return Result.Failure<JournalEntryDto>("Only posted entries can be reversed", "INVALID_STATUS");
 
         // Generate reversal entry number
-        int count = await db.Set<JournalEntry>().CountAsync(cancellationToken);
-        string entryNumber = $"JE-{DateOnly.FromDateTime(DateTime.UtcNow).Year}-{(count + 1):D6}";
+        int year = DateOnly.FromDateTime(DateTime.UtcNow).Year;
+        string entryNumber = await GenerateEntryNumberAsync(year, cancellationToken);
 
         JournalEntry reversal = new()
         {
@@ -329,6 +371,27 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
             logger.LogError(ex, "Failed to reverse journal entry {Id}", id);
             return Result.Failure<JournalEntryDto>("Failed to reverse journal entry", "DATABASE_ERROR");
         }
+    }
+
+    private async Task<string> GenerateEntryNumberAsync(int year, CancellationToken ct)
+    {
+        string prefix = $"JE-{year}-";
+        // Find the highest existing entry number for this year
+        var maxEntryNumber = await db.Set<JournalEntry>()
+            .Where(j => j.EntryNumber.StartsWith(prefix))
+            .OrderByDescending(j => j.EntryNumber)
+            .Select(j => j.EntryNumber)
+            .FirstOrDefaultAsync(ct);
+
+        int nextNum = 1;
+        if (maxEntryNumber is not null)
+        {
+            var suffix = maxEntryNumber[prefix.Length..];
+            if (int.TryParse(suffix, out int lastNum))
+                nextNum = lastNum + 1;
+        }
+
+        return $"{prefix}{nextNum:D6}";
     }
 
     private JournalEntryDto MapToDto(JournalEntry entry)

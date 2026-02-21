@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 
 const ALL_VALUE = "__all__";
 const DEFAULT_PAGE_SIZE = 25;
@@ -274,12 +275,21 @@ function HoldsTab() {
               <TableBody>
                 {holds.map((h) => {
                   const remaining = h.retainedAmount - h.releasedAmount;
+                  const releasePercent = h.retainedAmount > 0 ? (h.releasedAmount / h.retainedAmount) * 100 : 0;
                   return (
                     <TableRow key={h.id}>
-                      <TableCell>{h.effectiveDate}</TableCell>
-                      <TableCell>{formatCurrency(h.originalAmount)}</TableCell>
-                      <TableCell>{formatCurrency(h.retainedAmount)}</TableCell>
-                      <TableCell>{formatCurrency(h.releasedAmount)}</TableCell>
+                      <TableCell>{new Date(h.effectiveDate + "T00:00:00").toLocaleDateString()}</TableCell>
+                      <TableCell className="font-mono">{formatCurrency(h.originalAmount)}</TableCell>
+                      <TableCell className="font-mono">{formatCurrency(h.retainedAmount)}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-mono">{formatCurrency(h.releasedAmount)}</span>
+                            <span className="text-muted-foreground">{releasePercent.toFixed(0)}%</span>
+                          </div>
+                          <Progress value={releasePercent} className="h-2" />
+                        </div>
+                      </TableCell>
                       <TableCell>{h.retainagePercent}%</TableCell>
                       <TableCell><Badge variant={holdStatusColors[h.status]}>{h.status}</Badge></TableCell>
                       <TableCell>

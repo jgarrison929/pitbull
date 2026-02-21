@@ -236,7 +236,7 @@ export default function LienWaiversPage() {
               <TableBody>
                 {waivers.map((w) => (
                   <TableRow key={w.id}>
-                    <TableCell>{w.throughDate}</TableCell>
+                    <TableCell>{new Date(w.throughDate + "T00:00:00").toLocaleDateString()}</TableCell>
                     <TableCell><Badge variant="outline">{w.waiverType}</Badge></TableCell>
                     <TableCell>{formatCurrency(w.amount)}</TableCell>
                     <TableCell><Badge variant={statusColors[w.status]}>{w.status}</Badge></TableCell>

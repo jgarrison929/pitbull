@@ -108,7 +108,8 @@ public class BillingApplicationsControllerTests : IDisposable
         var app2 = (BillingApplicationDto)((CreatedAtActionResult)app2Result).Value!;
 
         var carryForwardLine = app2.LineItems!.First(l => l.ItemNumber == "1");
-        carryForwardLine.WorkCompletedPrevious.Should().Be(50_000m);
+        // G703 Column D = prior Column G (TotalCompletedAndStored = D + E + F = 0 + 50000 + 10000)
+        carryForwardLine.WorkCompletedPrevious.Should().Be(60_000m);
         carryForwardLine.MaterialsStoredToDate.Should().Be(10_000m);
     }
 

@@ -235,21 +235,43 @@ export default function NewJournalEntryPage() {
             ))}
           </div>
 
-          <div className="mt-6 flex items-center justify-between border-t pt-4">
-            <div className="flex gap-6 text-sm">
-              <div>
-                <span className="text-muted-foreground">Total Debits: </span>
-                <span className="font-mono font-medium">{formatCurrency(totalDebits)}</span>
+          <div className="mt-6 border-t pt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-wrap gap-4 sm:gap-6 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Total Debits: </span>
+                  <span className="font-mono font-semibold">{formatCurrency(totalDebits)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Total Credits: </span>
+                  <span className="font-mono font-semibold">{formatCurrency(totalCredits)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Difference: </span>
+                  <span className={`font-mono font-semibold ${isBalanced ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {formatCurrency(Math.abs(totalDebits - totalCredits))}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Total Credits: </span>
-                <span className="font-mono font-medium">{formatCurrency(totalCredits)}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Difference: </span>
-                <span className={`font-mono font-medium ${isBalanced ? "text-green-600" : "text-red-600"}`}>
-                  {formatCurrency(Math.abs(totalDebits - totalCredits))}
-                </span>
+              <div
+                className={`inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium ${
+                  isBalanced
+                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                    : totalDebits === 0 && totalCredits === 0
+                    ? "bg-muted text-muted-foreground"
+                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                }`}
+              >
+                <span
+                  className={`h-2 w-2 rounded-full ${
+                    isBalanced
+                      ? "bg-green-500"
+                      : totalDebits === 0 && totalCredits === 0
+                      ? "bg-muted-foreground"
+                      : "bg-red-500"
+                  }`}
+                />
+                {isBalanced ? "Balanced" : totalDebits === 0 && totalCredits === 0 ? "No amounts entered" : "Out of Balance"}
               </div>
             </div>
           </div>

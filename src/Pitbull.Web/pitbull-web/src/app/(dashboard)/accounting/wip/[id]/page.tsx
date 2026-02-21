@@ -11,7 +11,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { TableSkeleton } from "@/components/skeletons";
-import { BookOpen, CheckCircle } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, BookOpen, CheckCircle } from "lucide-react";
+
+type SortField = "projectNumber" | "revisedContractAmount" | "totalCostToDate" | "percentComplete" | "earnedRevenue" | "billedToDate" | "overUnderBilling";
+type SortDirection = "asc" | "desc";
 
 interface WipReportLine {
   id: string;
@@ -70,6 +73,22 @@ export default function WipReportDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  }
+
+  function SortIcon({ field }: { field: SortField }) {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDirection === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  }
 
   useEffect(() => {
     async function load() {
@@ -123,6 +142,16 @@ export default function WipReportDetailPage() {
       }
     );
   }, [report]);
+
+  const sortedLines = useMemo(() => {
+    if (!report || !sortField) return report?.lines ?? [];
+    return [...report.lines].sort((a, b) => {
+      const aVal = a[sortField];
+      const bVal = b[sortField];
+      const cmp = typeof aVal === "string" ? aVal.localeCompare(bVal as string) : (aVal as number) - (bVal as number);
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+  }, [report, sortField, sortDirection]);
 
   async function handlePostToGl() {
     if (!reportId) return;
@@ -190,8 +219,8 @@ export default function WipReportDetailPage() {
       </div>
 
       {isPostedToGl && report.postedToGlAt && (
-        <Card className="border-green-200 bg-green-50/50">
-          <CardContent className="py-3 px-4 flex items-center gap-2 text-sm text-green-800">
+        <Card className="border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-900/20">
+          <CardContent className="py-3 px-4 flex items-center gap-2 text-sm text-green-800 dark:text-green-400">
             <CheckCircle className="h-4 w-4" />
             <span>
               Posted to GL on {new Date(report.postedToGlAt).toLocaleDateString()} &mdash;{" "}
@@ -214,57 +243,101 @@ export default function WipReportDetailPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Project</TableHead>
-                <TableHead className="text-right">Revised Contract</TableHead>
-                <TableHead className="text-right">Cost To Date</TableHead>
+                <TableHead>
+                  <button type="button" className="inline-flex items-center hover:text-foreground" onClick={() => handleSort("projectNumber")}>
+                    Project <SortIcon field="projectNumber" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button type="button" className="inline-flex items-center ml-auto hover:text-foreground" onClick={() => handleSort("revisedContractAmount")}>
+                    Revised Contract <SortIcon field="revisedContractAmount" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button type="button" className="inline-flex items-center ml-auto hover:text-foreground" onClick={() => handleSort("totalCostToDate")}>
+                    Cost To Date <SortIcon field="totalCostToDate" />
+                  </button>
+                </TableHead>
                 <TableHead className="text-right">Est. To Complete</TableHead>
                 <TableHead className="text-right">Est. Total Cost</TableHead>
-                <TableHead className="text-right">% Complete</TableHead>
-                <TableHead className="text-right">Earned Revenue</TableHead>
-                <TableHead className="text-right">Billed To Date</TableHead>
-                <TableHead className="text-right">Over / Under</TableHead>
+                <TableHead className="text-right">
+                  <button type="button" className="inline-flex items-center ml-auto hover:text-foreground" onClick={() => handleSort("percentComplete")}>
+                    % Complete <SortIcon field="percentComplete" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button type="button" className="inline-flex items-center ml-auto hover:text-foreground" onClick={() => handleSort("earnedRevenue")}>
+                    Earned Revenue <SortIcon field="earnedRevenue" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button type="button" className="inline-flex items-center ml-auto hover:text-foreground" onClick={() => handleSort("billedToDate")}>
+                    Billed To Date <SortIcon field="billedToDate" />
+                  </button>
+                </TableHead>
+                <TableHead className="text-right">
+                  <button type="button" className="inline-flex items-center ml-auto hover:text-foreground" onClick={() => handleSort("overUnderBilling")}>
+                    Over / Under <SortIcon field="overUnderBilling" />
+                  </button>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {report.lines.map((line) => (
+              {sortedLines.map((line) => (
                 <TableRow key={line.id}>
                   <TableCell>
                     <div className="font-medium">{line.projectNumber}</div>
                     <div className="text-xs text-muted-foreground">{line.projectName}</div>
                   </TableCell>
-                  <TableCell className="text-right">{formatCurrency(line.revisedContractAmount)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(line.totalCostToDate)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(line.estimatedCostToComplete)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(line.estimatedTotalCost)}</TableCell>
-                  <TableCell className="text-right">{formatPercent(line.percentComplete)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(line.earnedRevenue)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(line.billedToDate)}</TableCell>
-                  <TableCell
-                    className={`text-right font-semibold ${
-                      line.overUnderBilling < 0 ? "text-red-600" : line.overUnderBilling > 0 ? "text-green-600" : ""
-                    }`}
-                  >
-                    {formatCurrency(line.overUnderBilling)}
+                  <TableCell className="text-right font-mono">{formatCurrency(line.revisedContractAmount)}</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(line.totalCostToDate)}</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(line.estimatedCostToComplete)}</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(line.estimatedTotalCost)}</TableCell>
+                  <TableCell className="text-right font-mono">{formatPercent(line.percentComplete)}</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(line.earnedRevenue)}</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(line.billedToDate)}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <span
+                        className={`font-mono font-semibold ${
+                          line.overUnderBilling < 0 ? "text-red-600 dark:text-red-400" : line.overUnderBilling > 0 ? "text-green-600 dark:text-green-400" : ""
+                        }`}
+                      >
+                        {formatCurrency(line.overUnderBilling)}
+                      </span>
+                      <Badge
+                        variant="outline"
+                        className={
+                          line.overUnderClassification === "OverBilled"
+                            ? "border-red-300 text-red-700 bg-red-50 dark:border-red-700 dark:text-red-400 dark:bg-red-900/20 text-xs"
+                            : line.overUnderClassification === "UnderBilled"
+                            ? "border-amber-300 text-amber-700 bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:bg-amber-900/20 text-xs"
+                            : "text-xs"
+                        }
+                      >
+                        {line.overUnderClassification === "OverBilled" ? "Over" : line.overUnderClassification === "UnderBilled" ? "Under" : "Flat"}
+                      </Badge>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
 
               <TableRow className="bg-muted/30 font-semibold">
                 <TableCell>Totals</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.revisedContractAmount)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.totalCostToDate)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.estimatedCostToComplete)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.estimatedTotalCost)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right font-mono">{formatCurrency(totals.revisedContractAmount)}</TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(totals.totalCostToDate)}</TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(totals.estimatedCostToComplete)}</TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(totals.estimatedTotalCost)}</TableCell>
+                <TableCell className="text-right font-mono">
                   {totals.estimatedTotalCost <= 0
                     ? "0.00%"
                     : formatPercent(totals.totalCostToDate / totals.estimatedTotalCost)}
                 </TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.earnedRevenue)}</TableCell>
-                <TableCell className="text-right">{formatCurrency(totals.billedToDate)}</TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(totals.earnedRevenue)}</TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(totals.billedToDate)}</TableCell>
                 <TableCell
-                  className={`text-right ${
-                    totals.overUnderBilling < 0 ? "text-red-600" : totals.overUnderBilling > 0 ? "text-green-600" : ""
+                  className={`text-right font-mono ${
+                    totals.overUnderBilling < 0 ? "text-red-600 dark:text-red-400" : totals.overUnderBilling > 0 ? "text-green-600 dark:text-green-400" : ""
                   }`}
                 >
                   {formatCurrency(totals.overUnderBilling)}

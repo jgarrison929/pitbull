@@ -66,6 +66,16 @@ public class WipReportService(
         string generatedById,
         CancellationToken cancellationToken = default)
     {
+        // Prevent duplicate reports for the same period
+        bool duplicateExists = await db.Set<WipReport>()
+            .AnyAsync(r => r.FiscalYear == command.FiscalYear
+                && r.PeriodNumber == command.PeriodNumber, cancellationToken);
+
+        if (duplicateExists)
+            return Result.Failure<WipReportDto>(
+                $"A WIP report already exists for period {command.PeriodNumber} of fiscal year {command.FiscalYear}",
+                "DUPLICATE_PERIOD");
+
         WipReport report = new()
         {
             ReportDate = command.ReportDate,
@@ -197,6 +207,16 @@ public class WipReportService(
         string generatedById,
         CancellationToken cancellationToken = default)
     {
+        // Prevent duplicate reports for the same period
+        bool duplicateExists = await db.Set<WipReport>()
+            .AnyAsync(r => r.FiscalYear == command.FiscalYear
+                && r.PeriodNumber == command.PeriodNumber, cancellationToken);
+
+        if (duplicateExists)
+            return Result.Failure<WipReportDto>(
+                $"A WIP report already exists for period {command.PeriodNumber} of fiscal year {command.FiscalYear}",
+                "DUPLICATE_PERIOD");
+
         Dictionary<Guid, decimal> estimateLookup = command.ProjectEstimates?
             .ToDictionary(x => x.ProjectId, x => x.EstimatedCostToComplete)
             ?? [];

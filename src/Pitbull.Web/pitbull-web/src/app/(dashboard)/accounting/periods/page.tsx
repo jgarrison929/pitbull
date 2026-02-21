@@ -254,8 +254,8 @@ export default function AccountingPeriodsPage() {
                   <TableRow key={period.id}>
                     <TableCell className="font-medium">{period.periodName}</TableCell>
                     <TableCell>{period.fiscalYear}</TableCell>
-                    <TableCell>{period.startDate}</TableCell>
-                    <TableCell>{period.endDate}</TableCell>
+                    <TableCell>{new Date(period.startDate + "T00:00:00").toLocaleDateString()}</TableCell>
+                    <TableCell>{new Date(period.endDate + "T00:00:00").toLocaleDateString()}</TableCell>
                     <TableCell>
                       <Badge variant={statusColors[period.status]}>
                         {statusLabels[period.status]}

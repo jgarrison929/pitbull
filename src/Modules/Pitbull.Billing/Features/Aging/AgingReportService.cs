@@ -180,6 +180,7 @@ public class AgingReportService(
         {
             var dueDate = getDate(item);
             var amount = getAmount(item);
+            // DayNumber is days since Jan 1, 0001 (not day-of-year), so subtraction gives correct day count across year boundaries
             int daysOverdue = asOfDate.DayNumber - dueDate.DayNumber;
 
             if (daysOverdue <= 0)
