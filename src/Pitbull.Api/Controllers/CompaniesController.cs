@@ -10,8 +10,10 @@ using Microsoft.IdentityModel.Tokens;
 using Pitbull.Api.Controllers;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Infrastructure;
+using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Controllers;
@@ -105,14 +107,14 @@ public class CompaniesController(
 
         // Generate new JWT with updated company_id
         var roles = await roleSeeder.GetUserRolesAsync(user);
-        var token = GenerateJwtToken(user, companyId, companyContext.AccessibleCompanyIds, roles);
+        var token = await GenerateJwtTokenAsync(user, companyId, companyContext.AccessibleCompanyIds, roles);
 
         return Ok(new CompanySwitchResponse(
             Token: token,
             Company: MapToResponse(company)));
     }
 
-    private string GenerateJwtToken(AppUser user, Guid activeCompanyId, IReadOnlyList<Guid> companyIds, IList<string> roles)
+    private async Task<string> GenerateJwtTokenAsync(AppUser user, Guid activeCompanyId, IReadOnlyList<Guid> companyIds, IList<string> roles)
     {
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
@@ -132,6 +134,34 @@ public class CompaniesController(
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
+        }
+
+        // Add RBAC permission claims (must match AuthController.GenerateJwtTokenAsync)
+        var isAdmin = await db.Set<UserRole>()
+            .AsNoTracking()
+            .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
+                && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
+
+        if (!isAdmin)
+            isAdmin = roles.Contains("Admin");
+
+        if (isAdmin)
+        {
+            claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
+        }
+        else
+        {
+            var userPermissions = await db.Set<RolePermission>()
+                .AsNoTracking()
+                .Where(rp => rp.TenantId == user.TenantId
+                    && db.Set<UserRole>()
+                        .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
+                .Select(rp => rp.Permission.Name)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var perm in userPermissions)
+                claims.Add(new Claim("permissions", perm));
         }
 
         var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");

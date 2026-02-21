@@ -224,6 +224,7 @@ public class ArchitectureTests
                 .And().DoNotHaveName("AdminAuditController")
                 .And().DoNotHaveName("AdminCompanyController")
                 .And().DoNotHaveName("CompaniesController")
+                .And().DoNotHaveName("InvitationController")
                 .And().DoNotHaveName("AdminCompaniesController")
                 .And().DoNotHaveName("AdminRolesController")
                 .And().DoNotHaveName("AiController")

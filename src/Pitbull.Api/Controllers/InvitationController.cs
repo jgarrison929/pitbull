@@ -5,10 +5,14 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Infrastructure;
 using Pitbull.Api.Services;
+using Pitbull.Core.Constants;
+using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Controllers;
@@ -25,7 +29,8 @@ public class InvitationController(
     ITeamInvitationService invitationService,
     IOnboardingService onboardingService,
     ICompanyContext companyContext,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    PitbullDbContext db) : ControllerBase
 {
     private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -246,16 +251,31 @@ public class InvitationController(
         }
 
         var user = result.UserInfo!;
-        var jwtToken = GenerateJwtToken(user);
+        var jwtToken = await GenerateJwtTokenAsync(user);
 
         return Ok(new AuthResponse(jwtToken, user.UserId, user.FullName, user.Email, user.Roles, result.RefreshToken));
     }
 
-    private string GenerateJwtToken(AcceptInvitationUserInfo user)
+    private async Task<string> GenerateJwtTokenAsync(AcceptInvitationUserInfo user)
     {
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        // Get user's company access
+        var companyAccess = await db.Set<UserCompanyAccess>()
+            .IgnoreQueryFilters()
+            .Where(uca => uca.TenantId == user.TenantId && uca.UserId == user.UserId && !uca.IsDeleted)
+            .Select(uca => new { uca.CompanyId, uca.IsDefault })
+            .ToListAsync();
+
+        var defaultCompanyId = companyAccess.FirstOrDefault(c => c.IsDefault)?.CompanyId
+                               ?? companyAccess.FirstOrDefault()?.CompanyId
+                               ?? user.CompanyId;
+
+        var companyIds = companyAccess.Select(c => c.CompanyId).ToList();
+        if (companyIds.Count == 0 && user.CompanyId != Guid.Empty)
+            companyIds.Add(user.CompanyId);
 
         var claims = new List<Claim>
         {
@@ -266,8 +286,44 @@ public class InvitationController(
             new("user_type", user.UserType),
         };
 
+        // Add company claims
+        if (defaultCompanyId != Guid.Empty)
+        {
+            claims.Add(new Claim("company_id", defaultCompanyId.ToString()));
+            claims.Add(new Claim("company_ids", string.Join(",", companyIds)));
+        }
+
         foreach (var role in user.Roles)
             claims.Add(new Claim(ClaimTypes.Role, role));
+
+        // Add RBAC permission claims
+        var isAdmin = user.Roles.Contains("Admin");
+        if (!isAdmin)
+        {
+            isAdmin = await db.Set<UserRole>()
+                .AsNoTracking()
+                .AnyAsync(ur => ur.UserId == user.UserId && ur.TenantId == user.TenantId
+                    && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
+        }
+
+        if (isAdmin)
+        {
+            claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
+        }
+        else
+        {
+            var userPermissions = await db.Set<RolePermission>()
+                .AsNoTracking()
+                .Where(rp => rp.TenantId == user.TenantId
+                    && db.Set<UserRole>()
+                        .Any(ur => ur.UserId == user.UserId && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
+                .Select(rp => rp.Permission.Name)
+                .Distinct()
+                .ToListAsync();
+
+            foreach (var perm in userPermissions)
+                claims.Add(new Claim("permissions", perm));
+        }
 
         var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
 
