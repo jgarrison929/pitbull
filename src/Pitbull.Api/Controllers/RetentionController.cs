@@ -167,11 +167,12 @@ public class RetentionController(IRetentionService retentionService) : Controlle
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ReleaseRetention(Guid id, [FromBody] ReleaseRetentionRequest request)
     {
-        Guid userId = GetCurrentUserId();
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized(new { error = "Valid user identity required" });
         ReleaseRetentionCommand command = new(
             HoldId: id,
             ReleaseAmount: request.ReleaseAmount,
-            ReleasedByUserId: userId);
+            ReleasedByUserId: userId.Value);
 
         var result = await retentionService.ReleaseRetentionAsync(command);
         if (!result.IsSuccess)
@@ -186,10 +187,10 @@ public class RetentionController(IRetentionService retentionService) : Controlle
         return Ok(result.Value);
     }
 
-    private Guid GetCurrentUserId()
+    private Guid? GetCurrentUserId()
     {
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return Guid.TryParse(userId, out Guid parsed) ? parsed : Guid.Empty;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
     }
 }
 

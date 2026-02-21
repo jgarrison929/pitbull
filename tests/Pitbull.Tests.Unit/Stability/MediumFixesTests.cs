@@ -532,6 +532,111 @@ public sealed class MediumFixesTests : IDisposable
         result.Value!.TotalCost.TotalHours.Should().Be(16m); // 8 + 8 (rejected excluded)
     }
 
+    // ── Self-Review: Owner contract CREATE rejects out-of-range materials retainage ──
+
+    [Fact]
+    public async Task OwnerContract_Create_RejectsNegativeMaterialsRetainage()
+    {
+        var service = new OwnerContractService(_db, NullLogger<OwnerContractService>.Instance);
+
+        var createCmd = new CreateOwnerContractCommand(
+            Guid.NewGuid(), "OC-SR-01", "Test Project", 500000m,
+            RetainagePercentMaterials: -5m);
+
+        var result = await service.CreateContractAsync(createCmd);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("Materials retainage");
+    }
+
+    [Fact]
+    public async Task OwnerContract_Create_RejectsMaterialsRetainageOver100()
+    {
+        var service = new OwnerContractService(_db, NullLogger<OwnerContractService>.Instance);
+
+        var createCmd = new CreateOwnerContractCommand(
+            Guid.NewGuid(), "OC-SR-02", "Test Project", 500000m,
+            RetainagePercentMaterials: 150m);
+
+        var result = await service.CreateContractAsync(createCmd);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("Materials retainage");
+    }
+
+    // ── Self-Review: Controllers return 401 (not Guid.Empty) when user claims missing ──
+
+    [Fact]
+    public async Task PurchaseOrdersController_Approve_NoUserClaims_Returns401()
+    {
+        var tenantCtx = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
+        var companyCtx = new CompanyContext();
+        var options = new DbContextOptionsBuilder<PitbullDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var db = new PitbullDbContext(options, tenantCtx, companyCtx);
+
+        var poService = new Pitbull.Billing.Services.PurchaseOrderService(db, NullLogger<Pitbull.Billing.Services.PurchaseOrderService>.Instance);
+        var controller = new Pitbull.Api.Controllers.PurchaseOrdersController(poService)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() // No user claims
+            }
+        };
+
+        var result = await controller.Approve(Guid.NewGuid());
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.UnauthorizedObjectResult>();
+    }
+
+    [Fact]
+    public async Task LienWaiversController_Approve_NoUserClaims_Returns401()
+    {
+        var tenantCtx = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
+        var companyCtx = new CompanyContext();
+        var options = new DbContextOptionsBuilder<PitbullDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var db = new PitbullDbContext(options, tenantCtx, companyCtx);
+
+        var lienService = new Pitbull.Billing.Services.LienWaiverService(db, NullLogger<Pitbull.Billing.Services.LienWaiverService>.Instance);
+        var controller = new Pitbull.Api.Controllers.LienWaiversController(lienService)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext()
+            }
+        };
+
+        var result = await controller.Approve(Guid.NewGuid());
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.UnauthorizedObjectResult>();
+    }
+
+    [Fact]
+    public async Task RetentionController_Release_NoUserClaims_Returns401()
+    {
+        var tenantCtx = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
+        var companyCtx = new CompanyContext();
+        var options = new DbContextOptionsBuilder<PitbullDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options;
+        using var db = new PitbullDbContext(options, tenantCtx, companyCtx);
+
+        var retentionService = new Pitbull.Billing.Services.RetentionService(db, NullLogger<Pitbull.Billing.Services.RetentionService>.Instance);
+        var controller = new Pitbull.Api.Controllers.RetentionController(retentionService)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext()
+            }
+        };
+
+        var result = await controller.ReleaseRetention(Guid.NewGuid(), new Pitbull.Api.Controllers.ReleaseRetentionRequest(1000m));
+
+        result.Should().BeOfType<Microsoft.AspNetCore.Mvc.UnauthorizedObjectResult>();
+    }
+
     // ── Helper: TimeEntryService construction ──
 
     private Pitbull.TimeTracking.Services.TimeEntryService CreateTimeEntryService()

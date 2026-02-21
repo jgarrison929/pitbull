@@ -52,6 +52,8 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
             return Result.Failure<OwnerContractDto>("Original contract sum must be greater than zero", "VALIDATION_ERROR");
         if (cmd.DefaultRetainagePercent < 0 || cmd.DefaultRetainagePercent > 100)
             return Result.Failure<OwnerContractDto>("Retainage percent must be between 0 and 100", "VALIDATION_ERROR");
+        if (cmd.RetainagePercentMaterials < 0 || cmd.RetainagePercentMaterials > 100)
+            return Result.Failure<OwnerContractDto>("Materials retainage percent must be between 0 and 100", "VALIDATION_ERROR");
 
         bool duplicate = await db.Set<OwnerContract>()
             .AnyAsync(c => c.ContractNumber == cmd.ContractNumber.Trim(), ct);

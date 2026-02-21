@@ -121,8 +121,9 @@ public class PurchaseOrdersController(IPurchaseOrderService purchaseOrderService
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Approve(Guid id)
     {
-        Guid approvedById = GetCurrentUserId();
-        var result = await purchaseOrderService.ApprovePurchaseOrderAsync(id, approvedById);
+        var approvedById = GetCurrentUserId();
+        if (approvedById is null) return Unauthorized(new { error = "Valid user identity required" });
+        var result = await purchaseOrderService.ApprovePurchaseOrderAsync(id, approvedById.Value);
 
         if (!result.IsSuccess)
         {
@@ -181,10 +182,10 @@ public class PurchaseOrdersController(IPurchaseOrderService purchaseOrderService
         return NoContent();
     }
 
-    private Guid GetCurrentUserId()
+    private Guid? GetCurrentUserId()
     {
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return Guid.TryParse(userId, out Guid parsed) ? parsed : Guid.Empty;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
     }
 }
 

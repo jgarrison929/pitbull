@@ -134,8 +134,9 @@ public class LienWaiversController(ILienWaiverService lienWaiverService) : Contr
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Approve(Guid id)
     {
-        Guid userId = GetCurrentUserId();
-        var result = await lienWaiverService.ApproveAsync(id, userId);
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized(new { error = "Valid user identity required" });
+        var result = await lienWaiverService.ApproveAsync(id, userId.Value);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -154,8 +155,9 @@ public class LienWaiversController(ILienWaiverService lienWaiverService) : Contr
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Reject(Guid id, [FromBody] RejectLienWaiverRequest request)
     {
-        Guid userId = GetCurrentUserId();
-        var result = await lienWaiverService.RejectAsync(id, userId, request.Reason);
+        var userId = GetCurrentUserId();
+        if (userId is null) return Unauthorized(new { error = "Valid user identity required" });
+        var result = await lienWaiverService.RejectAsync(id, userId.Value, request.Reason);
         if (!result.IsSuccess)
         {
             return result.ErrorCode switch
@@ -168,10 +170,10 @@ public class LienWaiversController(ILienWaiverService lienWaiverService) : Contr
         return Ok(result.Value);
     }
 
-    private Guid GetCurrentUserId()
+    private Guid? GetCurrentUserId()
     {
         string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-        return Guid.TryParse(userId, out Guid parsed) ? parsed : Guid.Empty;
+        return Guid.TryParse(userId, out Guid parsed) ? parsed : null;
     }
 }
 
