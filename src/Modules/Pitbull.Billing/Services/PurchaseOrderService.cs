@@ -76,13 +76,6 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
 
         string poNumber = await GeneratePoNumberAsync(cancellationToken);
 
-        bool duplicateExists = await db.Set<PurchaseOrder>()
-            .AnyAsync(po => po.PONumber == poNumber && po.VendorId == command.VendorId, cancellationToken);
-        if (duplicateExists)
-            return Result.Failure<PurchaseOrderDto>(
-                $"A purchase order with number '{poNumber}' already exists for this vendor",
-                "DUPLICATE_PO");
-
         PurchaseOrder purchaseOrder = new()
         {
             PONumber = poNumber,
@@ -114,16 +107,28 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
 
         db.Set<PurchaseOrder>().Add(purchaseOrder);
 
-        try
+        // Retry with new PO number on unique constraint violation (race condition)
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            await db.SaveChangesAsync(cancellationToken);
-            return Result.Success(MapToDto(purchaseOrder));
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return Result.Success(MapToDto(purchaseOrder));
+            }
+            catch (DbUpdateException ex) when (attempt < 2 && IsUniqueViolation(ex))
+            {
+                logger.LogWarning("PO number {PONumber} conflict, retrying (attempt {Attempt})",
+                    purchaseOrder.PONumber, attempt + 1);
+                purchaseOrder.PONumber = await GeneratePoNumberAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create purchase order for vendor {VendorId}", command.VendorId);
+                return Result.Failure<PurchaseOrderDto>("Failed to create purchase order", "DATABASE_ERROR");
+            }
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to create purchase order for vendor {VendorId}", command.VendorId);
-            return Result.Failure<PurchaseOrderDto>("Failed to create purchase order", "DATABASE_ERROR");
-        }
+
+        return Result.Failure<PurchaseOrderDto>("Failed to generate unique PO number after retries", "DATABASE_ERROR");
     }
 
     public async Task<Result<PurchaseOrderDto>> UpdatePurchaseOrderAsync(UpdatePurchaseOrderCommand command, CancellationToken cancellationToken = default)
@@ -294,6 +299,13 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             logger.LogError(ex, "Failed to delete purchase order {PurchaseOrderId}", id);
             return Result.Failure("Failed to delete purchase order", "DATABASE_ERROR");
         }
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        // PostgreSQL unique violation error code: 23505
+        var inner = ex.InnerException;
+        return inner is not null && inner.Message.Contains("23505", StringComparison.Ordinal);
     }
 
     private async Task<string> GeneratePoNumberAsync(CancellationToken cancellationToken)

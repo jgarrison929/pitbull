@@ -78,7 +78,7 @@ public sealed class PayrollExportServiceTests
     }
 
     [Fact]
-    public async Task Generate_NoTimeEntries_StillCreatesExportWithFallbackLines()
+    public async Task Generate_NoTimeEntries_FailsFast_DoesNotMarkExported()
     {
         using var db = TestDbContextFactory.Create();
         var service = CreateService(db);
@@ -124,9 +124,14 @@ public sealed class PayrollExportServiceTests
 
         var result = await service.GenerateAsync(command);
 
-        // Should succeed but skip employees with no approved time entries (no fabricated rows)
-        result.IsSuccess.Should().BeTrue();
-        result.Value!.LineCount.Should().Be(0);
+        // Should fail — employees with missing time entries must not be silently skipped
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("MISSING_ALLOCATIONS");
+        result.Error.Should().Contain("Jane Welder");
+
+        // Run must NOT be marked Exported
+        var updatedRun = db.Set<PayrollRun>().First(r => r.Id == run.Id);
+        updatedRun.Status.Should().Be(PayrollRunStatus.Approved);
     }
 
     [Fact]

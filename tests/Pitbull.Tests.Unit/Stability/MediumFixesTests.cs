@@ -5,6 +5,7 @@ using Pitbull.Billing.Features.AiaBilling;
 using Pitbull.Billing.Features.Aging;
 using Pitbull.Billing.Features.BankReconciliation;
 using Pitbull.Billing.Features.PayrollExports;
+using Pitbull.Billing.Features.PurchaseOrders;
 using Pitbull.Billing.Features.WageDeterminations;
 using Pitbull.Billing.Services;
 using Pitbull.Core.Data;
@@ -635,6 +636,167 @@ public sealed class MediumFixesTests : IDisposable
         var result = await controller.ReleaseRetention(Guid.NewGuid(), new Pitbull.Api.Controllers.ReleaseRetentionRequest(1000m));
 
         result.Should().BeOfType<Microsoft.AspNetCore.Mvc.UnauthorizedObjectResult>();
+    }
+
+    // ── Codex Gap #2: PO number generation is atomic (retry on unique violation) ──
+
+    [Fact]
+    public async Task PurchaseOrder_Create_SucceedsWithUniqueNumber()
+    {
+        var poService = new PurchaseOrderService(_db, NullLogger<PurchaseOrderService>.Instance);
+
+        var cmd1 = new CreatePurchaseOrderCommand(
+            Guid.NewGuid(), Guid.NewGuid(), "PO 1",
+            [new CreatePurchaseOrderLineCommand("Item 1", 5, 100m)]);
+        var result1 = await poService.CreatePurchaseOrderAsync(cmd1);
+        result1.IsSuccess.Should().BeTrue();
+
+        var cmd2 = new CreatePurchaseOrderCommand(
+            Guid.NewGuid(), Guid.NewGuid(), "PO 2",
+            [new CreatePurchaseOrderLineCommand("Item 2", 3, 200m)]);
+        var result2 = await poService.CreatePurchaseOrderAsync(cmd2);
+        result2.IsSuccess.Should().BeTrue();
+
+        // Two POs should have different numbers
+        result1.Value!.PONumber.Should().NotBe(result2.Value!.PONumber);
+    }
+
+    // ── Codex Gap #3: Payroll export fails fast on missing allocations ──
+
+    [Fact]
+    public async Task PayrollExport_MissingTimeEntries_FailsFast()
+    {
+        var service = new PayrollExportService(_db, NullLogger<PayrollExportService>.Instance);
+
+        var payPeriod = new PayPeriod
+        {
+            StartDate = new DateOnly(2026, 2, 1),
+            EndDate = new DateOnly(2026, 2, 14),
+            Status = PayPeriodStatus.Open,
+            Name = "Gap Test Period"
+        };
+        _db.Set<PayPeriod>().Add(payPeriod);
+
+        var employee = new Employee
+        {
+            FirstName = "Missing", LastName = "Entries",
+            EmployeeNumber = "EMP-GAP-001", Email = "gap@test.com",
+            IsActive = true, Classification = EmployeeClassification.Hourly,
+            BaseHourlyRate = 30m
+        };
+        _db.Set<Employee>().Add(employee);
+
+        var run = new PayrollRun
+        {
+            RunDate = new DateOnly(2026, 2, 15),
+            PayPeriodId = payPeriod.Id,
+            Status = PayrollRunStatus.Approved,
+            TotalGross = 1200m, TotalNet = 960m, EmployeeCount = 1
+        };
+        run.Lines.Add(new PayrollRunLine
+        {
+            PayrollRunId = run.Id, EmployeeId = employee.Id,
+            RegularHours = 40m, OvertimeHours = 0m, DoubletimeHours = 0m,
+            RegularPay = 1200m, OvertimePay = 0m, DoubletimePay = 0m, GrossPay = 1200m
+        });
+        _db.Set<PayrollRun>().Add(run);
+        // NOTE: No time entries added for this employee
+        await _db.SaveChangesAsync();
+
+        var command = new GeneratePayrollExportCommand(run.Id, PayrollExportFormat.Csv, null, null);
+        var result = await service.GenerateAsync(command);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("MISSING_ALLOCATIONS");
+        result.Error.Should().Contain("Missing Entries");
+
+        // Run must remain Approved — not silently marked Exported
+        _db.ChangeTracker.Clear();
+        var freshRun = await _db.Set<PayrollRun>().FindAsync(run.Id);
+        freshRun!.Status.Should().Be(PayrollRunStatus.Approved);
+    }
+
+    [Fact]
+    public async Task PayrollExport_MixedEmployees_SomeWithEntries_SomeWithout_FailsFast()
+    {
+        var service = new PayrollExportService(_db, NullLogger<PayrollExportService>.Instance);
+
+        var payPeriod = new PayPeriod
+        {
+            StartDate = new DateOnly(2026, 2, 1),
+            EndDate = new DateOnly(2026, 2, 14),
+            Status = PayPeriodStatus.Open,
+            Name = "Mixed Period"
+        };
+        _db.Set<PayPeriod>().Add(payPeriod);
+
+        var goodEmployee = new Employee
+        {
+            FirstName = "Good", LastName = "Worker",
+            EmployeeNumber = "EMP-MIX-001", Email = "good@test.com",
+            IsActive = true, Classification = EmployeeClassification.Hourly,
+            BaseHourlyRate = 25m
+        };
+        var badEmployee = new Employee
+        {
+            FirstName = "No", LastName = "Timesheet",
+            EmployeeNumber = "EMP-MIX-002", Email = "bad@test.com",
+            IsActive = true, Classification = EmployeeClassification.Hourly,
+            BaseHourlyRate = 25m
+        };
+        _db.Set<Employee>().AddRange(goodEmployee, badEmployee);
+
+        var projectId = Guid.NewGuid();
+        _db.Set<Project>().Add(new Project
+        {
+            Id = projectId, TenantId = TestTenantId, CompanyId = TestCompanyId,
+            Name = "Mix", Number = "P-MIX", Status = ProjectStatus.Active
+        });
+
+        var costCode = new CostCode
+        {
+            Code = "01-MIX", Description = "Mixed",
+            IsActive = true, CostType = CostType.Labor
+        };
+        _db.Set<CostCode>().Add(costCode);
+
+        var run = new PayrollRun
+        {
+            RunDate = new DateOnly(2026, 2, 15),
+            PayPeriodId = payPeriod.Id,
+            Status = PayrollRunStatus.Approved,
+            TotalGross = 2400m, TotalNet = 1920m, EmployeeCount = 2
+        };
+        run.Lines.Add(new PayrollRunLine
+        {
+            PayrollRunId = run.Id, EmployeeId = goodEmployee.Id,
+            RegularHours = 40m, OvertimeHours = 0m, DoubletimeHours = 0m,
+            RegularPay = 1000m, OvertimePay = 0m, DoubletimePay = 0m, GrossPay = 1000m
+        });
+        run.Lines.Add(new PayrollRunLine
+        {
+            PayrollRunId = run.Id, EmployeeId = badEmployee.Id,
+            RegularHours = 40m, OvertimeHours = 0m, DoubletimeHours = 0m,
+            RegularPay = 1000m, OvertimePay = 0m, DoubletimePay = 0m, GrossPay = 1000m
+        });
+        _db.Set<PayrollRun>().Add(run);
+
+        // Only add time entries for good employee, not bad
+        _db.Set<TimeEntry>().Add(new TimeEntry
+        {
+            Date = new DateOnly(2026, 2, 5), EmployeeId = goodEmployee.Id,
+            ProjectId = projectId, CostCodeId = costCode.Id,
+            RegularHours = 40m, Status = TimeEntryStatus.Approved
+        });
+        await _db.SaveChangesAsync();
+
+        var command = new GeneratePayrollExportCommand(run.Id, PayrollExportFormat.Csv, null, null);
+        var result = await service.GenerateAsync(command);
+
+        // Should fail because badEmployee has no entries, even though goodEmployee does
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("MISSING_ALLOCATIONS");
+        result.Error.Should().Contain("No Timesheet");
     }
 
     // ── Helper: TimeEntryService construction ──

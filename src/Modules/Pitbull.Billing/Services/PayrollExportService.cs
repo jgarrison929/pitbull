@@ -95,6 +95,8 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
             FilePath = $"exports/payroll/{Guid.NewGuid():N}.csv"
         };
 
+        List<SkippedEmployeeDto> skippedEmployees = [];
+
         foreach (PayrollRunLine line in run.Lines)
         {
             Employee employee = employeesById.GetValueOrDefault(line.EmployeeId) ?? new Employee
@@ -110,8 +112,10 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
             if (employeeEntries.Count == 0)
             {
                 logger.LogWarning(
-                    "Payroll run line for employee {EmployeeId} has no approved time entries — skipping export line",
-                    line.EmployeeId);
+                    "Payroll run line for employee {EmployeeId} ({EmployeeName}) has no approved time entries — cannot export",
+                    line.EmployeeId, employee.FullName);
+                skippedEmployees.Add(new SkippedEmployeeDto(
+                    line.EmployeeId, employee.FullName, "No approved time entries for pay period"));
                 continue;
             }
 
@@ -163,6 +167,19 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
                     WorkClassificationId = null
                 });
             }
+        }
+
+        // Fail fast if any employees could not be allocated — do not mark run as Exported
+        if (skippedEmployees.Count > 0)
+        {
+            string names = string.Join(", ", skippedEmployees.Select(s => s.EmployeeName));
+            logger.LogError(
+                "Payroll export aborted: {Count} employee(s) have no approved time entries: {Names}",
+                skippedEmployees.Count, names);
+            return Result.Failure<PayrollExportDto>(
+                $"Cannot export: {skippedEmployees.Count} employee(s) have no approved time entries ({names}). " +
+                "Resolve missing time entries before exporting.",
+                "MISSING_ALLOCATIONS");
         }
 
         db.Set<PayrollExport>().Add(export);

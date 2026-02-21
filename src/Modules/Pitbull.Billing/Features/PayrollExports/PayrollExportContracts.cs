@@ -15,7 +15,14 @@ public record PayrollExportDto(
     decimal TotalGross,
     decimal TotalNet,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    IReadOnlyList<SkippedEmployeeDto>? SkippedEmployees = null
+);
+
+public record SkippedEmployeeDto(
+    Guid EmployeeId,
+    string EmployeeName,
+    string Reason
 );
 
 public record PayrollExportLineDto(
