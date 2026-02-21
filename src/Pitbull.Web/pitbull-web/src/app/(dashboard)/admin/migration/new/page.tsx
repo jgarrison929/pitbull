@@ -59,9 +59,13 @@ interface SourceOption {
 interface DetectFormatResponse {
   sourceSystem: string;
   displayName: string;
+  detectedFormat: string;
   confidence: number;
   headers: string[];
+  columns: string[];
   rowCount: number;
+  columnCount: number;
+  previewRows: Record<string, string>[];
 }
 
 interface FieldMapping {
@@ -88,8 +92,10 @@ interface ValidationResult {
   validRows: number;
   errorCount: number;
   warningCount: number;
+  infoCount: number;
   errors: Array<{ row: number; column: string; message: string }>;
   warnings: Array<{ row: number; column: string; message: string }>;
+  issues: Array<{ row: number; column: string; message: string; severity: string }>;
 }
 
 interface ExecutionResult {

@@ -1,390 +1,691 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useWorkspaceNav, type RecentPage } from "@/hooks/use-workspace-nav";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 import { SimpleTooltip } from "@/components/ui/tooltip";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CompanySwitcher } from "./company-switcher";
 import { ProjectSwitcher } from "./project-switcher";
 import {
-  coreNavItems,
-  resourceItems,
-  moduleGroups,
-  DEFAULT_PINNED_GROUPS,
-  getProjectManagementItems,
-  reportItems,
-  settingsItems,
-  helpItems,
-  adminItems,
   type NavItem as NavItemType,
-  type ModuleGroup,
+  type NavItem,
 } from "./nav-items";
+import {
+  type WorkspaceId,
+  type Workspace,
+  getProjectWorkspaceItems,
+  getProjectWorkspaceSeparators,
+  getAllNavItems,
+} from "./workspaces";
 import { findActiveHref } from "./nav-utils";
 import { useKeyboardShortcuts } from "@/contexts/keyboard-shortcuts-context";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Star,
+  Settings,
+  HelpCircle,
+  LogOut,
+  Sparkles,
+  ArrowLeft,
+} from "lucide-react";
 
-const PINNED_KEY = "pitbull:sidebar:pinned";
-const EXPANDED_KEY = "pitbull:sidebar:expanded";
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
-function NavItem({
+function SidebarNavItem({
   item,
   isActive,
+  isCollapsed,
+  isFavorite,
+  onToggleFavorite,
+  onNavigate,
 }: {
   item: NavItemType;
   isActive: boolean;
+  isCollapsed: boolean;
+  isFavorite?: boolean;
+  onToggleFavorite?: (href: string) => void;
+  onNavigate?: () => void;
 }) {
-  const link = (
+  const content = (
     <Link
       href={item.disabled ? "#" : item.href}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+        "group/item flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors relative",
         item.disabled
           ? "text-sidebar-foreground/40 cursor-not-allowed"
           : isActive
             ? "bg-sidebar-accent text-amber-400"
             : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       )}
-      onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+      onClick={(e) => {
+        if (item.disabled) {
+          e.preventDefault();
+          return;
+        }
+        onNavigate?.();
+      }}
     >
-      <span className="text-base">{item.icon}</span>
-      {item.label}
-      {item.disabled && (
-        <span className="ml-auto text-[10px] uppercase tracking-wider text-sidebar-foreground/50 bg-sidebar-accent px-1.5 py-0.5 rounded">
-          Soon
-        </span>
+      <span className={cn("text-base shrink-0", isCollapsed && "mx-auto")}>
+        {item.icon}
+      </span>
+      {!isCollapsed && (
+        <>
+          <span className="truncate">{item.label}</span>
+          {item.disabled && (
+            <span className="ml-auto text-[10px] uppercase tracking-wider text-sidebar-foreground/50 bg-sidebar-accent px-1.5 py-0.5 rounded">
+              Soon
+            </span>
+          )}
+          {onToggleFavorite && !item.disabled && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleFavorite(item.href);
+              }}
+              className={cn(
+                "ml-auto shrink-0 transition-opacity",
+                isFavorite
+                  ? "text-amber-400 opacity-100"
+                  : "opacity-0 group-hover/item:opacity-100 text-sidebar-foreground/40 hover:text-amber-400"
+              )}
+              aria-label={isFavorite ? `Remove ${item.label} from favorites` : `Add ${item.label} to favorites`}
+            >
+              <Star className={cn("h-3.5 w-3.5", isFavorite && "fill-current")} />
+            </button>
+          )}
+        </>
       )}
     </Link>
   );
 
-  if (item.tooltip) {
+  if (isCollapsed) {
     return (
-      <SimpleTooltip content={item.tooltip} side="right">
-        {link}
+      <SimpleTooltip content={item.label} side="right">
+        {content}
       </SimpleTooltip>
     );
   }
-  return link;
+
+  return content;
 }
 
-function SectionHeader({ label }: { label: string }) {
+function WorkspaceSectionSeparator({ label }: { label: string }) {
   return (
-    <div className="pt-4 pb-2">
-      <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+    <div className="pt-3 pb-1.5">
+      <span className="px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
         {label}
       </span>
     </div>
   );
 }
 
-function ModuleSection({
-  group,
-  isPinned,
-  onTogglePin,
-  activeHref,
+// ---------------------------------------------------------------------------
+// Workspace Switcher
+// ---------------------------------------------------------------------------
+
+function WorkspaceSwitcher({
+  workspaces,
+  active,
+  onSelect,
+  isCollapsed,
 }: {
-  group: ModuleGroup;
-  isPinned: boolean;
-  onTogglePin: (id: string) => void;
-  activeHref: string | null;
+  workspaces: Workspace[];
+  active: WorkspaceId;
+  onSelect: (id: WorkspaceId) => void;
+  isCollapsed: boolean;
 }) {
-  return (
-    <div>
-      <div className="flex items-center justify-between pt-4 pb-2 group">
-        <span className="px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50">
-          {group.label}
-        </span>
-        <button
-          onClick={() => onTogglePin(group.id)}
-          className={cn(
-            "mr-2 text-xs transition-opacity",
-            isPinned
-              ? "text-amber-400 opacity-100"
-              : "text-sidebar-foreground/40 opacity-0 group-hover:opacity-100"
-          )}
-          title={isPinned ? "Unpin section" : "Pin section"}
-          aria-label={isPinned ? `Unpin ${group.label}` : `Pin ${group.label}`}
-        >
-          {isPinned ? "\u{1F4CC}" : "\u{1F4CC}"}
-        </button>
+  const current = workspaces.find((w) => w.id === active);
+
+  if (isCollapsed) {
+    return (
+      <div className="flex flex-col items-center gap-1 px-1 py-2">
+        {workspaces.map((ws) => (
+          <SimpleTooltip key={ws.id} content={ws.label} side="right">
+            <button
+              onClick={() => onSelect(ws.id)}
+              className={cn(
+                "flex h-9 w-9 items-center justify-center rounded-lg text-base transition-colors",
+                ws.id === active
+                  ? "bg-amber-500/20 text-amber-400"
+                  : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              )}
+              aria-label={ws.label}
+            >
+              {ws.icon}
+            </button>
+          </SimpleTooltip>
+        ))}
       </div>
-      {group.items.map((item) => (
-        <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-      ))}
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className={cn(
+            "flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+            "text-sidebar-foreground hover:bg-sidebar-accent",
+            "focus:outline-none focus:ring-2 focus:ring-amber-500/50"
+          )}
+        >
+          <span className="text-base">{current?.icon || "⭐"}</span>
+          <span className="flex-1 text-left truncate">{current?.label || "My Work"}</span>
+          <span className="text-sidebar-foreground/40 text-xs">&#x25BC;</span>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={4} className="w-56">
+        {workspaces.map((ws) => (
+          <DropdownMenuItem
+            key={ws.id}
+            onClick={() => onSelect(ws.id)}
+            className={cn(
+              "flex items-center gap-3 py-2",
+              ws.id === active && "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            )}
+          >
+            <span className="text-base">{ws.icon}</span>
+            <span className="font-medium">{ws.label}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// My Work Section
+// ---------------------------------------------------------------------------
+
+function MyWorkSection({
+  favorites,
+  recentPages,
+  quickActions,
+  allItems,
+  activeHref,
+  isFavorite,
+  onToggleFavorite,
+  onNavigate,
+}: {
+  favorites: string[];
+  recentPages: RecentPage[];
+  quickActions: { label: string; href: string; icon: string }[];
+  allItems: NavItemType[];
+  activeHref: string | null;
+  isFavorite: (href: string) => boolean;
+  onToggleFavorite: (href: string) => void;
+  onNavigate?: () => void;
+}) {
+  // Resolve favorite hrefs to nav items
+  const favoriteItems = useMemo(() => {
+    return favorites
+      .map((href) => allItems.find((item) => item.href === href))
+      .filter((item): item is NavItemType => item !== undefined);
+  }, [favorites, allItems]);
+
+  return (
+    <div className="space-y-1">
+      {/* Dashboard — always first */}
+      <SidebarNavItem
+        item={{ label: "Dashboard", href: "/", icon: "📊" }}
+        isActive={activeHref === "/"}
+        isCollapsed={false}
+        onNavigate={onNavigate}
+      />
+
+      {/* Favorites */}
+      {favoriteItems.length > 0 && (
+        <>
+          <WorkspaceSectionSeparator label="Favorites" />
+          {favoriteItems.map((item) => (
+            <SidebarNavItem
+              key={item.href}
+              item={item}
+              isActive={item.href === activeHref}
+              isCollapsed={false}
+              isFavorite={true}
+              onToggleFavorite={onToggleFavorite}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </>
+      )}
+
+      {/* Recent */}
+      {recentPages.length > 0 && (
+        <>
+          <WorkspaceSectionSeparator label="Recent" />
+          {recentPages.slice(0, 5).map((recent) => (
+            <Link
+              key={recent.href}
+              href={recent.href}
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                recent.href === activeHref
+                  ? "bg-sidebar-accent text-amber-400 font-medium"
+                  : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              )}
+            >
+              <span className="text-base shrink-0">{recent.icon}</span>
+              <span className="truncate">{recent.label}</span>
+            </Link>
+          ))}
+        </>
+      )}
+
+      {/* Quick Actions */}
+      {quickActions.length > 0 && (
+        <>
+          <WorkspaceSectionSeparator label="Quick Actions" />
+          {quickActions.map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              onClick={onNavigate}
+              className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-amber-400/80 hover:bg-sidebar-accent hover:text-amber-400 transition-colors"
+            >
+              <span className="text-base shrink-0">{action.icon}</span>
+              <span className="truncate">+ {action.label}</span>
+            </Link>
+          ))}
+        </>
+      )}
     </div>
   );
 }
 
-function filterByPermission(items: NavItemType[], can: (p: string) => boolean, canAny: (p: string[]) => boolean): NavItemType[] {
-  return items.filter((item) => {
-    if (item.requiredPermission) return can(item.requiredPermission);
-    if (item.requiredAnyPermission) return canAny(item.requiredAnyPermission);
-    return true;
-  });
+// ---------------------------------------------------------------------------
+// Project Context Header
+// ---------------------------------------------------------------------------
+
+function ProjectContextHeader({
+  projectId,
+  onBack,
+}: {
+  projectId: string;
+  onBack: () => void;
+}) {
+  return (
+    <div className="px-3 py-2">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors mb-2"
+      >
+        <ArrowLeft className="h-3 w-3" />
+        Back to All Projects
+      </button>
+      <div className="px-3">
+        <ProjectSwitcher />
+      </div>
+    </div>
+  );
 }
 
-export function AppSidebar() {
+// ---------------------------------------------------------------------------
+// Main Sidebar
+// ---------------------------------------------------------------------------
+
+export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: () => void; variant?: "desktop" | "mobile" }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const { can, canAny } = usePermissions();
   const { setHelpOpen } = useKeyboardShortcuts();
+  const {
+    activeWorkspace,
+    isCollapsed,
+    favorites,
+    recentPages,
+    currentProjectId,
+    isProjectContext,
+    visibleWorkspaces,
+    roleDefaults,
+    setActiveWorkspace,
+    toggleCollapsed,
+    toggleFavorite,
+    isFavorite,
+  } = useWorkspaceNav();
 
-  // Extract current project ID from URL for project-scoped navigation
-  const projectMatch = pathname.match(/^\/projects\/([a-f0-9-]+)/i);
-  const currentProjectId = projectMatch?.[1] || null;
-  const projectManagementItems = getProjectManagementItems(currentProjectId);
-
-  // Pinned groups state with localStorage persistence
-  const [pinnedGroups, setPinnedGroups] = useState<string[]>(() => {
-    if (typeof window === "undefined") return DEFAULT_PINNED_GROUPS;
-    try {
-      const stored = localStorage.getItem(PINNED_KEY);
-      return stored ? JSON.parse(stored) : DEFAULT_PINNED_GROUPS;
-    } catch {
-      return DEFAULT_PINNED_GROUPS;
+  // Build items for the current workspace
+  const workspaceItems = useMemo(() => {
+    if (activeWorkspace === "my-work") return []; // My Work is special
+    if (activeWorkspace === "projects") {
+      return getProjectWorkspaceItems(currentProjectId);
     }
-  });
+    const ws = visibleWorkspaces.find((w) => w.id === activeWorkspace);
+    return ws?.items || [];
+  }, [activeWorkspace, currentProjectId, visibleWorkspaces]);
 
-  // "More Modules" collapsible state
-  const [isExpanded, setIsExpanded] = useState(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return localStorage.getItem(EXPANDED_KEY) === "true";
-    } catch {
-      return false;
+  const workspaceSeparators = useMemo(() => {
+    if (activeWorkspace === "projects") {
+      return getProjectWorkspaceSeparators(currentProjectId);
     }
-  });
+    const ws = visibleWorkspaces.find((w) => w.id === activeWorkspace);
+    return ws?.separators;
+  }, [activeWorkspace, currentProjectId, visibleWorkspaces]);
 
-  // Persist pinned groups
-  useEffect(() => {
-    try { localStorage.setItem(PINNED_KEY, JSON.stringify(pinnedGroups)); } catch { /* noop */ }
-  }, [pinnedGroups]);
+  // Filter items by permission
+  const filteredItems = useMemo(() => {
+    return workspaceItems.filter((item) => {
+      if (item.requiredPermission) return can(item.requiredPermission);
+      if (item.requiredAnyPermission) return canAny(item.requiredAnyPermission);
+      return true;
+    });
+  }, [workspaceItems, can, canAny]);
 
-  // Persist expanded state
-  useEffect(() => {
-    try { localStorage.setItem(EXPANDED_KEY, String(isExpanded)); } catch { /* noop */ }
-  }, [isExpanded]);
-
-  const togglePin = useCallback((id: string) => {
-    setPinnedGroups((prev) =>
-      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
-    );
-  }, []);
-
-  // Filter nav items by user permissions
-  const filteredCoreItems = useMemo(() => filterByPermission(coreNavItems, can, canAny), [can, canAny]);
-  const filteredResourceItems = useMemo(() => filterByPermission(resourceItems, can, canAny), [can, canAny]);
-  const filteredReportItems = useMemo(() => filterByPermission(reportItems, can, canAny), [can, canAny]);
-  const filteredAdminItems = useMemo(() => filterByPermission(adminItems, can, canAny), [can, canAny]);
-  const filteredProjectMgmtItems = useMemo(() => filterByPermission(projectManagementItems, can, canAny), [projectManagementItems, can, canAny]);
-
-  const filteredModuleGroups = useMemo(() => {
-    return moduleGroups
-      .map((g) => ({ ...g, items: filterByPermission(g.items, can, canAny) }))
-      .filter((g) => g.items.length > 0);
-  }, [can, canAny]);
-
-  const pinnedModules = filteredModuleGroups.filter((g) => pinnedGroups.includes(g.id));
-  const unpinnedModules = filteredModuleGroups.filter((g) => !pinnedGroups.includes(g.id));
-
-  // Compute the single active href across all nav items
-  const allNavItems = useMemo(() => {
-    const moduleItems = filteredModuleGroups.flatMap((g) => g.items);
-    return [
-      ...filteredCoreItems,
-      ...filteredResourceItems,
-      ...moduleItems,
-      ...filteredProjectMgmtItems,
-      ...filteredReportItems,
-      ...settingsItems,
-      ...helpItems,
-      ...filteredAdminItems,
-    ];
-  }, [filteredCoreItems, filteredResourceItems, filteredModuleGroups, filteredProjectMgmtItems, filteredReportItems, filteredAdminItems]);
+  // All items for active href calculation
+  const allNavItems = useMemo(() => getAllNavItems(currentProjectId), [currentProjectId]);
 
   const activeHref = useMemo(
     () => findActiveHref(pathname, allNavItems),
     [pathname, allNavItems]
   );
 
+  // Build items with separators inserted
+  const itemsWithSeparators = useMemo(() => {
+    if (!workspaceSeparators || workspaceSeparators.length === 0) {
+      return filteredItems.map((item) => ({ type: "item" as const, item }));
+    }
+
+    const result: ({ type: "item"; item: NavItemType } | { type: "separator"; label: string })[] = [];
+    const sepMap = new Map(workspaceSeparators.map((s) => [s.beforeIndex, s.label]));
+
+    // We need to map original indices to filtered indices
+    let originalIndex = 0;
+    for (const item of workspaceItems) {
+      const sepLabel = sepMap.get(originalIndex);
+      if (sepLabel) {
+        // Only add separator if the item at this index passed filtering
+        const isFiltered = filteredItems.includes(item);
+        if (isFiltered) {
+          result.push({ type: "separator", label: sepLabel });
+        }
+      }
+      if (filteredItems.includes(item)) {
+        result.push({ type: "item", item });
+      }
+      originalIndex++;
+    }
+
+    return result;
+  }, [filteredItems, workspaceItems, workspaceSeparators]);
+
+  // Settings dropdown items (removed from main nav, accessible via user menu)
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Mobile variant: always visible, never collapsed, full width
+  const isMobile = variant === "mobile";
+  const effectiveCollapsed = isMobile ? false : isCollapsed;
+
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar text-sidebar-foreground min-h-screen">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500 font-bold text-lg">
-          P
-        </div>
-        <div>
-          <h1 className="font-bold text-lg leading-tight">Pitbull</h1>
-          <p className="text-xs text-sidebar-foreground/60">Construction Solutions</p>
-        </div>
+    <aside
+      className={cn(
+        "flex flex-col bg-sidebar text-sidebar-foreground transition-all duration-200",
+        isMobile
+          ? "w-full h-full min-h-0"
+          : cn("hidden lg:flex min-h-screen", effectiveCollapsed ? "lg:w-[52px]" : "lg:w-64")
+      )}
+    >
+      {/* Logo + Collapse Toggle */}
+      <div className={cn(
+        "flex items-center gap-3 py-4",
+        effectiveCollapsed ? "px-2 justify-center" : "px-5"
+      )}>
+        <Link href="/" className="flex items-center gap-3" onClick={onNavigate}>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 font-bold text-sm shrink-0">
+            P
+          </div>
+          {!effectiveCollapsed && (
+            <div>
+              <h1 className="font-bold text-sm leading-tight">Pitbull</h1>
+              <p className="text-[10px] text-sidebar-foreground/60">Construction Solutions</p>
+            </div>
+          )}
+        </Link>
+        {!effectiveCollapsed && !isMobile && (
+          <button
+            onClick={toggleCollapsed}
+            className="ml-auto text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+            aria-label="Collapse sidebar"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+        )}
       </div>
+
+      {/* Collapsed expand button */}
+      {effectiveCollapsed && (
+        <button
+          onClick={toggleCollapsed}
+          className="mx-auto mb-1 text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors"
+          aria-label="Expand sidebar"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
 
       <Separator className="bg-sidebar-border" />
 
       {/* Company Switcher */}
-      <div className="px-3 pt-3">
-        <CompanySwitcher variant="sidebar" />
+      {!effectiveCollapsed && (
+        <>
+          <div className="px-3 pt-3 pb-2">
+            <CompanySwitcher variant="sidebar" />
+          </div>
+          <Separator className="bg-sidebar-border mx-3" />
+        </>
+      )}
+
+      {/* Workspace Switcher */}
+      <div className={cn("pt-2", effectiveCollapsed ? "px-0.5" : "px-3")}>
+        <WorkspaceSwitcher
+          workspaces={visibleWorkspaces}
+          active={activeWorkspace}
+          onSelect={setActiveWorkspace}
+          isCollapsed={effectiveCollapsed}
+        />
       </div>
 
-      <Separator className="bg-sidebar-border mx-3" />
-
-      {/* Quick Project Switcher */}
-      <div className="px-3 pt-2">
-        <ProjectSwitcher />
-      </div>
+      {!effectiveCollapsed && <Separator className="bg-sidebar-border mx-3 mt-2" />}
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {/* Core nav -- always visible */}
-        {filteredCoreItems.map((item) => (
-          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-        ))}
-
-        {/* Resources */}
-        {filteredResourceItems.length > 0 && (
-          <>
-            <SectionHeader label="Resources" />
-            {filteredResourceItems.map((item) => (
-              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-            ))}
-          </>
-        )}
-
-        {/* Pinned module groups */}
-        {pinnedModules.map((group) => (
-          <ModuleSection
-            key={group.id}
-            group={group}
-            isPinned={true}
-            onTogglePin={togglePin}
+      <nav className={cn(
+        "flex-1 py-2 space-y-0.5 overflow-y-auto",
+        effectiveCollapsed ? "px-1" : "px-3"
+      )}>
+        {/* My Work — special rendering */}
+        {activeWorkspace === "my-work" && !effectiveCollapsed && (
+          <MyWorkSection
+            favorites={favorites}
+            recentPages={recentPages}
+            quickActions={roleDefaults.quickActions}
+            allItems={allNavItems}
             activeHref={activeHref}
+            isFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
+            onNavigate={onNavigate}
           />
-        ))}
+        )}
 
-        {/* More Modules -- collapsible for unpinned groups */}
-        {unpinnedModules.length > 0 && (
-          <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-            <CollapsibleTrigger className="flex items-center justify-between w-full pt-4 pb-2 px-3 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:text-sidebar-foreground/70 transition-colors">
-              <span>More Modules ({unpinnedModules.length})</span>
-              <span className={cn("transition-transform text-[10px]", isExpanded && "rotate-180")}>
-                &#x25BC;
-              </span>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              {unpinnedModules.map((group) => (
-                <ModuleSection
-                  key={group.id}
-                  group={group}
-                  isPinned={false}
-                  onTogglePin={togglePin}
-                  activeHref={activeHref}
+        {/* Project Context Header */}
+        {activeWorkspace === "projects" && isProjectContext && !effectiveCollapsed && (
+          <ProjectContextHeader
+            projectId={currentProjectId!}
+            onBack={() => {
+              setActiveWorkspace("projects");
+              router.push("/projects");
+            }}
+          />
+        )}
+
+        {/* Workspace items (not My Work) */}
+        {activeWorkspace !== "my-work" && (
+          <>
+            {itemsWithSeparators.map((entry, i) => {
+              if (entry.type === "separator") {
+                if (effectiveCollapsed) return null;
+                return <WorkspaceSectionSeparator key={`sep-${entry.label}`} label={entry.label} />;
+              }
+              return (
+                <SidebarNavItem
+                  key={entry.item.href}
+                  item={entry.item}
+                  isActive={entry.item.href === activeHref}
+                  isCollapsed={effectiveCollapsed}
+                  isFavorite={isFavorite(entry.item.href)}
+                  onToggleFavorite={effectiveCollapsed ? undefined : toggleFavorite}
+                  onNavigate={onNavigate}
                 />
-              ))}
-            </CollapsibleContent>
-          </Collapsible>
-        )}
-
-        {/* Project Management Section */}
-        {filteredProjectMgmtItems.length > 0 && (
-          <>
-            <SectionHeader label="Project Management" />
-            {!currentProjectId && (
-              <div className="px-3 pb-1">
-                <p className="text-xs text-sidebar-foreground/40 italic">
-                  Select a project to navigate
-                </p>
-                <Link
-                  href="/projects"
-                  className="inline-flex items-center gap-1 mt-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
-                >
-                  Go to Projects &rarr;
-                </Link>
-              </div>
-            )}
-            {filteredProjectMgmtItems.map((item) => (
-              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-            ))}
+              );
+            })}
           </>
         )}
 
-        {/* Reports Section */}
-        {filteredReportItems.length > 0 && (
+        {/* Collapsed: show My Work as simple icons for favorites */}
+        {activeWorkspace === "my-work" && effectiveCollapsed && (
           <>
-            <SectionHeader label="Reports" />
-            {filteredReportItems.map((item) => (
-              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-            ))}
+            <SidebarNavItem
+              item={{ label: "Dashboard", href: "/", icon: "📊" }}
+              isActive={activeHref === "/"}
+              isCollapsed={true}
+              onNavigate={onNavigate}
+            />
+            {favorites.slice(0, 5).map((href) => {
+              const item = allNavItems.find((n) => n.href === href);
+              if (!item) return null;
+              return (
+                <SidebarNavItem
+                  key={href}
+                  item={item}
+                  isActive={item.href === activeHref}
+                  isCollapsed={true}
+                  onNavigate={onNavigate}
+                />
+              );
+            })}
           </>
         )}
-
-        {/* Settings Section */}
-        <SectionHeader label="Settings" />
-        {settingsItems.map((item) => (
-          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-        ))}
-
-        {/* Admin Section - Only visible to users with admin permissions */}
-        {filteredAdminItems.length > 0 && (
-          <>
-            <SectionHeader label="Admin" />
-            {filteredAdminItems.map((item) => (
-              <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-            ))}
-          </>
-        )}
-
-        {/* Help */}
-        {helpItems.map((item) => (
-          <NavItem key={item.label} item={item} isActive={item.href === activeHref} />
-        ))}
       </nav>
 
-      <Separator className="bg-sidebar-border" />
-
-      {/* Footer Links */}
-      <div className="px-4 py-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
-        <Link href="/help" className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">Help</Link>
-        <button
-          onClick={() => setHelpOpen(true)}
-          className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
-        >
-          Shortcuts
-        </button>
-        <Link href="/privacy" className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">Privacy</Link>
-        <Link href="/terms" className="text-[10px] text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors">Terms</Link>
-      </div>
-      <div className="px-4 pb-2 text-center">
-        <p className="text-[10px] text-sidebar-foreground/40">
-          Pitbull v0.12.0
-        </p>
-      </div>
-
-      <Separator className="bg-sidebar-border" />
-
-      {/* User Info */}
-      <div className="px-4 py-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-sm font-medium">
-            {user?.name?.charAt(0)?.toUpperCase() || "U"}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
-            <p className="text-xs text-sidebar-foreground/60 truncate">
-              {user?.email || ""}
-            </p>
-          </div>
-          <button
-            onClick={logout}
-            className="text-sidebar-foreground/60 hover:text-sidebar-foreground text-sm min-h-[44px] min-w-[44px] flex items-center justify-center"
-            aria-label="Sign out"
+      {/* AI Trigger */}
+      {!effectiveCollapsed ? (
+        <div className="px-3 py-2">
+          <Separator className="bg-sidebar-border mb-2" />
+          <Link
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              // Opens AI chat panel via existing AiChatPanel component
+              const event = new CustomEvent("pitbull:open-ai-chat");
+              window.dispatchEvent(event);
+            }}
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
           >
-            &#x2197;
-          </button>
+            <Sparkles className="h-4 w-4 text-amber-400" />
+            <span>Ask Pitbull AI</span>
+          </Link>
         </div>
+      ) : (
+        <div className="flex justify-center py-2">
+          <SimpleTooltip content="Ask Pitbull AI" side="right">
+            <button
+              onClick={() => {
+                const event = new CustomEvent("pitbull:open-ai-chat");
+                window.dispatchEvent(event);
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-amber-400 transition-colors"
+              aria-label="Ask Pitbull AI"
+            >
+              <Sparkles className="h-4 w-4" />
+            </button>
+          </SimpleTooltip>
+        </div>
+      )}
+
+      <Separator className="bg-sidebar-border" />
+
+      {/* User Section */}
+      <div className={cn("py-3", effectiveCollapsed ? "px-1" : "px-3")}>
+        {effectiveCollapsed ? (
+          <div className="flex flex-col items-center gap-1">
+            <SimpleTooltip content="Settings" side="right">
+              <Link
+                href="/settings"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+                aria-label="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
+            </SimpleTooltip>
+            <SimpleTooltip content={user?.name || "User"} side="right">
+              <button
+                onClick={logout}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium"
+                aria-label="Sign out"
+              >
+                {user?.name?.charAt(0)?.toUpperCase() || "U"}
+              </button>
+            </SimpleTooltip>
+          </div>
+        ) : (
+          <DropdownMenu open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-sidebar-accent transition-colors text-left">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-sm font-medium shrink-0">
+                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{user?.name || "User"}</p>
+                  <p className="text-xs text-sidebar-foreground/60 truncate">
+                    {user?.email || ""}
+                  </p>
+                </div>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" sideOffset={8} className="w-56">
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/help" className="flex items-center gap-2">
+                  <HelpCircle className="h-4 w-4" />
+                  Help Center
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setHelpOpen(true)}>
+                <span className="flex items-center gap-2">
+                  <span className="text-xs font-mono bg-muted px-1 rounded">?</span>
+                  Keyboard Shortcuts
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={logout} className="text-red-600 dark:text-red-400">
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </aside>
   );
