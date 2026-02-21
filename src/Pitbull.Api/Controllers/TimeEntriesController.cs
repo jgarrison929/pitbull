@@ -997,7 +997,7 @@ public record BatchCreateRequest(
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Time Entries")]
-public class TimeEntryAuditController(PitbullDbContext auditDb) : ControllerBase
+public class TimeEntryAuditController(PitbullDbContext auditDb, ITenantContext tenantContext) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(TimeEntryAuditListResponse), StatusCodes.Status200OK)]
@@ -1007,11 +1007,13 @@ public class TimeEntryAuditController(PitbullDbContext auditDb) : ControllerBase
         [FromQuery] string? action,
         [FromQuery] string? search,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 25)
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
     {
+        var tenantId = tenantContext.TenantId;
         var query = auditDb.Set<AuditLog>()
             .AsNoTracking()
-            .Where(a => a.ResourceType == "TimeEntry");
+            .Where(a => a.TenantId == tenantId && a.ResourceType == "TimeEntry");
 
         // Filter to approval-related actions
         var approvalActions = new[] { AuditAction.Create, AuditAction.Update, AuditAction.Approval, AuditAction.Rejection, AuditAction.StatusChange };
@@ -1028,7 +1030,7 @@ public class TimeEntryAuditController(PitbullDbContext auditDb) : ControllerBase
                 (a.UserName != null && a.UserName.Contains(search)) ||
                 (a.Description != null && a.Description.Contains(search)));
 
-        var totalCount = await query.CountAsync();
+        var totalCount = await query.CountAsync(cancellationToken);
         pageSize = Math.Clamp(pageSize, 1, 100);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
@@ -1046,7 +1048,7 @@ public class TimeEntryAuditController(PitbullDbContext auditDb) : ControllerBase
                 Changes = a.Changes,
                 Timestamp = a.Timestamp,
             })
-            .ToListAsync();
+            .ToListAsync(cancellationToken);
 
         return Ok(new TimeEntryAuditListResponse
         {

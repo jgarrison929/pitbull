@@ -70,10 +70,12 @@ function formatTimestamp(iso: string): string {
 function parseStatusFromChanges(changes: string | null): string | null {
   if (!changes) return null;
   try {
-    const parsed = JSON.parse(changes) as Record<string, { OldValue?: string; NewValue?: string }>;
-    if (parsed.Status) {
-      const oldStatus = parsed.Status.OldValue ?? "—";
-      const newStatus = parsed.Status.NewValue ?? "—";
+    const parsed = JSON.parse(changes) as Record<string, { oldValue?: string; newValue?: string; OldValue?: string; NewValue?: string }>;
+    // Check both "Status" (dict key = C# property name) and camelCase value props
+    const statusEntry = parsed.Status || parsed.status;
+    if (statusEntry) {
+      const oldStatus = statusEntry.oldValue ?? statusEntry.OldValue ?? "—";
+      const newStatus = statusEntry.newValue ?? statusEntry.NewValue ?? "—";
       return `${oldStatus} → ${newStatus}`;
     }
   } catch { /* ignore */ }
