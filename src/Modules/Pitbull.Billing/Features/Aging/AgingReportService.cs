@@ -180,7 +180,8 @@ public class AgingReportService(
         {
             var dueDate = getDate(item);
             var amount = getAmount(item);
-            int daysOverdue = asOfDate.ToDateTime(TimeOnly.MinValue).Subtract(dueDate.ToDateTime(TimeOnly.MinValue)).Days;
+            // DayNumber is days since Jan 1, 0001 (not day-of-year), so subtraction gives correct day count across year boundaries
+            int daysOverdue = asOfDate.DayNumber - dueDate.DayNumber;
 
             if (daysOverdue <= 0)
                 current += amount;
