@@ -527,7 +527,7 @@ export default function MigrationWizardPage() {
               <CardHeader>
                 <CardTitle>Detection Results</CardTitle>
                 <CardDescription>
-                  Format: <strong>{detection.detectedFormat}</strong> (confidence: {Math.round(detection.confidence * 100)}%)
+                  Format: <strong>{detection.displayName}</strong> (confidence: {Math.round(detection.confidence * 100)}%)
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
