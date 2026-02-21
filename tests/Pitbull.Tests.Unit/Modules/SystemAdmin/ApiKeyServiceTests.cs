@@ -2,21 +2,15 @@ using System.Security.Cryptography;
 using System.Text;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Pitbull.Core.Data;
-using Pitbull.SystemAdmin.Features;
 using Pitbull.SystemAdmin.Domain;
 using Pitbull.SystemAdmin.Services;
 using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Modules.SystemAdmin;
 
+[Collection("SystemAdmin")]
 public sealed class ApiKeyServiceTests
 {
-    static ApiKeyServiceTests()
-    {
-        PitbullDbContext.RegisterModuleAssembly(typeof(SystemAdminModuleMarker).Assembly);
-    }
-
     [Fact]
     public async Task CreateKey_GeneratesExpectedKeyFormat_AndPrefix()
     {

@@ -8,6 +8,7 @@ using Pitbull.Core.MultiTenancy;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
+using Pitbull.SystemAdmin.Features;
 using Pitbull.TimeTracking.Features.CreateTimeEntry;
 
 namespace Pitbull.Tests.Unit.Helpers;
@@ -33,6 +34,7 @@ public static class TestDbContextFactory
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectManagementModuleCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(BillingModuleMarker).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(SystemAdminModuleMarker).Assembly);
     }
 
     public static PitbullDbContext Create(Guid? tenantId = null, string? dbName = null, Guid? companyId = null)

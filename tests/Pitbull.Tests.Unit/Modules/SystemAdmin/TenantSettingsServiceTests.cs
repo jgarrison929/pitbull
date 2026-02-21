@@ -1,19 +1,13 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Pitbull.Core.Data;
-using Pitbull.SystemAdmin.Features;
 using Pitbull.SystemAdmin.Services;
 using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Modules.SystemAdmin;
 
+[Collection("SystemAdmin")]
 public sealed class TenantSettingsServiceTests
 {
-    static TenantSettingsServiceTests()
-    {
-        PitbullDbContext.RegisterModuleAssembly(typeof(SystemAdminModuleMarker).Assembly);
-    }
-
     [Fact]
     public async Task GetSettings_NoExistingRow_ReturnsDefaultValues()
     {
