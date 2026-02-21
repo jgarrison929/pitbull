@@ -26,9 +26,13 @@ public class AiController(
         return Guid.TryParse(tenantClaim, out var tid) ? tid : Guid.Empty;
     }
 
+    private static readonly HashSet<string> AllowedProviders = new(StringComparer.OrdinalIgnoreCase)
+        { "openai", "anthropic", "google", "azure-openai" };
+
     // ── Key Management ──────────────────────────────────────────────
 
     [HttpGet("settings")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetSettings(CancellationToken ct)
     {
         var tenantId = GetTenantId();
@@ -41,17 +45,28 @@ public class AiController(
     }
 
     [HttpPost("settings/keys")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> StoreKey(
         [FromBody] StoreAiKeyRequest request, CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(request.Provider) || !AllowedProviders.Contains(request.Provider))
+            return BadRequest(new { error = $"Invalid provider. Allowed: {string.Join(", ", AllowedProviders)}" });
+
+        if (string.IsNullOrWhiteSpace(request.ApiKey) || request.ApiKey.Length < 10 || request.ApiKey.Length > 256)
+            return BadRequest(new { error = "API key must be between 10 and 256 characters" });
+
         var tenantId = GetTenantId();
         await aiApiKeyService.StoreKeyAsync(tenantId, request.Provider, request.ApiKey, null, ct);
         return Ok(new { stored = true, provider = request.Provider });
     }
 
     [HttpDelete("settings/keys/{provider}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> RevokeKey(string provider, CancellationToken ct)
     {
+        if (!AllowedProviders.Contains(provider))
+            return BadRequest(new { error = "Invalid provider" });
+
         var tenantId = GetTenantId();
         await aiApiKeyService.RevokeKeyAsync(tenantId, provider, ct);
         return Ok(new { revoked = true, provider });

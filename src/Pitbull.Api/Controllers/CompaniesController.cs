@@ -181,7 +181,7 @@ public class CompaniesController(
         Code: c.Code,
         Name: c.Name,
         ShortName: c.ShortName,
-        TaxId: c.TaxId,
+        TaxId: MaskTaxId(c.TaxId),
         Address: c.Address,
         City: c.City,
         State: c.State,
@@ -198,6 +198,16 @@ public class CompaniesController(
         IsActive: c.IsActive,
         IsDefault: c.IsDefault,
         SortOrder: c.SortOrder);
+
+    /// <summary>
+    /// Masks TaxId (EIN) for non-admin endpoints, showing only the last 4 characters.
+    /// </summary>
+    private static string? MaskTaxId(string? taxId)
+    {
+        if (string.IsNullOrWhiteSpace(taxId) || taxId.Length <= 4)
+            return taxId;
+        return "***" + taxId[^4..];
+    }
 }
 
 /// <summary>

@@ -146,22 +146,37 @@ public class AdminUsersController(
             user.Status = status;
         }
 
-        // Update employee link
+        // Update employee link — validate it belongs to the same tenant
         if (request.EmployeeId.HasValue)
         {
             if (request.EmployeeId.Value == Guid.Empty)
+            {
                 user.EmployeeId = null; // Explicitly unlink
+            }
             else
+            {
+                var employeeExists = await db.Set<Pitbull.TimeTracking.Domain.Employee>()
+                    .AnyAsync(e => e.Id == request.EmployeeId.Value);
+                if (!employeeExists)
+                    return BadRequest(new { error = "Employee not found in this tenant" });
                 user.EmployeeId = request.EmployeeId.Value;
+            }
         }
 
-        // Update company link
+        // Update company link — validate it belongs to the same tenant
         if (request.CompanyId.HasValue)
         {
             if (request.CompanyId.Value == Guid.Empty)
+            {
                 user.CompanyId = null; // Explicitly unlink
+            }
             else
+            {
+                var companyExists = await db.Companies.AnyAsync(c => c.Id == request.CompanyId.Value);
+                if (!companyExists)
+                    return BadRequest(new { error = "Company not found in this tenant" });
                 user.CompanyId = request.CompanyId.Value;
+            }
         }
 
         // Update roles if provided (frontend sends short names like "Admin", DB stores "{tenantId}:Admin")
@@ -226,20 +241,19 @@ public class AdminUsersController(
     [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> BootstrapAdmin([FromBody] BootstrapAdminRequest request)
     {
-        // Find the user by email
+        // All non-success branches return the same generic 400 response to prevent
+        // email enumeration and tenant state leakage on this [AllowAnonymous] endpoint.
+        const string genericError = "Bootstrap failed. Verify the email address and try again.";
+
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
         if (user == null)
-            return NotFound(new { error = "User not found" });
+            return BadRequest(new { error = genericError });
 
-        // Ensure roles exist for the tenant
         var tenantId = user.TenantId;
 
         // Guard: once an admin exists for this tenant, bootstrap is permanently disabled.
-        // This prevents privilege escalation — any authenticated user could previously
-        // call this endpoint to grant themselves admin access.
         var adminRoleNameForCheck = $"{tenantId}:Admin";
         var existingAdminRole = await roleManager.FindByNameAsync(adminRoleNameForCheck);
         if (existingAdminRole != null)
@@ -248,10 +262,7 @@ public class AdminUsersController(
                 .AnyAsync(ur => ur.RoleId == existingAdminRole.Id);
 
             if (adminExists)
-            {
-                return StatusCode(StatusCodes.Status403Forbidden,
-                    new { error = "Bootstrap is disabled — an admin already exists for this tenant. Use the admin user management API to grant roles." });
-            }
+                return BadRequest(new { error = genericError });
         }
         var adminRoleName = $"{tenantId}:Admin";
 
@@ -272,9 +283,9 @@ public class AdminUsersController(
             await roleManager.CreateAsync(adminRole);
         }
 
-        // Check if user already has admin role
+        // Check if user already has admin role — same generic error
         if (await userManager.IsInRoleAsync(user, adminRoleName))
-            return Ok(new { message = $"User {request.Email} is already an Admin" });
+            return BadRequest(new { error = genericError });
 
         // Add user to admin role
         var result = await userManager.AddToRoleAsync(user, adminRoleName);

@@ -1,9 +1,10 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import api from "@/lib/api";
 import { getToken, setToken, removeToken, setRefreshToken, removeRefreshToken, decodeToken, isTokenExpired } from "@/lib/auth";
 import { posthog } from "@/lib/posthog";
+import { API_BASE_URL } from "@/lib/config";
 
 function buildUserFromToken(token: string): User | null {
   if (!token || isTokenExpired(token)) return null;
@@ -104,6 +105,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Revoke refresh token server-side (fire-and-forget)
+    const token = getToken();
+    if (token) {
+      fetch(`${API_BASE_URL}/api/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {/* best-effort */});
+    }
+
     removeToken();
     removeRefreshToken();
     setUser(null);
@@ -116,6 +126,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") {
       window.location.href = "/login";
     }
+  }, []);
+
+  // Cross-tab logout sync: when another tab removes the token, log out here too
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "pitbull_token" && e.newValue === null) {
+        setUser(null);
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // Re-validate token when tab regains focus
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        const token = getToken();
+        if (!token || isTokenExpired(token)) {
+          setUser(null);
+        }
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   // Role helper functions

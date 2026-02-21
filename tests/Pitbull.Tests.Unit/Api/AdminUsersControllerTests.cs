@@ -130,9 +130,10 @@ public class AdminUsersControllerTests
     }
 
     [Fact]
-    public async Task BootstrapAdmin_WhenAdminExists_AndUnauthenticated_ShouldReturn403()
+    public async Task BootstrapAdmin_WhenAdminExists_AndUnauthenticated_ShouldReturnGenericBadRequest()
     {
-        // Arrange
+        // Arrange — all non-success branches return the same generic 400 to prevent
+        // email enumeration and tenant state leakage.
         using var db = TestDbContextFactory.Create();
         var userManagerMock = CreateMockUserManager();
         var roleManagerMock = CreateMockRoleManager();
@@ -196,20 +197,18 @@ public class AdminUsersControllerTests
         // Act
         var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "victim@test.com" });
 
-        // Assert
-        result.Should().BeOfType<ObjectResult>();
-        var objectResult = (ObjectResult)result;
-        objectResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        // Assert — same generic 400 as "user not found" (indistinguishable)
+        result.Should().BeOfType<BadRequestObjectResult>();
 
         // Verify AddToRoleAsync was never called (escalation blocked)
         userManagerMock.Verify(u => u.AddToRoleAsync(It.IsAny<AppUser>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task BootstrapAdmin_WhenAdminExists_AndAuthenticatedAsAdmin_ShouldReturn403()
+    public async Task BootstrapAdmin_WhenAdminExists_AndAuthenticatedAsAdmin_ShouldReturnGenericBadRequest()
     {
-        // Arrange — bootstrap is permanently disabled once an admin exists,
-        // even for authenticated admins. Use the admin user management API instead.
+        // Arrange — bootstrap is permanently disabled once an admin exists.
+        // Returns same generic 400 as all other failure branches.
         using var db = TestDbContextFactory.Create();
         var userManagerMock = CreateMockUserManager();
         var roleManagerMock = CreateMockRoleManager();
@@ -272,18 +271,17 @@ public class AdminUsersControllerTests
         // Act
         var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "promote@test.com" });
 
-        // Assert — 403 because bootstrap is disabled once an admin exists
-        var objectResult = result.Should().BeOfType<ObjectResult>().Subject;
-        objectResult.StatusCode.Should().Be(403);
+        // Assert — same generic 400 as all other failures (indistinguishable)
+        result.Should().BeOfType<BadRequestObjectResult>();
 
         // Verify no role assignments were made
         userManagerMock.Verify(u => u.AddToRoleAsync(It.IsAny<AppUser>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task BootstrapAdmin_WhenUserNotFound_ShouldReturn404()
+    public async Task BootstrapAdmin_WhenUserNotFound_ShouldReturnGenericBadRequest()
     {
-        // Arrange
+        // Arrange — uses a generic error to prevent email enumeration
         using var db = TestDbContextFactory.Create();
         var userManagerMock = CreateMockUserManager();
         var roleManagerMock = CreateMockRoleManager();
@@ -293,8 +291,8 @@ public class AdminUsersControllerTests
         // Act
         var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "nobody@test.com" });
 
-        // Assert
-        result.Should().BeOfType<NotFoundObjectResult>();
+        // Assert — BadRequest, not NotFound (prevents email enumeration)
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     #endregion
@@ -318,6 +316,17 @@ public class AdminUsersControllerTests
         SetupUserManagerForUpdateTests(userManagerMock);
 
         var employeeId = Guid.NewGuid();
+
+        // Seed an Employee entity so the tenant-scoped validation passes
+        db.Set<Pitbull.TimeTracking.Domain.Employee>().Add(new Pitbull.TimeTracking.Domain.Employee
+        {
+            Id = employeeId,
+            TenantId = TestTenantId,
+            EmployeeNumber = "EMP-001",
+            FirstName = "Linked",
+            LastName = "Employee"
+        });
+
         var user = new AppUser
         {
             Id = Guid.NewGuid(),
@@ -361,6 +370,17 @@ public class AdminUsersControllerTests
         SetupUserManagerForUpdateTests(userManagerMock);
 
         var companyId = Guid.NewGuid();
+
+        // Seed a Company entity so the tenant-scoped validation passes
+        db.Companies.Add(new Pitbull.Core.Domain.Company
+        {
+            Id = companyId,
+            TenantId = TestTenantId,
+            Code = "02",
+            Name = "Linked Company",
+            IsActive = true
+        });
+
         var user = new AppUser
         {
             Id = Guid.NewGuid(),
@@ -475,6 +495,76 @@ public class AdminUsersControllerTests
         var dto = ((OkObjectResult)result).Value as AdminUserDto;
         dto.Should().NotBeNull();
         dto!.EmployeeId.Should().Be(existingEmployeeId);
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithNonExistentEmployeeId_ShouldReturnBadRequest()
+    {
+        // Arrange — validates that linking to a non-existent employee is rejected
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        SetupUserManagerForUpdateTests(userManagerMock);
+
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "user@test.com",
+            NormalizedEmail = "USER@TEST.COM",
+            UserName = "user@test.com",
+            NormalizedUserName = "USER@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "Test",
+            LastName = "User"
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: true, authenticatedRole: "Admin");
+
+        // Act — non-existent EmployeeId
+        var result = await controller.UpdateUser(user.Id, new UpdateUserRequest
+        {
+            EmployeeId = Guid.NewGuid()
+        });
+
+        // Assert
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task UpdateUser_WithNonExistentCompanyId_ShouldReturnBadRequest()
+    {
+        // Arrange — validates that linking to a non-existent company is rejected
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        SetupUserManagerForUpdateTests(userManagerMock);
+
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "user@test.com",
+            NormalizedEmail = "USER@TEST.COM",
+            UserName = "user@test.com",
+            NormalizedUserName = "USER@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "Test",
+            LastName = "User"
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: true, authenticatedRole: "Admin");
+
+        // Act — non-existent CompanyId
+        var result = await controller.UpdateUser(user.Id, new UpdateUserRequest
+        {
+            CompanyId = Guid.NewGuid()
+        });
+
+        // Assert
+        result.Should().BeOfType<BadRequestObjectResult>();
     }
 
     #endregion

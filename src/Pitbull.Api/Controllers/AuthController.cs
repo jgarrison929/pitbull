@@ -449,6 +449,32 @@ public class AuthController(
     }
 
     /// <summary>
+    /// Logout — revokes the user's refresh token so it can't be used to mint new access tokens.
+    /// </summary>
+    [HttpPost("logout")]
+    [Microsoft.AspNetCore.Authorization.Authorize]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logout()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            var user = await userManager.FindByIdAsync(userId);
+            if (user is not null)
+            {
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
+                await userManager.UpdateAsync(user);
+            }
+        }
+
+        return Ok(new { message = "Logged out successfully" });
+    }
+
+    /// <summary>
     /// Bootstrap admin role for demo user (temporary endpoint)
     /// </summary>
     /// <remarks>

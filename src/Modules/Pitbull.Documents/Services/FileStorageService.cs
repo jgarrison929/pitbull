@@ -27,10 +27,16 @@ public class FileStorageService(PitbullDbContext db, IConfiguration configuratio
 
         var basePath = GetBasePath();
         var tenantFolder = tenantContext.TenantId != Guid.Empty ? tenantContext.TenantId.ToString("N") : "default";
-        var entityFolder = command.RelatedEntityType ?? "general";
+        var entityFolder = SanitizeEntityType(command.RelatedEntityType ?? "general");
         var safeFileName = $"{Guid.NewGuid():N}_{SanitizeFileName(command.FileName)}";
         var relativePath = Path.Combine(tenantFolder, entityFolder, safeFileName);
         var fullPath = Path.Combine(basePath, relativePath);
+
+        // Guard: ensure resolved path stays within the base directory
+        var resolvedBase = Path.GetFullPath(basePath);
+        var resolvedFull = Path.GetFullPath(fullPath);
+        if (!resolvedFull.StartsWith(resolvedBase, StringComparison.OrdinalIgnoreCase))
+            return Result.Failure<FileAttachmentDto>("Invalid storage path", "VALIDATION_ERROR");
 
         Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 
@@ -119,6 +125,13 @@ public class FileStorageService(PitbullDbContext db, IConfiguration configuratio
         f.UploadedById, f.CreatedAt,
         f.RelatedEntityType, f.RelatedEntityId
     );
+
+    private static string SanitizeEntityType(string entityType)
+    {
+        // Only allow alphanumeric, hyphens, underscores — strip everything else
+        var sanitized = System.Text.RegularExpressions.Regex.Replace(entityType, @"[^a-zA-Z0-9_\-]", "");
+        return string.IsNullOrWhiteSpace(sanitized) ? "general" : sanitized;
+    }
 
     private static string SanitizeFileName(string fileName)
     {
