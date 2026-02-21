@@ -667,23 +667,24 @@ app.MapControllers();
 // Capture 404s on /api/ routes as diagnostic errors (after endpoint routing)
 app.UseMiddleware<ApiNotFoundMiddleware>();
 
-// Health check endpoints with deep dependency checks
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
-
+// Health check endpoints
+// /health/live is unauthenticated (k8s liveness probe) — minimal output, no infrastructure details
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("live"),
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
+
+// /health and /health/ready expose component details — require auth
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+}).RequireAuthorization();
 
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready"),
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
-});
+}).RequireAuthorization();
 
 app.Run();
 

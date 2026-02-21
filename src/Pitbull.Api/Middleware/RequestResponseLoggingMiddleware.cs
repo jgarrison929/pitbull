@@ -75,7 +75,7 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         {
             StatusCode = context.Response.StatusCode,
             Headers = GetSafeHeaders(context.Response.Headers),
-            Body = responseBody
+            Body = SanitizeJsonBody(responseBody)
         };
 
         logger.LogWarning("API Error Response. CorrelationId: {CorrelationId}, Response: {@Response}", correlationId, logData);

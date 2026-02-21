@@ -123,6 +123,44 @@ public class RequestResponseLoggingMiddlewareTests
             Times.Once);
     }
 
+    // ── Sanitizes sensitive fields in error response body ───
+
+    [Theory]
+    [InlineData("password")]
+    [InlineData("token")]
+    [InlineData("secret")]
+    [InlineData("key")]
+    public async Task InvokeAsync_SanitizesSensitiveFields_InErrorResponseBody(string fieldName)
+    {
+        string? loggedMessage = null;
+        _loggerMock.Setup(x => x.Log(
+            LogLevel.Warning,
+            It.IsAny<EventId>(),
+            It.IsAny<It.IsAnyType>(),
+            It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback<LogLevel, EventId, object, Exception?, Delegate>((_, _, state, _, _) =>
+            {
+                loggedMessage = state.ToString();
+            });
+
+        var responseJson = $"{{\"{fieldName}\": \"leaked-secret-value\", \"error\": \"bad request\"}}";
+        var middleware = CreateMiddleware(ctx =>
+        {
+            ctx.Response.StatusCode = 400;
+            ctx.Response.ContentType = "application/json";
+            var bytes = Encoding.UTF8.GetBytes(responseJson);
+            return ctx.Response.Body.WriteAsync(bytes, 0, bytes.Length);
+        });
+
+        var context = CreateApiContext(path: "/api/auth/login");
+        await middleware.InvokeAsync(context);
+
+        Assert.NotNull(loggedMessage);
+        Assert.DoesNotContain("leaked-secret-value", loggedMessage);
+        Assert.Contains("REDACTED", loggedMessage);
+    }
+
     // ── Does NOT log success response body ───────────────────
 
     [Theory]

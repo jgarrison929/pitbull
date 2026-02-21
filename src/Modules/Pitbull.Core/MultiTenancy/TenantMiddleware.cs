@@ -30,6 +30,16 @@ public class TenantMiddleware(RequestDelegate next, ILogger<TenantMiddleware> lo
 
             logger.LogDebug("Tenant resolved: {TenantId}", tenantId.Value);
         }
+        else if (context.User?.Identity?.IsAuthenticated == true
+                 && context.Request.Path.StartsWithSegments("/api"))
+        {
+            // Authenticated API requests MUST have a resolvable tenant.
+            // Without it, RLS won't be applied and services get Guid.Empty.
+            logger.LogWarning("Authenticated request to {Path} with no tenant claim", context.Request.Path);
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            await context.Response.WriteAsJsonAsync(new { error = "Tenant context could not be resolved." });
+            return;
+        }
 
         await next(context);
     }
