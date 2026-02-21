@@ -146,16 +146,29 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
 
         db.Set<JournalEntry>().Add(entry);
 
-        try
+        // Retry with new entry number on unique constraint violation (race condition)
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            await db.SaveChangesAsync(cancellationToken);
-            return Result.Success(MapToDto(entry));
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return Result.Success(MapToDto(entry));
+            }
+            catch (DbUpdateException ex) when (attempt < 2 && IsUniqueViolation(ex))
+            {
+                // Another concurrent request claimed this entry number — regenerate and retry
+                logger.LogWarning("Journal entry number {EntryNumber} conflict, retrying (attempt {Attempt})",
+                    entry.EntryNumber, attempt + 1);
+                entry.EntryNumber = await GenerateEntryNumberAsync(command.EntryDate.Year, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to create journal entry");
+                return Result.Failure<JournalEntryDto>("Failed to create journal entry", "DATABASE_ERROR");
+            }
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to create journal entry");
-            return Result.Failure<JournalEntryDto>("Failed to create journal entry", "DATABASE_ERROR");
-        }
+
+        return Result.Failure<JournalEntryDto>("Failed to generate unique entry number after retries", "DATABASE_ERROR");
     }
 
     public async Task<Result<JournalEntryDto>> UpdateJournalEntryAsync(UpdateJournalEntryCommand command, CancellationToken cancellationToken = default)
@@ -361,16 +374,28 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
 
         db.Set<JournalEntry>().Add(reversal);
 
-        try
+        // Retry with new entry number on unique constraint violation (race condition)
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            await db.SaveChangesAsync(cancellationToken);
-            return Result.Success(MapToDto(reversal));
+            try
+            {
+                await db.SaveChangesAsync(cancellationToken);
+                return Result.Success(MapToDto(reversal));
+            }
+            catch (DbUpdateException ex) when (attempt < 2 && IsUniqueViolation(ex))
+            {
+                logger.LogWarning("Journal entry number {EntryNumber} conflict during reversal, retrying (attempt {Attempt})",
+                    reversal.EntryNumber, attempt + 1);
+                reversal.EntryNumber = await GenerateEntryNumberAsync(year, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to reverse journal entry {Id}", id);
+                return Result.Failure<JournalEntryDto>("Failed to reverse journal entry", "DATABASE_ERROR");
+            }
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to reverse journal entry {Id}", id);
-            return Result.Failure<JournalEntryDto>("Failed to reverse journal entry", "DATABASE_ERROR");
-        }
+
+        return Result.Failure<JournalEntryDto>("Failed to generate unique entry number after retries", "DATABASE_ERROR");
     }
 
     private async Task<string> GenerateEntryNumberAsync(int year, CancellationToken ct)
@@ -392,6 +417,13 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
         }
 
         return $"{prefix}{nextNum:D6}";
+    }
+
+    private static bool IsUniqueViolation(DbUpdateException ex)
+    {
+        // PostgreSQL unique violation error code: 23505
+        var inner = ex.InnerException;
+        return inner is not null && inner.Message.Contains("23505", StringComparison.Ordinal);
     }
 
     private JournalEntryDto MapToDto(JournalEntry entry)

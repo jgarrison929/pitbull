@@ -604,4 +604,47 @@ public class PayrollRunServiceTests : IDisposable
         result.Value.Lines.Should().HaveCount(2);
         result.Value.TotalGross.Should().Be(640m); // (8*50) + (8*30)
     }
+
+    // ── HIGH #11: Status transition validation ──
+
+    [Fact]
+    public async Task Update_DraftToExported_ReturnsInvalidStatusTransition()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        var createCmd = new CreatePayrollRunCommand(
+            RunDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            PayPeriodId: period.Id);
+        var created = await _service.CreatePayrollRunAsync(createCmd);
+        created.IsSuccess.Should().BeTrue();
+
+        // Try to jump from Draft straight to Exported (skipping Processing/Submitted/UnderReview/Approved)
+        var updateCmd = new UpdatePayrollRunCommand(
+            PayrollRunId: created.Value!.Id,
+            RunDate: null,
+            Status: PayrollRunStatus.Exported);
+        var result = await _service.UpdatePayrollRunAsync(updateCmd);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
+    [Fact]
+    public async Task Update_DraftToProcessing_Succeeds()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        var createCmd = new CreatePayrollRunCommand(
+            RunDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            PayPeriodId: period.Id);
+        var created = await _service.CreatePayrollRunAsync(createCmd);
+        created.IsSuccess.Should().BeTrue();
+
+        var updateCmd = new UpdatePayrollRunCommand(
+            PayrollRunId: created.Value!.Id,
+            RunDate: null,
+            Status: PayrollRunStatus.Processing);
+        var result = await _service.UpdatePayrollRunAsync(updateCmd);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Status.Should().Be(PayrollRunStatus.Processing);
+    }
 }

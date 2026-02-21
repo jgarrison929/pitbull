@@ -1594,8 +1594,7 @@ public class TimeEntryService : ITimeEntryService
             (TimeEntryStatus.Rejected, TimeEntryStatus.Draft) => true,
             (TimeEntryStatus.Rejected, TimeEntryStatus.Submitted) => true,
 
-            // Approved entries generally shouldn't change, but allow reverting if needed
-            (TimeEntryStatus.Approved, TimeEntryStatus.Submitted) => true,
+            // Approved entries are final — no backward transitions allowed
 
             // Same status is a no-op, allow it
             var (f, t) when f == t => true,

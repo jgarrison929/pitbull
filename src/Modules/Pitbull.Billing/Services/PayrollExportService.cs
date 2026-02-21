@@ -109,18 +109,10 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
             List<TimeEntry> employeeEntries = entries.Where(x => x.EmployeeId == line.EmployeeId).ToList();
             if (employeeEntries.Count == 0)
             {
-                employeeEntries.Add(new TimeEntry
-                {
-                    Id = Guid.NewGuid(),
-                    EmployeeId = line.EmployeeId,
-                    ProjectId = Guid.Empty,
-                    CostCodeId = Guid.Empty,
-                    RegularHours = line.RegularHours,
-                    OvertimeHours = line.OvertimeHours,
-                    DoubletimeHours = line.DoubletimeHours,
-                    Date = run.RunDate,
-                    Status = TimeEntryStatus.Approved
-                });
+                logger.LogWarning(
+                    "Payroll run line for employee {EmployeeId} has no approved time entries — skipping export line",
+                    line.EmployeeId);
+                continue;
             }
 
             decimal totalEntryHours = employeeEntries.Sum(x => x.RegularHours + x.OvertimeHours + x.DoubletimeHours);

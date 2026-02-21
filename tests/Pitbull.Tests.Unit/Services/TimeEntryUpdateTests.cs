@@ -113,4 +113,35 @@ public sealed class TimeEntryUpdateTests
         await db.SaveChangesAsync();
         return (employee, project, costCode);
     }
+
+    // ── HIGH #18: Approved entries cannot revert to Submitted ──
+
+    [Fact]
+    public async Task Update_ApprovedToSubmitted_ReturnsInvalidTransition()
+    {
+        using var db = TestDbContextFactory.Create();
+        var (employee, project, costCode) = await SetupTestData(db);
+        var service = CreateService(db);
+
+        var entry = new TimeEntry
+        {
+            Date = DateOnly.FromDateTime(DateTime.UtcNow),
+            EmployeeId = employee.Id,
+            ProjectId = project.Id,
+            CostCodeId = costCode.Id,
+            RegularHours = 8m,
+            Status = TimeEntryStatus.Approved
+        };
+        db.Set<TimeEntry>().Add(entry);
+        await db.SaveChangesAsync();
+
+        var command = new UpdateTimeEntryCommand(
+            TimeEntryId: entry.Id,
+            NewStatus: TimeEntryStatus.Submitted);
+
+        var result = await service.UpdateTimeEntryAsync(command);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_TRANSITION");
+    }
 }

@@ -522,6 +522,36 @@ public class JournalEntryServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Create_EntryNumbersAreUniqueAcrossMultipleEntries()
+    {
+        // Regression test for CRITICAL #3: entry numbers must not collide
+        var entries = new List<JournalEntryDto>();
+        for (int i = 0; i < 5; i++)
+        {
+            var entry = await CreateDraftEntry(100m * (i + 1));
+            entries.Add(entry);
+        }
+
+        var numbers = entries.Select(e => e.EntryNumber).ToList();
+        numbers.Should().OnlyHaveUniqueItems("entry numbers must never collide");
+        numbers.Should().BeInAscendingOrder("entry numbers must be sequential");
+    }
+
+    [Fact]
+    public async Task Reverse_GeneratesUniqueEntryNumber()
+    {
+        // The reversal should get a new unique entry number, not collide with existing
+        var created = await CreateDraftEntry();
+        await _service.PostJournalEntryAsync(created.Id, Guid.NewGuid());
+
+        var result = await _service.ReverseJournalEntryAsync(created.Id, Guid.NewGuid());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.EntryNumber.Should().NotBe(created.EntryNumber);
+        result.Value!.EntryNumber.Should().StartWith("JE-");
+    }
+
+    [Fact]
     public async Task Reverse_SwapsDebitsAndCredits()
     {
         var created = await CreateDraftEntry();

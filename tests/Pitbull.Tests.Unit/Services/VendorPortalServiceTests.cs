@@ -209,8 +209,8 @@ public class VendorPortalServiceTests : IDisposable
         var generated = await _service.GenerateTokenAsync(TestVendorId, TestProjectId, 1);
         var token = generated.Value!.Token;
 
-        // Manually expire the token
-        var entity = await _db.VendorPortalTokens.FirstAsync(t => t.Token == token);
+        // Manually expire the token (look up by Id since token is hashed in DB)
+        var entity = await _db.VendorPortalTokens.FirstAsync(t => t.Id == generated.Value.Id);
         entity.ExpiresAt = DateTime.UtcNow.AddDays(-1);
         await _db.SaveChangesAsync();
 
@@ -230,7 +230,7 @@ public class VendorPortalServiceTests : IDisposable
         await _service.ValidateTokenAsync(token);
 
         var entity = await _db.VendorPortalTokens.AsNoTracking()
-            .FirstAsync(t => t.Token == token);
+            .FirstAsync(t => t.Id == generated.Value.Id);
 
         // Each validate call increments access count
         entity.AccessCount.Should().BeGreaterThanOrEqualTo(2);
@@ -292,15 +292,14 @@ public class VendorPortalServiceTests : IDisposable
     public async Task GetTokensForVendorAsync_MasksToken()
     {
         var generated = await _service.GenerateTokenAsync(TestVendorId, TestProjectId, 90);
-        var fullToken = generated.Value!.Token;
 
         var result = await _service.GetTokensForVendorAsync(TestVendorId);
 
         result.IsSuccess.Should().BeTrue();
         var summary = result.Value![0];
         summary.TokenHint.Should().StartWith("***");
-        summary.TokenHint.Should().EndWith(fullToken[^4..]);
-        summary.TokenHint.Should().NotBe(fullToken);
+        // Token is hashed in DB — hint should be the masked hash, not the raw token
+        summary.TokenHint.Should().NotBe(generated.Value!.Token);
     }
 
     [Fact]
@@ -489,6 +488,35 @@ public class VendorPortalServiceTests : IDisposable
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("INVALID_TOKEN");
+    }
+
+    #endregion
+
+    #region HIGH #17: Token is stored hashed, not plaintext
+
+    [Fact]
+    public async Task GenerateToken_StoresHashedToken_NotPlaintext()
+    {
+        var generated = await _service.GenerateTokenAsync(TestVendorId, TestProjectId, 90);
+        generated.IsSuccess.Should().BeTrue();
+
+        var rawToken = generated.Value!.Token;
+
+        // The DB should NOT contain the raw token — it should be hashed
+        var entity = await _db.VendorPortalTokens.FirstAsync(t => t.Id == generated.Value.Id);
+        entity.Token.Should().NotBe(rawToken, "token should be stored as a hash, not plaintext");
+        entity.Token.Should().HaveLength(64, "SHA-256 hex hash is always 64 characters");
+    }
+
+    [Fact]
+    public async Task ValidateToken_WithRawToken_Succeeds()
+    {
+        var generated = await _service.GenerateTokenAsync(TestVendorId, TestProjectId, 90);
+        generated.IsSuccess.Should().BeTrue();
+
+        // The raw token returned from Generate should validate successfully
+        var result = await _service.ValidateTokenAsync(generated.Value!.Token);
+        result.IsSuccess.Should().BeTrue();
     }
 
     #endregion

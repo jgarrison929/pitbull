@@ -509,4 +509,26 @@ public sealed class PurchaseOrderServiceTests
     }
 
     #endregion
+
+    #region PO Number Generation (HIGH #5)
+
+    [Fact]
+    public async Task Create_MultiplePos_GeneratesSequentialNumbers()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var r1 = await service.CreatePurchaseOrderAsync(MakeCreateCommand());
+        var r2 = await service.CreatePurchaseOrderAsync(MakeCreateCommand(vendorId: OtherVendorId));
+
+        r1.IsSuccess.Should().BeTrue();
+        r2.IsSuccess.Should().BeTrue();
+        // Both PO numbers should be in the same year prefix and sequential
+        r1.Value!.PONumber.Should().StartWith($"PO-{DateTime.UtcNow.Year}-");
+        r2.Value!.PONumber.Should().StartWith($"PO-{DateTime.UtcNow.Year}-");
+        r2.Value.PONumber.Should().NotBe(r1.Value.PONumber);
+    }
+
+    #endregion
 }

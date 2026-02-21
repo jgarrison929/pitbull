@@ -66,6 +66,17 @@ public class AccountingPeriodService(PitbullDbContext db, ILogger<AccountingPeri
             return Result.Failure<AccountingPeriodDto>(
                 $"Period {command.PeriodNumber} already exists for fiscal year {command.FiscalYear}", "DUPLICATE_PERIOD");
 
+        // Check for overlapping date ranges within the same fiscal year
+        bool overlaps = await db.Set<AccountingPeriod>()
+            .AnyAsync(p => p.FiscalYear == command.FiscalYear
+                && p.StartDate <= command.EndDate
+                && p.EndDate >= command.StartDate, cancellationToken);
+
+        if (overlaps)
+            return Result.Failure<AccountingPeriodDto>(
+                $"Date range {command.StartDate:d}–{command.EndDate:d} overlaps with an existing period in fiscal year {command.FiscalYear}",
+                "OVERLAPPING_PERIOD");
+
         AccountingPeriod period = new()
         {
             PeriodNumber = command.PeriodNumber,

@@ -302,7 +302,8 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         string prefix = $"PO-{year}-";
 
         string? lastPoNumber = await db.Set<PurchaseOrder>()
-            .OrderByDescending(po => po.CreatedAt)
+            .Where(po => po.PONumber.StartsWith(prefix))
+            .OrderByDescending(po => po.PONumber)
             .Select(po => po.PONumber)
             .FirstOrDefaultAsync(cancellationToken);
 

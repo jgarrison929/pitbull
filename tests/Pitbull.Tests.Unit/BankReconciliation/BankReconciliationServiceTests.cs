@@ -779,4 +779,42 @@ public class BankReconciliationServiceTests : IDisposable
         result.IsSuccess.Should().BeTrue();
         return result.Value!;
     }
+
+    // ─── HIGH #6: Reject future-dated transactions ───────────────
+
+    [Fact]
+    public async Task MatchTransaction_FutureDated_ReturnsValidationError()
+    {
+        var account = await CreateBankAccountAsync();
+        // Statement date is Jan 31
+        var rec = await StartReconciliation(account.Id, 10500m, new DateOnly(2026, 1, 31));
+
+        // Seed a transaction dated Feb 15 (after statement)
+        _db.ChangeTracker.Clear();
+        var futureTxn = new BankTransaction
+        {
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            BankAccountId = account.Id,
+            TransactionDate = new DateOnly(2026, 2, 15),
+            Description = "Future deposit",
+            Amount = 500m,
+            TransactionType = BankTransactionType.Deposit,
+            IsCleared = false,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test"
+        };
+        _db.BankTransactions.Add(futureTxn);
+        await _db.SaveChangesAsync();
+        _db.ChangeTracker.Clear();
+
+        var result = await _service.MatchTransactionAsync(new MatchTransactionCommand(
+            ReconciliationId: rec.Id,
+            BankTransactionId: futureTxn.Id,
+            JournalEntryId: null));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("statement date");
+    }
 }

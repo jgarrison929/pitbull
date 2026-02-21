@@ -108,7 +108,13 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
             run.RunDate = command.RunDate.Value;
 
         if (command.Status.HasValue)
+        {
+            if (!IsValidPayrollStatusTransition(run.Status, command.Status.Value))
+                return Result.Failure<PayrollRunDto>(
+                    $"Cannot transition payroll run from {run.Status} to {command.Status.Value}",
+                    "INVALID_STATUS_TRANSITION");
             run.Status = command.Status.Value;
+        }
 
         try
         {
@@ -309,5 +315,19 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
                 GrossPay: x.GrossPay)).ToList(),
             CreatedAt: run.CreatedAt,
             UpdatedAt: run.UpdatedAt);
+    }
+
+    private static bool IsValidPayrollStatusTransition(PayrollRunStatus from, PayrollRunStatus to)
+    {
+        if (from == to) return true;
+        return (from, to) switch
+        {
+            (PayrollRunStatus.Draft, PayrollRunStatus.Processing) => true,
+            (PayrollRunStatus.Processing, PayrollRunStatus.Submitted) => true,
+            (PayrollRunStatus.Submitted, PayrollRunStatus.UnderReview) => true,
+            (PayrollRunStatus.UnderReview, PayrollRunStatus.Approved) => true,
+            (PayrollRunStatus.Approved, PayrollRunStatus.Exported) => true,
+            _ => false
+        };
     }
 }

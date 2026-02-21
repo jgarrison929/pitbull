@@ -26,11 +26,13 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
             .Replace('/', '_')
             .TrimEnd('=');
 
+        var tokenHash = HashToken(tokenString);
+
         var portalToken = new VendorPortalToken
         {
             VendorId = vendorId,
             ProjectId = projectId,
-            Token = tokenString,
+            Token = tokenHash,
             ExpiresAt = DateTime.UtcNow.AddDays(expirationDays),
             IsRevoked = false,
             AccessCount = 0
@@ -41,7 +43,9 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
         try
         {
             await db.SaveChangesAsync(ct);
-            return Result.Success(MapToDto(portalToken, vendor.Name));
+            // Return the raw token to the caller (only time it's visible)
+            var dto = MapToDto(portalToken, vendor.Name);
+            return Result.Success(dto with { Token = tokenString });
         }
         catch (Exception ex)
         {
@@ -89,9 +93,10 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
 
     public async Task<Result<VendorPortalContextDto>> ValidateTokenAsync(string token, CancellationToken ct = default)
     {
+        var tokenHash = HashToken(token);
         var portalToken = await db.VendorPortalTokens
             .Include(t => t.Vendor)
-            .FirstOrDefaultAsync(t => t.Token == token, ct);
+            .FirstOrDefaultAsync(t => t.Token == tokenHash, ct);
 
         if (portalToken is null)
             return Result.Failure<VendorPortalContextDto>("Invalid token", "INVALID_TOKEN");
@@ -208,8 +213,9 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
 
     private async Task<Result<VendorPortalToken>> ValidateTokenInternalAsync(string token, CancellationToken ct)
     {
+        var tokenHash = HashToken(token);
         var portalToken = await db.VendorPortalTokens
-            .FirstOrDefaultAsync(t => t.Token == token, ct);
+            .FirstOrDefaultAsync(t => t.Token == tokenHash, ct);
 
         if (portalToken is null)
             return Result.Failure<VendorPortalToken>("Invalid token", "INVALID_TOKEN");
@@ -251,6 +257,13 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
         LastAccessedAt: t.LastAccessedAt,
         AccessCount: t.AccessCount,
         CreatedAt: t.CreatedAt);
+
+    private static string HashToken(string rawToken)
+    {
+        var hash = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(rawToken));
+        return Convert.ToHexStringLower(hash);
+    }
 
     private static VendorPortalLienWaiverDto MapToPortalLienWaiverDto(LienWaiver w) => new(
         Id: w.Id,

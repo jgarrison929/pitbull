@@ -45,6 +45,11 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
 
     public async Task<Result<BillingApplicationDto>> CreateAsync(CreateBillingApplicationCommand cmd, CancellationToken ct = default)
     {
+        // Validate period dates
+        if (cmd.PeriodThrough < cmd.PeriodFrom)
+            return Result.Failure<BillingApplicationDto>(
+                "Period through date cannot be before period from date", "VALIDATION_ERROR");
+
         // Validate SOV exists and is active
         var sov = await db.Set<OwnerScheduleOfValues>().AsNoTracking()
             .Include(s => s.LineItems.OrderBy(l => l.SortOrder))
@@ -185,6 +190,23 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
         if (totalCompleted > line.ScheduledValue)
             return Result.Failure<BillingApplicationLineItemDto>(
                 $"Line {line.ItemNumber} total ({totalCompleted:C2}) exceeds scheduled value ({line.ScheduledValue:C2})", "EXCEEDS_SCHEDULED");
+
+        // Recalculate G702 header totals so they stay in sync with the updated line
+        var allLines = await db.Set<BillingApplicationLineItem>()
+            .Where(l => l.BillingApplicationId == app.Id)
+            .ToListAsync(ct);
+        CalculateG702(app, allLines);
+
+        // Recalculate current payment due
+        var priorApp = await db.Set<BillingApplication>().AsNoTracking()
+            .Where(a => a.OwnerContractId == app.OwnerContractId
+                        && a.ApplicationNumber < app.ApplicationNumber
+                        && a.Status != BillingApplicationStatus.Void)
+            .OrderByDescending(a => a.ApplicationNumber)
+            .FirstOrDefaultAsync(ct);
+        app.LessPreviousCertificates = priorApp?.TotalEarnedLessRetainage ?? 0;
+        app.CurrentPaymentDue = app.TotalEarnedLessRetainage - app.LessPreviousCertificates;
+        app.BalanceToFinishIncludingRetainage = app.ContractSumToDate - app.TotalEarnedLessRetainage;
 
         await db.SaveChangesAsync(ct);
         return Result.Success(MapLineToDto(line));

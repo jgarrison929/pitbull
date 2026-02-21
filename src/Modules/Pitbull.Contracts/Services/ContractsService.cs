@@ -337,6 +337,24 @@ public class ContractsService(PitbullDbContext db) : IContractsService
                 subcontract.CurrentValue -= changeOrder.Amount;
         }
 
+        // If CO is already approved and amount is changing, sync the delta to subcontract
+        if (oldStatus == ChangeOrderStatus.Approved && newStatus == ChangeOrderStatus.Approved
+            && changeOrder.Amount != command.Amount)
+        {
+            var subcontract = await db.Set<Subcontract>()
+                .FirstOrDefaultAsync(s => s.Id == changeOrder.SubcontractId, cancellationToken);
+
+            if (subcontract is not null)
+            {
+                decimal delta = command.Amount - changeOrder.Amount;
+                if (subcontract.CurrentValue + delta < 0)
+                    return Result.Failure<ChangeOrderDto>(
+                        $"Amount change would reduce contract sum below zero (current: {subcontract.CurrentValue:C}, delta: {delta:C})",
+                        "NEGATIVE_CONTRACT_SUM");
+                subcontract.CurrentValue += delta;
+            }
+        }
+
         // Update fields
         changeOrder.ChangeOrderNumber = command.Number;
         changeOrder.Title = command.Title;
@@ -518,6 +536,10 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         var oldStatus = payApp.Status;
         var newStatus = command.Status;
 
+        // Capture old amounts BEFORE mutation for delta calculation on Paid apps
+        var oldCurrentPaymentDue = payApp.CurrentPaymentDue;
+        var oldApprovedAmount = payApp.ApprovedAmount ?? 0m;
+
         // Recalculate amounts if work changed
         if (payApp.WorkCompletedThisPeriod != command.WorkCompletedThisPeriod ||
             payApp.StoredMaterials != command.StoredMaterials)
@@ -534,9 +556,6 @@ public class ContractsService(PitbullDbContext db) : IContractsService
             payApp.CurrentPaymentDue = payApp.TotalEarnedLessRetainage - payApp.LessPreviousCertificates;
         }
 
-        // Track old amounts for delta calculation on Paid apps
-        var oldApprovedAmount = payApp.ApprovedAmount ?? 0m;
-
         // Update fields
         payApp.Status = command.Status;
         payApp.ApprovedBy = command.ApprovedBy;
@@ -544,7 +563,6 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         payApp.InvoiceNumber = command.InvoiceNumber;
         payApp.CheckNumber = command.CheckNumber;
         payApp.Notes = command.Notes;
-        var oldCurrentPaymentDue = payApp.CurrentPaymentDue;
 
         // Set dates on status transitions
         if (oldStatus != newStatus)

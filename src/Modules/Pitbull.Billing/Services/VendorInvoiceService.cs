@@ -71,6 +71,9 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
         if (command.VendorId == Guid.Empty || string.IsNullOrWhiteSpace(command.InvoiceNumber))
             return Result.Failure<VendorInvoiceDto>("VendorId and InvoiceNumber are required", "VALIDATION_ERROR");
 
+        if (command.TotalAmount <= 0)
+            return Result.Failure<VendorInvoiceDto>("Invoice total amount must be positive", "VALIDATION_ERROR");
+
         VendorInvoice invoice = new()
         {
             VendorId = command.VendorId,
@@ -116,7 +119,13 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
         if (command.TotalAmount.HasValue)
             invoice.TotalAmount = command.TotalAmount.Value;
         if (command.Status.HasValue)
+        {
+            if (!IsValidInvoiceStatusTransition(invoice.Status, command.Status.Value))
+                return Result.Failure<VendorInvoiceDto>(
+                    $"Cannot transition invoice from {invoice.Status} to {command.Status.Value}",
+                    "INVALID_STATUS_TRANSITION");
             invoice.Status = command.Status.Value;
+        }
         if (command.ClearPurchaseOrderId)
             invoice.PurchaseOrderId = null;
         else if (command.PurchaseOrderId.HasValue)
@@ -268,5 +277,20 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
             VariancePercent: match.VariancePercent,
             AutoApproved: match.AutoApproved,
             MatchedAt: match.MatchedAt);
+    }
+
+    private static bool IsValidInvoiceStatusTransition(VendorInvoiceStatus from, VendorInvoiceStatus to)
+    {
+        if (from == to) return true;
+        return (from, to) switch
+        {
+            (VendorInvoiceStatus.Pending, VendorInvoiceStatus.Matched) => true,
+            (VendorInvoiceStatus.Pending, VendorInvoiceStatus.PartiallyMatched) => true,
+            (VendorInvoiceStatus.Pending, VendorInvoiceStatus.Approved) => true,
+            (VendorInvoiceStatus.Matched, VendorInvoiceStatus.Approved) => true,
+            (VendorInvoiceStatus.PartiallyMatched, VendorInvoiceStatus.Approved) => true,
+            (VendorInvoiceStatus.Approved, VendorInvoiceStatus.Paid) => true,
+            _ => false
+        };
     }
 }
