@@ -135,7 +135,7 @@ export default function VistaExportPage() {
         {
           headers: {
             Accept: "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         }
       );
@@ -179,7 +179,7 @@ export default function VistaExportPage() {
         `${API_BASE_URL}/api/time-entries/export/vista?${params.toString()}`,
         {
           headers: {
-            Authorization: token ? `Bearer ${token}` : "",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         }
       );

@@ -188,7 +188,7 @@ export default function IntegrationsPage() {
         {
           method: "POST",
           headers: {
-            Authorization: token ? `Bearer ${token}` : "",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             "Content-Type": "application/json",
           },
         }

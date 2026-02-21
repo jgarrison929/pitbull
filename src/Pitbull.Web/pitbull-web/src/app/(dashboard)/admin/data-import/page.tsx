@@ -199,7 +199,7 @@ export default function DataImportPage() {
       const response = await fetch(`${API_BASE_URL}/api/import/${importType}`, {
         method: "POST",
         headers: {
-          Authorization: token ? `Bearer ${token}` : "",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: formData,
       });
@@ -278,7 +278,7 @@ export default function DataImportPage() {
       const token = getToken();
       const response = await fetch(`${API_BASE_URL}/api/export/${exportType}?${params.toString()}`, {
         headers: {
-          Authorization: token ? `Bearer ${token}` : "",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
 
