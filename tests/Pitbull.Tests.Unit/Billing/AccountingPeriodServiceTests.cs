@@ -245,4 +245,26 @@ public class AccountingPeriodServiceTests : IDisposable
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("DUPLICATE_PERIOD");
     }
+
+    // ── HIGH #10: Overlapping date ranges ──
+
+    [Fact]
+    public async Task CreatePeriod_OverlappingDates_ReturnsOverlappingPeriod()
+    {
+        // Create period 1: Jan 1-31
+        var cmd1 = new CreateAccountingPeriodCommand(
+            FiscalYear: 2026, PeriodNumber: 1, PeriodName: "January 2026",
+            StartDate: new DateOnly(2026, 1, 1), EndDate: new DateOnly(2026, 1, 31));
+        var r1 = await _service.CreatePeriodAsync(cmd1);
+        r1.IsSuccess.Should().BeTrue();
+
+        // Create period 2 with overlapping dates: Jan 15 - Feb 15
+        var cmd2 = new CreateAccountingPeriodCommand(
+            FiscalYear: 2026, PeriodNumber: 2, PeriodName: "February 2026",
+            StartDate: new DateOnly(2026, 1, 15), EndDate: new DateOnly(2026, 2, 15));
+        var r2 = await _service.CreatePeriodAsync(cmd2);
+
+        r2.IsSuccess.Should().BeFalse();
+        r2.ErrorCode.Should().Be("OVERLAPPING_PERIOD");
+    }
 }

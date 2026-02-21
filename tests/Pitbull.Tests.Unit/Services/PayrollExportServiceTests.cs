@@ -124,9 +124,9 @@ public sealed class PayrollExportServiceTests
 
         var result = await service.GenerateAsync(command);
 
-        // Should succeed with fallback entries from PayrollRunLine data
+        // Should succeed but skip employees with no approved time entries (no fabricated rows)
         result.IsSuccess.Should().BeTrue();
-        result.Value!.LineCount.Should().BeGreaterThan(0);
+        result.Value!.LineCount.Should().Be(0);
     }
 
     [Fact]

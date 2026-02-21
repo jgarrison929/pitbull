@@ -266,6 +266,35 @@ public sealed class ContractsServiceTests
         subAfterVoid.CurrentValue.Should().Be(100_000m);
     }
 
+    // === HIGH #7: Approved CO amount edit syncs subcontract ===
+
+    [Fact]
+    public async Task UpdateApprovedChangeOrder_AmountChange_SyncsSubcontract()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var subId = await SeedSubcontractAsync(db, originalValue: 100_000m);
+
+        // Create and approve a CO for 15k
+        var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
+            subId, "CO-001", "Add scope", "Extra work", "Owner", 15_000m, null, null));
+        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
+            created.Value!.Id, "CO-001", "Add scope", "Extra work", "Owner",
+            15_000m, null, ChangeOrderStatus.Approved, null));
+
+        var subAfterApproval = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
+        subAfterApproval.CurrentValue.Should().Be(115_000m);
+
+        // Now edit the approved CO amount from 15k to 25k (keeping Approved status)
+        var result = await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
+            created.Value!.Id, "CO-001", "Add scope expanded", "More work", "Owner",
+            25_000m, null, ChangeOrderStatus.Approved, null));
+
+        result.IsSuccess.Should().BeTrue();
+        var subAfterEdit = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
+        subAfterEdit.CurrentValue.Should().Be(125_000m, "the +10k delta should be applied to the subcontract");
+    }
+
     // === Payment Application Retainage Tests ===
 
     [Fact]

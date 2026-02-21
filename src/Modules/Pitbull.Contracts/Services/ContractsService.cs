@@ -337,6 +337,24 @@ public class ContractsService(PitbullDbContext db) : IContractsService
                 subcontract.CurrentValue -= changeOrder.Amount;
         }
 
+        // If CO is already approved and amount is changing, sync the delta to subcontract
+        if (oldStatus == ChangeOrderStatus.Approved && newStatus == ChangeOrderStatus.Approved
+            && changeOrder.Amount != command.Amount)
+        {
+            var subcontract = await db.Set<Subcontract>()
+                .FirstOrDefaultAsync(s => s.Id == changeOrder.SubcontractId, cancellationToken);
+
+            if (subcontract is not null)
+            {
+                decimal delta = command.Amount - changeOrder.Amount;
+                if (subcontract.CurrentValue + delta < 0)
+                    return Result.Failure<ChangeOrderDto>(
+                        $"Amount change would reduce contract sum below zero (current: {subcontract.CurrentValue:C}, delta: {delta:C})",
+                        "NEGATIVE_CONTRACT_SUM");
+                subcontract.CurrentValue += delta;
+            }
+        }
+
         // Update fields
         changeOrder.ChangeOrderNumber = command.Number;
         changeOrder.Title = command.Title;

@@ -64,11 +64,11 @@ public class PrevailingWageValidationService(PitbullDbContext db) : IPrevailingW
             .Where(x => activeDeterminationByProject.Values.Select(d => d.Id).Contains(x.WageDeterminationId))
             .ToListAsync(cancellationToken);
 
-        Dictionary<Guid, decimal> requiredRateByDetermination = rates
-            .GroupBy(x => x.WageDeterminationId)
+        // Key rates by (WageDeterminationId, WorkClassificationId) to compare per-classification
+        Dictionary<(Guid DeterminationId, Guid ClassificationId), decimal> rateByDeterminationAndClassification = rates
             .ToDictionary(
-                g => g.Key,
-                g => g.OrderByDescending(r => r.TotalRate).Select(r => r.TotalRate).FirstOrDefault());
+                r => (r.WageDeterminationId, r.WorkClassificationId),
+                r => r.TotalRate);
 
         List<PrevailingWageViolationDto> violations = [];
 
@@ -80,7 +80,10 @@ public class PrevailingWageValidationService(PitbullDbContext db) : IPrevailingW
             if (!activeDeterminationByProject.TryGetValue(entry.ProjectId, out WageDetermination? determination))
                 continue;
 
-            decimal requiredRate = requiredRateByDetermination.GetValueOrDefault(determination.Id, 0m);
+            // Use the default classification for rate lookup (per-employee classification
+            // can be added when PayrollRunLine gains a WorkClassificationId)
+            decimal requiredRate = rateByDeterminationAndClassification
+                .GetValueOrDefault((determination.Id, defaultClassificationId), 0m);
             decimal employeeRate = employeeRates.GetValueOrDefault(entry.EmployeeId, 0m);
 
             if (requiredRate > employeeRate)

@@ -68,8 +68,10 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
         if (run is null)
             return Result.Failure<PayrollRunReviewDto>("Payroll run not found", "NOT_FOUND");
 
-        if (run.Status == PayrollRunStatus.Exported)
-            return Result.Failure<PayrollRunReviewDto>("Exported payroll runs cannot be reviewed", "INVALID_STATUS");
+        if (run.Status is not (PayrollRunStatus.Submitted or PayrollRunStatus.Processing))
+            return Result.Failure<PayrollRunReviewDto>(
+                $"Payroll run must be in Submitted or Processing status to submit for review, but is {run.Status}",
+                "INVALID_STATUS");
 
         PayrollRunReview review = new()
         {

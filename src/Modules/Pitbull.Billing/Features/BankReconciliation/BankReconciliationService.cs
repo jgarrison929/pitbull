@@ -372,6 +372,10 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
         if (txn.IsCleared)
             return Result.Failure<BankReconciliationDto>("Transaction is already cleared", "CONFLICT");
 
+        if (txn.TransactionDate > rec.StatementDate)
+            return Result.Failure<BankReconciliationDto>(
+                "Cannot match a transaction dated after the statement date", "VALIDATION_ERROR");
+
         // Mark as cleared
         txn.IsCleared = true;
         txn.BankReconciliationId = rec.Id;
