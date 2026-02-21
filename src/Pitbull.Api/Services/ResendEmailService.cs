@@ -21,7 +21,7 @@ public class ResendEmailService : IEmailService
 
     public async Task SendInvitationEmailAsync(string toEmail, string inviterName, string companyName, string inviteToken, CancellationToken ct = default)
     {
-        var inviteUrl = $"{_baseUrl}/invite?token={Uri.EscapeDataString(inviteToken)}";
+        var inviteUrl = $"{_baseUrl}/invite/{Uri.EscapeDataString(inviteToken)}";
         var html = EmailTemplates.InvitationEmail(inviterName, companyName, inviteUrl);
         await SendAsync(toEmail, $"{inviterName} invited you to {companyName} on Pitbull", html, ct);
     }
