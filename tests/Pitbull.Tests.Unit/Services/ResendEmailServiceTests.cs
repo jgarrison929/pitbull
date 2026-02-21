@@ -142,7 +142,7 @@ public class ResendEmailServiceTests
         await _sut.SendInvitationEmailAsync("new@test.com", "Alice", "Acme Corp", "invite-token");
 
         _resendMock.Verify(r => r.EmailSendAsync(
-            It.Is<EmailMessage>(m => m.HtmlBody!.Contains("https://app.example.com/invite?token=invite-token")),
+            It.Is<EmailMessage>(m => m.HtmlBody!.Contains("https://app.example.com/invite/invite-token")),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
