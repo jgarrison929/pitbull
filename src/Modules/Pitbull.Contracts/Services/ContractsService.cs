@@ -518,6 +518,10 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         var oldStatus = payApp.Status;
         var newStatus = command.Status;
 
+        // Capture old amounts BEFORE mutation for delta calculation on Paid apps
+        var oldCurrentPaymentDue = payApp.CurrentPaymentDue;
+        var oldApprovedAmount = payApp.ApprovedAmount ?? 0m;
+
         // Recalculate amounts if work changed
         if (payApp.WorkCompletedThisPeriod != command.WorkCompletedThisPeriod ||
             payApp.StoredMaterials != command.StoredMaterials)
@@ -534,9 +538,6 @@ public class ContractsService(PitbullDbContext db) : IContractsService
             payApp.CurrentPaymentDue = payApp.TotalEarnedLessRetainage - payApp.LessPreviousCertificates;
         }
 
-        // Track old amounts for delta calculation on Paid apps
-        var oldApprovedAmount = payApp.ApprovedAmount ?? 0m;
-
         // Update fields
         payApp.Status = command.Status;
         payApp.ApprovedBy = command.ApprovedBy;
@@ -544,7 +545,6 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         payApp.InvoiceNumber = command.InvoiceNumber;
         payApp.CheckNumber = command.CheckNumber;
         payApp.Notes = command.Notes;
-        var oldCurrentPaymentDue = payApp.CurrentPaymentDue;
 
         // Set dates on status transitions
         if (oldStatus != newStatus)

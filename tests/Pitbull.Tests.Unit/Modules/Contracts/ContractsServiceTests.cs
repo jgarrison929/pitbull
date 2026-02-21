@@ -5,6 +5,7 @@ using Pitbull.Contracts.Features.CreateChangeOrder;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Contracts.Features.UpdateChangeOrder;
+using Pitbull.Contracts.Features.UpdatePaymentApplication;
 using Pitbull.Contracts.Services;
 using Pitbull.Tests.Unit.Helpers;
 
@@ -412,5 +413,58 @@ public sealed class ContractsServiceTests
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("OVERBILLING");
+    }
+
+    // === Payment Application Delta Logic (CRITICAL #2) ===
+
+    [Fact]
+    public async Task UpdatePaidPayApp_WorkChange_DeltaReflectsActualDifference()
+    {
+        // Regression test: oldCurrentPaymentDue must be captured BEFORE recalculation
+        // so that subcontract.BilledToDate is adjusted by the true delta, not zero.
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var subId = await SeedSubcontractAsync(db, originalValue: 200_000m, retainagePercent: 10m);
+
+        // Create and pay a first payment app (50,000 work)
+        var created = await service.CreatePaymentApplicationAsync(
+            new CreatePaymentApplicationCommand(
+                subId, DateTime.UtcNow.AddDays(-60), DateTime.UtcNow.AddDays(-30),
+                50_000m, 0m, "INV-001", null));
+        created.IsSuccess.Should().BeTrue();
+        var payAppId = created.Value!.Id;
+        var originalPaymentDue = created.Value!.CurrentPaymentDue; // 45,000 (50k - 10% retainage)
+
+        // Transition to Paid
+        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
+            payAppId, 50_000m, 0m, PaymentApplicationStatus.Submitted,
+            null, null, "INV-001", null, null));
+        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
+            payAppId, 50_000m, 0m, PaymentApplicationStatus.Reviewed,
+            null, null, "INV-001", null, null));
+        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
+            payAppId, 50_000m, 0m, PaymentApplicationStatus.Approved,
+            "Approver", 45_000m, "INV-001", null, null));
+        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
+            payAppId, 50_000m, 0m, PaymentApplicationStatus.Paid,
+            "Approver", 45_000m, "INV-001", "CHK-001", null));
+
+        var subBeforeEdit = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
+        var billedBefore = subBeforeEdit.BilledToDate;
+
+        // Now edit the Paid pay app: increase work from 50k to 60k
+        var updated = await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
+            payAppId, 60_000m, 0m, PaymentApplicationStatus.Paid,
+            "Approver", 54_000m, "INV-001", "CHK-001", null));
+        updated.IsSuccess.Should().BeTrue();
+
+        var subAfterEdit = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
+
+        // The billed delta should be the difference between new and old CurrentPaymentDue
+        // Old: 50k - 5k retainage = 45k. New: 60k - 6k retainage = 54k. Delta = 9k.
+        var expectedDelta = updated.Value!.CurrentPaymentDue - originalPaymentDue;
+        var actualDelta = subAfterEdit.BilledToDate - billedBefore;
+        actualDelta.Should().Be(expectedDelta);
+        actualDelta.Should().NotBe(0m, "delta should not be zero — the old bug captured oldCurrentPaymentDue after mutation");
     }
 }

@@ -275,6 +275,27 @@ public class WipGlPostingServiceTests : IDisposable
         result.ErrorCode.Should().Be("NO_ADJUSTMENTS");
     }
 
+    // ── Double-posting guard (CRITICAL #1) ──
+
+    [Fact]
+    public async Task PostToGl_CalledTwice_SecondCallReturnsAlreadyPosted()
+    {
+        SetupStandardWipAccounts();
+        var report = CreateFinalReport((TestProjectId, 50000m));
+        await _db.SaveChangesAsync();
+
+        var first = await _service.PostToGlAsync(report.Id, "test-user");
+        first.IsSuccess.Should().BeTrue();
+
+        var second = await _service.PostToGlAsync(report.Id, "test-user");
+        second.IsSuccess.Should().BeFalse();
+        second.ErrorCode.Should().Be("ALREADY_POSTED");
+
+        // Verify only one journal entry was created
+        var journalEntries = await _db.Set<JournalEntry>().ToListAsync();
+        journalEntries.Should().HaveCount(1);
+    }
+
     // ── Marks report as posted ──
 
     [Fact]

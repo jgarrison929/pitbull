@@ -120,19 +120,8 @@ public class WipGlPostingService(
         decimal totalDebits = journalLines.Sum(l => l.DebitAmount);
         decimal totalCredits = journalLines.Sum(l => l.CreditAmount);
 
-        // Generate entry number using max to avoid race condition
-        int year = report.ReportDate.Year;
-        int lastNumber = await db.Set<JournalEntry>()
-            .Where(j => j.EntryNumber.StartsWith($"JE-{year}-"))
-            .MaxAsync(j => (int?)j.Id.GetHashCode(), ct) ?? 0;
-        // Use max entry number suffix for this year
-        string maxEntry = await db.Set<JournalEntry>()
-            .Where(j => j.EntryNumber.StartsWith($"JE-{year}-"))
-            .OrderByDescending(j => j.EntryNumber)
-            .Select(j => j.EntryNumber)
-            .FirstOrDefaultAsync(ct) ?? $"JE-{year}-000000";
-        int currentMax = int.TryParse(maxEntry.AsSpan(maxEntry.LastIndexOf('-') + 1), out var n) ? n : 0;
-        string entryNumber = $"JE-{year}-{(currentMax + 1):D6}";
+        // Generate entry number using max suffix for this year
+        string entryNumber = await GenerateEntryNumberAsync(report.ReportDate.Year, ct);
 
         var journalEntry = new JournalEntry
         {
@@ -169,6 +158,13 @@ public class WipGlPostingService(
                 TotalCredits: totalCredits,
                 LineCount: journalLines.Count));
         }
+        catch (DbUpdateConcurrencyException)
+        {
+            // xmin concurrency token detected a concurrent modification — another request
+            // already posted this report. This prevents double GL journal entries.
+            return Result.Failure<WipGlPostResult>(
+                "This WIP report has already been posted to GL", "ALREADY_POSTED");
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to post WIP report {WipReportId} to GL", wipReportId);
@@ -204,6 +200,26 @@ public class WipGlPostingService(
                 "ACCOUNTS_NOT_FOUND");
 
         return Result.Success((costInExcess, revenue, billingsInExcess));
+    }
+
+    private async Task<string> GenerateEntryNumberAsync(int year, CancellationToken ct)
+    {
+        string prefix = $"JE-{year}-";
+        var maxEntryNumber = await db.Set<JournalEntry>()
+            .Where(j => j.EntryNumber.StartsWith(prefix))
+            .OrderByDescending(j => j.EntryNumber)
+            .Select(j => j.EntryNumber)
+            .FirstOrDefaultAsync(ct);
+
+        int nextNum = 1;
+        if (maxEntryNumber is not null)
+        {
+            var suffix = maxEntryNumber[prefix.Length..];
+            if (int.TryParse(suffix, out int lastNum))
+                nextNum = lastNum + 1;
+        }
+
+        return $"{prefix}{nextNum:D6}";
     }
 
     private async Task<ChartOfAccount?> FindAccountByNumberAsync(

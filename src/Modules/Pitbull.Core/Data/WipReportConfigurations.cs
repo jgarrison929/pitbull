@@ -30,6 +30,12 @@ public class WipReportConfiguration : IEntityTypeConfiguration<WipReport>
         builder.HasIndex(r => new { r.TenantId, r.CompanyId, r.ReportDate })
             .HasDatabaseName("IX_wip_reports_tenant_company_report_date");
 
+        // Prevent double-posting: each journal entry can only be linked to one WIP report
+        builder.HasIndex(r => r.GlJournalEntryId)
+            .IsUnique()
+            .HasFilter("\"GlJournalEntryId\" IS NOT NULL")
+            .HasDatabaseName("IX_wip_reports_gl_journal_entry_unique");
+
         builder.Property<uint>("xmin")
             .HasColumnType("xid")
             .ValueGeneratedOnAddOrUpdate()
