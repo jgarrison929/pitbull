@@ -97,6 +97,9 @@ public class VendorInvoicesControllerTests : IDisposable
         Guid vendorId = Guid.NewGuid();
         PurchaseOrderDto po = await CreatePurchaseOrderAsync(vendorId, 1000m);
 
+        // PO must be approved before receiving
+        await _purchaseOrdersController.Approve(po.Id);
+
         ReceivePurchaseOrderRequest receiveRequest = new(
         [
             new ReceivePurchaseOrderLineRequest(po.Lines[0].Id, 5m)

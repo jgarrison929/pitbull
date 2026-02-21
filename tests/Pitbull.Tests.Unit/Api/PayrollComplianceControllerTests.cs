@@ -133,6 +133,7 @@ public class PayrollComplianceControllerTests : IDisposable
             StartDate = start,
             EndDate = end,
             Name = "Test Period",
+            Status = PayPeriodStatus.Locked,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "test"
         };

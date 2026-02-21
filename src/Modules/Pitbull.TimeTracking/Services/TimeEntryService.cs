@@ -1296,8 +1296,8 @@ public class TimeEntryService : ITimeEntryService
     private async Task<Result<BatchTimeEntryUpsert>> ValidateAndBuildTimeEntry(
         BatchTimeEntryItem item, bool isDraft, CancellationToken cancellationToken)
     {
-        // Validate hours bounds
-        var hoursBoundsError = ValidateHoursBounds(item.RegularHours, item.OvertimeHours, item.DoubletimeHours);
+        // Validate hours bounds (drafts allow zero total hours)
+        var hoursBoundsError = ValidateHoursBounds(item.RegularHours, item.OvertimeHours, item.DoubletimeHours, isDraft);
         if (hoursBoundsError != null)
             return Result.Failure<BatchTimeEntryUpsert>(hoursBoundsError, "VALIDATION_ERROR");
 
@@ -1612,7 +1612,7 @@ public class TimeEntryService : ITimeEntryService
     /// <summary>
     /// Validates hour fields: no negatives, total must be > 0, total cannot exceed 24 per entry (single day).
     /// </summary>
-    private static string? ValidateHoursBounds(decimal regularHours, decimal overtimeHours, decimal doubletimeHours)
+    private static string? ValidateHoursBounds(decimal regularHours, decimal overtimeHours, decimal doubletimeHours, bool isDraft = false)
     {
         if (regularHours < 0)
             return "Regular hours cannot be negative";
@@ -1625,7 +1625,7 @@ public class TimeEntryService : ITimeEntryService
 
         var totalHours = regularHours + overtimeHours + doubletimeHours;
 
-        if (totalHours <= 0)
+        if (!isDraft && totalHours <= 0)
             return "Total hours must be greater than zero";
 
         if (totalHours > 24)
