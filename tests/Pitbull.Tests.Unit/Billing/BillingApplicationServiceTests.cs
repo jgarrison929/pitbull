@@ -121,7 +121,7 @@ public class BillingApplicationServiceTests : IDisposable
     // ── Multi-period billing: correct carry-forward ──
 
     [Fact]
-    public async Task Create_SecondApplication_CarriesForwardWorkNotMaterials()
+    public async Task Create_SecondApplication_CarriesForwardTotalCompletedAndStored()
     {
         var contract = CreateContract();
         var sov = CreateSOV(contract.Id, ("1", "Concrete", 500000m));
@@ -141,8 +141,8 @@ public class BillingApplicationServiceTests : IDisposable
 
         app2Result.IsSuccess.Should().BeTrue();
         var app2Line = app2Result.Value!.LineItems![0];
-        // WorkCompletedPrevious = prior D + E = 0 + 100000 = 100000 (not including materials)
-        app2Line.WorkCompletedPrevious.Should().Be(100000m);
+        // G703 Column D = prior Column G (TotalCompletedAndStored = D + E + F = 0 + 100000 + 20000)
+        app2Line.WorkCompletedPrevious.Should().Be(120000m);
         // Materials carry forward separately
         app2Line.MaterialsStoredToDate.Should().Be(20000m);
     }
@@ -156,23 +156,23 @@ public class BillingApplicationServiceTests : IDisposable
         var sov = CreateSOV(contract.Id, ("1", "Concrete", 500000m));
         await _db.SaveChangesAsync();
 
-        // App 1: 100k work, no materials
+        // App 1: D=0, E=100k, F=0 → G=100k
         var app1 = await _service.CreateAsync(CreateCmd(contract.Id, sov.Id, 1));
         await _service.UpdateLineAsync(new UpdateBillingApplicationLineCommand(
             app1.Value!.Id, app1.Value.LineItems![0].Id, 100000m, 0m));
 
-        // App 2: 80k additional work, 10k materials
+        // App 2: D=100k (prior G), E=80k, F=10k → G=190k
         var app2 = await _service.CreateAsync(CreateCmd(contract.Id, sov.Id, 2));
         await _service.UpdateLineAsync(new UpdateBillingApplicationLineCommand(
             app2.Value!.Id, app2.Value.LineItems![0].Id, 80000m, 10000m));
 
-        // App 3: should carry forward 100000 + 80000 = 180000 work
+        // App 3: D = prior G = 190k (includes prior materials)
         var app3 = await _service.CreateAsync(CreateCmd(contract.Id, sov.Id, 3));
 
         app3.IsSuccess.Should().BeTrue();
         var app3Line = app3.Value!.LineItems![0];
-        // D = prior D(100000) + prior E(80000) = 180000
-        app3Line.WorkCompletedPrevious.Should().Be(180000m);
+        // D = prior Column G = D(100000) + E(80000) + F(10000) = 190000
+        app3Line.WorkCompletedPrevious.Should().Be(190000m);
         app3Line.MaterialsStoredToDate.Should().Be(10000m);
     }
 
@@ -203,7 +203,7 @@ public class BillingApplicationServiceTests : IDisposable
 
         app3.IsSuccess.Should().BeTrue();
         var app3Line = app3.Value!.LineItems![0];
-        // Should use app 1's values (D=0 + E=100000 = 100000), not app 2's
+        // Should use app 1's Column G (D=0 + E=100000 + F=0 = 100000), not app 2's
         app3Line.WorkCompletedPrevious.Should().Be(100000m);
     }
 

@@ -107,10 +107,8 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
                 Description = sovLine.Description,
                 ScheduledValue = sovLine.ScheduledValue,
                 SortOrder = sovLine.SortOrder,
-                // G703 Column D: prior app's work completed (D + E), excludes materials stored
-                WorkCompletedPrevious = priorLine is not null
-                    ? priorLine.WorkCompletedPrevious + priorLine.WorkCompletedThisPeriod
-                    : 0,
+                // G703 Column D = prior Column G (TotalCompletedAndStored = D + E + F)
+                WorkCompletedPrevious = priorLine?.TotalCompletedAndStored ?? 0,
                 MaterialsStoredToDate = priorLine?.MaterialsStoredToDate ?? 0,
                 RetainagePercent = sovLine.RetainagePercent,
                 CostCodeId = sovLine.CostCodeId
