@@ -214,6 +214,13 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
         if (hasChildren)
             return Result.Failure("Cannot delete an account with child accounts", "HAS_CHILDREN");
 
+        // Check if the account is referenced by any journal entry lines
+        bool hasJournalEntries = await db.Set<JournalEntryLine>()
+            .AnyAsync(l => l.GlAccountId == id, cancellationToken);
+
+        if (hasJournalEntries)
+            return Result.Failure("Cannot delete an account that has journal entries. Deactivate it instead.", "IN_USE");
+
         db.Set<ChartOfAccount>().Remove(account);
 
         try
