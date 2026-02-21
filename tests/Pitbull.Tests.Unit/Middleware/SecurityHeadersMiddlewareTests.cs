@@ -70,7 +70,7 @@ public class SecurityHeadersMiddlewareTests
         var context = await ExecuteMiddlewareAsync(middleware);
 
         var permissionsPolicy = context.Response.Headers["Permissions-Policy"].ToString();
-        Assert.Contains("geolocation=()", permissionsPolicy);
+        Assert.Contains("geolocation=(self)", permissionsPolicy);
         Assert.Contains("microphone=()", permissionsPolicy);
         Assert.Contains("camera=()", permissionsPolicy);
         Assert.Contains("payment=()", permissionsPolicy);
