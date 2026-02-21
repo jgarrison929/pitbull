@@ -10,6 +10,9 @@ public class EmployeeTaxCompliance : BaseEntity
 {
     public Guid EmployeeId { get; set; }
 
+    [Encrypted]
+    public string? SsnLastFour { get; set; }
+
     // W-4 Federal Tax
     public W4FilingStatus W4FilingStatus { get; set; } = W4FilingStatus.Single;
     public decimal W4AdditionalWithholding { get; set; }

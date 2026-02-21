@@ -93,6 +93,9 @@ builder.Services.AddDataProtection()
     .PersistKeysToDbContext<PitbullDbContext>()
     .SetApplicationName("Pitbull");
 
+// Field-level encryption for [Encrypted] attribute (uses DataProtection)
+builder.Services.AddSingleton<Pitbull.Core.Services.IFieldEncryptionService, Pitbull.Core.Services.FieldEncryptionService>();
+
 // Demo bootstrap and seed data (optional)
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
 builder.Services.AddScoped<DemoBootstrapper>();
@@ -147,12 +150,15 @@ builder.Services.AddScoped<Pitbull.TimeTracking.Services.IEmployeeService, Pitbu
 // Dashboard service (Core module - migrated from MediatR)
 builder.Services.AddScoped<Pitbull.Core.Features.Dashboard.IDashboardService, Pitbull.Core.Features.Dashboard.DashboardService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IDashboardAnalyticsService, Pitbull.Api.Services.DashboardAnalyticsService>();
-builder.Services.AddSingleton<Pitbull.Api.Services.IDashboardPreferencesService, Pitbull.Api.Services.DashboardPreferencesService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IDashboardPreferencesService, Pitbull.Api.Services.DashboardPreferencesService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IPdfReportService, Pitbull.Api.Services.PdfReportService>();
 builder.Services.AddScoped<Pitbull.Core.Features.Feedback.IFeedbackService, Pitbull.Core.Features.Feedback.FeedbackService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Aging.IAgingReportService, Pitbull.Billing.Features.Aging.AgingReportService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Wip.IWipGlPostingService, Pitbull.Billing.Features.Wip.WipGlPostingService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.BankReconciliation.IBankReconciliationService, Pitbull.Billing.Features.BankReconciliation.BankReconciliationService>();
+
+// Vendor portal service (token-based access for vendors)
+builder.Services.AddScoped<Pitbull.Billing.Services.IVendorPortalService, Pitbull.Billing.Services.VendorPortalService>();
 
 // Equipment service (Core module - for time entry equipment tracking)
 builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pitbull.Core.Features.Equipment.EquipmentService>();
@@ -526,6 +532,17 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
+    // Vendor portal: 30 requests per minute per IP (public, anonymous)
+    options.AddPolicy("portal", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = 429;
@@ -552,6 +569,10 @@ builder.Services.AddResponseCompression(options =>
 });
 
 var app = builder.Build();
+
+// Register field encryption service for [Encrypted] attribute auto-discovery in DbContext
+PitbullDbContext.RegisterEncryptionService(
+    app.Services.GetRequiredService<Pitbull.Core.Services.IFieldEncryptionService>());
 
 // Handle forwarded headers from reverse proxy (must be very early)
 app.UseForwardedHeaders();

@@ -45,6 +45,7 @@ public class EmployeeTaxComplianceConfiguration : IEntityTypeConfiguration<Emplo
         builder.Property(x => x.W4AdditionalWithholding).HasPrecision(10, 2);
         builder.Property(x => x.I9Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.I9VerifiedBy).HasMaxLength(200);
+        builder.Property(x => x.SsnLastFour).HasColumnType("text"); // Encrypted field
         builder.Property(x => x.PayrollNotes).HasMaxLength(2000);
 
         builder.HasOne(x => x.Employee)

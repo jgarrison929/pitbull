@@ -56,6 +56,10 @@ public class VendorConfiguration : IEntityTypeConfiguration<Vendor>
         builder.Property(v => v.IsActive)
             .HasDefaultValue(true);
 
+        // Encrypted fields — TEXT type (encrypted values are longer than plaintext)
+        builder.Property(v => v.BankAccountNumber).HasColumnType("text");
+        builder.Property(v => v.BankRoutingNumber).HasColumnType("text");
+
         builder.HasIndex(v => new { v.TenantId, v.CompanyId, v.Code })
             .IsUnique()
             .HasDatabaseName("IX_vendors_tenant_company_code");

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
@@ -8,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Services;
 
 namespace Pitbull.Core.Data;
 
@@ -81,13 +83,27 @@ public class PitbullDbContext(
     // AI Predictions
     public DbSet<CostPrediction> CostPredictions => Set<CostPrediction>();
 
-    // Module assemblies to scan for IEntityTypeConfiguration
-    private static readonly List<System.Reflection.Assembly> _moduleAssemblies = [];
+    // Dashboard
+    public DbSet<DashboardPreference> DashboardPreferences => Set<DashboardPreference>();
 
-    public static void RegisterModuleAssembly(System.Reflection.Assembly assembly)
+    // Vendor Portal
+    public DbSet<VendorPortalToken> VendorPortalTokens => Set<VendorPortalToken>();
+
+    // Module assemblies to scan for IEntityTypeConfiguration
+    private static readonly List<Assembly> _moduleAssemblies = [];
+
+    // Field encryption service for [Encrypted] attribute auto-discovery
+    private static IFieldEncryptionService? _encryptionService;
+
+    public static void RegisterModuleAssembly(Assembly assembly)
     {
         if (!_moduleAssemblies.Contains(assembly))
             _moduleAssemblies.Add(assembly);
+    }
+
+    public static void RegisterEncryptionService(IFieldEncryptionService encryptionService)
+    {
+        _encryptionService = encryptionService;
     }
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -592,6 +608,30 @@ public class PitbullDbContext(
             e.HasIndex(f => new { f.TenantId, f.Category });
         });
 
+        // DashboardPreference configuration
+        builder.Entity<DashboardPreference>(e =>
+        {
+            e.ToTable("dashboard_preferences");
+            e.HasKey(dp => dp.Id);
+            e.Property(dp => dp.Layout).HasMaxLength(50).IsRequired();
+            e.Property(dp => dp.WidgetConfiguration).HasColumnType("jsonb");
+            e.HasIndex(dp => new { dp.TenantId, dp.UserId }).IsUnique();
+        });
+
+        // VendorPortalToken configuration
+        builder.Entity<VendorPortalToken>(e =>
+        {
+            e.ToTable("vendor_portal_tokens");
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Token).HasMaxLength(100).IsRequired();
+            e.HasIndex(t => t.Token).IsUnique();
+            e.HasIndex(t => new { t.TenantId, t.VendorId, t.ProjectId });
+            e.HasOne(t => t.Vendor)
+                .WithMany()
+                .HasForeignKey(t => t.VendorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         // PasswordResetToken configuration (not BaseEntity — no tenant/soft-delete filters)
         builder.Entity<PasswordResetToken>(e =>
         {
@@ -610,6 +650,24 @@ public class PitbullDbContext(
         foreach (var assembly in _moduleAssemblies)
         {
             builder.ApplyConfigurationsFromAssembly(assembly);
+        }
+
+        // Auto-apply EncryptedStringConverter to string properties marked with [Encrypted]
+        if (_encryptionService != null)
+        {
+            var converter = new EncryptedStringConverter(_encryptionService);
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    var clrProperty = property.PropertyInfo;
+                    if (clrProperty?.GetCustomAttribute<EncryptedAttribute>() != null
+                        && property.ClrType == typeof(string))
+                    {
+                        property.SetValueConverter(converter);
+                    }
+                }
+            }
         }
 
         // Apply global query filters for all entities inheriting BaseEntity
