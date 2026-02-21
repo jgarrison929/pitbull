@@ -1,8 +1,11 @@
 using System.Runtime.CompilerServices;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.DependencyInjection;
 using Pitbull.AI.Features;
 using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Core.Data;
+using Pitbull.Core.Services;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
@@ -29,5 +32,12 @@ internal static class ModuleInit
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateRfiCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectManagementModuleCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
+
+        // Register field encryption service for [Encrypted] attribute auto-discovery
+        var services = new ServiceCollection();
+        services.AddDataProtection().UseEphemeralDataProtectionProvider();
+        var sp = services.BuildServiceProvider();
+        var provider = sp.GetRequiredService<IDataProtectionProvider>();
+        PitbullDbContext.RegisterEncryptionService(new FieldEncryptionService(provider));
     }
 }

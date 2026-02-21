@@ -28,4 +28,10 @@ public class Vendor : BaseEntity, ICompanyScoped, ITenantScoped
     public string? PaymentTerms { get; set; }
 
     public bool IsActive { get; set; } = true;
+
+    [Encrypted]
+    public string? BankAccountNumber { get; set; }
+
+    [Encrypted]
+    public string? BankRoutingNumber { get; set; }
 }
