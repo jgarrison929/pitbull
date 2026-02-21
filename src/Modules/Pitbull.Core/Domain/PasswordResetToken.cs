@@ -25,7 +25,7 @@ public class PasswordResetToken
     /// </summary>
     public static (string PlaintextToken, string Hash) GenerateToken()
     {
-        var plaintext = Guid.NewGuid().ToString("N");
+        var plaintext = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
         return (plaintext, HashToken(plaintext));
     }
 

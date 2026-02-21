@@ -51,7 +51,8 @@ function LoginForm() {
       }
 
       toast.success("Welcome back!");
-      const redirect = searchParams.get("redirect") || "/";
+      const raw = searchParams.get("redirect") || "/";
+      const redirect = raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
       router.push(redirect);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Invalid email or password";

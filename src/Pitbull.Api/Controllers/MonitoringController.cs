@@ -12,7 +12,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize] // Require authentication
+[Authorize(Roles = "Admin")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Monitoring")]
@@ -39,8 +39,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
             Version: version,
             BuildTime: buildTime,
             Environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
-            FrameworkVersion: Environment.Version.ToString(),
-            MachineName: Environment.MachineName
+            FrameworkVersion: Environment.Version.ToString()
         ));
     }
 
@@ -142,13 +141,11 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
 /// <param name="BuildTime">Build timestamp (UTC)</param>
 /// <param name="Environment">Current environment (Development, Staging, Production)</param>
 /// <param name="FrameworkVersion">.NET runtime version</param>
-/// <param name="MachineName">Host machine name</param>
 public record VersionInfo(
     string Version,
     DateTime BuildTime,
     string Environment,
-    string FrameworkVersion,
-    string MachineName);
+    string FrameworkVersion);
 
 /// <summary>
 /// Security configuration status

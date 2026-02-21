@@ -124,15 +124,17 @@ function ErrorFallback({ error, reset }: { error: Error; reset: () => void }) {
           </p>
         </div>
 
-        {/* Error details (collapsible for debugging) */}
-        <details className="text-left">
-          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-            Error details
-          </summary>
-          <pre className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground overflow-auto max-h-32 whitespace-pre-wrap break-words">
-            {error.message}
-          </pre>
-        </details>
+        {/* Error details (development only) */}
+        {process.env.NODE_ENV === "development" && (
+          <details className="text-left">
+            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+              Error details
+            </summary>
+            <pre className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground overflow-auto max-h-32 whitespace-pre-wrap break-words">
+              {error.message}
+            </pre>
+          </details>
+        )}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-2 justify-center pt-2">
@@ -199,15 +201,17 @@ export function PageErrorFallback({
           </p>
         </div>
 
-        {/* Error details */}
-        <details className="text-left">
-          <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-            Error details
-          </summary>
-          <pre className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground overflow-auto max-h-32 whitespace-pre-wrap break-words">
-            {error.message}
-          </pre>
-        </details>
+        {/* Error details (development only) */}
+        {process.env.NODE_ENV === "development" && (
+          <details className="text-left">
+            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+              Error details
+            </summary>
+            <pre className="mt-2 p-3 bg-muted rounded-md text-xs text-muted-foreground overflow-auto max-h-32 whitespace-pre-wrap break-words">
+              {error.message}
+            </pre>
+          </details>
+        )}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">

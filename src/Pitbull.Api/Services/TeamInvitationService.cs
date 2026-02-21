@@ -180,9 +180,8 @@ public class TeamInvitationService(
         var normalizedEmail = invitation.Email.Trim().ToLowerInvariant();
 
         // Set tenant context for RLS
-        await db.Database.ExecuteSqlRawAsync(
-            "SELECT set_config('app.current_tenant', @p0, false)",
-            invitation.TenantId.ToString());
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_tenant', {invitation.TenantId.ToString()}, false)");
 
         // Create user account
         var user = new AppUser

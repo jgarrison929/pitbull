@@ -72,7 +72,6 @@ public class MonitoringControllerTests
         var version = okResult.Value.Should().BeOfType<VersionInfo>().Subject;
         version.Version.Should().NotBeNullOrEmpty();
         version.FrameworkVersion.Should().NotBeNullOrEmpty();
-        version.MachineName.Should().NotBeNullOrEmpty();
     }
 
     [Fact]

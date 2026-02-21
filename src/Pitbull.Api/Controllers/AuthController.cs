@@ -142,9 +142,8 @@ public class AuthController(
                 tenantContext.TenantId = tenantId;
 
                 // Also set on the current connection for immediate RLS compliance
-                await db.Database.ExecuteSqlRawAsync(
-                    "SELECT set_config('app.current_tenant', @p0, false)",
-                    tenantId.ToString());
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, false)");
 
                 var user = new AppUser
                 {
@@ -361,7 +360,9 @@ public class AuthController(
 
         var user = await userManager.FindByIdAsync(userId);
         if (user is null ||
-            user.RefreshToken != request.RefreshToken ||
+            !CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(user.RefreshToken ?? ""),
+                Encoding.UTF8.GetBytes(request.RefreshToken ?? "")) ||
             user.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             return this.UnauthorizedError("Invalid or expired refresh token");

@@ -55,7 +55,9 @@ export class ErrorBoundary extends React.Component<
               : "Something went wrong"}
           </p>
           <p className="text-xs text-muted-foreground/75 mb-4 max-w-sm">
-            {this.state.error?.message || "An unexpected error occurred"}
+            {process.env.NODE_ENV === "development"
+              ? (this.state.error?.message || "An unexpected error occurred")
+              : "An unexpected error occurred"}
           </p>
           <Button
             variant="outline"
