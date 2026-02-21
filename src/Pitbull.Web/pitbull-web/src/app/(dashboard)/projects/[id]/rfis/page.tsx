@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import api, { ApiError, uploadFiles } from "@/lib/api";
-import { isValidGuid } from "@/lib/utils";
+import { isValidGuid, cn } from "@/lib/utils";
 import type {
   CreateRfiCommand,
   Rfi,
@@ -76,6 +76,19 @@ function statusLabel(status: RfiStatus): string {
   }
 }
 
+function statusBadgeClass(status: RfiStatus): string {
+  switch (status) {
+    case 0:
+      return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+    case 1:
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+    case 2:
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
+    default:
+      return "";
+  }
+}
+
 function priorityLabel(priority: RfiPriority): string {
   switch (priority) {
     case 0:
@@ -89,6 +102,32 @@ function priorityLabel(priority: RfiPriority): string {
     default:
       return "Unknown";
   }
+}
+
+function priorityBadgeClass(priority: RfiPriority): string {
+  switch (priority) {
+    case 0:
+      return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+    case 1:
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
+    case 2:
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+    case 3:
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+    default:
+      return "";
+  }
+}
+
+function daysOpen(createdAt: string): number {
+  const created = new Date(createdAt);
+  if (Number.isNaN(created.getTime())) return 0;
+  const now = new Date();
+  return Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function isOverdue(rfi: Rfi): boolean {
+  return rfi.status === 0 && daysOpen(rfi.createdAt) > 14;
 }
 
 function toDateInput(value?: string | null): string {
@@ -391,15 +430,28 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
                   </div>
                 ) : (
                   filtered.map((rfi) => (
-                    <div key={rfi.id} className="rounded-lg border p-4 space-y-2">
+                    <div key={rfi.id} className={cn("rounded-lg border p-4 space-y-2", isOverdue(rfi) && "border-red-300 dark:border-red-800")}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium">RFI-{String(rfi.number).padStart(3, "0")}</span>
-                        <Badge>{statusLabel(rfi.status)}</Badge>
+                        <div className="flex items-center gap-1.5">
+                          {isOverdue(rfi) && (
+                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs">Overdue</Badge>
+                          )}
+                          <Badge className={statusBadgeClass(rfi.status)}>{statusLabel(rfi.status)}</Badge>
+                        </div>
                       </div>
                       <p className="text-sm">{rfi.subject}</p>
-                      <div className="flex gap-4 text-sm text-muted-foreground">
-                        <Badge variant="outline">{priorityLabel(rfi.priority)}</Badge>
-                        <span>{formatDate(rfi.dueDate)}</span>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                        <Badge className={priorityBadgeClass(rfi.priority) + " text-xs"}>{priorityLabel(rfi.priority)}</Badge>
+                        {rfi.status === 0 && (
+                          <span className={daysOpen(rfi.createdAt) > 14 ? "text-red-600 font-medium" : ""}>
+                            {daysOpen(rfi.createdAt)}d open
+                          </span>
+                        )}
+                        {rfi.ballInCourtName && (
+                          <span>Ball in Court: {rfi.ballInCourtName}</span>
+                        )}
+                        <span>Due: {formatDate(rfi.dueDate)}</span>
                       </div>
                       <div className="flex gap-2 pt-1">
                         <Button asChild variant="outline" size="sm">
@@ -432,6 +484,8 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
                       <TableHead>RFI #</TableHead>
                       <TableHead>Subject</TableHead>
                       <TableHead>Priority</TableHead>
+                      <TableHead>Days Open</TableHead>
+                      <TableHead>Ball in Court</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Due Date</TableHead>
                       <TableHead className="w-[220px]">Actions</TableHead>
@@ -440,7 +494,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6}>
+                        <TableCell colSpan={8}>
                           <div className="flex flex-col items-center gap-3 py-6 text-center">
                             <p className="text-sm text-muted-foreground">
                               No RFIs yet. Create your first request for information.
@@ -451,16 +505,39 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
                       </TableRow>
                     ) : (
                       filtered.map((rfi) => (
-                        <TableRow key={rfi.id}>
+                        <TableRow key={rfi.id} className={isOverdue(rfi) ? "bg-red-50/50 dark:bg-red-950/20" : undefined}>
                           <TableCell className="font-medium">RFI-{String(rfi.number).padStart(3, "0")}</TableCell>
                           <TableCell>{rfi.subject}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{priorityLabel(rfi.priority)}</Badge>
+                            <Badge className={priorityBadgeClass(rfi.priority) + " text-xs"}>{priorityLabel(rfi.priority)}</Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {rfi.status === 0 ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className={daysOpen(rfi.createdAt) > 14 ? "text-red-600 font-medium" : ""}>
+                                  {daysOpen(rfi.createdAt)}d
+                                </span>
+                                {isOverdue(rfi) && (
+                                  <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs">Overdue</Badge>
+                                )}
+                              </div>
+                            ) : rfi.status === 2 ? (
+                              <span className="text-muted-foreground">Closed</span>
+                            ) : (
+                              <span className="text-muted-foreground">Answered</span>
+                            )}
                           </TableCell>
                           <TableCell>
-                            <Badge>{statusLabel(rfi.status)}</Badge>
+                            {rfi.ballInCourtName ? (
+                              <Badge variant="secondary" className="text-xs">{rfi.ballInCourtName}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </TableCell>
-                          <TableCell>{formatDate(rfi.dueDate)}</TableCell>
+                          <TableCell>
+                            <Badge className={statusBadgeClass(rfi.status)}>{statusLabel(rfi.status)}</Badge>
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">{formatDate(rfi.dueDate)}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
                               <Button asChild variant="outline" size="sm">

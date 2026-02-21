@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError } from "@/lib/api";
 import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
@@ -34,10 +34,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
+import { Pencil, Trash2, Plus, X, AlertTriangle } from "lucide-react";
 
 interface DataMap {
   [key: string]: unknown;
+}
+
+interface ActionItem {
+  description: string;
+  owner: string;
+  dueDate: string;
+  completed: boolean;
 }
 
 interface MeetingRow {
@@ -51,6 +62,7 @@ interface MeetingRow {
   description: string;
   attendees: string;
   minutes: string;
+  actionItems: ActionItem[];
   isRecurring: boolean;
   recurrencePattern: string;
   status: string;
@@ -67,6 +79,7 @@ interface MeetingFormState {
   description: string;
   attendees: string;
   minutes: string;
+  actionItems: ActionItem[];
   isRecurring: boolean;
   recurrencePattern: string;
   status: string;
@@ -114,6 +127,27 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
   }
 }
 
+function parseActionItems(data: unknown): ActionItem[] {
+  const raw = (data as DataMap)?.ActionItems ?? (data as DataMap)?.actionItems;
+  if (!Array.isArray(raw)) return [];
+  return raw.map((item: unknown) => {
+    const d = item as Record<string, unknown>;
+    return {
+      description: asString(d.description ?? d.Description),
+      owner: asString(d.owner ?? d.Owner),
+      dueDate: asString(d.dueDate ?? d.DueDate),
+      completed: d.completed === true || d.Completed === true,
+    };
+  });
+}
+
+function isActionItemOverdue(item: ActionItem): boolean {
+  if (item.completed || !item.dueDate) return false;
+  const due = new Date(item.dueDate);
+  if (Number.isNaN(due.getTime())) return false;
+  return due < new Date();
+}
+
 function meetingTypeLabel(type: string): string {
   switch (type) {
     case "OAC":
@@ -125,9 +159,12 @@ function meetingTypeLabel(type: string): string {
   }
 }
 
-export default function MeetingsPage({ params }: { params: Promise<{ id: string }> }) {
+function MeetingsContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const isProjectIdValid = isValidGuid(projectId);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useListPageShortcuts({ searchInputRef });
 
   const [meetings, setMeetings] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,6 +185,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
     description: "",
     attendees: "",
     minutes: "",
+    actionItems: [],
     isRecurring: false,
     recurrencePattern: "",
     status: "Scheduled",
@@ -194,6 +232,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         description: asString(data.Description ?? data.description),
         attendees: asString(data.Attendees ?? data.attendees),
         minutes: asString(data.Minutes ?? data.minutes),
+        actionItems: parseActionItems(data),
         isRecurring: asBool(data.IsRecurring ?? data.isRecurring),
         recurrencePattern: asString(data.RecurrencePattern ?? data.recurrencePattern),
         status: meeting.status || "Scheduled",
@@ -225,6 +264,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       description: "",
       attendees: "",
       minutes: "",
+      actionItems: [],
       isRecurring: false,
       recurrencePattern: "",
       status: "Scheduled",
@@ -245,6 +285,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
       description: row.description,
       attendees: row.attendees,
       minutes: row.minutes,
+      actionItems: row.actionItems,
       isRecurring: row.isRecurring,
       recurrencePattern: row.recurrencePattern,
       status: row.status,
@@ -275,6 +316,7 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         Description: form.description || null,
         Attendees: form.attendees || null,
         Minutes: form.minutes || null,
+        ActionItems: form.actionItems.length > 0 ? form.actionItems : null,
         IsRecurring: form.isRecurring,
         RecurrencePattern: form.isRecurring ? (form.recurrencePattern || null) : null,
       },
@@ -357,9 +399,10 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
         <CardContent className="space-y-4">
           <div className="grid gap-3 md:grid-cols-[1fr_220px]">
             <Input
+              ref={searchInputRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title, location, type, or description"
+              placeholder="Search by title, location, type, or description (press / to focus)"
             />
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
@@ -420,21 +463,57 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                         </p>
                       )}
                       {row.minutes && (
-                        <Badge variant="outline" className="text-xs w-fit">Minutes recorded</Badge>
+                        <div className="text-sm">
+                          <p className="text-xs font-medium text-muted-foreground mb-1">Minutes</p>
+                          <p className="text-sm line-clamp-3 whitespace-pre-wrap">{row.minutes}</p>
+                        </div>
+                      )}
+                      {row.actionItems.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                            Action Items ({row.actionItems.filter(ai => !ai.completed).length} open)
+                            {row.actionItems.some(isActionItemOverdue) && (
+                              <AlertTriangle className="h-3 w-3 text-red-500" />
+                            )}
+                          </p>
+                          {row.actionItems.slice(0, 3).map((ai, idx) => (
+                            <div
+                              key={idx}
+                              className={`text-xs rounded px-2 py-1 ${
+                                isActionItemOverdue(ai) ? "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300" :
+                                ai.completed ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 line-through" :
+                                "bg-muted"
+                              }`}
+                            >
+                              {ai.description} {ai.owner && `(${ai.owner})`} {ai.dueDate && `- ${formatDate(ai.dueDate)}`}
+                            </div>
+                          ))}
+                          {row.actionItems.length > 3 && (
+                            <p className="text-xs text-muted-foreground">+{row.actionItems.length - 3} more</p>
+                          )}
+                        </div>
                       )}
                       <div className="flex gap-2 pt-1">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                          Edit
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 min-h-[44px] min-w-[44px]"
+                          onClick={() => openEdit(row)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                          <span className="sr-only">Edit</span>
                         </Button>
                         <Button
-                          variant="outline"
-                          size="sm"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
                           onClick={() => {
                             setPendingDelete(row);
                             setDeleteOpen(true);
                           }}
                         >
-                          Delete
+                          <Trash2 className="h-4 w-4" />
+                          <span className="sr-only">Delete</span>
                         </Button>
                       </div>
                     </div>
@@ -453,14 +532,15 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                         <TableHead>Type</TableHead>
                         <TableHead>Time</TableHead>
                         <TableHead>Location</TableHead>
+                        <TableHead>Action Items</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead className="w-[180px]">Actions</TableHead>
+                        <TableHead className="w-[120px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7}>
+                          <TableCell colSpan={8}>
                             <div className="flex flex-col items-center gap-3 py-6 text-center">
                               <p className="text-sm text-muted-foreground">
                                 No meetings yet. Create your first meeting.
@@ -497,22 +577,55 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
                             </TableCell>
                             <TableCell className="max-w-[200px] truncate">{row.location || "-"}</TableCell>
                             <TableCell>
+                              {row.actionItems.length > 0 ? (
+                                <div className="space-y-0.5">
+                                  {row.actionItems.slice(0, 2).map((ai, idx) => (
+                                    <div
+                                      key={idx}
+                                      className={`text-xs truncate max-w-[180px] ${
+                                        isActionItemOverdue(ai) ? "text-red-600 font-medium" :
+                                        ai.completed ? "text-muted-foreground line-through" : ""
+                                      }`}
+                                      title={`${ai.description} - ${ai.owner || "Unassigned"} (Due: ${formatDate(ai.dueDate)})`}
+                                    >
+                                      {isActionItemOverdue(ai) && <AlertTriangle className="h-3 w-3 inline mr-1" />}
+                                      {ai.description}
+                                      {ai.owner && <span className="text-muted-foreground ml-1">({ai.owner})</span>}
+                                    </div>
+                                  ))}
+                                  {row.actionItems.length > 2 && (
+                                    <span className="text-xs text-muted-foreground">+{row.actionItems.length - 2} more</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
                               <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
                             </TableCell>
                             <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                                  Edit
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 min-h-[44px] min-w-[44px]"
+                                  onClick={() => openEdit(row)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  <span className="sr-only">Edit</span>
                                 </Button>
                                 <Button
-                                  variant="outline"
-                                  size="sm"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 min-h-[44px] min-w-[44px] text-destructive hover:text-destructive"
                                   onClick={() => {
                                     setPendingDelete(row);
                                     setDeleteOpen(true);
                                   }}
                                 >
-                                  Delete
+                                  <Trash2 className="h-4 w-4" />
+                                  <span className="sr-only">Delete</span>
                                 </Button>
                               </div>
                             </TableCell>
@@ -660,6 +773,86 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
               />
             </div>
 
+            {/* Action Items */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label>Action Items</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      actionItems: [
+                        ...prev.actionItems,
+                        { description: "", owner: "", dueDate: "", completed: false },
+                      ],
+                    }))
+                  }
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Item
+                </Button>
+              </div>
+              {form.actionItems.length > 0 && (
+                <div className="space-y-2">
+                  {form.actionItems.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`grid gap-2 items-end rounded-lg border p-2 ${
+                        isActionItemOverdue(item) ? "border-red-300 bg-red-50/50 dark:border-red-800 dark:bg-red-950/30" : ""
+                      }`}
+                      style={{ gridTemplateColumns: "1fr 120px 120px 32px" }}
+                    >
+                      <Input
+                        value={item.description}
+                        onChange={(e) => {
+                          const updated = [...form.actionItems];
+                          updated[idx] = { ...updated[idx], description: e.target.value };
+                          setForm((prev) => ({ ...prev, actionItems: updated }));
+                        }}
+                        placeholder="Action item description"
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        value={item.owner}
+                        onChange={(e) => {
+                          const updated = [...form.actionItems];
+                          updated[idx] = { ...updated[idx], owner: e.target.value };
+                          setForm((prev) => ({ ...prev, actionItems: updated }));
+                        }}
+                        placeholder="Owner"
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        type="date"
+                        value={item.dueDate ? item.dueDate.slice(0, 10) : ""}
+                        onChange={(e) => {
+                          const updated = [...form.actionItems];
+                          updated[idx] = { ...updated[idx], dueDate: e.target.value };
+                          setForm((prev) => ({ ...prev, actionItems: updated }));
+                        }}
+                        className="h-8 text-sm"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={() => {
+                          const updated = form.actionItems.filter((_, i) => i !== idx);
+                          setForm((prev) => ({ ...prev, actionItems: updated }));
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex items-center gap-3 pt-2">
                 <input
@@ -689,9 +882,14 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={saveMeeting} disabled={saving}>
-              {saving ? "Saving..." : editing ? "Save Changes" : "Create Meeting"}
-            </Button>
+            <LoadingButton
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={saveMeeting}
+              loading={saving}
+              loadingText="Saving..."
+            >
+              {editing ? "Save Changes" : "Create Meeting"}
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -710,12 +908,25 @@ export default function MeetingsPage({ params }: { params: Promise<{ id: string 
             <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={deleteMeeting} disabled={saving}>
-              {saving ? "Deleting..." : "Delete"}
-            </Button>
+            <LoadingButton
+              variant="destructive"
+              onClick={deleteMeeting}
+              loading={saving}
+              loadingText="Deleting..."
+            >
+              Delete
+            </LoadingButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function MeetingsPage(props: { params: Promise<{ id: string }> }) {
+  return (
+    <ErrorBoundary section="Meetings">
+      <MeetingsContent {...props} />
+    </ErrorBoundary>
   );
 }

@@ -157,7 +157,7 @@ public sealed class DailyReportServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId,
-            new PmUpsertRequest())).Value!;
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Clear skies", ["WorkNarrative"] = "Foundation work" }))).Value!;
 
         var result = await service.SubmitDailyReportAsync(ProjectId, created.Id);
 
@@ -192,7 +192,7 @@ public sealed class DailyReportServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateDailyReportAsync(ProjectId,
-            new PmUpsertRequest())).Value!;
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Clear", ["WorkNarrative"] = "Concrete pour" }))).Value!;
         await service.SubmitDailyReportAsync(ProjectId, created.Id);
 
         var result = await service.ApproveDailyReportAsync(ProjectId, created.Id);
@@ -435,7 +435,8 @@ public sealed class DailyReportServiceTests
 
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
-        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Partly cloudy", ["WorkNarrative"] = "Framing work" }))).Value!;
 
         var before = DateTime.UtcNow;
         await service.SubmitDailyReportAsync(ProjectId, created.Id);
@@ -452,7 +453,8 @@ public sealed class DailyReportServiceTests
 
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
-        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Cloudy", ["WorkNarrative"] = "Steel erection" }))).Value!;
         await service.SubmitDailyReportAsync(ProjectId, created.Id);
 
         var before = DateTime.UtcNow;
@@ -631,7 +633,8 @@ public sealed class DailyReportServiceTests
 
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
-        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Sunny", ["WorkNarrative"] = "Electrical rough-in" }))).Value!;
 
         // Submit once (Draft -> Submitted)
         await service.SubmitDailyReportAsync(ProjectId, created.Id);

@@ -143,6 +143,10 @@ public sealed class PmServiceSubmittalTests
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "Initial", Status: "Draft"))).Value!;
 
+        // Follow valid transition path: Draft → Submitted → InReview → Approved
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "InReview"));
+
         var result = await service.UpdateSubmittalAsync(ProjectId, created.Id,
             new PmUpsertRequest(Title: "Revised", Status: "Approved"));
 

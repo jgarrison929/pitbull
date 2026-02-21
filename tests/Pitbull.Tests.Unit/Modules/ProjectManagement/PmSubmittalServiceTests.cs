@@ -50,6 +50,10 @@ public sealed class PmSubmittalServiceTests
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "Draft Package", Status: "Draft"))).Value!;
 
+        // Follow valid transition path: Draft → Submitted → InReview → Approved
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "InReview"));
+
         var beforeUpdate = DateTime.UtcNow;
         var result = await service.UpdateSubmittalAsync(ProjectId, created.Id,
             new PmUpsertRequest(Status: "Approved"));
@@ -202,6 +206,10 @@ public sealed class PmSubmittalServiceTests
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "To Approve", Status: "Draft"))).Value!;
+
+        // Follow valid transition path: Draft → Submitted → InReview → Approved
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "InReview"));
 
         var beforeReturn = DateTime.UtcNow;
         await service.UpdateSubmittalAsync(ProjectId, created.Id,
@@ -426,8 +434,13 @@ public sealed class PmMeetingServiceTests
         var service = CreateService(db);
         var meeting = (await service.CreateMeetingAsync(ProjectId,
             new PmUpsertRequest(Title: "Progress Review"))).Value!;
+        var assigneeId = Guid.NewGuid();
         var action = (await service.AddActionItemAsync(ProjectId, meeting.Id,
-            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["Description"] = "Issue revised plan set." }))).Value!;
+            new PmUpsertRequest(DueDate: DateTime.UtcNow.AddDays(7), Data: new Dictionary<string, object?>
+            {
+                ["Description"] = "Issue revised plan set.",
+                ["AssigneeUserId"] = assigneeId
+            }))).Value!;
 
         var update = await service.UpdateActionItemAsync(ProjectId, meeting.Id, action.Id,
             new PmUpsertRequest(Status: "Complete"));
@@ -454,12 +467,12 @@ public sealed class PmMeetingServiceTests
         var meetingA = (await service.CreateMeetingAsync(ProjectId, new PmUpsertRequest(Title: "A"))).Value!;
         var meetingB = (await service.CreateMeetingAsync(otherProjectId, new PmUpsertRequest(Title: "B"))).Value!;
 
-        await service.AddActionItemAsync(ProjectId, meetingA.Id, new PmUpsertRequest(Data: new Dictionary<string, object?>
+        await service.AddActionItemAsync(ProjectId, meetingA.Id, new PmUpsertRequest(DueDate: DateTime.UtcNow.AddDays(7), Data: new Dictionary<string, object?>
         {
             ["Description"] = "A1",
             ["AssigneeUserId"] = currentUserId
         }));
-        await service.AddActionItemAsync(otherProjectId, meetingB.Id, new PmUpsertRequest(Data: new Dictionary<string, object?>
+        await service.AddActionItemAsync(otherProjectId, meetingB.Id, new PmUpsertRequest(DueDate: DateTime.UtcNow.AddDays(7), Data: new Dictionary<string, object?>
         {
             ["Description"] = "B1",
             ["AssigneeUserId"] = currentUserId

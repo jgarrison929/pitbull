@@ -567,10 +567,74 @@ public class ScheduleService : PmServiceBase, IScheduleService
         await Db.SaveChangesAsync(cancellationToken);
         return Action("Baseline created", baseline.Id, new { baseline.ScheduleId, baseline.CapturedAt });
     }
-    public Task<Result<PmEntityDto>> AddActivityAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => CreateAsync<PmScheduleActivity>(projectId, request with { ReferenceId = scheduleId }, cancellationToken);
-    public Task<Result<PmEntityDto>> UpdateActivityAsync(Guid projectId, Guid scheduleId, Guid activityId, PmUpsertRequest request, CancellationToken cancellationToken = default)
-        => UpdateAsync<PmScheduleActivity>(projectId, activityId, request with { ReferenceId = scheduleId }, cancellationToken);
+    public async Task<Result<PmEntityDto>> AddActivityAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.Data is not null)
+        {
+            var dateError = ValidateActivityDates(request.Data);
+            if (dateError != null)
+                return Result.Failure<PmEntityDto>(dateError, "VALIDATION_ERROR");
+
+            // Auto-set IsCritical when TotalFloatDays is provided and equals 0
+            if (request.Data.TryGetValue("TotalFloatDays", out var floatObj) && floatObj is not null)
+            {
+                try
+                {
+                    var floatDays = floatObj is JsonElement je ? je.GetInt32() : Convert.ToInt32(floatObj);
+                    request = MergeData(request, "IsCritical", floatDays == 0);
+                }
+                catch { /* ignore conversion errors */ }
+            }
+        }
+
+        return await CreateAsync<PmScheduleActivity>(projectId, request with { ReferenceId = scheduleId }, cancellationToken);
+    }
+
+    public async Task<Result<PmEntityDto>> UpdateActivityAsync(Guid projectId, Guid scheduleId, Guid activityId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+    {
+        var activity = await ProjectScoped<PmScheduleActivity>(projectId)
+            .FirstOrDefaultAsync(a => a.Id == activityId && a.ScheduleId == scheduleId, cancellationToken);
+        if (activity == null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (request.Data is not null)
+        {
+            var dateError = ValidateActivityDates(request.Data, activity);
+            if (dateError != null)
+                return Result.Failure<PmEntityDto>(dateError, "VALIDATION_ERROR");
+        }
+
+        ApplyUpsert(activity, request);
+
+        // Auto-set IsCritical based on TotalFloatDays
+        activity.IsCritical = activity.TotalFloatDays.HasValue && activity.TotalFloatDays.Value == 0;
+
+        activity.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ToDto(activity));
+    }
+
+    private static string? ValidateActivityDates(Dictionary<string, object?> data, PmScheduleActivity? existing = null)
+    {
+        DateTime? plannedStart = existing?.PlannedStart;
+        DateTime? plannedFinish = existing?.PlannedFinish;
+
+        if (data.TryGetValue("PlannedStart", out var psObj) && psObj is not null)
+        {
+            try { plannedStart = psObj is JsonElement je ? je.GetDateTime() : Convert.ToDateTime(psObj); }
+            catch { /* ignore */ }
+        }
+        if (data.TryGetValue("PlannedFinish", out var pfObj) && pfObj is not null)
+        {
+            try { plannedFinish = pfObj is JsonElement je ? je.GetDateTime() : Convert.ToDateTime(pfObj); }
+            catch { /* ignore */ }
+        }
+
+        if (plannedStart.HasValue && plannedFinish.HasValue && plannedFinish.Value < plannedStart.Value)
+            return "PlannedFinish must be on or after PlannedStart";
+
+        return null;
+    }
     public async Task<Result<PmEntityDto>> AddDependencyAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
         var scheduleExists = await ProjectScoped<PmSchedule>(projectId).AnyAsync(s => s.Id == scheduleId, cancellationToken);
@@ -597,6 +661,30 @@ public class ScheduleService : PmServiceBase, IScheduleService
             }
             if (predecessorId.HasValue && successorId.HasValue && predecessorId == successorId)
                 return Result.Failure<PmEntityDto>("Predecessor and successor cannot be the same activity", "VALIDATION_ERROR");
+
+            // Circular dependency detection: check if successor can already reach predecessor
+            if (predecessorId.HasValue && successorId.HasValue)
+            {
+                var allDeps = await Db.Set<PmScheduleDependency>()
+                    .Where(d => !d.IsDeleted && d.ScheduleId == scheduleId)
+                    .Select(d => new { d.PredecessorActivityId, d.SuccessorActivityId })
+                    .ToListAsync(cancellationToken);
+
+                var visited = new HashSet<Guid> { successorId.Value };
+                var queue = new Queue<Guid>();
+                queue.Enqueue(successorId.Value);
+                while (queue.Count > 0)
+                {
+                    var current = queue.Dequeue();
+                    foreach (var dep in allDeps.Where(d => d.PredecessorActivityId == current))
+                    {
+                        if (dep.SuccessorActivityId == predecessorId.Value)
+                            return Result.Failure<PmEntityDto>("Adding this dependency would create a circular reference", "VALIDATION_ERROR");
+                        if (visited.Add(dep.SuccessorActivityId))
+                            queue.Enqueue(dep.SuccessorActivityId);
+                    }
+                }
+            }
         }
 
         return await CreateAsync<PmScheduleDependency>(projectId, request with { ReferenceId = scheduleId }, cancellationToken);
@@ -756,13 +844,34 @@ public class SubmittalService : PmServiceBase, ISubmittalService
 
         if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<SubmittalStatus>(request.Status, true, out var newStatus) && newStatus != submittal.Status)
         {
+            var validTransition = (submittal.Status, newStatus) switch
+            {
+                (SubmittalStatus.Draft, SubmittalStatus.Submitted) => true,
+                (SubmittalStatus.Submitted, SubmittalStatus.InReview) => true,
+                (SubmittalStatus.InReview, SubmittalStatus.Approved) => true,
+                (SubmittalStatus.InReview, SubmittalStatus.ApprovedAsNoted) => true,
+                (SubmittalStatus.InReview, SubmittalStatus.ReviseAndResubmit) => true,
+                (SubmittalStatus.InReview, SubmittalStatus.Rejected) => true,
+                (SubmittalStatus.ReviseAndResubmit, SubmittalStatus.Draft) => true,
+                (SubmittalStatus.Rejected, SubmittalStatus.Draft) => true,
+                (SubmittalStatus.Approved, SubmittalStatus.Closed) => true,
+                (SubmittalStatus.ApprovedAsNoted, SubmittalStatus.Closed) => true,
+                _ => false
+            };
+            if (!validTransition)
+                return Result.Failure<PmEntityDto>($"Invalid status transition from {submittal.Status} to {newStatus}", "INVALID_STATUS");
+
             if (newStatus == SubmittalStatus.Submitted)
                 request = MergeData(request, "SubmittedDate", DateTime.UtcNow);
             else if (newStatus is SubmittalStatus.Approved or SubmittalStatus.ApprovedAsNoted or SubmittalStatus.ReviseAndResubmit or SubmittalStatus.Rejected)
                 request = MergeData(request, "ReturnedDate", DateTime.UtcNow);
 
             if (newStatus == SubmittalStatus.ReviseAndResubmit)
+            {
                 request = MergeData(request, "RevisionNumber", submittal.RevisionNumber + 1);
+                // Reset to Draft for resubmission per construction workflow
+                request = request with { Status = "Draft" };
+            }
         }
 
         ApplyUpsert(submittal, request);
@@ -947,6 +1056,16 @@ public class DailyReportService : PmServiceBase, IDailyReportService
 
         if (dailyReport.Status != DailyReportStatus.Draft)
             return Result.Failure<PmActionResultDto>("Daily report can only be submitted from Draft status", "INVALID_STATUS");
+
+        // Validate weather data is present
+        if (string.IsNullOrWhiteSpace(dailyReport.WeatherSummary) && !dailyReport.TemperatureHigh.HasValue && !dailyReport.TemperatureLow.HasValue)
+            return Result.Failure<PmActionResultDto>("Weather conditions (WeatherSummary or Temperature) are required before submitting", "VALIDATION_ERROR");
+
+        // Validate at least one manpower entry (crew) or work narrative
+        var hasCrewEntries = await Db.Set<PmDailyReportCrew>()
+            .AnyAsync(c => !c.IsDeleted && c.DailyReportId == dailyReportId, cancellationToken);
+        if (!hasCrewEntries && string.IsNullOrWhiteSpace(dailyReport.WorkNarrative))
+            return Result.Failure<PmActionResultDto>("At least one crew/manpower entry or a work narrative is required before submitting", "VALIDATION_ERROR");
 
         dailyReport.Status = DailyReportStatus.Submitted;
         dailyReport.UpdatedAt = DateTime.UtcNow;
@@ -1239,6 +1358,18 @@ public class MeetingService : PmServiceBase, IMeetingService
         if (meeting.Status == MeetingStatus.Canceled)
             return Result.Failure<PmEntityDto>("Cannot add items to a canceled meeting", "INVALID_STATUS");
 
+        // Validate action item has an assignee
+        var hasAssignee = request.Data is not null
+            && request.Data.TryGetValue("AssigneeUserId", out var assigneeObj) && assigneeObj is not null
+            && !string.IsNullOrWhiteSpace(assigneeObj.ToString());
+        if (!hasAssignee)
+            return Result.Failure<PmEntityDto>("AssigneeUserId is required for action items", "VALIDATION_ERROR");
+
+        // Validate action item has a due date
+        if (!request.DueDate.HasValue
+            && !(request.Data is not null && request.Data.TryGetValue("DueDate", out var dueDateObj) && dueDateObj is not null))
+            return Result.Failure<PmEntityDto>("DueDate is required for action items", "VALIDATION_ERROR");
+
         return await CreateAsync<PmMeetingActionItem>(projectId, request with { ReferenceId = meetingId }, cancellationToken);
     }
 
@@ -1421,8 +1552,28 @@ public class PunchListService : PmServiceBase, IPunchListService
     public Task<Result<PmEntityDto>> GetPunchListItemAsync(Guid projectId, Guid itemId, CancellationToken cancellationToken = default)
         => GetAsync<PmPunchListItem>(projectId, itemId, cancellationToken);
 
-    public Task<Result<PagedResult<PmEntityDto>>> ListPunchListItemsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
-        => ListAsync(ProjectScoped<PmPunchListItem>(projectId), query, cancellationToken);
+    public async Task<Result<PagedResult<PmEntityDto>>> ListPunchListItemsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
+    {
+        var baseQuery = ProjectScoped<PmPunchListItem>(projectId).AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var s = query.Search.ToLowerInvariant();
+            baseQuery = baseQuery.Where(e => e.Description.ToLower().Contains(s) || e.Location.ToLower().Contains(s));
+        }
+
+        var total = await baseQuery.CountAsync(cancellationToken);
+
+        // Sort by priority descending (Urgent=3 > High=2 > Normal=1 > Low=0), then by CreatedAt descending
+        var items = await baseQuery
+            .OrderByDescending(p => p.Priority)
+            .ThenByDescending(p => p.CreatedAt)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .ToListAsync(cancellationToken);
+
+        return Result.Success(new PagedResult<PmEntityDto>(items.Select(ToDto).ToList(), total, query.Page, query.PageSize));
+    }
 
     public async Task<Result<PmEntityDto>> UpdatePunchListItemAsync(Guid projectId, Guid itemId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
@@ -1449,6 +1600,14 @@ public class PunchListService : PmServiceBase, IPunchListService
             };
             if (!valid)
                 return Result.Failure<PmEntityDto>($"Invalid status transition from {item.Status} to {newStatus}", "INVALID_STATUS");
+
+            if (newStatus == PunchListItemStatus.InProgress)
+            {
+                var hasAssignee = !string.IsNullOrWhiteSpace(item.AssignedToName)
+                    || (request.Data is not null && request.Data.TryGetValue("AssignedToName", out var assignee) && assignee is not null && !string.IsNullOrWhiteSpace(assignee.ToString()));
+                if (!hasAssignee)
+                    return Result.Failure<PmEntityDto>("AssignedToName is required before moving to InProgress", "VALIDATION_ERROR");
+            }
 
             if (newStatus == PunchListItemStatus.Closed)
             {

@@ -75,6 +75,22 @@ interface ReportRow {
   attachmentCount: number;
 }
 
+interface CrewEntry {
+  trade: string;
+  count: number;
+}
+
+interface EquipmentEntry {
+  name: string;
+  status: string;
+}
+
+interface VisitorEntry {
+  name: string;
+  company: string;
+  purpose: string;
+}
+
 interface ReportFormState {
   id?: string;
   title: string;
@@ -88,6 +104,9 @@ interface ReportFormState {
   workNarrative: string;
   delaysNarrative: string;
   safetyNarrative: string;
+  crewEntries: CrewEntry[];
+  equipment: EquipmentEntry[];
+  visitors: VisitorEntry[];
   status: string;
 }
 
@@ -120,6 +139,56 @@ function formatDate(date: string | null): string {
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return "-";
   return parsed.toLocaleDateString();
+}
+
+function weatherIcon(summary: string): string {
+  const s = summary.toLowerCase();
+  if (s.includes("rain") || s.includes("shower")) return "🌧";
+  if (s.includes("snow") || s.includes("sleet")) return "🌨";
+  if (s.includes("cloud") || s.includes("overcast")) return "☁";
+  if (s.includes("fog") || s.includes("mist")) return "🌫";
+  if (s.includes("storm") || s.includes("thunder")) return "⛈";
+  if (s.includes("wind")) return "💨";
+  if (s.includes("clear") || s.includes("sunny")) return "☀";
+  if (s.includes("partly") || s.includes("partial")) return "⛅";
+  return "🌤";
+}
+
+function parseArray<T>(data: DataMap, key: string, fallbackKey: string, parser: (item: unknown) => T): T[] {
+  const raw = data[key] ?? data[fallbackKey];
+  if (!Array.isArray(raw)) return [];
+  return raw.map(parser);
+}
+
+function parseCrewEntries(data: DataMap): CrewEntry[] {
+  return parseArray(data, "CrewEntries", "crewEntries", (item) => {
+    const d = item as Record<string, unknown>;
+    return {
+      trade: asString(d.trade ?? d.Trade),
+      count: typeof (d.count ?? d.Count) === "number" ? (d.count ?? d.Count) as number : 0,
+    };
+  });
+}
+
+function parseEquipment(data: DataMap): EquipmentEntry[] {
+  return parseArray(data, "Equipment", "equipment", (item) => {
+    const d = item as Record<string, unknown>;
+    return {
+      name: asString(d.name ?? d.Name),
+      status: asString(d.status ?? d.Status) || "On-site",
+    };
+  });
+}
+
+function parseVisitors(data: DataMap): VisitorEntry[] {
+  return parseArray(data, "Visitors", "visitors", (item) => {
+    const d = item as Record<string, unknown>;
+    return {
+      name: asString(d.name ?? d.Name),
+      company: asString(d.company ?? d.Company),
+      purpose: asString(d.purpose ?? d.Purpose),
+    };
+  });
 }
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" {
@@ -163,6 +232,9 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
     delaysNarrative: "",
     safetyNarrative: "",
     status: "Draft",
+    crewEntries: [],
+    equipment: [],
+    visitors: [],
   });
 
   const [formAttachments, setFormAttachments] = useState<FileItem[]>([]);
@@ -271,6 +343,9 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
       workNarrative: "",
       delaysNarrative: "",
       safetyNarrative: "",
+      crewEntries: [],
+      equipment: [],
+      visitors: [],
       status: "Draft",
     });
     setFormAttachments([]);
@@ -296,6 +371,9 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
       workNarrative: row.workNarrative,
       delaysNarrative: asString(data.DelaysNarrative ?? data.delaysNarrative),
       safetyNarrative: asString(data.SafetyNarrative ?? data.safetyNarrative),
+      crewEntries: parseCrewEntries(data),
+      equipment: parseEquipment(data),
+      visitors: parseVisitors(data),
       status: row.status,
     });
     setFormAttachments([]);
@@ -330,6 +408,9 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
         WorkNarrative: form.workNarrative || null,
         DelaysNarrative: form.delaysNarrative || null,
         SafetyNarrative: form.safetyNarrative || null,
+        CrewEntries: form.crewEntries.length > 0 ? form.crewEntries.filter(c => c.trade) : null,
+        Equipment: form.equipment.length > 0 ? form.equipment.filter(e => e.name) : null,
+        Visitors: form.visitors.length > 0 ? form.visitors.filter(v => v.name) : null,
       },
     };
 
@@ -603,7 +684,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                         <p className="text-sm text-muted-foreground">{row.title}</p>
                         <div className="flex gap-4 text-sm">
                           <span>{REPORT_TYPE_LABELS[row.reportType] ?? row.reportType}</span>
-                          {row.weatherSummary && <span>{row.weatherSummary}</span>}
+                          {row.weatherSummary && <span>{weatherIcon(row.weatherSummary)} {row.weatherSummary}</span>}
                           {(row.temperatureLow || row.temperatureHigh) && (
                             <span>{row.temperatureLow || "?"}&deg;-{row.temperatureHigh || "?"}&deg;F</span>
                           )}
@@ -740,7 +821,14 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                             </TableCell>
                             <TableCell className="font-medium">{row.title}</TableCell>
                             <TableCell>{REPORT_TYPE_LABELS[row.reportType] ?? row.reportType}</TableCell>
-                            <TableCell>{row.weatherSummary || "-"}</TableCell>
+                            <TableCell>
+                              {row.weatherSummary ? (
+                                <span className="flex items-center gap-1">
+                                  <span>{weatherIcon(row.weatherSummary)}</span>
+                                  <span>{row.weatherSummary}</span>
+                                </span>
+                              ) : "-"}
+                            </TableCell>
                             <TableCell className="text-sm">
                               {row.temperatureLow || row.temperatureHigh
                                 ? `${row.temperatureLow || "?"}-${row.temperatureHigh || "?"}`
@@ -973,6 +1061,208 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                   placeholder="Safety observations, incidents, or toolbox talks"
                   rows={2}
                 />
+              </div>
+
+              {/* Crew Entries */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Crew On-Site (by trade)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        crewEntries: [...prev.crewEntries, { trade: "", count: 0 }],
+                      }))
+                    }
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Trade
+                  </Button>
+                </div>
+                {form.crewEntries.map((entry, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_80px_32px] gap-2 items-center">
+                    <Input
+                      value={entry.trade}
+                      onChange={(e) => {
+                        const updated = [...form.crewEntries];
+                        updated[idx] = { ...updated[idx], trade: e.target.value };
+                        setForm((prev) => ({ ...prev, crewEntries: updated }));
+                      }}
+                      placeholder="e.g. Electricians, Plumbers, Iron Workers"
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      type="number"
+                      min={0}
+                      value={entry.count || ""}
+                      onChange={(e) => {
+                        const updated = [...form.crewEntries];
+                        updated[idx] = { ...updated[idx], count: Number(e.target.value) || 0 };
+                        setForm((prev) => ({ ...prev, crewEntries: updated }));
+                      }}
+                      placeholder="Count"
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          crewEntries: prev.crewEntries.filter((_, i) => i !== idx),
+                        }));
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+                {form.crewEntries.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Total: {form.crewEntries.reduce((sum, e) => sum + e.count, 0)} workers
+                  </p>
+                )}
+              </div>
+
+              {/* Equipment */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Equipment On-Site</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        equipment: [...prev.equipment, { name: "", status: "On-site" }],
+                      }))
+                    }
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Equipment
+                  </Button>
+                </div>
+                {form.equipment.map((entry, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_120px_32px] gap-2 items-center">
+                    <Input
+                      value={entry.name}
+                      onChange={(e) => {
+                        const updated = [...form.equipment];
+                        updated[idx] = { ...updated[idx], name: e.target.value };
+                        setForm((prev) => ({ ...prev, equipment: updated }));
+                      }}
+                      placeholder="e.g. Crane, Excavator, Concrete Pump"
+                      className="h-8 text-sm"
+                    />
+                    <Select
+                      value={entry.status}
+                      onValueChange={(value) => {
+                        const updated = [...form.equipment];
+                        updated[idx] = { ...updated[idx], status: value };
+                        setForm((prev) => ({ ...prev, equipment: updated }));
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="On-site">On-site</SelectItem>
+                        <SelectItem value="In Use">In Use</SelectItem>
+                        <SelectItem value="Idle">Idle</SelectItem>
+                        <SelectItem value="Down">Down</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          equipment: prev.equipment.filter((_, i) => i !== idx),
+                        }));
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Visitors */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Visitor Log</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        visitors: [...prev.visitors, { name: "", company: "", purpose: "" }],
+                      }))
+                    }
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Visitor
+                  </Button>
+                </div>
+                {form.visitors.map((entry, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_32px] gap-2 items-center">
+                    <Input
+                      value={entry.name}
+                      onChange={(e) => {
+                        const updated = [...form.visitors];
+                        updated[idx] = { ...updated[idx], name: e.target.value };
+                        setForm((prev) => ({ ...prev, visitors: updated }));
+                      }}
+                      placeholder="Visitor name"
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      value={entry.company}
+                      onChange={(e) => {
+                        const updated = [...form.visitors];
+                        updated[idx] = { ...updated[idx], company: e.target.value };
+                        setForm((prev) => ({ ...prev, visitors: updated }));
+                      }}
+                      placeholder="Company"
+                      className="h-8 text-sm"
+                    />
+                    <Input
+                      value={entry.purpose}
+                      onChange={(e) => {
+                        const updated = [...form.visitors];
+                        updated[idx] = { ...updated[idx], purpose: e.target.value };
+                        setForm((prev) => ({ ...prev, visitors: updated }));
+                      }}
+                      placeholder="Purpose"
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          visitors: prev.visitors.filter((_, i) => i !== idx),
+                        }));
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
               </div>
 
               <div className="space-y-2">

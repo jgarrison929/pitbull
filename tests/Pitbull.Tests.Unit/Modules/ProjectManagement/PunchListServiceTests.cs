@@ -105,8 +105,13 @@ public sealed class PunchListServiceTests
         var created = (await service.CreatePunchListItemAsync(ProjectId,
             new PmUpsertRequest(Status: fromStatus))).Value!;
 
+        // InProgress transitions require AssignedToName
+        var data = toStatus == "InProgress"
+            ? new Dictionary<string, object?> { ["AssignedToName"] = "Test Subcontractor" }
+            : null;
+
         var result = await service.UpdatePunchListItemAsync(ProjectId, created.Id,
-            new PmUpsertRequest(Status: toStatus));
+            new PmUpsertRequest(Status: toStatus, Data: data));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Status.Should().Be(toStatus);

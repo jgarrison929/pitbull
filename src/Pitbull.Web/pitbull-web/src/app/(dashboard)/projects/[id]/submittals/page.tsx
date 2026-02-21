@@ -155,6 +155,20 @@ function formatDate(date: string | null): string {
   return parsed.toLocaleDateString();
 }
 
+function daysUntil(date: string | null): number | null {
+  if (!date) return null;
+  const target = new Date(date);
+  if (Number.isNaN(target.getTime())) return null;
+  const now = new Date();
+  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function leadTimeBadgeClass(days: number): string {
+  if (days < 0) return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+  if (days <= 7) return "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200";
+  return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
+}
+
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
   switch (status) {
     case "Approved":
@@ -622,10 +636,24 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                           <Badge variant="outline" className="text-xs">Substitution</Badge>
                         )}
                       </div>
-                      {row.requiredByDate && (
+                      {row.revisionNumber > 0 && (
                         <p className="text-sm text-muted-foreground">
-                          Required by: {formatDate(row.requiredByDate)}
+                          Review cycle: {row.revisionNumber}
                         </p>
+                      )}
+                      {row.requiredByDate && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <span>Required by: {formatDate(row.requiredByDate)}</span>
+                          {(() => {
+                            const days = daysUntil(row.requiredByDate);
+                            if (days === null) return null;
+                            return (
+                              <Badge className={leadTimeBadgeClass(days) + " text-xs"}>
+                                {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Today" : `${days}d left`}
+                              </Badge>
+                            );
+                          })()}
+                        </div>
                       )}
                       {row.ballInCourt && (
                         <div className="flex items-center gap-1.5 text-sm">
@@ -671,7 +699,9 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                         <TableHead>Title</TableHead>
                         <TableHead>Spec Section</TableHead>
                         <TableHead>Type</TableHead>
+                        <TableHead>Rev</TableHead>
                         <TableHead>Required By</TableHead>
+                        <TableHead>Lead Time</TableHead>
                         <TableHead>Ball in Court</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="w-[100px]">Actions</TableHead>
@@ -680,7 +710,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                     <TableBody>
                       {rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8}>
+                          <TableCell colSpan={10}>
                             <div className="flex flex-col items-center gap-3 py-6 text-center">
                               <p className="text-sm text-muted-foreground">
                                 No submittals yet. Create your first submittal to begin routing reviews.
@@ -708,8 +738,22 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                             </TableCell>
                             <TableCell>{row.specSectionCode || "-"}</TableCell>
                             <TableCell>{TYPE_LABELS[row.submittalType] || row.submittalType}</TableCell>
+                            <TableCell className="font-mono text-sm text-center">
+                              {row.revisionNumber > 0 ? row.revisionNumber : "-"}
+                            </TableCell>
                             <TableCell className="font-mono text-sm">
                               {formatDate(row.requiredByDate)}
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const days = daysUntil(row.requiredByDate);
+                                if (days === null) return <span className="text-muted-foreground">-</span>;
+                                return (
+                                  <Badge className={leadTimeBadgeClass(days) + " text-xs"}>
+                                    {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Today" : `${days}d`}
+                                  </Badge>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell>
                               {row.ballInCourt ? (
