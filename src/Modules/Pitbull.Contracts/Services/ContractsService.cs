@@ -232,6 +232,24 @@ public class ContractsService(PitbullDbContext db) : IContractsService
                 "Change order number already exists for this subcontract",
                 "DUPLICATE_CO_NUMBER");
 
+        // If creating as Approved, validate and update subcontract
+        if (command.Status == ChangeOrderStatus.Approved)
+        {
+            var subcontract = await db.Set<Subcontract>()
+                .FirstOrDefaultAsync(s => s.Id == command.SubcontractId, cancellationToken);
+
+            if (subcontract is null)
+                return Result.Failure<ChangeOrderDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
+
+            var newContractSum = subcontract.CurrentValue + command.Amount;
+            if (newContractSum < 0)
+                return Result.Failure<ChangeOrderDto>(
+                    $"Change order would reduce contract sum below zero (current: {subcontract.CurrentValue:C}, CO amount: {command.Amount:C})",
+                    "NEGATIVE_CONTRACT_SUM");
+
+            subcontract.CurrentValue = newContractSum;
+        }
+
         var changeOrder = new ChangeOrder
         {
             SubcontractId = command.SubcontractId,
@@ -289,6 +307,35 @@ public class ContractsService(PitbullDbContext db) : IContractsService
             return Result.Failure<ChangeOrderDto>(
                 $"Cannot transition from {oldStatus} to {newStatus}",
                 "INVALID_STATUS_TRANSITION");
+
+        // If transitioning to Approved, validate contract sum won't go negative
+        if (oldStatus != ChangeOrderStatus.Approved && newStatus == ChangeOrderStatus.Approved)
+        {
+            var subcontract = await db.Set<Subcontract>()
+                .FirstOrDefaultAsync(s => s.Id == changeOrder.SubcontractId, cancellationToken);
+
+            if (subcontract is null)
+                return Result.Failure<ChangeOrderDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
+
+            var newContractSum = subcontract.CurrentValue + command.Amount;
+            if (newContractSum < 0)
+                return Result.Failure<ChangeOrderDto>(
+                    $"Change order would reduce contract sum below zero (current: {subcontract.CurrentValue:C}, CO amount: {command.Amount:C})",
+                    "NEGATIVE_CONTRACT_SUM");
+
+            // Update subcontract's revised contract sum
+            subcontract.CurrentValue = newContractSum;
+        }
+
+        // If voiding a previously approved CO, reverse the contract sum impact
+        if (oldStatus == ChangeOrderStatus.Approved && newStatus == ChangeOrderStatus.Void)
+        {
+            var subcontract = await db.Set<Subcontract>()
+                .FirstOrDefaultAsync(s => s.Id == changeOrder.SubcontractId, cancellationToken);
+
+            if (subcontract is not null)
+                subcontract.CurrentValue -= changeOrder.Amount;
+        }
 
         // Update fields
         changeOrder.ChangeOrderNumber = command.Number;
@@ -381,6 +428,23 @@ public class ContractsService(PitbullDbContext db) : IContractsService
 
         if (subcontract is null)
             return Result.Failure<PaymentApplicationDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
+
+        // Validate retainage bounds (0-50%)
+        if (subcontract.RetainagePercent < 0 || subcontract.RetainagePercent > 50)
+            return Result.Failure<PaymentApplicationDto>(
+                $"Retainage percentage must be between 0% and 50% (current: {subcontract.RetainagePercent}%)",
+                "INVALID_RETAINAGE");
+
+        // Validate overbilling: total billed cannot exceed contract value
+        var existingBilled = await db.Set<PaymentApplication>()
+            .Where(pa => pa.SubcontractId == command.SubcontractId && !pa.IsDeleted)
+            .SumAsync(pa => pa.TotalCompletedAndStored, cancellationToken);
+
+        var proposedTotal = existingBilled + command.WorkCompletedThisPeriod + command.StoredMaterials;
+        if (proposedTotal > subcontract.CurrentValue)
+            return Result.Failure<PaymentApplicationDto>(
+                $"Total billed ({proposedTotal:C}) would exceed contract value ({subcontract.CurrentValue:C})",
+                "OVERBILLING");
 
         // Get previous applications to calculate running totals
         var previousApps = await db.Set<PaymentApplication>()

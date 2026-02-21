@@ -62,6 +62,12 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         if (command.PayPeriodId == Guid.Empty)
             return Result.Failure<PayrollRunDto>("Pay period is required", "VALIDATION_ERROR");
 
+        bool duplicateExists = await db.Set<PayrollRun>()
+            .AnyAsync(x => x.PayPeriodId == command.PayPeriodId, cancellationToken);
+
+        if (duplicateExists)
+            return Result.Failure<PayrollRunDto>("A payroll run already exists for this pay period", "DUPLICATE_PAYROLL_RUN");
+
         PayrollRun run = new()
         {
             RunDate = command.RunDate,
@@ -95,8 +101,8 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         if (run is null)
             return Result.Failure<PayrollRunDto>("Payroll run not found", "NOT_FOUND");
 
-        if (run.Status == PayrollRunStatus.Exported)
-            return Result.Failure<PayrollRunDto>("Exported payroll runs cannot be updated", "INVALID_STATUS");
+        if (run.Status != PayrollRunStatus.Draft)
+            return Result.Failure<PayrollRunDto>("Only draft payroll runs can be updated", "INVALID_STATUS");
 
         if (command.RunDate.HasValue)
             run.RunDate = command.RunDate.Value;
@@ -129,6 +135,15 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         if (payPeriod is null)
             return Result.Failure<PayrollRunDto>("Pay period not found", "PAY_PERIOD_NOT_FOUND");
 
+        if (payPeriod.Status == PayPeriodStatus.Open)
+            return Result.Failure<PayrollRunDto>("Pay period must be locked or closed before generating a payroll run", "PAY_PERIOD_NOT_LOCKED");
+
+        bool duplicateExists = await db.Set<PayrollRun>()
+            .AnyAsync(x => x.PayPeriodId == command.PayPeriodId, cancellationToken);
+
+        if (duplicateExists)
+            return Result.Failure<PayrollRunDto>("A payroll run already exists for this pay period", "DUPLICATE_PAYROLL_RUN");
+
         List<TimeEntry> approvedEntries = await db.Set<TimeEntry>()
             .AsNoTracking()
             .Where(x => x.Status == TimeEntryStatus.Approved)
@@ -148,7 +163,7 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         {
             RunDate = command.RunDate,
             PayPeriodId = command.PayPeriodId,
-            Status = PayrollRunStatus.Submitted
+            Status = PayrollRunStatus.Processing
         };
 
         foreach (IGrouping<Guid, TimeEntry> group in approvedEntries.GroupBy(x => x.EmployeeId))
@@ -203,8 +218,8 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         if (run is null)
             return Result.Failure<PayrollRunDto>("Payroll run not found", "NOT_FOUND");
 
-        if (run.Status == PayrollRunStatus.Exported)
-            return Result.Failure<PayrollRunDto>("Exported payroll runs cannot be approved", "INVALID_STATUS");
+        if (run.Status is not (PayrollRunStatus.Processing or PayrollRunStatus.Submitted or PayrollRunStatus.UnderReview))
+            return Result.Failure<PayrollRunDto>("Only generated payroll runs can be approved", "INVALID_STATUS");
 
         run.Status = PayrollRunStatus.Approved;
 
@@ -254,8 +269,8 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         if (run is null)
             return Result.Failure("Payroll run not found", "NOT_FOUND");
 
-        if (run.Status == PayrollRunStatus.Exported)
-            return Result.Failure("Exported payroll runs cannot be deleted", "INVALID_STATUS");
+        if (run.Status is PayrollRunStatus.Approved or PayrollRunStatus.Exported)
+            return Result.Failure("Approved or exported payroll runs cannot be deleted", "INVALID_STATUS");
 
         db.Set<PayrollRun>().Remove(run);
 

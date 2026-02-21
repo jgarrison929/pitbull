@@ -76,6 +76,13 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
 
         string poNumber = await GeneratePoNumberAsync(cancellationToken);
 
+        bool duplicateExists = await db.Set<PurchaseOrder>()
+            .AnyAsync(po => po.PONumber == poNumber && po.VendorId == command.VendorId, cancellationToken);
+        if (duplicateExists)
+            return Result.Failure<PurchaseOrderDto>(
+                $"A purchase order with number '{poNumber}' already exists for this vendor",
+                "DUPLICATE_PO");
+
         PurchaseOrder purchaseOrder = new()
         {
             PONumber = poNumber,
@@ -128,8 +135,8 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         if (purchaseOrder is null)
             return Result.Failure<PurchaseOrderDto>("Purchase order not found", "NOT_FOUND");
 
-        if (purchaseOrder.Status == PurchaseOrderStatus.Closed)
-            return Result.Failure<PurchaseOrderDto>("Closed purchase orders cannot be edited", "INVALID_STATUS");
+        if (purchaseOrder.Status != PurchaseOrderStatus.Draft)
+            return Result.Failure<PurchaseOrderDto>("Only draft purchase orders can be edited", "INVALID_STATUS");
 
         if (command.ProjectId.HasValue)
             purchaseOrder.ProjectId = command.ProjectId.Value;
@@ -137,14 +144,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             purchaseOrder.VendorId = command.VendorId.Value;
         if (command.Description != null)
             purchaseOrder.Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim();
-        if (command.Status.HasValue)
-            purchaseOrder.Status = command.Status.Value;
 
         if (command.Lines is not null)
         {
-            if (purchaseOrder.Status is PurchaseOrderStatus.PartiallyReceived or PurchaseOrderStatus.Received)
-                return Result.Failure<PurchaseOrderDto>("Cannot replace lines after receiving has started", "INVALID_STATUS");
-
             db.Set<PurchaseOrderLine>().RemoveRange(purchaseOrder.Lines);
             purchaseOrder.Lines.Clear();
 
@@ -194,6 +196,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         if (purchaseOrder is null)
             return Result.Failure<PurchaseOrderDto>("Purchase order not found", "NOT_FOUND");
 
+        if (purchaseOrder.Status != PurchaseOrderStatus.Draft)
+            return Result.Failure<PurchaseOrderDto>("Only draft purchase orders can be approved", "INVALID_STATUS");
+
         if (purchaseOrder.Lines.Count == 0)
             return Result.Failure<PurchaseOrderDto>("Purchase order must have at least one line", "VALIDATION_ERROR");
 
@@ -222,6 +227,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         if (purchaseOrder is null)
             return Result.Failure<PurchaseOrderDto>("Purchase order not found", "NOT_FOUND");
 
+        if (purchaseOrder.Status is not (PurchaseOrderStatus.Approved or PurchaseOrderStatus.PartiallyReceived))
+            return Result.Failure<PurchaseOrderDto>("Purchase order must be approved before receiving", "INVALID_STATUS");
+
         if (command.Lines is null || command.Lines.Count == 0)
             return Result.Failure<PurchaseOrderDto>("At least one received line is required", "VALIDATION_ERROR");
 
@@ -234,9 +242,13 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             if (line.ReceivedQuantity <= 0)
                 return Result.Failure<PurchaseOrderDto>("Received quantity must be greater than zero", "VALIDATION_ERROR");
 
-            poLine.ReceivedQuantity += line.ReceivedQuantity;
-            if (poLine.ReceivedQuantity > poLine.Quantity)
-                poLine.ReceivedQuantity = poLine.Quantity;
+            decimal newTotal = poLine.ReceivedQuantity + line.ReceivedQuantity;
+            if (newTotal > poLine.Quantity)
+                return Result.Failure<PurchaseOrderDto>(
+                    $"Received quantity ({newTotal}) exceeds ordered quantity ({poLine.Quantity}) for line item '{poLine.Description}'",
+                    "OVER_DELIVERY");
+
+            poLine.ReceivedQuantity = newTotal;
         }
 
         bool allReceived = purchaseOrder.Lines.All(l => l.ReceivedQuantity >= l.Quantity);
@@ -266,6 +278,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
 
         if (purchaseOrder is null)
             return Result.Failure("Purchase order not found", "NOT_FOUND");
+
+        if (purchaseOrder.Status is PurchaseOrderStatus.Received or PurchaseOrderStatus.PartiallyReceived or PurchaseOrderStatus.Closed)
+            return Result.Failure("Cannot delete a purchase order that has been received or closed", "INVALID_STATUS");
 
         db.Set<PurchaseOrder>().Remove(purchaseOrder);
 

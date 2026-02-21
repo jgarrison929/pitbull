@@ -112,6 +112,13 @@ public class SOVService(PitbullDbContext db) : ISOVService
         if (sov.LineItems.Any(li => li.ItemNumber == command.ItemNumber))
             return Result.Failure<SOVLineItemDto>($"Item number '{command.ItemNumber}' already exists", "DUPLICATE");
 
+        // Validate overbilling: PreviouslyBilled + CurrentBilled cannot exceed ScheduledValue
+        var totalBilled = command.PreviouslyBilled + command.CurrentBilled;
+        if (totalBilled > command.ScheduledValue)
+            return Result.Failure<SOVLineItemDto>(
+                $"Total billed ({totalBilled:C}) cannot exceed scheduled value ({command.ScheduledValue:C})",
+                "OVERBILLING");
+
         var sortOrder = command.SortOrder ?? (sov.LineItems.Count > 0 ? sov.LineItems.Max(li => li.SortOrder) + 1 : 1);
 
         var lineItem = new SOVLineItem
@@ -153,6 +160,17 @@ public class SOVService(PitbullDbContext db) : ISOVService
         if (command.ItemNumber is not null && command.ItemNumber != lineItem.ItemNumber
             && sov.LineItems.Any(li => li.ItemNumber == command.ItemNumber && li.Id != lineItemId))
             return Result.Failure<SOVLineItemDto>($"Item number '{command.ItemNumber}' already exists", "DUPLICATE");
+
+        // Compute effective values after update for overbilling check
+        var effectiveScheduled = command.ScheduledValue ?? lineItem.ScheduledValue;
+        var effectivePrevious = command.PreviouslyBilled ?? lineItem.PreviouslyBilled;
+        var effectiveCurrent = command.CurrentBilled ?? lineItem.CurrentBilled;
+
+        var effectiveTotalBilled = effectivePrevious + effectiveCurrent;
+        if (effectiveTotalBilled > effectiveScheduled)
+            return Result.Failure<SOVLineItemDto>(
+                $"Total billed ({effectiveTotalBilled:C}) cannot exceed scheduled value ({effectiveScheduled:C})",
+                "OVERBILLING");
 
         if (command.ItemNumber is not null) lineItem.ItemNumber = command.ItemNumber;
         if (command.Description is not null) lineItem.Description = command.Description;

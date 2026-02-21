@@ -675,6 +675,11 @@ public class TimeEntryService : ITimeEntryService
             return Result.Failure<TimeEntryDto>(errors, "VALIDATION_ERROR");
         }
 
+        // Validate hours bounds
+        var hoursBoundsError = ValidateHoursBounds(command.RegularHours, command.OvertimeHours, command.DoubletimeHours);
+        if (hoursBoundsError != null)
+            return Result.Failure<TimeEntryDto>(hoursBoundsError, "VALIDATION_ERROR");
+
         var lockValidation = await _payPeriodService.ValidateTimeEntryDateAsync(command.Date, cancellationToken);
         if (!string.IsNullOrWhiteSpace(lockValidation))
             return Result.Failure<TimeEntryDto>(lockValidation, "PAY_PERIOD_LOCKED");
@@ -1201,6 +1206,16 @@ public class TimeEntryService : ITimeEntryService
         // Update hours and fields only if entry is in Draft or Submitted status
         if (CanEditHours(timeEntry.Status))
         {
+            // Compute effective hours (use new value if provided, else keep existing)
+            var effectiveRegular = command.RegularHours ?? timeEntry.RegularHours;
+            var effectiveOvertime = command.OvertimeHours ?? timeEntry.OvertimeHours;
+            var effectiveDoubletime = command.DoubletimeHours ?? timeEntry.DoubletimeHours;
+
+            // Validate hours bounds on the effective values
+            var hoursBoundsError = ValidateHoursBounds(effectiveRegular, effectiveOvertime, effectiveDoubletime);
+            if (hoursBoundsError != null)
+                return Result.Failure<TimeEntryDto>(hoursBoundsError, "VALIDATION_ERROR");
+
             if (command.RegularHours.HasValue)
                 timeEntry.RegularHours = command.RegularHours.Value;
 
@@ -1281,6 +1296,11 @@ public class TimeEntryService : ITimeEntryService
     private async Task<Result<BatchTimeEntryUpsert>> ValidateAndBuildTimeEntry(
         BatchTimeEntryItem item, bool isDraft, CancellationToken cancellationToken)
     {
+        // Validate hours bounds
+        var hoursBoundsError = ValidateHoursBounds(item.RegularHours, item.OvertimeHours, item.DoubletimeHours);
+        if (hoursBoundsError != null)
+            return Result.Failure<BatchTimeEntryUpsert>(hoursBoundsError, "VALIDATION_ERROR");
+
         var lockValidation = await _payPeriodService.ValidateTimeEntryDateAsync(item.Date, cancellationToken);
         if (!string.IsNullOrWhiteSpace(lockValidation))
             return Result.Failure<BatchTimeEntryUpsert>(lockValidation, "PAY_PERIOD_LOCKED");
@@ -1587,6 +1607,31 @@ public class TimeEntryService : ITimeEntryService
     private static bool CanEditHours(TimeEntryStatus status)
     {
         return status == TimeEntryStatus.Draft || status == TimeEntryStatus.Submitted;
+    }
+
+    /// <summary>
+    /// Validates hour fields: no negatives, total must be > 0, total cannot exceed 24 per entry (single day).
+    /// </summary>
+    private static string? ValidateHoursBounds(decimal regularHours, decimal overtimeHours, decimal doubletimeHours)
+    {
+        if (regularHours < 0)
+            return "Regular hours cannot be negative";
+
+        if (overtimeHours < 0)
+            return "Overtime hours cannot be negative";
+
+        if (doubletimeHours < 0)
+            return "Double-time hours cannot be negative";
+
+        var totalHours = regularHours + overtimeHours + doubletimeHours;
+
+        if (totalHours <= 0)
+            return "Total hours must be greater than zero";
+
+        if (totalHours > 24)
+            return "Total hours cannot exceed 24 per day";
+
+        return null;
     }
 
     private static LaborCostSummary ToLaborCostSummary(LaborCostResult costResult, List<TimeEntry> entries)

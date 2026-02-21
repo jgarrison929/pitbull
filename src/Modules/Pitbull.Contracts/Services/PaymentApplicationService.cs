@@ -256,6 +256,12 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         if (subcontract is null)
             return Result.Failure<PaymentApplicationDetailDto>("Subcontract not found", "NOT_FOUND");
 
+        // Validate retainage bounds (0-50%)
+        if (sov.RetainagePercent < 0 || sov.RetainagePercent > 50)
+            return Result.Failure<PaymentApplicationDetailDto>(
+                $"Retainage percentage must be between 0% and 50% (current: {sov.RetainagePercent}%)",
+                "INVALID_RETAINAGE");
+
         var previousApps = await db.Set<PaymentApplication>()
             .Where(pa => pa.SubcontractId == sov.SubcontractId && !pa.IsDeleted)
             .OrderByDescending(pa => pa.ApplicationNumber)
