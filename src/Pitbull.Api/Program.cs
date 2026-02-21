@@ -613,24 +613,24 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");
 }
 
-// Global exception handling (must be first in pipeline)
+// Correlation IDs (outermost — so all downstream logs and responses include it)
+app.UseMiddleware<CorrelationIdMiddleware>();
+
+// Security headers (before exception handler so error responses also get CSP, HSTS, X-Frame-Options)
+app.UseMiddleware<SecurityHeadersMiddleware>();
+
+// Global exception handling (catches all downstream exceptions)
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<RequestMetricsMiddleware>();
 
 // Request performance tracking (slow requests, N+1 detection — sends to PostHog)
 app.UseMiddleware<RequestPerformanceMiddleware>();
 
-// Security headers (early in pipeline for all responses)
-app.UseMiddleware<SecurityHeadersMiddleware>();
-
-// Correlation IDs (must run early so all downstream logs include it)
-app.UseMiddleware<CorrelationIdMiddleware>();
-
-// Request/response logging for API debugging (after correlation ID)
-app.UseMiddleware<RequestResponseLoggingMiddleware>();
-
-// Request size limits (early in pipeline for security)
+// Request size limits (before body-reading middleware to reject oversized payloads early)
 app.UseMiddleware<RequestSizeLimitMiddleware>();
+
+// Request/response logging for API debugging (after size limits, has correlation ID context)
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
 
 // Pipeline
 if (app.Environment.IsDevelopment())
