@@ -344,6 +344,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
 });
 
 // CAP event bus — PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)
+var redisConn = builder.Configuration.GetValue<string>("EventBus:Redis:ConnectionString");
 builder.Services.AddCap(x =>
 {
     // Outbox: always use PostgreSQL (same DB as the app)
@@ -354,7 +355,6 @@ builder.Services.AddCap(x =>
     });
 
     // Transport: Redis Streams if configured, else in-memory
-    var redisConn = builder.Configuration.GetValue<string>("EventBus:Redis:ConnectionString");
     if (!string.IsNullOrEmpty(redisConn))
     {
         x.UseRedis(redisConn);
@@ -364,7 +364,8 @@ builder.Services.AddCap(x =>
         x.UseInMemoryMessageQueue();
     }
 
-    x.UseDashboard(d => d.PathMatch = "/cap");
+    if (builder.Environment.IsDevelopment())
+        x.UseDashboard(d => d.PathMatch = "/cap");
     x.FailedRetryCount = 5;
     x.JsonSerializerOptions.PropertyNamingPolicy = null;
 });
@@ -555,13 +556,16 @@ builder.Services.AddRateLimiter(options =>
 });
 
 // Health checks with deep dependency checks
-builder.Services.AddHealthChecks()
+var healthChecks = builder.Services.AddHealthChecks()
     .AddNpgSql(
         builder.Configuration.GetConnectionString("PitbullDb")!,
         name: "postgresql",
         tags: new[] { "db", "ready" })
     .AddCheck("self", () => HealthCheckResult.Healthy("API is running"),
         tags: new[] { "live" });
+
+if (!string.IsNullOrEmpty(redisConn))
+    healthChecks.AddRedis(redisConn, name: "redis", tags: new[] { "ready" });
 
 // Response compression for better bandwidth utilization
 builder.Services.AddResponseCompression(options =>
@@ -572,6 +576,9 @@ builder.Services.AddResponseCompression(options =>
 });
 
 var app = builder.Build();
+
+// Log CAP transport selection for operational visibility
+app.Logger.LogInformation("CAP transport: {Transport}", string.IsNullOrEmpty(redisConn) ? "InMemory" : "Redis");
 
 // Register field encryption service for [Encrypted] attribute auto-discovery in DbContext
 PitbullDbContext.RegisterEncryptionService(
@@ -635,23 +642,26 @@ else
     app.UseCors("Production");
 }
 
-// Swagger available in all environments for API documentation
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+// Swagger (development only — not exposed in production)
+if (app.Environment.IsDevelopment())
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
-    c.DocumentTitle = "Pitbull Construction Solutions - API Docs";
-});
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
+        c.DocumentTitle = "Pitbull Construction Solutions - API Docs";
+    });
+}
 
 // Response compression (before other middlewares that generate responses)
 app.UseResponseCompression();
 
 app.UseRequestTimeouts();
-app.UseRateLimiter();
 app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
 app.UseMiddleware<TenantMiddleware>();
 app.UseMiddleware<Pitbull.Core.MultiTenancy.CompanyMiddleware>();
-app.UseAuthorization();
 app.MapControllers();
 
 // Capture 404s on /api/ routes as diagnostic errors (after endpoint routing)
