@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 
@@ -7,9 +8,16 @@ namespace Pitbull.Api.Middleware;
 /// Captures 404 responses on /api/ routes as diagnostic errors.
 /// Registered AFTER endpoint routing so it only fires for unmatched API routes,
 /// not for static file 404s or frontend routes.
+/// Rate-limited per IP to prevent database flooding from path-scan attacks.
 /// </summary>
 public class ApiNotFoundMiddleware(RequestDelegate next, ILogger<ApiNotFoundMiddleware> logger)
 {
+    private const int MaxEntriesPerWindow = 10;
+    private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
+
+    // IP → (count, windowStart). Lightweight — no DI needed.
+    private static readonly ConcurrentDictionary<string, (int Count, DateTime WindowStart)> _ipCounters = new();
+
     public async Task InvokeAsync(HttpContext context)
     {
         await next(context);
@@ -18,6 +26,13 @@ public class ApiNotFoundMiddleware(RequestDelegate next, ILogger<ApiNotFoundMidd
             && context.Request.Path.StartsWithSegments("/api")
             && !context.Response.HasStarted)
         {
+            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            if (!TryConsume(ip))
+            {
+                logger.LogDebug("API 404 logging rate limit exceeded for {IpAddress}", ip);
+                return;
+            }
+
             try
             {
                 var dbContext = context.RequestServices.GetService<PitbullDbContext>();
@@ -46,7 +61,7 @@ public class ApiNotFoundMiddleware(RequestDelegate next, ILogger<ApiNotFoundMidd
                         CorrelationId = correlationId,
                         TraceId = traceId,
                         UserAgent = context.Request.Headers.UserAgent.ToString(),
-                        IpAddress = context.Connection.RemoteIpAddress?.ToString()
+                        IpAddress = ip
                     };
 
                     dbContext.Set<DiagnosticError>().Add(diagnosticError);
@@ -58,5 +73,24 @@ public class ApiNotFoundMiddleware(RequestDelegate next, ILogger<ApiNotFoundMidd
                 logger.LogWarning(ex, "Failed to save API 404 diagnostic error");
             }
         }
+    }
+
+    /// <summary>
+    /// Sliding-window rate limiter: allows <see cref="MaxEntriesPerWindow"/> 404 logs per IP per minute.
+    /// </summary>
+    private static bool TryConsume(string ip)
+    {
+        var now = DateTime.UtcNow;
+        var entry = _ipCounters.AddOrUpdate(
+            ip,
+            _ => (1, now),
+            (_, existing) =>
+            {
+                if (now - existing.WindowStart > Window)
+                    return (1, now); // Reset window
+                return (existing.Count + 1, existing.WindowStart);
+            });
+
+        return entry.Count <= MaxEntriesPerWindow;
     }
 }

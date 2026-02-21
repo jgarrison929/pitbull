@@ -396,11 +396,14 @@ builder.Services.AddRequestTimeouts(options =>
     };
 
     // Longer timeout for seed data operations (development only)
-    options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    if (builder.Environment.IsDevelopment())
     {
-        Timeout = TimeSpan.FromMinutes(2),
-        TimeoutStatusCode = 408
-    });
+        options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+        {
+            Timeout = TimeSpan.FromMinutes(2),
+            TimeoutStatusCode = 408
+        });
+    }
 });
 builder.Services.AddSwaggerGen(c =>
 {
