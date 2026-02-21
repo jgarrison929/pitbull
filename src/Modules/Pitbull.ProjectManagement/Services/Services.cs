@@ -318,9 +318,9 @@ public abstract class PmServiceBase
         {
             foreach (var propName in new[]
                      {
-                         "ReferenceId", "ScheduleId", "SubmittalId", "TaskId", "MeetingId", "CommunicationId", "DocumentId",
+                         "ReferenceId", "ScheduleId", "SubmittalId", "TaskId", "MeetingId", "CommunicationId",
                          "PlanSetId", "PlanSheetId", "SpecSectionId", "DailyReportId", "ProgressEntryId", "NarrativeId", "RfiId",
-                         "PunchListItemId"
+                         "PunchListItemId", "DocumentId"
                      })
             {
                 if (entity.GetType().GetProperty(propName) != null)

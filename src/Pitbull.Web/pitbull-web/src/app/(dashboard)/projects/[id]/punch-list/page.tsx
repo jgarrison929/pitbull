@@ -4,7 +4,7 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError, uploadFiles, getDownloadUrl } from "@/lib/api";
 import { isValidGuid } from "@/lib/utils";
 import { getToken } from "@/lib/auth";
-import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
+import type { PmEntityDto, PmPagedResult, PmUpsertRequest, PmActionResultDto } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -50,7 +53,20 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
-import { Pencil, Trash2, Download, Paperclip, CheckCircle2, FileDown } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Download,
+  Paperclip,
+  CheckCircle2,
+  FileDown,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  X,
+  ClipboardCheck,
+  AlertTriangle,
+} from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
 
 interface FileAttachment {
@@ -105,6 +121,21 @@ interface PunchListFormState {
   notes: string;
 }
 
+interface PunchListSummary {
+  Total: number;
+  Open: number;
+  InProgress: number;
+  ReadyForInspection: number;
+  Closed: number;
+  Disputed: number;
+  OverdueCount: number;
+  ByCategory: Record<string, number>;
+  ByPriority: Record<string, number>;
+}
+
+type SortField = "itemNumber" | "status" | "priority" | "dueDate" | "category";
+type SortDirection = "asc" | "desc";
+
 // PunchListItemStatus enum
 const STATUSES = ["Open", "InProgress", "ReadyForInspection", "Closed", "Disputed"];
 const STATUS_LABELS: Record<string, string> = {
@@ -137,6 +168,8 @@ const PARTY_LABELS: Record<string, string> = {
 
 // TaskPriority enum (shared) — matches backend: Low, Normal, High, Critical
 const PRIORITIES = ["Low", "Normal", "High", "Critical"];
+const PRIORITY_ORDER: Record<string, number> = { Critical: 0, High: 1, Normal: 2, Low: 3 };
+const STATUS_ORDER: Record<string, number> = { Open: 0, InProgress: 1, ReadyForInspection: 2, Disputed: 3, Closed: 4 };
 
 function asDataMap(value: unknown): DataMap {
   return value && typeof value === "object" ? (value as DataMap) : {};
@@ -162,6 +195,13 @@ function formatDate(date: string | null): string {
   return parsed.toLocaleDateString();
 }
 
+function isOverdue(dueDate: string | null, status: string): boolean {
+  if (!dueDate || status === "Closed") return false;
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return false;
+  return due < new Date();
+}
+
 function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
   switch (status) {
     case "Closed":
@@ -176,20 +216,35 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
   }
 }
 
-function priorityBadgeVariant(priority: string): "default" | "secondary" | "outline" | "destructive" {
+function statusBadgeClass(status: string): string {
+  switch (status) {
+    case "Closed":
+      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
+    case "InProgress":
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200";
+    case "ReadyForInspection":
+      return "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200";
+    case "Disputed":
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
+    default:
+      return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200";
+  }
+}
+
+function priorityBadgeClass(priority: string): string {
   switch (priority) {
     case "Critical":
-      return "destructive";
+      return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200";
     case "High":
-      return "default";
+      return "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200";
+    case "Normal":
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200";
     default:
-      return "outline";
+      return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
   }
 }
 
 function buildPunchListWorkflowSteps(status: string): WorkflowStep[] {
-  // Normal flow: Open -> InProgress -> ReadyForInspection -> Closed
-  // Branching: Disputed (terminal warning)
   const normalFlow = ["Open", "InProgress", "ReadyForInspection", "Closed"];
 
   if (status === "Disputed") {
@@ -211,6 +266,41 @@ function buildPunchListWorkflowSteps(status: string): WorkflowStep[] {
   }));
 }
 
+function SortableHeader({
+  label,
+  field,
+  currentSort,
+  currentDirection,
+  onSort,
+}: {
+  label: string;
+  field: SortField;
+  currentSort: SortField;
+  currentDirection: SortDirection;
+  onSort: (field: SortField) => void;
+}) {
+  const isActive = currentSort === field;
+  return (
+    <TableHead
+      className="cursor-pointer select-none hover:bg-muted/50 transition-colors"
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        {isActive ? (
+          currentDirection === "asc" ? (
+            <ArrowUp className="h-3.5 w-3.5" />
+          ) : (
+            <ArrowDown className="h-3.5 w-3.5" />
+          )
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />
+        )}
+      </div>
+    </TableHead>
+  );
+}
+
 function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const isProjectIdValid = isValidGuid(projectId);
@@ -223,10 +313,20 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
   const [saving, setSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+
+  const [sortField, setSortField] = useState<SortField>("priority");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const [summary, setSummary] = useState<PunchListSummary | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -287,10 +387,14 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await api<PmPagedResult>(
-        `/api/projects/${projectId}/punch-list?page=1&pageSize=500`
-      );
+      const [result, summaryResult] = await Promise.all([
+        api<PmPagedResult>(`/api/projects/${projectId}/punch-list?page=1&pageSize=500`),
+        api<PmActionResultDto>(`/api/projects/${projectId}/punch-list/summary`),
+      ]);
       setItems(result.items ?? []);
+      if (summaryResult.data) {
+        setSummary(summaryResult.data as PunchListSummary);
+      }
     } catch (error) {
       toast.error("Failed to load punch list", {
         description: error instanceof Error ? error.message : "Unknown error",
@@ -330,26 +434,156 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
     });
 
     const q = search.trim().toLowerCase();
-    return mapped.filter((row) => {
+    const filtered = mapped.filter((row) => {
       if (statusFilter !== "all" && row.status !== statusFilter) return false;
       if (categoryFilter !== "all" && row.category !== categoryFilter) return false;
-      if (!q) return true;
-      return (
-        row.description.toLowerCase().includes(q) ||
-        row.location.toLowerCase().includes(q) ||
-        String(row.itemNumber).includes(q) ||
-        row.assignedToName.toLowerCase().includes(q)
-      );
+      if (priorityFilter !== "all" && row.priority !== priorityFilter) return false;
+      if (overdueOnly && !isOverdue(row.dueDate, row.status)) return false;
+      if (q) {
+        return (
+          row.description.toLowerCase().includes(q) ||
+          row.location.toLowerCase().includes(q) ||
+          String(row.itemNumber).includes(q) ||
+          row.assignedToName.toLowerCase().includes(q)
+        );
+      }
+      return true;
     });
-  }, [items, search, statusFilter, categoryFilter]);
 
-  const stats = useMemo(() => {
+    // Sort
+    filtered.sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "itemNumber":
+          cmp = a.itemNumber - b.itemNumber;
+          break;
+        case "status":
+          cmp = (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99);
+          break;
+        case "priority":
+          cmp = (PRIORITY_ORDER[a.priority] ?? 99) - (PRIORITY_ORDER[b.priority] ?? 99);
+          if (cmp === 0) {
+            // Secondary sort by dueDate ascending
+            const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+            const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+            cmp = aDate - bDate;
+          }
+          break;
+        case "dueDate": {
+          const aDate = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+          const bDate = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+          cmp = aDate - bDate;
+          break;
+        }
+        case "category":
+          cmp = a.category.localeCompare(b.category);
+          break;
+      }
+      return sortDirection === "desc" ? -cmp : cmp;
+    });
+
+    return filtered;
+  }, [items, search, statusFilter, categoryFilter, priorityFilter, overdueOnly, sortField, sortDirection]);
+
+  // Compute local stats from items for the progress bar (always available)
+  const localStats = useMemo(() => {
     const total = items.length;
-    const open = items.filter((i) => i.status === "Open" || i.status === "InProgress").length;
-    const readyForInspection = items.filter((i) => i.status === "ReadyForInspection").length;
     const closed = items.filter((i) => i.status === "Closed").length;
-    return { total, open, readyForInspection, closed };
+    return { total, closed };
   }, [items]);
+
+  const completionPercent = localStats.total > 0 ? Math.round((localStats.closed / localStats.total) * 100) : 0;
+
+  const hasActiveFilters = statusFilter !== "all" || categoryFilter !== "all" || priorityFilter !== "all" || overdueOnly;
+
+  function clearFilters() {
+    setStatusFilter("all");
+    setCategoryFilter("all");
+    setPriorityFilter("all");
+    setOverdueOnly(false);
+    setSearch("");
+  }
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === rows.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(rows.map((r) => r.id)));
+    }
+  }
+
+  async function bulkMarkReadyForInspection() {
+    const eligibleItems = rows.filter(
+      (r) => selectedIds.has(r.id) && r.status === "InProgress"
+    );
+    if (eligibleItems.length === 0) {
+      toast.error("No eligible items selected", {
+        description: "Only In Progress items can be marked Ready for Inspection.",
+      });
+      return;
+    }
+
+    setIsBulkUpdating(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const item of eligibleItems) {
+      try {
+        const payload: PmUpsertRequest = {
+          name: item.description,
+          status: "ReadyForInspection",
+          data: {
+            Location: item.location,
+            Category: item.category,
+            Description: item.description,
+            ResponsiblePartyType: item.responsiblePartyType,
+            AssignedToName: item.assignedToName || null,
+            DueDate: item.dueDate || null,
+            Priority: item.priority,
+          },
+        };
+        await api<PmEntityDto>(`/api/projects/${projectId}/punch-list/${item.id}`, {
+          method: "PUT",
+          body: payload,
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} item(s) marked Ready for Inspection`);
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} item(s) failed to update`);
+    }
+
+    setSelectedIds(new Set());
+    setIsBulkUpdating(false);
+    await load();
+  }
 
   function openCreate() {
     setEditing(false);
@@ -388,7 +622,6 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
       notes: row.notes,
     });
     setPendingFiles([]);
-    // Load existing photos for this item
     api<FileAttachment[]>(`/api/files?entityType=PunchListItem&entityId=${row.id}`)
       .then(setExistingFiles)
       .catch(() => setExistingFiles([]));
@@ -439,7 +672,6 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
         itemId = created.id;
         toast.success("Punch list item created");
       }
-      // Upload pending files as photos
       const realFiles = pendingFiles.map((f) => f.file).filter((f): f is File => f !== undefined);
       if (realFiles.length > 0 && itemId) {
         try {
@@ -496,7 +728,6 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
       await load();
     } catch (error) {
       if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
-        // Fallback: mark as Closed if DELETE not available
         const payload: PmUpsertRequest = {
           name: pendingDelete.description,
           status: "Closed",
@@ -554,32 +785,69 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total Items</CardDescription>
-            <CardTitle className="text-lg">{stats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Open / In Progress</CardDescription>
-            <CardTitle className="text-lg text-amber-600">{stats.open}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Ready for Inspection</CardDescription>
-            <CardTitle className="text-lg text-blue-600">{stats.readyForInspection}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Closed</CardDescription>
-            <CardTitle className="text-lg text-emerald-600">{stats.closed}</CardTitle>
-          </CardHeader>
-        </Card>
+      {/* Summary cards with progress */}
+      <div className="space-y-3">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-7">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total</CardDescription>
+              <CardTitle className="text-lg">{summary?.Total ?? localStats.total}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Open</CardDescription>
+              <CardTitle className="text-lg text-gray-600 dark:text-gray-400">
+                {summary?.Open ?? "-"}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>In Progress</CardDescription>
+              <CardTitle className="text-lg text-blue-600">{summary?.InProgress ?? "-"}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Ready</CardDescription>
+              <CardTitle className="text-lg text-violet-600">{summary?.ReadyForInspection ?? "-"}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Closed</CardDescription>
+              <CardTitle className="text-lg text-emerald-600">{summary?.Closed ?? localStats.closed}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Disputed</CardDescription>
+              <CardTitle className="text-lg text-red-600">{summary?.Disputed ?? "-"}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Overdue</CardDescription>
+              <CardTitle className="text-lg text-amber-600">
+                <span className="flex items-center gap-1">
+                  {summary?.OverdueCount ?? "-"}
+                  {(summary?.OverdueCount ?? 0) > 0 && <AlertTriangle className="h-4 w-4" />}
+                </span>
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </div>
+
+        {/* Completion progress bar */}
+        {localStats.total > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              Completion: {localStats.closed}/{localStats.total} ({completionPercent}%)
+            </span>
+            <Progress value={completionPercent} className="flex-1 h-2.5" />
+          </div>
+        )}
       </div>
 
       <Card>
@@ -590,40 +858,101 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-[1fr_180px_180px]">
-            <Input
-              ref={searchInputRef}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search description, location, or assignee (press / to focus)"
-            />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {STATUS_LABELS[status]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {CATEGORIES.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {CATEGORY_LABELS[cat]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Filters */}
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_160px_160px_160px]">
+              <Input
+                ref={searchInputRef}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search description, location, or assignee (press / to focus)"
+              />
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {STATUS_LABELS[status]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {CATEGORY_LABELS[cat]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  {PRIORITIES.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-wrap items-center gap-4">
+              <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
+                <Switch
+                  checked={overdueOnly}
+                  onCheckedChange={setOverdueOnly}
+                />
+                <span>Overdue only</span>
+              </label>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-muted-foreground">
+                  <X className="h-3.5 w-3.5 mr-1" />
+                  Clear filters
+                </Button>
+              )}
+              <span className="text-sm text-muted-foreground ml-auto">
+                {rows.length} of {items.length} items
+              </span>
+            </div>
           </div>
+
+          {/* Bulk action bar */}
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/50 p-3">
+              <span className="text-sm font-medium">
+                {selectedIds.size} selected
+              </span>
+              <LoadingButton
+                size="sm"
+                variant="outline"
+                onClick={bulkMarkReadyForInspection}
+                loading={isBulkUpdating}
+                loadingText="Updating..."
+              >
+                <ClipboardCheck className="h-4 w-4 mr-1" />
+                Mark Ready for Inspection
+              </LoadingButton>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedIds(new Set())}
+                className="text-muted-foreground"
+              >
+                Clear
+              </Button>
+            </div>
+          )}
 
           {loading ? (
             <>
@@ -631,7 +960,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                 <CardListSkeleton rows={3} />
               </div>
               <div className="hidden sm:block">
-                <TableSkeleton headers={["#", "Description", "Location", "Category", "Responsible", "Due Date", "Priority", "Status", "Actions"]} rows={5} />
+                <TableSkeleton headers={["", "#", "Description", "Location", "Category", "Due Date", "Priority", "Status", "Actions"]} rows={5} />
               </div>
             </>
           ) : (
@@ -650,19 +979,27 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                 ) : (
                   rows.map((row) => (
                     <div key={row.id} className="rounded-lg border p-4 space-y-2">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          checked={selectedIds.has(row.id)}
+                          onCheckedChange={() => toggleSelect(row.id)}
+                          className="min-h-[44px] min-w-[44px] h-5 w-5"
+                          aria-label={`Select item ${row.itemNumber}`}
+                        />
                         <span className="font-mono text-sm font-medium">
                           #{row.itemNumber}
                         </span>
-                        <Badge variant={statusBadgeVariant(row.status)}>
-                          {STATUS_LABELS[row.status] || row.status}
-                        </Badge>
+                        <div className="ml-auto flex items-center gap-1.5">
+                          <Badge className={statusBadgeClass(row.status)}>
+                            {STATUS_LABELS[row.status] || row.status}
+                          </Badge>
+                        </div>
                       </div>
                       <p className="font-medium">{row.description}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span>{row.location}</span>
                         <span>{CATEGORY_LABELS[row.category] || row.category}</span>
-                        <Badge variant={priorityBadgeVariant(row.priority)} className="text-xs">
+                        <Badge className={priorityBadgeClass(row.priority) + " text-xs"}>
                           {row.priority}
                         </Badge>
                       </div>
@@ -672,8 +1009,13 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                         </p>
                       )}
                       {row.dueDate && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                           Due: {formatDate(row.dueDate)}
+                          {isOverdue(row.dueDate, row.status) && (
+                            <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">
+                              Overdue
+                            </Badge>
+                          )}
                         </p>
                       )}
                       <div className="flex gap-2 pt-1">
@@ -722,21 +1064,28 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>#</TableHead>
+                        <TableHead className="w-[40px]">
+                          <Checkbox
+                            checked={rows.length > 0 && selectedIds.size === rows.length}
+                            onCheckedChange={toggleSelectAll}
+                            aria-label="Select all"
+                          />
+                        </TableHead>
+                        <SortableHeader label="#" field="itemNumber" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort} />
                         <TableHead>Description</TableHead>
                         <TableHead>Location</TableHead>
-                        <TableHead>Category</TableHead>
+                        <SortableHeader label="Category" field="category" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort} />
                         <TableHead>Responsible</TableHead>
-                        <TableHead>Due Date</TableHead>
-                        <TableHead>Priority</TableHead>
-                        <TableHead>Status</TableHead>
+                        <SortableHeader label="Due Date" field="dueDate" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                        <SortableHeader label="Priority" field="priority" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort} />
+                        <SortableHeader label="Status" field="status" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort} />
                         <TableHead className="w-[120px]">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {rows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={9}>
+                          <TableCell colSpan={10}>
                             <div className="flex flex-col items-center gap-3 py-6 text-center">
                               <p className="text-sm text-muted-foreground">
                                 No punch list items yet. Start a walkthrough and add deficiency items.
@@ -749,7 +1098,14 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                         </TableRow>
                       ) : (
                         rows.map((row) => (
-                          <TableRow key={row.id}>
+                          <TableRow key={row.id} className={selectedIds.has(row.id) ? "bg-muted/50" : undefined}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedIds.has(row.id)}
+                                onCheckedChange={() => toggleSelect(row.id)}
+                                aria-label={`Select item ${row.itemNumber}`}
+                              />
+                            </TableCell>
                             <TableCell className="font-mono text-sm">#{row.itemNumber}</TableCell>
                             <TableCell className="font-medium max-w-[200px] truncate">
                               {row.description}
@@ -767,15 +1123,22 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                               </div>
                             </TableCell>
                             <TableCell className="font-mono text-sm">
-                              {formatDate(row.dueDate)}
+                              <div className="flex items-center gap-1.5">
+                                {formatDate(row.dueDate)}
+                                {isOverdue(row.dueDate, row.status) && (
+                                  <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">
+                                    Overdue
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={priorityBadgeVariant(row.priority)} className="text-xs">
+                              <Badge className={priorityBadgeClass(row.priority) + " text-xs"}>
                                 {row.priority}
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={statusBadgeVariant(row.status)}>
+                              <Badge className={statusBadgeClass(row.status)}>
                                 {STATUS_LABELS[row.status] || row.status}
                               </Badge>
                             </TableCell>

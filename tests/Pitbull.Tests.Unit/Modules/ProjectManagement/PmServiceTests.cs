@@ -85,7 +85,7 @@ public sealed class PmServiceDailyReportTests
     }
 
     [Fact]
-    public async Task AddPhoto_UsesReferenceIdAsDocumentId()
+    public async Task AddPhoto_UsesReferenceIdAsDailyReportId()
     {
         using var db = TestDbContextFactory.Create();
 
@@ -97,8 +97,7 @@ public sealed class PmServiceDailyReportTests
 
         result.IsSuccess.Should().BeTrue();
         var photo = await db.Set<PmDailyReportPhoto>().FirstAsync(p => p.Id == result.Value!.Id);
-        photo.DailyReportId.Should().BeEmpty();
-        photo.DocumentId.Should().Be(report.Id);
+        photo.DailyReportId.Should().Be(report.Id);
     }
 }
 

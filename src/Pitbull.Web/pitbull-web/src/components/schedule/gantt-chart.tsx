@@ -32,6 +32,8 @@ export interface GanttDependency {
 
 export type ZoomLevel = "day" | "week" | "month";
 
+export type ZoomPreset = "1W" | "1M" | "3M" | "All";
+
 export interface GanttChartProps {
   activities: GanttActivity[];
   dependencies: GanttDependency[];
@@ -40,11 +42,13 @@ export interface GanttChartProps {
 
 // --- Constants ---
 
-const ROW_HEIGHT = 36;
+const ROW_HEIGHT = 40;
 const HEADER_HEIGHT = 48;
 const SIDEBAR_WIDTH = 280;
 const BAR_HEIGHT = 18;
+const ACTUAL_BAR_HEIGHT = 8;
 const BAR_Y_OFFSET = (ROW_HEIGHT - BAR_HEIGHT) / 2;
+const ACTUAL_BAR_Y_GAP = 2;
 const MILESTONE_SIZE = 12;
 const MIN_COL_WIDTH: Record<ZoomLevel, number> = {
   day: 32,
@@ -96,6 +100,24 @@ function getEffectiveFinish(a: GanttActivity): Date | null {
   return parseDate(a.actualFinish) ?? parseDate(a.plannedFinish);
 }
 
+function getScheduleRange(activities: GanttActivity[]): { min: Date; max: Date } | null {
+  let minDate: Date | null = null;
+  let maxDate: Date | null = null;
+
+  for (const a of activities) {
+    for (const dateStr of [a.plannedStart, a.plannedFinish, a.actualStart, a.actualFinish]) {
+      const d = parseDate(dateStr);
+      if (d) {
+        if (!minDate || d < minDate) minDate = d;
+        if (!maxDate || d > maxDate) maxDate = d;
+      }
+    }
+  }
+
+  if (!minDate || !maxDate) return null;
+  return { min: minDate, max: maxDate };
+}
+
 // --- Compute timeline range ---
 
 interface TimelineConfig {
@@ -108,33 +130,21 @@ interface TimelineConfig {
 }
 
 function computeTimeline(
-  activities: GanttActivity[],
+  startDate: Date,
+  endDate: Date,
   zoom: ZoomLevel
-): TimelineConfig | null {
-  let minDate: Date | null = null;
-  let maxDate: Date | null = null;
-
-  for (const a of activities) {
-    const s = getEffectiveStart(a);
-    const f = getEffectiveFinish(a);
-    if (s && (!minDate || s < minDate)) minDate = s;
-    if (f && (!maxDate || f > maxDate)) maxDate = f;
-  }
-
-  if (!minDate || !maxDate) return null;
-
-  // Add padding
+): TimelineConfig {
   const padDays = zoom === "month" ? 30 : zoom === "week" ? 7 : 3;
-  const startDate = addDays(minDate, -padDays);
-  const endDate = addDays(maxDate, padDays);
-  const totalDays = daysBetween(startDate, endDate) + 1;
+  const paddedStart = addDays(startDate, -padDays);
+  const paddedEnd = addDays(endDate, padDays);
+  const totalDays = daysBetween(paddedStart, paddedEnd) + 1;
 
   const colWidth = MIN_COL_WIDTH[zoom];
   const columns: TimelineConfig["columns"] = [];
 
   if (zoom === "day") {
     for (let i = 0; i < totalDays; i++) {
-      const d = addDays(startDate, i);
+      const d = addDays(paddedStart, i);
       columns.push({
         date: d,
         label: String(d.getDate()),
@@ -142,8 +152,8 @@ function computeTimeline(
       });
     }
   } else if (zoom === "week") {
-    let d = startOfWeek(startDate);
-    while (d <= endDate) {
+    let d = startOfWeek(paddedStart);
+    while (d <= paddedEnd) {
       columns.push({
         date: new Date(d),
         label: formatShortDate(d),
@@ -151,8 +161,8 @@ function computeTimeline(
       d = addDays(d, 7);
     }
   } else {
-    let d = startOfMonth(startDate);
-    while (d <= endDate) {
+    let d = startOfMonth(paddedStart);
+    while (d <= paddedEnd) {
       columns.push({
         date: new Date(d),
         label: formatMonthYear(d),
@@ -166,7 +176,7 @@ function computeTimeline(
       ? totalDays * colWidth
       : columns.length * colWidth;
 
-  return { startDate, endDate, totalDays, colWidth, totalWidth, columns };
+  return { startDate: paddedStart, endDate: paddedEnd, totalDays, colWidth, totalWidth, columns };
 }
 
 function dateToX(
@@ -180,6 +190,15 @@ function dateToX(
   }
   // For week/month, use proportional mapping
   return (days / timeline.totalDays) * timeline.totalWidth;
+}
+
+// --- Determine zoom level from date range ---
+
+function zoomForRange(startDate: Date, endDate: Date): ZoomLevel {
+  const days = daysBetween(startDate, endDate);
+  if (days <= 14) return "day";
+  if (days <= 90) return "week";
+  return "month";
 }
 
 // --- Build flat ordered list with indentation ---
@@ -275,6 +294,21 @@ function buildDependencyPath(
   return `M ${fromX} ${fromY} H ${midX} V ${toY} H ${toX - 4}`;
 }
 
+// --- Check if actual dates differ from planned ---
+
+function hasActualOverlay(a: GanttActivity): boolean {
+  const ps = parseDate(a.plannedStart);
+  const pf = parseDate(a.plannedFinish);
+  const as_ = parseDate(a.actualStart);
+  const af = parseDate(a.actualFinish);
+  if (!as_ && !af) return false;
+  if (!ps && !pf) return false;
+  // Show overlay when at least one actual date exists and differs from planned
+  const startDiffers = as_ && ps && daysBetween(ps, as_) !== 0;
+  const finishDiffers = af && pf && daysBetween(pf, af) !== 0;
+  return !!(startDiffers || finishDiffers || (as_ && !ps) || (af && !pf));
+}
+
 // --- Component ---
 
 export function GanttChart({
@@ -282,14 +316,50 @@ export function GanttChart({
   dependencies,
   className,
 }: GanttChartProps) {
-  const [zoom, setZoom] = useState<ZoomLevel>("week");
   const timelineRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
 
+  const scheduleRange = useMemo(() => getScheduleRange(activities), [activities]);
+
+  // Zoom preset state
+  const [zoomPreset, setZoomPreset] = useState<ZoomPreset>("All");
+
+  // Compute the visible date range and zoom level based on preset
+  const { visibleStart, visibleEnd, zoom } = useMemo(() => {
+    if (!scheduleRange) {
+      return { visibleStart: new Date(), visibleEnd: new Date(), zoom: "week" as ZoomLevel };
+    }
+
+    const today = new Date();
+
+    switch (zoomPreset) {
+      case "1W": {
+        const start = addDays(today, -1);
+        const end = addDays(today, 6);
+        return { visibleStart: start, visibleEnd: end, zoom: "day" as ZoomLevel };
+      }
+      case "1M": {
+        const start = addDays(today, -3);
+        const end = addDays(today, 28);
+        return { visibleStart: start, visibleEnd: end, zoom: "day" as ZoomLevel };
+      }
+      case "3M": {
+        const start = addDays(today, -7);
+        const end = addDays(today, 84);
+        return { visibleStart: start, visibleEnd: end, zoom: "week" as ZoomLevel };
+      }
+      case "All":
+      default: {
+        const z = zoomForRange(scheduleRange.min, scheduleRange.max);
+        return { visibleStart: scheduleRange.min, visibleEnd: scheduleRange.max, zoom: z };
+      }
+    }
+  }, [zoomPreset, scheduleRange]);
+
   const flatList = useMemo(() => flattenActivities(activities), [activities]);
   const timeline = useMemo(
-    () => computeTimeline(activities, zoom),
-    [activities, zoom]
+    () => computeTimeline(visibleStart, visibleEnd, zoom),
+    [visibleStart, visibleEnd, zoom]
   );
 
   const activityIndex = useMemo(() => {
@@ -331,7 +401,7 @@ export function GanttChart({
     );
   }
 
-  if (!timeline) {
+  if (!scheduleRange) {
     return (
       <div className={cn("rounded-lg border border-dashed p-8 text-center", className)}>
         <p className="text-sm text-muted-foreground">
@@ -345,30 +415,37 @@ export function GanttChart({
   const today = new Date();
   const todayX = dateToX(today, timeline, zoom);
 
+  const presets: { key: ZoomPreset; label: string }[] = [
+    { key: "1W", label: "1W" },
+    { key: "1M", label: "1M" },
+    { key: "3M", label: "3M" },
+    { key: "All", label: "All" },
+  ];
+
   return (
     <div className={cn("flex flex-col", className)}>
       {/* Zoom controls */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-sm font-medium text-muted-foreground">Zoom:</span>
-        {(["day", "week", "month"] as ZoomLevel[]).map((level) => (
+        {presets.map((p) => (
           <button
-            key={level}
-            onClick={() => setZoom(level)}
+            key={p.key}
+            onClick={() => setZoomPreset(p.key)}
             className={cn(
               "px-3 py-1.5 text-xs font-medium rounded-md transition-colors min-h-[36px]",
-              zoom === level
+              zoomPreset === p.key
                 ? "bg-amber-500 text-white"
                 : "bg-muted text-muted-foreground hover:bg-accent"
             )}
           >
-            {level.charAt(0).toUpperCase() + level.slice(1)}
+            {p.label}
           </button>
         ))}
       </div>
 
       {/* Chart container */}
       <div className="flex rounded-lg border overflow-hidden bg-background">
-        {/* Sidebar — Activity names */}
+        {/* Sidebar -- Activity names */}
         <div className="flex-shrink-0" style={{ width: SIDEBAR_WIDTH }}>
           {/* Sidebar header */}
           <div
@@ -387,10 +464,15 @@ export function GanttChart({
             {flatList.map((activity) => (
               <div
                 key={activity.id}
-                className="flex items-center border-b px-2 text-sm truncate hover:bg-accent/30 transition-colors"
+                className={cn(
+                  "flex items-center border-b px-2 text-sm truncate hover:bg-accent/30 transition-colors",
+                  activity.isCritical && activity.activityType !== "Wbs" && "border-l-[3px] border-l-red-500"
+                )}
                 style={{
                   height: ROW_HEIGHT,
-                  paddingLeft: 8 + activity.depth * 16,
+                  paddingLeft: activity.isCritical && activity.activityType !== "Wbs"
+                    ? 5 + activity.depth * 16
+                    : 8 + activity.depth * 16,
                 }}
                 title={`${activity.wbsCode} ${activity.name}`}
               >
@@ -413,6 +495,15 @@ export function GanttChart({
                 >
                   {activity.name}
                 </span>
+                {/* Float indicator for non-critical activities */}
+                {!activity.isCritical &&
+                  activity.activityType === "Task" &&
+                  activity.totalFloatDays != null &&
+                  activity.totalFloatDays > 0 && (
+                    <span className="ml-auto flex-shrink-0 text-[10px] text-emerald-600 dark:text-emerald-400 font-mono">
+                      +{activity.totalFloatDays}d
+                    </span>
+                  )}
               </div>
             ))}
           </div>
@@ -507,9 +598,9 @@ export function GanttChart({
                   y1={0}
                   x2={todayX}
                   y2={chartHeight}
-                  className="stroke-amber-500"
+                  className="stroke-red-500"
                   strokeWidth={1.5}
-                  strokeDasharray="4 3"
+                  strokeDasharray="6 4"
                 />
               )}
 
@@ -538,11 +629,16 @@ export function GanttChart({
 
               {/* Activity bars */}
               {flatList.map((activity, rowIdx) => {
-                const y = rowIdx * ROW_HEIGHT + BAR_Y_OFFSET;
+                const plannedStart = parseDate(activity.plannedStart);
+                const plannedFinish = parseDate(activity.plannedFinish);
+                const actualStartDate = parseDate(activity.actualStart);
+                const actualFinishDate = parseDate(activity.actualFinish);
                 const start = getEffectiveStart(activity);
                 const finish = getEffectiveFinish(activity);
 
                 if (!start) return null;
+
+                const y = rowIdx * ROW_HEIGHT + BAR_Y_OFFSET;
 
                 // Milestone
                 if (
@@ -550,7 +646,8 @@ export function GanttChart({
                   !finish ||
                   daysBetween(start, finish) === 0
                 ) {
-                  const cx = dateToX(start, timeline, zoom);
+                  const milestoneDate = plannedFinish ?? plannedStart ?? start;
+                  const cx = dateToX(milestoneDate, timeline, zoom);
                   const cy = rowIdx * ROW_HEIGHT + ROW_HEIGHT / 2;
                   return (
                     <g key={activity.id}>
@@ -562,42 +659,73 @@ export function GanttChart({
                             : "fill-amber-500"
                         )}
                       />
+                      {/* Actual date marker if different */}
+                      {actualStartDate && plannedStart && daysBetween(plannedStart, actualStartDate) !== 0 && (
+                        <polygon
+                          points={`${dateToX(actualStartDate, timeline, zoom)},${cy - MILESTONE_SIZE + 3} ${dateToX(actualStartDate, timeline, zoom) + MILESTONE_SIZE - 3},${cy} ${dateToX(actualStartDate, timeline, zoom)},${cy + MILESTONE_SIZE - 3} ${dateToX(actualStartDate, timeline, zoom) - MILESTONE_SIZE + 3},${cy}`}
+                          className="fill-emerald-500"
+                          opacity={0.8}
+                        />
+                      )}
                       <title>
-                        {activity.name} ({formatShortDate(start)})
+                        {activity.name} ({formatShortDate(milestoneDate)})
+                        {activity.isCritical ? "\nCritical Path" : ""}
                       </title>
                     </g>
                   );
                 }
 
-                // Bar
-                const x1 = dateToX(start, timeline, zoom);
-                const x2 = dateToX(finish, timeline, zoom);
-                const barWidth = Math.max(x2 - x1, 4);
-                const pct = Math.min(Math.max(activity.percentComplete, 0), 100);
-                const progressWidth = barWidth * (pct / 100);
-
+                // Regular bar
                 const isWbs = activity.activityType === "Wbs";
+                const showOverlay = hasActualOverlay(activity) && !isWbs;
+
+                // Planned bar (always shown if planned dates exist)
+                const pStart = plannedStart ?? start;
+                const pFinish = plannedFinish ?? finish;
+                const px1 = dateToX(pStart, timeline, zoom);
+                const px2 = dateToX(pFinish, timeline, zoom);
+                const plannedBarWidth = Math.max(px2 - px1, 4);
+                const pct = Math.min(Math.max(activity.percentComplete, 0), 100);
+                const progressWidth = plannedBarWidth * (pct / 100);
+
+                // Actual bar coordinates
+                const aStart = actualStartDate ?? pStart;
+                const aFinish = actualFinishDate ?? (activity.status === "InProgress" ? new Date() : pFinish);
+                const ax1 = dateToX(aStart, timeline, zoom);
+                const ax2 = dateToX(aFinish, timeline, zoom);
+                const actualBarWidth = Math.max(ax2 - ax1, 4);
 
                 return (
                   <g key={activity.id}>
-                    {/* Background bar */}
+                    {/* Critical path left accent */}
+                    {activity.isCritical && !isWbs && (
+                      <rect
+                        x={px1 - 2}
+                        y={y}
+                        width={3}
+                        height={BAR_HEIGHT}
+                        rx={1}
+                        className="fill-red-600 dark:fill-red-500"
+                      />
+                    )}
+                    {/* Planned bar background */}
                     <rect
-                      x={x1}
+                      x={px1}
                       y={isWbs ? y + 2 : y}
-                      width={barWidth}
+                      width={plannedBarWidth}
                       height={isWbs ? BAR_HEIGHT - 4 : BAR_HEIGHT}
                       rx={isWbs ? 2 : 3}
                       className={cn(
                         activity.isCritical
-                          ? "fill-red-300 dark:fill-red-900/60"
-                          : "fill-blue-300 dark:fill-blue-900/60",
+                          ? "fill-red-200 dark:fill-red-900/50"
+                          : "fill-blue-200 dark:fill-blue-900/50",
                         isWbs && "fill-slate-300 dark:fill-slate-700"
                       )}
                     />
                     {/* Progress fill */}
                     {progressWidth > 0 && (
                       <rect
-                        x={x1}
+                        x={px1}
                         y={isWbs ? y + 2 : y}
                         width={progressWidth}
                         height={isWbs ? BAR_HEIGHT - 4 : BAR_HEIGHT}
@@ -611,9 +739,9 @@ export function GanttChart({
                       />
                     )}
                     {/* Percent text for wide bars */}
-                    {barWidth > 40 && pct > 0 && (
+                    {plannedBarWidth > 40 && pct > 0 && (
                       <text
-                        x={x1 + barWidth / 2}
+                        x={px1 + plannedBarWidth / 2}
                         y={y + BAR_HEIGHT / 2 + (isWbs ? 1 : 0)}
                         textAnchor="middle"
                         dominantBaseline="central"
@@ -622,10 +750,40 @@ export function GanttChart({
                         {Math.round(pct)}%
                       </text>
                     )}
+                    {/* Actual bar overlay (thinner, below planned bar) */}
+                    {showOverlay && (
+                      <rect
+                        x={ax1}
+                        y={y + BAR_HEIGHT + ACTUAL_BAR_Y_GAP}
+                        width={actualBarWidth}
+                        height={ACTUAL_BAR_HEIGHT}
+                        rx={2}
+                        className="fill-emerald-500 dark:fill-emerald-400"
+                        opacity={0.85}
+                      />
+                    )}
+                    {/* Float indicator in the chart area for non-critical tasks */}
+                    {!activity.isCritical &&
+                      !isWbs &&
+                      activity.totalFloatDays != null &&
+                      activity.totalFloatDays > 0 &&
+                      plannedBarWidth > 8 && (
+                        <text
+                          x={px1 + plannedBarWidth + 4}
+                          y={y + BAR_HEIGHT / 2}
+                          dominantBaseline="central"
+                          className="fill-emerald-600 dark:fill-emerald-400 text-[9px] font-mono pointer-events-none"
+                        >
+                          +{activity.totalFloatDays}d
+                        </text>
+                      )}
                     <title>
                       {activity.name}
                       {"\n"}
-                      {formatShortDate(start)} - {formatShortDate(finish)}
+                      Planned: {formatShortDate(pStart)} - {formatShortDate(pFinish)}
+                      {actualStartDate
+                        ? `\nActual: ${formatShortDate(aStart)}${actualFinishDate ? " - " + formatShortDate(actualFinishDate) : " - In Progress"}`
+                        : ""}
                       {"\n"}
                       {Math.round(pct)}% complete
                       {activity.isCritical ? "\nCritical Path" : ""}
@@ -666,7 +824,11 @@ export function GanttChart({
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-6 rounded-sm bg-blue-500" />
-          <span>Non-Critical</span>
+          <span>Planned</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="h-2 w-6 rounded-sm bg-emerald-500" />
+          <span>Actual</span>
         </div>
         <div className="flex items-center gap-1.5">
           <svg width="14" height="14" viewBox="0 0 14 14">
@@ -678,8 +840,12 @@ export function GanttChart({
           <span>Milestone</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-0 w-6 border-t-2 border-dashed border-amber-500" />
+          <div className="h-0 w-6 border-t-2 border-dashed border-red-500" />
           <span>Today</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono text-emerald-600 dark:text-emerald-400">+3d</span>
+          <span>Float</span>
         </div>
       </div>
     </div>

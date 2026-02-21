@@ -24,6 +24,88 @@ public sealed class NarrativeServiceTests
     }
 
     [Fact]
+    public async Task CreateNarrative_ReturnsSuccess()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var result = await service.CreateNarrativeAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["ExecutiveSummary"] = "Project on track"
+            }));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.ProjectId.Should().Be(ProjectId);
+        result.Value.Id.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task SubmitNarrative_FromDraft_SetsSubmittedStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateNarrativeAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?>
+            {
+                ["ExecutiveSummary"] = "Project summary here"
+            }))).Value!;
+
+        var result = await service.SubmitNarrativeAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmProjectNarrative>().FirstAsync(n => n.Id == created.Id);
+        entity.Status.Should().Be(NarrativeStatus.Submitted);
+    }
+
+    [Fact]
+    public async Task ListNarrativeRevisions_ForCorrectNarrative_ReturnsRevisions()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateNarrativeAsync(ProjectId,
+            new PmUpsertRequest(Title: "Narrative With Revisions"))).Value!;
+
+        db.Set<PmProjectNarrativeRevision>().Add(new PmProjectNarrativeRevision
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestDbContextFactory.TestTenantId,
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            NarrativeId = created.Id,
+            RevisionNumber = 1,
+            ContentSnapshotJson = "{}",
+            RevisedByUserId = Guid.NewGuid(),
+            RevisedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        });
+        db.Set<PmProjectNarrativeRevision>().Add(new PmProjectNarrativeRevision
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestDbContextFactory.TestTenantId,
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            NarrativeId = created.Id,
+            RevisionNumber = 2,
+            ContentSnapshotJson = "{}",
+            RevisedByUserId = Guid.NewGuid(),
+            RevisedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var result = await service.ListNarrativeRevisionsAsync(ProjectId, created.Id, new PmListQuery());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
     public async Task UpdateNarrative_PublishedNarrative_ReturnsInvalidStatus()
     {
         using var db = TestDbContextFactory.Create();

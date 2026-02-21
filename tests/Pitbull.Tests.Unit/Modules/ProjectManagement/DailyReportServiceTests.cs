@@ -239,9 +239,9 @@ public sealed class DailyReportServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.Id.Should().NotBeEmpty();
 
-        // ReferenceId maps to DocumentId (first matching FK in ApplyUpsert's priority list)
+        // ReferenceId maps to DailyReportId (first matching FK in ApplyUpsert's priority list)
         var photo = await db.Set<PmDailyReportPhoto>().FirstAsync();
-        photo.DocumentId.Should().Be(report.Id);
+        photo.DailyReportId.Should().Be(report.Id);
     }
 
     #endregion
@@ -521,7 +521,7 @@ public sealed class DailyReportServiceTests
 
         var photos = await db.Set<PmDailyReportPhoto>().ToListAsync();
         photos.Should().HaveCount(3);
-        photos.Should().AllSatisfy(p => p.DocumentId.Should().Be(report.Id));
+        photos.Should().AllSatisfy(p => p.DailyReportId.Should().Be(report.Id));
     }
 
     [Fact]

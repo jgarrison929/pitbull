@@ -640,4 +640,39 @@ public sealed class JobCostServiceTests
     }
 
     #endregion
+
+    #region Forecast Variance Computation
+
+    [Fact]
+    public async Task CreateForecast_ComputesVarianceToBudget()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var costCodeId = Guid.NewGuid();
+
+        // Create a budget first so forecast can compute variance
+        await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["CostCodeId"] = costCodeId,
+                ["OriginalBudget"] = 100000m,
+                ["ApprovedBudgetChanges"] = 0m
+            }));
+
+        var result = await service.CreateForecastAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["CostCodeId"] = costCodeId,
+                ["EstimatedFinalCost"] = 110000m
+            }));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var forecast = await db.Set<PmJobCostForecast>().FirstAsync(f => f.Id == result.Value!.Id);
+        forecast.VarianceToBudget.Should().Be(10000m);
+    }
+
+    #endregion
 }
