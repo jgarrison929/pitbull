@@ -21,42 +21,53 @@ Track whether compound engineering (domain skills + lessons docs + `/workflows:c
 | 6 - Secrets/Confidence | cc93fb8 | 12:36 | ~60m | 16,277 | +30 | 2,171 | 0 | 0 | ✅ | Autonomous, self-dispatched |
 | 7 - AI Predictions | efd5232 | 13:12 | ~36m | 2,453 | +30 | 2,201 | 0 | 0 | ✅ | Self-dispatched, fastest yet |
 | 8 - Integrations | 265f0d5 | 13:45 | ~33m | 3,616 | +40 | 2,241 | 0 | 0 | ✅ | Used /compound, recognized overlap with S7 |
+| 9 - Mobile/Competitive | f019736 | 15:25 | ~95m | 1,953 | +0 | 2,241 | 0 | 0 | ✅ | Mobile daily reports, competitive matrix, bottom nav |
+| 10 - Portal/Encryption | 399b84b | 16:40 | ~65m | 20,468 | +70 | 2,311 | 0 | 0 | ✅ | 3-agent team, security review, /compound used, type drift caught by build gate |
 
 ## Key Indicators
 
 ### Production Bug Rate
 - **Pre-compound (S1-S2):** 2 bugs / 2 sprints = **1.0 bugs/sprint**
 - **Transition (S3):** 1 bug / 1 sprint = **1.0 bugs/sprint** (RBAC migration path missed)
-- **Post-compound (S4-S8):** 0 bugs / 5 sprints = **0.0 bugs/sprint** ✅
+- **Post-compound (S4-S10):** 0 bugs / 7 sprints = **0.0 bugs/sprint** ✅
 
 ### Rework Rate
 - **Pre-compound (S1-S2):** 2 reworks / 2 sprints = **1.0 rework/sprint**
-- **Post-compound (S4-S8):** 0 reworks / 5 sprints = **0.0 rework/sprint** ✅
+- **Post-compound (S4-S10):** 0 reworks / 7 sprints = **0.0 rework/sprint** ✅
 
 ### Test Output
 - **Pre-compound (S1-S2):** 0 new tests across 2 sprints
-- **Post-compound (S3-S8):** 215 new tests across 6 sprints = **~36 tests/sprint** ✅
+- **Post-compound (S3-S10):** 285 new tests across 8 sprints = **~36 tests/sprint** ✅
+- **Sprint 10 peak:** 70 new tests (highest single-sprint output)
 
 ### Velocity (time per sprint)
 - **Pre-compound avg:** ~65 min
-- **Post-compound avg (S4-S8):** ~46 min (29% faster) ✅
-- **Trend:** 60m → 40m → 60m → 36m → 33m (accelerating)
+- **Post-compound avg (S4-S10):** ~53 min (18% faster) ✅
+- **Trend:** 60m → 40m → 60m → 36m → 33m → 95m → 65m
+- **Note:** S9-S10 are larger feature sets (3 features each) vs single-feature sprints S4-S8
+
+### Lines Shipped
+- **Sprint 10:** 20,468 lines — largest single-sprint output
+- **Post-compound total (S4-S10):** ~80,432 lines across 7 sprints
 
 ### Duplication Avoidance
 - **Sprint 8:** Recognized Sprint 7 had already built 90% of notification preferences. Reduced O2 from full feature to 12-line fix. Documented this as compound learning pattern.
+- **Sprint 10:** Security engineer used existing DataProtection pattern (from compound lesson #5) instead of building new encryption infrastructure. Static registration pattern reused from `RegisterModuleAssembly()`.
 
 ## What's Working
-1. **Zero production bugs since compound infra** (S4-S8)
-2. **Agents now write tests** — pre-compound sprints shipped 0 tests
-3. **Sprint duration trending down** — 60m → 33m as agents learn patterns
-4. **Duplication detection** — S8 avoided rebuilding existing work
-5. **Self-dispatching** — S6-S8 all auto-dispatched without human intervention
+1. **Zero production bugs since compound infra** (S4-S10, 7 consecutive sprints)
+2. **Agents now write tests** — pre-compound sprints shipped 0 tests, S10 shipped 70
+3. **Proactive security review** — S10 security engineer reviewed public endpoints without being asked
+4. **Compound lesson reuse** — S10 encryption reused DataProtection lesson, static registration pattern
+5. **Build gate catches integration issues** — WidgetConfig type drift caught by `npx next build`
+6. **Self-dispatching** — S6-S8 auto-dispatched; S9-S10 user-directed multi-feature sprints
 
 ## What's Not Yet Proven
 1. **Long-term lesson retention** — will agents still reference docs/solutions/ in Sprint 20?
 2. **Cross-session learning** — new Claude Code sessions must re-read CLAUDE.md/skills (no persistent memory)
 3. **Diminishing returns** — are we just doing easier features in later sprints?
 4. **Quality depth** — lines shipped ≠ quality. Need production user testing.
+5. **Multi-feature sprint scaling** — S9-S10 took longer (65-95m vs 33-60m); is 3-feature batching worth it?
 
 ## How To Update
 After each sprint merge, add a row with:
@@ -80,4 +91,4 @@ After each sprint merge, add a row with:
 | erp-postgres | .claude/skills/erp-postgres/ | Feb 20 | Schema conventions, RLS patterns |
 | Compound lessons | docs/solutions/2026-02-compound-lessons.md | Feb 20 07:25 | 8+ patterns from sprint failures |
 | Compound plugin | compound-engineering (every-marketplace) | Feb 20 11:34 | Auto-capture lessons after each sprint |
-| 9 - Mobile/Competitive | f019736 | 15:25 | ~95m | 1,953 | +0 | 2,241 | 0 | 0 | ✅ | Mobile daily reports, competitive matrix, bottom nav |
+| Sprint 10 lessons | docs/solutions/integration-issues/ | Feb 20 16:39 | Agent coordination, security patterns, encryption |
