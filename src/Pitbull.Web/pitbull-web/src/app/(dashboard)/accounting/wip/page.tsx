@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { LoadingButton } from "@/components/ui/loading-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/skeletons";
+import { BarChart3 } from "lucide-react";
 
 interface WipReportListItem {
   id: string;
@@ -162,7 +163,13 @@ export default function WipReportsPage() {
       {isLoading ? (
         <TableSkeleton headers={["Report Date", "Period", "Status", "Projects", "Created", "Actions"]} rows={8} />
       ) : reports.length === 0 ? (
-        <EmptyState title="No WIP reports" description="Generate the first WIP report for your current period." />
+        <EmptyState
+          icon={BarChart3}
+          title="No WIP reports"
+          description="Generate the first WIP report for your current period."
+          actionLabel="Generate WIP Report"
+          onAction={() => setDialogOpen(true)}
+        />
       ) : (
         <Card>
           <CardContent className="p-0">
@@ -180,7 +187,7 @@ export default function WipReportsPage() {
               <TableBody>
                 {reports.map((report) => (
                   <TableRow key={report.id}>
-                    <TableCell>{report.reportDate}</TableCell>
+                    <TableCell>{new Date(report.reportDate + "T00:00:00").toLocaleDateString()}</TableCell>
                     <TableCell>{report.fiscalYear} / P{report.periodNumber}</TableCell>
                     <TableCell>
                       <Badge variant={report.status === "Final" ? "default" : "secondary"}>{report.statusName}</Badge>

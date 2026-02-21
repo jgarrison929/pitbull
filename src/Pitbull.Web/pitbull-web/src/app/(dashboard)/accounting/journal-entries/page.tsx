@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/skeletons";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LoadingButton } from "@/components/ui/loading-button";
+import { FileText, Check, RotateCcw } from "lucide-react";
 
 const ALL_VALUE = "__all__";
 const DEFAULT_PAGE_SIZE = 25;
@@ -138,7 +139,8 @@ export default function JournalEntriesPage() {
           className="bg-amber-500 hover:bg-amber-600 text-white"
           onClick={() => router.push("/accounting/journal-entries/new")}
         >
-          + New Entry
+          <FileText className="h-4 w-4 mr-1" />
+          New Entry
         </Button>
       </div>
 
@@ -178,8 +180,11 @@ export default function JournalEntriesPage() {
         <TableSkeleton headers={["Entry #", "Date", "Description", "Debits", "Credits", "Status", "Actions"]} rows={8} />
       ) : totalCount === 0 ? (
         <EmptyState
+          icon={FileText}
           title="No journal entries found"
           description="Create your first journal entry to get started."
+          actionLabel="New Entry"
+          actionHref="/accounting/journal-entries/new"
         />
       ) : (
         <Card>
@@ -200,7 +205,7 @@ export default function JournalEntriesPage() {
                 {entries.map((entry) => (
                   <TableRow key={entry.id}>
                     <TableCell className="font-medium">{entry.entryNumber}</TableCell>
-                    <TableCell>{entry.entryDate}</TableCell>
+                    <TableCell>{new Date(entry.entryDate + "T00:00:00").toLocaleDateString()}</TableCell>
                     <TableCell className="max-w-[300px] truncate">{entry.description}</TableCell>
                     <TableCell className="text-right font-mono">{formatCurrency(entry.totalDebits)}</TableCell>
                     <TableCell className="text-right font-mono">{formatCurrency(entry.totalCredits)}</TableCell>

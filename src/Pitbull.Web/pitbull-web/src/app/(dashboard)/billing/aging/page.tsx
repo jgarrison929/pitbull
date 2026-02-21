@@ -89,11 +89,11 @@ function agingCellClass(bucket: "days31To60" | "days61To90" | "days90Plus", valu
   if (value <= 0) return "";
   switch (bucket) {
     case "days31To60":
-      return "text-amber-600 font-medium";
+      return "text-amber-600 dark:text-amber-400 font-medium";
     case "days61To90":
-      return "text-orange-600 font-semibold";
+      return "text-orange-600 dark:text-orange-400 font-semibold";
     case "days90Plus":
-      return "text-red-600 font-bold";
+      return "text-red-600 dark:text-red-400 font-bold";
   }
 }
 
@@ -244,7 +244,7 @@ export default function AgingReportsPage() {
             <CardContent>
               <p
                 className={`text-2xl font-bold ${
-                  summary.netPosition >= 0 ? "text-green-600" : "text-red-600"
+                  summary.netPosition >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
                 }`}
               >
                 {formatCurrency(summary.netPosition)}

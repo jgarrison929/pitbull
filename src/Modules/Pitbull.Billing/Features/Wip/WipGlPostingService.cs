@@ -32,6 +32,29 @@ public class WipGlPostingService(
             return Result.Failure<WipGlPostResult>(
                 "WIP report has no lines to post", "VALIDATION_ERROR");
 
+        // Look up required WIP GL accounts by type (once, not per line)
+        var accountLookup = await ResolveWipAccountsAsync(report.CompanyId, ct);
+        if (!accountLookup.IsSuccess)
+            return Result.Failure<WipGlPostResult>(accountLookup.Error!, accountLookup.ErrorCode);
+
+        var (costInExcessAccount, revenueAccount, billingsInExcessAccount) = accountLookup.Value!;
+
+        // Validate account types match expected roles
+        if (costInExcessAccount.AccountType != AccountType.Asset)
+            return Result.Failure<WipGlPostResult>(
+                $"Account '{costInExcessAccount.AccountNumber} {costInExcessAccount.AccountName}' must be an Asset type for Costs in Excess of Billings, but is {costInExcessAccount.AccountType}",
+                "ACCOUNT_TYPE_MISMATCH");
+
+        if (revenueAccount.AccountType != AccountType.Revenue)
+            return Result.Failure<WipGlPostResult>(
+                $"Account '{revenueAccount.AccountNumber} {revenueAccount.AccountName}' must be a Revenue type for Earned Revenue, but is {revenueAccount.AccountType}",
+                "ACCOUNT_TYPE_MISMATCH");
+
+        if (billingsInExcessAccount.AccountType != AccountType.Liability)
+            return Result.Failure<WipGlPostResult>(
+                $"Account '{billingsInExcessAccount.AccountNumber} {billingsInExcessAccount.AccountName}' must be a Liability type for Billings in Excess of Costs, but is {billingsInExcessAccount.AccountType}",
+                "ACCOUNT_TYPE_MISMATCH");
+
         // Build journal entry lines for over/under billing adjustments
         var journalLines = new List<JournalEntryLine>();
         int lineNum = 1;
@@ -43,17 +66,6 @@ public class WipGlPostingService(
                 // Underbilled: earned > billed
                 // Debit: Costs in Excess of Billings (asset)
                 // Credit: Earned Revenue
-                var costInExcessAccount = await FindAccountByNumberAsync(
-                    report.CompanyId, "1400", ct);
-                var revenueAccount = await FindAccountByNumberAsync(
-                    report.CompanyId, "4000", ct);
-
-                if (costInExcessAccount is null || revenueAccount is null)
-                    return Result.Failure<WipGlPostResult>(
-                        "Required GL accounts not found (1400 Costs in Excess, 4000 Revenue). " +
-                        "Please set up the chart of accounts before posting.",
-                        "ACCOUNTS_NOT_FOUND");
-
                 journalLines.Add(new JournalEntryLine
                 {
                     LineNumber = lineNum++,
@@ -78,17 +90,6 @@ public class WipGlPostingService(
                 // Overbilled: billed > earned
                 // Debit: Revenue (reduce recognized revenue)
                 // Credit: Billings in Excess of Costs (liability)
-                var revenueAccount = await FindAccountByNumberAsync(
-                    report.CompanyId, "4000", ct);
-                var billingsInExcessAccount = await FindAccountByNumberAsync(
-                    report.CompanyId, "2400", ct);
-
-                if (revenueAccount is null || billingsInExcessAccount is null)
-                    return Result.Failure<WipGlPostResult>(
-                        "Required GL accounts not found (4000 Revenue, 2400 Billings in Excess). " +
-                        "Please set up the chart of accounts before posting.",
-                        "ACCOUNTS_NOT_FOUND");
-
                 decimal absAmount = Math.Abs(wipLine.OverUnderBilling);
 
                 journalLines.Add(new JournalEntryLine
@@ -119,9 +120,19 @@ public class WipGlPostingService(
         decimal totalDebits = journalLines.Sum(l => l.DebitAmount);
         decimal totalCredits = journalLines.Sum(l => l.CreditAmount);
 
-        // Generate entry number
-        int count = await db.Set<JournalEntry>().CountAsync(ct);
-        string entryNumber = $"JE-{report.ReportDate.Year}-{(count + 1):D6}";
+        // Generate entry number using max to avoid race condition
+        int year = report.ReportDate.Year;
+        int lastNumber = await db.Set<JournalEntry>()
+            .Where(j => j.EntryNumber.StartsWith($"JE-{year}-"))
+            .MaxAsync(j => (int?)j.Id.GetHashCode(), ct) ?? 0;
+        // Use max entry number suffix for this year
+        string maxEntry = await db.Set<JournalEntry>()
+            .Where(j => j.EntryNumber.StartsWith($"JE-{year}-"))
+            .OrderByDescending(j => j.EntryNumber)
+            .Select(j => j.EntryNumber)
+            .FirstOrDefaultAsync(ct) ?? $"JE-{year}-000000";
+        int currentMax = int.TryParse(maxEntry.AsSpan(maxEntry.LastIndexOf('-') + 1), out var n) ? n : 0;
+        string entryNumber = $"JE-{year}-{(currentMax + 1):D6}";
 
         var journalEntry = new JournalEntry
         {
@@ -163,6 +174,36 @@ public class WipGlPostingService(
             logger.LogError(ex, "Failed to post WIP report {WipReportId} to GL", wipReportId);
             return Result.Failure<WipGlPostResult>("Failed to post WIP report to GL", "DATABASE_ERROR");
         }
+    }
+
+    private async Task<Result<(ChartOfAccount CostInExcess, ChartOfAccount Revenue, ChartOfAccount BillingsInExcess)>>
+        ResolveWipAccountsAsync(Guid companyId, CancellationToken ct)
+    {
+        // Look up WIP accounts by conventional account numbers
+        // These are standard GC chart of accounts numbers, but we validate by type
+        var costInExcess = await FindAccountByNumberAsync(companyId, "1400", ct);
+        var revenue = await FindAccountByNumberAsync(companyId, "4000", ct);
+        var billingsInExcess = await FindAccountByNumberAsync(companyId, "2400", ct);
+
+        if (costInExcess is null)
+            return Result.Failure<(ChartOfAccount, ChartOfAccount, ChartOfAccount)>(
+                "GL account '1400' (Costs in Excess of Billings) not found. " +
+                "Please add an Asset account numbered 1400 in the Chart of Accounts.",
+                "ACCOUNTS_NOT_FOUND");
+
+        if (revenue is null)
+            return Result.Failure<(ChartOfAccount, ChartOfAccount, ChartOfAccount)>(
+                "GL account '4000' (Earned Revenue) not found. " +
+                "Please add a Revenue account numbered 4000 in the Chart of Accounts.",
+                "ACCOUNTS_NOT_FOUND");
+
+        if (billingsInExcess is null)
+            return Result.Failure<(ChartOfAccount, ChartOfAccount, ChartOfAccount)>(
+                "GL account '2400' (Billings in Excess of Costs) not found. " +
+                "Please add a Liability account numbered 2400 in the Chart of Accounts.",
+                "ACCOUNTS_NOT_FOUND");
+
+        return Result.Success((costInExcess, revenue, billingsInExcess));
     }
 
     private async Task<ChartOfAccount?> FindAccountByNumberAsync(
