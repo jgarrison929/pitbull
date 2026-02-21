@@ -62,14 +62,16 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
             .MaxAsync(a => (int?)a.ApplicationNumber, ct) ?? 0;
         int nextNumber = lastAppNumber + 1;
 
-        // Get prior application for carry-forward
+        // Get prior non-voided application for carry-forward
         BillingApplication? priorApp = null;
         List<BillingApplicationLineItem>? priorLines = null;
         if (lastAppNumber > 0)
         {
             priorApp = await db.Set<BillingApplication>().AsNoTracking()
                 .Include(a => a.LineItems)
-                .FirstOrDefaultAsync(a => a.OwnerContractId == cmd.OwnerContractId && a.ApplicationNumber == lastAppNumber, ct);
+                .Where(a => a.OwnerContractId == cmd.OwnerContractId && a.Status != BillingApplicationStatus.Void)
+                .OrderByDescending(a => a.ApplicationNumber)
+                .FirstOrDefaultAsync(ct);
             priorLines = priorApp?.LineItems.ToList();
         }
 
@@ -105,18 +107,14 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
                 Description = sovLine.Description,
                 ScheduledValue = sovLine.ScheduledValue,
                 SortOrder = sovLine.SortOrder,
-                WorkCompletedPrevious = priorLine?.TotalCompletedAndStored ?? 0,
+                // G703 Column D: prior app's work completed (D + E), excludes materials stored
+                WorkCompletedPrevious = priorLine is not null
+                    ? priorLine.WorkCompletedPrevious + priorLine.WorkCompletedThisPeriod
+                    : 0,
                 MaterialsStoredToDate = priorLine?.MaterialsStoredToDate ?? 0,
                 RetainagePercent = sovLine.RetainagePercent,
                 CostCodeId = sovLine.CostCodeId
             };
-
-            // If carrying forward stored materials, they become "previous" + carried stored
-            if (priorLine is not null)
-            {
-                lineItem.WorkCompletedPrevious = priorLine.WorkCompletedPrevious + priorLine.WorkCompletedThisPeriod;
-                lineItem.MaterialsStoredToDate = priorLine.MaterialsStoredToDate;
-            }
 
             CalculateLineItem(lineItem, app);
             lineItems.Add(lineItem);
@@ -152,9 +150,13 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
 
         CalculateG702(app, lines);
 
-        // Get previous certificates
+        // Get previous non-voided certificates
         var priorApp = await db.Set<BillingApplication>().AsNoTracking()
-            .FirstOrDefaultAsync(a => a.OwnerContractId == app.OwnerContractId && a.ApplicationNumber == app.ApplicationNumber - 1, ct);
+            .Where(a => a.OwnerContractId == app.OwnerContractId
+                        && a.ApplicationNumber < app.ApplicationNumber
+                        && a.Status != BillingApplicationStatus.Void)
+            .OrderByDescending(a => a.ApplicationNumber)
+            .FirstOrDefaultAsync(ct);
         app.LessPreviousCertificates = priorApp?.TotalEarnedLessRetainage ?? 0;
         app.CurrentPaymentDue = app.TotalEarnedLessRetainage - app.LessPreviousCertificates;
         app.BalanceToFinishIncludingRetainage = app.ContractSumToDate - app.TotalEarnedLessRetainage;
@@ -221,7 +223,11 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
         CalculateG702(app, lines);
 
         var priorApp = await db.Set<BillingApplication>().AsNoTracking()
-            .FirstOrDefaultAsync(a => a.OwnerContractId == app.OwnerContractId && a.ApplicationNumber == app.ApplicationNumber - 1, ct);
+            .Where(a => a.OwnerContractId == app.OwnerContractId
+                        && a.ApplicationNumber < app.ApplicationNumber
+                        && a.Status != BillingApplicationStatus.Void)
+            .OrderByDescending(a => a.ApplicationNumber)
+            .FirstOrDefaultAsync(ct);
         app.LessPreviousCertificates = priorApp?.TotalEarnedLessRetainage ?? 0;
         app.CurrentPaymentDue = app.TotalEarnedLessRetainage - app.LessPreviousCertificates;
         app.BalanceToFinishIncludingRetainage = app.ContractSumToDate - app.TotalEarnedLessRetainage;
