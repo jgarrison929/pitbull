@@ -311,7 +311,7 @@ public sealed class MeetingServiceTests
         var result = await service.AddActionItemAsync(ProjectId, meeting.Id,
             new PmUpsertRequest(Description: "Submit revised shop drawings",
                 DueDate: DateTime.UtcNow.AddDays(7),
-                Data: new Dictionary<string, object>
+                Data: new Dictionary<string, object?>
                 {
                     ["AssigneeUserId"] = assigneeId.ToString()
                 }));

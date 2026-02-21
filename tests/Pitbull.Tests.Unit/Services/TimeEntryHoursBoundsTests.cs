@@ -424,7 +424,7 @@ public sealed class TimeEntryHoursBoundsTests
                     OvertimeHours: 0m,
                     DoubletimeHours: 0m)
             ],
-            IsDraft: true,
+            IsDraft: false,
             AllowPartialSuccess: false
         );
 
