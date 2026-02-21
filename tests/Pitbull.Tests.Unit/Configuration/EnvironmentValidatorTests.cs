@@ -116,4 +116,48 @@ public class EnvironmentValidatorTests
 
         Assert.Contains("Invalid CORS origin format: 'not-a-valid-uri' is not a valid absolute URI", exception.Message);
     }
+
+    [Fact]
+    public void ValidateRequiredConfiguration_WithDefaultJwtKeyInProduction_ShouldThrow()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:PitbullDb"] = "Host=localhost;Database=test;Username=test;Password=test",
+                ["Jwt:Key"] = "CHANGE-ME-IN-PRODUCTION-minimum-32-characters-long",
+                ["Jwt:Issuer"] = "test-issuer",
+                ["Jwt:Audience"] = "test-audience",
+                ["Cors:AllowedOrigins:0"] = "https://example.com"
+            })
+            .Build();
+
+        // Act & Assert — isDevelopment: false (simulating production)
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => EnvironmentValidator.ValidateRequiredConfiguration(configuration, isDevelopment: false));
+
+        Assert.Contains("JWT key must be changed from the default value in production", exception.Message);
+    }
+
+    [Fact]
+    public void ValidateRequiredConfiguration_WithDefaultJwtKeyInDevelopment_ShouldNotThrow()
+    {
+        // Arrange
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:PitbullDb"] = "Host=localhost;Database=test;Username=test;Password=test",
+                ["Jwt:Key"] = "CHANGE-ME-IN-PRODUCTION-minimum-32-characters-long",
+                ["Jwt:Issuer"] = "test-issuer",
+                ["Jwt:Audience"] = "test-audience",
+                ["Cors:AllowedOrigins:0"] = "https://example.com"
+            })
+            .Build();
+
+        // Act & Assert — isDevelopment: true (allowed in dev)
+        var exception = Record.Exception(
+            () => EnvironmentValidator.ValidateRequiredConfiguration(configuration, isDevelopment: true));
+
+        Assert.Null(exception);
+    }
 }

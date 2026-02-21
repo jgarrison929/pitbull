@@ -48,7 +48,7 @@ QuestPDF.Settings.License = LicenseType.Community;
 var inMemoryErrorStore = new InMemoryErrorLogStore();
 
 // Validate configuration early to catch issues before startup
-EnvironmentValidator.ValidateRequiredConfiguration(builder.Configuration);
+EnvironmentValidator.ValidateRequiredConfiguration(builder.Configuration, builder.Environment.IsDevelopment());
 
 // Serilog
 builder.Host.UseSerilog((context, config) => config
@@ -379,7 +379,10 @@ builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesSubmitte
 builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesDraftSavedConsumer>();
 
 // API
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<Pitbull.Api.Infrastructure.ClampPageSizeFilter>();
+    })
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
@@ -612,8 +615,11 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
         startupLogger.LogWarning(ex, "DemoBootstrapper failed — skipping seed refresh. App continues normally.");
     }
 
-    // Ensure Josh has Admin role on his existing tenant (idempotent startup seed)
-    await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");
+    // Development-only: ensure dev admin has Admin role (idempotent startup seed)
+    if (app.Environment.IsDevelopment())
+    {
+        await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");
+    }
 }
 
 // Correlation IDs (outermost — so all downstream logs and responses include it)

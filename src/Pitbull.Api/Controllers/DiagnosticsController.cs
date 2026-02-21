@@ -16,6 +16,8 @@ public class DiagnosticsController(IDiagnosticsService diagnosticsService) : Con
     // Simple in-memory rate limiter for the anonymous POST endpoint: 10 requests/min/IP
     private static readonly ConcurrentDictionary<string, RateLimitEntry> _rateLimitStore = new();
     private const int MaxRequestsPerMinute = 10;
+    private const int MaxTrackedIPs = 10_000;
+    private static DateTime _lastEviction = DateTime.UtcNow;
 
     /// <summary>
     /// List diagnostic errors (paged, filterable)
@@ -97,6 +99,18 @@ public class DiagnosticsController(IDiagnosticsService diagnosticsService) : Con
     private static bool CheckRateLimit(string ip)
     {
         var now = DateTime.UtcNow;
+
+        // Periodic eviction: remove expired entries to prevent unbounded memory growth
+        if (now - _lastEviction > TimeSpan.FromMinutes(5) || _rateLimitStore.Count > MaxTrackedIPs)
+        {
+            _lastEviction = now;
+            foreach (var kvp in _rateLimitStore)
+            {
+                if (now - kvp.Value.WindowStart > TimeSpan.FromMinutes(2))
+                    _rateLimitStore.TryRemove(kvp.Key, out _);
+            }
+        }
+
         var entry = _rateLimitStore.GetOrAdd(ip, _ => new RateLimitEntry());
 
         lock (entry)

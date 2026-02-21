@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { API_BASE_URL } from "@/lib/config";
+import { getToken } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,9 +96,13 @@ export default function PayrollExportsPage() {
 
   async function downloadExport(id: string) {
     try {
-      const response = await fetch(`/api/payroll/exports/${id}/download`, {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/api/payroll/exports/${id}/download`, {
         method: "GET",
-        headers: { Accept: "text/csv" },
+        headers: {
+          Accept: "text/csv",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
 
       if (!response.ok) {

@@ -52,21 +52,41 @@ public class AdminUsersController(
             query = query.Where(u => u.Status == parsedStatus);
         }
 
-        var users = await query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName).ToListAsync();
+        // When filtering by role, we must check all users (roles are in Identity tables, not directly queryable).
+        // Without a role filter, paginate at DB level first to avoid loading all users into memory.
+        List<AdminUserDto> items;
+        int totalCount;
 
-        var allItems = new List<AdminUserDto>();
-        foreach (var user in users)
+        if (!string.IsNullOrWhiteSpace(role))
         {
-            var roles = await roleSeeder.GetUserRolesAsync(user);
-
-            if (!string.IsNullOrWhiteSpace(role) && !roles.Contains(role, StringComparer.OrdinalIgnoreCase))
-                continue;
-
-            allItems.Add(MapToDto(user, roles.ToList()));
+            // Role filter requires checking each user — but still limit the working set
+            var users = await query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName).ToListAsync();
+            var filtered = new List<AdminUserDto>();
+            foreach (var user in users)
+            {
+                var roles = await roleSeeder.GetUserRolesAsync(user);
+                if (roles.Contains(role, StringComparer.OrdinalIgnoreCase))
+                    filtered.Add(MapToDto(user, roles.ToList()));
+            }
+            totalCount = filtered.Count;
+            items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         }
+        else
+        {
+            totalCount = await query.CountAsync();
+            var users = await query
+                .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
-        var totalCount = allItems.Count;
-        var items = allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+            items = new List<AdminUserDto>();
+            foreach (var user in users)
+            {
+                var roles = await roleSeeder.GetUserRolesAsync(user);
+                items.Add(MapToDto(user, roles.ToList()));
+            }
+        }
 
         return Ok(new AdminListUsersResult
         {

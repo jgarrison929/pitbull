@@ -12,7 +12,7 @@ public static class EnvironmentValidator
     /// Validates all critical configuration values are present and valid.
     /// Throws InvalidOperationException with detailed messages if validation fails.
     /// </summary>
-    public static void ValidateRequiredConfiguration(IConfiguration configuration)
+    public static void ValidateRequiredConfiguration(IConfiguration configuration, bool isDevelopment = false)
     {
         var errors = new List<string>();
 
@@ -20,7 +20,7 @@ public static class EnvironmentValidator
         ValidateConnectionString(configuration, "ConnectionStrings:PitbullDb", errors);
 
         // JWT configuration (required for auth)
-        ValidateJwtConfiguration(configuration, errors);
+        ValidateJwtConfiguration(configuration, errors, isDevelopment);
 
         // CORS configuration (required for web app)
         ValidateCorsConfiguration(configuration, errors);
@@ -51,7 +51,7 @@ public static class EnvironmentValidator
         }
     }
 
-    private static void ValidateJwtConfiguration(IConfiguration configuration, List<string> errors)
+    private static void ValidateJwtConfiguration(IConfiguration configuration, List<string> errors, bool isDevelopment)
     {
         var jwtKey = configuration["Jwt:Key"];
         var jwtIssuer = configuration["Jwt:Issuer"];
@@ -64,6 +64,10 @@ public static class EnvironmentValidator
         else if (jwtKey.Length < 32)
         {
             errors.Add("JWT key too short: Jwt:Key must be at least 32 characters for security");
+        }
+        else if (!isDevelopment && jwtKey.Contains("CHANGE-ME", StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add("JWT key must be changed from the default value in production. Set a unique Jwt:Key via environment variable.");
         }
 
         if (string.IsNullOrWhiteSpace(jwtIssuer))
