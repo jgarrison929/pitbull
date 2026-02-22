@@ -229,4 +229,55 @@ public class CacheServiceTests
         resultA.Should().Be("value-a-fresh");
         resultB.Should().Be("value-b", "key-b should still be cached");
     }
+
+    [Fact]
+    public void CacheKeys_AllConstantsAreUnique()
+    {
+        var keys = new[]
+        {
+            CacheKeys.ChartOfAccountsTree,
+            CacheKeys.CostCodes,
+            CacheKeys.Projects,
+            CacheKeys.Employees,
+            CacheKeys.Companies,
+            CacheKeys.ReportLaborCost,
+            CacheKeys.ReportProfitability,
+            CacheKeys.ReportEquipment,
+        };
+
+        keys.Should().OnlyHaveUniqueItems("all cache key constants must be unique");
+    }
+
+    [Fact]
+    public async Task ReportCacheKey_WithQueryParams_CachesIndependently()
+    {
+        var keyA = $"{CacheKeys.ReportLaborCost}::2026-01-01:2026-01-31:employee";
+        var keyB = $"{CacheKeys.ReportLaborCost}::2026-02-01:2026-02-28:employee";
+
+        await _sut.GetOrCreateAsync(keyA, () => Task.FromResult("jan-data"), TimeSpan.FromMinutes(2));
+        await _sut.GetOrCreateAsync(keyB, () => Task.FromResult("feb-data"), TimeSpan.FromMinutes(2));
+
+        var callCount = 0;
+        var resultA = await _sut.GetOrCreateAsync(keyA, () =>
+        {
+            callCount++;
+            return Task.FromResult("jan-fresh");
+        }, TimeSpan.FromMinutes(2));
+
+        var resultB = await _sut.GetOrCreateAsync(keyB, () =>
+        {
+            callCount++;
+            return Task.FromResult("feb-fresh");
+        }, TimeSpan.FromMinutes(2));
+
+        callCount.Should().Be(0, "both should still be cached");
+        resultA.Should().Be("jan-data");
+        resultB.Should().Be("feb-data");
+    }
+
+    [Fact]
+    public void CacheDurations_ReportData_IsTwoMinutes()
+    {
+        CacheDurations.ReportData.Should().Be(TimeSpan.FromMinutes(2));
+    }
 }

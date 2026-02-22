@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Pitbull.Api.Attributes;
 using Pitbull.Api.Controllers;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Infrastructure;
+using Pitbull.Api.Services;
 using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -33,7 +35,8 @@ public class CompaniesController(
     ICompanyContext companyContext,
     UserManager<AppUser> userManager,
     RoleSeeder roleSeeder,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    ICacheService cacheService) : ControllerBase
 {
     // Suppress unused parameter warning - tenantContext reserved for future use
     private readonly ITenantContext _tenantContext = tenantContext;
@@ -41,26 +44,36 @@ public class CompaniesController(
     /// Get the currently active company
     /// </summary>
     [HttpGet("active")]
+    [Cacheable(DurationSeconds = 300)]
     [ProducesResponseType(typeof(CompanyResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetActive()
     {
         if (!companyContext.IsResolved)
             return NotFound(new { error = "No active company" });
 
-        var company = await db.Companies
-            .Where(c => c.Id == companyContext.CompanyId)
-            .FirstOrDefaultAsync();
+        var response = await cacheService.GetOrCreateAsync(
+            CacheKeys.Companies,
+            async () =>
+            {
+                var company = await db.Companies
+                    .Where(c => c.Id == companyContext.CompanyId)
+                    .FirstOrDefaultAsync();
 
-        if (company is null)
+                return company is not null ? MapToResponse(company) : null;
+            },
+            CacheDurations.ReferenceData);
+
+        if (response is null)
             return NotFound(new { error = "Active company not found" });
 
-        return Ok(MapToResponse(company));
+        return Ok(response);
     }
 
     /// <summary>
     /// List all companies the current user can access
     /// </summary>
     [HttpGet("accessible")]
+    [Cacheable(DurationSeconds = 300)]
     [ProducesResponseType(typeof(List<CompanyResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAccessible()
     {
@@ -221,7 +234,8 @@ public class CompaniesController(
 [Tags("Admin - Companies")]
 public class AdminCompaniesController(
     PitbullDbContext db,
-    ITenantContext tenantContext) : ControllerBase
+    ITenantContext tenantContext,
+    ICacheService cacheService) : ControllerBase
 {
     // Suppress unused parameter warning - tenantContext reserved for future use
     private readonly ITenantContext _tenantContext = tenantContext;
@@ -309,6 +323,7 @@ public class AdminCompaniesController(
         db.Companies.Add(company);
         await db.SaveChangesAsync();
 
+        cacheService.Remove(CacheKeys.Companies);
         return CreatedAtAction(nameof(GetById), new { id = company.Id }, new CompanyResponse(
             company.Id, company.Code, company.Name, company.ShortName, company.TaxId,
             company.Address, company.City, company.State, company.ZipCode,
@@ -352,6 +367,7 @@ public class AdminCompaniesController(
 
         await db.SaveChangesAsync();
 
+        cacheService.Remove(CacheKeys.Companies);
         return Ok(new CompanyResponse(
             company.Id, company.Code, company.Name, company.ShortName, company.TaxId,
             company.Address, company.City, company.State, company.ZipCode,
@@ -380,6 +396,7 @@ public class AdminCompaniesController(
         company.IsActive = false;
         await db.SaveChangesAsync();
 
+        cacheService.Remove(CacheKeys.Companies);
         return NoContent();
     }
 

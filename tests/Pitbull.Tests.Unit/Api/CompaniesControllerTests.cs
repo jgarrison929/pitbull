@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Pitbull.Api.Controllers;
 using Pitbull.Api.Infrastructure;
+using Pitbull.Api.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
@@ -28,6 +29,7 @@ public class CompaniesControllerTests : IDisposable
     private readonly Mock<RoleManager<AppRole>> _roleManager;
     private readonly RoleSeeder _roleSeeder;
     private readonly IConfiguration _configuration;
+    private readonly Mock<ICacheService> _cacheService;
 
     public CompaniesControllerTests()
     {
@@ -38,6 +40,11 @@ public class CompaniesControllerTests : IDisposable
         _roleManager = CreateMockRoleManager();
         _roleSeeder = CreateRoleSeeder(_roleManager, _userManager, _db);
         _configuration = CreateConfiguration();
+        _cacheService = new Mock<ICacheService>();
+        // Pass through to factory — no actual caching in tests
+        _cacheService
+            .Setup(c => c.GetOrCreateAsync(It.IsAny<string>(), It.IsAny<Func<Task<CompanyResponse?>>>(), It.IsAny<TimeSpan>()))
+            .Returns<string, Func<Task<CompanyResponse?>>, TimeSpan>((_, factory, _) => factory());
     }
 
     public void Dispose()
@@ -87,7 +94,7 @@ public class CompaniesControllerTests : IDisposable
     private CompaniesController CreateCompaniesController(Guid? authenticatedUserId = null)
     {
         var controller = new CompaniesController(
-            _db, _tenantContext, _companyContext, _userManager.Object, _roleSeeder, _configuration);
+            _db, _tenantContext, _companyContext, _userManager.Object, _roleSeeder, _configuration, _cacheService.Object);
 
         var claims = new List<Claim>();
         if (authenticatedUserId.HasValue)
@@ -107,7 +114,7 @@ public class CompaniesControllerTests : IDisposable
 
     private AdminCompaniesController CreateAdminController()
     {
-        var controller = new AdminCompaniesController(_db, _tenantContext);
+        var controller = new AdminCompaniesController(_db, _tenantContext, _cacheService.Object);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

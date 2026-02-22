@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Api.Attributes;
+using Pitbull.Api.Services;
 using Pitbull.Reports.Services;
 
 namespace Pitbull.Api.Controllers;
@@ -11,9 +13,10 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Reports")]
-public class ReportsController(IReportService reportService, ILogger<ReportsController> logger) : ControllerBase
+public class ReportsController(IReportService reportService, ICacheService cacheService, ILogger<ReportsController> logger) : ControllerBase
 {
     [HttpGet("labor-cost")]
+    [Cacheable(DurationSeconds = 120)]
     public async Task<IActionResult> GetLaborCost(
         [FromQuery] Guid? projectId,
         [FromQuery] DateOnly? from,
@@ -23,7 +26,11 @@ public class ReportsController(IReportService reportService, ILogger<ReportsCont
     {
         try
         {
-            var result = await reportService.GetLaborCostReportAsync(projectId, from, to, groupBy, cancellationToken);
+            var cacheKey = $"{CacheKeys.ReportLaborCost}:{projectId}:{from}:{to}:{groupBy}";
+            var result = await cacheService.GetOrCreateAsync(
+                cacheKey,
+                () => reportService.GetLaborCostReportAsync(projectId, from, to, groupBy, cancellationToken),
+                CacheDurations.ReportData);
             return Ok(result);
         }
         catch (ArgumentException ex)
@@ -38,6 +45,7 @@ public class ReportsController(IReportService reportService, ILogger<ReportsCont
     }
 
     [HttpGet("project-profitability")]
+    [Cacheable(DurationSeconds = 120)]
     public async Task<IActionResult> GetProjectProfitability(
         [FromQuery] DateOnly? from,
         [FromQuery] DateOnly? to,
@@ -45,7 +53,11 @@ public class ReportsController(IReportService reportService, ILogger<ReportsCont
     {
         try
         {
-            var result = await reportService.GetProjectProfitabilityReportAsync(from, to, cancellationToken);
+            var cacheKey = $"{CacheKeys.ReportProfitability}:{from}:{to}";
+            var result = await cacheService.GetOrCreateAsync(
+                cacheKey,
+                () => reportService.GetProjectProfitabilityReportAsync(from, to, cancellationToken),
+                CacheDurations.ReportData);
             return Ok(result);
         }
         catch (ArgumentException ex)
@@ -60,6 +72,7 @@ public class ReportsController(IReportService reportService, ILogger<ReportsCont
     }
 
     [HttpGet("equipment-utilization")]
+    [Cacheable(DurationSeconds = 120)]
     public async Task<IActionResult> GetEquipmentUtilization(
         [FromQuery] DateOnly? from,
         [FromQuery] DateOnly? to,
@@ -67,7 +80,11 @@ public class ReportsController(IReportService reportService, ILogger<ReportsCont
     {
         try
         {
-            var result = await reportService.GetEquipmentUtilizationReportAsync(from, to, cancellationToken);
+            var cacheKey = $"{CacheKeys.ReportEquipment}:{from}:{to}";
+            var result = await cacheService.GetOrCreateAsync(
+                cacheKey,
+                () => reportService.GetEquipmentUtilizationReportAsync(from, to, cancellationToken),
+                CacheDurations.ReportData);
             return Ok(result);
         }
         catch (ArgumentException ex)

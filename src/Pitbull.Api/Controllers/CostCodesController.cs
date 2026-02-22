@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Pitbull.Api.Attributes;
 using Pitbull.Api.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -26,6 +27,7 @@ public class CostCodesController(ICostCodeService costCodeService, PitbullDbCont
     /// List cost codes with optional filtering
     /// </summary>
     [HttpGet]
+    [Cacheable(DurationSeconds = 300)]
     [ProducesResponseType(typeof(ListCostCodesResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]

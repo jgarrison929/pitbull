@@ -207,6 +207,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
     /// <response code="401">Not authenticated</response>
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet]
+    [Cacheable(DurationSeconds = 60)]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)] // Paginated EmployeeDto list
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -230,7 +231,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
                     var q = new ListEmployeesQuery(null, null, null) { Page = 1, PageSize = 50 };
                     return await employeeService.GetEmployeesAsync(q);
                 },
-                CacheDurations.DropdownData);
+                TimeSpan.FromSeconds(60));
 
             if (!cached.IsSuccess)
                 return BadRequest(new { error = cached.Error });
