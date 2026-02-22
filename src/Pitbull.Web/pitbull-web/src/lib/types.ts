@@ -26,6 +26,7 @@ export enum BidStatus {
   Lost = "Lost",
   NoResponse = "NoResponse",
   Cancelled = "Cancelled",
+  Converted = "Converted",
 }
 
 export type BidItemCategory =

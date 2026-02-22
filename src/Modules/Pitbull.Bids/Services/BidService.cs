@@ -329,8 +329,9 @@ public class BidService : IBidService
         // Track cost code mappings count
         int costCodesMapped = command.CostCodeMappings?.Count ?? 0;
 
-        // Link bid to project
+        // Link bid to project and mark as converted
         bid.ProjectId = project.Id;
+        bid.Status = BidStatus.Converted;
 
         try
         {

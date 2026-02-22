@@ -57,6 +57,8 @@ function statusColor(status: BidStatus) {
       return "bg-neutral-100 text-neutral-500";
     case BidStatus.Cancelled:
       return "bg-neutral-200 text-neutral-500";
+    case BidStatus.Converted:
+      return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300";
     default:
       return "";
   }
@@ -76,6 +78,8 @@ function statusLabel(status: BidStatus) {
       return "No Response";
     case BidStatus.Cancelled:
       return "Cancelled";
+    case BidStatus.Converted:
+      return "Converted";
     default:
       return "Unknown";
   }
@@ -279,7 +283,7 @@ export default function BidDetailPage({
             </Dialog>
             </>
           )}
-          {bid.status === BidStatus.Won && bid.projectId && (
+          {(bid.status === BidStatus.Won || bid.status === BidStatus.Converted) && bid.projectId && (
             <Button asChild variant="outline" className="min-h-[44px]">
               <Link href={`/projects/${bid.projectId}`}>
                 View Project

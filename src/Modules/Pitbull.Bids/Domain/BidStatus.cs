@@ -8,5 +8,6 @@ public enum BidStatus
     Lost = 3,
     NoResponse = 4,
     NoBid = NoResponse, // backward-compatible alias
-    Cancelled = 5
+    Cancelled = 5,
+    Converted = 6
 }

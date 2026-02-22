@@ -61,6 +61,8 @@ function statusColor(status: BidStatus) {
       return "bg-neutral-100 text-neutral-500 hover:bg-neutral-100";
     case BidStatus.Cancelled:
       return "bg-neutral-200 text-neutral-500 hover:bg-neutral-200";
+    case BidStatus.Converted:
+      return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 hover:bg-purple-100";
     default:
       return "";
   }
@@ -80,6 +82,8 @@ function statusLabel(status: BidStatus) {
       return "No Response";
     case BidStatus.Cancelled:
       return "Cancelled";
+    case BidStatus.Converted:
+      return "Converted";
     default:
       return "Unknown";
   }
@@ -94,6 +98,7 @@ function formatCurrency(amount: number) {
 }
 
 function getStatusOptions(): BidStatus[] {
+  // Converted is excluded — it's set programmatically by ConvertToProject, not by users
   return [
     BidStatus.Draft,
     BidStatus.Submitted,

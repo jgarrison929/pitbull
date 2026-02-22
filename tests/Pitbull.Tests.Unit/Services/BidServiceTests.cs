@@ -740,6 +740,65 @@ public class BidServiceTests
     }
 
     [Fact]
+    public async Task ConvertToProjectAsync_SetsBidStatusToConverted()
+    {
+        // Arrange
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Status Change Bid",
+            Number = "BID-CONV-001",
+            Status = BidStatus.Won,
+            EstimatedValue = 450_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(bid.Id, "PRJ-CONV");
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+
+        var updatedBid = await db.Set<Bid>().FindAsync(bid.Id);
+        updatedBid!.Status.Should().Be(BidStatus.Converted);
+    }
+
+    [Fact]
+    public async Task ConvertToProjectAsync_ConvertedBid_ReturnsInvalidStatus()
+    {
+        // Arrange — bid already converted (status is Converted, not Won)
+        using var db = TestDbContextFactory.Create();
+        var bid = new Bid
+        {
+            Id = Guid.NewGuid(),
+            Name = "Re-Convert Attempt",
+            Number = "BID-RECONV-001",
+            Status = BidStatus.Converted,
+            EstimatedValue = 500_000m,
+            ProjectId = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Bid>().Add(bid);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new ConvertBidToProjectCommand(bid.Id, "PRJ-RECONV");
+
+        // Act
+        var result = await service.ConvertToProjectAsync(command);
+
+        // Assert — should fail because status is Converted, not Won
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
     public async Task ConvertToProjectAsync_SetsProjectStatusToPreConstruction()
     {
         // Arrange

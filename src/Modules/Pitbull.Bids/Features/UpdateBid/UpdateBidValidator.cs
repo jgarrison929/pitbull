@@ -18,7 +18,8 @@ public class UpdateBidValidator : AbstractValidator<UpdateBidCommand>
             .MaximumLength(50).WithMessage("Bid number cannot exceed 50 characters");
 
         RuleFor(x => x.Status)
-            .IsInEnum().WithMessage("Invalid bid status");
+            .IsInEnum().WithMessage("Invalid bid status")
+            .NotEqual(Domain.BidStatus.Converted).WithMessage("Converted status is set automatically during bid-to-project conversion");
 
         RuleFor(x => x.EstimatedValue)
             .GreaterThanOrEqualTo(0).WithMessage("Estimated value cannot be negative");
