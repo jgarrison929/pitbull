@@ -1,3 +1,4 @@
+using System.Linq;
 using FluentAssertions;
 using FluentValidation.TestHelper;
 using Pitbull.Bids.Domain;
@@ -91,14 +92,24 @@ public sealed class UpdateBidValidatorTests
     }
 
     [Fact]
-    public void Validate_WithAllStatuses_ShouldNotHaveError()
+    public void Validate_WithAllManualStatuses_ShouldNotHaveError()
     {
-        foreach (BidStatus status in Enum.GetValues<BidStatus>())
+        // Converted is auto-set during bid-to-project conversion, not manually settable
+        foreach (BidStatus status in Enum.GetValues<BidStatus>().Where(s => s != BidStatus.Converted))
         {
             var command = CreateValidCommand(status: status);
             var result = _validator.TestValidate(command);
             result.ShouldNotHaveValidationErrorFor(x => x.Status);
         }
+    }
+
+    [Fact]
+    public void Validate_WithConvertedStatus_ShouldHaveError()
+    {
+        var command = CreateValidCommand(status: BidStatus.Converted);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.Status)
+            .WithErrorMessage("Converted status is set automatically during bid-to-project conversion");
     }
 
     [Fact]

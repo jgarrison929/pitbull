@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260222054318_AddSecretVault")]
+    partial class AddSecretVault
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -6186,10 +6189,6 @@ namespace Pitbull.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BrowserInfo")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -6225,10 +6224,6 @@ namespace Pitbull.Api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("ScreenshotUrl")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -6236,11 +6231,6 @@ namespace Pitbull.Api.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -6260,8 +6250,6 @@ namespace Pitbull.Api.Migrations
                     b.HasIndex("TenantId", "Category");
 
                     b.HasIndex("TenantId", "CreatedAt");
-
-                    b.HasIndex("TenantId", "Type");
 
                     b.ToTable("feedback", (string)null);
                 });

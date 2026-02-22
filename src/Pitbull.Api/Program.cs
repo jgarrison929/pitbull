@@ -230,6 +230,7 @@ builder.Services.AddScoped<Microsoft.EntityFrameworkCore.Diagnostics.DbCommandIn
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ITenantSettingsService, Pitbull.SystemAdmin.Services.TenantSettingsService>();
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.IApiKeyService, Pitbull.SystemAdmin.Services.ApiKeyService>();
 builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISystemHealthService, Pitbull.SystemAdmin.Services.SystemHealthService>();
+builder.Services.AddScoped<Pitbull.SystemAdmin.Services.ISecretVaultService, Pitbull.SystemAdmin.Services.SecretVaultService>();
 
 // Diagnostics service (production error tracking)
 builder.Services.AddScoped<Pitbull.Api.Services.IDiagnosticsService, Pitbull.Api.Services.DiagnosticsService>();
