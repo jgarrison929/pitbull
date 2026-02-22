@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError } from "@/lib/api";
 import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
@@ -114,7 +114,7 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
   }
 }
 
-export default function ProjectionsPage({ params }: { params: Promise<{ id: string }> }) {
+export default function CostProjectionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const isProjectIdValid = isValidGuid(projectId);
 
@@ -146,6 +146,10 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ProjectionRow | null>(null);
 
+  // Inline-edit state for grid-first UX
+  const [editingCell, setEditingCell] = useState<{ rowId: string; field: string } | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -154,7 +158,7 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
       );
       setProjections(result.items ?? []);
     } catch (error) {
-      toast.error("Failed to load projections", {
+      toast.error("Failed to load cost projections", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
@@ -275,18 +279,18 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
           method: "PUT",
           body: payload,
         });
-        toast.success("Projection updated");
+        toast.success("Cost projection updated");
       } else {
         await api<PmEntityDto>(`/api/projects/${projectId}/monthly-projections`, {
           method: "POST",
           body: payload,
         });
-        toast.success("Projection created");
+        toast.success("Cost projection created");
       }
       setDialogOpen(false);
       await load();
     } catch (error) {
-      toast.error("Failed to save projection", {
+      toast.error("Failed to save cost projection", {
         description: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
@@ -300,7 +304,7 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
       await api<PmEntityDto>(`/api/projects/${projectId}/monthly-projections/${id}/submit`, {
         method: "POST",
       });
-      toast.success("Projection submitted");
+      toast.success("Cost projection submitted");
       await load();
     } catch (error) {
       toast.error("Failed to submit", {
@@ -317,7 +321,7 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
       await api<PmEntityDto>(`/api/projects/${projectId}/monthly-projections/${id}/approve`, {
         method: "POST",
       });
-      toast.success("Projection approved");
+      toast.success("Cost projection approved");
       await load();
     } catch (error) {
       toast.error("Failed to approve", {
@@ -336,20 +340,76 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
       await api<void>(`/api/projects/${projectId}/monthly-projections/${pendingDelete.id}`, {
         method: "DELETE",
       });
-      toast.success("Projection deleted");
+      toast.success("Cost projection deleted");
       setDeleteOpen(false);
       setPendingDelete(null);
       await load();
     } catch (error) {
       const message =
         error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete is not available yet for projections"
+          ? "Delete is not available yet for cost projections"
           : error instanceof Error
             ? error.message
             : "Unknown error";
       toast.error("Failed to delete", { description: message });
     } finally {
       setSaving(false);
+    }
+  }
+
+  type InlineField = "originalBudget" | "estimateAtCompletion" | "estimateToComplete" | "varianceAtCompletion";
+
+  function startInlineEdit(rowId: string, field: InlineField, currentValue: number) {
+    setEditingCell({ rowId, field });
+    setEditingValue(String(currentValue));
+  }
+
+  const inlineSavingRef = useRef(false);
+  async function commitInlineEdit(row: ProjectionRow) {
+    if (!editingCell || inlineSavingRef.current) return;
+    inlineSavingRef.current = true;
+    const field = editingCell.field as InlineField;
+    const newValue = parseFloat(editingValue) || 0;
+
+    // If value unchanged, just cancel
+    if (newValue === row[field]) {
+      setEditingCell(null);
+      inlineSavingRef.current = false;
+      return;
+    }
+
+    const updatedRow = { ...row, [field]: newValue };
+
+    const payload: PmUpsertRequest = {
+      name: updatedRow.name,
+      status: updatedRow.status,
+      data: {
+        ProjectionDate: updatedRow.projectionDate || null,
+        ProjectedCompletionDate: updatedRow.projectedCompletionDate || null,
+        ProjectedFinalCost: updatedRow.projectedFinalCost,
+        OriginalBudget: updatedRow.originalBudget,
+        ApprovedChanges: updatedRow.approvedChanges,
+        PendingChanges: updatedRow.pendingChanges,
+        EstimateAtCompletion: updatedRow.estimateAtCompletion,
+        EstimateToComplete: updatedRow.estimateToComplete,
+        VarianceAtCompletion: updatedRow.varianceAtCompletion,
+        Description: updatedRow.description || null,
+        Assumptions: updatedRow.assumptions || null,
+      },
+    };
+
+    try {
+      await api<PmEntityDto>(`/api/projects/${projectId}/monthly-projections/${row.id}`, {
+        method: "PUT",
+        body: payload,
+      });
+      toast.success("Value saved");
+      setEditingCell(null);
+      await load();
+    } catch {
+      toast.error("Failed to save");
+    } finally {
+      inlineSavingRef.current = false;
     }
   }
 
@@ -361,19 +421,19 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Monthly Projections</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Monthly Cost Projections</h1>
           <p className="text-muted-foreground">
-            Track financial projections, budgets, and cost estimates for this project.
+            Track cost projections, budgets, and estimates for this project.
           </p>
         </div>
-        <Button onClick={openCreate}>+ New Projection</Button>
+        <Button onClick={openCreate}>+ New Cost Projection</Button>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Projections</CardTitle>
+          <CardTitle>Cost Projections</CardTitle>
           <CardDescription>
-            Create and manage monthly financial projections.
+            Create and manage monthly cost projections. Click a value to edit inline.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -397,7 +457,7 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading projections...</p>
+            <p className="text-sm text-muted-foreground">Loading cost projections...</p>
           ) : (
             <>
               {/* Mobile card layout */}
@@ -405,9 +465,9 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
                 {rows.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      No projections yet. Create your first projection.
+                      No cost projections yet. Create your first cost projection.
                     </p>
-                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Projection</Button>
+                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Cost Projection</Button>
                   </div>
                 ) : (
                   rows.map((row) => (
@@ -466,20 +526,20 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
                 )}
               </div>
 
-              {/* Desktop table layout */}
+              {/* Desktop table — grid-first with inline editing */}
               <div className="hidden sm:block">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto border rounded-lg">
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead className="text-right">Budget</TableHead>
-                        <TableHead className="text-right">EAC</TableHead>
-                        <TableHead className="text-right">ETC</TableHead>
-                        <TableHead className="text-right">VAC</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[220px]">Actions</TableHead>
+                      <TableRow className="bg-muted/40">
+                        <TableHead className="font-semibold">Date</TableHead>
+                        <TableHead className="font-semibold">Name</TableHead>
+                        <TableHead className="text-right font-semibold">Budget</TableHead>
+                        <TableHead className="text-right font-semibold">EAC</TableHead>
+                        <TableHead className="text-right font-semibold">ETC</TableHead>
+                        <TableHead className="text-right font-semibold">VAC</TableHead>
+                        <TableHead className="font-semibold">Status</TableHead>
+                        <TableHead className="w-[220px] font-semibold">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -488,52 +548,86 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
                           <TableCell colSpan={8}>
                             <div className="flex flex-col items-center gap-3 py-6 text-center">
                               <p className="text-sm text-muted-foreground">
-                                No projections yet.
+                                No cost projections yet.
                               </p>
-                              <Button size="sm" onClick={openCreate}>Create Projection</Button>
+                              <Button size="sm" onClick={openCreate}>Create Cost Projection</Button>
                             </div>
                           </TableCell>
                         </TableRow>
                       ) : (
-                        rows.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="font-mono text-sm">{formatDate(row.projectionDate)}</TableCell>
-                            <TableCell className="font-medium">{row.name}</TableCell>
-                            <TableCell className="text-right font-mono">{formatCurrency(row.originalBudget)}</TableCell>
-                            <TableCell className="text-right font-mono">{formatCurrency(row.estimateAtCompletion)}</TableCell>
-                            <TableCell className="text-right font-mono">{formatCurrency(row.estimateToComplete)}</TableCell>
-                            <TableCell className={`text-right font-mono ${row.varianceAtCompletion < 0 ? "text-red-600" : ""}`}>
-                              {formatCurrency(row.varianceAtCompletion)}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                                  Edit
-                                </Button>
-                                {row.status === "Draft" && (
-                                  <Button variant="outline" size="sm" onClick={() => submitProjection(row.id)} disabled={saving}>
-                                    Submit
+                        rows.map((row) => {
+                          function renderEditableCell(field: InlineField, value: number, extraClass?: string) {
+                            const isEditing = editingCell?.rowId === row.id && editingCell?.field === field;
+                            if (isEditing) {
+                              return (
+                                <TableCell className="text-right p-1">
+                                  <Input
+                                    type="number"
+                                    className="h-7 text-right font-mono text-sm w-28 ml-auto"
+                                    value={editingValue}
+                                    onChange={(e) => setEditingValue(e.target.value)}
+                                    onBlur={() => commitInlineEdit(row)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        (e.target as HTMLInputElement).blur();
+                                      }
+                                      if (e.key === "Escape") setEditingCell(null);
+                                    }}
+                                    autoFocus
+                                  />
+                                </TableCell>
+                              );
+                            }
+                            return (
+                              <TableCell
+                                className={`text-right font-mono cursor-pointer hover:bg-muted/50 transition-colors ${extraClass || ""}`}
+                                onClick={() => startInlineEdit(row.id, field, value)}
+                                title="Click to edit"
+                              >
+                                {formatCurrency(value)}
+                              </TableCell>
+                            );
+                          }
+
+                          return (
+                            <TableRow key={row.id} className="hover:bg-muted/30">
+                              <TableCell className="font-mono text-sm">{formatDate(row.projectionDate)}</TableCell>
+                              <TableCell className="font-medium">{row.name}</TableCell>
+                              {renderEditableCell("originalBudget", row.originalBudget)}
+                              {renderEditableCell("estimateAtCompletion", row.estimateAtCompletion)}
+                              {renderEditableCell("estimateToComplete", row.estimateToComplete)}
+                              {renderEditableCell("varianceAtCompletion", row.varianceAtCompletion, row.varianceAtCompletion < 0 ? "text-red-600" : "")}
+                              <TableCell>
+                                <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
+                                    Edit
                                   </Button>
-                                )}
-                                {row.status === "Submitted" && (
-                                  <Button variant="outline" size="sm" onClick={() => approveProjection(row.id)} disabled={saving}>
-                                    Approve
+                                  {row.status === "Draft" && (
+                                    <Button variant="outline" size="sm" onClick={() => submitProjection(row.id)} disabled={saving}>
+                                      Submit
+                                    </Button>
+                                  )}
+                                  {row.status === "Submitted" && (
+                                    <Button variant="outline" size="sm" onClick={() => approveProjection(row.id)} disabled={saving}>
+                                      Approve
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => { setPendingDelete(row); setDeleteOpen(true); }}
+                                  >
+                                    Delete
                                   </Button>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => { setPendingDelete(row); setDeleteOpen(true); }}
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>
@@ -548,9 +642,9 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Projection" : "New Projection"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit Cost Projection" : "New Cost Projection"}</DialogTitle>
             <DialogDescription>
-              Enter financial projection data for this project period.
+              Enter cost projection data for this project period.
             </DialogDescription>
           </DialogHeader>
 
@@ -713,7 +807,7 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
               Cancel
             </Button>
             <Button onClick={saveProjection} disabled={saving}>
-              {saving ? "Saving..." : editing ? "Save Changes" : "Create Projection"}
+              {saving ? "Saving..." : editing ? "Save Changes" : "Create Cost Projection"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -723,9 +817,9 @@ export default function ProjectionsPage({ params }: { params: Promise<{ id: stri
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete Projection</DialogTitle>
+            <DialogTitle>Delete Cost Projection</DialogTitle>
             <DialogDescription>
-              Delete &quot;{pendingDelete?.name ?? "this projection"}&quot;? This action cannot be undone.
+              Delete &quot;{pendingDelete?.name ?? "this cost projection"}&quot;? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

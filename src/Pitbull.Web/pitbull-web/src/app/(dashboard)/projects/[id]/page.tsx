@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -9,6 +9,8 @@ import {
   ClipboardList,
   FileQuestion,
   Users,
+  UserPlus,
+  X,
   FileText,
   FolderOpen,
   BarChart3,
@@ -20,6 +22,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DetailPageSkeleton } from "@/components/skeletons";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import api from "@/lib/api";
@@ -31,6 +50,7 @@ import {
   projectStatusLabel,
 } from "@/lib/projects";
 import type {
+  Employee,
   ListTimeEntriesResult,
   PagedResult,
   Project,
@@ -137,6 +157,12 @@ function computeBudgetConsumed(contractAmount: number, laborCost: number): numbe
   return Math.max(0, Math.min(100, (laborCost / contractAmount) * 100));
 }
 
+const ASSIGNMENT_ROLES = [
+  { value: 0, label: "Worker" },
+  { value: 1, label: "Supervisor" },
+  { value: 2, label: "Manager" },
+];
+
 function getSubmittalStatus(row: { status?: string | null; data?: unknown }): string {
   if (row.status) return row.status;
   const data = row.data as Record<string, unknown> | undefined;
@@ -160,8 +186,96 @@ export default function ProjectDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Team assignment modal state
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
+  const [selectedRole, setSelectedRole] = useState(0);
+  const [assignmentNotes, setAssignmentNotes] = useState("");
+  const [assigningSaving, setAssigningSaving] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
   const { addRecentProject } = useRecentProjects();
   const { addRecentItem } = useRecentlyViewed();
+
+  const refreshTeam = useCallback(async () => {
+    try {
+      const data = await api<ProjectAssignmentSummary[]>(
+        `/api/project-assignments/by-project/${id}?activeOnly=true`
+      );
+      setTeam(data.filter((entry) => entry.isActive));
+    } catch {
+      // Non-critical
+    }
+  }, [id]);
+
+  async function openTeamDialog() {
+    setTeamDialogOpen(true);
+    setSelectedEmployeeId("");
+    setSelectedRole(0);
+    setAssignmentNotes("");
+    if (employees.length === 0) {
+      setEmployeesLoading(true);
+      try {
+        const result = await api<PagedResult<Employee>>(
+          "/api/employees?isActive=true&pageSize=200"
+        );
+        setEmployees(result.items);
+      } catch {
+        toast.error("Failed to load employees");
+      } finally {
+        setEmployeesLoading(false);
+      }
+    }
+  }
+
+  async function assignEmployee() {
+    if (!selectedEmployeeId) {
+      toast.error("Select an employee");
+      return;
+    }
+    setAssigningSaving(true);
+    try {
+      await api("/api/project-assignments", {
+        method: "POST",
+        body: {
+          employeeId: selectedEmployeeId,
+          projectId: id,
+          role: selectedRole,
+          notes: assignmentNotes || undefined,
+        },
+      });
+      toast.success("Employee assigned to project");
+      setSelectedEmployeeId("");
+      setSelectedRole(0);
+      setAssignmentNotes("");
+      await refreshTeam();
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "status" in err && (err as { status: number }).status === 409
+          ? "Employee is already assigned to this project"
+          : "Failed to assign employee";
+      toast.error(message);
+    } finally {
+      setAssigningSaving(false);
+    }
+  }
+
+  async function removeAssignment(assignmentId: string) {
+    setRemovingId(assignmentId);
+    try {
+      await api(`/api/project-assignments/${assignmentId}`, {
+        method: "DELETE",
+      });
+      toast.success("Team member removed");
+      await refreshTeam();
+    } catch {
+      toast.error("Failed to remove team member");
+    } finally {
+      setRemovingId(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -503,27 +617,50 @@ export default function ProjectDetailPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Team Members Assigned
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Team Members ({team.length})
+              </CardTitle>
+              <Button variant="outline" size="sm" onClick={openTeamDialog}>
+                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                Manage Team
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {team.length === 0 ? (
               <div className="text-center py-6">
                 <Users className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm font-medium mb-1">No team assigned</p>
-                <p className="text-xs text-muted-foreground">
-                  Assign employees to this project from the employee management page.
+                <p className="text-xs text-muted-foreground mb-3">
+                  Assign employees to this project to start tracking time.
                 </p>
+                <Button size="sm" variant="outline" onClick={openTeamDialog}>
+                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                  Assign Team
+                </Button>
               </div>
             ) : (
               <div className="space-y-3">
                 {team.map((member) => (
-                  <div key={member.id} className="rounded-lg border p-3">
-                    <p className="text-sm font-medium">{member.employeeName}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{member.employeeNumber}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{member.roleDescription}</p>
+                  <div key={member.id} className="rounded-lg border p-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{member.employeeName}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{member.employeeNumber}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{member.roleDescription}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeAssignment(member.id)}
+                      disabled={removingId === member.id}
+                      title="Remove from project"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      <span className="sr-only">Remove</span>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -565,6 +702,114 @@ export default function ProjectDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      {/* Team Assignment Dialog */}
+      <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Team</DialogTitle>
+            <DialogDescription>
+              Assign employees to this project. Assigned members can log time entries.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Employee</Label>
+                {employeesLoading ? (
+                  <p className="text-sm text-muted-foreground">Loading employees...</p>
+                ) : (
+                  <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select an employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.fullName} ({emp.employeeNumber})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="grid gap-3 grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Role</Label>
+                  <Select
+                    value={String(selectedRole)}
+                    onValueChange={(v) => setSelectedRole(Number(v))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ASSIGNMENT_ROLES.map((role) => (
+                        <SelectItem key={role.value} value={String(role.value)}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="assign-notes">Notes</Label>
+                  <Input
+                    id="assign-notes"
+                    value={assignmentNotes}
+                    onChange={(e) => setAssignmentNotes(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+              <Button
+                onClick={assignEmployee}
+                disabled={assigningSaving || !selectedEmployeeId}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                {assigningSaving ? "Assigning..." : "Assign to Project"}
+              </Button>
+            </div>
+
+            {team.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Current Team ({team.length})
+                </p>
+                <div className="space-y-2 max-h-[240px] overflow-y-auto">
+                  {team.map((member) => (
+                    <div key={member.id} className="flex items-center gap-3 rounded-lg border p-2.5">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{member.employeeName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {member.employeeNumber} &middot; {member.roleDescription}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => removeAssignment(member.id)}
+                        disabled={removingId === member.id}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTeamDialogOpen(false)}>
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

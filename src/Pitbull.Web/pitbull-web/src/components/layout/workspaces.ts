@@ -67,7 +67,7 @@ export function getProjectWorkspaceItems(projectId: string | null): NavItem[] {
     { label: "Plans & Specs", href: `${base}/plans-specs`, icon: "📐", requiredPermission: "Documents.View" },
     { label: "Punch List", href: `${base}/punch-list`, icon: "📋", requiredPermission: "PM.PunchList" },
     { label: "Progress", href: `${base}/progress`, icon: "📈", requiredPermission: "Projects.View" },
-    { label: "Projections", href: `${base}/projections`, icon: "🔮", requiredPermission: "Projects.View" },
+    { label: "Cost Projections", href: `${base}/projections`, icon: "🔮", requiredPermission: "Projects.View" },
     { label: "Communications", href: `${base}/communications`, icon: "💬", requiredPermission: "Projects.View" },
     { label: "Meetings", href: `${base}/meetings`, icon: "🤝", requiredPermission: "PM.Meetings" },
     { label: "Narratives", href: `${base}/narratives`, icon: "📖", requiredPermission: "Projects.View" },

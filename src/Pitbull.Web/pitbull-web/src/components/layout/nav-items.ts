@@ -100,7 +100,7 @@ export function getProjectManagementItems(projectId: string | null): NavItem[] {
     { label: "Submittals", href: base ? `${base}/submittals` : "#", icon: "📬", disabled: !base, requiredPermission: "PM.Submittals" },
     { label: "Job Cost", href: base ? `${base}/job-cost` : "#", icon: "💰", disabled: !base, requiredPermission: "Projects.View" },
     { label: "Progress", href: base ? `${base}/progress` : "#", icon: "📈", disabled: !base, requiredPermission: "Projects.View" },
-    { label: "Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "Cost Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base, requiredPermission: "Projects.View" },
     { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base, requiredPermission: "PM.Schedule" },
     { label: "Punch List", href: base ? `${base}/punch-list` : "#", icon: "📋", disabled: !base, requiredPermission: "PM.PunchList" },
     { label: "Documents", href: base ? `${base}/documents` : "#", icon: "📁", disabled: !base, requiredPermission: "Documents.View" },

@@ -1192,9 +1192,9 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
         </CardContent>
       </Card>
 
-      {/* Create/Edit Dialog */}
+      {/* Create/Edit Dialog — Polished with section groupings */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Edit Punch List Item" : "New Punch List Item"}</DialogTitle>
             <DialogDescription>
@@ -1210,151 +1210,165 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
             />
           )}
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="pl-desc">
-                Description <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                id="pl-desc"
-                value={form.description}
-                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Describe the deficiency (e.g., Paint touch-up needed on east wall)"
-                rows={2}
-              />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-6 py-3">
+            {/* Section: Item Details */}
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold text-foreground mb-1">Item Details</legend>
               <div className="space-y-2">
-                <Label htmlFor="pl-location">
-                  Location <span className="text-destructive">*</span>
+                <Label htmlFor="pl-desc">
+                  Description <span className="text-destructive">*</span>
                 </Label>
-                <Input
-                  id="pl-location"
-                  value={form.location}
-                  onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
-                  placeholder="e.g., Building A, 3rd Floor, Room 302"
+                <Textarea
+                  id="pl-desc"
+                  value={form.description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe the deficiency (e.g., Paint touch-up needed on east wall)"
+                  rows={2}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Category</Label>
-                <Select
-                  value={form.category}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, category: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIES.map((cat) => (
-                      <SelectItem key={cat} value={cat}>
-                        {CATEGORY_LABELS[cat]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="pl-location">
+                    Location <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="pl-location"
+                    value={form.location}
+                    onChange={(e) => setForm((prev) => ({ ...prev, location: e.target.value }))}
+                    placeholder="e.g., Building A, 3rd Floor, Room 302"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Category</Label>
+                  <Select
+                    value={form.category}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, category: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {CATEGORY_LABELS[cat]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
+            </fieldset>
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Responsible Party</Label>
-                <Select
-                  value={form.responsiblePartyType}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, responsiblePartyType: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RESPONSIBLE_PARTIES.map((party) => (
-                      <SelectItem key={party} value={party}>
-                        {PARTY_LABELS[party]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pl-assignee">Assigned To</Label>
-                <Input
-                  id="pl-assignee"
-                  value={form.assignedToName}
-                  onChange={(e) => setForm((prev) => ({ ...prev, assignedToName: e.target.value }))}
-                  placeholder="e.g., John Smith"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pl-due">Due Date</Label>
-                <Input
-                  id="pl-due"
-                  type="date"
-                  value={form.dueDate}
-                  onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
-                />
-              </div>
-            </div>
+            <hr className="border-border" />
 
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Section: Assignment & Schedule */}
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold text-foreground mb-1">Assignment &amp; Schedule</legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Responsible Party</Label>
+                  <Select
+                    value={form.responsiblePartyType}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, responsiblePartyType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RESPONSIBLE_PARTIES.map((party) => (
+                        <SelectItem key={party} value={party}>
+                          {PARTY_LABELS[party]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pl-assignee">Assigned To</Label>
+                  <Input
+                    id="pl-assignee"
+                    value={form.assignedToName}
+                    onChange={(e) => setForm((prev) => ({ ...prev, assignedToName: e.target.value }))}
+                    placeholder="e.g., John Smith"
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Priority</Label>
-                <Select
-                  value={form.priority}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, priority: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PRIORITIES.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pl-due">Due Date</Label>
+                  <Input
+                    id="pl-due"
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) => setForm((prev) => ({ ...prev, dueDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Priority</Label>
+                  <Select
+                    value={form.priority}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, priority: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRIORITIES.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {p}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="pl-cost">Cost Impact ($)</Label>
-                <Input
-                  id="pl-cost"
-                  type="number"
-                  step="0.01"
-                  value={form.costImpact}
-                  onChange={(e) => setForm((prev) => ({ ...prev, costImpact: e.target.value }))}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
+            </fieldset>
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="pl-schedule-impact">Schedule Impact (days)</Label>
-                <Input
-                  id="pl-schedule-impact"
-                  type="number"
-                  value={form.scheduleImpactDays}
-                  onChange={(e) => setForm((prev) => ({ ...prev, scheduleImpactDays: e.target.value }))}
-                  placeholder="0"
-                />
+            <hr className="border-border" />
+
+            {/* Section: Impact */}
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold text-foreground mb-1">Impact</legend>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="pl-cost">Cost Impact ($)</Label>
+                  <Input
+                    id="pl-cost"
+                    type="number"
+                    step="0.01"
+                    value={form.costImpact}
+                    onChange={(e) => setForm((prev) => ({ ...prev, costImpact: e.target.value }))}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pl-schedule-impact">Schedule Impact (days)</Label>
+                  <Input
+                    id="pl-schedule-impact"
+                    type="number"
+                    value={form.scheduleImpactDays}
+                    onChange={(e) => setForm((prev) => ({ ...prev, scheduleImpactDays: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="pl-notes">Notes</Label>
@@ -1366,14 +1380,17 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                   rows={2}
                 />
               </div>
-            </div>
+            </fieldset>
 
-            <div className="space-y-2">
-              <Label>Photos</Label>
+            <hr className="border-border" />
+
+            {/* Section: Attachments */}
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-semibold text-foreground mb-1">Attachments</legend>
               {existingFiles.length > 0 && (
-                <div className="space-y-1 mb-2">
+                <div className="space-y-1">
                   {existingFiles.map((f) => (
-                    <div key={f.id} className="flex items-center gap-2 text-sm rounded border px-2 py-1">
+                    <div key={f.id} className="flex items-center gap-2 text-sm rounded border px-2 py-1.5">
                       <Paperclip className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                       <span className="flex-1 truncate">{f.fileName}</span>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
@@ -1399,7 +1416,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                 placeholder="Drop photos of the deficiency here"
                 maxFiles={10}
               />
-            </div>
+            </fieldset>
           </div>
 
           <DialogFooter>
