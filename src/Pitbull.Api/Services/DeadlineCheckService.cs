@@ -33,7 +33,8 @@ public class DeadlineCheckService(
     public async Task StopAsync(CancellationToken cancellationToken)
     {
         logger.LogInformation("DeadlineCheckService stopping.");
-        _cts?.Cancel();
+        try { _cts?.Cancel(); }
+        catch (ObjectDisposedException) { /* CTS already disposed */ }
         if (_executingTask is not null)
             await Task.WhenAny(_executingTask, Task.Delay(Timeout.Infinite, cancellationToken));
         _timer?.Dispose();

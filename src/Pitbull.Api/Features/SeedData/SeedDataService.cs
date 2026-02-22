@@ -39,9 +39,12 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             return Result.Failure<SeedDataResult>(
                 "Seed data already exists. Delete existing demo data first.", "ALREADY_EXISTS");
 
-        // Wrap entire seed operation in a transaction for atomicity.
-        // If any step fails, everything rolls back — no partial seeds.
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        // NpgsqlRetryingExecutionStrategy requires transactions to start inside ExecuteAsync.
+        // Wrap entire seed operation for atomicity — if any step fails, everything rolls back.
+        var strategy = db.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async (ct) =>
+        {
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         try
         {
 
@@ -72,7 +75,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<Vendor>().AddRange(vendors);
 
         // Save first to get IDs for relationships
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // Now create project assignments linking employees to active projects
         var activeProjects = projects.Where(p => p.Status == ProjectStatus.Active).ToList();
@@ -80,17 +83,17 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             p.Status is ProjectStatus.Active or ProjectStatus.Completed).ToList();
         var assignments = CreateProjectAssignments(employees, activeProjects);
         db.Set<ProjectAssignment>().AddRange(assignments);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // Now create time entries for assigned employees (6 months)
         var timeEntries = CreateTimeEntries(employees, activeProjects, costCodes, assignments);
         db.Set<TimeEntry>().AddRange(timeEntries);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // Create subcontracts with change orders and payment applications
         var subcontracts = CreateSubcontracts(projects);
         db.Set<Subcontract>().AddRange(subcontracts);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // Create payment applications for executed subcontracts (AP side)
         var paymentApplications = CreatePaymentApplications(subcontracts);
@@ -98,39 +101,39 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         var vendorInvoices = CreateVendorInvoices(vendors, subcontracts);
         db.Set<VendorInvoice>().AddRange(vendorInvoices);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // Owner contracts + billing applications (AR side — what owners owe us)
         var ownerContracts = CreateOwnerContracts(allWorkableProjects, customers);
         db.Set<OwnerContract>().AddRange(ownerContracts);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         var ownerSovs = CreateOwnerScheduleOfValues(ownerContracts);
         db.Set<OwnerScheduleOfValues>().AddRange(ownerSovs);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         var billingApps = CreateBillingApplications(ownerContracts, ownerSovs);
         db.Set<BillingApplication>().AddRange(billingApps);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // WIP reports for financial reporting
         var wipReports = CreateWipReports(allWorkableProjects);
         db.Set<WipReport>().AddRange(wipReports);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // Retention holds
         var retentionHolds = CreateRetentionHolds(allWorkableProjects, subcontracts);
         db.Set<RetentionHold>().AddRange(retentionHolds);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // Pay periods and payroll runs
         var payPeriods = CreatePayPeriods();
         db.Set<PayPeriod>().AddRange(payPeriods);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         var payrollRuns = CreatePayrollRuns(payPeriods, employees);
         db.Set<PayrollRun>().AddRange(payrollRuns);
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
         // PM entities — submittals and punch list items
         var submittals = CreateSubmittals(allWorkableProjects);
@@ -142,7 +145,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             .IgnoreQueryFilters()
             .Where(u => u.Status == UserStatus.Active)
             .Select(u => u.Id)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(ct);
 
         var punchListItems = new List<PmPunchListItem>();
         if (seedUserId != Guid.Empty)
@@ -152,9 +155,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 seedUserId);
             db.Set<PmPunchListItem>().AddRange(punchListItems);
         }
-        await db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(ct);
 
-        await transaction.CommitAsync(cancellationToken);
+        await transaction.CommitAsync(ct);
 
         var totalPhases = projects.Sum(p => p.Phases.Count);
         var totalBidItems = bids.Sum(b => b.Items.Count);
@@ -200,9 +203,10 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
         catch (Exception)
         {
-            await transaction.RollbackAsync(cancellationToken);
+            await transaction.RollbackAsync(ct);
             throw;
         }
+        }, cancellationToken);
     }
 
     /// <summary>
