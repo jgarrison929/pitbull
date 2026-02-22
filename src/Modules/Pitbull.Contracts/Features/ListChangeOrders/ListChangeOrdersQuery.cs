@@ -9,5 +9,6 @@ public record ListChangeOrdersQuery(
     ChangeOrderStatus? Status,
     string? Search,
     int Page = 1,
-    int PageSize = 20
+    int PageSize = 20,
+    Guid? ProjectId = null
 ) : IQuery<PagedResult<ChangeOrderDto>>;

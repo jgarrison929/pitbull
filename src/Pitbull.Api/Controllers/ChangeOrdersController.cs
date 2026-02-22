@@ -157,6 +157,7 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     /// <param name="search">Free-text search across title and change order number</param>
     /// <param name="page">Page number (default: 1)</param>
     /// <param name="pageSize">Items per page (default: 20, max: 100)</param>
+    /// <param name="projectId">Filter by project ID (joins through subcontract)</param>
     /// <returns>Paginated list of change orders</returns>
     /// <response code="200">Returns paginated change order list</response>
     /// <response code="401">Not authenticated</response>
@@ -171,9 +172,10 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
         [FromQuery] ChangeOrderStatus? status,
         [FromQuery] string? search,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        [FromQuery] Guid? projectId = null)
     {
-        var query = new ListChangeOrdersQuery(subcontractId, status, search, page, pageSize);
+        var query = new ListChangeOrdersQuery(subcontractId, status, search, page, pageSize, projectId);
         var result = await contractsService.ListChangeOrdersAsync(query);
 
         if (!result.IsSuccess)

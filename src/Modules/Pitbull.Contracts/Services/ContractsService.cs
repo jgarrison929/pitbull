@@ -182,6 +182,15 @@ public class ContractsService(PitbullDbContext db) : IContractsService
     {
         var dbQuery = db.Set<ChangeOrder>().Where(co => !co.IsDeleted).AsQueryable();
 
+        // Filter by project (join through Subcontract since ChangeOrder has no direct ProjectId)
+        if (query.ProjectId.HasValue)
+        {
+            var projectSubcontractIds = db.Set<Subcontract>()
+                .Where(s => s.ProjectId == query.ProjectId.Value && !s.IsDeleted)
+                .Select(s => s.Id);
+            dbQuery = dbQuery.Where(co => projectSubcontractIds.Contains(co.SubcontractId));
+        }
+
         // Filter by subcontract
         if (query.SubcontractId.HasValue)
             dbQuery = dbQuery.Where(co => co.SubcontractId == query.SubcontractId.Value);
