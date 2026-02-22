@@ -175,6 +175,7 @@ builder.Services.AddScoped<Pitbull.Core.Features.ChartOfAccounts.IChartOfAccount
 builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentStorageProvider>();
 builder.Services.AddScoped<Pitbull.Reports.Services.IReportService, Pitbull.Reports.Services.ReportService>();
 builder.Services.AddScoped<Pitbull.Reports.Services.ICostPredictionService, Pitbull.Reports.Services.CostPredictionService>();
+builder.Services.AddScoped<Pitbull.Api.Features.CostPredictions.ICostToCompleteService, Pitbull.Api.Features.CostPredictions.CostToCompleteService>();
 
 // Project Management module services
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IScheduleService, Pitbull.ProjectManagement.Services.ScheduleService>();

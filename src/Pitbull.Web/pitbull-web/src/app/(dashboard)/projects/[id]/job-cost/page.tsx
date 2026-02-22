@@ -22,6 +22,7 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { Pencil, Trash2 } from "lucide-react";
+import { CostToCompleteCard } from "@/components/dashboard/cost-to-complete-card";
 
 interface DataMap { [key: string]: unknown; }
 
@@ -231,6 +232,8 @@ function JobCostContent({ params }: { params: Promise<{ id: string }> }) {
         <Card><CardHeader className="pb-2"><CardDescription>Total Variance</CardDescription><CardTitle className={`text-lg ${totals.varianceTotal >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(totals.varianceTotal)}</CardTitle></CardHeader></Card>
         <Card><CardHeader className="pb-2"><CardDescription>% Complete</CardDescription><CardTitle className="text-lg">{formatPercent(totals.percent)}</CardTitle></CardHeader></Card>
       </div>
+
+      <CostToCompleteCard projectId={projectId} />
 
       <Card>
         <CardHeader>
