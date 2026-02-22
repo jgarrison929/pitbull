@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useCrewEntryData } from "@/hooks/use-crew-entry-data";
@@ -81,6 +82,8 @@ function formatWeekEndingLabel(dateStr: string): string {
 }
 
 export default function CrewEntryPage() {
+  const searchParams = useSearchParams();
+  const prefilledProjectRef = useRef(false);
   const [showCopyDialog, setShowCopyDialog] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
 
@@ -149,6 +152,23 @@ export default function CrewEntryPage() {
   useEffect(() => {
     loadCrew();
   }, [loadCrew]);
+
+  // Pre-select project from URL query param (e.g. from project dashboard "Add Time Entry")
+  useEffect(() => {
+    if (prefilledProjectRef.current) return;
+    const urlProjectId = searchParams.get("projectId");
+    if (!urlProjectId || projects.length === 0) return;
+
+    const match = projects.find((p) => p.projectId === urlProjectId);
+    if (match) {
+      handleUpdateProject(urlProjectId);
+      prefilledProjectRef.current = true;
+    } else {
+      toast.error("Project not available for time entry");
+      prefilledProjectRef.current = true;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, searchParams]);
 
   // Load phases when project changes
   useEffect(() => {

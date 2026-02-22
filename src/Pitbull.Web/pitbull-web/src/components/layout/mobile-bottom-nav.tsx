@@ -12,7 +12,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/auth-context";
-import { getRoleDefaults, workspaces } from "./workspaces";
+import { getRoleDefaults, workspaces, getWorkspaceLandingHref } from "./workspaces";
 
 function isTabActive(
   pathname: string,
@@ -85,13 +85,12 @@ export function MobileBottomNav() {
           </SheetHeader>
           <div className="grid grid-cols-3 gap-3 px-4 pb-6">
             {workspaces.map((ws) => {
-              const firstHref =
-                ws.items.length > 0 ? ws.items[0].href : "/";
-              const active = pathname.startsWith(firstHref) && firstHref !== "/";
+              const landingHref = getWorkspaceLandingHref(ws.id);
+              const active = pathname.startsWith(landingHref) && landingHref !== "/";
               return (
                 <Link
                   key={ws.id}
-                  href={firstHref}
+                  href={landingHref}
                   onClick={() => setMoreOpen(false)}
                   className={cn(
                     "flex min-h-[44px] flex-col items-center justify-center gap-1.5 rounded-lg border p-3 text-xs transition-colors",

@@ -106,7 +106,7 @@ export function ProjectLaborSummary({ projectId }: ProjectLaborSummaryProps) {
             No time entries recorded for this project yet.
           </p>
           <Button asChild variant="outline" size="sm" className="mt-3">
-            <Link href={`/time-tracking/new?projectId=${projectId}`}>
+            <Link href={`/time-tracking/crew-entry?projectId=${projectId}`}>
               Log Time Entry
             </Link>
           </Button>

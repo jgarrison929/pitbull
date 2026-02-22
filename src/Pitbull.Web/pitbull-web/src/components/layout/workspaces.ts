@@ -399,6 +399,28 @@ export const defaultRoleDefaults: RoleDefaults = {
   ],
 };
 
+/** Landing page for each workspace — used when switching workspaces to navigate immediately. */
+export function getWorkspaceLandingHref(workspaceId: WorkspaceId): string {
+  switch (workspaceId) {
+    case "my-work":
+      return "/";
+    case "projects":
+      return "/projects";
+    case "finance":
+      return "/accounting/journal-entries";
+    case "operations":
+      return "/procurement/purchase-orders";
+    case "people":
+      return "/time-tracking";
+    case "reports":
+      return "/reports";
+    case "admin":
+      return "/admin/company";
+    default:
+      return "/";
+  }
+}
+
 /** Look up role defaults for a user. Checks roles array, falls back to default. */
 export function getRoleDefaults(roles?: string[]): RoleDefaults {
   if (!roles || roles.length === 0) return defaultRoleDefaults;

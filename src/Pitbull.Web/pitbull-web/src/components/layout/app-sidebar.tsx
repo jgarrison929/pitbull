@@ -28,6 +28,7 @@ import {
   getProjectWorkspaceItems,
   getProjectWorkspaceSeparators,
   getAllNavItems,
+  getWorkspaceLandingHref,
 } from "./workspaces";
 import { findActiveHref } from "./nav-utils";
 import { useKeyboardShortcuts } from "@/contexts/keyboard-shortcuts-context";
@@ -498,7 +499,11 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
         <WorkspaceSwitcher
           workspaces={visibleWorkspaces}
           active={activeWorkspace}
-          onSelect={setActiveWorkspace}
+          onSelect={(id) => {
+            setActiveWorkspace(id);
+            router.push(getWorkspaceLandingHref(id));
+            onNavigate?.();
+          }}
           isCollapsed={effectiveCollapsed}
         />
       </div>

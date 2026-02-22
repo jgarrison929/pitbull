@@ -402,54 +402,62 @@ export default function ProjectDetailPage({
       <CostForecastCard projectId={id} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              Hours Logged
-            </div>
-            <p className="mt-2 text-2xl font-bold">{(stats?.totalHours || 0).toFixed(1)}h</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatCurrency(stats?.totalLaborCost || 0)} labor cost
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Activity className="h-4 w-4" />
-              Budget Consumed
-            </div>
-            <p className="mt-2 text-2xl font-bold">{budgetConsumedPercent.toFixed(1)}%</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {formatCurrency(project.contractAmount)} budget
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileQuestion className="h-4 w-4" />
-              Open RFIs
-            </div>
-            <p className="mt-2 text-2xl font-bold">{rfiSummary?.openRfis ?? 0}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {pendingSubmittals} pending submittal{pendingSubmittals !== 1 ? "s" : ""}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <FileText className="h-4 w-4" />
-              Open Change Orders
-            </div>
-            <p className="mt-2 text-2xl font-bold">{openChangeOrders}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              pending or under review
-            </p>
-          </CardContent>
-        </Card>
+        <Link href={`/reports/labor-cost?projectId=${id}`} className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-focus-visible:ring-2 group-focus-visible:ring-amber-500">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Clock className="h-4 w-4" />
+                Hours Logged
+              </div>
+              <p className="mt-2 text-2xl font-bold">{(stats?.totalHours || 0).toFixed(1)}h</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatCurrency(stats?.totalLaborCost || 0)} labor cost
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/projects/${id}/job-cost`} className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-focus-visible:ring-2 group-focus-visible:ring-amber-500">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Activity className="h-4 w-4" />
+                Budget Consumed
+              </div>
+              <p className="mt-2 text-2xl font-bold">{budgetConsumedPercent.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatCurrency(project.contractAmount)} budget
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/projects/${id}/rfis`} className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-focus-visible:ring-2 group-focus-visible:ring-amber-500">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <FileQuestion className="h-4 w-4" />
+                Open RFIs
+              </div>
+              <p className="mt-2 text-2xl font-bold">{rfiSummary?.openRfis ?? 0}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {pendingSubmittals} pending submittal{pendingSubmittals !== 1 ? "s" : ""}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href={`/projects/${id}/change-orders`} className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-focus-visible:ring-2 group-focus-visible:ring-amber-500">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <FileText className="h-4 w-4" />
+                Open Change Orders
+              </div>
+              <p className="mt-2 text-2xl font-bold">{openChangeOrders}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                pending or under review
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -467,7 +475,7 @@ export default function ProjectDetailPage({
                 </p>
                 <div className="flex justify-center gap-2">
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/time-tracking/new?projectId=${id}`}>Log Time</Link>
+                    <Link href={`/time-tracking/crew-entry?projectId=${id}`}>Log Time</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/projects/${id}/rfis`}>Create RFI</Link>
@@ -531,7 +539,7 @@ export default function ProjectDetailPage({
         <CardContent>
           <div className="flex flex-wrap gap-3">
             <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white">
-              <Link href={`/time-tracking/new?projectId=${id}`}>
+              <Link href={`/time-tracking/crew-entry?projectId=${id}`}>
                 <Clock className="mr-2 h-4 w-4" />
                 Add Time Entry
               </Link>
