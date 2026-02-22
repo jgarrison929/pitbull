@@ -33,5 +33,6 @@ public enum NotificationType
     RfiAnswered,
     SystemUpdate,
     RetentionDeadline,
-    InspectionDeadline
+    InspectionDeadline,
+    SubmittalReviewStale
 }

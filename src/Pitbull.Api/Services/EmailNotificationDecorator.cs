@@ -103,6 +103,7 @@ public class EmailNotificationDecorator(
         NotificationType.UpcomingRfi => "rfi_deadline_approaching",
         NotificationType.OverdueSubmittal => "overdue_submittal",
         NotificationType.UpcomingSubmittal => "submittal_deadline_approaching",
+        NotificationType.SubmittalReviewStale => "submittal_review_stale",
         NotificationType.SystemUpdate => "system_announcement",
         // Info, Success, Warning, Error, ChangeOrder — no email preference category
         _ => null,
@@ -117,6 +118,7 @@ public class EmailNotificationDecorator(
         {
             "timeentry" or "time_entry" => "/time-tracking",
             "rfi" => $"/rfis",
+            "submittal" => $"/submittals",
             "changeorder" or "change_order" => "/change-orders",
             "project" => $"/projects/{command.RelatedEntityId}",
             _ => null,

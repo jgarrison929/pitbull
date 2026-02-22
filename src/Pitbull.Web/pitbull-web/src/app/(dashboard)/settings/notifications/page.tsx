@@ -59,6 +59,7 @@ const CATEGORY_META: CategoryMeta[] = [
   { key: "overdue_submittal", label: "Overdue Submittal", group: "Deadlines" },
   { key: "retention_deadline", label: "Retention Release Deadline", group: "Deadlines" },
   { key: "inspection_deadline", label: "Inspection Deadline", group: "Deadlines" },
+  { key: "submittal_review_stale", label: "Submittal Review Stale (48h+)", group: "Deadlines" },
   { key: "document_uploaded", label: "Document Uploaded", group: "Documents" },
   { key: "system_announcement", label: "System Announcement", group: "System" },
 ];

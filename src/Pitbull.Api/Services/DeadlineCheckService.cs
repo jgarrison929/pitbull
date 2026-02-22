@@ -62,6 +62,7 @@ public class DeadlineCheckService(
 
             await CheckRfiDeadlinesAsync(db, tracker, notifSvc, prefSvc, now, tomorrow, ct);
             await CheckSubmittalDeadlinesAsync(db, tracker, notifSvc, prefSvc, now, tomorrow, ct);
+            await CheckSubmittalReviewStalenessAsync(db, tracker, notifSvc, prefSvc, now, ct);
 
             logger.LogInformation("Deadline check complete.");
         }
@@ -157,6 +158,50 @@ public class DeadlineCheckService(
                 await tracker.RecordNotificationAsync("Submittal", sub.Id, "Upcoming", ct);
                 logger.LogInformation("Sent upcoming deadline notification for Submittal #{Number}", sub.SubmittalNumber);
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks for submittals in Submitted or InReview status that have been waiting 48+ hours.
+    /// Uses SubmittedDate as the staleness anchor for both statuses because PmSubmittal does not
+    /// track a separate "entered InReview" timestamp. For InReview submittals this may overstate
+    /// staleness if review started significantly after submission, but it's the best available
+    /// proxy and errs on the side of follow-up.
+    ///
+    /// Dedup uses a 24-hour window (via IDeadlineNotificationTracker), so stale submittals
+    /// generate daily reminder notifications until resolved — this is intentional to keep
+    /// the submitter informed while awaiting review.
+    /// </summary>
+    private async Task CheckSubmittalReviewStalenessAsync(PitbullDbContext db, IDeadlineNotificationTracker tracker,
+        INotificationService notifSvc, INotificationPreferenceService prefSvc, DateTime now, CancellationToken ct)
+    {
+        var staleThreshold = now.AddHours(-48);
+
+        var staleSubmittals = await db.Set<PmSubmittal>()
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(s => !s.IsDeleted
+                && (s.Status == SubmittalStatus.Submitted || s.Status == SubmittalStatus.InReview)
+                && s.SubmittedDate.HasValue && s.SubmittedDate.Value <= staleThreshold)
+            .Select(s => new { s.Id, s.SubmittalNumber, s.SubmittedDate, s.TenantId, s.CreatedBy })
+            .ToListAsync(ct);
+
+        foreach (var sub in staleSubmittals)
+        {
+            if (!Guid.TryParse(sub.CreatedBy, out var userId) || userId == Guid.Empty) continue;
+            if (await tracker.HasBeenNotifiedAsync("Submittal", sub.Id, "ReviewStale", ct)) continue;
+            if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_review_stale", ct)) continue;
+
+            var daysSince = (int)(now - sub.SubmittedDate!.Value).TotalDays;
+            await notifSvc.CreateAsync(new CreateNotificationCommand(
+                UserId: userId,
+                Title: $"Submittal #{sub.SubmittalNumber} awaiting review for {daysSince} days",
+                Message: $"Submittal #{sub.SubmittalNumber} was submitted {daysSince} days ago and is still awaiting review. Consider following up.",
+                Type: NotificationType.SubmittalReviewStale,
+                RelatedEntityType: "Submittal",
+                RelatedEntityId: sub.Id), ct);
+            await tracker.RecordNotificationAsync("Submittal", sub.Id, "ReviewStale", ct);
+            logger.LogInformation("Sent stale review notification for Submittal #{Number} ({Days} days)", sub.SubmittalNumber, daysSince);
         }
     }
 

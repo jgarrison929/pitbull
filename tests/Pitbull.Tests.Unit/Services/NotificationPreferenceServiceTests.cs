@@ -135,7 +135,8 @@ public class NotificationPreferenceServiceTests
             "retention_deadline",
             "inspection_deadline",
             "document_uploaded",
-            "system_announcement"
+            "system_announcement",
+            "submittal_review_stale"
         };
 
         NotificationPreferenceService.Categories.Should().BeEquivalentTo(expected);

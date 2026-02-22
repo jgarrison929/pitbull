@@ -32,7 +32,8 @@ public sealed class NotificationPreferenceService(PitbullDbContext db) : INotifi
         "retention_deadline",
         "inspection_deadline",
         "document_uploaded",
-        "system_announcement"
+        "system_announcement",
+        "submittal_review_stale"
     ];
 
     public async Task<IReadOnlyList<NotificationPreferenceDto>> GetPreferencesAsync(
