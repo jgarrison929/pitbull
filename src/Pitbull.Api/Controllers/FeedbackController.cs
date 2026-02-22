@@ -37,13 +37,19 @@ public class FeedbackController(
             ? request.UserRole
             : User.FindFirstValue(ClaimTypes.Role) ?? "Unknown";
 
+        if (!Enum.TryParse<FeedbackType>(request.Type, true, out var feedbackType))
+            feedbackType = FeedbackType.General;
+
         var created = await feedbackService.CreateAsync(
             new CreateFeedbackRequest(
                 Page: request.Page,
                 UserRole: userRole,
                 Category: request.Category,
                 Message: request.Message,
-                ContactEmail: request.ContactEmail),
+                ContactEmail: request.ContactEmail,
+                Type: feedbackType,
+                ScreenshotUrl: request.ScreenshotUrl,
+                BrowserInfo: request.BrowserInfo),
             userId,
             cancellationToken);
 
@@ -56,6 +62,7 @@ public class FeedbackController(
     public async Task<IActionResult> Get(
         [FromQuery] string? category,
         [FromQuery] FeedbackStatus? status,
+        [FromQuery] FeedbackType? type,
         [FromQuery] DateTime? dateFromUtc,
         [FromQuery] DateTime? dateToUtc,
         CancellationToken cancellationToken)
@@ -64,7 +71,7 @@ public class FeedbackController(
             return this.BadRequestError("Company context required");
 
         var items = await feedbackService.ListAsync(
-            new FeedbackListQuery(category, status, dateFromUtc, dateToUtc),
+            new FeedbackListQuery(category, status, dateFromUtc, dateToUtc, type),
             cancellationToken);
 
         return Ok(items);
@@ -85,6 +92,24 @@ public class FeedbackController(
 
         return Ok(updated);
     }
+
+    [HttpPost("bulk-status")]
+    [Authorize(Policy = "Admin.Settings")]
+    [ProducesResponseType(typeof(BulkStatusUpdateResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> BulkUpdateStatus([FromBody] BulkUpdateFeedbackStatusRequest request, CancellationToken cancellationToken)
+    {
+        if (!companyContext.IsResolved)
+            return this.BadRequestError("Company context required");
+
+        if (request.Ids.Count == 0)
+            return this.BadRequestError("At least one feedback ID is required");
+
+        if (request.Ids.Count > 100)
+            return this.BadRequestError("Cannot update more than 100 items at once");
+
+        var updatedCount = await feedbackService.BulkUpdateStatusAsync(request.Ids, request.Status, cancellationToken);
+        return Ok(new BulkStatusUpdateResult(updatedCount));
+    }
 }
 
 public sealed record CreateFeedbackApiRequest(
@@ -92,6 +117,13 @@ public sealed record CreateFeedbackApiRequest(
     string UserRole,
     string Category,
     string Message,
-    string? ContactEmail);
+    string? ContactEmail,
+    string? Type = null,
+    string? ScreenshotUrl = null,
+    string? BrowserInfo = null);
 
 public sealed record UpdateFeedbackStatusRequest(FeedbackStatus Status);
+
+public sealed record BulkUpdateFeedbackStatusRequest(List<Guid> Ids, FeedbackStatus Status);
+
+public sealed record BulkStatusUpdateResult(int UpdatedCount);

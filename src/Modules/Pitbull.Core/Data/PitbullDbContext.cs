@@ -609,8 +609,12 @@ public class PitbullDbContext(
             e.Property(f => f.Message).HasMaxLength(4000).IsRequired();
             e.Property(f => f.ContactEmail).HasMaxLength(256);
             e.Property(f => f.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(f => f.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(f => f.ScreenshotUrl).HasMaxLength(2000);
+            e.Property(f => f.BrowserInfo).HasMaxLength(500);
             e.HasIndex(f => new { f.TenantId, f.CreatedAt });
             e.HasIndex(f => new { f.TenantId, f.Category });
+            e.HasIndex(f => new { f.TenantId, f.Type });
         });
 
         // DashboardPreference configuration

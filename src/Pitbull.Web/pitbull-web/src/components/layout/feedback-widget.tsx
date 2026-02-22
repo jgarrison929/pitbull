@@ -14,12 +14,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const CATEGORIES = ["Bug", "Feature", "Question", "Other"] as const;
 
+const CATEGORY_TO_TYPE: Record<string, string> = {
+  Bug: "Bug",
+  Feature: "Feature",
+  Question: "General",
+  Other: "General",
+};
+
 export function FeedbackWidget() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<string>("Bug");
   const [message, setMessage] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [screenshotUrl, setScreenshotUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentPage = typeof window === "undefined"
@@ -42,11 +50,15 @@ export function FeedbackWidget() {
           category,
           message: message.trim(),
           contactEmail: contactEmail.trim() || null,
+          type: CATEGORY_TO_TYPE[category] ?? "General",
+          screenshotUrl: screenshotUrl.trim() || null,
+          browserInfo: navigator.userAgent,
         },
       });
 
       setMessage("");
       setContactEmail("");
+      setScreenshotUrl("");
       setCategory("Bug");
       setOpen(false);
       toast.success("Thanks, your feedback was submitted.");
@@ -108,6 +120,17 @@ export function FeedbackWidget() {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="feedback-screenshot">Screenshot URL (optional)</Label>
+              <Input
+                id="feedback-screenshot"
+                type="url"
+                value={screenshotUrl}
+                onChange={(event) => setScreenshotUrl(event.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="feedback-email">Contact Email (optional)</Label>
               <Input
                 id="feedback-email"
@@ -120,7 +143,7 @@ export function FeedbackWidget() {
 
             <div className="rounded border bg-muted/40 p-3 text-xs text-muted-foreground">
               Page captured: <span className="font-mono">{currentPage || "/"}</span> • Role:{" "}
-              <span className="font-medium">{user?.roles?.[0] ?? "Unknown"}</span>
+              <span className="font-medium">{user?.roles?.[0] ?? "Unknown"}</span> • Browser info auto-captured
             </div>
 
             <div className="flex justify-end">

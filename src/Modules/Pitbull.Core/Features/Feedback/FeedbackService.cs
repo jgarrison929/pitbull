@@ -22,6 +22,13 @@ public sealed class FeedbackService(
             ContactEmail = string.IsNullOrWhiteSpace(request.ContactEmail)
                 ? null
                 : request.ContactEmail.Trim(),
+            Type = request.Type,
+            ScreenshotUrl = string.IsNullOrWhiteSpace(request.ScreenshotUrl)
+                ? null
+                : request.ScreenshotUrl.Trim(),
+            BrowserInfo = string.IsNullOrWhiteSpace(request.BrowserInfo)
+                ? null
+                : request.BrowserInfo.Trim(),
             CreatedAt = DateTime.UtcNow,
             CreatedBy = string.IsNullOrWhiteSpace(createdBy) ? "unknown" : createdBy,
             Status = FeedbackStatus.New
@@ -34,7 +41,7 @@ public sealed class FeedbackService(
         db.Set<Entities.Feedback>().Add(feedback);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Feedback created {FeedbackId} category={Category}", feedback.Id, feedback.Category);
+        logger.LogInformation("Feedback created {FeedbackId} category={Category} type={Type}", feedback.Id, feedback.Category, feedback.Type);
         return ToDto(feedback);
     }
 
@@ -47,6 +54,9 @@ public sealed class FeedbackService(
 
         if (query.Status.HasValue)
             set = set.Where(x => x.Status == query.Status.Value);
+
+        if (query.Type.HasValue)
+            set = set.Where(x => x.Type == query.Type.Value);
 
         if (query.DateFromUtc.HasValue)
             set = set.Where(x => x.CreatedAt >= query.DateFromUtc.Value);
@@ -64,6 +74,9 @@ public sealed class FeedbackService(
                 x.Message,
                 x.ContactEmail,
                 x.Status,
+                x.Type,
+                x.ScreenshotUrl,
+                x.BrowserInfo,
                 x.CreatedAt))
             .ToListAsync(cancellationToken);
     }
@@ -81,6 +94,22 @@ public sealed class FeedbackService(
         return ToDto(feedback);
     }
 
+    public async Task<int> BulkUpdateStatusAsync(IReadOnlyList<Guid> feedbackIds, FeedbackStatus status, CancellationToken cancellationToken = default)
+    {
+        if (feedbackIds.Count == 0)
+            return 0;
+
+        var items = await db.Set<Entities.Feedback>()
+            .Where(x => feedbackIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in items)
+            item.Status = status;
+
+        await db.SaveChangesAsync(cancellationToken);
+        return items.Count;
+    }
+
     private static FeedbackDto ToDto(Entities.Feedback feedback)
         => new(
             feedback.Id,
@@ -90,5 +119,8 @@ public sealed class FeedbackService(
             feedback.Message,
             feedback.ContactEmail,
             feedback.Status,
+            feedback.Type,
+            feedback.ScreenshotUrl,
+            feedback.BrowserInfo,
             feedback.CreatedAt);
 }
