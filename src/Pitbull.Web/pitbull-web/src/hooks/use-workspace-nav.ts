@@ -136,7 +136,7 @@ export function useWorkspaceNav() {
     prevPathnameRef.current = pathname;
     const detected = detectWorkspaceFromPath(pathname);
     if (detected && detected !== activeWorkspace) {
-      setActiveWorkspaceState(detected);
+      setActiveWorkspaceState(detected); // eslint-disable-line react-hooks/set-state-in-effect -- Auto-detect workspace from route change
       writeStorage(WORKSPACE_KEY, detected);
     }
   }, [pathname, isProjectContext, activeWorkspace]);
@@ -150,7 +150,7 @@ export function useWorkspaceNav() {
     );
     if (!match) return;
 
-    setRecentPagesState((prev) => {
+    setRecentPagesState((prev) => { // eslint-disable-line react-hooks/set-state-in-effect -- Track page visits on navigation
       const filtered = prev.filter((r) => r.href !== match.href);
       const updated = [
         { href: match.href, label: match.label, icon: match.icon, visitedAt: Date.now() },
@@ -191,6 +191,7 @@ export function useWorkspaceNav() {
   );
 
   // Get visible workspaces (filtered by permissions)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- user?.permissions is the correct dependency
   const visibleWorkspaces = useMemo(() => {
     // If no user/permissions yet, show all (permissions will re-filter on load)
     if (!user?.permissions) return workspaces;
