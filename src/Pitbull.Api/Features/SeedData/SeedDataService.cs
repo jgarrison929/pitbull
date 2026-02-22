@@ -4,8 +4,10 @@ using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Entities;
 
 namespace Pitbull.Api.Features.SeedData;
 
@@ -37,12 +39,30 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             return Result.Failure<SeedDataResult>(
                 "Seed data already exists. Delete existing demo data first.", "ALREADY_EXISTS");
 
+        // Wrap entire seed operation in a transaction for atomicity.
+        // If any step fails, everything rolls back — no partial seeds.
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+
         var projects = CreateProjects();
+        var additionalProjects = CreateAdditionalProjects();
+        projects.AddRange(additionalProjects);
+
         var bids = CreateBids();
         var costCodes = CreateCostCodes();
+
         var employees = CreateEmployees();
+        var additionalEmployees = CreateAdditionalEmployees();
+        employees.AddRange(additionalEmployees);
+
         var customers = CreateCustomers();
+        var additionalCustomers = CreateAdditionalCustomers();
+        customers.AddRange(additionalCustomers);
+
         var vendors = CreateVendors();
+        var additionalVendors = CreateAdditionalVendors();
+        vendors.AddRange(additionalVendors);
 
         db.Set<CostCode>().AddRange(costCodes);
         db.Set<Project>().AddRange(projects);
@@ -56,11 +76,13 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         // Now create project assignments linking employees to active projects
         var activeProjects = projects.Where(p => p.Status == ProjectStatus.Active).ToList();
+        var allWorkableProjects = projects.Where(p =>
+            p.Status is ProjectStatus.Active or ProjectStatus.Completed).ToList();
         var assignments = CreateProjectAssignments(employees, activeProjects);
         db.Set<ProjectAssignment>().AddRange(assignments);
         await db.SaveChangesAsync(cancellationToken);
 
-        // Now create time entries for assigned employees
+        // Now create time entries for assigned employees (6 months)
         var timeEntries = CreateTimeEntries(employees, activeProjects, costCodes, assignments);
         db.Set<TimeEntry>().AddRange(timeEntries);
         await db.SaveChangesAsync(cancellationToken);
@@ -70,7 +92,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<Subcontract>().AddRange(subcontracts);
         await db.SaveChangesAsync(cancellationToken);
 
-        // Create payment applications for executed subcontracts
+        // Create payment applications for executed subcontracts (AP side)
         var paymentApplications = CreatePaymentApplications(subcontracts);
         db.Set<PaymentApplication>().AddRange(paymentApplications);
 
@@ -78,9 +100,66 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<VendorInvoice>().AddRange(vendorInvoices);
         await db.SaveChangesAsync(cancellationToken);
 
+        // Owner contracts + billing applications (AR side — what owners owe us)
+        var ownerContracts = CreateOwnerContracts(allWorkableProjects, customers);
+        db.Set<OwnerContract>().AddRange(ownerContracts);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var ownerSovs = CreateOwnerScheduleOfValues(ownerContracts);
+        db.Set<OwnerScheduleOfValues>().AddRange(ownerSovs);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var billingApps = CreateBillingApplications(ownerContracts, ownerSovs);
+        db.Set<BillingApplication>().AddRange(billingApps);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // WIP reports for financial reporting
+        var wipReports = CreateWipReports(allWorkableProjects);
+        db.Set<WipReport>().AddRange(wipReports);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Retention holds
+        var retentionHolds = CreateRetentionHolds(allWorkableProjects, subcontracts);
+        db.Set<RetentionHold>().AddRange(retentionHolds);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // Pay periods and payroll runs
+        var payPeriods = CreatePayPeriods();
+        db.Set<PayPeriod>().AddRange(payPeriods);
+        await db.SaveChangesAsync(cancellationToken);
+
+        var payrollRuns = CreatePayrollRuns(payPeriods, employees);
+        db.Set<PayrollRun>().AddRange(payrollRuns);
+        await db.SaveChangesAsync(cancellationToken);
+
+        // PM entities — submittals and punch list items
+        var submittals = CreateSubmittals(allWorkableProjects);
+        db.Set<PmSubmittal>().AddRange(submittals);
+
+        // Look up an existing AppUser for punch list CreatedByUserId FK.
+        // If no user exists yet, skip punch list seeding to avoid FK violation on Guid.Empty.
+        var seedUserId = await db.Set<AppUser>()
+            .IgnoreQueryFilters()
+            .Where(u => u.Status == UserStatus.Active)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var punchListItems = new List<PmPunchListItem>();
+        if (seedUserId != Guid.Empty)
+        {
+            punchListItems = CreatePunchListItems(
+                projects.Where(p => p.Status == ProjectStatus.Completed).ToList(),
+                seedUserId);
+            db.Set<PmPunchListItem>().AddRange(punchListItems);
+        }
+        await db.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+
         var totalPhases = projects.Sum(p => p.Phases.Count);
         var totalBidItems = bids.Sum(b => b.Items.Count);
         var totalChangeOrders = subcontracts.Sum(s => s.ChangeOrders.Count);
+        var totalWipLines = wipReports.Sum(w => w.Lines.Count);
 
         return Result.Success(new SeedDataResult(
             ProjectsCreated: projects.Count,
@@ -94,14 +173,36 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             SubcontractsCreated: subcontracts.Count,
             ChangeOrdersCreated: totalChangeOrders,
             PaymentApplicationsCreated: paymentApplications.Count,
+            CustomersCreated: customers.Count,
+            VendorsCreated: vendors.Count,
+            VendorInvoicesCreated: vendorInvoices.Count,
+            OwnerContractsCreated: ownerContracts.Count,
+            BillingApplicationsCreated: billingApps.Count,
+            WipReportsCreated: wipReports.Count,
+            RetentionHoldsCreated: retentionHolds.Count,
+            PayPeriodsCreated: payPeriods.Count,
+            PayrollRunsCreated: payrollRuns.Count,
+            SubmittalsCreated: submittals.Count,
+            PunchListItemsCreated: punchListItems.Count,
+            OwnerScheduleOfValuesCreated: ownerSovs.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
                      $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes, " +
                      $"{employees.Count} employees, {customers.Count} customers, {vendors.Count} vendors, " +
-                     $"{assignments.Count} project assignments, " +
-                     $"{timeEntries.Count} time entries, {subcontracts.Count} subcontracts, " +
-                     $"{totalChangeOrders} change orders, {paymentApplications.Count} payment applications, " +
-                     $"{vendorInvoices.Count} vendor invoices"
+                     $"{assignments.Count} project assignments, {timeEntries.Count} time entries, " +
+                     $"{subcontracts.Count} subcontracts, {totalChangeOrders} change orders, " +
+                     $"{paymentApplications.Count} payment apps (AP), {billingApps.Count} billing apps (AR), " +
+                     $"{ownerContracts.Count} owner contracts, {wipReports.Count} WIP reports ({totalWipLines} lines), " +
+                     $"{retentionHolds.Count} retention holds, {payPeriods.Count} pay periods, " +
+                     $"{payrollRuns.Count} payroll runs, {submittals.Count} submittals, " +
+                     $"{punchListItems.Count} punch list items, {vendorInvoices.Count} vendor invoices"
         ));
+
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     /// <summary>
@@ -1326,8 +1427,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Get supervisor for approvals
         var genSuper = employees.First(e => e.EmployeeNumber == "DEMO-004");
 
-        // Create entries for the last 90 days (skip weekends for most)
-        for (int dayOffset = -90; dayOffset <= 0; dayOffset++)
+        // Create entries for the last 180 days / 6 months (skip weekends for most)
+        for (int dayOffset = -180; dayOffset <= 0; dayOffset++)
         {
             var date = today.AddDays(dayOffset);
             var dayOfWeek = date.DayOfWeek;
@@ -1616,7 +1717,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     new ChangeOrder
                     {
                         ChangeOrderNumber = "CO-001",
-                        SubcontractId = Guid.Empty, // Will be set by EF
                         Title = "UV-C Air Purification Addition",
                         Description = "Add UV-C air purification system to surgical suite AHUs per owner request. Value engineering offset with duct insulation material change.",
                         Reason = "Owner requested enhancement",
@@ -1630,7 +1730,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     new ChangeOrder
                     {
                         ChangeOrderNumber = "CO-002",
-                        SubcontractId = Guid.Empty,
                         Title = "MRI Suite Exhaust Relocation",
                         Description = "Additional exhaust for relocated MRI suite. Negotiated from $72K to $60K. Minor schedule impact acceptable.",
                         Reason = "Design change",
@@ -1644,7 +1743,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     new ChangeOrder
                     {
                         ChangeOrderNumber = "CO-003",
-                        SubcontractId = Guid.Empty,
                         Title = "Suite 220 Ductwork Extension",
                         Description = "Extend ductwork to new tenant improvement area (Suite 220). Awaiting owner approval for TI scope.",
                         Reason = "Scope addition",
@@ -1688,7 +1786,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     new ChangeOrder
                     {
                         ChangeOrderNumber = "CO-001",
-                        SubcontractId = Guid.Empty,
                         Title = "Generator Upsizing",
                         Description = "Generator upsizing from 500kW to 750kW per code review. Required for new emergency power calculations.",
                         Reason = "Code requirement",
@@ -1788,7 +1885,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     new ChangeOrder
                     {
                         ChangeOrderNumber = "CO-001",
-                        SubcontractId = Guid.Empty,
                         Title = "In-Rack Sprinkler Addition",
                         Description = "Add in-rack sprinklers for high-pile storage area. Owner-directed for Amazon storage requirements.",
                         Reason = "Owner requirement - increased storage height",
@@ -1834,7 +1930,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     new ChangeOrder
                     {
                         ChangeOrderNumber = "CO-001",
-                        SubcontractId = Guid.Empty,
                         Title = "EV Charging Infrastructure",
                         Description = "Additional 40 EV charging station conduit runs. EV infrastructure for delivery vans.",
                         Reason = "Owner sustainability requirement",
@@ -1915,7 +2010,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     new ChangeOrder
                     {
                         ChangeOrderNumber = "CO-001",
-                        SubcontractId = Guid.Empty,
                         Title = "Additional Column Jacketing",
                         Description = "Additional column jacketing due to unforeseen deterioration. Caltrans approved time extension.",
                         Reason = "Unforeseen condition",
@@ -2015,5 +2109,999 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
 
         return payApps;
+    }
+
+    // ===========================================================================================
+    // Additional data generators — bring totals to 18 projects, 200 employees, 50 vendors
+    // ===========================================================================================
+
+    private static List<Project> CreateAdditionalProjects()
+    {
+        var now = DateTime.UtcNow;
+        var projects = new List<Project>();
+
+        // Data-driven project definitions: (Name, Number, Description, Status, Type, Address, City, State, Zip, Client, Contact, Email, Phone, StartOffset, EndOffset, ContractAmt, Budget)
+        var defs = new (string Name, string Number, string Desc, ProjectStatus Status, ProjectType Type,
+            string Addr, string City, string St, string Zip,
+            string Client, string Contact, string Email, string Phone,
+            int StartMo, int EndMo, decimal Contract, decimal Budget)[]
+        {
+            ("Sacramento Airport Terminal B Expansion", "DEMO-PRJ-2026-006",
+                "65,000 SF terminal expansion with 8 new gates, passenger bridge connections, and concession area.",
+                ProjectStatus.Active, ProjectType.Commercial,
+                "6900 Airport Blvd", "Sacramento", "CA", "95837",
+                "Sacramento County Airport System", "Brian Whitfield", "bwhitfield@summitvendor.example", "(555) 000-0601",
+                -6, 18, 3_200_000m, 3_000_000m),
+
+            ("Folsom Town Center Mixed-Use", "DEMO-PRJ-2026-007",
+                "4-story mixed-use: ground-floor retail, 3 floors residential (72 units), parking structure.",
+                ProjectStatus.Active, ProjectType.Commercial,
+                "800 Sutter Street", "Folsom", "CA", "95630",
+                "Folsom Gateway Partners LLC", "Rachel Ito", "rito@folsomgateway.example", "(555) 000-0702",
+                -4, 14, 2_800_000m, 2_600_000m),
+
+            ("Elk Grove Fire Station #8", "DEMO-PRJ-2026-008",
+                "New 3-bay fire station with living quarters, training tower, apparatus storage, and EV charging.",
+                ProjectStatus.Active, ProjectType.Commercial,
+                "9100 Bond Road", "Elk Grove", "CA", "95624",
+                "City of Elk Grove", "Tom Nakamura", "tnakamura@elkgrovecity.example", "(555) 000-0803",
+                -2, 10, 1_800_000m, 1_650_000m),
+
+            ("Rancho Cordova Data Center", "DEMO-PRJ-2025-009",
+                "Tier III data center, 40,000 SF whitespace, 10MW critical power, redundant cooling.",
+                ProjectStatus.Completed, ProjectType.Industrial,
+                "11200 White Rock Road", "Rancho Cordova", "CA", "95742",
+                "Western Digital Realty Trust", "Samantha Cho", "scho@wdrt.example", "(555) 000-0904",
+                -18, -2, 4_500_000m, 4_200_000m),
+
+            ("West Sacramento Levee Improvements", "DEMO-PRJ-2025-010",
+                "2.5 miles of levee rehabilitation including slurry walls, seepage berms, and erosion protection.",
+                ProjectStatus.Completed, ProjectType.Infrastructure,
+                "River Road at Industrial Blvd", "West Sacramento", "CA", "95691",
+                "Central Valley Flood Protection Board", "Daniel Herrera", "dherrera@cvfpb.ca.gov", "(916) 555-1005",
+                -16, -3, 2_200_000m, 2_050_000m),
+
+            ("Natomas Corporate Campus Building B", "DEMO-PRJ-2026-011",
+                "4-story Class A office, 120,000 SF, curtain wall, structured parking, LEED Gold target.",
+                ProjectStatus.Active, ProjectType.Commercial,
+                "2800 Natomas Park Drive", "Sacramento", "CA", "95834",
+                "Natomas Park Investors", "Andrea Sims", "asims@natomaspark.example", "(555) 000-1101",
+                -7, 10, 3_500_000m, 3_300_000m),
+
+            ("Lodi Memorial Hospital Wing Addition", "DEMO-PRJ-2026-012",
+                "35,000 SF 2-story addition: 24-bed patient wing, nurses stations, support spaces. Occupied hospital.",
+                ProjectStatus.Active, ProjectType.Commercial,
+                "975 S Fairmont Ave", "Lodi", "CA", "95240",
+                "Summit Health Lodi Memorial", "Demo Contact", "pdunn@adventisthealth.org", "(209) 555-1202",
+                -3, 12, 2_400_000m, 2_250_000m),
+
+            ("Tracy Logistics Park - Building 2", "DEMO-PRJ-2026-013",
+                "600,000 SF speculative warehouse, 40-ft clear height, ESFR sprinklers, 60 dock doors.",
+                ProjectStatus.Active, ProjectType.Industrial,
+                "4500 W Schulte Road", "Tracy", "CA", "95377",
+                "Summit Logistics Western", "Demo Contact", "kpark@prologis.com", "(209) 555-1303",
+                -5, 6, 5_200_000m, 4_900_000m),
+
+            ("Roseville Galleria Renovation", "DEMO-PRJ-2026-014",
+                "Interior renovation of 80,000 SF anchor tenant space. New MEP, storefront, finishes.",
+                ProjectStatus.PreConstruction, ProjectType.Renovation,
+                "1151 Galleria Blvd", "Roseville", "CA", "95678",
+                "Westfield Roseville LLC", "Janet Collins", "jcollins@westfield.example", "(555) 000-1404",
+                2, 8, 1_200_000m, 1_100_000m),
+
+            ("Sacramento State Science Complex", "DEMO-PRJ-2026-015",
+                "New 4-story science building: chemistry/biology labs, lecture halls, greenhouse, vivarium.",
+                ProjectStatus.PreConstruction, ProjectType.Commercial,
+                "6000 J Street", "Sacramento", "CA", "95819",
+                "California State University Sacramento", "Mark Orozco", "morozco@csus.example", "(555) 000-1505",
+                3, 24, 6_500_000m, 6_100_000m),
+
+            ("I-80 / Madison Ave Interchange Improvements", "DEMO-PRJ-2025-016",
+                "Interchange reconstruction: new bridge, ramp widening, signal upgrades, sound walls.",
+                ProjectStatus.Completed, ProjectType.Infrastructure,
+                "I-80 at Madison Avenue", "Sacramento", "CA", "95841",
+                "California Department of Transportation", "Demo Contact 23", "contact23@example.com", "(916) 555-0518",
+                -20, -4, 1_900_000m, 1_800_000m),
+
+            ("Davis Senior Living Community", "DEMO-PRJ-2026-017",
+                "128-unit senior living: independent, assisted, memory care. Common areas, dining, medical office.",
+                ProjectStatus.Active, ProjectType.Residential,
+                "3200 Covell Blvd", "Davis", "CA", "95616",
+                "Summit Senior Communities", "Laura Chen", "lchen@sunrisesenior.example", "(555) 000-1702",
+                -8, 12, 3_800_000m, 3_500_000m),
+
+            ("Woodland Water Treatment Plant Upgrade", "DEMO-PRJ-2026-018",
+                "Treatment plant upgrade from 8 MGD to 14 MGD. New clarifiers, filter gallery, chemical feed.",
+                ProjectStatus.Active, ProjectType.Infrastructure,
+                "1500 E Gibson Road", "Woodland", "CA", "95776",
+                "City of Woodland", "Robert Huang", "rhuang@cityofwoodland.example", "(555) 000-1803",
+                -9, 8, 2_100_000m, 1_950_000m),
+        };
+
+        foreach (var d in defs)
+        {
+            var project = new Project
+            {
+                Name = d.Name,
+                Number = d.Number,
+                Description = d.Desc,
+                Status = d.Status,
+                Type = d.Type,
+                Address = d.Addr,
+                City = d.City,
+                State = d.St,
+                ZipCode = d.Zip,
+                ClientName = d.Client,
+                ClientContact = d.Contact,
+                ClientEmail = d.Email,
+                ClientPhone = d.Phone,
+                StartDate = now.AddMonths(d.StartMo),
+                EstimatedCompletionDate = now.AddMonths(d.EndMo),
+                ActualCompletionDate = d.Status == ProjectStatus.Completed ? now.AddMonths(d.EndMo) : null,
+                ContractAmount = d.Contract,
+                OriginalBudget = d.Budget,
+                Phases = GeneratePhases(d.Type, d.StartMo, d.EndMo, d.Budget,
+                    d.Status == ProjectStatus.Completed)
+            };
+            projects.Add(project);
+        }
+
+        return projects;
+    }
+
+    private static List<Phase> GeneratePhases(ProjectType type, int startMo, int endMo,
+        decimal budget, bool completed)
+    {
+        var now = DateTime.UtcNow;
+        var totalMonths = endMo - startMo;
+        var random = new Random(startMo * 7 + (int)type); // Deterministic per project
+
+        // Phase templates by project type
+        var phaseTemplates = type switch
+        {
+            ProjectType.Industrial => new[]
+            {
+                ("Site Prep & Foundations", "02-100", 0.20m),
+                ("Structure & Shell", "05-100", 0.35m),
+                ("MEP & Fire Protection", "15-100", 0.20m),
+                ("Interior & Equipment", "09-100", 0.15m),
+                ("Paving & Closeout", "01-500", 0.10m),
+            },
+            ProjectType.Infrastructure => new[]
+            {
+                ("Mobilization & Traffic Control", "01-100", 0.10m),
+                ("Earthwork & Utilities", "02-100", 0.25m),
+                ("Structural Work", "03-100", 0.35m),
+                ("Finishing & Restoration", "09-100", 0.20m),
+                ("Closeout & Demobilization", "01-500", 0.10m),
+            },
+            ProjectType.Residential => new[]
+            {
+                ("Site & Infrastructure", "02-100", 0.15m),
+                ("Foundations", "03-100", 0.15m),
+                ("Framing & Roofing", "06-100", 0.25m),
+                ("MEP Systems", "15-100", 0.20m),
+                ("Finishes & Landscaping", "09-100", 0.25m),
+            },
+            ProjectType.Renovation => new[]
+            {
+                ("Selective Demolition", "02-400", 0.15m),
+                ("Structural Modifications", "03-100", 0.20m),
+                ("MEP Replacement", "15-100", 0.30m),
+                ("Interior Finishes", "09-100", 0.25m),
+                ("Closeout", "01-500", 0.10m),
+            },
+            _ => new[] // Commercial
+            {
+                ("Site Work & Excavation", "02-100", 0.15m),
+                ("Foundation & Structure", "03-100", 0.25m),
+                ("Building Envelope", "07-100", 0.15m),
+                ("MEP Rough-In", "15-100", 0.20m),
+                ("Interior Finish", "09-100", 0.15m),
+                ("Punchlist & Closeout", "01-500", 0.10m),
+            }
+        };
+
+        var phases = new List<Phase>();
+        var phaseDuration = totalMonths / phaseTemplates.Length;
+        var currentStart = startMo;
+
+        for (int i = 0; i < phaseTemplates.Length; i++)
+        {
+            var (name, costCode, pct) = phaseTemplates[i];
+            var phaseEnd = i == phaseTemplates.Length - 1 ? endMo : currentStart + phaseDuration;
+            var phaseBudget = Math.Round(budget * pct, 2);
+
+            // Determine phase status and progress based on timeline
+            var monthsFromNow = currentStart; // negative = started
+            PhaseStatus status;
+            decimal percentComplete;
+            decimal actualCost;
+
+            if (completed)
+            {
+                status = PhaseStatus.Completed;
+                percentComplete = 100m;
+                actualCost = phaseBudget * (0.95m + (decimal)random.NextDouble() * 0.10m);
+            }
+            else if (phaseEnd < 0) // Phase should be done by now
+            {
+                status = PhaseStatus.Completed;
+                percentComplete = 100m;
+                actualCost = phaseBudget * (0.95m + (decimal)random.NextDouble() * 0.10m);
+            }
+            else if (monthsFromNow < 0 && phaseEnd >= 0) // In progress
+            {
+                status = PhaseStatus.InProgress;
+                var elapsed = (decimal)(-monthsFromNow);
+                var total = (decimal)(phaseEnd - monthsFromNow);
+                percentComplete = Math.Round(Math.Min(95m, elapsed / total * 100m), 0);
+                actualCost = phaseBudget * (percentComplete / 100m) *
+                             (0.98m + (decimal)random.NextDouble() * 0.04m);
+            }
+            else // Future
+            {
+                status = PhaseStatus.NotStarted;
+                percentComplete = 0m;
+                actualCost = 0m;
+            }
+
+            phases.Add(new Phase
+            {
+                Name = name,
+                CostCode = costCode,
+                SortOrder = i + 1,
+                BudgetAmount = phaseBudget,
+                ActualCost = Math.Round(actualCost, 2),
+                StartDate = now.AddMonths(currentStart),
+                EndDate = now.AddMonths(phaseEnd),
+                PercentComplete = percentComplete,
+                Status = status
+            });
+
+            currentStart = phaseEnd;
+        }
+
+        return phases;
+    }
+
+    private static List<Employee> CreateAdditionalEmployees()
+    {
+        var employees = new List<Employee>();
+        var random = new Random(99); // Fixed seed
+
+        // First names pool (diverse)
+        var firstNames = new[]
+        {
+            "Jose", "Maria", "Wei", "Fatima", "Andrei", "Yuki", "Raj", "Ana",
+            "Mohammed", "Lisa", "Dmitri", "Sophia", "Jorge", "Mei", "Hassan",
+            "Elena", "Marco", "Aisha", "Liam", "Rosa", "Ivan", "Carmen",
+            "Jamal", "Sakura", "Diego", "Priya", "Viktor", "Lucia", "Andre",
+            "Hana", "Gabriel", "Noemi", "Alexander", "Fatou", "Rafael", "Yuna",
+            "Nikolai", "Isabella", "Kofi", "Amara", "Darius", "Chiara", "Tariq",
+            "Valentina", "Kwame", "Ingrid", "Pedro", "Lina", "Santos", "Bianca",
+            "Eduardo", "Julia", "Abdul", "Natalia", "Francisco", "Olga", "Emilio",
+            "Teresa", "Raymond", "Christine", "Vincent", "Patricia", "Nathan",
+            "Veronica", "Brandon", "Angela", "Adrian", "Denise", "Frank",
+            "Monique", "Gerald", "Diane", "Howard", "Sandra", "Dennis",
+            "Michelle", "Roger", "Janet", "Wayne", "Carol", "Keith",
+            "Sharon", "Bruce", "Donna", "Philip", "Barbara", "Alan",
+            "Cynthia", "Jesse", "Tamara", "Ruben", "Kelly", "Oscar",
+            "Tiffany", "Sergio", "Rebecca", "Alfredo", "Heather", "Lorenzo",
+            "Stephanie", "Ernesto", "Crystal", "Ricardo", "Amy", "Hector",
+            "Deborah", "Alejandro", "Monica", "Enrique", "Brenda",
+            "Gustavo", "Nicole", "Fernando", "Pamela", "Martin", "Diana",
+            "Roberto", "Lauren", "Arturo", "Karen", "Manuel", "Megan",
+            "Cesar", "Jacqueline", "Alberto", "Victoria", "Raul", "Samantha",
+            "Luis", "Jennifer", "Armando", "Elizabeth", "Ignacio", "Tanya",
+            "Gilberto", "Renee", "Julio", "Lorraine", "Salvador", "Bridget",
+            "Javier", "Marie", "Pablo", "Lydia", "Orlando", "Christina",
+            "Gerardo", "Catherine", "Ramiro", "Gloria", "Miguel", "Irene",
+            "Isidro", "Colleen", "Freddy", "Pauline", "Trinidad", "Sonia",
+            "Rogelio", "Theresa", "Esteban", "Yvonne"
+        };
+
+        var lastNames = new[]
+        {
+            "Gonzalez", "Kim", "Patel", "Nguyen", "Singh", "Liu", "Santos",
+            "Morales", "Park", "Ahmed", "Reyes", "Chen", "Fernandez", "Ali",
+            "Torres", "Yamamoto", "Cruz", "Nakamura", "Diaz", "Tanaka",
+            "Rivera", "Wong", "Castro", "Huang", "Flores", "Gupta", "Mendoza",
+            "Chang", "Gutierrez", "Sharma", "Ortiz", "Suzuki", "Ruiz", "Lee",
+            "Vargas", "Zhao", "Herrera", "Sato", "Alvarez", "Takahashi",
+            "Sanchez", "Watanabe", "Romero", "Kobayashi", "Perez", "Ito",
+            "Delgado", "Wang", "Vasquez", "Zhang", "Aguilar", "Li",
+            "Murphy", "Brown", "Wilson", "Taylor", "Moore", "Jackson",
+            "White", "Harris", "Martin", "Robinson", "Clark", "Lewis",
+            "Walker", "Young", "Allen", "King", "Wright", "Scott",
+            "Green", "Baker", "Adams", "Nelson", "Hill", "Campbell",
+            "Mitchell", "Roberts", "Carter", "Phillips", "Evans", "Turner",
+            "Parker", "Collins", "Edwards", "Stewart", "Morris", "Reed",
+            "Cook", "Morgan", "Bell", "Bailey", "Cooper", "Richardson"
+        };
+
+        // Role definitions: (Title, Classification, MinRate, MaxRate, Count)
+        var roles = new (string Title, EmployeeClassification Class, decimal MinRate, decimal MaxRate, int Count)[]
+        {
+            // Management — 12 more
+            ("Project Manager", EmployeeClassification.Salaried, 68m, 85m, 4),
+            ("Project Engineer", EmployeeClassification.Salaried, 48m, 62m, 4),
+            ("Estimator", EmployeeClassification.Salaried, 52m, 65m, 2),
+            ("Project Coordinator", EmployeeClassification.Salaried, 38m, 48m, 2),
+
+            // Supervision — 18 more
+            ("Site Superintendent", EmployeeClassification.Supervisor, 50m, 65m, 6),
+            ("Concrete Foreman", EmployeeClassification.Supervisor, 45m, 55m, 3),
+            ("Carpentry Foreman", EmployeeClassification.Supervisor, 44m, 52m, 3),
+            ("Steel Foreman", EmployeeClassification.Supervisor, 46m, 56m, 2),
+            ("MEP Foreman", EmployeeClassification.Supervisor, 48m, 58m, 2),
+            ("Safety Officer", EmployeeClassification.Supervisor, 45m, 55m, 2),
+
+            // Skilled trades — 110
+            ("Journeyman Carpenter", EmployeeClassification.Hourly, 38m, 48m, 18),
+            ("Journeyman Electrician", EmployeeClassification.Hourly, 42m, 52m, 12),
+            ("Journeyman Plumber", EmployeeClassification.Hourly, 38m, 48m, 8),
+            ("Ironworker", EmployeeClassification.Hourly, 42m, 52m, 10),
+            ("Equipment Operator", EmployeeClassification.Hourly, 36m, 46m, 14),
+            ("Concrete Finisher", EmployeeClassification.Hourly, 34m, 42m, 12),
+            ("Pipefitter", EmployeeClassification.Hourly, 40m, 50m, 6),
+            ("Sheet Metal Worker", EmployeeClassification.Hourly, 40m, 48m, 6),
+            ("Painter", EmployeeClassification.Hourly, 32m, 40m, 8),
+            ("Tile Setter", EmployeeClassification.Hourly, 34m, 42m, 4),
+            ("Welder", EmployeeClassification.Hourly, 42m, 52m, 6),
+            ("Crane Operator", EmployeeClassification.Hourly, 48m, 62m, 6),
+
+            // Laborers — 25
+            ("Laborer", EmployeeClassification.Hourly, 24m, 32m, 25),
+
+            // Apprentices — 15
+            ("Carpenter Apprentice", EmployeeClassification.Apprentice, 20m, 28m, 5),
+            ("Electrician Apprentice", EmployeeClassification.Apprentice, 22m, 30m, 4),
+            ("Plumber Apprentice", EmployeeClassification.Apprentice, 20m, 28m, 3),
+            ("Ironworker Apprentice", EmployeeClassification.Apprentice, 20m, 28m, 3),
+        };
+
+        int empNum = 21; // Start after DEMO-020
+        int nameIdx = 0;
+
+        foreach (var role in roles)
+        {
+            for (int i = 0; i < role.Count; i++)
+            {
+                var firstName = firstNames[nameIdx % firstNames.Length];
+                var lastName = lastNames[nameIdx % lastNames.Length];
+                // Avoid same first+last by offsetting
+                if (nameIdx >= lastNames.Length)
+                    // Structural sanitization: generic Demo names + fake phone
+
+                var rate = Math.Round(role.MinRate + (decimal)random.NextDouble() * (role.MaxRate - role.MinRate), 2);
+                var hireYear = 2018 + random.Next(0, 7); // 2018-2024
+                var hireMonth = random.Next(1, 13);
+                var hireDay = random.Next(1, 28);
+
+                // ~5% inactive
+                var isActive = random.Next(100) >= 5;
+
+                employees.Add(new Employee
+                {
+                    EmployeeNumber = $"DEMO-{empNum:D3}",
+                    FirstName = firstName,
+                    LastName = lastName,
+                    Email = $"{firstName[..1].ToLower()}{lastName.ToLower()}@demo.example",
+                    Email = $"demo.employee{empNum}@demo.example",
+                    Title = role.Title,
+                    Classification = role.Class,
+                    BaseHourlyRate = rate,
+                    HireDate = new DateOnly(hireYear, hireMonth, hireDay),
+                    IsActive = isActive,
+                    TerminationDate = isActive ? null : new DateOnly(2025, random.Next(6, 13), random.Next(1, 28))
+                });
+
+                empNum++;
+                nameIdx++;
+            }
+        }
+
+        return employees;
+    }
+
+    private static List<Customer> CreateAdditionalCustomers()
+    {
+        return
+        [
+            new() { Name = "Sacramento County Airport System", Code = "CUST-006", ContactName = "Brian Whitfield", ContactEmail = "bwhitfield@sacairport.example", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Folsom Gateway Partners LLC", Code = "CUST-007", ContactName = "Rachel Ito", ContactEmail = "rito@folsomgateway.example", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "City of Elk Grove", Code = "CUST-008", ContactName = "Tom Nakamura", ContactEmail = "tnakamura@elkgrovecity.example", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Western Digital Realty Trust", Code = "CUST-009", ContactName = "Samantha Cho", ContactEmail = "scho@wdrt.example", PaymentTerms = "Net 45", IsActive = true },
+            new() { Name = "Central Valley Flood Protection Board", Code = "CUST-010", ContactName = "Daniel Herrera", ContactEmail = "dherrera@cvfpb.ca.gov", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit County Airport System", Code = "CUST-006", ContactName = "Demo Contact 06", ContactEmail = "contact06@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Health Lodi Memorial", Code = "CUST-012", ContactName = "Demo Contact", ContactEmail = "pdunn@adventisthealth.org", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Logistics Western", Code = "CUST-013", ContactName = "Demo Contact", ContactEmail = "kpark@prologis.com", PaymentTerms = "Net 45", IsActive = true },
+            new() { Name = "Westfield Roseville LLC", Code = "CUST-014", ContactName = "Janet Collins", ContactEmail = "jcollins@westfield.example", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "California State University Sacramento", Code = "CUST-015", ContactName = "Mark Orozco", ContactEmail = "morozco@csus.example", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Senior Communities", Code = "CUST-016", ContactName = "Laura Chen", ContactEmail = "lchen@sunrisesenior.example", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "City of Woodland", Code = "CUST-017", ContactName = "Robert Huang", ContactEmail = "rhuang@cityofwoodland.example", PaymentTerms = "Net 30", IsActive = true },
+        ];
+    }
+
+    private static List<Vendor> CreateAdditionalVendors()
+    {
+        var vendors = new List<Vendor>();
+        var trades = new (string Name, string Code, string Trade, string Contact, string Email)[]
+        {
+            ("Summit Steel Fabricators", "VEND-011", "Structural Steel", "Pete Romano", "promano@summitsteel.example"),
+            ("Summit Concrete Pumping", "VEND-012", "Concrete", "Ed Lozano", "elozano@valleypump.com"),
+            ("Acme Roofing Systems", "VEND-013", "Roofing", "Sam Whitley", "swhitley@acmeroofing.example"),
+            ("Summit Glass & Glazing", "VEND-014", "Glazing", "Demo Contact V02", "npark@tricountyglass.example"),
+            ("Summit Elevator Co.", "VEND-015", "Elevator", "Chris Romano", "cromano@goldeneagleelevator.example"),
+            ("Summit Painting Contractors", "VEND-016", "Painting", "Linda Tran", "ltran@capitolpainting.example"),
+            ("Summit Flooring Solutions", "VEND-017", "Flooring", "Mark Stein", "mstein@sierraflooring.example"),
+            ("Summit Roofing Systems", "VEND-013", "Roofing", "Sam Whitley", "swhitley@summitroofing.example"),
+            ("Summit Coast Landscaping", "VEND-019", "Landscaping", "Demo Contact", "rgutierrez@summitcoast.example"),
+            ("Summit Door & Hardware", "VEND-020", "Doors & Hardware", "Tim O'Brien", "tobrien@premierdoor.example"),
+            ("Summit Door & Hardware", "VEND-020", "Doors & Hardware", "Tim O'Brien", "tobrien@summitdoor.example"),
+            ("Summit Valley Masonry", "VEND-022", "Masonry", "Frank Herrera", "fherrera@cvmasonry.com"),
+            ("Advantage Waterproofing", "VEND-023", "Waterproofing", "Jill Sandoval", "jsandoval@advantagewp.example"),
+            ("Delta Crane Services", "VEND-024", "Crane Rental", "Mike Petrov", "mpetrov@deltacrane.example"),
+            ("ProTech Fire Alarm Systems", "VEND-025", "Fire Alarm", "Lisa Park", "lpark@protechfire.example"),
+            ("Summit Waterproofing", "VEND-023", "Waterproofing", "Jill Sandoval", "jsandoval@summitwaterproof.example"),
+            ("Summit Tile & Stone", "VEND-027", "Tile", "Anna Moreno", "amoreno@valleytile.com"),
+            ("Summit Electric Supply", "VEND-028", "Electrical Supply", "Steve Hamilton", "shamilton@allphase.example"),
+            ("Summit Plumbing Supply", "VEND-029", "Plumbing Supply", "Karen Fong", "kfong@westernplumbing.example"),
+            ("Summit Electric Supply", "VEND-028", "Electrical Supply", "Steve Hamilton", "shamilton@summitelecsupply.example"),
+            ("Summit Mechanical Services", "VEND-031", "Mechanical", "Demo Contact", "rvasquez@summitmech.com"),
+            ("Summit Rebar", "VEND-032", "Rebar", "Tony Matsuda", "tmatsuda@summitrebar.example"),
+            ("Pacific Precast Concrete", "VEND-033", "Precast", "Diane Foster", "dfoster@summitprecast.example"),
+            ("Summit Sheet Metal Works", "VEND-034", "Sheet Metal", "Greg Larson", "glarson@summitsheet.example"),
+            ("Valley Demolition Services", "VEND-035", "Demolition", "Juan Estrada", "jestrada@summitdemo.example"),
+            ("Summit Testing & Inspection", "VEND-036", "Testing", "Demo Contact", "skim@apextesting.example"),
+            ("Summit Electrical Contractors", "VEND-037", "Electrical", "Wayne Bell", "wbell@metroelectric.example"),
+            ("Summit Plumbing Co.", "VEND-038", "Plumbing", "Carlos Pena", "cpena@sactownplumbing.example"),
+            ("Summit Earthworks", "VEND-039", "Earthwork", "Demo Contact", "dwright@pioneerearth.example"),
+            ("Summit HVAC Solutions", "VEND-040", "HVAC", "Demo Contact", "treeves@valleyhvac.example"),
+            ("Summit Concrete Cutting", "VEND-041", "Concrete", "Bob Kowalski", "bkowalski@a1concrete.example"),
+            ("Summit Testing & Inspection", "VEND-036", "Testing", "Demo Contact", "skim@summittesting.example"),
+            ("Summit Paving & Striping", "VEND-043", "Paving", "Demo Contact V01", "psantos@summitpave.example"),
+            ("Summit Structural Engineering", "VEND-044", "Engineering", "Nina Chandra", "nchandra@atlaseng.example"),
+            ("Summit Hauling & Trucking", "VEND-045", "Trucking", "Dave Kozlov", "dkozlov@reliablehauling.example"),
+            ("Summit Valley Drywall", "VEND-046", "Drywall", "Matt Yoon", "myoon@trivalleydrywall.example"),
+            ("Summit Ceiling Systems", "VEND-047", "Ceilings", "Jean Mitchell", "jmitchell@capitolceiling.example"),
+            ("Summit Millwork", "VEND-048", "Millwork", "Andrew Lim", "alim@precisionmill.example"),
+            ("Summit Structural Engineering", "VEND-044", "Engineering", "Nina Chandra", "nchandra@summitstructeng.example"),
+            ("Summit Coast Surveying", "VEND-050", "Surveying", "Tom Bradford", "tbradford@summitsurvey.example"),
+        };
+
+        foreach (var t in trades)
+        {
+            vendors.Add(new Vendor
+            {
+                Name = t.Name,
+                Code = t.Code,
+                ContactName = t.Contact,
+                ContactEmail = t.Email,
+                TradeClassification = t.Trade,
+                PaymentTerms = "Net 30",
+                W9OnFile = true,
+                IsActive = true
+            });
+        }
+
+        return vendors;
+    }
+
+    // ===========================================================================================
+    // Financial entity generators — Owner Contracts, Billing, WIP, Retention, Payroll
+    // ===========================================================================================
+
+    private static List<OwnerContract> CreateOwnerContracts(
+        List<Project> projects, List<Customer> customers)
+    {
+        var contracts = new List<OwnerContract>();
+
+        foreach (var project in projects)
+        {
+            var customer = customers.FirstOrDefault(c =>
+                c.Name.Equals(project.ClientName, StringComparison.OrdinalIgnoreCase))
+                ?? customers[0];
+
+            contracts.Add(new OwnerContract
+            {
+                ProjectId = project.Id,
+                ContractNumber = $"OC-{project.Number}",
+                ProjectName = project.Name,
+                OwnerName = customer.Name,
+                OriginalContractSum = project.ContractAmount,
+                ApprovedChangeOrderAmount = project.ContractAmount * 0.02m, // ~2% CO
+                ContractSumToDate = project.ContractAmount * 1.02m,
+                DefaultRetainagePercent = 10m,
+                RetainagePercentMaterials = 10m,
+                PaymentTermsDays = 30,
+                Status = project.Status == ProjectStatus.Completed
+                    ? OwnerContractStatus.Closed
+                    : OwnerContractStatus.Active,
+                ContractDate = project.StartDate.HasValue
+                    ? DateOnly.FromDateTime(project.StartDate.Value.AddDays(-30))
+                    : DateOnly.FromDateTime(DateTime.UtcNow),
+            });
+        }
+
+        return contracts;
+    }
+
+    private static List<OwnerScheduleOfValues> CreateOwnerScheduleOfValues(
+        List<OwnerContract> contracts)
+    {
+        var sovs = new List<OwnerScheduleOfValues>();
+
+        foreach (var contract in contracts)
+        {
+            sovs.Add(new OwnerScheduleOfValues
+            {
+                ProjectId = contract.ProjectId,
+                OwnerContractId = contract.Id,
+                Name = "Main SOV",
+                OriginalContractAmount = contract.OriginalContractSum,
+                ApprovedChangeOrderAmount = contract.ApprovedChangeOrderAmount,
+                RevisedContractAmount = contract.ContractSumToDate,
+                TotalScheduledValue = contract.ContractSumToDate,
+                DefaultRetainagePercent = 10m,
+                Status = contract.Status == OwnerContractStatus.Closed
+                    ? OwnerSOVStatus.Closed
+                    : OwnerSOVStatus.Active,
+            });
+        }
+
+        return sovs;
+    }
+
+    private static List<BillingApplication> CreateBillingApplications(
+        List<OwnerContract> contracts, List<OwnerScheduleOfValues> sovs)
+    {
+        var apps = new List<BillingApplication>();
+        var random = new Random(55);
+
+        foreach (var contract in contracts.Where(c => c.Status != OwnerContractStatus.Void))
+        {
+            var sov = sovs.FirstOrDefault(s => s.OwnerContractId == contract.Id);
+            if (sov == null) continue;
+
+            var contractSum = contract.ContractSumToDate;
+            var retPct = contract.DefaultRetainagePercent;
+
+            // Determine how many months of billing based on contract start
+            var contractDate = contract.ContractDate ?? DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-6));
+            var now = DateOnly.FromDateTime(DateTime.UtcNow);
+            var monthsElapsed = Math.Max(0,
+                (now.Year - contractDate.Year) * 12 + now.Month - contractDate.Month - 1);
+
+            if (monthsElapsed == 0) continue;
+
+            var appCount = Math.Min(monthsElapsed, contract.Status == OwnerContractStatus.Closed ? monthsElapsed : monthsElapsed);
+            var totalBilled = 0m;
+
+            for (int i = 1; i <= appCount; i++)
+            {
+                var periodEnd = contractDate.AddMonths(i);
+                var isLast = i == appCount;
+
+                // Progressive billing — roughly even with some variation
+                decimal progressThisPeriod;
+                if (contract.Status == OwnerContractStatus.Closed)
+                {
+                    progressThisPeriod = contractSum / appCount;
+                }
+                else
+                {
+                    var baseProgress = contractSum / (appCount + 3); // Leave room for future billing
+                    progressThisPeriod = baseProgress * (0.8m + (decimal)random.NextDouble() * 0.4m);
+                }
+
+                progressThisPeriod = Math.Round(progressThisPeriod, 2);
+                totalBilled += progressThisPeriod;
+
+                // Don't over-bill
+                if (totalBilled > contractSum * 0.95m && contract.Status != OwnerContractStatus.Closed)
+                {
+                    totalBilled -= progressThisPeriod;
+                    break;
+                }
+
+                var retOnWork = totalBilled * (retPct / 100m);
+                var earnedLessRet = totalBilled - retOnWork;
+
+                // Determine status — older ones are paid, recent ones are in various stages
+                BillingApplicationStatus status;
+                var monthsAgo = (now.Year - periodEnd.Year) * 12 + now.Month - periodEnd.Month;
+
+                if (contract.Status == OwnerContractStatus.Closed)
+                    status = BillingApplicationStatus.Paid;
+                else if (monthsAgo > 3)
+                    status = BillingApplicationStatus.Paid;
+                else if (monthsAgo == 3)
+                    status = BillingApplicationStatus.Paid;
+                else if (monthsAgo == 2)
+                    status = random.Next(100) < 80
+                        ? BillingApplicationStatus.Paid
+                        : BillingApplicationStatus.PaymentDue;
+                else if (monthsAgo == 1)
+                    status = random.Next(100) < 40
+                        ? BillingApplicationStatus.PaymentDue
+                        : BillingApplicationStatus.ArchitectCertified;
+                else
+                    status = random.Next(100) < 50
+                        ? BillingApplicationStatus.SubmittedToOwner
+                        : BillingApplicationStatus.PmReview;
+
+                var previousCerts = earnedLessRet - (earnedLessRet / appCount * i > 0 ? progressThisPeriod * (1 - retPct / 100m) : 0);
+                previousCerts = Math.Max(0, earnedLessRet - progressThisPeriod * (1 - retPct / 100m));
+                var currentPaymentDue = progressThisPeriod * (1 - retPct / 100m);
+
+                apps.Add(new BillingApplication
+                {
+                    ProjectId = contract.ProjectId,
+                    OwnerContractId = contract.Id,
+                    OwnerScheduleOfValuesId = sov.Id,
+                    ApplicationNumber = i,
+                    PeriodFrom = periodEnd.AddMonths(-1).AddDays(1),
+                    PeriodThrough = periodEnd,
+                    ApplicationDate = periodEnd.AddDays(5),
+                    OriginalContractSum = contract.OriginalContractSum,
+                    NetChangeByChangeOrders = contract.ApprovedChangeOrderAmount,
+                    ContractSumToDate = contractSum,
+                    TotalCompletedAndStoredToDate = totalBilled,
+                    RetainageOnCompletedWork = retOnWork,
+                    RetainageOnStoredMaterials = 0m,
+                    TotalRetainage = retOnWork,
+                    RetainagePercentWork = retPct,
+                    RetainagePercentMaterials = retPct,
+                    TotalEarnedLessRetainage = earnedLessRet,
+                    LessPreviousCertificates = previousCerts,
+                    CurrentPaymentDue = currentPaymentDue,
+                    BalanceToFinishIncludingRetainage = contractSum - totalBilled + retOnWork,
+                    Status = status,
+                });
+            }
+        }
+
+        return apps;
+    }
+
+    private static List<WipReport> CreateWipReports(List<Project> projects)
+    {
+        var reports = new List<WipReport>();
+        var now = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Generate 6 monthly WIP reports
+        for (int monthOffset = -5; monthOffset <= 0; monthOffset++)
+        {
+            var reportDate = new DateOnly(now.Year, now.Month, 1).AddMonths(monthOffset);
+            var report = new WipReport
+            {
+                ReportDate = reportDate,
+                FiscalYear = reportDate.Year,
+                PeriodNumber = reportDate.Month,
+                Status = monthOffset < 0 ? WipReportStatus.Final : WipReportStatus.Draft,
+                GeneratedById = "system-seed",
+                Lines = []
+            };
+
+            var random = new Random(monthOffset + 100);
+
+            foreach (var project in projects.Where(p =>
+                p.Status is ProjectStatus.Active or ProjectStatus.Completed))
+            {
+                // Calculate WIP values based on project progress at that point in time
+                var contractAmt = project.ContractAmount;
+                var changeOrders = contractAmt * 0.02m;
+                var revisedContract = contractAmt + changeOrders;
+
+                // Simulate progressive completion
+                var monthsFromProjectStart = project.StartDate.HasValue
+                    ? (reportDate.Year - project.StartDate.Value.Year) * 12 +
+                      reportDate.Month - project.StartDate.Value.Month
+                    : 0;
+
+                var totalProjectMonths = project.StartDate.HasValue && project.EstimatedCompletionDate.HasValue
+                    ? Math.Max(1, (project.EstimatedCompletionDate.Value.Year - project.StartDate.Value.Year) * 12 +
+                                  project.EstimatedCompletionDate.Value.Month - project.StartDate.Value.Month)
+                    : 12;
+
+                var pctComplete = Math.Clamp(
+                    (decimal)monthsFromProjectStart / totalProjectMonths * 100m, 0m, 100m);
+
+                if (project.Status == ProjectStatus.Completed)
+                    pctComplete = 100m;
+
+                var estimatedTotalCost = revisedContract * 0.92m; // Target ~8% margin
+                var costToDate = estimatedTotalCost * (pctComplete / 100m);
+                var earnedRevenue = revisedContract * (pctComplete / 100m);
+                var billedToDate = earnedRevenue * (0.95m + (decimal)random.NextDouble() * 0.10m);
+
+                report.Lines.Add(new WipReportLine
+                {
+                    ProjectId = project.Id,
+                    ContractAmount = contractAmt,
+                    ApprovedChangeOrders = changeOrders,
+                    RevisedContractAmount = revisedContract,
+                    TotalCostToDate = Math.Round(costToDate, 2),
+                    EstimatedCostToComplete = Math.Round(estimatedTotalCost - costToDate, 2),
+                    EstimatedTotalCost = Math.Round(estimatedTotalCost, 2),
+                    PercentComplete = Math.Round(pctComplete, 1),
+                    EarnedRevenue = Math.Round(earnedRevenue, 2),
+                    BilledToDate = Math.Round(billedToDate, 2),
+                    OverUnderBilling = Math.Round(earnedRevenue - billedToDate, 2),
+                });
+            }
+
+            reports.Add(report);
+        }
+
+        return reports;
+    }
+
+    private static List<RetentionHold> CreateRetentionHolds(
+        List<Project> projects, List<Subcontract> subcontracts)
+    {
+        var holds = new List<RetentionHold>();
+
+        foreach (var sub in subcontracts.Where(s =>
+            s.Status is SubcontractStatus.InProgress or SubcontractStatus.Complete or SubcontractStatus.ClosedOut))
+        {
+            var retPct = sub.RetainagePercent;
+            var retainedAmt = sub.BilledToDate * (retPct / 100m);
+            var releasedAmt = sub.Status == SubcontractStatus.ClosedOut ? retainedAmt : 0m;
+
+            var status = sub.Status == SubcontractStatus.ClosedOut
+                ? RetentionHoldStatus.Released
+                : retainedAmt > 0
+                    ? RetentionHoldStatus.Held
+                    : RetentionHoldStatus.Held;
+
+            holds.Add(new RetentionHold
+            {
+                ProjectId = sub.ProjectId,
+                ContractId = sub.Id,
+                OriginalAmount = sub.CurrentValue,
+                RetainedAmount = Math.Round(retainedAmt, 2),
+                ReleasedAmount = Math.Round(releasedAmt, 2),
+                RetainagePercent = retPct,
+                Status = status,
+                EffectiveDate = sub.ExecutionDate.HasValue
+                    ? DateOnly.FromDateTime(sub.ExecutionDate.Value)
+                    : DateOnly.FromDateTime(DateTime.UtcNow),
+                Description = $"Retention for {sub.SubcontractorName} - {sub.ScopeOfWork?[..Math.Min(50, sub.ScopeOfWork?.Length ?? 0)]}"
+            });
+        }
+
+        return holds;
+    }
+
+    private static List<PayPeriod> CreatePayPeriods()
+    {
+        var periods = new List<PayPeriod>();
+        var now = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Create 12 bi-weekly pay periods (6 months back)
+        for (int i = 11; i >= 0; i--)
+        {
+            var endDate = now.AddDays(-(i * 14));
+            var startDate = endDate.AddDays(-13);
+
+            var status = i switch
+            {
+                0 => PayPeriodStatus.Open,
+                1 => PayPeriodStatus.Locked,
+                _ => PayPeriodStatus.Closed
+            };
+
+            periods.Add(new PayPeriod
+            {
+                StartDate = startDate,
+                EndDate = endDate,
+                Name = $"PP {startDate:MMM dd} - {endDate:MMM dd, yyyy}",
+                Status = status,
+                LockedAt = status != PayPeriodStatus.Open
+                    ? DateTime.UtcNow.AddDays(-(i * 14) + 2)
+                    : null,
+            });
+        }
+
+        return periods;
+    }
+
+    private static List<PayrollRun> CreatePayrollRuns(
+        List<PayPeriod> payPeriods, List<Employee> employees)
+    {
+        var runs = new List<PayrollRun>();
+        var random = new Random(33);
+
+        var activeHourly = employees.Where(e =>
+            e.IsActive && e.Classification is EmployeeClassification.Hourly
+                or EmployeeClassification.Apprentice
+                or EmployeeClassification.Supervisor).ToList();
+
+        foreach (var period in payPeriods.Where(p => p.Status == PayPeriodStatus.Closed))
+        {
+            var lines = new List<PayrollRunLine>();
+            var totalGross = 0m;
+            var totalNet = 0m;
+
+            foreach (var emp in activeHourly)
+            {
+                // Not everyone works every period (85% chance)
+                if (random.Next(100) > 85) continue;
+
+                var regHours = 80m; // 2 weeks × 40 hrs
+                var otHours = random.Next(100) < 40 ? random.Next(2, 16) : 0;
+                var dtHours = random.Next(100) < 10 ? random.Next(2, 8) : 0;
+
+                var regPay = regHours * emp.BaseHourlyRate;
+                var otPay = otHours * emp.BaseHourlyRate * 1.5m;
+                var dtPay = dtHours * emp.BaseHourlyRate * 2.0m;
+                var gross = regPay + otPay + dtPay;
+
+                lines.Add(new PayrollRunLine
+                {
+                    EmployeeId = emp.Id,
+                    RegularHours = regHours,
+                    OvertimeHours = otHours,
+                    DoubletimeHours = dtHours,
+                    RegularPay = Math.Round(regPay, 2),
+                    OvertimePay = Math.Round(otPay, 2),
+                    DoubletimePay = Math.Round(dtPay, 2),
+                    GrossPay = Math.Round(gross, 2),
+                });
+
+                totalGross += gross;
+                totalNet += gross * 0.72m; // ~28% deductions
+            }
+
+            runs.Add(new PayrollRun
+            {
+                RunDate = period.EndDate.AddDays(3),
+                PayPeriodId = period.Id,
+                Status = PayrollRunStatus.Approved,
+                TotalGross = Math.Round(totalGross, 2),
+                TotalNet = Math.Round(totalNet, 2),
+                EmployeeCount = lines.Count,
+                Lines = lines,
+            });
+        }
+
+        return runs;
+    }
+
+    // ===========================================================================================
+    // Project Management entities — Submittals and Punch List Items
+    // ===========================================================================================
+
+    private static List<PmSubmittal> CreateSubmittals(List<Project> projects)
+    {
+        var submittals = new List<PmSubmittal>();
+        var random = new Random(44);
+
+        var submittalTemplates = new (string Title, SubmittalType Type, string SpecSection)[]
+        {
+            ("Structural Steel Shop Drawings", SubmittalType.ShopDrawing, "05 12 00"),
+            ("Concrete Mix Design", SubmittalType.ProductData, "03 30 00"),
+            ("HVAC Equipment Submittals", SubmittalType.ProductData, "23 00 00"),
+            ("Electrical Panel Schedules", SubmittalType.ShopDrawing, "26 24 00"),
+            ("Plumbing Fixtures", SubmittalType.ProductData, "22 40 00"),
+            ("Fire Sprinkler Shop Drawings", SubmittalType.ShopDrawing, "21 13 00"),
+            ("Roofing System", SubmittalType.ProductData, "07 50 00"),
+            ("Curtain Wall System", SubmittalType.ShopDrawing, "08 44 00"),
+            ("Flooring Materials", SubmittalType.Sample, "09 65 00"),
+            ("Paint Colors", SubmittalType.Sample, "09 91 00"),
+            ("Door Hardware Schedule", SubmittalType.ProductData, "08 71 00"),
+            ("Elevator Equipment", SubmittalType.ShopDrawing, "14 20 00"),
+            ("Waterproofing System", SubmittalType.ProductData, "07 10 00"),
+            ("Acoustic Ceiling Tiles", SubmittalType.Sample, "09 51 00"),
+            ("Landscaping Plan", SubmittalType.ProductData, "32 90 00"),
+        };
+
+        foreach (var project in projects.Where(p =>
+            p.Status is ProjectStatus.Active or ProjectStatus.Completed))
+        {
+            var count = random.Next(6, 12);
+            for (int i = 0; i < count && i < submittalTemplates.Length; i++)
+            {
+                var template = submittalTemplates[i];
+
+                // Status based on project progress
+                SubmittalStatus status;
+                if (project.Status == ProjectStatus.Completed)
+                    status = SubmittalStatus.Approved;
+                else if (i < count / 3)
+                    status = random.Next(100) < 80 ? SubmittalStatus.Approved : SubmittalStatus.ApprovedAsNoted;
+                else if (i < count * 2 / 3)
+                    status = random.Next(3) switch
+                    {
+                        0 => SubmittalStatus.InReview,
+                        1 => SubmittalStatus.Approved,
+                        _ => SubmittalStatus.Submitted
+                    };
+                else
+                    status = random.Next(100) < 60 ? SubmittalStatus.Draft : SubmittalStatus.Submitted;
+
+                submittals.Add(new PmSubmittal
+                {
+                    ProjectId = project.Id,
+                    SubmittalNumber = i + 1,
+                    Title = template.Title,
+                    SubmittalType = template.Type,
+                    Status = status,
+                    SpecSectionCode = template.SpecSection,
+                    IsSubstitutionRequest = random.Next(100) < 10,
+                    RevisionNumber = status == SubmittalStatus.ReviseAndResubmit ? 1 : 0,
+                    SubmittedDate = status != SubmittalStatus.Draft
+                        ? DateTime.UtcNow.AddDays(-random.Next(10, 90))
+                        : null,
+                    ReturnedDate = status is SubmittalStatus.Approved or SubmittalStatus.ApprovedAsNoted
+                        ? DateTime.UtcNow.AddDays(-random.Next(5, 60))
+                        : null,
+                });
+            }
+        }
+
+        return submittals;
+    }
+
+    private static List<PmPunchListItem> CreatePunchListItems(List<Project> completedProjects, Guid createdByUserId)
+    {
+        var items = new List<PmPunchListItem>();
+        var random = new Random(66);
+
+        var punchTemplates = new (string Desc, string Location, PunchListCategory Cat)[]
+        {
+            ("Touch-up paint on corridor walls", "Level 2 Corridor", PunchListCategory.Finishes),
+            ("Adjust door closer - Suite 201", "Suite 201", PunchListCategory.Architectural),
+            ("HVAC balancing incomplete - Zone 3", "Mechanical Room", PunchListCategory.Mechanical),
+            ("Missing outlet cover plate", "Level 1 Lobby", PunchListCategory.Electrical),
+            ("Cracked floor tile at entry", "Main Entry", PunchListCategory.Finishes),
+            ("Fire damper access panel missing", "Level 3 Plenum", PunchListCategory.FireProtection),
+            ("Parking lot striping touch-up", "Parking Level B1", PunchListCategory.Sitework),
+            ("Emergency light not functioning", "Stairwell B", PunchListCategory.LifeSafety),
+            ("Ceiling tile damaged from pipe leak", "Room 305", PunchListCategory.Finishes),
+            ("Handrail loose at landing", "Stairwell A", PunchListCategory.Structural),
+            ("Plumbing fixture dripping", "Restroom 2F", PunchListCategory.Plumbing),
+            ("Thermostat not responding", "Conference Room A", PunchListCategory.Mechanical),
+            ("Baseboard scuff marks", "Level 1 Break Room", PunchListCategory.Finishes),
+            ("Exit sign not illuminated", "East Wing Exit", PunchListCategory.LifeSafety),
+            ("Landscaping dead plant replacement", "North Entrance", PunchListCategory.Sitework),
+        };
+
+        foreach (var project in completedProjects)
+        {
+            var count = random.Next(8, 15);
+            for (int i = 0; i < count && i < punchTemplates.Length; i++)
+            {
+                var template = punchTemplates[i];
+                var isClosed = random.Next(100) < 70; // 70% closed on completed projects
+
+                items.Add(new PmPunchListItem
+                {
+                    ProjectId = project.Id,
+                    ItemNumber = i + 1,
+                    Location = template.Location,
+                    Category = template.Cat,
+                    Description = template.Desc,
+                    ResponsiblePartyType = random.Next(100) < 60
+                        ? PunchListResponsiblePartyType.Subcontractor
+                        : PunchListResponsiblePartyType.GeneralContractor,
+                    Status = isClosed ? PunchListItemStatus.Closed : PunchListItemStatus.Open,
+                    Priority = random.Next(4) switch
+                    {
+                        0 => TaskPriority.Low,
+                        1 => TaskPriority.Normal,
+                        2 => TaskPriority.High,
+                        _ => TaskPriority.Urgent
+                    },
+                    CreatedByUserId = createdByUserId,
+                    ClosedAt = isClosed ? DateTime.UtcNow.AddDays(-random.Next(5, 30)) : null,
+                });
+            }
+        }
+
+        return items;
     }
 }

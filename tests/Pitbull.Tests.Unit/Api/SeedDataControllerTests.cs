@@ -45,7 +45,7 @@ public class SeedDataControllerTests
     public async Task Seed_InDevelopment_ReturnsOk()
     {
         var controller = CreateController("Development");
-        var seedResult = new SeedDataResult(5, 10, 50, 15, 20, 8, 12, 30, 3, 2, 1, "Seeded!");
+        var seedResult = new SeedDataResult(5, 10, 50, 15, 20, 8, 12, 30, 3, 2, 1, Summary: "Seeded!");
         _seedServiceMock.Setup(s => s.SeedAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success(seedResult));
 
