@@ -132,6 +132,9 @@ builder.Services.AddPitbullModuleServices<BillingModuleMarker>(); // Billing mod
 // AI module registration (providers + HttpClients)
 builder.Services.AddPitbullAiModule(builder.Configuration);
 
+// AI Invoice Vision Extraction (OpenAI Vision API)
+builder.Services.AddScoped<Pitbull.Api.Features.AI.IInvoiceVisionExtractionService, Pitbull.Api.Features.AI.InvoiceVisionExtractionService>();
+
 // AI Insights service (uses Claude for project analysis)
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IRoleService, Pitbull.Api.Services.RoleService>();
@@ -519,6 +522,18 @@ builder.Services.AddRateLimiter(options =>
             }));
 
     options.AddPolicy("ai-document", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString()
+                ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            }));
+
+    options.AddPolicy("ai-invoice", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                 ?? context.Connection.RemoteIpAddress?.ToString()

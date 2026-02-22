@@ -98,6 +98,7 @@ const financeItems: NavItem[] = [
   { label: "Billing Applications", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
   { label: "Pay Apps", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
   { label: "AR Aging", href: "/billing/aging", icon: "📊", requiredPermission: "Billing.View" },
+  { label: "AI Invoice Extract", href: "/invoices/extract", icon: "🤖", requiredPermission: "AP.View" },
 ];
 
 const financeSeparators: Workspace["separators"] = [
