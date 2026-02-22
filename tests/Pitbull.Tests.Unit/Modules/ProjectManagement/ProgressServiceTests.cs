@@ -1,5 +1,8 @@
+using System.Security.Claims;
 using FluentAssertions;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.ProjectManagement.Features;
@@ -338,6 +341,46 @@ public sealed class ProgressServiceTests
 
         var entity = await db.Set<PmProgressEntry>().FirstAsync(p => p.Id == created.Id);
         entity.Status.Should().Be(ProgressEntryStatus.Approved);
+    }
+
+    #endregion
+
+    #region EnteredByUserId Auto-Set
+
+    private static ProgressService CreateServiceWithUser(Pitbull.Core.Data.PitbullDbContext db, Guid userId)
+    {
+        var companyContext = new CompanyContext
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            CompanyCode = "01",
+            CompanyName = "Test Company"
+        };
+        var claims = new ClaimsPrincipal(new ClaimsIdentity(new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+            new Claim(ClaimTypes.Role, "Admin")
+        }, "Test"));
+        var httpContext = new DefaultHttpContext { User = claims };
+        var httpAccessorMock = new Mock<IHttpContextAccessor>();
+        httpAccessorMock.Setup(x => x.HttpContext).Returns(httpContext);
+        return new ProgressService(db, companyContext, httpAccessorMock.Object);
+    }
+
+    [Fact]
+    public async Task CreateProgressEntry_SetsEnteredByUserId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userId = Guid.NewGuid();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateServiceWithUser(db, userId);
+
+        var result = await service.CreateProgressEntryAsync(ProjectId, new PmUpsertRequest());
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmProgressEntry>().FirstAsync(p => p.Id == result.Value!.Id);
+        entity.EnteredByUserId.Should().Be(userId);
     }
 
     #endregion

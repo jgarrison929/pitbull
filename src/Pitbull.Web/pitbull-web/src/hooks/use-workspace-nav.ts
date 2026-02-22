@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import {
@@ -125,9 +125,15 @@ export function useWorkspaceNav() {
     ? "projects"
     : activeWorkspace;
 
-  // Auto-switch workspace when navigating to a page that belongs to a different workspace
+  // Auto-switch workspace when navigating to a page that belongs to a different workspace.
+  // Only triggers on pathname change — NOT on manual workspace selection — to prevent
+  // a feedback loop where selecting workspace X while viewing a page in workspace Y
+  // would immediately revert the selection back to Y.
+  const prevPathnameRef = useRef<string | null>(null);
   useEffect(() => {
     if (isProjectContext) return; // Don't auto-switch when in project context
+    if (prevPathnameRef.current !== null && prevPathnameRef.current === pathname) return;
+    prevPathnameRef.current = pathname;
     const detected = detectWorkspaceFromPath(pathname);
     if (detected && detected !== activeWorkspace) {
       setActiveWorkspaceState(detected);

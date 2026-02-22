@@ -253,6 +253,7 @@ public abstract class PmServiceBase
             SetIfExists(entity, "PreparedByUserId", userId);
             SetIfExists(entity, "CommentedByUserId", userId);
             SetIfExists(entity, "AssigneeUserId", userId);
+            SetIfExists(entity, "EnteredByUserId", userId);
         }
 
         SetIfExists(entity, "ProjectId", projectId);

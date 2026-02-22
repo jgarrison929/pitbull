@@ -163,7 +163,7 @@ export default function ProgressPage({ params }: { params: Promise<{ id: string 
       const data = asDataMap(entry.data);
       return {
         id: entry.id,
-        entryDate: asString(data.EntryDate ?? data.entryDate) || entry.createdAt,
+        entryDate: asString(data.ProgressDate ?? data.progressDate ?? data.EntryDate ?? data.entryDate) || entry.createdAt,
         name: entry.name || entry.title || "Untitled",
         percentComplete: asNumber(data.PercentComplete ?? data.percentComplete),
         plannedPercent: asNumber(data.PlannedPercent ?? data.plannedPercent),
@@ -233,7 +233,14 @@ export default function ProgressPage({ params }: { params: Promise<{ id: string 
       name: form.name.trim(),
       status: form.status,
       data: {
-        EntryDate: form.entryDate || null,
+        ProgressDate: form.entryDate
+          ? new Date(form.entryDate + "T00:00:00Z").toISOString()
+          : new Date().toISOString(),
+        EntryType: form.measurementMethod === "Units" || form.measurementMethod === "Milestones"
+          ? "Quantity"
+          : form.measurementMethod === "WeightedSteps"
+            ? "EarnedValue"
+            : "Activity",
         PercentComplete: parseFloat(form.percentComplete) || 0,
         PlannedPercent: parseFloat(form.plannedPercent) || 0,
         EarnedValue: parseFloat(form.earnedValue) || 0,
