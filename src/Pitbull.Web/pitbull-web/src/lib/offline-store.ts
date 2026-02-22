@@ -19,16 +19,50 @@ export interface OfflineTimeEntry {
   costCodeId: string;
   regularHours: number;
   overtimeHours: number;
+  doubletimeHours: number;
   description?: string;
+  phaseId?: string;
+  equipmentId?: string;
+  equipmentHours?: number;
   latitude?: number;
   longitude?: number;
   locationAccuracy?: number;
   createdAt: string;
 }
 
+export interface OfflineDailyReport {
+  id: string;
+  projectId: string;
+  title: string;
+  reportDate: string;
+  reportType: string;
+  weatherSummary?: string;
+  temperatureLow?: string;
+  temperatureHigh?: string;
+  precipitation?: string;
+  wind?: string;
+  workNarrative?: string;
+  delaysNarrative?: string;
+  safetyNarrative?: string;
+  crewEntries?: { trade: string; count: number }[];
+  equipment?: { name: string; status: string }[];
+  visitors?: { name: string; company: string; purpose: string }[];
+  status: string;
+  createdAt: string;
+}
+
+/** Auth + company context captured at enqueue time for SW replay. */
+export interface SyncAuthContext {
+  token: string;
+  companyId: string;
+}
+
 export interface SyncQueueItem {
   id: string;
-  entry: OfflineTimeEntry;
+  idempotencyKey: string;
+  type: "time-entry" | "daily-report";
+  entry: OfflineTimeEntry | OfflineDailyReport;
+  auth: SyncAuthContext;
   status: "pending" | "syncing" | "failed";
   retryCount: number;
   lastAttempt?: string;
@@ -96,6 +130,19 @@ function txGetAll<T>(storeName: string): Promise<T[]> {
   );
 }
 
+// --- Auth context helpers ---
+
+/** Capture current auth token + company ID from localStorage for SW replay. */
+export function captureAuthContext(): SyncAuthContext {
+  const token = typeof window !== "undefined"
+    ? localStorage.getItem("pitbull_token") ?? ""
+    : "";
+  const companyId = typeof window !== "undefined"
+    ? localStorage.getItem("pitbull_active_company_id") ?? ""
+    : "";
+  return { token, companyId };
+}
+
 // --- Draft entries ---
 
 export async function saveDraft(entry: OfflineTimeEntry): Promise<void> {
@@ -115,7 +162,23 @@ export async function deleteDraft(id: string): Promise<void> {
 export async function enqueueForSync(entry: OfflineTimeEntry): Promise<void> {
   const item: SyncQueueItem = {
     id: entry.id,
+    idempotencyKey: crypto.randomUUID(),
+    type: "time-entry",
     entry,
+    auth: captureAuthContext(),
+    status: "pending",
+    retryCount: 0,
+  };
+  await tx(SYNC_QUEUE_STORE, "readwrite", (store) => store.put(item));
+}
+
+export async function enqueueDailyReportForSync(report: OfflineDailyReport): Promise<void> {
+  const item: SyncQueueItem = {
+    id: report.id,
+    idempotencyKey: crypto.randomUUID(),
+    type: "daily-report",
+    entry: report,
+    auth: captureAuthContext(),
     status: "pending",
     retryCount: 0,
   };

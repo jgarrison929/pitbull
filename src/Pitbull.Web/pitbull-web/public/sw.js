@@ -1,12 +1,17 @@
 // Pitbull Construction Solutions — Service Worker
 // Caches app shell + API responses for offline time entry
 
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STATIC_CACHE = `pitbull-static-${CACHE_VERSION}`;
 const API_CACHE = `pitbull-api-${CACHE_VERSION}`;
 
+const SYNC_TAG = "pitbull-offline-sync";
+const PERIODIC_SYNC_TAG = "pitbull-periodic-sync";
+const DB_NAME = "pitbull-offline";
+const SYNC_QUEUE_STORE = "syncQueue";
+
 // App shell assets to precache
-const PRECACHE_URLS = ["/", "/time-tracking/mobile"];
+const PRECACHE_URLS = ["/", "/time-tracking/mobile", "/offline.html"];
 
 // API routes to cache for offline reference data
 const CACHEABLE_API_PATTERNS = [
@@ -71,12 +76,206 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
-// Listen for sync messages from the client
+// Listen for messages from the client
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
+  if (!event.data) return;
+
+  if (event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
+
+  if (event.data.type === "REGISTER_SYNC") {
+    if (self.registration.sync) {
+      self.registration.sync.register(SYNC_TAG).catch(() => {
+        // Background Sync not supported — client-side sync handles it
+      });
+    }
+  }
 });
+
+// --- Background Sync ---
+
+self.addEventListener("sync", (event) => {
+  if (event.tag === SYNC_TAG) {
+    event.waitUntil(syncPendingItems());
+  }
+});
+
+// Periodic Background Sync (Chrome only, graceful degradation)
+self.addEventListener("periodicsync", (event) => {
+  if (event.tag === PERIODIC_SYNC_TAG) {
+    event.waitUntil(syncPendingItems());
+  }
+});
+
+/** Build request headers from stored auth context + idempotency key. */
+function buildSyncHeaders(item) {
+  var headers = { "Content-Type": "application/json" };
+  if (item.idempotencyKey) {
+    headers["X-Idempotency-Key"] = item.idempotencyKey;
+  }
+  if (item.auth && item.auth.token) {
+    headers["Authorization"] = "Bearer " + item.auth.token;
+  }
+  if (item.auth && item.auth.companyId) {
+    headers["X-Company-Id"] = item.auth.companyId;
+  }
+  return headers;
+}
+
+async function syncPendingItems() {
+  let db;
+  try {
+    db = await openDb();
+  } catch {
+    return; // IndexedDB not available
+  }
+
+  const items = await getAllPending(db);
+  if (items.length === 0) {
+    db.close();
+    return;
+  }
+
+  for (const item of items) {
+    try {
+      var res;
+      if (item.type === "daily-report") {
+        const report = item.entry;
+        res = await fetch(`/api/projects/${report.projectId}/daily-reports`, {
+          method: "POST",
+          headers: buildSyncHeaders(item),
+          body: JSON.stringify({
+            title: report.title,
+            status: report.status,
+            data: {
+              ReportDate: report.reportDate,
+              ReportType: report.reportType,
+              WeatherSummary: report.weatherSummary || null,
+              TemperatureLow: report.temperatureLow ? Number(report.temperatureLow) : null,
+              TemperatureHigh: report.temperatureHigh ? Number(report.temperatureHigh) : null,
+              Precipitation: report.precipitation || null,
+              Wind: report.wind || null,
+              WorkNarrative: report.workNarrative || null,
+              DelaysNarrative: report.delaysNarrative || null,
+              SafetyNarrative: report.safetyNarrative || null,
+              CrewEntries: report.crewEntries || null,
+              Equipment: report.equipment || null,
+              Visitors: report.visitors || null,
+            },
+          }),
+        });
+
+        if (res.ok || res.status === 409) {
+          await removeItem(db, item.id);
+        } else {
+          await incrementRetry(db, item);
+        }
+      } else {
+        // time-entry (default)
+        const entry = item.entry;
+        res = await fetch("/api/time-entries/batch", {
+          method: "POST",
+          headers: buildSyncHeaders(item),
+          body: JSON.stringify({
+            isDraft: false,
+            allowPartialSuccess: false,
+            submittedById: entry.employeeId,
+            entries: [{
+              date: entry.date,
+              employeeId: entry.employeeId,
+              projectId: entry.projectId,
+              costCodeId: entry.costCodeId,
+              regularHours: entry.regularHours,
+              overtimeHours: entry.overtimeHours,
+              doubletimeHours: entry.doubletimeHours,
+              description: entry.description,
+              phaseId: entry.phaseId,
+              equipmentId: entry.equipmentId,
+              equipmentHours: entry.equipmentHours,
+              latitude: entry.latitude,
+              longitude: entry.longitude,
+              locationAccuracy: entry.locationAccuracy,
+            }],
+          }),
+        });
+
+        // 409 = idempotency conflict, server already processed — treat as success
+        if (res.status === 409) {
+          await removeItem(db, item.id);
+        } else if (res.ok) {
+          const result = await res.json();
+          if (result.failureCount === 0) {
+            await removeItem(db, item.id);
+          } else {
+            await incrementRetry(db, item);
+          }
+        } else {
+          await incrementRetry(db, item);
+        }
+      }
+    } catch {
+      await incrementRetry(db, item);
+    }
+  }
+
+  db.close();
+
+  // Notify clients that sync completed
+  const clients = await self.clients.matchAll();
+  for (const client of clients) {
+    client.postMessage({ type: "SYNC_COMPLETE" });
+  }
+}
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function getAllPending(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_QUEUE_STORE, "readonly");
+    const store = tx.objectStore(SYNC_QUEUE_STORE);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const items = request.result.filter(
+        (item) => item.status === "pending" || item.status === "failed"
+      );
+      resolve(items);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function removeItem(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(SYNC_QUEUE_STORE);
+    const request = store.delete(id);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function incrementRetry(db, item) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(SYNC_QUEUE_STORE, "readwrite");
+    const store = tx.objectStore(SYNC_QUEUE_STORE);
+    const updated = {
+      ...item,
+      retryCount: item.retryCount + 1,
+      status: item.retryCount + 1 >= 5 ? "failed" : "pending",
+      lastAttempt: new Date().toISOString(),
+    };
+    const request = store.put(updated);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+}
 
 // --- Strategies ---
 
@@ -128,6 +327,9 @@ async function networkFirstNavigation(request) {
     // Return cached root as fallback for SPA navigation
     const root = await caches.match("/");
     if (root) return root;
+    // Last resort: show offline page
+    const offlinePage = await caches.match("/offline.html");
+    if (offlinePage) return offlinePage;
     return new Response("Offline", { status: 503 });
   }
 }

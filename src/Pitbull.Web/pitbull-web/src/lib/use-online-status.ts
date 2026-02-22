@@ -7,8 +7,12 @@ import {
   removeSyncItem,
   getSyncQueueCount,
   type SyncQueueItem,
+  type OfflineTimeEntry,
+  type OfflineDailyReport,
+  type SyncAuthContext,
 } from "./offline-store";
-import api from "./api";
+import { requestBackgroundSync } from "@/components/service-worker-register";
+import { API_BASE_URL } from "./config";
 import type { BatchCreateTimeEntriesResult } from "@/types/crew-entry.types";
 
 type SyncStatus = "online" | "offline" | "syncing";
@@ -31,7 +35,6 @@ function getServerSnapshot() {
 }
 
 const MAX_RETRIES = 5;
-const BASE_DELAY_MS = 2000;
 
 export function useOnlineStatus() {
   const isOnline = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
@@ -70,51 +73,31 @@ export function useOnlineStatus() {
         });
 
         try {
-          const result = await api<BatchCreateTimeEntriesResult>("/api/time-entries/batch", {
-            method: "POST",
-            body: {
-              isDraft: false,
-              allowPartialSuccess: false,
-              submittedById: item.entry.employeeId,
-              entries: [
-                {
-                  date: item.entry.date,
-                  employeeId: item.entry.employeeId,
-                  projectId: item.entry.projectId,
-                  costCodeId: item.entry.costCodeId,
-                  regularHours: item.entry.regularHours,
-                  overtimeHours: item.entry.overtimeHours,
-                  description: item.entry.description,
-                  latitude: item.entry.latitude,
-                  longitude: item.entry.longitude,
-                  locationAccuracy: item.entry.locationAccuracy,
-                },
-              ],
-            },
-          });
-
-          if (result.failureCount === 0) {
+          if (item.type === "daily-report") {
+            await syncDailyReport(item);
+          } else {
+            await syncTimeEntry(item);
+          }
+        } catch (err) {
+          // 409 Conflict = server already processed this idempotency key
+          if (err instanceof SyncConflictError) {
             await removeSyncItem(item.id);
           } else {
-            const errorMsg = result.results.find((r) => !r.success)?.error;
+            const newRetry = item.retryCount + 1;
             await updateSyncItem(item.id, {
-              status: "failed",
-              retryCount: item.retryCount + 1,
-              error: errorMsg || "Server rejected entry",
+              status: newRetry >= MAX_RETRIES ? "failed" : "pending",
+              retryCount: newRetry,
+              error: "Network error during sync",
             });
           }
-        } catch {
-          const newRetry = item.retryCount + 1;
-          await updateSyncItem(item.id, {
-            status: newRetry >= MAX_RETRIES ? "failed" : "pending",
-            retryCount: newRetry,
-            error: "Network error during sync",
-          });
         }
       }
 
       await refreshPendingCount();
       setSyncStatus(navigator.onLine ? "online" : "offline");
+
+      // Also register Background Sync for any remaining items
+      requestBackgroundSync();
     } catch {
       setSyncStatus(navigator.onLine ? "online" : "offline");
     } finally {
@@ -131,6 +114,13 @@ export function useOnlineStatus() {
     }
   }, [isOnline, syncPendingEntries]);
 
+  // Listen for SW sync-complete events
+  useEffect(() => {
+    const handler = () => refreshPendingCount();
+    window.addEventListener("sw-sync-complete", handler);
+    return () => window.removeEventListener("sw-sync-complete", handler);
+  }, [refreshPendingCount]);
+
   // Poll pending count
   useEffect(() => {
     refreshPendingCount();
@@ -145,4 +135,122 @@ export function useOnlineStatus() {
     syncNow: syncPendingEntries,
     refreshPendingCount,
   };
+}
+
+// --- Sync helpers ---
+
+class SyncConflictError extends Error {
+  constructor() {
+    super("409 Conflict — already processed");
+    this.name = "SyncConflictError";
+  }
+}
+
+/** Build auth + idempotency headers from the stored queue item context. */
+function buildHeaders(item: SyncQueueItem): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-Idempotency-Key": item.idempotencyKey,
+  };
+  if (item.auth?.token) {
+    headers["Authorization"] = `Bearer ${item.auth.token}`;
+  }
+  if (item.auth?.companyId) {
+    headers["X-Company-Id"] = item.auth.companyId;
+  }
+  return headers;
+}
+
+async function syncTimeEntry(item: SyncQueueItem) {
+  const entry = item.entry as OfflineTimeEntry;
+
+  const response = await fetch(`${API_BASE_URL}/api/time-entries/batch`, {
+    method: "POST",
+    headers: buildHeaders(item),
+    body: JSON.stringify({
+      isDraft: false,
+      allowPartialSuccess: false,
+      submittedById: entry.employeeId,
+      entries: [
+        {
+          date: entry.date,
+          employeeId: entry.employeeId,
+          projectId: entry.projectId,
+          costCodeId: entry.costCodeId,
+          regularHours: entry.regularHours,
+          overtimeHours: entry.overtimeHours,
+          doubletimeHours: entry.doubletimeHours,
+          description: entry.description,
+          phaseId: entry.phaseId,
+          equipmentId: entry.equipmentId,
+          equipmentHours: entry.equipmentHours,
+          latitude: entry.latitude,
+          longitude: entry.longitude,
+          locationAccuracy: entry.locationAccuracy,
+        },
+      ],
+    }),
+  });
+
+  if (response.status === 409) {
+    throw new SyncConflictError();
+  }
+
+  if (!response.ok) {
+    throw new Error(`Sync failed: ${response.status}`);
+  }
+
+  const result: BatchCreateTimeEntriesResult = await response.json();
+
+  if (result.failureCount === 0) {
+    await removeSyncItem(item.id);
+  } else {
+    const errorMsg = result.results.find((r) => !r.success)?.error;
+    await updateSyncItem(item.id, {
+      status: "failed",
+      retryCount: item.retryCount + 1,
+      error: errorMsg || "Server rejected entry",
+    });
+  }
+}
+
+async function syncDailyReport(item: SyncQueueItem) {
+  const report = item.entry as OfflineDailyReport;
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/projects/${report.projectId}/daily-reports`,
+    {
+      method: "POST",
+      headers: buildHeaders(item),
+      body: JSON.stringify({
+        title: report.title,
+        status: report.status,
+        data: {
+          ReportDate: report.reportDate,
+          ReportType: report.reportType,
+          WeatherSummary: report.weatherSummary || null,
+          TemperatureLow: report.temperatureLow ? Number(report.temperatureLow) : null,
+          TemperatureHigh: report.temperatureHigh ? Number(report.temperatureHigh) : null,
+          Precipitation: report.precipitation || null,
+          Wind: report.wind || null,
+          WorkNarrative: report.workNarrative || null,
+          DelaysNarrative: report.delaysNarrative || null,
+          SafetyNarrative: report.safetyNarrative || null,
+          CrewEntries: report.crewEntries || null,
+          Equipment: report.equipment || null,
+          Visitors: report.visitors || null,
+        },
+      }),
+    }
+  );
+
+  if (response.status === 409) {
+    throw new SyncConflictError();
+  }
+
+  if (!response.ok) {
+    throw new Error(`Sync failed: ${response.status}`);
+  }
+
+  await removeSyncItem(item.id);
 }

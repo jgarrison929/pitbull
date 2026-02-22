@@ -49,6 +49,14 @@ import { getTodayISO } from "@/lib/time-tracking";
 import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { useRecentSelections } from "@/hooks/use-recent-selections";
+import { useOnlineStatus } from "@/lib/use-online-status";
+import {
+  enqueueForSync,
+  cacheRefData,
+  getCachedRefData,
+  type OfflineTimeEntry,
+} from "@/lib/offline-store";
+import { requestBackgroundSync } from "@/components/service-worker-register";
 import type {
   CreateTimeEntryCommand,
   TimeEntry,
@@ -346,6 +354,7 @@ function MobileFriendlySelect({
 
 export default function NewTimeEntryPage() {
   const router = useRouter();
+  const { isOnline, refreshPendingCount } = useOnlineStatus();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPhasesLoading, setIsPhasesLoading] = useState(false);
@@ -450,8 +459,27 @@ export default function NewTimeEntryPage() {
         setProjects(projectsRes.items);
         setCostCodes(costCodesRes.items);
         setEquipmentList(equipmentRes.items);
+
+        // Cache reference data to IndexedDB for offline use
+        cacheRefData("employees", employeesRes.items).catch(() => {});
+        cacheRefData("projects", projectsRes.items).catch(() => {});
+        cacheRefData("costCodes", costCodesRes.items).catch(() => {});
       } catch {
-        toast.error("Failed to load form options");
+        // Try loading from IndexedDB cache when network fails
+        const [cachedEmployees, cachedProjects, cachedCostCodes] = await Promise.all([
+          getCachedRefData<Employee>("employees"),
+          getCachedRefData<Project>("projects"),
+          getCachedRefData<CostCode>("costCodes"),
+        ]);
+
+        if (cachedProjects && cachedEmployees && cachedCostCodes) {
+          setEmployees(cachedEmployees);
+          setProjects(cachedProjects);
+          setCostCodes(cachedCostCodes);
+          toast.info("Loaded cached data for offline use");
+        } else {
+          toast.error("Failed to load form options");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -602,10 +630,36 @@ export default function NewTimeEntryPage() {
     };
 
     try {
-      await api<TimeEntry>("/api/time-entries", {
-        method: "POST",
-        body: command,
-      });
+      if (!isOnline) {
+        // Queue for offline sync — capture all fields the API expects
+        const offlineEntry: OfflineTimeEntry = {
+          id: crypto.randomUUID(),
+          date,
+          employeeId,
+          projectId,
+          costCodeId,
+          regularHours: parseFloat(regularHours) || 0,
+          overtimeHours: parseFloat(overtimeHours) || 0,
+          doubletimeHours: parseFloat(doubletimeHours) || 0,
+          description: description || undefined,
+          phaseId: phaseId || undefined,
+          equipmentId: equipmentId || undefined,
+          equipmentHours: equipmentId ? (parseFloat(equipmentHours) || 0) : undefined,
+          createdAt: new Date().toISOString(),
+        };
+        await enqueueForSync(offlineEntry);
+        requestBackgroundSync();
+        await refreshPendingCount();
+
+        toast.success("Saved offline — will sync when connection returns");
+      } else {
+        await api<TimeEntry>("/api/time-entries", {
+          method: "POST",
+          body: command,
+        });
+
+        toast.success(andAddAnother ? "Entry created! Add another." : "Time entry created successfully");
+      }
 
       // Save quick entry combo for this project
       saveQuickEntryCombo(projectId, costCodeId, phaseId);
@@ -615,7 +669,6 @@ export default function NewTimeEntryPage() {
       setTimeout(() => setShowSuccessFlash(false), 1200);
 
       if (andAddAnother) {
-        toast.success("Entry created! Add another.");
         // Keep employee, project, cost code, phase — just clear hours + description
         setRegularHours("8");
         setOvertimeHours("0");
@@ -627,7 +680,6 @@ export default function NewTimeEntryPage() {
         // Scroll to top
         window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
-        toast.success("Time entry created successfully");
         router.push("/time-tracking");
       }
     } catch (err) {

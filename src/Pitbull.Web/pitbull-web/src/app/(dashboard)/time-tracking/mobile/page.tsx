@@ -348,6 +348,7 @@ export default function MobileTimeEntryPage() {
           await enqueueForSync({
             id: `offline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             ...entryData,
+            doubletimeHours: 0,
             description: entryData.description || "",
             latitude: gps.latitude ?? undefined,
             longitude: gps.longitude ?? undefined,
@@ -401,6 +402,7 @@ export default function MobileTimeEntryPage() {
             await enqueueForSync({
               id: `offline-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               ...entryData,
+              doubletimeHours: 0,
               description: entryData.description || "",
               latitude: gps.latitude ?? undefined,
               longitude: gps.longitude ?? undefined,

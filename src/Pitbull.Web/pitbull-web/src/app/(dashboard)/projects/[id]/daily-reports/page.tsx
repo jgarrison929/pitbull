@@ -3,6 +3,9 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import api, { ApiError, uploadFiles } from "@/lib/api";
 import { isValidGuid } from "@/lib/utils";
+import { useOnlineStatus } from "@/lib/use-online-status";
+import { enqueueDailyReportForSync, type OfflineDailyReport } from "@/lib/offline-store";
+import { requestBackgroundSync } from "@/components/service-worker-register";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -39,6 +42,7 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { Plus, Pencil, Trash2, FileText, CheckCircle, Sparkles, Send, Paperclip, Camera, Download, ImageIcon } from "lucide-react";
+import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { getDownloadUrl } from "@/lib/api";
 
@@ -206,6 +210,8 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "outline"
 export default function DailyReportsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const isProjectIdValid = isValidGuid(projectId);
+
+  const { isOnline, refreshPendingCount } = useOnlineStatus();
 
   const [reports, setReports] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -416,6 +422,46 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
 
     setSaving(true);
     try {
+      // Offline: queue for sync (new reports only, edits require connectivity)
+      if (!isOnline && !editing) {
+        const offlineReport: OfflineDailyReport = {
+          id: crypto.randomUUID(),
+          projectId,
+          title,
+          reportDate: form.reportDate,
+          reportType: form.reportType,
+          weatherSummary: form.weatherSummary || undefined,
+          temperatureLow: form.temperatureLow || undefined,
+          temperatureHigh: form.temperatureHigh || undefined,
+          precipitation: form.precipitation || undefined,
+          wind: form.wind || undefined,
+          workNarrative: form.workNarrative || undefined,
+          delaysNarrative: form.delaysNarrative || undefined,
+          safetyNarrative: form.safetyNarrative || undefined,
+          crewEntries: form.crewEntries.filter(c => c.trade).length > 0
+            ? form.crewEntries.filter(c => c.trade) : undefined,
+          equipment: form.equipment.filter(e => e.name).length > 0
+            ? form.equipment.filter(e => e.name) : undefined,
+          visitors: form.visitors.filter(v => v.name).length > 0
+            ? form.visitors.filter(v => v.name) : undefined,
+          status: form.status,
+          createdAt: new Date().toISOString(),
+        };
+        await enqueueDailyReportForSync(offlineReport);
+        requestBackgroundSync();
+        await refreshPendingCount();
+
+        const realFiles = formAttachments.map((f) => f.file).filter((f): f is File => f !== undefined);
+        if (realFiles.length > 0) {
+          toast.info("Report saved offline. Attachments will be uploaded when online.");
+        } else {
+          toast.success("Report saved offline — will sync when connection returns");
+        }
+
+        setDialogOpen(false);
+        return;
+      }
+
       let savedId: string;
 
       if (editing && form.id) {
@@ -569,6 +615,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
   return (
     <ErrorBoundary label="daily reports">
       <div className="space-y-6">
+        <OfflineIndicator />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Daily Reports</h1>

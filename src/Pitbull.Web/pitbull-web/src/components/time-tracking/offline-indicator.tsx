@@ -1,66 +1,24 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useSyncExternalStore } from "react";
-import { WifiOff, RefreshCw, CheckCircle2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { WifiOff, RefreshCw, CheckCircle2, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useOnlineStatus } from "@/lib/use-online-status";
 
-function subscribeOnlineStatus(callback: () => void) {
-  window.addEventListener("online", callback);
-  window.addEventListener("offline", callback);
-  return () => {
-    window.removeEventListener("online", callback);
-    window.removeEventListener("offline", callback);
-  };
-}
-
-function getOnlineSnapshot() {
-  return navigator.onLine;
-}
-
-function getServerSnapshot() {
-  return true; // SSR assumes online
-}
-
-/**
- * Get count of pending (unsynced) time entries from localStorage.
- */
-function getPendingCount(): number {
-  if (typeof window === "undefined") return 0;
-  try {
-    const pending = localStorage.getItem("pitbull_pending_entries");
-    return pending ? JSON.parse(pending).length : 0;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * Indicates pending entries stored locally (UI shell - actual sync is backend work).
- */
 export function OfflineIndicator() {
-  const isOnline = useSyncExternalStore(subscribeOnlineStatus, getOnlineSnapshot, getServerSnapshot);
+  const { isOnline, syncStatus, pendingCount, syncNow } = useOnlineStatus();
   const [showReconnected, setShowReconnected] = useState(false);
-  const [pendingCount] = useState(getPendingCount);
-
   const wasOfflineRef = React.useRef(false);
 
-  const handleOnlineChange = useCallback(() => {
-    if (!navigator.onLine) {
+  useEffect(() => {
+    if (!isOnline) {
       wasOfflineRef.current = true;
       setShowReconnected(false);
     } else if (wasOfflineRef.current) {
       wasOfflineRef.current = false;
       setShowReconnected(true);
     }
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener("online", handleOnlineChange);
-    window.addEventListener("offline", handleOnlineChange);
-    return () => {
-      window.removeEventListener("online", handleOnlineChange);
-      window.removeEventListener("offline", handleOnlineChange);
-    };
-  }, [handleOnlineChange]);
+  }, [isOnline]);
 
   useEffect(() => {
     if (!showReconnected) return;
@@ -68,9 +26,19 @@ export function OfflineIndicator() {
     return () => clearTimeout(timer);
   }, [showReconnected]);
 
-  // Don't render if online and no reconnected message
-  if (isOnline && !showReconnected) {
-    return null;
+  // Syncing state
+  if (syncStatus === "syncing") {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-800 dark:text-blue-200 text-sm animate-in fade-in-50 duration-300">
+        <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+        <div className="flex-1">
+          <p className="font-medium">Syncing</p>
+          <p className="text-xs text-blue-600 dark:text-blue-300">
+            Syncing {pendingCount} {pendingCount === 1 ? "entry" : "entries"}...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   // Reconnected message
@@ -90,6 +58,33 @@ export function OfflineIndicator() {
     );
   }
 
+  // Online with pending entries — show Sync Now button
+  if (isOnline && pendingCount > 0) {
+    return (
+      <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-200 text-sm">
+        <RefreshCw className="h-5 w-5 shrink-0" />
+        <div className="flex-1">
+          <p className="font-medium">
+            {pendingCount} {pendingCount === 1 ? "entry" : "entries"} pending sync
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={syncNow}
+          className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+        >
+          Sync Now
+        </Button>
+      </div>
+    );
+  }
+
+  // Don't render if online with nothing pending
+  if (isOnline) {
+    return null;
+  }
+
   // Offline indicator
   return (
     <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-amber-800 dark:text-amber-200 text-sm">
@@ -99,10 +94,9 @@ export function OfflineIndicator() {
         <p className="text-xs text-amber-600 dark:text-amber-300">
           {pendingCount > 0
             ? `${pendingCount} ${pendingCount === 1 ? "entry" : "entries"} saved locally`
-            : "Time entries will be saved locally"}
+            : "Entries will be saved locally and synced when online"}
         </p>
       </div>
-      <RefreshCw className="h-4 w-4 shrink-0 animate-spin opacity-50" />
     </div>
   );
 }
