@@ -69,4 +69,32 @@ public class ReportsPdfController(IPdfReportService pdfReportService, ILogger<Re
             return BadRequest(new { error = "Failed to generate aged AR", code = "PDF_ERROR" });
         }
     }
+
+    [HttpGet("submittal-log/{projectId:guid}")]
+    public async Task<IActionResult> SubmittalLog(Guid projectId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var bytes = await pdfReportService.GenerateSubmittalLogPdfAsync(projectId, cancellationToken);
+            return File(bytes, "application/pdf", $"submittal-log-{projectId}.pdf");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message, code = "NOT_FOUND" });
+        }
+    }
+
+    [HttpGet("punch-list/{projectId:guid}")]
+    public async Task<IActionResult> PunchList(Guid projectId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var bytes = await pdfReportService.GeneratePunchListPdfAsync(projectId, cancellationToken);
+            return File(bytes, "application/pdf", $"punch-list-{projectId}.pdf");
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message, code = "NOT_FOUND" });
+        }
+    }
 }

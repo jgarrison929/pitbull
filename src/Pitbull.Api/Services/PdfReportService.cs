@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Pitbull.Contracts.Domain;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
@@ -35,9 +34,8 @@ public sealed class PdfReportService(
         QuestPDF.Settings.License = LicenseType.Community;
     }
 
-    public async Task<byte[]> GenerateWipSchedulePdfAsync(CancellationToken cancellationToken = default)
+    internal async Task<(List<WipLineRow> Lines, DateTime ReportDate)> AssembleWipScheduleDataAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Generating WIP Schedule PDF for tenant {TenantId}", tenantContext.TenantId);
         var report = await db.Set<WipReport>()
             .AsNoTracking()
             .OrderByDescending(x => x.ReportDate)
@@ -66,8 +64,10 @@ public sealed class PdfReportService(
                         ProjectName: project?.Name ?? "Unknown Project",
                         ContractAmount: line.RevisedContractAmount,
                         CostsToDate: line.TotalCostToDate,
-                        BilledToDate: line.BilledToDate,
+                        EstimatedTotalCost: line.EstimatedTotalCost,
                         PercentComplete: line.PercentComplete,
+                        EarnedRevenue: line.EarnedRevenue,
+                        BilledToDate: line.BilledToDate,
                         OverUnderBilling: line.OverUnderBilling);
                 })
                 .OrderBy(x => x.ProjectName)
@@ -75,17 +75,26 @@ public sealed class PdfReportService(
         }
 
         var reportDate = report?.ReportDate.ToDateTime(TimeOnly.MinValue) ?? DateTime.UtcNow.Date;
+        return (lines, reportDate);
+    }
+
+    public async Task<byte[]> GenerateWipSchedulePdfAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Generating WIP Schedule PDF for tenant {TenantId}", tenantContext.TenantId);
+        var (lines, reportDate) = await AssembleWipScheduleDataAsync(cancellationToken);
         return BuildSimpleTablePdf(
             "WIP Schedule",
             reportDate,
-            ["Project", "Contract", "Costs to Date", "Billed to Date", "% Complete", "Over/(Under)"],
+            ["Project", "Contract Value", "Costs to Date", "Est Total Cost", "% Complete", "Earned Revenue", "Billings to Date", "Over/(Under)"],
             lines.Select(x => new[]
             {
                 x.ProjectName,
                 Money(x.ContractAmount),
                 Money(x.CostsToDate),
-                Money(x.BilledToDate),
+                Money(x.EstimatedTotalCost),
                 $"{x.PercentComplete:N1}%",
+                Money(x.EarnedRevenue),
+                Money(x.BilledToDate),
                 Money(x.OverUnderBilling)
             }).ToList(),
             new[]
@@ -93,8 +102,10 @@ public sealed class PdfReportService(
                 "TOTAL",
                 Money(lines.Sum(x => x.ContractAmount)),
                 Money(lines.Sum(x => x.CostsToDate)),
-                Money(lines.Sum(x => x.BilledToDate)),
+                Money(lines.Sum(x => x.EstimatedTotalCost)),
                 string.Empty,
+                Money(lines.Sum(x => x.EarnedRevenue)),
+                Money(lines.Sum(x => x.BilledToDate)),
                 Money(lines.Sum(x => x.OverUnderBilling))
             });
     }
@@ -596,40 +607,57 @@ public sealed class PdfReportService(
         }).GeneratePdf();
     }
 
-    public async Task<byte[]> GenerateAgedArPdfAsync(CancellationToken cancellationToken = default)
+    internal async Task<List<AgedArRow>> AssembleAgedArDataAsync(CancellationToken cancellationToken = default)
     {
-        logger.LogInformation("Generating Aged AR PDF for tenant {TenantId}", tenantContext.TenantId);
-        var applications = await db.Set<PaymentApplication>()
+        // AR = money owed TO the company. Use BillingApplication (G702 owner-side),
+        // not PaymentApplication (subcontractor AP side).
+        var outstandingStatuses = new[]
+        {
+            BillingApplicationStatus.SubmittedToOwner,
+            BillingApplicationStatus.Disputed,
+            BillingApplicationStatus.ArchitectCertified,
+            BillingApplicationStatus.PaymentDue,
+            BillingApplicationStatus.PartiallyPaid,
+        };
+
+        var applications = await db.Set<BillingApplication>()
             .AsNoTracking()
-            .Where(x => x.Status != PaymentApplicationStatus.Paid
-                        && x.Status != PaymentApplicationStatus.Void
-                        && x.Status != PaymentApplicationStatus.Rejected)
+            .Where(a => !a.IsDeleted && outstandingStatuses.Contains(a.Status))
             .ToListAsync(cancellationToken);
 
-        var subcontractMap = await db.Set<Subcontract>()
+        // Resolve owner/customer name via OwnerContract
+        var contractIds = applications.Select(a => a.OwnerContractId).Distinct().ToList();
+        var contractMap = await db.Set<OwnerContract>()
             .AsNoTracking()
-            .Where(x => applications.Select(a => a.SubcontractId).Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, cancellationToken);
+            .Where(c => contractIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, cancellationToken);
 
-        var today = DateTime.UtcNow.Date;
-        var rows = applications.Select(app =>
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return applications.Select(app =>
         {
-            subcontractMap.TryGetValue(app.SubcontractId, out var subcontract);
-            var customerName = subcontract?.SubcontractorName ?? "Unknown";
+            contractMap.TryGetValue(app.OwnerContractId, out var contract);
+            var customerName = contract?.OwnerName ?? contract?.ProjectName ?? "Unknown Customer";
             var amount = app.CurrentPaymentDue;
-            var age = Math.Max(0, (today - app.PeriodEnd.Date).Days);
+            var daysOverdue = today.DayNumber - app.PeriodThrough.DayNumber;
 
             return new AgedArRow(
                 CustomerName: customerName,
-                InvoiceNumber: app.InvoiceNumber ?? $"APP-{app.ApplicationNumber:D3}",
-                InvoiceDate: app.PeriodEnd.Date,
+                InvoiceNumber: $"APP-{app.ApplicationNumber:D3}",
+                InvoiceDate: app.ApplicationDate,
                 Amount: amount,
-                Current: age <= 30 ? amount : 0m,
-                Thirty: age is >= 31 and <= 60 ? amount : 0m,
-                Sixty: age is >= 61 and <= 90 ? amount : 0m,
-                Ninety: age is >= 91 and <= 120 ? amount : 0m,
-                NinetyPlus: age > 120 ? amount : 0m);
+                Current: daysOverdue <= 0 ? amount : 0m,
+                Days1To30: daysOverdue is >= 1 and <= 30 ? amount : 0m,
+                Days31To60: daysOverdue is >= 31 and <= 60 ? amount : 0m,
+                Days61To90: daysOverdue is >= 61 and <= 90 ? amount : 0m,
+                Days91To120: daysOverdue is >= 91 and <= 120 ? amount : 0m,
+                Days120Plus: daysOverdue > 120 ? amount : 0m);
         }).OrderBy(x => x.CustomerName).ThenBy(x => x.InvoiceDate).ToList();
+    }
+
+    public async Task<byte[]> GenerateAgedArPdfAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogInformation("Generating Aged AR PDF for tenant {TenantId}", tenantContext.TenantId);
+        var rows = await AssembleAgedArDataAsync(cancellationToken);
 
         var bodyRows = new List<string[]>();
         foreach (var group in rows.GroupBy(x => x.CustomerName))
@@ -642,10 +670,11 @@ public sealed class PdfReportService(
                     row.InvoiceDate.ToString("MM/dd/yyyy"),
                     Money(row.Amount),
                     Money(row.Current),
-                    Money(row.Thirty),
-                    Money(row.Sixty),
-                    Money(row.Ninety),
-                    Money(row.NinetyPlus)
+                    Money(row.Days1To30),
+                    Money(row.Days31To60),
+                    Money(row.Days61To90),
+                    Money(row.Days91To120),
+                    Money(row.Days120Plus)
                 ]);
             }
 
@@ -655,17 +684,18 @@ public sealed class PdfReportService(
                 string.Empty,
                 Money(group.Sum(x => x.Amount)),
                 Money(group.Sum(x => x.Current)),
-                Money(group.Sum(x => x.Thirty)),
-                Money(group.Sum(x => x.Sixty)),
-                Money(group.Sum(x => x.Ninety)),
-                Money(group.Sum(x => x.NinetyPlus))
+                Money(group.Sum(x => x.Days1To30)),
+                Money(group.Sum(x => x.Days31To60)),
+                Money(group.Sum(x => x.Days61To90)),
+                Money(group.Sum(x => x.Days91To120)),
+                Money(group.Sum(x => x.Days120Plus))
             ]);
         }
 
         return BuildSimpleTablePdf(
-            "Aged AR Report",
+            "Aged Receivables Report",
             DateTime.UtcNow,
-            ["Customer", "Invoice #", "Inv Date", "Amount", "Current", "30", "60", "90", "90+"],
+            ["Customer", "Invoice #", "Date", "Amount", "Current", "1-30", "31-60", "61-90", "91-120", "120+"],
             bodyRows,
             [
                 "GRAND TOTAL",
@@ -673,10 +703,11 @@ public sealed class PdfReportService(
                 string.Empty,
                 Money(rows.Sum(x => x.Amount)),
                 Money(rows.Sum(x => x.Current)),
-                Money(rows.Sum(x => x.Thirty)),
-                Money(rows.Sum(x => x.Sixty)),
-                Money(rows.Sum(x => x.Ninety)),
-                Money(rows.Sum(x => x.NinetyPlus))
+                Money(rows.Sum(x => x.Days1To30)),
+                Money(rows.Sum(x => x.Days31To60)),
+                Money(rows.Sum(x => x.Days61To90)),
+                Money(rows.Sum(x => x.Days91To120)),
+                Money(rows.Sum(x => x.Days120Plus))
             ]);
     }
 
@@ -686,7 +717,8 @@ public sealed class PdfReportService(
 
         var project = await db.Set<Project>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
+            ?? throw new KeyNotFoundException("Project not found");
 
         var submittals = await db.Set<PmSubmittal>()
             .AsNoTracking()
@@ -708,7 +740,7 @@ public sealed class PdfReportService(
         }).ToList();
 
         return BuildSimpleTablePdf(
-            $"Submittal Log — {project?.Name ?? "Unknown Project"}",
+            $"Submittal Log — {project.Name}",
             DateTime.UtcNow,
             ["No.", "Title", "Spec Section", "Type", "Status", "Required By", "Submitted", "Returned", "Rev#"],
             rows,
@@ -721,7 +753,8 @@ public sealed class PdfReportService(
 
         var project = await db.Set<Project>()
             .AsNoTracking()
-            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken)
+            ?? throw new KeyNotFoundException("Project not found");
 
         var items = await db.Set<PmPunchListItem>()
             .AsNoTracking()
@@ -746,7 +779,7 @@ public sealed class PdfReportService(
         var closedCount = items.Count(i => i.Status == PunchListItemStatus.Closed);
 
         return BuildSimpleTablePdf(
-            $"Punch List — {project?.Name ?? "Unknown Project"}",
+            $"Punch List — {project.Name}",
             DateTime.UtcNow,
             ["#", "Location", "Category", "Description", "Resp. Party", "Assigned To", "Status", "Priority", "Due Date"],
             rows,
@@ -884,12 +917,14 @@ public sealed class PdfReportService(
             .PaddingHorizontal(3)
             .DefaultTextStyle(x => x.SemiBold());
 
-    private sealed record WipLineRow(
+    internal sealed record WipLineRow(
         string ProjectName,
         decimal ContractAmount,
         decimal CostsToDate,
-        decimal BilledToDate,
+        decimal EstimatedTotalCost,
         decimal PercentComplete,
+        decimal EarnedRevenue,
+        decimal BilledToDate,
         decimal OverUnderBilling);
 
     private sealed record ProjectCostRow(
@@ -940,14 +975,15 @@ public sealed class PdfReportService(
         decimal SatHours,
         decimal SunHours);
 
-    private sealed record AgedArRow(
+    internal sealed record AgedArRow(
         string CustomerName,
         string InvoiceNumber,
-        DateTime InvoiceDate,
+        DateOnly InvoiceDate,
         decimal Amount,
         decimal Current,
-        decimal Thirty,
-        decimal Sixty,
-        decimal Ninety,
-        decimal NinetyPlus);
+        decimal Days1To30,
+        decimal Days31To60,
+        decimal Days61To90,
+        decimal Days91To120,
+        decimal Days120Plus);
 }
