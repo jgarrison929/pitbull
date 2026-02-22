@@ -4,13 +4,14 @@ using Pitbull.Contracts.Features;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Services;
 
 namespace Pitbull.Contracts.Services;
 
 /// <summary>
 /// Implementation of enhanced payment application operations for AIA G702/G703 workflow.
 /// </summary>
-public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicationService
+public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionService? workflowTransitions = null) : IPaymentApplicationService
 {
     public async Task<Result<IReadOnlyList<PaymentApplicationLineItemDto>>> GetLineItemsAsync(
         Guid paymentApplicationId, CancellationToken cancellationToken = default)
@@ -114,6 +115,13 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         payApp.SubmittedDate = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (workflowTransitions is not null)
+            await workflowTransitions.RecordTransitionAsync(
+                "PaymentApplication", payApp.Id,
+                nameof(PaymentApplicationStatus.Draft), nameof(PaymentApplicationStatus.Submitted),
+                Guid.Empty, null, null, cancellationToken);
+
         return Result.Success(await BuildDetailDto(payApp, cancellationToken));
     }
 
@@ -136,6 +144,13 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         payApp.ReviewedDate = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (workflowTransitions is not null)
+            await workflowTransitions.RecordTransitionAsync(
+                "PaymentApplication", payApp.Id,
+                nameof(PaymentApplicationStatus.Submitted), nameof(PaymentApplicationStatus.Reviewed),
+                Guid.Empty, request.ReviewedBy, null, cancellationToken);
+
         return Result.Success(await BuildDetailDto(payApp, cancellationToken));
     }
 
@@ -157,6 +172,7 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
             return Result.Failure<PaymentApplicationDetailDto>(
                 "Only reviewed applications can be approved", "INVALID_STATUS");
 
+        var fromStatus = payApp.Status;
         payApp.Status = PaymentApplicationStatus.Approved;
         payApp.ApprovedBy = request.ApprovedBy;
         payApp.ApprovedAmount = request.ApprovedAmount ?? payApp.CurrentPaymentDue;
@@ -164,6 +180,13 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         payApp.Notes = request.Notes ?? payApp.Notes;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (workflowTransitions is not null)
+            await workflowTransitions.RecordTransitionAsync(
+                "PaymentApplication", payApp.Id,
+                fromStatus.ToString(), nameof(PaymentApplicationStatus.Approved),
+                Guid.Empty, request.ApprovedBy, null, cancellationToken);
+
         return Result.Success(await BuildDetailDto(payApp, cancellationToken));
     }
 
@@ -186,12 +209,20 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
             return Result.Failure<PaymentApplicationDetailDto>(
                 "Only submitted or reviewed applications can be rejected", "INVALID_STATUS");
 
+        var fromStatus = payApp.Status;
         payApp.Status = PaymentApplicationStatus.Rejected;
         payApp.RejectedBy = request.RejectedBy;
         payApp.RejectionReason = request.Reason;
         payApp.RejectedDate = DateTime.UtcNow;
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (workflowTransitions is not null)
+            await workflowTransitions.RecordTransitionAsync(
+                "PaymentApplication", payApp.Id,
+                fromStatus.ToString(), nameof(PaymentApplicationStatus.Rejected),
+                Guid.Empty, request.RejectedBy, request.Reason, cancellationToken);
+
         return Result.Success(await BuildDetailDto(payApp, cancellationToken));
     }
 
@@ -218,6 +249,7 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
                 "LIEN_WAIVER_REQUIRED");
         }
 
+        var fromStatus = payApp.Status;
         payApp.Status = PaymentApplicationStatus.Paid;
         payApp.PaidAmount = request.PaidAmount;
         payApp.PaidDate = request.PaidDate;
@@ -236,6 +268,13 @@ public class PaymentApplicationService(PitbullDbContext db) : IPaymentApplicatio
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (workflowTransitions is not null)
+            await workflowTransitions.RecordTransitionAsync(
+                "PaymentApplication", payApp.Id,
+                fromStatus.ToString(), nameof(PaymentApplicationStatus.Paid),
+                Guid.Empty, null, null, cancellationToken);
+
         return Result.Success(await BuildDetailDto(payApp, cancellationToken));
     }
 

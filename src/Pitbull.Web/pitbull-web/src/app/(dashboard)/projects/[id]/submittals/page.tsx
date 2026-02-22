@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -624,9 +625,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                           #{row.submittalNumber}
                           {row.revisionNumber > 0 && <span className="text-muted-foreground"> Rev {row.revisionNumber}</span>}
                         </span>
-                        <Badge variant={statusBadgeVariant(row.status)}>
-                          {STATUS_LABELS[row.status] || row.status}
-                        </Badge>
+                        <StatusBadge entityType="Submittal" status={row.status} />
                       </div>
                       <p className="font-medium">{row.title}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -763,9 +762,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Badge variant={statusBadgeVariant(row.status)}>
-                                {STATUS_LABELS[row.status] || row.status}
-                              </Badge>
+                              <StatusBadge entityType="Submittal" status={row.status} />
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">

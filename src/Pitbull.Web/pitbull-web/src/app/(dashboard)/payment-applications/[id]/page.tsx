@@ -43,6 +43,8 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { PaymentApplicationStatus } from "@/lib/types";
 import { WorkflowStepper, type WorkflowStep } from "@/components/ui/workflow-stepper";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusTimeline } from "@/components/ui/status-timeline";
 import type {
   PaymentApplicationDetail,
   PaymentApplicationLineItemInput,
@@ -378,12 +380,7 @@ export default function PaymentApplicationDetailPage() {
             <h1 className="text-2xl font-bold tracking-tight">
               Pay App #{detail.applicationNumber}
             </h1>
-            <Badge
-              variant="secondary"
-              className={paymentApplicationStatusBadgeClass(detail.status)}
-            >
-              {paymentApplicationStatusLabel(detail.status)}
-            </Badge>
+            <StatusBadge entityType="PaymentApplication" status={detail.status} />
           </div>
           <p className="text-muted-foreground">
             Period: {formatDate(detail.periodStart)} - {formatDate(detail.periodEnd)}
@@ -486,6 +483,16 @@ export default function PaymentApplicationDetailPage() {
         className="hidden sm:flex"
         orientation="horizontal"
       />
+
+      {/* Workflow History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Workflow History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StatusTimeline entityType="PaymentApplication" entityId={id} />
+        </CardContent>
+      </Card>
 
       {/* G702 Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

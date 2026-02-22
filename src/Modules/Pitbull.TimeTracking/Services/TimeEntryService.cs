@@ -20,6 +20,7 @@ using Pitbull.TimeTracking.Features.GetYesterdayCrewEntries;
 using Pitbull.TimeTracking.Features.ListTimeEntries;
 using Pitbull.TimeTracking.Features.ReviewTimeEntries;
 using Pitbull.TimeTracking.Features.UpdateTimeEntry;
+using Pitbull.Core.Services;
 using Equipment = Pitbull.Core.Domain.Equipment;
 using Phase = Pitbull.Projects.Domain.Phase;
 
@@ -39,6 +40,7 @@ public class TimeEntryService : ITimeEntryService
     private readonly IPayPeriodService _payPeriodService;
     private readonly IGeofenceService _geofenceService;
     private readonly ILogger<TimeEntryService> _logger;
+    private readonly IWorkflowTransitionService? _workflowTransitions;
 
     /// <summary>
     /// Vista standard CSV headers for timesheet import
@@ -81,7 +83,8 @@ public class TimeEntryService : ITimeEntryService
         ILaborCostCalculator costCalculator,
         IPayPeriodService payPeriodService,
         IGeofenceService geofenceService,
-        ILogger<TimeEntryService> logger)
+        ILogger<TimeEntryService> logger,
+        IWorkflowTransitionService? workflowTransitions = null)
     {
         _db = db;
         _createValidator = createValidator;
@@ -91,6 +94,7 @@ public class TimeEntryService : ITimeEntryService
         _payPeriodService = payPeriodService;
         _geofenceService = geofenceService;
         _logger = logger;
+        _workflowTransitions = workflowTransitions;
     }
 
     #region Query Operations
@@ -1013,6 +1017,15 @@ public class TimeEntryService : ITimeEntryService
             try
             {
                 await _db.SaveChangesAsync(cancellationToken);
+
+                if (_workflowTransitions is not null)
+                {
+                    foreach (var r in results.Where(r => r.Success))
+                        await _workflowTransitions.RecordTransitionAsync(
+                            "TimeEntry", r.TimeEntryId,
+                            nameof(TimeEntryStatus.Draft), nameof(TimeEntryStatus.Submitted),
+                            command.SubmittedById, null, null, cancellationToken);
+                }
             }
             catch (Exception ex)
             {
@@ -1154,6 +1167,20 @@ public class TimeEntryService : ITimeEntryService
             try
             {
                 await _db.SaveChangesAsync(cancellationToken);
+
+                if (_workflowTransitions is not null)
+                {
+                    var successIds = results.Where(r => r.Success).Select(r => r.TimeEntryId).ToHashSet();
+                    foreach (var decision in command.Decisions.Where(d => successIds.Contains(d.TimeEntryId)))
+                    {
+                        var toStatus = decision.Decision == TimeEntryReviewDecisionType.Approve
+                            ? nameof(TimeEntryStatus.Approved) : nameof(TimeEntryStatus.Rejected);
+                        await _workflowTransitions.RecordTransitionAsync(
+                            "TimeEntry", decision.TimeEntryId,
+                            nameof(TimeEntryStatus.Submitted), toStatus,
+                            reviewedByEmployeeId, null, decision.Comment, cancellationToken);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1198,6 +1225,7 @@ public class TimeEntryService : ITimeEntryService
             return Result.Failure<TimeEntryDto>(updateLockValidation, "PAY_PERIOD_LOCKED");
 
         // Handle status transition if requested
+        var oldTimeEntryStatus = timeEntry.Status;
         if (command.NewStatus.HasValue)
         {
             var transitionResult = await ValidateAndApplyStatusTransition(
@@ -1278,6 +1306,13 @@ public class TimeEntryService : ITimeEntryService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (oldTimeEntryStatus != timeEntry.Status && _workflowTransitions is not null)
+                await _workflowTransitions.RecordTransitionAsync(
+                    "TimeEntry", timeEntry.Id,
+                    oldTimeEntryStatus.ToString(), timeEntry.Status.ToString(),
+                    command.ApproverId ?? command.SubmittedById ?? Guid.Empty, null, command.ApproverNotes, cancellationToken);
+
             return Result.Success(TimeEntryMapper.ToDto(timeEntry));
         }
         catch (DbUpdateConcurrencyException)

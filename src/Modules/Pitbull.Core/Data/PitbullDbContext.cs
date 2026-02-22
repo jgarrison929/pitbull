@@ -85,6 +85,9 @@ public class PitbullDbContext(
     // AI Predictions
     public DbSet<CostPrediction> CostPredictions => Set<CostPrediction>();
 
+    // Workflow
+    public DbSet<WorkflowTransition> WorkflowTransitions => Set<WorkflowTransition>();
+
     // Dashboard
     public DbSet<DashboardPreference> DashboardPreferences => Set<DashboardPreference>();
 

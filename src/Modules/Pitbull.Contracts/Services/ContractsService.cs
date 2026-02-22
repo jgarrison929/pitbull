@@ -11,13 +11,14 @@ using Pitbull.Contracts.Features.UpdatePaymentApplication;
 using Pitbull.Contracts.Features.UpdateSubcontract;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Services;
 
 namespace Pitbull.Contracts.Services;
 
 /// <summary>
 /// Implementation of contracts service with direct database access.
 /// </summary>
-public class ContractsService(PitbullDbContext db) : IContractsService
+public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? workflowTransitions = null) : IContractsService
 {
     // Subcontracts
     public async Task<Result<SubcontractDto>> GetSubcontractAsync(Guid id, CancellationToken cancellationToken = default)
@@ -387,6 +388,14 @@ public class ContractsService(PitbullDbContext db) : IContractsService
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        if (oldStatus != newStatus && workflowTransitions is not null)
+        {
+            await workflowTransitions.RecordTransitionAsync(
+                "ChangeOrder", changeOrder.Id,
+                oldStatus.ToString(), newStatus.ToString(),
+                Guid.Empty, null, null, cancellationToken);
+        }
 
         return Result.Success(MapChangeOrderToDto(changeOrder));
     }

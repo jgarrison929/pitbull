@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -27,11 +26,8 @@ import { FileText, DollarSign, Clock, AlertTriangle } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Subcontract, ChangeOrder } from "@/lib/types";
 import { ChangeOrderStatus } from "@/lib/types";
-import {
-  changeOrderStatusBadgeClass,
-  changeOrderStatusLabel,
-  formatCurrency,
-} from "@/lib/contracts";
+import { formatCurrency } from "@/lib/contracts";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
 import { ChangeOrderDialog } from "@/components/contracts/change-order-dialog";
 import { useCompany } from "@/contexts/company-context";
@@ -258,12 +254,11 @@ export default function ChangeOrdersPage() {
                           {co.changeOrderNumber}
                         </p>
                       </div>
-                      <Badge
-                        variant="secondary"
-                        className={`${changeOrderStatusBadgeClass(co.status)} text-xs shrink-0`}
-                      >
-                        {changeOrderStatusLabel(co.status)}
-                      </Badge>
+                      <StatusBadge
+                        entityType="ChangeOrder"
+                        status={co.status}
+                        className="text-xs shrink-0"
+                      />
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
@@ -321,12 +316,10 @@ export default function ChangeOrdersPage() {
                           {co.daysExtension ? `+${co.daysExtension}` : "\u2014"}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={changeOrderStatusBadgeClass(co.status)}
-                          >
-                            {changeOrderStatusLabel(co.status)}
-                          </Badge>
+                          <StatusBadge
+                            entityType="ChangeOrder"
+                            status={co.status}
+                          />
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatDate(co.submittedDate)}

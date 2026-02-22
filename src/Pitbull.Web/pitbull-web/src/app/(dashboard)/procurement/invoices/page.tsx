@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import api from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/skeletons";
@@ -112,7 +113,9 @@ export default function ProcurementInvoicesPage() {
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">{invoice.invoiceNumber}</TableCell>
                     <TableCell className="text-right">${invoice.totalAmount.toFixed(2)}</TableCell>
-                    <TableCell>{invoice.statusName}</TableCell>
+                    <TableCell>
+                      <StatusBadge entityType="VendorInvoice" status={invoice.statusName} />
+                    </TableCell>
                     <TableCell>{getMatchIndicator(invoice)}</TableCell>
                     <TableCell className="text-right">
                       <Button

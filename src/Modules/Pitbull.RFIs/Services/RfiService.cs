@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Services;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features;
 using Pitbull.RFIs.Features.CreateRfi;
@@ -18,17 +19,20 @@ public class RfiService : IRfiService
     private readonly IValidator<CreateRfiCommand> _createValidator;
     private readonly IValidator<UpdateRfiCommand> _updateValidator;
     private readonly ILogger<RfiService> _logger;
+    private readonly IWorkflowTransitionService? _workflowTransitions;
 
     public RfiService(
         PitbullDbContext db,
         IValidator<CreateRfiCommand> createValidator,
         IValidator<UpdateRfiCommand> updateValidator,
-        ILogger<RfiService> logger)
+        ILogger<RfiService> logger,
+        IWorkflowTransitionService? workflowTransitions = null)
     {
         _db = db;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _logger = logger;
+        _workflowTransitions = workflowTransitions;
     }
 
     public async Task<Result<RfiDto>> GetRfiAsync(Guid id, CancellationToken cancellationToken = default)
@@ -150,6 +154,7 @@ public class RfiService : IRfiService
         if (rfi is null)
             return Result.Failure<RfiDto>("RFI not found", "NOT_FOUND");
 
+        var oldRfiStatus = rfi.Status;
         rfi.Subject = command.Subject;
         rfi.Question = command.Question;
         rfi.Priority = command.Priority;
@@ -172,6 +177,13 @@ public class RfiService : IRfiService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
+
+            if (oldRfiStatus != command.Status && _workflowTransitions is not null)
+                await _workflowTransitions.RecordTransitionAsync(
+                    "RFI", rfi.Id,
+                    oldRfiStatus.ToString(), command.Status.ToString(),
+                    Guid.Empty, null, null, cancellationToken);
+
             return Result.Success(MapToDto(rfi));
         }
         catch (DbUpdateConcurrencyException)

@@ -4,10 +4,11 @@ using Pitbull.Billing.Features.VendorInvoices;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Services;
 
 namespace Pitbull.Billing.Services;
 
-public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceService> logger) : IVendorInvoiceService
+public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceService> logger, IWorkflowTransitionService? workflowTransitions = null) : IVendorInvoiceService
 {
     private const decimal DefaultTolerancePercent = 5m;
 
@@ -118,12 +119,14 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
             invoice.DueDate = command.DueDate.Value;
         if (command.TotalAmount.HasValue)
             invoice.TotalAmount = command.TotalAmount.Value;
+        VendorInvoiceStatus? oldStatus = null;
         if (command.Status.HasValue)
         {
             if (!IsValidInvoiceStatusTransition(invoice.Status, command.Status.Value))
                 return Result.Failure<VendorInvoiceDto>(
                     $"Cannot transition invoice from {invoice.Status} to {command.Status.Value}",
                     "INVALID_STATUS_TRANSITION");
+            oldStatus = invoice.Status;
             invoice.Status = command.Status.Value;
         }
         if (command.ClearPurchaseOrderId)
@@ -134,6 +137,13 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
         try
         {
             await db.SaveChangesAsync(cancellationToken);
+
+            if (oldStatus.HasValue && workflowTransitions is not null)
+                await workflowTransitions.RecordTransitionAsync(
+                    "VendorInvoice", invoice.Id,
+                    oldStatus.Value.ToString(), invoice.Status.ToString(),
+                    Guid.Empty, null, null, cancellationToken);
+
             return Result.Success(MapToDto(invoice));
         }
         catch (DbUpdateConcurrencyException)
@@ -208,11 +218,19 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
 
         db.Set<InvoiceMatchResult>().Add(result);
 
+        var matchOldStatus = invoice.Status;
         invoice.Status = withinTolerance ? VendorInvoiceStatus.Matched : VendorInvoiceStatus.PartiallyMatched;
 
         try
         {
             await db.SaveChangesAsync(cancellationToken);
+
+            if (workflowTransitions is not null)
+                await workflowTransitions.RecordTransitionAsync(
+                    "VendorInvoice", invoice.Id,
+                    matchOldStatus.ToString(), invoice.Status.ToString(),
+                    Guid.Empty, null, withinTolerance ? "Auto-matched" : "Variance detected", cancellationToken);
+
             return Result.Success(MapMatchResultDto(result));
         }
         catch (Exception ex)

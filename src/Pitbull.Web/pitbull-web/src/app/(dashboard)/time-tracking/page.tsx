@@ -40,12 +40,11 @@ import type {
   ListEquipmentResult,
 } from "@/lib/types";
 import {
-  timeEntryStatusBadgeClass,
-  timeEntryStatusLabel,
   formatHours,
   formatDate,
   getTodayISO,
 } from "@/lib/time-tracking";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
 import { Suspense } from "react";
@@ -602,12 +601,11 @@ function TimeTrackingContent() {
                             {formatDate(entry.date)}
                           </p>
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className={`${timeEntryStatusBadgeClass(entry.status)} text-xs shrink-0`}
-                        >
-                          {timeEntryStatusLabel(entry.status)}
-                        </Badge>
+                        <StatusBadge
+                          entityType="TimeEntry"
+                          status={entry.status}
+                          className="text-xs shrink-0"
+                        />
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
@@ -821,12 +819,10 @@ function TimeTrackingContent() {
                             {formatHours(entry.totalHours)}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="secondary"
-                              className={timeEntryStatusBadgeClass(entry.status)}
-                            >
-                              {timeEntryStatusLabel(entry.status)}
-                            </Badge>
+                            <StatusBadge
+                              entityType="TimeEntry"
+                              status={entry.status}
+                            />
                           </TableCell>
                         </TableRow>
                       ))}

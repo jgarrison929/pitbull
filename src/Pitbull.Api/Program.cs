@@ -176,6 +176,8 @@ builder.Services.AddSingleton<IDocumentStorageProvider, LocalFileSystemDocumentS
 builder.Services.AddScoped<Pitbull.Reports.Services.IReportService, Pitbull.Reports.Services.ReportService>();
 builder.Services.AddScoped<Pitbull.Reports.Services.ICostPredictionService, Pitbull.Reports.Services.CostPredictionService>();
 builder.Services.AddScoped<Pitbull.Api.Features.CostPredictions.ICostToCompleteService, Pitbull.Api.Features.CostPredictions.CostToCompleteService>();
+builder.Services.AddScoped<Pitbull.Api.Features.Workflow.WorkflowTransitionService>();
+builder.Services.AddScoped<Pitbull.Core.Services.IWorkflowTransitionService>(sp => sp.GetRequiredService<Pitbull.Api.Features.Workflow.WorkflowTransitionService>());
 
 // Project Management module services
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IScheduleService, Pitbull.ProjectManagement.Services.ScheduleService>();

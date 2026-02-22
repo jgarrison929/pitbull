@@ -8,6 +8,7 @@ using Pitbull.ProjectManagement.Domain;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.RFIs.Domain;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.Core.Services;
 using System.Text.Json;
 using System.Security.Claims;
 
@@ -815,7 +816,12 @@ public class JobCostService : PmServiceBase, IJobCostService
 
 public class SubmittalService : PmServiceBase, ISubmittalService
 {
-    public SubmittalService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
+    private readonly IWorkflowTransitionService? _workflowTransitions;
+
+    public SubmittalService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null, IWorkflowTransitionService? workflowTransitions = null) : base(db, companyContext, httpContextAccessor)
+    {
+        _workflowTransitions = workflowTransitions;
+    }
 
     public async Task<Result<PmEntityDto>> CreateSubmittalAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
@@ -842,6 +848,8 @@ public class SubmittalService : PmServiceBase, ISubmittalService
 
         if (submittal.Status == SubmittalStatus.Closed)
             return Result.Failure<PmEntityDto>("Cannot edit a closed submittal", "INVALID_STATUS");
+
+        var oldSubmittalStatus = submittal.Status.ToString();
 
         if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<SubmittalStatus>(request.Status, true, out var newStatus) && newStatus != submittal.Status)
         {
@@ -878,6 +886,14 @@ public class SubmittalService : PmServiceBase, ISubmittalService
         ApplyUpsert(submittal, request);
         submittal.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
+
+        var newSubmittalStatus = submittal.Status.ToString();
+        if (oldSubmittalStatus != newSubmittalStatus && _workflowTransitions is not null)
+            await _workflowTransitions.RecordTransitionAsync(
+                "Submittal", submittal.Id,
+                oldSubmittalStatus, newSubmittalStatus,
+                Guid.Empty, null, null, cancellationToken);
+
         return Result.Success(ToDto(submittal));
     }
 

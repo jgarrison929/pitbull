@@ -28,6 +28,8 @@ import {
 import { RfiCostImpactSection } from "@/components/rfis";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { WorkflowStepper, type WorkflowStep } from "@/components/ui/workflow-stepper";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { StatusTimeline } from "@/components/ui/status-timeline";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
@@ -322,9 +324,7 @@ export default function RfiDetailPage({
             >
               <Link2 className="h-4 w-4" />
             </Button>
-            <Badge variant="secondary" className={statusColor(rfi.status)}>
-              {statusLabel(rfi.status)}
-            </Badge>
+            <StatusBadge entityType="RFI" status={rfi.status} />
           </div>
           <p className="text-muted-foreground font-mono text-sm">
             RFI-{String(rfi.number).padStart(3, "0")}
@@ -619,6 +619,7 @@ export default function RfiDetailPage({
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="details" className="space-y-4">
@@ -756,6 +757,16 @@ export default function RfiDetailPage({
             {projectId && (
               <RfiCostImpactSection projectId={projectId} rfiId={id} rfi={rfi} />
             )}
+          </TabsContent>
+          <TabsContent value="history">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Workflow History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <StatusTimeline entityType="RFI" entityId={id} />
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       )}
