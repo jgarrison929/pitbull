@@ -8,10 +8,18 @@ public class VendorInvoice : BaseEntity, ICompanyScoped, ITenantScoped
     public string InvoiceNumber { get; set; } = string.Empty;
     public DateOnly InvoiceDate { get; set; }
     public DateOnly DueDate { get; set; }
+    public decimal SubtotalAmount { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
+    public decimal? TaxRate { get; set; }
+    public Guid? TaxJurisdictionId { get; set; }
+    public string CurrencyCode { get; set; } = "USD";
+    public decimal ExchangeRate { get; set; } = 1.0m;
     public VendorInvoiceStatus Status { get; set; } = VendorInvoiceStatus.Pending;
     public Guid? PurchaseOrderId { get; set; }
     public PurchaseOrder? PurchaseOrder { get; set; }
+    public bool IsTaxExempt { get; set; }
+    public string? TaxExemptReason { get; set; }
 
     public List<InvoiceMatchResult> MatchResults { get; set; } = [];
 }

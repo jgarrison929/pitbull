@@ -36,7 +36,14 @@ public record CreateVendorInvoiceCommand(
     DateOnly InvoiceDate,
     DateOnly DueDate,
     decimal TotalAmount,
-    Guid? PurchaseOrderId = null
+    Guid? PurchaseOrderId = null,
+    decimal? TaxAmount = null,
+    decimal? TaxRate = null,
+    Guid? TaxJurisdictionId = null,
+    string CurrencyCode = "USD",
+    decimal ExchangeRate = 1.0m,
+    bool IsTaxExempt = false,
+    string? TaxExemptReason = null
 ) : ICommand<VendorInvoiceDto>;
 
 public record UpdateVendorInvoiceCommand(
@@ -48,7 +55,15 @@ public record UpdateVendorInvoiceCommand(
     decimal? TotalAmount = null,
     VendorInvoiceStatus? Status = null,
     Guid? PurchaseOrderId = null,
-    bool ClearPurchaseOrderId = false
+    bool ClearPurchaseOrderId = false,
+    decimal? TaxAmount = null,
+    decimal? TaxRate = null,
+    Guid? TaxJurisdictionId = null,
+    bool ClearTaxJurisdiction = false,
+    string? CurrencyCode = null,
+    decimal? ExchangeRate = null,
+    bool? IsTaxExempt = null,
+    string? TaxExemptReason = null
 ) : ICommand<VendorInvoiceDto>;
 
 public record MatchVendorInvoiceCommand(

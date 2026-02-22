@@ -33,7 +33,12 @@ public record CreatePurchaseOrderCommand(
     Guid ProjectId,
     Guid VendorId,
     string? Description,
-    List<CreatePurchaseOrderLineCommand> Lines
+    List<CreatePurchaseOrderLineCommand> Lines,
+    Guid? TaxJurisdictionId = null,
+    string CurrencyCode = "USD",
+    decimal ExchangeRate = 1.0m,
+    bool IsTaxExempt = false,
+    string? TaxExemptReason = null
 ) : ICommand<PurchaseOrderDto>;
 
 public record CreatePurchaseOrderLineCommand(
@@ -49,7 +54,13 @@ public record UpdatePurchaseOrderCommand(
     Guid? VendorId = null,
     string? Description = null,
     List<CreatePurchaseOrderLineCommand>? Lines = null,
-    PurchaseOrderStatus? Status = null
+    PurchaseOrderStatus? Status = null,
+    Guid? TaxJurisdictionId = null,
+    bool ClearTaxJurisdiction = false,
+    string? CurrencyCode = null,
+    decimal? ExchangeRate = null,
+    bool? IsTaxExempt = null,
+    string? TaxExemptReason = null
 ) : ICommand<PurchaseOrderDto>;
 
 public record ReceivePurchaseOrderCommand(

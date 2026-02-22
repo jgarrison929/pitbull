@@ -82,7 +82,12 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             ProjectId = command.ProjectId,
             VendorId = command.VendorId,
             Description = command.Description?.Trim(),
-            Status = PurchaseOrderStatus.Draft
+            Status = PurchaseOrderStatus.Draft,
+            TaxJurisdictionId = command.TaxJurisdictionId,
+            CurrencyCode = command.CurrencyCode,
+            ExchangeRate = command.ExchangeRate,
+            IsTaxExempt = command.IsTaxExempt,
+            TaxExemptReason = command.TaxExemptReason?.Trim()
         };
 
         foreach (CreatePurchaseOrderLineCommand line in command.Lines)
@@ -103,7 +108,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             });
         }
 
-        purchaseOrder.TotalAmount = purchaseOrder.Lines.Sum(l => l.Amount);
+        purchaseOrder.SubtotalAmount = purchaseOrder.Lines.Sum(l => l.Amount);
+        purchaseOrder.TaxAmount = purchaseOrder.Lines.Sum(l => l.TaxAmount);
+        purchaseOrder.TotalAmount = purchaseOrder.SubtotalAmount + purchaseOrder.TaxAmount;
 
         db.Set<PurchaseOrder>().Add(purchaseOrder);
 
@@ -150,6 +157,19 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         if (command.Description != null)
             purchaseOrder.Description = string.IsNullOrWhiteSpace(command.Description) ? null : command.Description.Trim();
 
+        if (command.ClearTaxJurisdiction)
+            purchaseOrder.TaxJurisdictionId = null;
+        else if (command.TaxJurisdictionId.HasValue)
+            purchaseOrder.TaxJurisdictionId = command.TaxJurisdictionId.Value;
+        if (command.CurrencyCode != null)
+            purchaseOrder.CurrencyCode = command.CurrencyCode;
+        if (command.ExchangeRate.HasValue)
+            purchaseOrder.ExchangeRate = command.ExchangeRate.Value;
+        if (command.IsTaxExempt.HasValue)
+            purchaseOrder.IsTaxExempt = command.IsTaxExempt.Value;
+        if (command.TaxExemptReason != null)
+            purchaseOrder.TaxExemptReason = command.TaxExemptReason.Trim();
+
         if (command.Lines is not null)
         {
             db.Set<PurchaseOrderLine>().RemoveRange(purchaseOrder.Lines);
@@ -174,7 +194,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             }
         }
 
-        purchaseOrder.TotalAmount = purchaseOrder.Lines.Sum(l => l.Amount);
+        purchaseOrder.SubtotalAmount = purchaseOrder.Lines.Sum(l => l.Amount);
+        purchaseOrder.TaxAmount = purchaseOrder.Lines.Sum(l => l.TaxAmount);
+        purchaseOrder.TotalAmount = purchaseOrder.SubtotalAmount + purchaseOrder.TaxAmount;
 
         try
         {

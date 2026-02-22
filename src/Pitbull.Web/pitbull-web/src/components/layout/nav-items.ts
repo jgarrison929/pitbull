@@ -144,6 +144,7 @@ export const adminItems: NavItem[] = [
   { label: "Data Import", href: "/admin/data-import", icon: "🗂️", requiredPermission: "Admin.DataImport" },
   { label: "Integrations", href: "/admin/integrations", icon: "🔗", requiredPermission: "Admin.Settings" },
   { label: "Pay Periods", href: "/admin/pay-periods", icon: "📅", requiredPermission: "Payroll.Process" },
+  { label: "Tax Settings", href: "/admin/tax-settings", icon: "💰", requiredPermission: "Admin.Settings" },
   { label: "Compliance", href: "/admin/compliance", icon: "✅", requiredPermission: "Admin.Settings" },
   { label: "Roles & Permissions", href: "/admin/roles", icon: "🛡️", requiredPermission: "Admin.Roles" },
   { label: "Audit Logs", href: "/admin/audit-logs", icon: "📜", requiredPermission: "SystemAdmin.AuditLogs" },

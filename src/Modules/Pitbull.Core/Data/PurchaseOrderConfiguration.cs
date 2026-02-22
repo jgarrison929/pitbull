@@ -19,8 +19,26 @@ public class PurchaseOrderConfiguration : IEntityTypeConfiguration<PurchaseOrder
         builder.Property(po => po.Description)
             .HasMaxLength(1000);
 
+        builder.Property(po => po.SubtotalAmount)
+            .HasPrecision(18, 2);
+
+        builder.Property(po => po.TaxAmount)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
         builder.Property(po => po.TotalAmount)
-            .HasPrecision(14, 2);
+            .HasPrecision(18, 2);
+
+        builder.Property(po => po.CurrencyCode)
+            .HasMaxLength(3)
+            .HasDefaultValue("USD");
+
+        builder.Property(po => po.ExchangeRate)
+            .HasPrecision(18, 8)
+            .HasDefaultValue(1.0m);
+
+        builder.Property(po => po.TaxExemptReason)
+            .HasMaxLength(500);
 
         builder.HasMany(po => po.Lines)
             .WithOne(line => line.PurchaseOrder)
@@ -64,7 +82,14 @@ public class PurchaseOrderLineConfiguration : IEntityTypeConfiguration<PurchaseO
             .HasPrecision(14, 4);
 
         builder.Property(line => line.Amount)
-            .HasPrecision(14, 2);
+            .HasPrecision(18, 2);
+
+        builder.Property(line => line.TaxAmount)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
+        builder.Property(line => line.TaxRate)
+            .HasPrecision(7, 4);
 
         builder.Property(line => line.ReceivedQuantity)
             .HasPrecision(14, 4)

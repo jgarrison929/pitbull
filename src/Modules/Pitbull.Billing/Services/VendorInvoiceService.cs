@@ -75,13 +75,36 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
         if (command.TotalAmount <= 0)
             return Result.Failure<VendorInvoiceDto>("Invoice total amount must be positive", "VALIDATION_ERROR");
 
+        if (command.ExchangeRate <= 0)
+            return Result.Failure<VendorInvoiceDto>("Exchange rate must be positive", "VALIDATION_ERROR");
+
+        if (string.IsNullOrWhiteSpace(command.CurrencyCode) || command.CurrencyCode.Length != 3)
+            return Result.Failure<VendorInvoiceDto>("Currency code must be a 3-letter ISO code", "VALIDATION_ERROR");
+
+        decimal taxAmount = command.TaxAmount ?? 0m;
+        if (taxAmount < 0)
+            return Result.Failure<VendorInvoiceDto>("Tax amount cannot be negative", "VALIDATION_ERROR");
+
+        if (taxAmount > command.TotalAmount)
+            return Result.Failure<VendorInvoiceDto>("Tax amount cannot exceed total amount", "VALIDATION_ERROR");
+
+        decimal subtotal = command.TotalAmount - taxAmount;
+
         VendorInvoice invoice = new()
         {
             VendorId = command.VendorId,
             InvoiceNumber = command.InvoiceNumber.Trim(),
             InvoiceDate = command.InvoiceDate,
             DueDate = command.DueDate,
+            SubtotalAmount = subtotal,
+            TaxAmount = taxAmount,
+            TaxRate = command.TaxRate ?? 0m,
             TotalAmount = command.TotalAmount,
+            TaxJurisdictionId = command.TaxJurisdictionId,
+            CurrencyCode = command.CurrencyCode,
+            ExchangeRate = command.ExchangeRate,
+            IsTaxExempt = command.IsTaxExempt,
+            TaxExemptReason = command.TaxExemptReason?.Trim(),
             Status = VendorInvoiceStatus.Pending,
             PurchaseOrderId = command.PurchaseOrderId
         };
@@ -118,7 +141,40 @@ public class VendorInvoiceService(PitbullDbContext db, ILogger<VendorInvoiceServ
         if (command.DueDate.HasValue)
             invoice.DueDate = command.DueDate.Value;
         if (command.TotalAmount.HasValue)
+        {
+            if (command.TotalAmount.Value <= 0)
+                return Result.Failure<VendorInvoiceDto>("Invoice total amount must be positive", "VALIDATION_ERROR");
             invoice.TotalAmount = command.TotalAmount.Value;
+        }
+        if (command.TaxAmount.HasValue)
+        {
+            if (command.TaxAmount.Value < 0)
+                return Result.Failure<VendorInvoiceDto>("Tax amount cannot be negative", "VALIDATION_ERROR");
+            invoice.TaxAmount = command.TaxAmount.Value;
+        }
+        if (command.ExchangeRate.HasValue && command.ExchangeRate.Value <= 0)
+            return Result.Failure<VendorInvoiceDto>("Exchange rate must be positive", "VALIDATION_ERROR");
+        // Always recalculate subtotal when either total or tax changes
+        if (command.TotalAmount.HasValue || command.TaxAmount.HasValue)
+        {
+            if (invoice.TaxAmount > invoice.TotalAmount)
+                return Result.Failure<VendorInvoiceDto>("Tax amount cannot exceed total amount", "VALIDATION_ERROR");
+            invoice.SubtotalAmount = invoice.TotalAmount - invoice.TaxAmount;
+        }
+        if (command.TaxRate.HasValue)
+            invoice.TaxRate = command.TaxRate.Value;
+        if (command.ClearTaxJurisdiction)
+            invoice.TaxJurisdictionId = null;
+        else if (command.TaxJurisdictionId.HasValue)
+            invoice.TaxJurisdictionId = command.TaxJurisdictionId.Value;
+        if (command.CurrencyCode != null)
+            invoice.CurrencyCode = command.CurrencyCode;
+        if (command.ExchangeRate.HasValue)
+            invoice.ExchangeRate = command.ExchangeRate.Value;
+        if (command.IsTaxExempt.HasValue)
+            invoice.IsTaxExempt = command.IsTaxExempt.Value;
+        if (command.TaxExemptReason != null)
+            invoice.TaxExemptReason = command.TaxExemptReason.Trim();
         VendorInvoiceStatus? oldStatus = null;
         if (command.Status.HasValue)
         {

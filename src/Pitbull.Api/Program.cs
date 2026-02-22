@@ -166,6 +166,10 @@ builder.Services.AddScoped<Pitbull.Billing.Features.BankReconciliation.IBankReco
 // Vendor portal service (token-based access for vendors)
 builder.Services.AddScoped<Pitbull.Billing.Services.IVendorPortalService, Pitbull.Billing.Services.VendorPortalService>();
 
+// Tax & currency services
+builder.Services.AddScoped<Pitbull.Billing.Services.ITaxJurisdictionService, Pitbull.Billing.Services.TaxJurisdictionService>();
+builder.Services.AddScoped<Pitbull.Billing.Services.ITaxCalculationService, Pitbull.Billing.Services.TaxCalculationService>();
+
 // Equipment service (Core module - for time entry equipment tracking)
 builder.Services.AddScoped<Pitbull.Core.Features.Equipment.IEquipmentService, Pitbull.Core.Features.Equipment.EquipmentService>();
 

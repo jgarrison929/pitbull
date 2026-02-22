@@ -16,8 +16,29 @@ public class VendorInvoiceConfiguration : IEntityTypeConfiguration<VendorInvoice
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(invoice => invoice.SubtotalAmount)
+            .HasPrecision(18, 2);
+
+        builder.Property(invoice => invoice.TaxAmount)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(0m);
+
         builder.Property(invoice => invoice.TotalAmount)
-            .HasPrecision(14, 2);
+            .HasPrecision(18, 2);
+
+        builder.Property(invoice => invoice.TaxRate)
+            .HasPrecision(7, 4);
+
+        builder.Property(invoice => invoice.CurrencyCode)
+            .HasMaxLength(3)
+            .HasDefaultValue("USD");
+
+        builder.Property(invoice => invoice.ExchangeRate)
+            .HasPrecision(18, 8)
+            .HasDefaultValue(1.0m);
+
+        builder.Property(invoice => invoice.TaxExemptReason)
+            .HasMaxLength(500);
 
         builder.HasOne(invoice => invoice.PurchaseOrder)
             .WithMany()
