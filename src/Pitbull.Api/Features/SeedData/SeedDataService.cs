@@ -31,7 +31,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 3;
+    private const int SeedDataVersion = 4;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default)
     {
@@ -72,6 +72,25 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         try
         {
 
+        // Look up Company 01 (Summit Builders Group) so all ICompanyScoped seed
+        // entities get the correct CompanyId.  Without this, the CompanyMiddleware
+        // context isn't resolved during seeding and every entity stays Guid.Empty.
+        var companyId = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .Where(c => c.Code == "01" && !c.IsDeleted)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(ct);
+
+        // Fallback: take any active company (dev environments without demo bootstrap)
+        if (companyId == Guid.Empty)
+        {
+            companyId = await db.Set<Company>()
+                .IgnoreQueryFilters()
+                .Where(c => !c.IsDeleted)
+                .Select(c => c.Id)
+                .FirstOrDefaultAsync(ct);
+        }
+
         var projects = CreateProjects();
         var additionalProjects = CreateAdditionalProjects();
         projects.AddRange(additionalProjects);
@@ -91,6 +110,18 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         var additionalVendors = CreateAdditionalVendors();
         vendors.AddRange(additionalVendors);
 
+        StampCompanyId(projects, companyId);
+        foreach (var p in projects)
+        {
+            StampCompanyId(p.Phases, companyId);
+            StampCompanyId(p.Projections, companyId);
+        }
+        StampCompanyId(bids, companyId);
+        foreach (var b in bids)
+            StampCompanyId(b.Items, companyId);
+        StampCompanyId(customers, companyId);
+        StampCompanyId(vendors, companyId);
+
         db.Set<CostCode>().AddRange(costCodes);
         db.Set<Project>().AddRange(projects);
         db.Set<Bid>().AddRange(bids);
@@ -106,61 +137,87 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         var allWorkableProjects = projects.Where(p =>
             p.Status is ProjectStatus.Active or ProjectStatus.Completed).ToList();
         var assignments = CreateProjectAssignments(employees, activeProjects);
+        StampCompanyId(assignments, companyId);
         db.Set<ProjectAssignment>().AddRange(assignments);
         await db.SaveChangesAsync(ct);
 
         // Now create time entries for assigned employees (6 months)
         var timeEntries = CreateTimeEntries(employees, activeProjects, costCodes, assignments);
+        StampCompanyId(timeEntries, companyId);
         db.Set<TimeEntry>().AddRange(timeEntries);
         await db.SaveChangesAsync(ct);
 
         // Create subcontracts with change orders and payment applications
         var subcontracts = CreateSubcontracts(projects);
+        StampCompanyId(subcontracts, companyId);
+        // Also stamp child ChangeOrders created inline
+        foreach (var sub in subcontracts)
+            StampCompanyId(sub.ChangeOrders, companyId);
         db.Set<Subcontract>().AddRange(subcontracts);
         await db.SaveChangesAsync(ct);
 
         // Create payment applications for executed subcontracts (AP side)
         var paymentApplications = CreatePaymentApplications(subcontracts);
+        StampCompanyId(paymentApplications, companyId);
+        foreach (var pa in paymentApplications)
+            StampCompanyId(pa.LineItems, companyId);
         db.Set<PaymentApplication>().AddRange(paymentApplications);
 
         var vendorInvoices = CreateVendorInvoices(vendors, subcontracts);
+        StampCompanyId(vendorInvoices, companyId);
         db.Set<VendorInvoice>().AddRange(vendorInvoices);
         await db.SaveChangesAsync(ct);
 
         // Owner contracts + billing applications (AR side — what owners owe us)
         var ownerContracts = CreateOwnerContracts(allWorkableProjects, customers);
+        StampCompanyId(ownerContracts, companyId);
         db.Set<OwnerContract>().AddRange(ownerContracts);
         await db.SaveChangesAsync(ct);
 
         var ownerSovs = CreateOwnerScheduleOfValues(ownerContracts);
+        StampCompanyId(ownerSovs, companyId);
+        foreach (var sov in ownerSovs)
+            StampCompanyId(sov.LineItems, companyId);
         db.Set<OwnerScheduleOfValues>().AddRange(ownerSovs);
         await db.SaveChangesAsync(ct);
 
         var billingApps = CreateBillingApplications(ownerContracts, ownerSovs);
+        StampCompanyId(billingApps, companyId);
+        foreach (var ba in billingApps)
+            StampCompanyId(ba.LineItems, companyId);
         db.Set<BillingApplication>().AddRange(billingApps);
         await db.SaveChangesAsync(ct);
 
         // WIP reports for financial reporting
         var wipReports = CreateWipReports(allWorkableProjects);
+        StampCompanyId(wipReports, companyId);
+        foreach (var wr in wipReports)
+            StampCompanyId(wr.Lines, companyId);
         db.Set<WipReport>().AddRange(wipReports);
         await db.SaveChangesAsync(ct);
 
         // Retention holds
         var retentionHolds = CreateRetentionHolds(allWorkableProjects, subcontracts);
+        StampCompanyId(retentionHolds, companyId);
         db.Set<RetentionHold>().AddRange(retentionHolds);
         await db.SaveChangesAsync(ct);
 
         // Pay periods and payroll runs
         var payPeriods = CreatePayPeriods();
+        StampCompanyId(payPeriods, companyId);
         db.Set<PayPeriod>().AddRange(payPeriods);
         await db.SaveChangesAsync(ct);
 
         var payrollRuns = CreatePayrollRuns(payPeriods, employees);
+        StampCompanyId(payrollRuns, companyId);
+        foreach (var pr in payrollRuns)
+            StampCompanyId(pr.Lines, companyId);
         db.Set<PayrollRun>().AddRange(payrollRuns);
         await db.SaveChangesAsync(ct);
 
         // PM entities — submittals and punch list items
         var submittals = CreateSubmittals(allWorkableProjects);
+        StampCompanyId(submittals, companyId);
         db.Set<PmSubmittal>().AddRange(submittals);
 
         // Look up an existing AppUser for punch list CreatedByUserId FK.
@@ -177,12 +234,16 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             punchListItems = CreatePunchListItems(
                 projects.Where(p => p.Status == ProjectStatus.Completed).ToList(),
                 seedUserId);
+            StampCompanyId(punchListItems, companyId);
             db.Set<PmPunchListItem>().AddRange(punchListItems);
         }
         await db.SaveChangesAsync(ct);
 
         // Schedules with activities and dependencies (PM tour)
         var (schedules, scheduleActivities, scheduleDeps) = CreateSchedules(activeProjects);
+        StampCompanyId(schedules, companyId);
+        StampCompanyId(scheduleActivities, companyId);
+        StampCompanyId(scheduleDeps, companyId);
         db.Set<PmSchedule>().AddRange(schedules);
         db.Set<PmScheduleActivity>().AddRange(scheduleActivities);
         await db.SaveChangesAsync(ct);
@@ -191,11 +252,13 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         // RFIs across active projects
         var rfis = CreateRfis(activeProjects, seedUserId);
+        StampCompanyId(rfis, companyId);
         db.Set<Rfi>().AddRange(rfis);
         await db.SaveChangesAsync(ct);
 
         // Daily reports for field users
         var dailyReports = CreateDailyReports(activeProjects, seedUserId);
+        StampCompanyId(dailyReports, companyId);
         db.Set<PmDailyReport>().AddRange(dailyReports);
         await db.SaveChangesAsync(ct);
 
@@ -206,34 +269,45 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             dailyReportCrews.AddRange(CreateDailyReportCrews(dr));
             dailyReportEquipment.AddRange(CreateDailyReportEquipment(dr));
         }
+        StampCompanyId(dailyReportCrews, companyId);
+        StampCompanyId(dailyReportEquipment, companyId);
         db.Set<PmDailyReportCrew>().AddRange(dailyReportCrews);
         db.Set<PmDailyReportEquipment>().AddRange(dailyReportEquipment);
         await db.SaveChangesAsync(ct);
 
         // Chart of accounts + accounting periods + journal entries (CFO)
         var chartOfAccounts = CreateChartOfAccounts();
+        StampCompanyId(chartOfAccounts, companyId);
         db.Set<ChartOfAccount>().AddRange(chartOfAccounts);
         await db.SaveChangesAsync(ct);
 
         var accountingPeriods = CreateAccountingPeriods();
+        StampCompanyId(accountingPeriods, companyId);
         db.Set<AccountingPeriod>().AddRange(accountingPeriods);
         await db.SaveChangesAsync(ct);
 
         var journalEntries = CreateJournalEntries(chartOfAccounts, activeProjects, seedUserId);
+        StampCompanyId(journalEntries, companyId);
+        foreach (var je in journalEntries)
+            StampCompanyId(je.Lines, companyId);
         db.Set<JournalEntry>().AddRange(journalEntries);
         await db.SaveChangesAsync(ct);
 
         // Lien waivers tied to subcontracts
         var lienWaivers = CreateLienWaivers(allWorkableProjects, subcontracts, vendors);
+        StampCompanyId(lienWaivers, companyId);
         db.Set<LienWaiver>().AddRange(lienWaivers);
         await db.SaveChangesAsync(ct);
 
         // Purchase orders for purchasing manager
         var purchaseOrders = CreatePurchaseOrders(activeProjects, vendors);
+        StampCompanyId(purchaseOrders, companyId);
+        foreach (var po in purchaseOrders)
+            StampCompanyId(po.Lines, companyId);
         db.Set<PurchaseOrder>().AddRange(purchaseOrders);
         await db.SaveChangesAsync(ct);
 
-        // Notifications for various roles
+        // Notifications for various roles (not ICompanyScoped — no stamp needed)
         var notifications = new List<Notification>();
         if (seedUserId != Guid.Empty)
         {
@@ -242,44 +316,52 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             await db.SaveChangesAsync(ct);
         }
 
-        // ── V3 Seed Data Expansion ──────────────────────────────────────
+        // ── V3/V4 Seed Data Expansion ─────────────────────────────────────
 
-        // Equipment fleet
+        // Equipment fleet (not ICompanyScoped — shared across companies)
         var equipment = CreateEquipment();
         db.Set<Equipment>().AddRange(equipment);
         await db.SaveChangesAsync(ct);
 
         // Bank accounts (need GL account IDs for FK)
         var bankAccounts = CreateBankAccounts(chartOfAccounts);
+        StampCompanyId(bankAccounts, companyId);
         db.Set<BankAccount>().AddRange(bankAccounts);
         await db.SaveChangesAsync(ct);
 
         // Wage determinations with work classifications and rates
         var workClassifications = CreateWorkClassifications();
+        StampCompanyId(workClassifications, companyId);
         db.Set<WorkClassification>().AddRange(workClassifications);
         await db.SaveChangesAsync(ct);
 
         var wageDeterminations = CreateWageDeterminations(activeProjects, workClassifications);
+        StampCompanyId(wageDeterminations, companyId);
+        foreach (var wd in wageDeterminations)
+            StampCompanyId(wd.Rates, companyId);
         db.Set<WageDetermination>().AddRange(wageDeterminations);
         await db.SaveChangesAsync(ct);
 
-        // Compliance documents (pass subcontracts for correct entity linkage)
-        var firstCompanyId = await db.Set<Company>()
-            .Where(c => !c.IsDeleted)
-            .Select(c => c.Id)
-            .FirstOrDefaultAsync(ct);
-        var complianceDocs = CreateComplianceDocuments(employees, subcontracts, firstCompanyId);
+        // Compliance documents (not ICompanyScoped — pass companyId for EntityId linkage)
+        var complianceDocs = CreateComplianceDocuments(employees, subcontracts, companyId);
         db.Set<ComplianceDocument>().AddRange(complianceDocs);
         await db.SaveChangesAsync(ct);
 
         // Tax jurisdictions with rates
         var taxJurisdictions = CreateTaxJurisdictions();
+        StampCompanyId(taxJurisdictions, companyId);
+        foreach (var tj in taxJurisdictions)
+            StampCompanyId(tj.Rates, companyId);
         db.Set<TaxJurisdiction>().AddRange(taxJurisdictions);
         await db.SaveChangesAsync(ct);
 
         // Project meetings with agenda items, minutes, and action items
         var (meetings, meetingAgendaItems, meetingMinutes, meetingActionItems) =
             CreateMeetings(activeProjects, seedUserId);
+        StampCompanyId(meetings, companyId);
+        StampCompanyId(meetingAgendaItems, companyId);
+        StampCompanyId(meetingMinutes, companyId);
+        StampCompanyId(meetingActionItems, companyId);
         db.Set<PmMeeting>().AddRange(meetings);
         await db.SaveChangesAsync(ct);
         db.Set<PmMeetingAgendaItem>().AddRange(meetingAgendaItems);
@@ -292,6 +374,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         if (seedUserId != Guid.Empty)
         {
             tasks = CreateProjectTasks(activeProjects, seedUserId);
+            StampCompanyId(tasks, companyId);
             db.Set<PmTask>().AddRange(tasks);
             await db.SaveChangesAsync(ct);
         }
@@ -497,6 +580,20 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
     }
     #pragma warning restore EF1002
+
+    /// <summary>
+    /// Sets CompanyId on every ICompanyScoped entity in the list.
+    /// Safe to call on non-ICompanyScoped types — they are silently skipped.
+    /// </summary>
+    private static void StampCompanyId<T>(IEnumerable<T> entities, Guid companyId) where T : class
+    {
+        if (companyId == Guid.Empty) return;
+        foreach (var entity in entities)
+        {
+            if (entity is ICompanyScoped scoped && scoped.CompanyId == Guid.Empty)
+                scoped.CompanyId = companyId;
+        }
+    }
 
     /// <summary>
     /// Upserts the seed data version into TenantSettings for the current tenant.
