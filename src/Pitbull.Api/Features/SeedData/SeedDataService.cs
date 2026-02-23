@@ -31,9 +31,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 4;
+    private const int SeedDataVersion = 5;
 
-    public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default)
+    public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default, bool useExternalTransaction = false)
     {
         var allowNonDev = configuration.GetValue<bool>("SeedData:AllowInNonDevelopment")
                           || configuration.GetValue<bool>("Demo:Enabled");
@@ -63,15 +63,36 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             await ClearSeedDataAsync(demoProject.TenantId, cancellationToken);
         }
 
-        // NpgsqlRetryingExecutionStrategy requires transactions to start inside ExecuteAsync.
-        // Wrap entire seed operation for atomicity — if any step fails, everything rolls back.
+        // When called from DemoBootstrapper, it already has a transaction with RLS set_config.
+        // Starting a nested transaction would throw InvalidOperationException in EF Core.
+        if (useExternalTransaction)
+            return await SeedCoreAsync(cancellationToken);
+
+        // Standalone path (SeedDataController): wrap in our own transaction for atomicity.
         var strategy = db.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async (ct) =>
         {
-        await using var transaction = await db.Database.BeginTransactionAsync(ct);
-        try
-        {
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            try
+            {
+                var result = await SeedCoreAsync(ct);
+                await transaction.CommitAsync(ct);
+                return result;
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync(ct);
+                throw;
+            }
+        }, cancellationToken);
+    }
 
+    /// <summary>
+    /// Core seed logic extracted so it can run inside either its own transaction
+    /// (SeedDataController) or a caller-provided transaction (DemoBootstrapper).
+    /// </summary>
+    private async Task<Result<SeedDataResult>> SeedCoreAsync(CancellationToken ct)
+    {
         // Look up Company 01 (Summit Builders Group) so all ICompanyScoped seed
         // entities get the correct CompanyId.  Without this, the CompanyMiddleware
         // context isn't resolved during seeding and every entity stays Guid.Empty.
@@ -384,8 +405,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Stamp the seed data version so future startups can skip or refresh
         await StampSeedVersionAsync(ct);
 
-        await transaction.CommitAsync(ct);
-
         var totalPhases = projects.Sum(p => p.Phases.Count);
         var totalBidItems = bids.Sum(b => b.Items.Count);
         var totalChangeOrders = subcontracts.Sum(s => s.ChangeOrders.Count);
@@ -454,13 +473,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                      $"{taxJurisdictions.Count} tax jurisdictions, {meetings.Count} meetings, {tasks.Count} tasks"
         ));
 
-        }
-        catch (Exception)
-        {
-            await transaction.RollbackAsync(ct);
-            throw;
-        }
-        }, cancellationToken);
     }
 
     /// <summary>

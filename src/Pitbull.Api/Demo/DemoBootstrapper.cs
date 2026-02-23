@@ -64,7 +64,9 @@ public sealed class DemoBootstrapper(
                 $"SELECT set_config('app.current_company', {company.Id.ToString()}, true)");
 
             // Seed domain data (projects/bids/etc). This is idempotent per tenant.
-            var result = await seedDataService.SeedAsync(cancellationToken);
+            // useExternalTransaction: true — we already have a transaction with RLS set_config.
+            // SeedAsync must NOT start a nested transaction or it will throw.
+            var result = await seedDataService.SeedAsync(cancellationToken, useExternalTransaction: true);
 
             if (result.IsSuccess || result.ErrorCode == "ALREADY_EXISTS")
             {

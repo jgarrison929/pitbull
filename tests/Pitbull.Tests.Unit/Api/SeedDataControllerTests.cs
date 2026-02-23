@@ -46,7 +46,7 @@ public class SeedDataControllerTests
     {
         var controller = CreateController("Development");
         var seedResult = new SeedDataResult(5, 10, 50, 15, 20, 8, 12, 30, 3, 2, 1, Summary: "Seeded!");
-        _seedServiceMock.Setup(s => s.SeedAsync(It.IsAny<CancellationToken>()))
+        _seedServiceMock.Setup(s => s.SeedAsync(It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync(Result.Success(seedResult));
 
         var result = await controller.Seed();
@@ -81,7 +81,7 @@ public class SeedDataControllerTests
     public async Task Seed_AlreadyExists_Returns409()
     {
         var controller = CreateController("Development");
-        _seedServiceMock.Setup(s => s.SeedAsync(It.IsAny<CancellationToken>()))
+        _seedServiceMock.Setup(s => s.SeedAsync(It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync(Result.Failure<SeedDataResult>("Data already exists", "ALREADY_EXISTS"));
 
         var result = await controller.Seed();
@@ -94,7 +94,7 @@ public class SeedDataControllerTests
     public async Task Seed_OtherFailure_Returns400()
     {
         var controller = CreateController("Development");
-        _seedServiceMock.Setup(s => s.SeedAsync(It.IsAny<CancellationToken>()))
+        _seedServiceMock.Setup(s => s.SeedAsync(It.IsAny<CancellationToken>(), It.IsAny<bool>()))
             .ReturnsAsync(Result.Failure<SeedDataResult>("Something broke", "UNKNOWN_ERROR"));
 
         var result = await controller.Seed();
