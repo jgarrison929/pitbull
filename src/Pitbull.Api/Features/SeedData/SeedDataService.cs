@@ -210,6 +210,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         var payrollRuns = CreatePayrollRuns(payPeriods, employees);
         StampCompanyId(payrollRuns, companyId);
+        foreach (var pr in payrollRuns)
+            StampCompanyId(pr.Lines, companyId);
         db.Set<PayrollRun>().AddRange(payrollRuns);
         await db.SaveChangesAsync(ct);
 
