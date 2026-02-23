@@ -558,22 +558,22 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
 
-        // Map role to title. All demo users get Admin role (same as pre-seeded accounts)
-        // so they see all workspaces/permissions. DemoRestrictionMiddleware blocks
-        // dangerous endpoints (admin APIs, DELETEs) regardless of role.
-        var title = request.Role?.ToLowerInvariant() switch
+        // Map role to Identity role + title.
+        // Demo users get appropriate roles (NOT Admin). The frontend handles
+        // workspace visibility for demo users separately (shows all workspaces).
+        // DemoRestrictionMiddleware blocks dangerous endpoints regardless.
+        var (identityRole, title) = request.Role?.ToLowerInvariant() switch
         {
-            "ceo"            => "Chief Executive Officer",
-            "cfo"            => "Chief Financial Officer",
-            "pm"             => "Project Manager",
-            "field-engineer" => "Field Engineer",
-            "estimator"      => "Estimator",
-            "ap-clerk"       => "AP / AR Clerk",
-            "hr-manager"     => "HR Manager",
-            "it-admin"       => "IT Administrator",
-            _                => "Demo User"
+            "ceo"            => (RoleSeeder.Roles.Manager, "Chief Executive Officer"),
+            "cfo"            => (RoleSeeder.Roles.Manager, "Chief Financial Officer"),
+            "pm"             => (RoleSeeder.Roles.Supervisor, "Project Manager"),
+            "field-engineer" => (RoleSeeder.Roles.User, "Field Engineer"),
+            "estimator"      => (RoleSeeder.Roles.User, "Estimator"),
+            "ap-clerk"       => (RoleSeeder.Roles.User, "AP / AR Clerk"),
+            "hr-manager"     => (RoleSeeder.Roles.Manager, "HR Manager"),
+            "it-admin"       => (RoleSeeder.Roles.Manager, "IT Administrator"),
+            _                => (RoleSeeder.Roles.User, "Demo User")
         };
-        var identityRole = RoleSeeder.Roles.Admin;
 
         // Validate company code
         var validCodes = new[] { "02", "03", "04" };
