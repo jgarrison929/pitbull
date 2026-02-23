@@ -31,7 +31,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 5;
+    private const int SeedDataVersion = 6;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default, bool useExternalTransaction = false)
     {
@@ -401,6 +401,39 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
 
         // ── End V3 ──────────────────────────────────────────────────────
+
+        // ── Multi-company seed data (Companies 02, 03, 04) ───────────
+        var company02Id = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .Where(c => c.Code == "02" && !c.IsDeleted)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(ct);
+
+        var company03Id = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .Where(c => c.Code == "03" && !c.IsDeleted)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(ct);
+
+        var company04Id = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .Where(c => c.Code == "04" && !c.IsDeleted)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (company02Id != Guid.Empty)
+            await SeedCompanyAsync(company02Id, GetPwiProjects(), GetPwiVendors(),
+                GetPwiCustomers(), GetPwiEmployees(), seedUserId, ct);
+
+        if (company03Id != Guid.Empty)
+            await SeedCompanyAsync(company03Id, GetVhdProjects(), GetVhdVendors(),
+                GetVhdCustomers(), GetVhdEmployees(), seedUserId, ct);
+
+        if (company04Id != Guid.Empty)
+            await SeedCompanyAsync(company04Id, GetCveProjects(), GetCveVendors(),
+                GetCveCustomers(), GetCveEmployees(), seedUserId, ct);
+
+        // ── End multi-company ─────────────────────────────────────────
 
         // Stamp the seed data version so future startups can skip or refresh
         await StampSeedVersionAsync(ct);
@@ -4930,4 +4963,669 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             });
         }
     }
+
+    // ===========================================================================================
+    // Multi-company seed orchestration + factory methods
+    // ===========================================================================================
+
+    /// <summary>
+    /// Seeds a full set of construction data for a single company.
+    /// Mirrors the SeedCoreAsync orchestration but accepts parameterized definitions.
+    /// CostCodes and Equipment are NOT company-scoped — they are shared (seeded by Company 01).
+    /// </summary>
+    private async Task SeedCompanyAsync(
+        Guid companyId,
+        CompanyProjectDef[] projectDefs,
+        CompanyVendorDef[] vendorDefs,
+        CompanyCustomerDef[] customerDefs,
+        CompanyEmployeeDef[] employeeDefs,
+        Guid seedUserId,
+        CancellationToken ct)
+    {
+        // ── 1. Root entities ────────────────────────────────────────
+        var projects = CreateCompanyProjects(projectDefs);
+        var vendors = CreateCompanyVendors(vendorDefs);
+        var customers = CreateCompanyCustomers(customerDefs);
+        var employees = CreateCompanyEmployees(employeeDefs, companyId);
+        var bids = CreateCompanyBids(projects);
+
+        StampCompanyId(projects, companyId);
+        foreach (var p in projects)
+        {
+            StampCompanyId(p.Phases, companyId);
+            StampCompanyId(p.Projections, companyId);
+        }
+        StampCompanyId(bids, companyId);
+        foreach (var b in bids)
+            StampCompanyId(b.Items, companyId);
+        StampCompanyId(customers, companyId);
+        StampCompanyId(vendors, companyId);
+
+        db.Set<Project>().AddRange(projects);
+        db.Set<Bid>().AddRange(bids);
+        db.Set<Employee>().AddRange(employees);
+        db.Set<Customer>().AddRange(customers);
+        db.Set<Vendor>().AddRange(vendors);
+        await db.SaveChangesAsync(ct);
+
+        // ── 2. Project assignments ──────────────────────────────────
+        var activeProjects = projects.Where(p => p.Status == ProjectStatus.Active).ToList();
+        var allWorkableProjects = projects.Where(p =>
+            p.Status is ProjectStatus.Active or ProjectStatus.Completed).ToList();
+
+        // CostCodes are NOT company-scoped — query the shared set
+        var costCodes = await db.Set<CostCode>()
+            .IgnoreQueryFilters()
+            .Where(c => !c.IsDeleted)
+            .ToListAsync(ct);
+
+        var assignments = CreateProjectAssignments(employees, activeProjects);
+        StampCompanyId(assignments, companyId);
+        db.Set<ProjectAssignment>().AddRange(assignments);
+        await db.SaveChangesAsync(ct);
+
+        // ── 3. Time entries ─────────────────────────────────────────
+        var timeEntries = CreateTimeEntries(employees, activeProjects, costCodes, assignments);
+        StampCompanyId(timeEntries, companyId);
+        db.Set<TimeEntry>().AddRange(timeEntries);
+        await db.SaveChangesAsync(ct);
+
+        // ── 4. Subcontracts ─────────────────────────────────────────
+        var subcontracts = CreateCompanySubcontracts(projects, vendors);
+        StampCompanyId(subcontracts, companyId);
+        foreach (var sub in subcontracts)
+            StampCompanyId(sub.ChangeOrders, companyId);
+        db.Set<Subcontract>().AddRange(subcontracts);
+        await db.SaveChangesAsync(ct);
+
+        // ── 5. Payment applications + vendor invoices ───────────────
+        var paymentApplications = CreatePaymentApplications(subcontracts);
+        StampCompanyId(paymentApplications, companyId);
+        foreach (var pa in paymentApplications)
+            StampCompanyId(pa.LineItems, companyId);
+        db.Set<PaymentApplication>().AddRange(paymentApplications);
+
+        var vendorInvoices = CreateVendorInvoices(vendors, subcontracts);
+        StampCompanyId(vendorInvoices, companyId);
+        db.Set<VendorInvoice>().AddRange(vendorInvoices);
+        await db.SaveChangesAsync(ct);
+
+        // ── 6. Owner contracts → SOV → billing apps ─────────────────
+        var ownerContracts = CreateOwnerContracts(allWorkableProjects, customers);
+        StampCompanyId(ownerContracts, companyId);
+        db.Set<OwnerContract>().AddRange(ownerContracts);
+        await db.SaveChangesAsync(ct);
+
+        var ownerSovs = CreateOwnerScheduleOfValues(ownerContracts);
+        StampCompanyId(ownerSovs, companyId);
+        foreach (var sov in ownerSovs)
+            StampCompanyId(sov.LineItems, companyId);
+        db.Set<OwnerScheduleOfValues>().AddRange(ownerSovs);
+        await db.SaveChangesAsync(ct);
+
+        var billingApps = CreateBillingApplications(ownerContracts, ownerSovs);
+        StampCompanyId(billingApps, companyId);
+        foreach (var ba in billingApps)
+            StampCompanyId(ba.LineItems, companyId);
+        db.Set<BillingApplication>().AddRange(billingApps);
+        await db.SaveChangesAsync(ct);
+
+        // ── 7. WIP reports ──────────────────────────────────────────
+        var wipReports = CreateWipReports(allWorkableProjects);
+        StampCompanyId(wipReports, companyId);
+        foreach (var wr in wipReports)
+            StampCompanyId(wr.Lines, companyId);
+        db.Set<WipReport>().AddRange(wipReports);
+        await db.SaveChangesAsync(ct);
+
+        // ── 8. Retention holds ──────────────────────────────────────
+        var retentionHolds = CreateRetentionHolds(allWorkableProjects, subcontracts);
+        StampCompanyId(retentionHolds, companyId);
+        db.Set<RetentionHold>().AddRange(retentionHolds);
+        await db.SaveChangesAsync(ct);
+
+        // ── 9. Pay periods → payroll runs ───────────────────────────
+        var payPeriods = CreatePayPeriods();
+        StampCompanyId(payPeriods, companyId);
+        db.Set<PayPeriod>().AddRange(payPeriods);
+        await db.SaveChangesAsync(ct);
+
+        var payrollRuns = CreatePayrollRuns(payPeriods, employees);
+        StampCompanyId(payrollRuns, companyId);
+        foreach (var pr in payrollRuns)
+            StampCompanyId(pr.Lines, companyId);
+        db.Set<PayrollRun>().AddRange(payrollRuns);
+        await db.SaveChangesAsync(ct);
+
+        // ── 10. Submittals + punch list ─────────────────────────────
+        var submittals = CreateSubmittals(allWorkableProjects);
+        StampCompanyId(submittals, companyId);
+        db.Set<PmSubmittal>().AddRange(submittals);
+
+        if (seedUserId != Guid.Empty)
+        {
+            var punchListItems = CreatePunchListItems(
+                projects.Where(p => p.Status == ProjectStatus.Completed).ToList(),
+                seedUserId);
+            StampCompanyId(punchListItems, companyId);
+            db.Set<PmPunchListItem>().AddRange(punchListItems);
+        }
+        await db.SaveChangesAsync(ct);
+
+        // ── 11. Schedules → dependencies ────────────────────────────
+        var (schedules, scheduleActivities, scheduleDeps) = CreateSchedules(activeProjects);
+        StampCompanyId(schedules, companyId);
+        StampCompanyId(scheduleActivities, companyId);
+        StampCompanyId(scheduleDeps, companyId);
+        db.Set<PmSchedule>().AddRange(schedules);
+        db.Set<PmScheduleActivity>().AddRange(scheduleActivities);
+        await db.SaveChangesAsync(ct);
+        db.Set<PmScheduleDependency>().AddRange(scheduleDeps);
+        await db.SaveChangesAsync(ct);
+
+        // ── 12. RFIs ────────────────────────────────────────────────
+        var rfis = CreateRfis(activeProjects, seedUserId);
+        StampCompanyId(rfis, companyId);
+        db.Set<Rfi>().AddRange(rfis);
+        await db.SaveChangesAsync(ct);
+
+        // ── 13. Daily reports → crews/equipment ─────────────────────
+        var dailyReports = CreateDailyReports(activeProjects, seedUserId);
+        StampCompanyId(dailyReports, companyId);
+        db.Set<PmDailyReport>().AddRange(dailyReports);
+        await db.SaveChangesAsync(ct);
+
+        var dailyReportCrews = new List<PmDailyReportCrew>();
+        var dailyReportEquipment = new List<PmDailyReportEquipment>();
+        foreach (var dr in dailyReports)
+        {
+            dailyReportCrews.AddRange(CreateDailyReportCrews(dr));
+            dailyReportEquipment.AddRange(CreateDailyReportEquipment(dr));
+        }
+        StampCompanyId(dailyReportCrews, companyId);
+        StampCompanyId(dailyReportEquipment, companyId);
+        db.Set<PmDailyReportCrew>().AddRange(dailyReportCrews);
+        db.Set<PmDailyReportEquipment>().AddRange(dailyReportEquipment);
+        await db.SaveChangesAsync(ct);
+
+        // ── 14. Chart of accounts → periods → journal entries ───────
+        var chartOfAccounts = CreateChartOfAccounts();
+        StampCompanyId(chartOfAccounts, companyId);
+        db.Set<ChartOfAccount>().AddRange(chartOfAccounts);
+        await db.SaveChangesAsync(ct);
+
+        var accountingPeriods = CreateAccountingPeriods();
+        StampCompanyId(accountingPeriods, companyId);
+        db.Set<AccountingPeriod>().AddRange(accountingPeriods);
+        await db.SaveChangesAsync(ct);
+
+        var journalEntries = CreateJournalEntries(chartOfAccounts, activeProjects, seedUserId);
+        StampCompanyId(journalEntries, companyId);
+        foreach (var je in journalEntries)
+            StampCompanyId(je.Lines, companyId);
+        db.Set<JournalEntry>().AddRange(journalEntries);
+        await db.SaveChangesAsync(ct);
+
+        // ── 15. Lien waivers ────────────────────────────────────────
+        var lienWaivers = CreateLienWaivers(allWorkableProjects, subcontracts, vendors);
+        StampCompanyId(lienWaivers, companyId);
+        db.Set<LienWaiver>().AddRange(lienWaivers);
+        await db.SaveChangesAsync(ct);
+
+        // ── 16. Purchase orders ─────────────────────────────────────
+        var purchaseOrders = CreatePurchaseOrders(activeProjects, vendors);
+        StampCompanyId(purchaseOrders, companyId);
+        foreach (var po in purchaseOrders)
+            StampCompanyId(po.Lines, companyId);
+        db.Set<PurchaseOrder>().AddRange(purchaseOrders);
+        await db.SaveChangesAsync(ct);
+
+        // ── 17. Bank accounts ───────────────────────────────────────
+        var bankAccounts = CreateBankAccounts(chartOfAccounts);
+        StampCompanyId(bankAccounts, companyId);
+        db.Set<BankAccount>().AddRange(bankAccounts);
+        await db.SaveChangesAsync(ct);
+
+        // ── 18. Work classifications → wage determinations ──────────
+        var workClassifications = CreateWorkClassifications();
+        StampCompanyId(workClassifications, companyId);
+        db.Set<WorkClassification>().AddRange(workClassifications);
+        await db.SaveChangesAsync(ct);
+
+        var wageDeterminations = CreateWageDeterminations(activeProjects, workClassifications);
+        StampCompanyId(wageDeterminations, companyId);
+        foreach (var wd in wageDeterminations)
+            StampCompanyId(wd.Rates, companyId);
+        db.Set<WageDetermination>().AddRange(wageDeterminations);
+        await db.SaveChangesAsync(ct);
+    }
+
+    // ===========================================================================================
+    // Company-specific factory methods (parameterized from definition records)
+    // ===========================================================================================
+
+    private static List<Project> CreateCompanyProjects(CompanyProjectDef[] defs)
+    {
+        var now = DateTime.UtcNow;
+        var projects = new List<Project>();
+
+        foreach (var d in defs)
+        {
+            projects.Add(new Project
+            {
+                Name = d.Name,
+                Number = d.Number,
+                Description = d.Desc,
+                Status = d.Status,
+                Type = d.Type,
+                Address = d.Addr,
+                City = d.City,
+                State = d.St,
+                ZipCode = d.Zip,
+                ClientName = d.Client,
+                ClientContact = d.Contact,
+                ClientEmail = d.Email,
+                ClientPhone = d.Phone,
+                StartDate = now.AddMonths(d.StartMo),
+                EstimatedCompletionDate = now.AddMonths(d.EndMo),
+                ActualCompletionDate = d.Status == ProjectStatus.Completed
+                    ? now.AddMonths(d.EndMo) : null,
+                ContractAmount = d.Contract,
+                OriginalBudget = d.Budget,
+                Phases = GeneratePhases(d.Type, d.StartMo, d.EndMo, d.Budget,
+                    d.Status == ProjectStatus.Completed)
+            });
+        }
+
+        return projects;
+    }
+
+    private static List<Vendor> CreateCompanyVendors(CompanyVendorDef[] defs)
+    {
+        return defs.Select(d => new Vendor
+        {
+            Name = d.Name,
+            Code = d.Code,
+            ContactName = d.Contact,
+            ContactEmail = d.Email,
+            TradeClassification = d.Trade,
+            PaymentTerms = "Net 30",
+            W9OnFile = true,
+            IsActive = true
+        }).ToList();
+    }
+
+    private static List<Customer> CreateCompanyCustomers(CompanyCustomerDef[] defs)
+    {
+        return defs.Select(d => new Customer
+        {
+            Name = d.Name,
+            Code = d.Code,
+            ContactName = d.Contact,
+            ContactEmail = d.Email,
+            PaymentTerms = d.Terms,
+            IsActive = true
+        }).ToList();
+    }
+
+    private static List<Employee> CreateCompanyEmployees(CompanyEmployeeDef[] defs, Guid companyId)
+    {
+        var random = new Random(companyId.GetHashCode()); // Deterministic per company
+        return defs.Select(d => new Employee
+        {
+            EmployeeNumber = d.Number,
+            FirstName = d.FirstName,
+            LastName = d.LastName,
+            Email = d.Email,
+            Phone = d.Phone,
+            Title = d.Title,
+            Classification = d.Classification,
+            BaseHourlyRate = d.BaseRate,
+            HireDate = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-random.Next(1, 8))),
+            IsActive = true,
+            HomeCompanyId = companyId
+        }).ToList();
+    }
+
+    private static List<Bid> CreateCompanyBids(List<Project> projects)
+    {
+        var now = DateTime.UtcNow;
+        var bids = new List<Bid>();
+
+        foreach (var project in projects.Take(3))
+        {
+            var bid = new Bid
+            {
+                Name = project.Name,
+                Number = project.Number.Replace("-PRJ-", "-BID-"),
+                Status = project.Status is ProjectStatus.Active or ProjectStatus.Completed
+                    ? BidStatus.Won : BidStatus.Submitted,
+                EstimatedValue = project.ContractAmount,
+                BidDate = project.StartDate?.AddMonths(-2) ?? now.AddMonths(-1),
+                DueDate = project.StartDate?.AddMonths(-2).AddDays(7) ?? now.AddMonths(-1),
+                Owner = "Estimating Dept",
+                Description = project.Description,
+                Items =
+                [
+                    new BidItem { Description = "General conditions & supervision", Category = BidItemCategory.Labor, Quantity = 1, UnitCost = project.ContractAmount * 0.08m, TotalCost = project.ContractAmount * 0.08m },
+                    new BidItem { Description = "Site work & earthwork", Category = BidItemCategory.Subcontractor, Quantity = 1, UnitCost = project.ContractAmount * 0.15m, TotalCost = project.ContractAmount * 0.15m },
+                    new BidItem { Description = "Structural systems", Category = BidItemCategory.Material, Quantity = 1, UnitCost = project.ContractAmount * 0.28m, TotalCost = project.ContractAmount * 0.28m },
+                    new BidItem { Description = "MEP systems", Category = BidItemCategory.Subcontractor, Quantity = 1, UnitCost = project.ContractAmount * 0.27m, TotalCost = project.ContractAmount * 0.27m },
+                    new BidItem { Description = "Finishes & closeout", Category = BidItemCategory.Material, Quantity = 1, UnitCost = project.ContractAmount * 0.22m, TotalCost = project.ContractAmount * 0.22m },
+                ]
+            };
+            bids.Add(bid);
+        }
+
+        return bids;
+    }
+
+    private static List<Subcontract> CreateCompanySubcontracts(List<Project> projects, List<Vendor> vendors)
+    {
+        var now = DateTime.UtcNow;
+        var subcontracts = new List<Subcontract>();
+        var scNumber = 1;
+        var random = new Random(projects.Count * 31 + vendors.Count); // Deterministic
+
+        foreach (var project in projects.Where(p =>
+            p.Status is ProjectStatus.Active or ProjectStatus.Completed))
+        {
+            // Assign 2 vendors per project, cycling through the vendor pool
+            var vendorStartIdx = (scNumber - 1) % vendors.Count;
+            for (var v = 0; v < Math.Min(2, vendors.Count); v++)
+            {
+                var vendor = vendors[(vendorStartIdx + v) % vendors.Count];
+                var baseValue = Math.Round(project.ContractAmount * (0.12m + (decimal)random.NextDouble() * 0.08m), 2);
+                var isComplete = project.Status == ProjectStatus.Completed;
+                var billedPct = isComplete ? 1.0m
+                    : Math.Round(0.15m + (decimal)random.NextDouble() * 0.45m, 2);
+                var billed = Math.Round(baseValue * billedPct, 2);
+                var retPct = 10m;
+                var retHeld = Math.Round(billed * (retPct / 100m), 2);
+                var paid = Math.Round(billed - retHeld, 2);
+
+                var prefix = project.Number.Split('-')[0]; // PWI, VHD, CVE
+                var sub = new Subcontract
+                {
+                    ProjectId = project.Id,
+                    SubcontractNumber = $"SC-{prefix}-{scNumber:D3}",
+                    SubcontractorName = vendor.Name,
+                    SubcontractorContact = vendor.ContactName,
+                    SubcontractorEmail = vendor.ContactEmail,
+                    ScopeOfWork = $"{vendor.TradeClassification} scope for {project.Name}",
+                    TradeCode = vendor.TradeClassification,
+                    OriginalValue = baseValue,
+                    CurrentValue = baseValue,
+                    BilledToDate = billed,
+                    PaidToDate = paid,
+                    RetainagePercent = retPct,
+                    RetainageHeld = retHeld,
+                    ExecutionDate = project.StartDate ?? now.AddMonths(-3),
+                    StartDate = (project.StartDate ?? now.AddMonths(-3)).AddDays(14),
+                    CompletionDate = project.EstimatedCompletionDate ?? now.AddMonths(6),
+                    ActualCompletionDate = isComplete
+                        ? project.EstimatedCompletionDate : null,
+                    Status = isComplete ? SubcontractStatus.Complete : SubcontractStatus.InProgress,
+                    InsuranceExpirationDate = now.AddMonths(8),
+                    InsuranceCurrent = true,
+                    Notes = $"{vendor.TradeClassification} work — {(isComplete ? "complete" : "in progress")}"
+                };
+
+                // Add a change order on every other subcontract
+                if (scNumber % 2 == 0)
+                {
+                    var coAmount = Math.Round(baseValue * 0.06m, 2);
+                    sub.CurrentValue += coAmount;
+                    sub.ChangeOrders =
+                    [
+                        new ChangeOrder
+                        {
+                            ChangeOrderNumber = "CO-001",
+                            Title = $"Additional {vendor.TradeClassification} scope",
+                            Description = $"Additional scope for {vendor.TradeClassification} per field conditions on {project.Name}.",
+                            Reason = "Field condition",
+                            Amount = coAmount,
+                            Status = ChangeOrderStatus.Approved,
+                            SubmittedDate = now.AddMonths(-1),
+                            ApprovedDate = now.AddDays(-15),
+                            ApprovedBy = "Project Manager",
+                            DaysExtension = 0
+                        }
+                    ];
+                }
+
+                subcontracts.Add(sub);
+                scNumber++;
+            }
+        }
+
+        return subcontracts;
+    }
+
+    // ===========================================================================================
+    // Company data definitions (Companies 02, 03, 04)
+    // ===========================================================================================
+
+    // ── Company 02: Summit Water Infrastructure (PWI) ──────────────
+
+    private static CompanyProjectDef[] GetPwiProjects() =>
+    [
+        new("PWI-PRJ-001", "Regional Water Treatment Plant Expansion",
+            "Expand existing 12 MGD water treatment plant to 20 MGD. New clarifiers, filter gallery, chemical feed systems, and SCADA upgrades.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "8500 River Road", "West Sacramento", "CA", "95691",
+            "Sacramento Regional Water Authority", "Demo Contact P01", "contactp01@example.com", "(555) 000-6100",
+            -5, 14, 18_500_000m, 17_200_000m),
+
+        new("PWI-PRJ-002", "Stormwater Detention Basin - North Natomas",
+            "45-acre regional stormwater detention basin with outlet structure, riprap channels, and wetland mitigation.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "4200 Elkhorn Blvd", "Sacramento", "CA", "95835",
+            "City of Sacramento Utilities", "Demo Contact P02", "contactp02@example.com", "(555) 000-6201",
+            -3, 8, 8_200_000m, 7_600_000m),
+
+        new("PWI-PRJ-003", "48-Inch Trunk Sewer Replacement",
+            "2.8 miles of 48-inch RCP trunk sewer replacement via open-cut and microtunneling. Includes 12 manholes and bypass pumping.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Freeport Blvd at Sutterville", "Sacramento", "CA", "95822",
+            "Sacramento Area Sewer District", "Demo Contact P03", "contactp03@example.com", "(555) 000-6302",
+            -7, 6, 14_800_000m, 13_900_000m),
+
+        new("PWI-PRJ-004", "Recycled Water Distribution System Phase III",
+            "12 miles of purple pipe distribution, 3 pump stations, and 2 storage tanks for recycled water delivery to commercial irrigators.",
+            ProjectStatus.Completed, ProjectType.Infrastructure,
+            "Industrial Blvd at Gerber Rd", "Sacramento", "CA", "95823",
+            "Regional San", "Demo Contact", "contactp04@example.com", "(555) 000-6403",
+            -18, -3, 11_200_000m, 10_500_000m),
+
+        new("PWI-PRJ-005", "Groundwater Well Field - South County",
+            "6 new production wells (1,500 GPM each), raw water transmission main, and well house structures with VFD pumping.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Bond Road at Bradshaw", "Elk Grove", "CA", "95624",
+            "Sacramento County Water Agency", "Demo Contact", "contactp05@example.com", "(555) 000-6504",
+            -2, 10, 6_500_000m, 6_100_000m),
+    ];
+
+    private static CompanyVendorDef[] GetPwiVendors() =>
+    [
+        new("Summit Pipe & Supply Co.", "PWI-V-001", "Pipe Supply", "Demo Contact V01", "tbradley@valleypipe.com"),
+        new("Central Coast Excavation Inc.", "PWI-V-002", "Excavation", "Demo Contact", "mgonzalez@ccexcavation.com"),
+        new("Summit Dewatering Systems", "PWI-V-003", "Dewatering", "Demo Contact V03", "snorton@summitdewater.example"),
+        new("Summit Chemical Feed Equipment", "PWI-V-004", "Chemical Systems", "Demo Contact V04", "lchang@sierrachem.example"),
+        new("Summit Chemical Feed Equipment", "PWI-V-004", "Chemical Systems", "Demo Contact V04", "lchang@summitvendor.example"),
+    ];
+
+    private static CompanyCustomerDef[] GetPwiCustomers() =>
+    [
+        new("Sacramento Regional Water Authority", "PWI-C-001", "Demo Contact P01", "contactp01@example.com", "Net 30"),
+        new("City of Sacramento Utilities", "PWI-C-002", "Demo Contact P02", "contactp02@example.com", "Net 30"),
+        new("Sacramento Area Sewer District", "PWI-C-003", "Demo Contact P03", "contactp03@example.com", "Net 45"),
+    ];
+
+    private static CompanyEmployeeDef[] GetPwiEmployees() =>
+    [
+        new("PWI-001", "Daniel", "Herrera", "dherrera@demo.example", "(916) 555-6001", "Project Manager", EmployeeClassification.Salaried, 78.00m),
+        new("PWI-002", "Karen", "Yoshida", "kyoshida@demo.example", "(916) 555-6002", "Project Engineer", EmployeeClassification.Salaried, 56.00m),
+        new("PWI-003", "Miguel", "Reyes", "mreyes@demo.example", "(916) 555-6003", "Site Superintendent", EmployeeClassification.Supervisor, 58.00m),
+        new("PWI-004", "Sandra", "Novak", "snovak@demo.example", "(916) 555-6004", "Pipeline Foreman", EmployeeClassification.Supervisor, 52.00m),
+        new("PWI-005", "Carlos", "Mendoza", "cmendoza@demo.example", "(916) 555-6005", "Equipment Operator", EmployeeClassification.Hourly, 42.00m),
+        new("PWI-006", "Lisa", "Tran", "ltran2@demo.example", "(916) 555-6006", "Journeyman Pipefitter", EmployeeClassification.Hourly, 46.00m),
+        new("PWI-007", "Robert", "Okafor", "rokafor@demo.example", "(916) 555-6007", "Heavy Equipment Operator", EmployeeClassification.Hourly, 44.00m),
+        new("PWI-001", "Demo", "Employee100", "demo.employee.101@demo.example", "(555) 000-6001", "Project Manager", EmployeeClassification.Salaried, 78.00m),
+    ];
+
+    // ── Company 03: Summit Highway Division (VHD) ───────────────────
+
+    private static CompanyProjectDef[] GetVhdProjects() =>
+    [
+        new("VHD-PRJ-001", "SR-99 Bridge Widening - Elk Grove",
+            "Widen existing 4-lane bridge to 6 lanes over Cosumnes River. New prestressed girders, widened abutments, and approach slabs.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "SR-99 at Cosumnes River", "Elk Grove", "CA", "95624",
+            "California Department of Transportation", "Demo Contact 23", "contact23@example.com", "(555) 000-7100",
+            -6, 12, 22_000_000m, 20_500_000m),
+
+        new("VHD-PRJ-002", "I-5 / Pocket Road Interchange Improvement",
+            "Interchange reconstruction: new diamond interchange, ramp widening, signal upgrades, sound walls, and utility relocations.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "I-5 at Pocket Road", "Sacramento", "CA", "95831",
+            "California Department of Transportation", "Demo Contact 23", "contact23@example.com", "(555) 000-7201",
+            -4, 16, 28_500_000m, 26_800_000m),
+
+        new("VHD-PRJ-003", "Watt Avenue Resurfacing & Complete Streets",
+            "4.2 miles of full-depth reclamation, new AC overlay, Class IV bike lanes, ADA curb ramps, and signal upgrades.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Watt Ave - Arden to Elkhorn", "Sacramento", "CA", "95821",
+            "Sacramento County DOT", "Demo Contact", "pliu@summitvendor.example", "(555) 000-7302",
+            -2, 7, 9_800_000m, 9_200_000m),
+
+        new("VHD-PRJ-004", "Highway 50 Sound Wall Project - Rancho Cordova",
+            "3.6 miles of precast concrete sound walls (16-ft height), retaining walls, and landscaping along Highway 50.",
+            ProjectStatus.Completed, ProjectType.Infrastructure,
+            "US-50 at Sunrise Blvd", "Rancho Cordova", "CA", "95742",
+            "California Department of Transportation", "Susan Chen", "susan.chen@dot.ca.gov", "(916) 555-7403",
+            -16, -2, 12_400_000m, 11_800_000m),
+
+        new("VHD-PRJ-005", "Hazel Avenue Grade Separation",
+            "Railroad grade separation at Hazel Ave/UPRR crossing. New bridge structure, road realignment, utility relocation, and traffic management.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Hazel Ave at UPRR", "Rancho Cordova", "CA", "95670",
+            "City of Rancho Cordova", "Demo Contact P17", "mthompson@cityofrc.example", "(555) 000-7504",
+            -8, 10, 35_000_000m, 33_000_000m),
+    ];
+
+    private static CompanyVendorDef[] GetVhdVendors() =>
+    [
+        new("Granite Asphalt & Paving Inc.", "VHD-V-001", "Asphalt/Paving", "Demo Contact V01", "rdonovan@graniteasphalt.example"),
+        new("Summit Steel Fabricators LLC", "VHD-V-002", "Steel Fabrication", "Demo Contact V02", "jkim@highwaysteel.example"),
+        new("Summit Guardrail & Barrier", "VHD-V-003", "Guardrail/Barrier", "Demo Contact V03", "trusso@pacguardrail.example"),
+        new("Valley Traffic Control Services", "VHD-V-004", "Traffic Control", "Demo Contact", "rgutierrez@valleytcs.com"),
+        new("NorCal Earthmovers Inc.", "VHD-V-005", "Earthwork/Grading", "Demo Contact", "dwright@summitvendor.example"),
+    ];
+
+    private static CompanyCustomerDef[] GetVhdCustomers() =>
+    [
+        new("California Department of Transportation", "VHD-C-001", "Demo Contact 23", "contact23@example.com", "Net 30"),
+        new("Sacramento County DOT", "VHD-C-002", "Demo Contact", "pliu@summitvendor.example", "Net 30"),
+        new("City of Rancho Cordova", "VHD-C-003", "Demo Contact P17", "mthompson@cityofrc.example", "Net 30"),
+    ];
+
+    private static CompanyEmployeeDef[] GetVhdEmployees() =>
+    [
+        new("VHD-001", "Patrick", "Sullivan", "psullivan@demo.example", "(916) 555-7001", "Project Manager", EmployeeClassification.Salaried, 82.00m),
+        new("VHD-002", "Angela", "Tran", "atran@demo.example", "(916) 555-7002", "Project Engineer", EmployeeClassification.Salaried, 58.00m),
+        new("VHD-003", "Victor", "Petrov", "vpetrov@demo.example", "(916) 555-7003", "General Superintendent", EmployeeClassification.Supervisor, 65.00m),
+        new("VHD-004", "Maria", "Castillo", "mcastillo2@demo.example", "(916) 555-7004", "Paving Foreman", EmployeeClassification.Supervisor, 54.00m),
+        new("VHD-005", "James", "Nakamura", "jnakamura@demo.example", "(916) 555-7005", "Heavy Equipment Operator", EmployeeClassification.Hourly, 46.00m),
+        new("VHD-006", "Steve", "Morales", "smorales2@demo.example", "(916) 555-7006", "Ironworker", EmployeeClassification.Hourly, 48.00m),
+        new("VHD-007", "Diane", "Chen", "dchen2@demo.example", "(916) 555-7007", "Traffic Control Specialist", EmployeeClassification.Hourly, 38.00m),
+        new("VHD-001", "Demo", "Employee108", "demo.employee.109@demo.example", "(555) 000-7001", "Project Manager", EmployeeClassification.Salaried, 82.00m),
+    ];
+
+    // ── Company 04: Summit Electric Co. (CVE) ───────────────────
+
+    private static CompanyProjectDef[] GetCveProjects() =>
+    [
+        new("CVE-PRJ-001", "Solar Farm Installation Phase II - Rancho Seco",
+            "85 MW ground-mount solar array: 180,000 panels, inverter stations, BESS integration, and gen-tie line to PG&E substation.",
+            ProjectStatus.Active, ProjectType.Industrial,
+            "14440 Twin Cities Road", "Herald", "CA", "95638",
+            "Summit Solar Development LLC", "Demo Contact C01", "arivera@sunpower.example", "(555) 000-8100",
+            -4, 10, 32_000_000m, 30_000_000m),
+
+        new("CVE-PRJ-002", "Hospital Emergency Power Upgrade - Mercy General",
+            "Replace 2MW emergency generator system, new ATS gear, paralleling switchgear, and critical branch rewire for OSHPD compliance.",
+            ProjectStatus.Active, ProjectType.Renovation,
+            "4001 J Street", "Sacramento", "CA", "95819",
+            "Summit Health Sacramento", "Demo Contact C02", "kngo@dignityhealth.example", "(555) 000-8201",
+            -3, 8, 6_800_000m, 6_300_000m),
+
+        new("CVE-PRJ-003", "PG&E Substation Upgrade - Folsom",
+            "230kV/69kV substation modernization: new transformers, breakers, relay protection, SCADA, and control building.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "2000 Lake Natoma Blvd", "Folsom", "CA", "95630",
+            "Pacific Gas & Electric", "Demo Contact C03", "dpark@pge.example", "(555) 000-8302",
+            -6, 8, 15_500_000m, 14_500_000m),
+
+        new("CVE-PRJ-004", "Data Center Power Distribution - Rancho Cordova",
+            "20MW critical power infrastructure: medium-voltage switchgear, PDUs, UPS systems, and redundant bus duct for Tier III facility.",
+            ProjectStatus.Completed, ProjectType.Industrial,
+            "11200 White Rock Road", "Rancho Cordova", "CA", "95742",
+            "Summit Data Centers", "Demo Contact C04", "madams@cyrusone.example", "(555) 000-8403",
+            -14, -1, 18_000_000m, 16_800_000m),
+
+        new("CVE-PRJ-005", "EV Charging Hub - Sacramento Railyards",
+            "48-stall DC fast-charging hub with 2MW utility service, battery storage, and canopy-mounted solar. 350kW chargers.",
+            ProjectStatus.Active, ProjectType.Commercial,
+            "300 Railyards Blvd", "Sacramento", "CA", "95811",
+            "Summit EV Charging", "Demo Contact", "skim@summitvendor.example", "(555) 000-8504",
+            -1, 6, 4_200_000m, 3_900_000m),
+    ];
+
+    private static CompanyVendorDef[] GetCveVendors() =>
+    [
+        new("Summit Electrical Wholesale", "CVE-V-001", "Electrical Supply", "Demo Contact V01", "psantos@centralelec.example"),
+        new("Valley Transformer Co.", "CVE-V-002", "Transformers", "Demo Contact V02", "npark@valleytransformer.example"),
+        new("Summit Transformer Co.", "CVE-V-002", "Transformers", "Demo Contact V02", "npark@summittransformer.example"),
+        new("Summit Solar Solutions Inc.", "CVE-V-004", "Solar Installation", "Demo Contact V03", "rgupta@solararraysolutions.example"),
+        new("NorCal Switchgear & Controls", "CVE-V-005", "Switchgear", "Demo Contact", "treeves@summitvendor.example"),
+    ];
+
+    private static CompanyCustomerDef[] GetCveCustomers() =>
+    [
+        new("Summit Solar Development LLC", "CVE-C-001", "Demo Contact C01", "arivera@sunpower.example", "Net 30"),
+        new("Summit Health Sacramento", "CVE-C-002", "Demo Contact C02", "kngo@dignityhealth.example", "Net 30"),
+        new("Pacific Gas & Electric", "CVE-C-003", "Demo Contact C03", "dpark@pge.example", "Net 45"),
+    ];
+
+    private static CompanyEmployeeDef[] GetCveEmployees() =>
+    [
+        new("CVE-001", "Brian", "Whitfield", "bwhitfield2@demo.example", "(916) 555-8001", "Project Manager", EmployeeClassification.Salaried, 80.00m),
+        new("CVE-002", "Jennifer", "Liu", "jliu@demo.example", "(916) 555-8002", "Project Engineer", EmployeeClassification.Salaried, 55.00m),
+        new("CVE-003", "Marcus", "Watts", "mwatts@demo.example", "(916) 555-8003", "Electrical Superintendent", EmployeeClassification.Supervisor, 62.00m),
+        new("CVE-004", "Rosa", "Delgado", "rdelgado@demo.example", "(916) 555-8004", "Electrical Foreman", EmployeeClassification.Supervisor, 54.00m),
+        new("CVE-005", "Tony", "Nguyen", "tnguyen@demo.example", "(916) 555-8005", "Journeyman Electrician", EmployeeClassification.Hourly, 48.00m),
+        new("CVE-006", "Andrea", "Sims", "asims2@demo.example", "(916) 555-8006", "Journeyman Electrician", EmployeeClassification.Hourly, 46.00m),
+        new("CVE-007", "Kevin", "Yamamoto", "ksoto2@demo.example", "(916) 555-8007", "Low-Voltage Technician", EmployeeClassification.Hourly, 40.00m),
+        new("CVE-001", "Demo", "Employee116", "demo.employee.117@demo.example", "(555) 000-8001", "Project Manager", EmployeeClassification.Salaried, 80.00m),
+    ];
+
+    // ── Definition record types ─────────────────────────────────────
+
+    private record CompanyProjectDef(
+        string Number, string Name, string Desc,
+        ProjectStatus Status, ProjectType Type,
+        string Addr, string City, string St, string Zip,
+        string Client, string Contact, string Email, string Phone,
+        int StartMo, int EndMo, decimal Contract, decimal Budget);
+
+    private record CompanyVendorDef(
+        string Name, string Code, string Trade, string Contact, string Email);
+
+    private record CompanyCustomerDef(
+        string Name, string Code, string Contact, string Email, string Terms);
+
+    private record CompanyEmployeeDef(
+        string Number, string FirstName, string LastName, string Email, string Phone,
+        string Title, EmployeeClassification Classification, decimal BaseRate);
 }
