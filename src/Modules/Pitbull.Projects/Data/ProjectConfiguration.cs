@@ -32,7 +32,7 @@ public class ProjectConfiguration : IEntityTypeConfiguration<Project>
         builder.Property(p => p.Longitude).HasPrecision(10, 7);
         builder.Property(p => p.GeofenceRadiusMeters).HasPrecision(10, 2);
 
-        builder.HasIndex(p => new { p.TenantId, p.Number }).IsUnique();
+        builder.HasIndex(p => new { p.TenantId, p.CompanyId, p.Number }).IsUnique();
         builder.HasIndex(p => p.Status);
 
         builder.HasMany(p => p.Phases)

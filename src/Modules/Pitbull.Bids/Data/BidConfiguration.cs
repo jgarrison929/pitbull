@@ -18,7 +18,7 @@ public class BidConfiguration : IEntityTypeConfiguration<Bid>
         builder.Property(b => b.EstimatedValue).HasPrecision(18, 2);
         builder.Property(b => b.Status).HasConversion<string>().HasMaxLength(50);
 
-        builder.HasIndex(b => new { b.TenantId, b.Number }).IsUnique();
+        builder.HasIndex(b => new { b.TenantId, b.CompanyId, b.Number }).IsUnique();
         builder.HasIndex(b => b.Status);
 
         builder.HasMany(b => b.Items)
