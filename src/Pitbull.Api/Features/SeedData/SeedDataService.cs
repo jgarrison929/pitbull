@@ -263,8 +263,12 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<WageDetermination>().AddRange(wageDeterminations);
         await db.SaveChangesAsync(ct);
 
-        // Compliance documents
-        var complianceDocs = CreateComplianceDocuments(employees, vendors);
+        // Compliance documents (pass subcontracts for correct entity linkage)
+        var firstCompanyId = await db.Set<Company>()
+            .Where(c => !c.IsDeleted)
+            .Select(c => c.Id)
+            .FirstOrDefaultAsync(ct);
+        var complianceDocs = CreateComplianceDocuments(employees, subcontracts, firstCompanyId);
         db.Set<ComplianceDocument>().AddRange(complianceDocs);
         await db.SaveChangesAsync(ct);
 
@@ -283,10 +287,14 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<PmMeetingActionItem>().AddRange(meetingActionItems);
         await db.SaveChangesAsync(ct);
 
-        // Project tasks
-        var tasks = CreateProjectTasks(activeProjects, seedUserId);
-        db.Set<PmTask>().AddRange(tasks);
-        await db.SaveChangesAsync(ct);
+        // Project tasks (guarded — FK requires valid AppUser)
+        var tasks = new List<PmTask>();
+        if (seedUserId != Guid.Empty)
+        {
+            tasks = CreateProjectTasks(activeProjects, seedUserId);
+            db.Set<PmTask>().AddRange(tasks);
+            await db.SaveChangesAsync(ct);
+        }
 
         // ── End V3 ──────────────────────────────────────────────────────
 
@@ -4379,21 +4387,28 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     }
 
     private static List<ComplianceDocument> CreateComplianceDocuments(
-        List<Employee> employees, List<Vendor> vendors)
+        List<Employee> employees, List<Subcontract> subcontracts, Guid companyId)
     {
         var docs = new List<ComplianceDocument>();
         var now = DateTime.UtcNow;
 
-        // Company-level documents
+        // Company-level documents (linked to actual company record)
         (string docType, string docNum, DateTime issued, DateTime expires, string notes)[] companyDocs =
         [
-            ("ContractorsLicense", "CA-1087452-A", now.AddYears(-2), now.AddYears(2), "Class A — General Engineering Contractor, State of California"),
-            ("GeneralLiability", "GL-2025-PWI-4481", now.AddMonths(-6), now.AddMonths(6), "General liability — $2M per occurrence / $4M aggregate, Zurich Insurance"),
-            ("WorkersComp", "WC-2025-PWI-7712", now.AddMonths(-6), now.AddMonths(6), "Workers compensation — statutory limits, Travelers Insurance"),
-            ("AutoInsurance", "CA-2025-PWI-3390", now.AddMonths(-8), now.AddMonths(4), "Commercial auto — $1M CSL, 22 scheduled vehicles"),
-            ("BusinessLicense", "BL-FRESNO-2025-8841", now.AddMonths(-10), now.AddMonths(2), "City of Fresno business license — General Contractor"),
-            ("W9", "W9-PWI-2025", now.AddMonths(-11), now.AddYears(2), "W-9 on file — EIN 94-3281005"),
-            ("COI", "COI-PWI-2025-ALL", now.AddMonths(-6), now.AddMonths(6), "Umbrella COI — $5M excess liability"),
+            ("ContractorsLicense", "CA-1087452-A", now.AddYears(-2), now.AddYears(2),
+                "Class A - General Engineering Contractor, State of California"),
+            ("GeneralLiability", "GL-2025-PWI-4481", now.AddMonths(-6), now.AddMonths(6),
+                "General liability - $2M per occurrence / $4M aggregate, Zurich Insurance"),
+            ("WorkersComp", "WC-2025-PWI-7712", now.AddMonths(-6), now.AddMonths(6),
+                "Workers compensation - statutory limits, Travelers Insurance"),
+            ("AutoInsurance", "CA-2025-PWI-3390", now.AddMonths(-8), now.AddMonths(4),
+                "Commercial auto - $1M CSL, 22 scheduled vehicles"),
+            ("BusinessLicense", "BL-FRESNO-2025-8841", now.AddMonths(-10), now.AddMonths(2),
+                "City of Fresno business license - General Contractor"),
+            ("W9", "W9-PWI-2025", now.AddMonths(-11), now.AddYears(2),
+                "W-9 on file - EIN 94-3281005"),
+            ("COI", "COI-PWI-2025-ALL", now.AddMonths(-6), now.AddMonths(6),
+                "Umbrella COI - $5M excess liability"),
         ];
 
         foreach (var (docType, docNum, issued, expires, notes) in companyDocs)
@@ -4401,7 +4416,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             docs.Add(new ComplianceDocument
             {
                 EntityType = "Company",
-                EntityId = Guid.Empty,
+                EntityId = companyId != Guid.Empty ? companyId : Guid.NewGuid(),
                 DocumentType = docType,
                 DocumentNumber = docNum,
                 IssuedDate = issued,
@@ -4452,11 +4467,10 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             }
         }
 
-        // Subcontractor compliance (first 5 vendors)
-        var subVendors = vendors.Take(5).ToList();
+        // Subcontractor compliance (first 5 subcontracts — correct entity linkage)
         string[] subDocs = ["GeneralLiability", "WorkersComp", "AutoInsurance", "W9", "COI"];
 
-        foreach (var vendor in subVendors)
+        foreach (var sub in subcontracts.Take(5))
         {
             var seq = 1;
             foreach (var docType in subDocs)
@@ -4466,13 +4480,13 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 docs.Add(new ComplianceDocument
                 {
                     EntityType = "Subcontractor",
-                    EntityId = vendor.Id,
+                    EntityId = sub.Id,
                     DocumentType = docType,
-                    DocumentNumber = $"{docType}-{vendor.Code}-{seq:D2}",
+                    DocumentNumber = $"{docType}-SUB-{sub.SubcontractNumber}-{seq:D2}",
                     IssuedDate = issued,
                     ExpirationDate = expires,
                     Status = expires > now ? "Active" : "ExpiringSoon",
-                    Notes = $"{docType} certificate for {vendor.Name}",
+                    Notes = $"{docType} certificate for {sub.ScopeOfWork}",
                 });
                 seq++;
             }
