@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const publicPaths = ["/login", "/register", "/signup", "/invite", "/forgot-password", "/reset-password", "/verify-email"];
+const publicPaths = ["/login", "/register", "/signup", "/invite", "/forgot-password", "/reset-password", "/verify-email", "/demo"];
 const ROLE_CLAIM = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role";
 
 /**
