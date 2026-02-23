@@ -37,5 +37,12 @@ public record SeedDataResult(
     int LienWaiversCreated = 0,
     int PurchaseOrdersCreated = 0,
     int NotificationsCreated = 0,
+    int EquipmentCreated = 0,
+    int BankAccountsCreated = 0,
+    int WageDeterminationsCreated = 0,
+    int ComplianceDocumentsCreated = 0,
+    int TaxJurisdictionsCreated = 0,
+    int MeetingsCreated = 0,
+    int TasksCreated = 0,
     string Summary = ""
 );

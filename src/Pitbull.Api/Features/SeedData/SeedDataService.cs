@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Pitbull.Billing.Domain;
 using Pitbull.Bids.Domain;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Entities;
 using Pitbull.Notifications.Domain;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
@@ -28,7 +30,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 2;
+    private const int SeedDataVersion = 3;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default)
     {
@@ -239,6 +241,54 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             await db.SaveChangesAsync(ct);
         }
 
+        // ── V3 Seed Data Expansion ──────────────────────────────────────
+
+        // Equipment fleet
+        var equipment = CreateEquipment();
+        db.Set<Equipment>().AddRange(equipment);
+        await db.SaveChangesAsync(ct);
+
+        // Bank accounts (need GL account IDs for FK)
+        var bankAccounts = CreateBankAccounts(chartOfAccounts);
+        db.Set<BankAccount>().AddRange(bankAccounts);
+        await db.SaveChangesAsync(ct);
+
+        // Wage determinations with work classifications and rates
+        var workClassifications = CreateWorkClassifications();
+        db.Set<WorkClassification>().AddRange(workClassifications);
+        await db.SaveChangesAsync(ct);
+
+        var wageDeterminations = CreateWageDeterminations(activeProjects, workClassifications);
+        db.Set<WageDetermination>().AddRange(wageDeterminations);
+        await db.SaveChangesAsync(ct);
+
+        // Compliance documents
+        var complianceDocs = CreateComplianceDocuments(employees, vendors);
+        db.Set<ComplianceDocument>().AddRange(complianceDocs);
+        await db.SaveChangesAsync(ct);
+
+        // Tax jurisdictions with rates
+        var taxJurisdictions = CreateTaxJurisdictions();
+        db.Set<TaxJurisdiction>().AddRange(taxJurisdictions);
+        await db.SaveChangesAsync(ct);
+
+        // Project meetings with agenda items, minutes, and action items
+        var (meetings, meetingAgendaItems, meetingMinutes, meetingActionItems) =
+            CreateMeetings(activeProjects, seedUserId);
+        db.Set<PmMeeting>().AddRange(meetings);
+        await db.SaveChangesAsync(ct);
+        db.Set<PmMeetingAgendaItem>().AddRange(meetingAgendaItems);
+        db.Set<PmMeetingMinute>().AddRange(meetingMinutes);
+        db.Set<PmMeetingActionItem>().AddRange(meetingActionItems);
+        await db.SaveChangesAsync(ct);
+
+        // Project tasks
+        var tasks = CreateProjectTasks(activeProjects, seedUserId);
+        db.Set<PmTask>().AddRange(tasks);
+        await db.SaveChangesAsync(ct);
+
+        // ── End V3 ──────────────────────────────────────────────────────
+
         // Stamp the seed data version so future startups can skip or refresh
         await StampSeedVersionAsync(ct);
 
@@ -284,6 +334,13 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             LienWaiversCreated: lienWaivers.Count,
             PurchaseOrdersCreated: purchaseOrders.Count,
             NotificationsCreated: notifications.Count,
+            EquipmentCreated: equipment.Count,
+            BankAccountsCreated: bankAccounts.Count,
+            WageDeterminationsCreated: wageDeterminations.Count,
+            ComplianceDocumentsCreated: complianceDocs.Count,
+            TaxJurisdictionsCreated: taxJurisdictions.Count,
+            MeetingsCreated: meetings.Count,
+            TasksCreated: tasks.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
                      $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes, " +
                      $"{employees.Count} employees, {customers.Count} customers, {vendors.Count} vendors, " +
@@ -299,7 +356,10 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                      $"{chartOfAccounts.Count} GL accounts, {accountingPeriods.Count} accounting periods, " +
                      $"{journalEntries.Count} journal entries ({totalJeLines} lines), " +
                      $"{lienWaivers.Count} lien waivers, {purchaseOrders.Count} purchase orders, " +
-                     $"{notifications.Count} notifications"
+                     $"{notifications.Count} notifications, " +
+                     $"{equipment.Count} equipment, {bankAccounts.Count} bank accounts, " +
+                     $"{wageDeterminations.Count} wage determinations, {complianceDocs.Count} compliance docs, " +
+                     $"{taxJurisdictions.Count} tax jurisdictions, {meetings.Count} meetings, {tasks.Count} tasks"
         ));
 
         }
@@ -318,6 +378,22 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// </summary>
     private async Task ClearSeedDataAsync(Guid tenantId, CancellationToken ct)
     {
+        // V3 entities
+        await BulkDeleteAsync<PmTaskComment>(tenantId, ct);
+        await BulkDeleteAsync<PmTask>(tenantId, ct);
+        await BulkDeleteAsync<PmMeetingActionItem>(tenantId, ct);
+        await BulkDeleteAsync<PmMeetingMinute>(tenantId, ct);
+        await BulkDeleteAsync<PmMeetingAgendaItem>(tenantId, ct);
+        await BulkDeleteAsync<PmMeeting>(tenantId, ct);
+        await BulkDeleteAsync<TaxRate>(tenantId, ct);
+        await BulkDeleteAsync<TaxJurisdiction>(tenantId, ct);
+        await BulkDeleteAsync<ComplianceDocument>(tenantId, ct);
+        await BulkDeleteAsync<WageDeterminationRate>(tenantId, ct);
+        await BulkDeleteAsync<WageDetermination>(tenantId, ct);
+        await BulkDeleteAsync<WorkClassification>(tenantId, ct);
+        await BulkDeleteAsync<BankAccount>(tenantId, ct);
+        await BulkDeleteAsync<Equipment>(tenantId, ct);
+
         // Leaf entities (no children reference them)
         await BulkDeleteAsync<Notification>(tenantId, ct);
         await BulkDeleteAsync<PmScheduleDependency>(tenantId, ct);
@@ -3736,6 +3812,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // Assets (1xxx)
             new() { AccountNumber = "1000", AccountName = "Cash — Operating", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
             new() { AccountNumber = "1010", AccountName = "Cash — Payroll", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1020", AccountName = "Cash — Equipment Reserve", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1030", AccountName = "Cash — Trust / Retention", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
             new() { AccountNumber = "1100", AccountName = "Accounts Receivable", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true, IsSubledgerControl = true },
             new() { AccountNumber = "1150", AccountName = "Retention Receivable", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
             new() { AccountNumber = "1200", AccountName = "Costs in Excess of Billings (Underbilled)", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
@@ -4140,5 +4218,540 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         });
 
         return notifications;
+    }
+
+    // ── V3 Seed Methods ─────────────────────────────────────────────────
+
+    private static List<Equipment> CreateEquipment()
+    {
+        return
+        [
+            // Heavy Equipment
+            new() { Code = "EX-001", Name = "CAT 320 Excavator", Description = "30-ton hydraulic excavator with GPS grade control", Type = EquipmentType.HeavyEquipment, HourlyRate = 185.00m, BillingRate = 275.00m, IsActive = true, SerialNumber = "CAT320GC-48291" },
+            new() { Code = "EX-002", Name = "Bobcat E35 Mini Excavator", Description = "3.5-ton compact excavator for tight-access work", Type = EquipmentType.HeavyEquipment, HourlyRate = 65.00m, BillingRate = 95.00m, IsActive = true, SerialNumber = "BOB-E35-77104" },
+            new() { Code = "DZ-001", Name = "CAT D6 Dozer", Description = "Crawler dozer with 6-way blade and ripper", Type = EquipmentType.HeavyEquipment, HourlyRate = 195.00m, BillingRate = 295.00m, IsActive = true, SerialNumber = "CATD6T-92037" },
+            new() { Code = "LD-001", Name = "John Deere 644K Loader", Description = "Wheel loader with 4.2 cu yd bucket", Type = EquipmentType.HeavyEquipment, HourlyRate = 155.00m, BillingRate = 235.00m, IsActive = true, SerialNumber = "JD644K-60182" },
+            new() { Code = "CR-001", Name = "Liebherr LTM 1100 Crane", Description = "100-ton all-terrain mobile crane", Type = EquipmentType.HeavyEquipment, HourlyRate = 350.00m, BillingRate = 525.00m, IsActive = true, SerialNumber = "LTM1100-5.2-4419" },
+            new() { Code = "CP-001", Name = "CAT CS56B Compactor", Description = "Vibratory soil compactor, 12-ton", Type = EquipmentType.HeavyEquipment, HourlyRate = 95.00m, BillingRate = 145.00m, IsActive = true, SerialNumber = "CATCS56B-33108" },
+
+            // Light Equipment
+            new() { Code = "CP-002", Name = "Schwing S42SX Concrete Pump", Description = "42-meter truck-mounted concrete boom pump", Type = EquipmentType.LightEquipment, HourlyRate = 225.00m, BillingRate = 340.00m, IsActive = true, SerialNumber = "SWG-S42-18820" },
+            new() { Code = "GN-001", Name = "CAT XQ200 Generator", Description = "200 kW diesel generator for jobsite power", Type = EquipmentType.LightEquipment, HourlyRate = 55.00m, BillingRate = 85.00m, IsActive = true, SerialNumber = "CATXQ200-71543" },
+            new() { Code = "GN-002", Name = "CAT XQ60 Generator", Description = "60 kW portable diesel generator", Type = EquipmentType.LightEquipment, HourlyRate = 35.00m, BillingRate = 55.00m, IsActive = true, SerialNumber = "CATXQ60-88214" },
+            new() { Code = "WM-001", Name = "Lincoln Electric Ranger 330", Description = "Diesel welder/generator 330A", Type = EquipmentType.LightEquipment, HourlyRate = 45.00m, BillingRate = 70.00m, IsActive = true, SerialNumber = "LNC-R330-41009" },
+            new() { Code = "AL-001", Name = "JLG 600S Aerial Lift", Description = "60-ft telescopic boom lift, 4WD", Type = EquipmentType.LightEquipment, HourlyRate = 85.00m, BillingRate = 130.00m, IsActive = true, SerialNumber = "JLG600S-22847" },
+            new() { Code = "SC-001", Name = "Scaffolding Set — 10-Bay", Description = "Frame scaffold system, 10 bays, 60 ft max height", Type = EquipmentType.LightEquipment, HourlyRate = 25.00m, BillingRate = 40.00m, IsActive = true },
+
+            // Vehicles
+            new() { Code = "VH-001", Name = "Ford F-350 Crew Cab #1", Description = "2024 F-350 XLT crew cab, long bed", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "1FT8W3BT4REA10001", LicensePlate = "8ABC123" },
+            new() { Code = "VH-002", Name = "Ford F-350 Crew Cab #2", Description = "2024 F-350 XLT crew cab, long bed", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "1FT8W3BT4REA10002", LicensePlate = "8ABC456" },
+            new() { Code = "VH-003", Name = "Ford F-350 Crew Cab #3", Description = "2023 F-350 Lariat crew cab", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "1FT8W3BT4PEA30003", LicensePlate = "8ABC789" },
+            new() { Code = "VH-004", Name = "Ford F-550 Flatbed", Description = "2023 F-550 regular cab with 12-ft flatbed", Type = EquipmentType.Vehicles, HourlyRate = 55.00m, BillingRate = 80.00m, IsActive = true, SerialNumber = "1FD0W5HT4PEA40004", LicensePlate = "8DEF001" },
+            new() { Code = "VH-005", Name = "Kenworth T880 Water Truck", Description = "4,000 gallon water truck for dust control", Type = EquipmentType.Vehicles, HourlyRate = 75.00m, BillingRate = 115.00m, IsActive = true, SerialNumber = "KWT880-WTR-55910", LicensePlate = "8DEF002" },
+
+            // Tools
+            new() { Code = "TL-001", Name = "Hilti TE 70-ATC Rotary Hammer", Description = "SDS-max combihammer for heavy drilling", Type = EquipmentType.Tools, HourlyRate = 15.00m, BillingRate = 25.00m, IsActive = true, SerialNumber = "HILTI-TE70-92001" },
+            new() { Code = "TL-002", Name = "Husqvarna K770 Concrete Saw", Description = "14-inch power cutter for concrete and masonry", Type = EquipmentType.Tools, HourlyRate = 20.00m, BillingRate = 35.00m, IsActive = true, SerialNumber = "HUSQ-K770-44218" },
+        ];
+    }
+
+    private static List<BankAccount> CreateBankAccounts(List<ChartOfAccount> chartOfAccounts)
+    {
+        var glOperating = chartOfAccounts.First(a => a.AccountNumber == "1000");
+        var glPayroll = chartOfAccounts.First(a => a.AccountNumber == "1010");
+        var glEquipReserve = chartOfAccounts.First(a => a.AccountNumber == "1020");
+        var glTrust = chartOfAccounts.First(a => a.AccountNumber == "1030");
+
+        return
+        [
+            new()
+            {
+                AccountName = "Operating Account",
+                BankName = "JPMorgan Chase",
+                AccountNumberLast4 = "4821",
+                RoutingNumber = "322271627",
+                GlAccountId = glOperating.Id,
+                AccountType = BankAccountType.Checking,
+                IsActive = true,
+                OpeningBalance = 1_250_000.00m,
+                OpeningBalanceDate = new DateOnly(2025, 1, 1),
+            },
+            new()
+            {
+                AccountName = "Payroll Account",
+                BankName = "JPMorgan Chase",
+                AccountNumberLast4 = "7395",
+                RoutingNumber = "322271627",
+                GlAccountId = glPayroll.Id,
+                AccountType = BankAccountType.Checking,
+                IsActive = true,
+                OpeningBalance = 450_000.00m,
+                OpeningBalanceDate = new DateOnly(2025, 1, 1),
+            },
+            new()
+            {
+                AccountName = "Equipment Reserve",
+                BankName = "Wells Fargo",
+                AccountNumberLast4 = "2108",
+                RoutingNumber = "121042882",
+                GlAccountId = glEquipReserve.Id,
+                AccountType = BankAccountType.Savings,
+                IsActive = true,
+                OpeningBalance = 325_000.00m,
+                OpeningBalanceDate = new DateOnly(2025, 1, 1),
+            },
+            new()
+            {
+                AccountName = "Trust Account — Retention",
+                BankName = "US Bank",
+                AccountNumberLast4 = "6643",
+                RoutingNumber = "122235821",
+                GlAccountId = glTrust.Id,
+                AccountType = BankAccountType.Checking,
+                IsActive = true,
+                OpeningBalance = 780_000.00m,
+                OpeningBalanceDate = new DateOnly(2025, 1, 1),
+            },
+        ];
+    }
+
+    private static List<WorkClassification> CreateWorkClassifications()
+    {
+        return
+        [
+            new() { Code = "CARP", Name = "Carpenter", Description = "Journeyman carpenter — framing, formwork, finish", IsActive = true },
+            new() { Code = "ELEC", Name = "Electrician", Description = "Journeyman electrician — inside wireman", IsActive = true },
+            new() { Code = "IRON", Name = "Ironworker", Description = "Structural and reinforcing ironworker", IsActive = true },
+            new() { Code = "LAB1", Name = "Laborer Group 1", Description = "General construction laborer — basic duties", IsActive = true },
+            new() { Code = "OE1", Name = "Operating Engineer Group 1", Description = "Heavy equipment operator — cranes, excavators, dozers", IsActive = true },
+            new() { Code = "PLUM", Name = "Plumber/Pipefitter", Description = "Journeyman plumber and pipefitter", IsActive = true },
+            new() { Code = "CMNT", Name = "Cement Mason", Description = "Cement mason and concrete finisher", IsActive = true },
+            new() { Code = "SHMT", Name = "Sheet Metal Worker", Description = "Sheet metal worker — HVAC ductwork, flashing", IsActive = true },
+        ];
+    }
+
+    private static List<WageDetermination> CreateWageDeterminations(
+        List<Project> activeProjects, List<WorkClassification> classifications)
+    {
+        var determinations = new List<WageDetermination>();
+
+        // Rate data: (classificationCode, baseRate, fringeRate)
+        (string code, decimal baseRate, decimal fringe)[] rateData =
+        [
+            ("CARP", 52.15m, 28.40m),
+            ("ELEC", 58.60m, 31.20m),
+            ("IRON", 55.80m, 29.85m),
+            ("LAB1", 38.45m, 22.10m),
+            ("OE1",  54.70m, 30.15m),
+            ("PLUM", 56.90m, 30.60m),
+            ("CMNT", 44.20m, 26.80m),
+            ("SHMT", 53.40m, 28.90m),
+        ];
+
+        var classMap = classifications.ToDictionary(c => c.Code);
+        var detNum = 1;
+
+        foreach (var project in activeProjects.Take(3))
+        {
+            var determination = new WageDetermination
+            {
+                ProjectId = project.Id,
+                JurisdictionType = WageJurisdictionType.State,
+                DeterminationNumber = $"CA2026{detNum:D4}",
+                SourceAgency = "California DIR — Division of Labor Standards Enforcement",
+                EffectiveDate = new DateOnly(2025, 7, 1),
+                ExpirationDate = new DateOnly(2026, 6, 30),
+                Status = WageDeterminationStatus.Active,
+                Rates = rateData.Select(r => new WageDeterminationRate
+                {
+                    WorkClassificationId = classMap[r.code].Id,
+                    BaseRate = r.baseRate,
+                    FringeRate = r.fringe,
+                    TotalRate = r.baseRate + r.fringe,
+                }).ToList(),
+            };
+            determinations.Add(determination);
+            detNum++;
+        }
+
+        return determinations;
+    }
+
+    private static List<ComplianceDocument> CreateComplianceDocuments(
+        List<Employee> employees, List<Vendor> vendors)
+    {
+        var docs = new List<ComplianceDocument>();
+        var now = DateTime.UtcNow;
+
+        // Company-level documents
+        (string docType, string docNum, DateTime issued, DateTime expires, string notes)[] companyDocs =
+        [
+            ("ContractorsLicense", "CA-1087452-A", now.AddYears(-2), now.AddYears(2), "Class A — General Engineering Contractor, State of California"),
+            ("GeneralLiability", "GL-2025-PWI-4481", now.AddMonths(-6), now.AddMonths(6), "General liability — $2M per occurrence / $4M aggregate, Zurich Insurance"),
+            ("WorkersComp", "WC-2025-PWI-7712", now.AddMonths(-6), now.AddMonths(6), "Workers compensation — statutory limits, Travelers Insurance"),
+            ("AutoInsurance", "CA-2025-PWI-3390", now.AddMonths(-8), now.AddMonths(4), "Commercial auto — $1M CSL, 22 scheduled vehicles"),
+            ("BusinessLicense", "BL-FRESNO-2025-8841", now.AddMonths(-10), now.AddMonths(2), "City of Fresno business license — General Contractor"),
+            ("W9", "W9-PWI-2025", now.AddMonths(-11), now.AddYears(2), "W-9 on file — EIN 94-3281005"),
+            ("COI", "COI-PWI-2025-ALL", now.AddMonths(-6), now.AddMonths(6), "Umbrella COI — $5M excess liability"),
+        ];
+
+        foreach (var (docType, docNum, issued, expires, notes) in companyDocs)
+        {
+            docs.Add(new ComplianceDocument
+            {
+                EntityType = "Company",
+                EntityId = Guid.Empty,
+                DocumentType = docType,
+                DocumentNumber = docNum,
+                IssuedDate = issued,
+                ExpirationDate = expires,
+                Status = expires > now ? "Active" : "Expired",
+                Notes = notes,
+            });
+        }
+
+        // Employee safety certifications (first 10 employees)
+        var certEmployees = employees.Take(10).ToList();
+        var rng = new Random(42);
+        string[] employeeCerts = ["OSHA10", "OSHA30", "FirstAid", "CPR"];
+
+        foreach (var emp in certEmployees)
+        {
+            // Each employee gets 2-3 random certs
+            var certCount = rng.Next(2, 4);
+            var selectedCerts = employeeCerts.OrderBy(_ => rng.Next()).Take(certCount);
+            var certSeq = 1;
+
+            foreach (var cert in selectedCerts)
+            {
+                var issued = now.AddMonths(-rng.Next(3, 18));
+                var expiresDate = cert is "OSHA10" or "OSHA30"
+                    ? (DateTime?)null // OSHA cards don't expire
+                    : issued.AddYears(2);
+
+                docs.Add(new ComplianceDocument
+                {
+                    EntityType = "Employee",
+                    EntityId = emp.Id,
+                    DocumentType = cert,
+                    DocumentNumber = $"{cert}-{emp.EmployeeNumber}-{certSeq:D2}",
+                    IssuedDate = issued,
+                    ExpirationDate = expiresDate,
+                    Status = expiresDate == null || expiresDate > now ? "Active" : "Expired",
+                    Notes = cert switch
+                    {
+                        "OSHA10" => "10-hour OSHA construction safety course completed",
+                        "OSHA30" => "30-hour OSHA construction safety course completed",
+                        "FirstAid" => "First Aid / AED certification — American Red Cross",
+                        "CPR" => "CPR certification — American Red Cross",
+                        _ => null
+                    },
+                });
+                certSeq++;
+            }
+        }
+
+        // Subcontractor compliance (first 5 vendors)
+        var subVendors = vendors.Take(5).ToList();
+        string[] subDocs = ["GeneralLiability", "WorkersComp", "AutoInsurance", "W9", "COI"];
+
+        foreach (var vendor in subVendors)
+        {
+            var seq = 1;
+            foreach (var docType in subDocs)
+            {
+                var issued = now.AddMonths(-rng.Next(2, 12));
+                var expires = issued.AddYears(1);
+                docs.Add(new ComplianceDocument
+                {
+                    EntityType = "Subcontractor",
+                    EntityId = vendor.Id,
+                    DocumentType = docType,
+                    DocumentNumber = $"{docType}-{vendor.Code}-{seq:D2}",
+                    IssuedDate = issued,
+                    ExpirationDate = expires,
+                    Status = expires > now ? "Active" : "ExpiringSoon",
+                    Notes = $"{docType} certificate for {vendor.Name}",
+                });
+                seq++;
+            }
+        }
+
+        return docs;
+    }
+
+    private static List<TaxJurisdiction> CreateTaxJurisdictions()
+    {
+        var effective = new DateOnly(2025, 4, 1);
+
+        return
+        [
+            new()
+            {
+                Name = "Fresno County", Code = "CA-FRESNO", State = "CA", County = "Fresno",
+                CombinedRate = 8.35m, StateRate = 7.25m, CountyRate = 1.10m, CityRate = 0.00m,
+                IsActive = true, EffectiveDate = effective,
+                Rates =
+                [
+                    new() { Category = TaxCategory.Materials, Rate = 8.35m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Equipment, Rate = 8.35m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Labor, Rate = 0.00m, IsActive = true, EffectiveDate = effective },
+                ],
+            },
+            new()
+            {
+                Name = "Sacramento County", Code = "CA-SACRAMENTO", State = "CA", County = "Sacramento",
+                CombinedRate = 8.75m, StateRate = 7.25m, CountyRate = 1.00m, CityRate = 0.50m,
+                IsActive = true, EffectiveDate = effective,
+                Rates =
+                [
+                    new() { Category = TaxCategory.Materials, Rate = 8.75m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Equipment, Rate = 8.75m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Labor, Rate = 0.00m, IsActive = true, EffectiveDate = effective },
+                ],
+            },
+            new()
+            {
+                Name = "Los Angeles County", Code = "CA-LA", State = "CA", County = "Los Angeles",
+                CombinedRate = 10.25m, StateRate = 7.25m, CountyRate = 2.25m, CityRate = 0.75m,
+                IsActive = true, EffectiveDate = effective,
+                Rates =
+                [
+                    new() { Category = TaxCategory.Materials, Rate = 10.25m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Equipment, Rate = 10.25m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Labor, Rate = 0.00m, IsActive = true, EffectiveDate = effective },
+                ],
+            },
+            new()
+            {
+                Name = "San Francisco County", Code = "CA-SF", State = "CA", County = "San Francisco", City = "San Francisco",
+                CombinedRate = 8.625m, StateRate = 7.25m, CountyRate = 1.25m, CityRate = 0.125m,
+                IsActive = true, EffectiveDate = effective,
+                Rates =
+                [
+                    new() { Category = TaxCategory.Materials, Rate = 8.625m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Equipment, Rate = 8.625m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Labor, Rate = 0.00m, IsActive = true, EffectiveDate = effective },
+                ],
+            },
+            new()
+            {
+                Name = "Kern County", Code = "CA-KERN", State = "CA", County = "Kern",
+                CombinedRate = 8.25m, StateRate = 7.25m, CountyRate = 1.00m, CityRate = 0.00m,
+                IsActive = true, EffectiveDate = effective,
+                Rates =
+                [
+                    new() { Category = TaxCategory.Materials, Rate = 8.25m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Equipment, Rate = 8.25m, IsActive = true, EffectiveDate = effective },
+                    new() { Category = TaxCategory.Labor, Rate = 0.00m, IsActive = true, EffectiveDate = effective },
+                ],
+            },
+        ];
+    }
+
+    private static (List<PmMeeting>, List<PmMeetingAgendaItem>, List<PmMeetingMinute>, List<PmMeetingActionItem>)
+        CreateMeetings(List<Project> activeProjects, Guid seedUserId)
+    {
+        var meetings = new List<PmMeeting>();
+        var agendaItems = new List<PmMeetingAgendaItem>();
+        var minutes = new List<PmMeetingMinute>();
+        var actionItems = new List<PmMeetingActionItem>();
+        var now = DateTime.UtcNow;
+
+        // Meeting templates: (type, titlePattern, location, agendaTopics[])
+        var templates = new (MeetingType type, string titlePrefix, string location, string[] topics)[]
+        {
+            (MeetingType.Oac, "OAC Meeting", "Owner's Conference Room",
+                ["Safety Report", "Schedule Update", "Budget Review", "RFI / Submittal Status", "Pending Change Orders", "Quality Control", "Next Steps"]),
+            (MeetingType.Safety, "Weekly Safety Meeting", "Jobsite Trailer",
+                ["Incident Review", "Near-Miss Reports", "Toolbox Talk Topic", "PPE Compliance", "Upcoming Hazards", "Emergency Procedures Review"]),
+            (MeetingType.Subcontractor, "Subcontractor Coordination", "Jobsite Trailer",
+                ["Two-Week Lookahead", "Material Deliveries", "Workspace Coordination", "MEP Conflicts", "Manpower Plan", "Open Issues"]),
+            (MeetingType.Progress, "Progress Meeting", "PM Office",
+                ["Percent Complete Update", "Critical Path Review", "Weather Delays", "Inspection Results", "Punch List Status"]),
+        };
+
+        foreach (var project in activeProjects.Take(3))
+        {
+            foreach (var (type, titlePrefix, location, topics) in templates)
+            {
+                // Create 5-6 meetings going back over 5 months
+                var meetingCount = type == MeetingType.Oac ? 6 : 5;
+                for (var i = 0; i < meetingCount; i++)
+                {
+                    var meetingDate = now.AddDays(-(meetingCount - 1 - i) * 7 * (type == MeetingType.Oac ? 2 : 1));
+                    var isFuture = meetingDate > now;
+                    var status = isFuture ? MeetingStatus.Scheduled
+                        : i == meetingCount - 1 && !isFuture ? MeetingStatus.Completed
+                        : MeetingStatus.Completed;
+
+                    var meeting = new PmMeeting
+                    {
+                        ProjectId = project.Id,
+                        MeetingType = type,
+                        Title = $"{titlePrefix} #{i + 1}",
+                        Location = location,
+                        ScheduledStart = meetingDate.Date.AddHours(type == MeetingType.Safety ? 7 : 10),
+                        ScheduledEnd = meetingDate.Date.AddHours(type == MeetingType.Safety ? 7.5 : 11),
+                        ActualStart = status == MeetingStatus.Completed ? meetingDate.Date.AddHours(type == MeetingType.Safety ? 7 : 10).AddMinutes(2) : null,
+                        ActualEnd = status == MeetingStatus.Completed ? meetingDate.Date.AddHours(type == MeetingType.Safety ? 7.5 : 11).AddMinutes(-5) : null,
+                        Status = status,
+                    };
+                    meetings.Add(meeting);
+
+                    // Agenda items for each meeting
+                    for (var t = 0; t < topics.Length; t++)
+                    {
+                        agendaItems.Add(new PmMeetingAgendaItem
+                        {
+                            MeetingId = meeting.Id,
+                            ItemNumber = t + 1,
+                            Topic = topics[t],
+                            PresenterUserId = seedUserId != Guid.Empty ? seedUserId : null,
+                        });
+                    }
+
+                    // Minutes for completed meetings
+                    if (status == MeetingStatus.Completed && seedUserId != Guid.Empty)
+                    {
+                        var minuteText = type switch
+                        {
+                            MeetingType.Oac =>
+                                $"OAC #{i + 1} — Project is tracking {(i % 3 == 0 ? "on schedule" : "2 days behind")}. " +
+                                $"Budget utilization at {55 + i * 5}%. {(i % 2 == 0 ? "No safety incidents this period." : "One near-miss reported — corrective action taken.")} " +
+                                $"Owner approved {i + 1} pending RFIs. Next meeting in {(type == MeetingType.Oac ? 2 : 1)} weeks.",
+                            MeetingType.Safety =>
+                                $"Safety meeting #{i + 1} — Toolbox talk: {(i % 3 == 0 ? "Fall Protection" : i % 3 == 1 ? "Trenching & Excavation" : "Electrical Safety")}. " +
+                                $"All workers verified to have current PPE. {(i % 4 == 0 ? "Near-miss: unsecured material on scaffold — resolved immediately." : "No incidents.")} " +
+                                $"OSHA 300 log current.",
+                            MeetingType.Subcontractor =>
+                                $"Coordination #{i + 1} — {(i % 2 == 0 ? "Electrical" : "Mechanical")} sub confirmed delivery schedule. " +
+                                $"MEP conflict at {(i % 2 == 0 ? "Level 2 corridor" : "mechanical room")} — routing revised. " +
+                                $"Manpower adequate for two-week lookahead.",
+                            _ =>
+                                $"Progress #{i + 1} — Overall {50 + i * 8}% complete. Critical path: {(i % 2 == 0 ? "structural steel erection" : "MEP rough-in")}. " +
+                                $"{(i % 3 == 0 ? "1 rain day lost this period." : "No weather delays.")} " +
+                                $"Inspections: {i + 2} passed, 0 failed.",
+                        };
+
+                        minutes.Add(new PmMeetingMinute
+                        {
+                            MeetingId = meeting.Id,
+                            MinuteText = minuteText,
+                            RecordedByUserId = seedUserId,
+                            VersionNumber = 1,
+                        });
+                    }
+
+                    // Action items (2-3 per completed meeting)
+                    if (status == MeetingStatus.Completed)
+                    {
+                        var actionData = type switch
+                        {
+                            MeetingType.Oac => new[]
+                            {
+                                ("Submit updated project schedule to owner", TaskPriority.High),
+                                ("Resolve RFI #" + (i + 10) + " — structural beam connection detail", TaskPriority.Urgent),
+                                ("Provide cost estimate for parking lot lighting upgrade", TaskPriority.Normal),
+                            },
+                            MeetingType.Safety => new[]
+                            {
+                                ("Update fall protection plan for Phase " + (i + 2), TaskPriority.High),
+                                ("Schedule crane inspection for next week", TaskPriority.Normal),
+                            },
+                            MeetingType.Subcontractor => new[]
+                            {
+                                ("Confirm material delivery date for " + (i % 2 == 0 ? "switchgear" : "ductwork"), TaskPriority.High),
+                                ("Coordinate MEP sleeve locations with structural", TaskPriority.Normal),
+                                ("Submit revised shop drawings by Friday", TaskPriority.High),
+                            },
+                            _ => new[]
+                            {
+                                ("Update percent complete on all active phases", TaskPriority.Normal),
+                                ("Schedule " + (i % 2 == 0 ? "concrete" : "framing") + " inspection", TaskPriority.High),
+                            },
+                        };
+
+                        foreach (var (desc, priority) in actionData)
+                        {
+                            var isComplete = i < meetingCount - 2; // older ones are complete
+                            actionItems.Add(new PmMeetingActionItem
+                            {
+                                MeetingId = meeting.Id,
+                                Description = desc,
+                                AssigneeName = i % 3 == 0 ? "Mike Torres" : i % 3 == 1 ? "Sarah Chen" : "James Park",
+                                DueDate = meetingDate.AddDays(7),
+                                Priority = priority,
+                                Status = isComplete ? TaskStatus.Complete : TaskStatus.Open,
+                                ClosedAt = isComplete ? meetingDate.AddDays(5) : null,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        return (meetings, agendaItems, minutes, actionItems);
+    }
+
+    private static List<PmTask> CreateProjectTasks(List<Project> activeProjects, Guid seedUserId)
+    {
+        var tasks = new List<PmTask>();
+        var now = DateTime.UtcNow;
+
+        // Task templates per project: (title, description, type, priority, daysOffset, status)
+        var taskTemplates = new (string title, string desc, TaskType type, TaskPriority priority, int dueDaysFromNow, TaskStatus status)[]
+        {
+            ("Review structural steel shop drawings", "Review and approve steel fabricator's shop drawings for Level 2 framing. Check connections, embed plates, and beam sizes against structural drawings.", TaskType.Submittal, TaskPriority.High, -14, TaskStatus.Complete),
+            ("Coordinate MEP rough-in sequence", "Work with mechanical, electrical, and plumbing subs to establish routing priority in ceiling plenum areas. Resolve any conflicts before framing closes up.", TaskType.General, TaskPriority.Urgent, -7, TaskStatus.Complete),
+            ("Submit RFI for foundation drain detail", "Architect detail shows 4-inch perf pipe but soils report recommends 6-inch. Submit RFI to clarify before Phase 2 excavation begins.", TaskType.Rfi, TaskPriority.High, -10, TaskStatus.Complete),
+            ("Update two-week lookahead schedule", "Incorporate latest delivery dates and subcontractor manpower into the short-interval schedule. Distribute to all subs by Friday.", TaskType.General, TaskPriority.Normal, 2, TaskStatus.InProgress),
+            ("Process Change Order #003", "Owner-requested upgrade to lobby finishes. Get pricing from tile and millwork subs, prepare CO package with schedule impact analysis.", TaskType.General, TaskPriority.High, 5, TaskStatus.InProgress),
+            ("Schedule concrete pour — Level 2 deck", "Coordinate with concrete sub, pump company, and testing lab. Need 3-day weather window. Verify rebar and embed inspections are complete.", TaskType.General, TaskPriority.Urgent, 3, TaskStatus.InProgress),
+            ("Complete monthly billing application", "Prepare G702/G703 for current billing period. Update percent complete on all SOV line items. Get superintendent sign-off on quantities.", TaskType.General, TaskPriority.High, 7, TaskStatus.Open),
+            ("Order long-lead electrical equipment", "Switchgear and transfer switch have 16-week lead time. Confirm specs with electrical sub and place PO by end of week.", TaskType.General, TaskPriority.Urgent, 1, TaskStatus.Open),
+            ("Prepare for owner progress meeting", "Compile schedule update, cost report, RFI log, and submittal log. Prepare 3-week lookahead and photo documentation.", TaskType.MeetingAction, TaskPriority.Normal, 4, TaskStatus.Open),
+            ("Review safety plan for crane operations", "Mobile crane arriving next week for steel erection. Review lift plan, swing radius, and ground conditions. Confirm crane operator certifications.", TaskType.General, TaskPriority.High, 3, TaskStatus.Open),
+            ("Close out punch list items — Phase 1", "Walk Phase 1 areas with architect, document deficiencies, and assign corrections to responsible subs. Target 100% closure before final inspection.", TaskType.General, TaskPriority.Normal, 14, TaskStatus.Open),
+            ("Update as-built drawings", "Mark up structural and MEP as-builts with field changes from the past month. Scan and upload to project documents.", TaskType.General, TaskPriority.Low, 21, TaskStatus.Open),
+            ("Submit prevailing wage certified payroll", "Compile WH-347 reports for all trades working this week. Verify wage rates against current determination. Submit to owner by Monday.", TaskType.General, TaskPriority.High, 1, TaskStatus.InProgress),
+            ("Inspect waterproofing at foundation", "Below-grade waterproofing application complete. Schedule third-party inspection and flood test before backfill.", TaskType.DailyReport, TaskPriority.High, 5, TaskStatus.Open),
+            ("Request AHJ fire alarm inspection", "Fire alarm rough-in complete on Levels 1-2. Schedule Authority Having Jurisdiction inspection. Coordinate with fire alarm sub for attendance.", TaskType.General, TaskPriority.Normal, 10, TaskStatus.Open),
+        ];
+
+        foreach (var project in activeProjects.Take(3))
+        {
+            foreach (var (title, desc, type, priority, dueDays, status) in taskTemplates)
+            {
+                var dueDate = now.AddDays(dueDays);
+                var task = new PmTask
+                {
+                    ProjectId = project.Id,
+                    Title = title,
+                    Description = desc,
+                    TaskType = type,
+                    Priority = priority,
+                    Status = status,
+                    AssignedByUserId = seedUserId,
+                    AssignedToName = priority == TaskPriority.Urgent ? "Mike Torres"
+                        : priority == TaskPriority.High ? "Sarah Chen"
+                        : "James Park",
+                    DueDate = dueDate,
+                    StartedAt = status is TaskStatus.InProgress or TaskStatus.Complete ? dueDate.AddDays(-3) : null,
+                    CompletedAt = status == TaskStatus.Complete ? dueDate.AddDays(-1) : null,
+                    ReferenceType = type switch
+                    {
+                        TaskType.Rfi => TaskReferenceType.Rfi,
+                        TaskType.Submittal => TaskReferenceType.Submittal,
+                        TaskType.MeetingAction => TaskReferenceType.Meeting,
+                        TaskType.DailyReport => TaskReferenceType.DailyReport,
+                        _ => TaskReferenceType.None,
+                    },
+                };
+                tasks.Add(task);
+            }
+        }
+
+        return tasks;
     }
 }

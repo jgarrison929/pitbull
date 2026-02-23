@@ -587,12 +587,25 @@ export default function ProgressPage({ params }: { params: Promise<{ id: string 
               </div>
               <div className="space-y-2">
                 <Label htmlFor="progress-unit">Unit</Label>
-                <Input
+                <select
                   id="progress-unit"
                   value={form.unit}
                   onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
-                  placeholder="CY, SF, LF, etc."
-                />
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="">Select unit...</option>
+                  <option value="LS">LS — Lump Sum</option>
+                  <option value="EA">EA — Each</option>
+                  <option value="LF">LF — Linear Feet</option>
+                  <option value="SF">SF — Square Feet</option>
+                  <option value="CY">CY — Cubic Yards</option>
+                  <option value="TON">TON — Tons</option>
+                  <option value="GAL">GAL — Gallons</option>
+                  <option value="HR">HR — Hours</option>
+                  <option value="DAY">DAY — Days</option>
+                  <option value="MO">MO — Months</option>
+                  <option value="PCT">PCT — Percent</option>
+                </select>
               </div>
             </div>
 
