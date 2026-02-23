@@ -66,14 +66,19 @@ interface AuthResponse {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window === "undefined") return null;
-    const token = getToken();
-    return token ? buildUserFromToken(token) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // We initialize from localStorage in the lazy initializer, so no effect needed.
-  const [isLoading] = useState(false);
+  // Read token from localStorage after hydration to avoid SSR mismatch.
+  // Server and client both render isLoading=true initially, then useEffect
+  // populates the user on the client only.
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      setUser(buildUserFromToken(token));
+    }
+    setIsLoading(false);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await api<AuthResponse>("/api/auth/login", {
