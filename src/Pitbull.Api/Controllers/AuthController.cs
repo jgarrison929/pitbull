@@ -558,19 +558,22 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
 
-        // Map role to Identity role + title
-        var (identityRole, title) = request.Role?.ToLowerInvariant() switch
+        // Map role to title. All demo users get Admin role (same as pre-seeded accounts)
+        // so they see all workspaces/permissions. DemoRestrictionMiddleware blocks
+        // dangerous endpoints (admin APIs, DELETEs) regardless of role.
+        var title = request.Role?.ToLowerInvariant() switch
         {
-            "ceo"            => (RoleSeeder.Roles.Manager, "Chief Executive Officer"),
-            "cfo"            => (RoleSeeder.Roles.Manager, "Chief Financial Officer"),
-            "pm"             => (RoleSeeder.Roles.Supervisor, "Project Manager"),
-            "field-engineer" => (RoleSeeder.Roles.User, "Field Engineer"),
-            "estimator"      => (RoleSeeder.Roles.User, "Estimator"),
-            "ap-clerk"       => (RoleSeeder.Roles.User, "AP / AR Clerk"),
-            "hr-manager"     => (RoleSeeder.Roles.Manager, "HR Manager"),
-            "it-admin"       => (RoleSeeder.Roles.Manager, "IT Administrator"),
-            _                => (RoleSeeder.Roles.User, "Demo User")
+            "ceo"            => "Chief Executive Officer",
+            "cfo"            => "Chief Financial Officer",
+            "pm"             => "Project Manager",
+            "field-engineer" => "Field Engineer",
+            "estimator"      => "Estimator",
+            "ap-clerk"       => "AP / AR Clerk",
+            "hr-manager"     => "HR Manager",
+            "it-admin"       => "IT Administrator",
+            _                => "Demo User"
         };
+        var identityRole = RoleSeeder.Roles.Admin;
 
         // Validate company code
         var validCodes = new[] { "02", "03", "04" };
@@ -621,17 +624,25 @@ public class AuthController(
         await roleSeeder.EnsureRolesForTenantAsync(tenant.Id);
         await roleSeeder.AssignRoleToUserAsync(user, identityRole);
 
-        // Grant company access
-        var access = new UserCompanyAccess
+        // Grant access to ALL demo companies (same as pre-seeded accounts)
+        // so users can use the company switcher and see the full demo experience.
+        var allCompanies = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .Where(c => c.TenantId == tenant.Id && !c.IsDeleted)
+            .ToListAsync();
+
+        foreach (var comp in allCompanies)
         {
-            TenantId = tenant.Id,
-            UserId = user.Id,
-            CompanyId = company.Id,
-            IsDefault = true,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = "demo-register"
-        };
-        db.Set<UserCompanyAccess>().Add(access);
+            db.Set<UserCompanyAccess>().Add(new UserCompanyAccess
+            {
+                TenantId = tenant.Id,
+                UserId = user.Id,
+                CompanyId = comp.Id,
+                IsDefault = comp.Id == company.Id, // selected company is default
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "demo-register"
+            });
+        }
         await db.SaveChangesAsync();
 
         // Create Employee record inside RLS context
