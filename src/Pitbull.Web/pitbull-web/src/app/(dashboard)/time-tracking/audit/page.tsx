@@ -99,19 +99,27 @@ export default function TimeEntryAuditPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
 
-  const [from, setFrom] = useState(minusDaysIso(29));
-  const [to, setTo] = useState(todayIso());
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  // Initialize date range after mount to avoid SSR hydration mismatch
+  // (new Date() can differ between server and client timezone/time)
+  useEffect(() => {
+    setFrom(minusDaysIso(29));
+    setTo(todayIso());
+  }, []);
   const [actionFilter, setActionFilter] = useState<string>(ALL_VALUE);
   const [search, setSearch] = useState("");
 
   const fetchAudit = useCallback(async () => {
+    if (!from || !to) return; // Wait for date initialization
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       params.set("page", String(page));
       params.set("pageSize", "25");
-      if (from) params.set("from", from);
-      if (to) params.set("to", to);
+      params.set("from", from);
+      params.set("to", to);
       if (actionFilter !== ALL_VALUE) params.set("action", actionFilter);
       if (search.trim()) params.set("search", search.trim());
 
