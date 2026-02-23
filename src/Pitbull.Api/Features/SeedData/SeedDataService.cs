@@ -6,6 +6,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Entities;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.Notifications.Domain;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
@@ -24,7 +25,7 @@ namespace Pitbull.Api.Features.SeedData;
 /// - The dev-only HTTP endpoint (SeedDataController)
 /// - The public demo bootstrapper (when explicitly enabled via configuration)
 /// </summary>
-public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration)
+public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration, CompanyContext companyContext)
     : ISeedDataService
 {
     /// <summary>
@@ -5070,6 +5071,13 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         Guid seedUserId,
         CancellationToken ct)
     {
+        // ── 0. Switch RLS + CompanyContext to target company ────────
+        // Without this, SaveChangesAsync resets app.current_company to the
+        // DI-scoped CompanyContext (Company 01), and Postgres RLS WITH CHECK
+        // rejects inserts for any other CompanyId.
+        var previousCompanyId = companyContext.CompanyId;
+        companyContext.CompanyId = companyId;
+
         // ── 1. Root entities ────────────────────────────────────────
         var projects = CreateCompanyProjects(projectDefs);
         var vendors = CreateCompanyVendors(vendorDefs);
@@ -5286,6 +5294,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             StampCompanyId(wd.Rates, companyId);
         db.Set<WageDetermination>().AddRange(wageDeterminations);
         await db.SaveChangesAsync(ct);
+
+        // Restore previous company context
+        companyContext.CompanyId = previousCompanyId;
     }
 
     // ===========================================================================================
