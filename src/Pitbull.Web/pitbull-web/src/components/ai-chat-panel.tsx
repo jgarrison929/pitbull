@@ -164,6 +164,13 @@ export function AiChatPanel() {
 
   const contextLabel = getContextLabel(pathname);
 
+  // Listen for sidebar "Ask Pitbull AI" button
+  useEffect(() => {
+    const handler = () => setIsOpen(true);
+    window.addEventListener("pitbull:open-ai-chat", handler);
+    return () => window.removeEventListener("pitbull:open-ai-chat", handler);
+  }, []);
+
   // Show divider when context changes (only after first message)
   useEffect(() => {
     if (
