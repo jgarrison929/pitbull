@@ -472,20 +472,31 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Uses EF Core 7+ ExecuteDeleteAsync for efficient server-side deletion.
     /// Silently skips if the table doesn't exist (missing migration in production).
     /// </summary>
+    #pragma warning disable EF1002 // Savepoint names are compile-time type names, not user input
     private async Task BulkDeleteAsync<T>(Guid tenantId, CancellationToken ct) where T : BaseEntity
     {
+        // Use SAVEPOINT to isolate each delete within the parent transaction.
+        // If a delete fails (missing table, FK conflict, etc.), we ROLLBACK TO SAVEPOINT
+        // so the transaction stays valid for subsequent operations.
+        var spName = $"sp_{typeof(T).Name}";
         try
         {
+            await db.Database.ExecuteSqlRawAsync($"SAVEPOINT {spName}", ct);
             await db.Set<T>()
                 .IgnoreQueryFilters()
                 .Where(x => x.TenantId == tenantId)
                 .ExecuteDeleteAsync(ct);
+            await db.Database.ExecuteSqlRawAsync($"RELEASE SAVEPOINT {spName}", ct);
         }
-        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01") // relation does not exist
+        catch (Exception)
         {
-            // Table not yet created (missing migration) — skip silently
+            // Rollback to savepoint so the parent transaction stays valid
+            try { await db.Database.ExecuteSqlRawAsync($"ROLLBACK TO SAVEPOINT {spName}", ct); }
+            catch { /* best effort */ }
+            db.ChangeTracker.Clear();
         }
     }
+    #pragma warning restore EF1002
 
     /// <summary>
     /// Upserts the seed data version into TenantSettings for the current tenant.
