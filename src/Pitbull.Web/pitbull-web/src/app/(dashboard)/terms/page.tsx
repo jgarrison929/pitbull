@@ -57,7 +57,7 @@ export default function TermsOfServicePage() {
           <h2>6. Contact</h2>
           <p>
             For questions about these terms, contact your system administrator or reach out to
-            Pitbull support at support@pitbull.construction.
+            Pitbull support at support@pitbullconstructionsolutions.com.
           </p>
         </CardContent>
       </Card>

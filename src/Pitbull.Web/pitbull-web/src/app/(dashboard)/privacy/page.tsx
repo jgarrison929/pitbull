@@ -51,7 +51,7 @@ export default function PrivacyPolicyPage() {
           <h2>5. Contact</h2>
           <p>
             For privacy questions, contact your system administrator or reach out to
-            Pitbull support at support@pitbull.construction.
+            Pitbull support at support@pitbullconstructionsolutions.com.
           </p>
         </CardContent>
       </Card>

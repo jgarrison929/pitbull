@@ -34,7 +34,9 @@ public sealed class DemoBootstrapper(
 
         var tenant = await EnsureTenantAsync(demo, cancellationToken);
         var company = await EnsureDefaultCompanyAsync(tenant.Id, tenant.Name, cancellationToken);
+        var allCompanies = await EnsureSubsidiaryCompaniesAsync(tenant.Id, company, cancellationToken);
         await EnsureDemoUserAsync(demo, tenant.Id, company.Id, cancellationToken);
+        await EnsureAllDemoUsersAsync(tenant.Id, allCompanies, demo.UserPassword, cancellationToken);
 
         // Establish tenant context for EF audit fields.
         tenantContext.TenantId = tenant.Id;
@@ -44,7 +46,7 @@ public sealed class DemoBootstrapper(
         companyContext.CompanyId = company.Id;
         companyContext.CompanyCode = company.Code;
         companyContext.CompanyName = company.Name;
-        companyContext.SetAccessibleCompanies([company.Id]);
+        companyContext.SetAccessibleCompanies(allCompanies.Values.Select(c => c.Id));
 
         // IMPORTANT: app.current_tenant is a connection/session setting (used by Postgres RLS).
         // Ensure it is set on the same connection used for the seed operation.
@@ -68,6 +70,7 @@ public sealed class DemoBootstrapper(
             {
                 // Ensure demo users have Employee records (for /api/employees/my-crew)
                 await EnsureDemoEmployeeRecordsAsync(demo, cancellationToken);
+                await EnsureAllDemoEmployeesAsync(allCompanies, cancellationToken);
 
                 await tx.CommitAsync(cancellationToken);
 
@@ -369,15 +372,27 @@ public sealed class DemoBootstrapper(
     /// <summary>
     /// Ensures the user has access to the specified company.
     /// </summary>
-    private async Task EnsureUserCompanyAccessAsync(Guid userId, Guid tenantId, Guid companyId, CancellationToken ct)
+    private async Task EnsureUserCompanyAccessAsync(Guid userId, Guid tenantId, Guid companyId, CancellationToken ct, bool isDefault = true)
     {
+        // Check for any existing record, including soft-deleted ones
         var existingAccess = await db.Set<UserCompanyAccess>()
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(uca => uca.UserId == userId && uca.CompanyId == companyId && !uca.IsDeleted, ct);
+            .FirstOrDefaultAsync(uca => uca.UserId == userId && uca.CompanyId == companyId, ct);
 
         if (existingAccess is not null)
         {
-            logger.LogInformation("User {UserId} already has access to company {CompanyId}", userId, companyId);
+            if (existingAccess.IsDeleted)
+            {
+                // Revive soft-deleted record instead of creating a duplicate
+                existingAccess.IsDeleted = false;
+                existingAccess.DeletedAt = null;
+                existingAccess.DeletedBy = null;
+                existingAccess.IsDefault = isDefault;
+                existingAccess.UpdatedAt = DateTime.UtcNow;
+                existingAccess.UpdatedBy = "system";
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Revived soft-deleted company access for user {UserId} to company {CompanyId}", userId, companyId);
+            }
             return;
         }
 
@@ -386,7 +401,7 @@ public sealed class DemoBootstrapper(
             TenantId = tenantId,
             UserId = userId,
             CompanyId = companyId,
-            IsDefault = true,
+            IsDefault = isDefault,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "system"
         };
@@ -395,5 +410,312 @@ public sealed class DemoBootstrapper(
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Granted user {UserId} access to company {CompanyId}", userId, companyId);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Multi-company + ~45 role-based demo accounts
+    // ────────────────────────────────────────────────────────────────────────
+
+    private const string ParentCode = "01";
+    private const string CommercialCode = "02";
+    private const string CivilCode = "03";
+    private const string MechanicalCode = "04";
+
+    private static readonly string[] AllCompanyCodes = [ParentCode, CommercialCode, CivilCode, MechanicalCode];
+
+    /// <summary>
+    /// A single demo user definition: identity, role, employee info, and company access.
+    /// </summary>
+    private record DemoUserDef(
+        string Email,
+        string FirstName,
+        string LastName,
+        string Title,
+        string Role,
+        string EmployeeNumber,
+        EmployeeClassification Classification,
+        decimal HourlyRate,
+        string DefaultCompanyCode,
+        string[] CompanyCodes);
+
+    // ── C-Suite ──────────────────────────────────────────────────────────
+    // All get Admin role + access to every company.
+
+    private static readonly DemoUserDef[] DemoUsers =
+    [
+        // C-Suite (11)
+        new("ceo@demo.example.com",           "Richard",   "Morrison",   "Chief Executive Officer",          RoleSeeder.Roles.Admin,      "DEMO-CEO",   EmployeeClassification.Salaried,   250.00m, ParentCode, AllCompanyCodes),
+        new("coo@demo.example.com",           "Patricia",  "Chen",       "Chief Operating Officer",          RoleSeeder.Roles.Admin,      "DEMO-COO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
+        new("cfo@demo.example.com",           "David",     "Blackwell",  "Chief Financial Officer",          RoleSeeder.Roles.Admin,      "DEMO-CFO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
+        new("cao@demo.example.com",           "Sandra",    "Martinez",   "Chief Administrative Officer",     RoleSeeder.Roles.Admin,      "DEMO-CAO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cio@demo.example.com",           "James",     "Tanaka",     "Chief Information Officer",        RoleSeeder.Roles.Admin,      "DEMO-CIO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cto@demo.example.com",           "Andrew",    "Foster",     "Chief Technology Officer",         RoleSeeder.Roles.Admin,      "DEMO-CTO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("ciso@demo.example.com",          "Michelle",  "Okonjo",     "Chief Information Security Officer", RoleSeeder.Roles.Admin,    "DEMO-CISO",  EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
+        new("cro@demo.example.com",           "Robert",    "Garrison",   "Chief Revenue Officer",            RoleSeeder.Roles.Admin,      "DEMO-CRO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cpo@demo.example.com",           "Lisa",      "Nguyen",     "Chief People Officer",             RoleSeeder.Roles.Admin,      "DEMO-CPO",   EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
+        new("safety-chief@demo.example.com",  "Thomas",    "Reeves",     "Chief Safety Officer",             RoleSeeder.Roles.Admin,      "DEMO-CSO",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
+        new("cos@demo.example.com",           "Jennifer",  "Blake",      "Chief of Staff",                   RoleSeeder.Roles.Admin,      "DEMO-COS",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
+
+        // VP Level (8) — Manager role, access to all companies
+        new("vp-legal@demo.example.com",      "Catherine", "Holloway",   "VP of Legal",                      RoleSeeder.Roles.Manager,    "DEMO-VPL",   EmployeeClassification.Salaried,   165.00m, ParentCode, AllCompanyCodes),
+        new("vp-hr@demo.example.com",         "Maria",     "Vasquez",    "VP of HR",                         RoleSeeder.Roles.Manager,    "DEMO-VPHR",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+        new("vp-it@demo.example.com",         "Kevin",     "Park",       "VP of IT",                         RoleSeeder.Roles.Manager,    "DEMO-VPIT",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+        new("vp-innovation@demo.example.com",  "Sarah",    "Lindgren",   "VP of Innovation",                 RoleSeeder.Roles.Manager,    "DEMO-VPIN",  EmployeeClassification.Salaried,   150.00m, ParentCode, AllCompanyCodes),
+        new("vp-estimating@demo.example.com",  "Michael",  "DeLuca",     "VP of Estimating",                 RoleSeeder.Roles.Manager,    "DEMO-VPES",  EmployeeClassification.Salaried,   160.00m, ParentCode, AllCompanyCodes),
+        new("vp-ops@demo.example.com",         "Brian",    "Kowalski",   "VP of Operations",                 RoleSeeder.Roles.Manager,    "DEMO-VPOP",  EmployeeClassification.Salaried,   160.00m, ParentCode, AllCompanyCodes),
+        new("vp-accounting@demo.example.com",  "Angela",   "Washington", "VP of Accounting",                 RoleSeeder.Roles.Manager,    "DEMO-VPAC",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+        new("vp-controller@demo.example.com",  "Diane",    "Schmidt",    "VP Controller",                    RoleSeeder.Roles.Manager,    "DEMO-VPCR",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+
+        // Sr Director Level (6) — Manager role, parent company only
+        new("sr-dir-accounting@demo.example.com", "Nancy",  "Fielding",  "Sr Director of Accounting",        RoleSeeder.Roles.Manager,    "DEMO-SDA",   EmployeeClassification.Salaried,   120.00m, ParentCode, [ParentCode]),
+        new("sr-dir-hr@demo.example.com",         "Rachel", "Torres",    "Sr Director of HR",                RoleSeeder.Roles.Manager,    "DEMO-SDH",   EmployeeClassification.Salaried,   115.00m, ParentCode, [ParentCode]),
+        new("sr-dir-legal@demo.example.com",      "Mark",   "Jennings",  "Sr Director of Legal/Risk",        RoleSeeder.Roles.Manager,    "DEMO-SDL",   EmployeeClassification.Salaried,   120.00m, ParentCode, [ParentCode]),
+        new("sr-dir-it@demo.example.com",         "Daniel", "Rossi",     "Sr Director of IT",                RoleSeeder.Roles.Manager,    "DEMO-SDI",   EmployeeClassification.Salaried,   115.00m, ParentCode, [ParentCode]),
+        new("sr-dir-innovation@demo.example.com", "Priya",  "Patel",     "Sr Director of Innovation",        RoleSeeder.Roles.Manager,    "DEMO-SDN",   EmployeeClassification.Salaried,   110.00m, ParentCode, [ParentCode]),
+        new("sr-dir-safety@demo.example.com",     "Carlos", "Mendez",    "Sr Director of Safety",            RoleSeeder.Roles.Manager,    "DEMO-SDS",   EmployeeClassification.Salaried,   110.00m, ParentCode, [ParentCode]),
+
+        // Manager Level (6) — Manager role, parent company only
+        new("mgr-accounting@demo.example.com",  "Karen",    "Liu",       "Accounting Manager",               RoleSeeder.Roles.Manager,    "DEMO-MA",    EmployeeClassification.Salaried,    95.00m, ParentCode, [ParentCode]),
+        new("mgr-hr@demo.example.com",          "Trevor",   "Banks",     "HR Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MH",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
+        new("mgr-it@demo.example.com",          "Scott",    "Yamamoto",  "IT Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MI",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
+        new("mgr-safety@demo.example.com",      "Rosa",     "Alvarez",   "Safety Manager",                   RoleSeeder.Roles.Manager,    "DEMO-MS",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
+        new("mgr-payroll@demo.example.com",     "Amy",      "Cooper",    "Payroll Manager",                  RoleSeeder.Roles.Manager,    "DEMO-MP",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
+        new("mgr-purchasing@demo.example.com",  "Derek",    "Olson",     "Purchasing Manager",               RoleSeeder.Roles.Manager,    "DEMO-MPU",   EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode, MechanicalCode]),
+
+        // Staff Level (5) — User role, parent company only
+        new("staff-accountant@demo.example.com", "Jessica",  "Tran",     "Staff Accountant",                 RoleSeeder.Roles.User,       "DEMO-SA",    EmployeeClassification.Salaried,    55.00m, ParentCode, [ParentCode]),
+        new("ap-clerk@demo.example.com",         "Brandon",  "Wells",    "AP Clerk",                         RoleSeeder.Roles.User,       "DEMO-APC",   EmployeeClassification.Hourly,      38.00m, ParentCode, [ParentCode]),
+        new("ar-clerk@demo.example.com",         "Megan",    "O'Brien",  "AR Clerk",                         RoleSeeder.Roles.User,       "DEMO-ARC",   EmployeeClassification.Hourly,      38.00m, ParentCode, [ParentCode]),
+        new("payroll-clerk@demo.example.com",    "Tyler",    "Jackson",  "Payroll Clerk",                    RoleSeeder.Roles.User,       "DEMO-PRC",   EmployeeClassification.Hourly,      36.00m, ParentCode, [ParentCode]),
+        new("hr-coordinator@demo.example.com",   "Samantha", "Cruz",     "HR Coordinator",                   RoleSeeder.Roles.User,       "DEMO-HRC",   EmployeeClassification.Hourly,      35.00m, ParentCode, [ParentCode]),
+
+        // Project/Field — Sr Leadership (4) — Manager role, Pacific Commercial
+        new("sr-project-exec@demo.example.com",  "William",  "Hartley",  "Sr Project Executive",             RoleSeeder.Roles.Manager,    "DEMO-SPE",   EmployeeClassification.Salaried,   145.00m, CommercialCode, [CommercialCode]),
+        new("project-exec@demo.example.com",     "Christine","Novak",    "Project Executive",                RoleSeeder.Roles.Manager,    "DEMO-PEX",   EmployeeClassification.Salaried,   130.00m, CommercialCode, [CommercialCode]),
+        new("chief-estimator@demo.example.com",  "Paul",     "Bergstrom","Chief Estimator",                  RoleSeeder.Roles.Manager,    "DEMO-CE",    EmployeeClassification.Salaried,   125.00m, CommercialCode, [CommercialCode, CivilCode]),
+        new("chief-engineer@demo.example.com",   "Laura",    "Kim",      "Chief Engineer",                   RoleSeeder.Roles.Manager,    "DEMO-CHE",   EmployeeClassification.Salaried,   125.00m, CommercialCode, [CommercialCode, MechanicalCode]),
+
+        // Project/Field — Project Management (7) — Supervisor role, Pacific Commercial (field-eng → Civil)
+        new("sr-pm@demo.example.com",            "Marcus",   "Williams", "Sr Project Manager",               RoleSeeder.Roles.Supervisor, "DEMO-SPM",   EmployeeClassification.Salaried,    95.00m, CommercialCode, [CommercialCode]),
+        new("pm@demo.example.com",               "Ashley",   "Rodriguez","Project Manager",                  RoleSeeder.Roles.Supervisor, "DEMO-PM",    EmployeeClassification.Salaried,    85.00m, CommercialCode, [CommercialCode]),
+        new("project-coord@demo.example.com",    "Natalie",  "Dunn",     "Project Coordinator",              RoleSeeder.Roles.User,       "DEMO-PC",    EmployeeClassification.Salaried,    55.00m, CommercialCode, [CommercialCode]),
+        new("sr-project-eng@demo.example.com",   "Ryan",     "Mitchell", "Sr Project Engineer",              RoleSeeder.Roles.Supervisor, "DEMO-SPG",   EmployeeClassification.Salaried,    80.00m, CommercialCode, [CommercialCode]),
+        new("project-eng@demo.example.com",      "Jasmine",  "Okafor",   "Project Engineer",                 RoleSeeder.Roles.User,       "DEMO-PEG",   EmployeeClassification.Salaried,    65.00m, CommercialCode, [CommercialCode]),
+        new("field-eng@demo.example.com",        "Cody",     "Larsen",   "Field Engineer",                   RoleSeeder.Roles.User,       "DEMO-FE",    EmployeeClassification.Hourly,      48.00m, CivilCode,      [CivilCode]),
+        new("commissioning@demo.example.com",    "Evan",     "Phillips", "Commissioning Officer",            RoleSeeder.Roles.Supervisor, "DEMO-COM",   EmployeeClassification.Salaried,    75.00m, CommercialCode, [CommercialCode, MechanicalCode]),
+
+        // Estimating (2) — User role, Pacific Civil
+        new("sr-estimator@demo.example.com",     "Gregory",  "Townsend", "Sr Estimator",                     RoleSeeder.Roles.User,       "DEMO-SES",   EmployeeClassification.Salaried,    80.00m, CivilCode, [CivilCode]),
+        new("estimator@demo.example.com",        "Hannah",   "Stewart",  "Estimator",                        RoleSeeder.Roles.User,       "DEMO-EST",   EmployeeClassification.Salaried,    60.00m, CivilCode, [CivilCode]),
+    ];
+
+    /// <summary>
+    /// Creates/ensures 3 subsidiary companies alongside the existing parent company.
+    /// Returns a dictionary of Code → Company for all 4 companies.
+    /// </summary>
+    private async Task<Dictionary<string, Company>> EnsureSubsidiaryCompaniesAsync(
+        Guid tenantId, Company parentCompany, CancellationToken ct)
+    {
+        // Ensure the parent company has the right name for the demo org chart
+        if (parentCompany.Name != "Summit Builders Group")
+        {
+            parentCompany.Name = "Summit Builders Group";
+            parentCompany.ShortName = "PBG";
+            parentCompany.IndustryType = "general-contractor";
+            parentCompany.State = "CA";
+            parentCompany.City = "Sacramento";
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Updated parent company name to Summit Builders Group");
+        }
+
+        var result = new Dictionary<string, Company> { [ParentCode] = parentCompany };
+
+        var subsidiaries = new[]
+        {
+            (Code: CommercialCode, Name: "Summit Commercial Construction", ShortName: "PCC"),
+            (Code: CivilCode,     Name: "Summit Civil",                   ShortName: "PCivil"),
+            (Code: MechanicalCode,Name: "Summit Mechanical",              ShortName: "PMech"),
+        };
+
+        foreach (var (code, name, shortName) in subsidiaries)
+        {
+            var company = await db.Set<Company>()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.TenantId == tenantId && c.Code == code && !c.IsDeleted, ct);
+
+            if (company is not null)
+            {
+                logger.LogInformation("Subsidiary company {Code} already exists: {Name}", code, company.Name);
+                result[code] = company;
+                continue;
+            }
+
+            company = new Company
+            {
+                TenantId = tenantId,
+                Code = code,
+                Name = name,
+                ShortName = shortName,
+                IsDefault = false,
+                IsActive = true,
+                IndustryType = code == MechanicalCode ? "specialty-contractor" : "general-contractor",
+                State = "CA",
+                City = "Sacramento",
+                SortOrder = int.Parse(code),
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "system"
+            };
+
+            db.Set<Company>().Add(company);
+            await db.SaveChangesAsync(ct);
+
+            logger.LogInformation("Created subsidiary company {CompanyId} ({Code}: {Name})", company.Id, code, name);
+            result[code] = company;
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Creates AppUser + role assignment + company access for each demo user.
+    /// Runs outside the RLS transaction (UserManager manages its own).
+    /// Idempotent: skips users that already exist.
+    /// </summary>
+    private async Task EnsureAllDemoUsersAsync(
+        Guid tenantId, Dictionary<string, Company> companies, string password, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            logger.LogWarning("Demo password not configured; skipping role-based user creation");
+            return;
+        }
+
+        var created = 0;
+        var skipped = 0;
+
+        foreach (var def in DemoUsers)
+        {
+            var user = await userManager.FindByEmailAsync(def.Email);
+
+            if (user is null)
+            {
+                user = new AppUser
+                {
+                    UserName = def.Email,
+                    Email = def.Email,
+                    EmailConfirmed = true,
+                    FirstName = def.FirstName,
+                    LastName = def.LastName,
+                    Title = def.Title,
+                    TenantId = tenantId,
+                    Type = UserType.Internal,
+                    Status = UserStatus.Active,
+                    CompanyId = companies[def.DefaultCompanyCode].Id
+                };
+
+                var result = await userManager.CreateAsync(user, password);
+                if (!result.Succeeded)
+                {
+                    logger.LogWarning("Failed to create demo user {Email}: {Errors}",
+                        def.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+                    continue;
+                }
+                created++;
+            }
+            else
+            {
+                skipped++;
+            }
+
+            // Ensure role
+            await roleSeeder.AssignRoleToUserAsync(user, def.Role, ct);
+
+            // Ensure company access (first company is default)
+            for (var i = 0; i < def.CompanyCodes.Length; i++)
+            {
+                var code = def.CompanyCodes[i];
+                if (companies.TryGetValue(code, out var company))
+                {
+                    await EnsureUserCompanyAccessAsync(user.Id, tenantId, company.Id, ct, isDefault: i == 0);
+                }
+            }
+        }
+
+        logger.LogInformation("Demo role users: {Created} created, {Skipped} already existed", created, skipped);
+    }
+
+    /// <summary>
+    /// Creates Employee records for all demo users inside the RLS transaction.
+    /// Links each Employee to its AppUser via EmployeeId FK.
+    /// Idempotent: skips employees that already exist (matched by EmployeeNumber).
+    /// </summary>
+    private async Task EnsureAllDemoEmployeesAsync(
+        Dictionary<string, Company> companies, CancellationToken ct)
+    {
+        var tenantId = tenantContext.TenantId;
+        var created = 0;
+        var skipped = 0;
+
+        foreach (var def in DemoUsers)
+        {
+            // Check if employee already exists by EmployeeNumber within this tenant
+            var existing = await db.Set<Employee>()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(e => e.TenantId == tenantId && e.EmployeeNumber == def.EmployeeNumber && !e.IsDeleted, ct);
+
+            if (existing is not null)
+            {
+                skipped++;
+
+                // Ensure the AppUser.EmployeeId FK is set
+                var user = await userManager.FindByEmailAsync(def.Email);
+                if (user is not null && user.EmployeeId != existing.Id)
+                {
+                    user.EmployeeId = existing.Id;
+                    var updateResult = await userManager.UpdateAsync(user);
+                    if (!updateResult.Succeeded)
+                        logger.LogWarning("Failed to link EmployeeId for {Email}: {Errors}",
+                            def.Email, string.Join(", ", updateResult.Errors.Select(e => e.Description)));
+                }
+                continue;
+            }
+
+            var homeCompanyId = companies.TryGetValue(def.DefaultCompanyCode, out var homeCo)
+                ? homeCo.Id
+                : (Guid?)null;
+
+            var employee = new Employee
+            {
+                EmployeeNumber = def.EmployeeNumber,
+                FirstName = def.FirstName,
+                LastName = def.LastName,
+                Email = def.Email,
+                Title = def.Title,
+                Classification = def.Classification,
+                BaseHourlyRate = def.HourlyRate,
+                HireDate = new DateOnly(2020, 1, 15),
+                IsActive = true,
+                HomeCompanyId = homeCompanyId,
+                Notes = $"Demo account: {def.Title}"
+            };
+
+            db.Set<Employee>().Add(employee);
+            await db.SaveChangesAsync(ct);
+
+            // Link AppUser.EmployeeId → Employee.Id
+            var appUser = await userManager.FindByEmailAsync(def.Email);
+            if (appUser is not null)
+            {
+                appUser.EmployeeId = employee.Id;
+                var linkResult = await userManager.UpdateAsync(appUser);
+                if (!linkResult.Succeeded)
+                    logger.LogWarning("Failed to link EmployeeId for {Email}: {Errors}",
+                        def.Email, string.Join(", ", linkResult.Errors.Select(e => e.Description)));
+            }
+
+            created++;
+        }
+
+        logger.LogInformation("Demo employee records: {Created} created, {Skipped} already existed", created, skipped);
     }
 }

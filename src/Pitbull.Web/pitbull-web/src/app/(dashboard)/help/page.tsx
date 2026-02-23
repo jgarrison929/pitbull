@@ -247,7 +247,7 @@ export default function HelpPage() {
                 Contact your system administrator or reach out to Pitbull support
                 at{" "}
                 <span className="font-medium text-foreground">
-                  support@pitbull.construction
+                  support@pitbullconstructionsolutions.com
                 </span>
                 . For keyboard shortcuts, press{" "}
                 <kbd className="inline-flex items-center justify-center min-w-[24px] h-6 px-1.5 text-xs font-medium bg-muted border border-border rounded">
