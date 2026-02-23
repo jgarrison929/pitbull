@@ -117,7 +117,7 @@ public class SubcontractConfiguration : IEntityTypeConfiguration<Subcontract>
         builder.Property(s => s.Status).HasConversion<string>().HasMaxLength(50);
 
         // Indexes
-        builder.HasIndex(s => new { s.TenantId, s.SubcontractNumber }).IsUnique();
+        builder.HasIndex(s => new { s.TenantId, s.CompanyId, s.SubcontractNumber }).IsUnique();
         builder.HasIndex(s => s.ProjectId);
         builder.HasIndex(s => s.Status);
         builder.HasIndex(s => s.SubcontractorName);

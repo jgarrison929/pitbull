@@ -52,7 +52,7 @@ public class PayPeriodConfiguration : IEntityTypeConfiguration<PayPeriod>
         builder.HasIndex(p => new { p.TenantId, p.Status })
             .HasDatabaseName("IX_pay_periods_status");
 
-        builder.HasIndex(p => new { p.TenantId, p.StartDate })
+        builder.HasIndex(p => new { p.TenantId, p.CompanyId, p.StartDate })
             .IsUnique()
             .HasDatabaseName("IX_pay_periods_unique_start");
     }

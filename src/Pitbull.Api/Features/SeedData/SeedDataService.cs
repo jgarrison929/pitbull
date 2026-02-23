@@ -32,7 +32,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 7;
+    private const int SeedDataVersion = 8;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default, bool useExternalTransaction = false)
     {
