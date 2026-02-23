@@ -3033,8 +3033,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     break;
                 }
 
-                var retOnWork = totalBilled * (retPct / 100m);
-                var earnedLessRet = totalBilled - retOnWork;
+                var retOnWork = Math.Round(totalBilled * (retPct / 100m), 2);
+                var earnedLessRet = Math.Round(totalBilled - retOnWork, 2);
 
                 // Determine status — older ones are paid, recent ones are in various stages
                 BillingApplicationStatus status;
@@ -3059,9 +3059,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                         ? BillingApplicationStatus.SubmittedToOwner
                         : BillingApplicationStatus.PmReview;
 
-                var previousCerts = earnedLessRet - (earnedLessRet / appCount * i > 0 ? progressThisPeriod * (1 - retPct / 100m) : 0);
-                previousCerts = Math.Max(0, earnedLessRet - progressThisPeriod * (1 - retPct / 100m));
-                var currentPaymentDue = progressThisPeriod * (1 - retPct / 100m);
+                var currentPaymentDue = Math.Round(progressThisPeriod * (1 - retPct / 100m), 2);
+                var previousCerts = Math.Round(Math.Max(0, earnedLessRet - currentPaymentDue), 2);
+                var balanceToFinish = Math.Round(contractSum - totalBilled + retOnWork, 2);
 
                 apps.Add(new BillingApplication
                 {
@@ -3072,19 +3072,19 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     PeriodFrom = periodEnd.AddMonths(-1).AddDays(1),
                     PeriodThrough = periodEnd,
                     ApplicationDate = periodEnd.AddDays(5),
-                    OriginalContractSum = contract.OriginalContractSum,
-                    NetChangeByChangeOrders = contract.ApprovedChangeOrderAmount,
-                    ContractSumToDate = contractSum,
-                    TotalCompletedAndStoredToDate = totalBilled,
+                    OriginalContractSum = Math.Round(contract.OriginalContractSum, 2),
+                    NetChangeByChangeOrders = Math.Round(contract.ApprovedChangeOrderAmount, 2),
+                    ContractSumToDate = Math.Round(contractSum, 2),
+                    TotalCompletedAndStoredToDate = Math.Round(totalBilled, 2),
                     RetainageOnCompletedWork = retOnWork,
                     RetainageOnStoredMaterials = 0m,
                     TotalRetainage = retOnWork,
-                    RetainagePercentWork = retPct,
-                    RetainagePercentMaterials = retPct,
+                    RetainagePercentWork = Math.Round(retPct, 2),
+                    RetainagePercentMaterials = Math.Round(retPct, 2),
                     TotalEarnedLessRetainage = earnedLessRet,
                     LessPreviousCertificates = previousCerts,
                     CurrentPaymentDue = currentPaymentDue,
-                    BalanceToFinishIncludingRetainage = contractSum - totalBilled + retOnWork,
+                    BalanceToFinishIncludingRetainage = balanceToFinish,
                     Status = status,
                 });
             }
@@ -3144,16 +3144,20 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 var earnedRevenue = revisedContract * (pctComplete / 100m);
                 var billedToDate = earnedRevenue * (0.95m + (decimal)random.NextDouble() * 0.10m);
 
+                // PercentComplete column is numeric(8,6) — max 99.999999.
+                // Clamp to 99.999999 to prevent overflow for 100% complete projects.
+                var clampedPct = Math.Min(pctComplete, 99.999999m);
+
                 report.Lines.Add(new WipReportLine
                 {
                     ProjectId = project.Id,
-                    ContractAmount = contractAmt,
-                    ApprovedChangeOrders = changeOrders,
-                    RevisedContractAmount = revisedContract,
+                    ContractAmount = Math.Round(contractAmt, 2),
+                    ApprovedChangeOrders = Math.Round(changeOrders, 2),
+                    RevisedContractAmount = Math.Round(revisedContract, 2),
                     TotalCostToDate = Math.Round(costToDate, 2),
-                    EstimatedCostToComplete = Math.Round(estimatedTotalCost - costToDate, 2),
+                    EstimatedCostToComplete = Math.Round(Math.Max(0, estimatedTotalCost - costToDate), 2),
                     EstimatedTotalCost = Math.Round(estimatedTotalCost, 2),
-                    PercentComplete = Math.Round(pctComplete, 1),
+                    PercentComplete = Math.Round(clampedPct, 6),
                     EarnedRevenue = Math.Round(earnedRevenue, 2),
                     BilledToDate = Math.Round(billedToDate, 2),
                     OverUnderBilling = Math.Round(earnedRevenue - billedToDate, 2),

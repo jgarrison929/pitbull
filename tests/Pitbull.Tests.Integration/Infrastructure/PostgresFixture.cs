@@ -30,7 +30,8 @@ public sealed class PostgresFixture : IAsyncLifetime
             .Build();
     }
 
-    public string AdminConnectionString => _container.GetConnectionString();
+    public string AdminConnectionString =>
+        _container.GetConnectionString() + ";Include Error Detail=true";
 
     public string AppConnectionString
     {
@@ -39,7 +40,8 @@ public sealed class PostgresFixture : IAsyncLifetime
             var csb = new NpgsqlConnectionStringBuilder(AdminConnectionString)
             {
                 Username = "pitbull_app",
-                Password = "pitbull_app"
+                Password = "pitbull_app",
+                IncludeErrorDetail = true
             };
 
             return csb.ConnectionString;
