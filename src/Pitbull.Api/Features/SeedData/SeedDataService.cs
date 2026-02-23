@@ -31,7 +31,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 6;
+    private const int SeedDataVersion = 7;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default, bool useExternalTransaction = false)
     {
@@ -1871,6 +1871,94 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
 
         return assignments;
+    }
+
+    /// <summary>
+    /// Creates project assignments for subsidiary company employees (index-based, no hardcoded employee numbers).
+    /// Assigns all employees to all active projects with role-based assignments.
+    /// </summary>
+    private static List<ProjectAssignment> CreateCompanyProjectAssignments(
+        List<Employee> employees,
+        List<Project> activeProjects)
+    {
+        var assignments = new List<ProjectAssignment>();
+        if (employees.Count == 0 || activeProjects.Count == 0) return assignments;
+
+        var now = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        foreach (var project in activeProjects)
+        {
+            // Assign first employee as PM, rest as team members
+            for (var i = 0; i < employees.Count && i < 8; i++)
+            {
+                var role = i switch
+                {
+                    0 => AssignmentRole.Manager,
+                    1 => AssignmentRole.Supervisor,
+                    2 => AssignmentRole.Supervisor,
+                    _ => AssignmentRole.Worker
+                };
+                assignments.Add(new ProjectAssignment
+                {
+                    ProjectId = project.Id,
+                    EmployeeId = employees[i].Id,
+                    Role = role,
+                    StartDate = now.AddMonths(-3),
+                    IsActive = true
+                });
+            }
+        }
+
+        return assignments;
+    }
+
+    /// <summary>
+    /// Creates time entries for subsidiary company employees (index-based, no hardcoded employee numbers).
+    /// </summary>
+    private static List<TimeEntry> CreateCompanyTimeEntries(
+        List<Employee> employees,
+        List<Project> activeProjects,
+        List<CostCode> costCodes,
+        List<ProjectAssignment> assignments)
+    {
+        var entries = new List<TimeEntry>();
+        if (employees.Count == 0 || activeProjects.Count == 0 || costCodes.Count == 0)
+            return entries;
+
+        var random = new Random(42); // Deterministic for reproducibility
+        var startDate = DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-2);
+        var endDate = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-1);
+
+        // Create ~50 time entries spread across employees and projects
+        for (var date = startDate; date <= endDate; date = date.AddDays(1))
+        {
+            // Skip weekends
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
+
+            // Each day, 3-5 employees log time
+            var dailyCount = Math.Min(employees.Count, random.Next(3, 6));
+            for (var i = 0; i < dailyCount; i++)
+            {
+                var employee = employees[i % employees.Count];
+                var project = activeProjects[random.Next(activeProjects.Count)];
+                var costCode = costCodes[random.Next(costCodes.Count)];
+                var hours = random.Next(4, 11); // 4-10 hours
+
+                entries.Add(new TimeEntry
+                {
+                    EmployeeId = employee.Id,
+                    ProjectId = project.Id,
+                    CostCodeId = costCode.Id,
+                    Date = date,
+                    RegularHours = hours,
+                    OvertimeHours = random.NextDouble() > 0.8 ? random.Next(1, 4) : 0,
+                    Description = $"Field work on {project.Name}",
+                    Status = TimeEntryStatus.Approved
+                });
+            }
+        }
+
+        return entries;
     }
 
     /// <summary>
@@ -5019,13 +5107,13 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             .Where(c => !c.IsDeleted)
             .ToListAsync(ct);
 
-        var assignments = CreateProjectAssignments(employees, activeProjects);
+        var assignments = CreateCompanyProjectAssignments(employees, activeProjects);
         StampCompanyId(assignments, companyId);
         db.Set<ProjectAssignment>().AddRange(assignments);
         await db.SaveChangesAsync(ct);
 
         // ── 3. Time entries ─────────────────────────────────────────
-        var timeEntries = CreateTimeEntries(employees, activeProjects, costCodes, assignments);
+        var timeEntries = CreateCompanyTimeEntries(employees, activeProjects, costCodes, assignments);
         StampCompanyId(timeEntries, companyId);
         db.Set<TimeEntry>().AddRange(timeEntries);
         await db.SaveChangesAsync(ct);
