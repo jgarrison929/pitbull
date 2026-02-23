@@ -77,10 +77,9 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
             .HasForeignKey(te => te.ApprovedById)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Onboarding fields
+        // Onboarding fields — stored as integer in DB (enum ordinal).
+        // DO NOT use HasConversion<string>() — the production DB column is integer.
         builder.Property(e => e.OnboardingStatus)
-            .HasConversion<string>()
-            .HasMaxLength(20)
             .HasDefaultValue(OnboardingStatus.NotStarted);
 
         builder.HasIndex(e => e.OnboardingStatus)
