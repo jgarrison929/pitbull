@@ -28,12 +28,22 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
     ];
 
     /// <summary>
-    /// Paths explicitly allowed even if they match blocked patterns.
+    /// Paths explicitly allowed even if they match blocked patterns (exact match).
     /// </summary>
     private static readonly string[] AllowedPaths =
     [
         "/api/auth/demo-register",
         "/api/auth/demo-users/export",
+        "/api/companies/accessible",
+    ];
+
+    /// <summary>
+    /// Path prefixes explicitly allowed (StartsWith match) — for routes with
+    /// dynamic segments like /api/companies/switch/{companyId}.
+    /// </summary>
+    private static readonly string[] AllowedPrefixes =
+    [
+        "/api/companies/switch/",
     ];
 
     public async Task InvokeAsync(HttpContext context)
@@ -44,10 +54,17 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         {
             var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
 
-            // Allow explicit exceptions
+            // Allow explicit exceptions (exact match)
             foreach (var allowed in AllowedPaths)
             {
                 if (path.Equals(allowed, StringComparison.OrdinalIgnoreCase))
+                    goto pass;
+            }
+
+            // Allow prefix exceptions (for routes with dynamic segments)
+            foreach (var prefix in AllowedPrefixes)
+            {
+                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                     goto pass;
             }
 

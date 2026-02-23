@@ -576,8 +576,8 @@ public class AuthController(
         };
 
         // Validate company code
-        var validCodes = new[] { "02", "03", "04" };
-        var companyCode = validCodes.Contains(request.CompanyCode) ? request.CompanyCode : "02";
+        var validCodes = new[] { "01", "02", "03", "04" };
+        var companyCode = validCodes.Contains(request.CompanyCode) ? request.CompanyCode : "01";
 
         // Find the demo tenant
         var demo = demoOptions.Value;
@@ -1212,4 +1212,4 @@ public record DemoRegisterRequest(
     string Email,
     string Password,
     string? Role = "pm",
-    string? CompanyCode = "02");
+    string? CompanyCode = "01");
