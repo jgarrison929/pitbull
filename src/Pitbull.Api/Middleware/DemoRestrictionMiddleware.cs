@@ -28,13 +28,16 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
     ];
 
     /// <summary>
-    /// Paths explicitly allowed even if they match blocked patterns.
+    /// Paths explicitly allowed even if they match blocked patterns (exact match).
     /// </summary>
     private static readonly string[] AllowedPaths =
     [
         "/api/auth/demo-register",
         "/api/auth/demo-users/export",
+        "/api/companies/accessible",
     ];
+
+    private const string CompanySwitchPrefix = "/api/companies/switch/";
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -44,11 +47,24 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         {
             var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
 
-            // Allow explicit exceptions
+            // Allow explicit exceptions (exact match)
             foreach (var allowed in AllowedPaths)
             {
                 if (path.Equals(allowed, StringComparison.OrdinalIgnoreCase))
                     goto pass;
+            }
+
+            // Allow /api/companies/switch/{guid} only when the suffix is a valid GUID.
+            // Deny immediately if the prefix matches but the GUID is invalid — prevents
+            // path traversal (../../admin) and non-GUID suffixes from falling through.
+            if (path.StartsWith(CompanySwitchPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                var suffix = path[CompanySwitchPrefix.Length..];
+                if (Guid.TryParse(suffix, out _))
+                    goto pass;
+
+                await WriteForbidden(context);
+                return;
             }
 
             // Block admin prefixes

@@ -28,6 +28,7 @@ const ROLES = [
 ];
 
 const COMPANIES = [
+  { value: "01", label: "Summit Builders Group (Commercial GC)" },
   { value: "02", label: "Summit Water Infrastructure (Civil GC)" },
   { value: "03", label: "Summit Highway Division (Highway)" },
   { value: "04", label: "Summit Electric Co. (Electrical Sub)" },
@@ -39,7 +40,7 @@ export default function DemoSignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("pm");
-  const [companyCode, setCompanyCode] = useState("02");
+  const [companyCode, setCompanyCode] = useState("01");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -119,7 +120,7 @@ export default function DemoSignupPage() {
               </div>
               <div className="h-10 w-px bg-white/30" />
               <div className="text-center">
-                <div className="text-3xl font-bold">3</div>
+                <div className="text-3xl font-bold">4</div>
                 <div className="text-amber-200 text-xs uppercase tracking-wider">Companies</div>
               </div>
               <div className="h-10 w-px bg-white/30" />
