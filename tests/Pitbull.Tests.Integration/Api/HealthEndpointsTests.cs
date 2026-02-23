@@ -37,10 +37,12 @@ public sealed class HealthEndpointsTests(PostgresFixture db) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Health_ready_is_public_and_returns_status()
+    public async Task Health_ready_requires_auth_and_returns_status()
     {
         await db.ResetAsync();
-        using var client = _factory.CreateClient();
+
+        // /health/ready requires authentication (exposes infrastructure details)
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/health/ready");
 
@@ -51,10 +53,12 @@ public sealed class HealthEndpointsTests(PostgresFixture db) : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Health_combined_is_public_and_returns_entries()
+    public async Task Health_combined_requires_auth_and_returns_entries()
     {
         await db.ResetAsync();
-        using var client = _factory.CreateClient();
+
+        // /health requires authentication (exposes infrastructure details)
+        var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
 
         var resp = await client.GetAsync("/health");
 
@@ -66,5 +70,25 @@ public sealed class HealthEndpointsTests(PostgresFixture db) : IAsyncLifetime
         var json = await resp.Content.ReadAsStringAsync();
         // Should have entries array
         Assert.Contains("entries", json);
+    }
+
+    [Fact]
+    public async Task Health_ready_without_auth_returns_401()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.GetAsync("/health/ready");
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Health_combined_without_auth_returns_401()
+    {
+        await db.ResetAsync();
+        using var client = _factory.CreateClient();
+
+        var resp = await client.GetAsync("/health");
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 }

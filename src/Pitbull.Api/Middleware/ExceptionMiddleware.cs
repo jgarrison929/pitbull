@@ -27,12 +27,16 @@ public class ExceptionMiddleware(
 
             logger.LogError(ex, "Unhandled exception. TraceId: {TraceId} CorrelationId: {CorrelationId}", traceId, correlationId);
 
-            // Save diagnostic error to database (must not affect the error response)
+            // Save diagnostic error to database using a fresh scope to avoid
+            // re-saving failed entities from the request's DbContext.
             try
             {
-                var dbContext = context.RequestServices.GetService<PitbullDbContext>();
-                if (dbContext != null)
+                var scopeFactory = context.RequestServices.GetService<IServiceScopeFactory>();
+                if (scopeFactory != null)
                 {
+                    await using var scope = scopeFactory.CreateAsyncScope();
+                    var dbContext = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
+
                     var tenantIdClaim = context.User?.FindFirst("tenant_id")?.Value;
                     Guid? tenantId = Guid.TryParse(tenantIdClaim, out var tid) ? tid : null;
 
