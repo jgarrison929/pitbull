@@ -37,14 +37,7 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/companies/accessible",
     ];
 
-    /// <summary>
-    /// Path prefixes explicitly allowed (StartsWith match) — for routes with
-    /// dynamic segments like /api/companies/switch/{companyId}.
-    /// </summary>
-    private static readonly string[] AllowedPrefixes =
-    [
-        "/api/companies/switch/",
-    ];
+    private const string CompanySwitchPrefix = "/api/companies/switch/";
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -61,11 +54,17 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
                     goto pass;
             }
 
-            // Allow prefix exceptions (for routes with dynamic segments)
-            foreach (var prefix in AllowedPrefixes)
+            // Allow /api/companies/switch/{guid} only when the suffix is a valid GUID.
+            // Deny immediately if the prefix matches but the GUID is invalid — prevents
+            // path traversal (../../admin) and non-GUID suffixes from falling through.
+            if (path.StartsWith(CompanySwitchPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                var suffix = path[CompanySwitchPrefix.Length..];
+                if (Guid.TryParse(suffix, out _))
                     goto pass;
+
+                await WriteForbidden(context);
+                return;
             }
 
             // Block admin prefixes

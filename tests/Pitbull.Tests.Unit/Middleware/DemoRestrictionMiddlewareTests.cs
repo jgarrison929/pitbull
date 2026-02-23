@@ -103,6 +103,52 @@ public class DemoRestrictionMiddlewareTests
         Assert.Equal(403, statusCode);
     }
 
+    // ─── Company switch GUID validation ────────────────────────────────────────
+
+    [Fact]
+    public async Task DemoUser_CanAccess_CompaniesSwitch_WithValidGuid()
+    {
+        var context = CreateDemoContext("/api/companies/switch/b2b8d0a1-70a3-4278-ae9e-7396b6d2d6ab");
+
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+
+        Assert.True(nextCalled, "/api/companies/switch/{valid-guid} should be allowed");
+        Assert.NotEqual(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_IsBlocked_FromCompaniesSwitch_WithInvalidGuid()
+    {
+        var context = CreateDemoContext("/api/companies/switch/not-a-guid");
+
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+
+        Assert.False(nextCalled, "/api/companies/switch/not-a-guid should be blocked");
+        Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_IsBlocked_FromCompaniesSwitch_PathTraversal()
+    {
+        var context = CreateDemoContext("/api/companies/switch/../../admin");
+
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+
+        Assert.False(nextCalled, "Path traversal via /api/companies/switch/ should be blocked");
+        Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_IsBlocked_FromCompaniesSwitch_NoGuid()
+    {
+        var context = CreateDemoContext("/api/companies/switch/");
+
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+
+        Assert.False(nextCalled, "/api/companies/switch/ with no GUID should be blocked");
+        Assert.Equal(403, statusCode);
+    }
+
     // ─── Non-demo users are unaffected ───────────────────────────────────────
 
     [Fact]
