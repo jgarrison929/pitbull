@@ -142,6 +142,39 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
             result = await employeeService.GetMyCrewByEmailAsync(email);
         }
 
+        // Demo users without an employee record: return all active employees as "crew"
+        // so they can experience the crew timecard grid with pre-seeded data.
+        var isDemoUser = User.FindFirst("is_demo_user")?.Value == "true";
+        if (!result.IsSuccess && result.ErrorCode == "NOT_FOUND" && isDemoUser)
+        {
+            var allEmployees = await employeeService.GetEmployeesAsync(
+                new ListEmployeesQuery(IsActive: true) { Page = 1, PageSize = 50 });
+
+            if (allEmployees.IsSuccess && allEmployees.Value!.Items.Count > 0)
+            {
+                var crewMembers = allEmployees.Value.Items.Select(e =>
+                    new CrewMemberDto(
+                        Id: e.Id,
+                        EmployeeNumber: e.EmployeeNumber,
+                        FirstName: e.FirstName,
+                        LastName: e.LastName,
+                        FullName: e.FullName,
+                        Title: e.Title,
+                        Classification: e.Classification,
+                        BaseHourlyRate: e.BaseHourlyRate,
+                        IsActive: e.IsActive,
+                        AssignedProjects: []
+                    )).ToList();
+
+                return Ok(new MyCrewResult(
+                    SupervisorId: Guid.Empty,
+                    SupervisorName: "Demo Crew",
+                    CrewCount: crewMembers.Count,
+                    CrewMembers: crewMembers
+                ));
+            }
+        }
+
         if (!result.IsSuccess)
         {
             // Return empty crew instead of 404 when no employee matches
