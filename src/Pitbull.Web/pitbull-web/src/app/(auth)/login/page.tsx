@@ -256,12 +256,6 @@ function LoginForm() {
             Try the Demo
           </Link>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Want to explore?{" "}
-            <Link href="/demo" className="text-amber-600 dark:text-amber-400 hover:underline font-medium">
-              Try the demo
-            </Link>
-          </p>
         </div>
       </div>
 
