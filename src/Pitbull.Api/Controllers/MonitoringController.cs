@@ -39,7 +39,8 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
             Version: version,
             BuildTime: buildTime,
             Environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
-            FrameworkVersion: Environment.Version.ToString()
+            FrameworkVersion: Environment.Version.ToString(),
+            MachineName: Environment.MachineName
         ));
     }
 
@@ -145,7 +146,8 @@ public record VersionInfo(
     string Version,
     DateTime BuildTime,
     string Environment,
-    string FrameworkVersion);
+    string FrameworkVersion,
+    string MachineName);
 
 /// <summary>
 /// Security configuration status
