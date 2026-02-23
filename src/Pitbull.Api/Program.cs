@@ -423,13 +423,20 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "Pitbull Construction Solutions API",
+        Title = "Pitbull Construction Solutions \u2014 API Reference",
         Version = "v1",
-        Description = "REST API for Pitbull Construction Solutions -- a multi-tenant platform for managing construction projects, bids, contracts, and documents. All endpoints (except auth) require a valid JWT bearer token.",
+        Description = "RESTful API for AI-native construction ERP. Multi-tenant, role-based access control, real-time event bus. " +
+                      "Covers the full construction lifecycle: bids, projects, contracts, billing (AIA G702/G703), " +
+                      "time tracking, payroll, RFIs, submittals, and AI-powered document intelligence.",
         Contact = new Microsoft.OpenApi.Models.OpenApiContact
         {
-            Name = "Pitbull Dev Team",
-            Url = new Uri("https://github.com/jgarrison929/pitbull")
+            Name = "Pitbull Construction Solutions",
+            Email = "joshuag@pitbullconstructionsolutions.com",
+            Url = new Uri("https://pitbullconstructionsolutions.com")
+        },
+        License = new Microsoft.OpenApi.Models.OpenApiLicense
+        {
+            Name = "Proprietary"
         }
     });
 
@@ -674,16 +681,14 @@ else
     app.UseCors("Production");
 }
 
-// Swagger (development only — not exposed in production)
-if (app.Environment.IsDevelopment())
+// Swagger — available in all environments, gated by ApiDocs:Enabled + ApiDocs:RequireAuth
+app.UseMiddleware<Pitbull.Api.Middleware.SwaggerAuthMiddleware>();
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
-        c.DocumentTitle = "Pitbull Construction Solutions - API Docs";
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
+    c.DocumentTitle = "Pitbull Construction Solutions \u2014 API Reference";
+});
 
 // Response compression (before other middlewares that generate responses)
 app.UseResponseCompression();
