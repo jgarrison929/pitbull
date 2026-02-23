@@ -470,13 +470,21 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// <summary>
     /// Bulk-deletes all non-soft-deleted records for a tenant from a given entity type.
     /// Uses EF Core 7+ ExecuteDeleteAsync for efficient server-side deletion.
+    /// Silently skips if the table doesn't exist (missing migration in production).
     /// </summary>
     private async Task BulkDeleteAsync<T>(Guid tenantId, CancellationToken ct) where T : BaseEntity
     {
-        await db.Set<T>()
-            .IgnoreQueryFilters()
-            .Where(x => x.TenantId == tenantId)
-            .ExecuteDeleteAsync(ct);
+        try
+        {
+            await db.Set<T>()
+                .IgnoreQueryFilters()
+                .Where(x => x.TenantId == tenantId)
+                .ExecuteDeleteAsync(ct);
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P01") // relation does not exist
+        {
+            // Table not yet created (missing migration) — skip silently
+        }
     }
 
     /// <summary>
