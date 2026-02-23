@@ -9,6 +9,7 @@ using Pitbull.Core.Entities;
 using Pitbull.Notifications.Domain;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
+using TaskStatus = Pitbull.ProjectManagement.Domain.TaskStatus;
 using Pitbull.RFIs.Domain;
 using Pitbull.SystemAdmin.Domain;
 using Pitbull.TimeTracking.Domain;
@@ -4699,59 +4700,88 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         var tasks = new List<PmTask>();
         var now = DateTime.UtcNow;
 
-        // Task templates per project: (title, description, type, priority, daysOffset, status)
-        var taskTemplates = new (string title, string desc, TaskType type, TaskPriority priority, int dueDaysFromNow, TaskStatus status)[]
-        {
-            ("Review structural steel shop drawings", "Review and approve steel fabricator's shop drawings for Level 2 framing. Check connections, embed plates, and beam sizes against structural drawings.", TaskType.Submittal, TaskPriority.High, -14, TaskStatus.Complete),
-            ("Coordinate MEP rough-in sequence", "Work with mechanical, electrical, and plumbing subs to establish routing priority in ceiling plenum areas. Resolve any conflicts before framing closes up.", TaskType.General, TaskPriority.Urgent, -7, TaskStatus.Complete),
-            ("Submit RFI for foundation drain detail", "Architect detail shows 4-inch perf pipe but soils report recommends 6-inch. Submit RFI to clarify before Phase 2 excavation begins.", TaskType.Rfi, TaskPriority.High, -10, TaskStatus.Complete),
-            ("Update two-week lookahead schedule", "Incorporate latest delivery dates and subcontractor manpower into the short-interval schedule. Distribute to all subs by Friday.", TaskType.General, TaskPriority.Normal, 2, TaskStatus.InProgress),
-            ("Process Change Order #003", "Owner-requested upgrade to lobby finishes. Get pricing from tile and millwork subs, prepare CO package with schedule impact analysis.", TaskType.General, TaskPriority.High, 5, TaskStatus.InProgress),
-            ("Schedule concrete pour — Level 2 deck", "Coordinate with concrete sub, pump company, and testing lab. Need 3-day weather window. Verify rebar and embed inspections are complete.", TaskType.General, TaskPriority.Urgent, 3, TaskStatus.InProgress),
-            ("Complete monthly billing application", "Prepare G702/G703 for current billing period. Update percent complete on all SOV line items. Get superintendent sign-off on quantities.", TaskType.General, TaskPriority.High, 7, TaskStatus.Open),
-            ("Order long-lead electrical equipment", "Switchgear and transfer switch have 16-week lead time. Confirm specs with electrical sub and place PO by end of week.", TaskType.General, TaskPriority.Urgent, 1, TaskStatus.Open),
-            ("Prepare for owner progress meeting", "Compile schedule update, cost report, RFI log, and submittal log. Prepare 3-week lookahead and photo documentation.", TaskType.MeetingAction, TaskPriority.Normal, 4, TaskStatus.Open),
-            ("Review safety plan for crane operations", "Mobile crane arriving next week for steel erection. Review lift plan, swing radius, and ground conditions. Confirm crane operator certifications.", TaskType.General, TaskPriority.High, 3, TaskStatus.Open),
-            ("Close out punch list items — Phase 1", "Walk Phase 1 areas with architect, document deficiencies, and assign corrections to responsible subs. Target 100% closure before final inspection.", TaskType.General, TaskPriority.Normal, 14, TaskStatus.Open),
-            ("Update as-built drawings", "Mark up structural and MEP as-builts with field changes from the past month. Scan and upload to project documents.", TaskType.General, TaskPriority.Low, 21, TaskStatus.Open),
-            ("Submit prevailing wage certified payroll", "Compile WH-347 reports for all trades working this week. Verify wage rates against current determination. Submit to owner by Monday.", TaskType.General, TaskPriority.High, 1, TaskStatus.InProgress),
-            ("Inspect waterproofing at foundation", "Below-grade waterproofing application complete. Schedule third-party inspection and flood test before backfill.", TaskType.DailyReport, TaskPriority.High, 5, TaskStatus.Open),
-            ("Request AHJ fire alarm inspection", "Fire alarm rough-in complete on Levels 1-2. Schedule Authority Having Jurisdiction inspection. Coordinate with fire alarm sub for attendance.", TaskType.General, TaskPriority.Normal, 10, TaskStatus.Open),
-        ];
-
         foreach (var project in activeProjects.Take(3))
         {
-            foreach (var (title, desc, type, priority, dueDays, status) in taskTemplates)
-            {
-                var dueDate = now.AddDays(dueDays);
-                var task = new PmTask
-                {
-                    ProjectId = project.Id,
-                    Title = title,
-                    Description = desc,
-                    TaskType = type,
-                    Priority = priority,
-                    Status = status,
-                    AssignedByUserId = seedUserId,
-                    AssignedToName = priority == TaskPriority.Urgent ? "Mike Torres"
-                        : priority == TaskPriority.High ? "Sarah Chen"
-                        : "James Park",
-                    DueDate = dueDate,
-                    StartedAt = status is TaskStatus.InProgress or TaskStatus.Complete ? dueDate.AddDays(-3) : null,
-                    CompletedAt = status == TaskStatus.Complete ? dueDate.AddDays(-1) : null,
-                    ReferenceType = type switch
-                    {
-                        TaskType.Rfi => TaskReferenceType.Rfi,
-                        TaskType.Submittal => TaskReferenceType.Submittal,
-                        TaskType.MeetingAction => TaskReferenceType.Meeting,
-                        TaskType.DailyReport => TaskReferenceType.DailyReport,
-                        _ => TaskReferenceType.None,
-                    },
-                };
-                tasks.Add(task);
-            }
+            T(tasks, project.Id, seedUserId, now, "Review structural steel shop drawings",
+                "Review and approve steel fabricator shop drawings for Level 2 framing.",
+                TaskType.Submittal, TaskPriority.High, -14, TaskStatus.Complete);
+            T(tasks, project.Id, seedUserId, now, "Coordinate MEP rough-in sequence",
+                "Work with mechanical, electrical, and plumbing subs to establish routing priority.",
+                TaskType.General, TaskPriority.Urgent, -7, TaskStatus.Complete);
+            T(tasks, project.Id, seedUserId, now, "Submit RFI for foundation drain detail",
+                "Architect detail shows 4-inch perf pipe but soils report recommends 6-inch.",
+                TaskType.Rfi, TaskPriority.High, -10, TaskStatus.Complete);
+            T(tasks, project.Id, seedUserId, now, "Update two-week lookahead schedule",
+                "Incorporate latest delivery dates and subcontractor manpower into the schedule.",
+                TaskType.General, TaskPriority.Normal, 2, TaskStatus.InProgress);
+            T(tasks, project.Id, seedUserId, now, "Process Change Order #003",
+                "Owner-requested lobby finish upgrade. Get pricing from tile and millwork subs.",
+                TaskType.General, TaskPriority.High, 5, TaskStatus.InProgress);
+            T(tasks, project.Id, seedUserId, now, "Schedule concrete pour - Level 2 deck",
+                "Coordinate with concrete sub, pump company, and testing lab. Need 3-day weather window.",
+                TaskType.General, TaskPriority.Urgent, 3, TaskStatus.InProgress);
+            T(tasks, project.Id, seedUserId, now, "Complete monthly billing application",
+                "Prepare G702/G703 for current billing period. Update percent complete on all SOV line items.",
+                TaskType.General, TaskPriority.High, 7, TaskStatus.Open);
+            T(tasks, project.Id, seedUserId, now, "Order long-lead electrical equipment",
+                "Switchgear and transfer switch have 16-week lead time. Place PO by end of week.",
+                TaskType.General, TaskPriority.Urgent, 1, TaskStatus.Open);
+            T(tasks, project.Id, seedUserId, now, "Prepare for owner progress meeting",
+                "Compile schedule update, cost report, RFI log, and submittal log.",
+                TaskType.MeetingAction, TaskPriority.Normal, 4, TaskStatus.Open);
+            T(tasks, project.Id, seedUserId, now, "Review safety plan for crane operations",
+                "Mobile crane arriving next week for steel erection. Review lift plan and swing radius.",
+                TaskType.General, TaskPriority.High, 3, TaskStatus.Open);
+            T(tasks, project.Id, seedUserId, now, "Close out punch list items - Phase 1",
+                "Walk Phase 1 areas with architect, document deficiencies, assign corrections to subs.",
+                TaskType.General, TaskPriority.Normal, 14, TaskStatus.Open);
+            T(tasks, project.Id, seedUserId, now, "Update as-built drawings",
+                "Mark up structural and MEP as-builts with field changes from the past month.",
+                TaskType.General, TaskPriority.Low, 21, TaskStatus.Open);
+            T(tasks, project.Id, seedUserId, now, "Submit prevailing wage certified payroll",
+                "Compile WH-347 reports for all trades. Verify rates against current determination.",
+                TaskType.General, TaskPriority.High, 1, TaskStatus.InProgress);
+            T(tasks, project.Id, seedUserId, now, "Inspect waterproofing at foundation",
+                "Below-grade waterproofing complete. Schedule third-party inspection before backfill.",
+                TaskType.DailyReport, TaskPriority.High, 5, TaskStatus.Open);
+            T(tasks, project.Id, seedUserId, now, "Request AHJ fire alarm inspection",
+                "Fire alarm rough-in complete on Levels 1-2. Schedule AHJ inspection.",
+                TaskType.General, TaskPriority.Normal, 10, TaskStatus.Open);
         }
 
         return tasks;
+
+        // Local helper to keep task creation concise
+        static void T(
+            List<PmTask> list, Guid projectId, Guid userId, DateTime baseTime,
+            string title, string desc,
+            TaskType type, TaskPriority priority, int dueDays, TaskStatus status)
+        {
+            var dueDate = baseTime.AddDays(dueDays);
+            list.Add(new PmTask
+            {
+                ProjectId = projectId,
+                Title = title,
+                Description = desc,
+                TaskType = type,
+                Priority = priority,
+                Status = status,
+                AssignedByUserId = userId,
+                AssignedToName = priority == TaskPriority.Urgent ? "Mike Torres"
+                    : priority == TaskPriority.High ? "Sarah Chen" : "James Park",
+                DueDate = dueDate,
+                StartedAt = status is TaskStatus.InProgress or TaskStatus.Complete
+                    ? dueDate.AddDays(-3) : null,
+                CompletedAt = status == TaskStatus.Complete ? dueDate.AddDays(-1) : null,
+                ReferenceType = type switch
+                {
+                    TaskType.Rfi => TaskReferenceType.Rfi,
+                    TaskType.Submittal => TaskReferenceType.Submittal,
+                    TaskType.MeetingAction => TaskReferenceType.Meeting,
+                    TaskType.DailyReport => TaskReferenceType.DailyReport,
+                    _ => TaskReferenceType.None,
+                },
+            });
+        }
     }
 }
