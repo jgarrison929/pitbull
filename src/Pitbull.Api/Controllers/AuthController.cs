@@ -641,25 +641,9 @@ public class AuthController(
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT set_config('app.current_company', {company.Id.ToString()}, false)");
 
-        var employee = new Pitbull.TimeTracking.Domain.Employee
-        {
-            EmployeeNumber = $"DEMO-PUB-{user.Id.ToString()[..8].ToUpperInvariant()}",
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email!,
-            Title = title,
-            Classification = Pitbull.TimeTracking.Domain.EmployeeClassification.Salaried,
-            BaseHourlyRate = 50.00m,
-            HireDate = DateOnly.FromDateTime(DateTime.UtcNow),
-            IsActive = true,
-            HomeCompanyId = company.Id,
-            Notes = "Self-service demo signup"
-        };
-        db.Set<Pitbull.TimeTracking.Domain.Employee>().Add(employee);
-        await db.SaveChangesAsync();
-
-        user.EmployeeId = employee.Id;
-        await userManager.UpdateAsync(user);
+        // Skip Employee record for self-service demo users to avoid OnboardingStatus
+        // type mismatch (string vs integer column). Demo users don't need employee records
+        // to experience the platform — they can view all seed data through their role.
 
         // Generate JWT + refresh token (auto-login)
         var roles = await roleSeeder.GetUserRolesAsync(user);
