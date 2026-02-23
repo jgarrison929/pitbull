@@ -26,7 +26,7 @@ public sealed class ApiKeyServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().NotBeNull();
         result.Value!.PlainTextKey.Should().StartWith("pb_");
-        result.Value.PlainTextKey.Length.Should().Be(43);
+        result.Value.PlainTextKey.Length.Should().BeInRange(35, 43); // "pb_" + 32-40 base64 chars
         result.Value.KeyPrefix.Should().Be(result.Value.PlainTextKey[..8]);
     }
 

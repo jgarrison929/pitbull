@@ -91,10 +91,13 @@ public class ApiKeyService(PitbullDbContext db) : IApiKeyService
         var bytes = new byte[32];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(bytes);
-        return "pb_" + Convert.ToBase64String(bytes)
+        // Use URL-safe base64 and take up to 40 chars (may be shorter after
+        // stripping padding, but always at least 32 usable chars from 32 bytes).
+        var encoded = Convert.ToBase64String(bytes)
             .Replace("+", "")
             .Replace("/", "")
-            .Replace("=", "")[..40];
+            .Replace("=", "");
+        return "pb_" + encoded[..Math.Min(encoded.Length, 40)];
     }
 
     private static string HashKey(string plainTextKey)

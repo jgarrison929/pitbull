@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, startTransition } from "react";
 import api from "@/lib/api";
 import { getToken, setToken, removeToken, setRefreshToken, removeRefreshToken, decodeToken, isTokenExpired } from "@/lib/auth";
 import { posthog } from "@/lib/posthog";
@@ -74,10 +74,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // populates the user on the client only.
   useEffect(() => {
     const token = getToken();
-    if (token) {
-      setUser(buildUserFromToken(token));
-    }
-    setIsLoading(false);
+    startTransition(() => {
+      if (token) {
+        setUser(buildUserFromToken(token));
+      }
+      setIsLoading(false);
+    });
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
