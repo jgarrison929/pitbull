@@ -72,6 +72,9 @@ public sealed class DemoBootstrapper(
                 await EnsureDemoEmployeeRecordsAsync(demo, cancellationToken);
                 await EnsureAllDemoEmployeesAsync(allCompanies, cancellationToken);
 
+                // Assign PM-level and executive demo users to seed projects
+                await EnsureDemoProjectAssignmentsAsync(cancellationToken);
+
                 await tx.CommitAsync(cancellationToken);
 
                 if (result.IsSuccess)
@@ -717,5 +720,92 @@ public sealed class DemoBootstrapper(
         }
 
         logger.LogInformation("Demo employee records: {Created} created, {Skipped} already existed", created, skipped);
+    }
+
+    // ── PM & Executive project assignments ────────────────────────────────
+
+    /// <summary>
+    /// Employee numbers for PM-level demo users who need Manager assignments.
+    /// </summary>
+    private static readonly string[] PmEmployeeNumbers =
+        ["DEMO-SPM", "DEMO-PM", "DEMO-PC", "DEMO-SPG", "DEMO-PEG", "DEMO-FE"];
+
+    /// <summary>
+    /// Employee numbers for executive/C-suite users who get Manager (viewer) assignments.
+    /// </summary>
+    private static readonly string[] ExecutiveEmployeeNumbers =
+        ["DEMO-CEO", "DEMO-COO", "DEMO-CFO", "DEMO-CAO", "DEMO-CRO",
+         "DEMO-SPE", "DEMO-PEX", "DEMO-CE", "DEMO-CHE"];
+
+    /// <summary>
+    /// Assigns PM-level demo users as Managers and executive demo users as Managers (viewers)
+    /// to active seed projects so they see real data on their dashboards.
+    /// Follows the same idempotent pattern as EnsureDemoEmployeeRecordsAsync.
+    /// </summary>
+    private async Task EnsureDemoProjectAssignmentsAsync(CancellationToken ct)
+    {
+        var tenantId = tenantContext.TenantId;
+
+        var activeProjects = await db.Set<Pitbull.Projects.Domain.Project>()
+            .IgnoreQueryFilters()
+            .Where(p => !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active && p.TenantId == tenantId)
+            .Take(5)
+            .ToListAsync(ct);
+
+        if (activeProjects.Count == 0)
+        {
+            logger.LogInformation("No active projects found; skipping demo project assignments");
+            return;
+        }
+
+        var pmAssigned = await AssignEmployeesToProjectsAsync(PmEmployeeNumbers, activeProjects, AssignmentRole.Manager, "Demo PM assignment", ct);
+        var execAssigned = await AssignEmployeesToProjectsAsync(ExecutiveEmployeeNumbers, activeProjects, AssignmentRole.Manager, "Demo executive viewer", ct);
+
+        logger.LogInformation(
+            "Demo project assignments: {PmCount} PM assignments, {ExecCount} executive assignments created across {ProjectCount} projects",
+            pmAssigned, execAssigned, activeProjects.Count);
+    }
+
+    private async Task<int> AssignEmployeesToProjectsAsync(
+        string[] employeeNumbers,
+        List<Pitbull.Projects.Domain.Project> projects,
+        AssignmentRole role,
+        string notes,
+        CancellationToken ct)
+    {
+        var tenantId = tenantContext.TenantId;
+        var employees = await db.Set<Employee>()
+            .IgnoreQueryFilters()
+            .Where(e => e.TenantId == tenantId && employeeNumbers.Contains(e.EmployeeNumber) && !e.IsDeleted)
+            .ToListAsync(ct);
+
+        var created = 0;
+        foreach (var employee in employees)
+        {
+            foreach (var project in projects)
+            {
+                var alreadyAssigned = await db.Set<ProjectAssignment>()
+                    .IgnoreQueryFilters()
+                    .AnyAsync(pa => pa.EmployeeId == employee.Id && pa.ProjectId == project.Id && !pa.IsDeleted, ct);
+
+                if (alreadyAssigned) continue;
+
+                db.Set<ProjectAssignment>().Add(new ProjectAssignment
+                {
+                    EmployeeId = employee.Id,
+                    ProjectId = project.Id,
+                    StartDate = new DateOnly(2025, 1, 1),
+                    IsActive = true,
+                    Role = role,
+                    Notes = notes
+                });
+                created++;
+            }
+        }
+
+        if (created > 0)
+            await db.SaveChangesAsync(ct);
+
+        return created;
     }
 }

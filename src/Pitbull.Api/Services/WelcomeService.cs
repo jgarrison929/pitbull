@@ -94,8 +94,9 @@ public class WelcomeService(
     /// Determines the tour profile from the user's title and roles.
     /// Title keywords take priority over roles because they're more specific —
     /// a "CFO" with Admin role needs finance steps, not generic executive steps.
+    /// Also used by DashboardPreferencesService to auto-detect dashboard layout.
     /// </summary>
-    internal static TourProfile DetectTourProfile(string? title, ISet<string> roles)
+    public static TourProfile DetectTourProfile(string? title, ISet<string> roles)
     {
         var t = title?.Trim() ?? "";
 
@@ -295,7 +296,7 @@ public class WelcomeService(
 
 // ── Enums and DTOs ──
 
-internal enum TourProfile
+public enum TourProfile
 {
     Executive,
     Cfo,

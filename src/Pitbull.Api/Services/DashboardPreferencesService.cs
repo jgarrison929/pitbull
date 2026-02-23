@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -32,7 +33,7 @@ public record SetDashboardPreferenceRequest(string Layout);
 
 public record SetWidgetConfigurationRequest(List<WidgetDto> Widgets);
 
-public class DashboardPreferencesService(PitbullDbContext db) : IDashboardPreferencesService
+public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUser> userManager) : IDashboardPreferencesService
 {
     private static readonly string[] ValidLayouts = ["default", "pm", "controller", "field", "executive"];
 
@@ -90,7 +91,10 @@ public class DashboardPreferencesService(PitbullDbContext db) : IDashboardPrefer
             .FirstOrDefaultAsync(p => p.UserId == userId, ct);
 
         if (pref is null)
-            return new DashboardPreferenceDto("default", Templates["default"].Widgets);
+        {
+            var layout = await DetectLayoutForUserAsync(userId);
+            return new DashboardPreferenceDto(layout, Templates[layout].Widgets);
+        }
 
         var widgets = DeserializeWidgets(pref.WidgetConfiguration);
         return new DashboardPreferenceDto(pref.Layout, widgets ?? Templates.GetValueOrDefault(pref.Layout)?.Widgets);
@@ -169,6 +173,31 @@ public class DashboardPreferencesService(PitbullDbContext db) : IDashboardPrefer
     {
         return Templates.GetValueOrDefault(role) ?? Templates["default"];
     }
+
+    private async Task<string> DetectLayoutForUserAsync(Guid userId)
+    {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+            return "default";
+
+        var roles = await userManager.GetRolesAsync(user);
+        var logicalRoles = roles
+            .Where(r => r.StartsWith($"{user.TenantId}:"))
+            .Select(r => r[($"{user.TenantId}:".Length)..])
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var profile = WelcomeService.DetectTourProfile(user.Title, logicalRoles);
+        return ProfileToLayout(profile);
+    }
+
+    private static string ProfileToLayout(TourProfile profile) => profile switch
+    {
+        TourProfile.Executive => "executive",
+        TourProfile.Cfo => "controller",
+        TourProfile.ProjectManager => "pm",
+        TourProfile.Field => "field",
+        _ => "default",
+    };
 
     private static string? SerializeWidgets(List<WidgetDto>? widgets)
     {

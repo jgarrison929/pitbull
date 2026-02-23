@@ -1,5 +1,9 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
 using Pitbull.Api.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -25,7 +29,15 @@ public class DashboardPreferencesServiceTests : IDisposable
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
         _db.Database.EnsureCreated();
-        _service = new DashboardPreferencesService(_db);
+
+        var store = new Mock<IUserStore<AppUser>>();
+        var userManager = new Mock<UserManager<AppUser>>(
+            store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
+        // Default: FindByIdAsync returns null → auto-detect falls back to "default"
+        userManager.Setup(um => um.FindByIdAsync(It.IsAny<string>()))
+            .ReturnsAsync((AppUser?)null);
+
+        _service = new DashboardPreferencesService(_db, userManager.Object);
     }
 
     public void Dispose()
