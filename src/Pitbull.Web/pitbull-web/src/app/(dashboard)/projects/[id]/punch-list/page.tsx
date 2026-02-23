@@ -1210,10 +1210,10 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
             />
           )}
 
-          <div className="space-y-6 py-3">
+          <div className="space-y-8 py-4">
             {/* Section: Item Details */}
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-foreground mb-1">Item Details</legend>
+            <fieldset className="space-y-4 rounded-lg border border-border/50 p-4">
+              <legend className="text-sm font-semibold text-foreground px-2">Item Details</legend>
               <div className="space-y-2">
                 <Label htmlFor="pl-desc">
                   Description <span className="text-destructive">*</span>
@@ -1259,11 +1259,9 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </fieldset>
 
-            <hr className="border-border" />
-
             {/* Section: Assignment & Schedule */}
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-foreground mb-1">Assignment &amp; Schedule</legend>
+            <fieldset className="space-y-4 rounded-lg border border-border/50 p-4">
+              <legend className="text-sm font-semibold text-foreground px-2">Assignment &amp; Schedule</legend>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Responsible Party</Label>
@@ -1342,11 +1340,9 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </fieldset>
 
-            <hr className="border-border" />
-
             {/* Section: Impact */}
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-foreground mb-1">Impact</legend>
+            <fieldset className="space-y-4 rounded-lg border border-border/50 p-4">
+              <legend className="text-sm font-semibold text-foreground px-2">Impact</legend>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="pl-cost">Cost Impact ($)</Label>
@@ -1382,11 +1378,9 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
               </div>
             </fieldset>
 
-            <hr className="border-border" />
-
             {/* Section: Attachments */}
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-semibold text-foreground mb-1">Attachments</legend>
+            <fieldset className="space-y-3 rounded-lg border border-border/50 p-4">
+              <legend className="text-sm font-semibold text-foreground px-2">Attachments</legend>
               {existingFiles.length > 0 && (
                 <div className="space-y-1">
                   {existingFiles.map((f) => (
