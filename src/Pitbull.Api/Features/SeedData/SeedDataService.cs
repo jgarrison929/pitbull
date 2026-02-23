@@ -25,7 +25,7 @@ namespace Pitbull.Api.Features.SeedData;
 /// - The dev-only HTTP endpoint (SeedDataController)
 /// - The public demo bootstrapper (when explicitly enabled via configuration)
 /// </summary>
-public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration, CompanyContext companyContext)
+public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration, CompanyContext companyContext, ILogger<SeedDataService> logger)
     : ISeedDataService
 {
     /// <summary>
@@ -5072,11 +5072,14 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         CancellationToken ct)
     {
         // ── 0. Switch RLS + CompanyContext to target company ────────
-        // Without this, SaveChangesAsync resets app.current_company to the
-        // DI-scoped CompanyContext (Company 01), and Postgres RLS WITH CHECK
-        // rejects inserts for any other CompanyId.
+        // DemoBootstrapper sets set_config('app.current_company', company01Id, true)
+        // (transaction-local). We must update that SAME transaction-local value,
+        // otherwise RLS WITH CHECK still sees Company 01 and rejects inserts.
         var previousCompanyId = companyContext.CompanyId;
         companyContext.CompanyId = companyId;
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_company', {companyId.ToString()}, true)", ct);
+        logger.LogInformation("Seeding company {CompanyId} ...", companyId);
 
         // ── 1. Root entities ────────────────────────────────────────
         var projects = CreateCompanyProjects(projectDefs);
@@ -5295,7 +5298,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<WageDetermination>().AddRange(wageDeterminations);
         await db.SaveChangesAsync(ct);
 
-        // Restore previous company context
+        // Restore transaction-local RLS + DI context back to previous company
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_company', {previousCompanyId.ToString()}, true)", ct);
         companyContext.CompanyId = previousCompanyId;
     }
 
