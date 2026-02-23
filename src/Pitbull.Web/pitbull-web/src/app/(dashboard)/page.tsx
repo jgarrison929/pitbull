@@ -21,7 +21,6 @@ import api from "@/lib/api";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
 import { OnboardingChecklist } from "@/components/onboarding/onboarding-checklist";
-import { WelcomeTour } from "@/components/onboarding/welcome-tour";
 import { MorningBriefing } from "@/components/dashboard/morning-briefing";
 import { PmDashboard } from "@/components/dashboard/role-views/pm-dashboard";
 import { ControllerDashboard } from "@/components/dashboard/role-views/controller-dashboard";
@@ -284,9 +283,6 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Welcome tour for new users */}
-      <WelcomeTour />
-
       {/* AI morning briefing */}
       <MorningBriefing />
 

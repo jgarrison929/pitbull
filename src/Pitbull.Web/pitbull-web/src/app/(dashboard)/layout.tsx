@@ -12,6 +12,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { QuickActionFAB } from "@/components/layout/quick-action-fab";
 import { AiChatPanel } from "@/components/ai-chat-panel";
 import { FeedbackWidget } from "@/components/layout/feedback-widget";
+import { WelcomeTour } from "@/components/onboarding/welcome-tour";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
 export default function DashboardLayout({
@@ -57,6 +58,7 @@ export default function DashboardLayout({
       <CommandPalette />
       <QuickActionFAB />
       <FeedbackWidget />
+      <WelcomeTour />
 
       <AiChatPanel />
       <MobileBottomNav />

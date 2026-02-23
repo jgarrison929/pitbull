@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/api";
-import { ArrowRight, ArrowLeft, X, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowLeft, X, Sparkles, MapPin } from "lucide-react";
 
 interface TourStep {
   id: string;
@@ -27,7 +27,9 @@ export function WelcomeTour() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [visible, setVisible] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const hasFetched = useRef(false);
+  const markedSeenRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (hasFetched.current) return;
@@ -52,6 +54,27 @@ export function WelcomeTour() {
     return () => { cancelled = true; };
   }, []);
 
+  // Determine if the user is currently on the step's target page
+  const isOnTargetPage = useMemo(() => {
+    if (!tour || !visible) return false;
+    const step = tour.steps[currentIndex];
+    if (!step) return false;
+    if (step.targetPage === "dashboard") return pathname === "/";
+    return (
+      pathname === `/${step.targetPage}` ||
+      pathname.startsWith(`/${step.targetPage}/`)
+    );
+  }, [tour, visible, currentIndex, pathname]);
+
+  // Auto-mark step as seen when user navigates to its target page
+  useEffect(() => {
+    if (!isOnTargetPage || !tour) return;
+    const step = tour.steps[currentIndex];
+    if (!step || markedSeenRef.current.has(step.id)) return;
+    markedSeenRef.current.add(step.id);
+    markStepSeen(step.id);
+  }, [isOnTargetPage, tour, currentIndex]);
+
   async function markStepSeen(stepId: string) {
     try {
       await api(`/api/onboarding/tour/steps/${stepId}/seen`, {
@@ -74,7 +97,10 @@ export function WelcomeTour() {
   function handleNext() {
     if (!tour) return;
     const step = tour.steps[currentIndex];
-    markStepSeen(step.id);
+    if (!markedSeenRef.current.has(step.id)) {
+      markedSeenRef.current.add(step.id);
+      markStepSeen(step.id);
+    }
 
     if (currentIndex < tour.steps.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -94,7 +120,10 @@ export function WelcomeTour() {
   function handleGoToPage() {
     if (!tour) return;
     const step = tour.steps[currentIndex];
-    markStepSeen(step.id);
+    if (!markedSeenRef.current.has(step.id)) {
+      markedSeenRef.current.add(step.id);
+      markStepSeen(step.id);
+    }
     router.push(`/${step.targetPage}`);
   }
 
@@ -104,6 +133,76 @@ export function WelcomeTour() {
   const isLast = currentIndex === tour.steps.length - 1;
   const isFirst = currentIndex === 0;
 
+  // Compact bottom-right panel when user is on the target page
+  if (isOnTargetPage) {
+    return (
+      <div className="fixed bottom-20 right-4 z-50 w-full max-w-sm sm:bottom-6 sm:right-6">
+        <div className="bg-background rounded-2xl shadow-2xl border border-border overflow-hidden">
+          {/* Compact header */}
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                <span className="text-sm font-medium">
+                  Step {currentIndex + 1} of {tour.steps.length}
+                </span>
+              </div>
+              <button
+                onClick={handleSkip}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-4">
+            <p className="text-sm font-medium mb-1">{step.title}</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              You&apos;re here! Take a look around, then click Next when ready.
+            </p>
+
+            {/* Step dots */}
+            <div className="flex justify-center gap-1.5 mb-3">
+              {tour.steps.map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                    i === currentIndex
+                      ? "bg-blue-600 dark:bg-blue-500"
+                      : i < currentIndex
+                      ? "bg-blue-300 dark:bg-blue-700"
+                      : "bg-muted"
+                  }`}
+                />
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1">
+                {!isFirst && (
+                  <Button variant="outline" size="sm" onClick={handlePrev}>
+                    <ArrowLeft className="w-3 h-3 mr-1" /> Back
+                  </Button>
+                )}
+                <Button variant="ghost" size="sm" onClick={handleSkip}>
+                  Skip
+                </Button>
+              </div>
+              <Button size="sm" onClick={handleNext}>
+                {isLast ? "Finish" : "Next"}
+                {!isLast && <ArrowRight className="w-3 h-3 ml-1" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Center modal when NOT on the target page
   return (
     <>
       {/* Overlay backdrop */}
