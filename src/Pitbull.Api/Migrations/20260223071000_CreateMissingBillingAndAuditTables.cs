@@ -314,14 +314,9 @@ namespace Pitbull.Api.Migrations
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql("DROP TABLE IF EXISTS billing_package_documents;");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS billing_application_line_items;");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS billing_applications;");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS billing_periods;");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS owner_sov_line_items;");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS owner_schedules_of_values;");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS owner_contracts;");
-            migrationBuilder.Sql("DROP TABLE IF EXISTS audit_logs;");
+            // Intentionally empty — these tables use IF NOT EXISTS in Up()
+            // and should not be dropped during rollback. Manual cleanup
+            // required if rollback is needed.
         }
     }
 }
