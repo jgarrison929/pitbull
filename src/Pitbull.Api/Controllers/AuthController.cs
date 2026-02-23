@@ -1067,7 +1067,10 @@ public class AuthController(
         if (!isRbacAdmin)
             isRbacAdmin = roles.Contains("Admin");
 
-        if (isRbacAdmin)
+        // Demo users get wildcard permission so all [Authorize(Policy=...)] gates pass.
+        // DemoRestrictionMiddleware is the real security boundary — it runs before
+        // authorization and blocks admin endpoints + DELETEs regardless of claims.
+        if (user.IsDemoUser || isRbacAdmin)
         {
             claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
         }
