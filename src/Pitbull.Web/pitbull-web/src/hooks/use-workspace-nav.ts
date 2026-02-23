@@ -195,13 +195,19 @@ export function useWorkspaceNav() {
   const visibleWorkspaces = useMemo(() => {
     // If no user/permissions yet, show all (permissions will re-filter on load)
     if (!user?.permissions) return workspaces;
+
+    // Demo users see ALL workspaces except Admin — this is a demo,
+    // let them explore everything. DemoRestrictionMiddleware on the API
+    // side blocks destructive operations regardless.
+    if (user.isDemoUser) {
+      return workspaces.filter((ws) => ws.id !== "admin");
+    }
+
     const perms = new Set(user.permissions);
     const hasPerm = (p: string) => perms.has("*") || perms.has(p);
     const hasAnyPerm = (ps: string[]) => perms.has("*") || ps.some((p) => perms.has(p));
 
     return workspaces.filter((ws) => {
-      // Demo users cannot access admin workspace
-      if (user.isDemoUser && ws.id === "admin") return false;
       if (ws.requiredPermission) return hasPerm(ws.requiredPermission);
       if (ws.requiredAnyPermission) return hasAnyPerm(ws.requiredAnyPermission);
       return true; // my-work is always visible

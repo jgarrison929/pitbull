@@ -382,14 +382,16 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
     return ws?.separators;
   }, [activeWorkspace, currentProjectId, visibleWorkspaces]);
 
-  // Filter items by permission
+  // Filter items by permission (demo users see everything)
+  const isDemoUser = user?.isDemoUser ?? false;
   const filteredItems = useMemo(() => {
+    if (isDemoUser) return workspaceItems; // Demo: show all nav items
     return workspaceItems.filter((item) => {
       if (item.requiredPermission) return can(item.requiredPermission);
       if (item.requiredAnyPermission) return canAny(item.requiredAnyPermission);
       return true;
     });
-  }, [workspaceItems, can, canAny]);
+  }, [workspaceItems, can, canAny, isDemoUser]);
 
   // All items for active href calculation
   const allNavItems = useMemo(() => getAllNavItems(currentProjectId), [currentProjectId]);
