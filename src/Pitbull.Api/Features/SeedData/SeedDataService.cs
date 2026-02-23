@@ -4,8 +4,10 @@ using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Notifications.Domain;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
+using Pitbull.RFIs.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Entities;
 
@@ -157,12 +159,74 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
         await db.SaveChangesAsync(ct);
 
+        // Schedules with activities and dependencies (PM tour)
+        var (schedules, scheduleActivities, scheduleDeps) = CreateSchedules(activeProjects);
+        db.Set<PmSchedule>().AddRange(schedules);
+        db.Set<PmScheduleActivity>().AddRange(scheduleActivities);
+        await db.SaveChangesAsync(ct);
+        db.Set<PmScheduleDependency>().AddRange(scheduleDeps);
+        await db.SaveChangesAsync(ct);
+
+        // RFIs across active projects
+        var rfis = CreateRfis(activeProjects, seedUserId);
+        db.Set<Rfi>().AddRange(rfis);
+        await db.SaveChangesAsync(ct);
+
+        // Daily reports for field users
+        var dailyReports = CreateDailyReports(activeProjects, seedUserId);
+        db.Set<PmDailyReport>().AddRange(dailyReports);
+        await db.SaveChangesAsync(ct);
+
+        var dailyReportCrews = new List<PmDailyReportCrew>();
+        var dailyReportEquipment = new List<PmDailyReportEquipment>();
+        foreach (var dr in dailyReports)
+        {
+            dailyReportCrews.AddRange(CreateDailyReportCrews(dr));
+            dailyReportEquipment.AddRange(CreateDailyReportEquipment(dr));
+        }
+        db.Set<PmDailyReportCrew>().AddRange(dailyReportCrews);
+        db.Set<PmDailyReportEquipment>().AddRange(dailyReportEquipment);
+        await db.SaveChangesAsync(ct);
+
+        // Chart of accounts + accounting periods + journal entries (CFO)
+        var chartOfAccounts = CreateChartOfAccounts();
+        db.Set<ChartOfAccount>().AddRange(chartOfAccounts);
+        await db.SaveChangesAsync(ct);
+
+        var accountingPeriods = CreateAccountingPeriods();
+        db.Set<AccountingPeriod>().AddRange(accountingPeriods);
+        await db.SaveChangesAsync(ct);
+
+        var journalEntries = CreateJournalEntries(chartOfAccounts, activeProjects, seedUserId);
+        db.Set<JournalEntry>().AddRange(journalEntries);
+        await db.SaveChangesAsync(ct);
+
+        // Lien waivers tied to subcontracts
+        var lienWaivers = CreateLienWaivers(allWorkableProjects, subcontracts, vendors);
+        db.Set<LienWaiver>().AddRange(lienWaivers);
+        await db.SaveChangesAsync(ct);
+
+        // Purchase orders for purchasing manager
+        var purchaseOrders = CreatePurchaseOrders(activeProjects, vendors);
+        db.Set<PurchaseOrder>().AddRange(purchaseOrders);
+        await db.SaveChangesAsync(ct);
+
+        // Notifications for various roles
+        var notifications = new List<Notification>();
+        if (seedUserId != Guid.Empty)
+        {
+            notifications = CreateNotifications(seedUserId, rfis, activeProjects);
+            db.Set<Notification>().AddRange(notifications);
+            await db.SaveChangesAsync(ct);
+        }
+
         await transaction.CommitAsync(ct);
 
         var totalPhases = projects.Sum(p => p.Phases.Count);
         var totalBidItems = bids.Sum(b => b.Items.Count);
         var totalChangeOrders = subcontracts.Sum(s => s.ChangeOrders.Count);
         var totalWipLines = wipReports.Sum(w => w.Lines.Count);
+        var totalJeLines = journalEntries.Sum(j => j.Lines.Count);
 
         return Result.Success(new SeedDataResult(
             ProjectsCreated: projects.Count,
@@ -188,6 +252,16 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             SubmittalsCreated: submittals.Count,
             PunchListItemsCreated: punchListItems.Count,
             OwnerScheduleOfValuesCreated: ownerSovs.Count,
+            SchedulesCreated: schedules.Count,
+            ScheduleActivitiesCreated: scheduleActivities.Count,
+            RfisCreated: rfis.Count,
+            DailyReportsCreated: dailyReports.Count,
+            ChartOfAccountsCreated: chartOfAccounts.Count,
+            AccountingPeriodsCreated: accountingPeriods.Count,
+            JournalEntriesCreated: journalEntries.Count,
+            LienWaiversCreated: lienWaivers.Count,
+            PurchaseOrdersCreated: purchaseOrders.Count,
+            NotificationsCreated: notifications.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
                      $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes, " +
                      $"{employees.Count} employees, {customers.Count} customers, {vendors.Count} vendors, " +
@@ -197,7 +271,13 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                      $"{ownerContracts.Count} owner contracts, {wipReports.Count} WIP reports ({totalWipLines} lines), " +
                      $"{retentionHolds.Count} retention holds, {payPeriods.Count} pay periods, " +
                      $"{payrollRuns.Count} payroll runs, {submittals.Count} submittals, " +
-                     $"{punchListItems.Count} punch list items, {vendorInvoices.Count} vendor invoices"
+                     $"{punchListItems.Count} punch list items, {vendorInvoices.Count} vendor invoices, " +
+                     $"{schedules.Count} schedules ({scheduleActivities.Count} activities), " +
+                     $"{rfis.Count} RFIs, {dailyReports.Count} daily reports, " +
+                     $"{chartOfAccounts.Count} GL accounts, {accountingPeriods.Count} accounting periods, " +
+                     $"{journalEntries.Count} journal entries ({totalJeLines} lines), " +
+                     $"{lienWaivers.Count} lien waivers, {purchaseOrders.Count} purchase orders, " +
+                     $"{notifications.Count} notifications"
         ));
 
         }
@@ -3107,5 +3187,819 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
 
         return items;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 1. SCHEDULES / GANTT — 3 schedules with 15-20 activities each
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static (List<PmSchedule>, List<PmScheduleActivity>, List<PmScheduleDependency>) CreateSchedules(
+        List<Project> activeProjects)
+    {
+        var schedules = new List<PmSchedule>();
+        var allActivities = new List<PmScheduleActivity>();
+        var allDeps = new List<PmScheduleDependency>();
+        var now = DateTime.UtcNow;
+
+        foreach (var project in activeProjects.Take(3))
+        {
+            var schedule = new PmSchedule
+            {
+                ProjectId = project.Id,
+                Name = $"{project.Name} — Master Schedule",
+                Description = "Construction master schedule with critical path",
+                Status = ScheduleStatus.Active,
+                DataDate = now,
+                CalendarType = ScheduleCalendarType.Standard5x8,
+            };
+            schedules.Add(schedule);
+
+            var start = project.StartDate ?? now.AddMonths(-3);
+            var activities = CreateScheduleActivities(schedule, project, start);
+            allActivities.AddRange(activities);
+
+            var deps = CreateScheduleDependencies(schedule, activities);
+            allDeps.AddRange(deps);
+        }
+
+        return (schedules, allActivities, allDeps);
+    }
+
+    private static List<PmScheduleActivity> CreateScheduleActivities(
+        PmSchedule schedule, Project project, DateTime projectStart)
+    {
+        var now = DateTime.UtcNow;
+        var activities = new List<PmScheduleActivity>();
+        var order = 1;
+
+        // Phase activities for a typical commercial construction project
+        var phases = new[]
+        {
+            ("1.0", "A1000", "Mobilization & Site Prep",      ScheduleActivityType.Wbs, 0, 21,  true),
+            ("1.1", "A1010", "Site Survey & Layout",           ScheduleActivityType.Task, 0, 5,   true),
+            ("1.2", "A1020", "Temporary Facilities Setup",     ScheduleActivityType.Task, 3, 8,   true),
+            ("1.3", "A1030", "Erosion Control & Grading",      ScheduleActivityType.Task, 5, 15,  true),
+            ("2.0", "A2000", "Foundation",                     ScheduleActivityType.Wbs, 21, 45,  true),
+            ("2.1", "A2010", "Excavation & Footings",          ScheduleActivityType.Task, 21, 14, true),
+            ("2.2", "A2020", "Foundation Walls & Slab",        ScheduleActivityType.Task, 35, 18, true),
+            ("2.3", "A2030", "Foundation Waterproofing",       ScheduleActivityType.Task, 49, 7,  false),
+            ("3.0", "A3000", "Structure",                      ScheduleActivityType.Wbs, 56, 60,  true),
+            ("3.1", "A3010", "Structural Steel Erection",      ScheduleActivityType.Task, 56, 30, true),
+            ("3.2", "A3020", "Metal Deck & Concrete Pours",    ScheduleActivityType.Task, 70, 25, true),
+            ("3.3", "A3030", "Exterior Framing & Sheathing",   ScheduleActivityType.Task, 86, 20, false),
+            ("4.0", "A4000", "MEP Rough-In",                   ScheduleActivityType.Wbs, 100, 50, false),
+            ("4.1", "A4010", "Plumbing Rough-In",              ScheduleActivityType.Task, 100, 25, false),
+            ("4.2", "A4020", "HVAC Ductwork & Piping",         ScheduleActivityType.Task, 105, 30, false),
+            ("4.3", "A4030", "Electrical Rough-In",            ScheduleActivityType.Task, 110, 25, false),
+            ("5.0", "A5000", "Interior Finishes",              ScheduleActivityType.Wbs, 150, 55, false),
+            ("5.1", "A5010", "Drywall & Framing",              ScheduleActivityType.Task, 150, 20, false),
+            ("5.2", "A5020", "Painting & Wall Coverings",      ScheduleActivityType.Task, 170, 15, false),
+            ("5.3", "A5030", "Flooring & Tile",                ScheduleActivityType.Task, 175, 15, false),
+            ("5.4", "A5040", "Ceiling Systems",                ScheduleActivityType.Task, 180, 10, false),
+            ("6.0", "A6000", "Closeout",                       ScheduleActivityType.Wbs, 205, 30, false),
+            ("6.1", "A6010", "MEP Trim & Startup",             ScheduleActivityType.Task, 205, 15, false),
+            ("6.2", "A6020", "Final Inspections & Punch List", ScheduleActivityType.Task, 215, 10, false),
+            ("6.3", "A6030", "Substantial Completion",         ScheduleActivityType.Milestone, 230, 0, false),
+        };
+
+        foreach (var (wbs, code, name, actType, dayOffset, duration, isCritical) in phases)
+        {
+            var plannedStart = projectStart.AddDays(dayOffset);
+            var plannedFinish = projectStart.AddDays(dayOffset + duration);
+            var daysFromStart = (now - plannedStart).TotalDays;
+
+            ScheduleActivityStatus status;
+            decimal pctComplete;
+            DateTime? actualStart = null;
+            DateTime? actualFinish = null;
+            int remaining = duration;
+
+            if (daysFromStart > duration + 5)
+            {
+                status = ScheduleActivityStatus.Completed;
+                pctComplete = 100m;
+                actualStart = plannedStart.AddDays(-1);
+                actualFinish = plannedFinish.AddDays(2);
+                remaining = 0;
+            }
+            else if (daysFromStart > 0)
+            {
+                status = ScheduleActivityStatus.InProgress;
+                pctComplete = Math.Clamp((decimal)(daysFromStart / duration) * 100m, 5m, 95m);
+                pctComplete = Math.Round(pctComplete, 0);
+                actualStart = plannedStart;
+                remaining = (int)Math.Max(1, duration - daysFromStart);
+            }
+            else
+            {
+                status = ScheduleActivityStatus.NotStarted;
+                pctComplete = 0m;
+            }
+
+            activities.Add(new PmScheduleActivity
+            {
+                ScheduleId = schedule.Id,
+                ProjectId = project.Id,
+                WbsCode = wbs,
+                ActivityCode = code,
+                Name = name,
+                ActivityType = actType,
+                Status = status,
+                OriginalDurationDays = duration,
+                RemainingDurationDays = remaining,
+                PlannedStart = plannedStart,
+                PlannedFinish = plannedFinish,
+                EarlyStart = plannedStart,
+                EarlyFinish = plannedFinish,
+                LateStart = plannedStart.AddDays(3),
+                LateFinish = plannedFinish.AddDays(3),
+                ActualStart = actualStart,
+                ActualFinish = actualFinish,
+                TotalFloatDays = isCritical ? 0 : 5,
+                FreeFloatDays = isCritical ? 0 : 3,
+                PercentComplete = pctComplete,
+                IsCritical = isCritical,
+                SortOrder = order++,
+            });
+        }
+
+        return activities;
+    }
+
+    private static List<PmScheduleDependency> CreateScheduleDependencies(
+        PmSchedule schedule, List<PmScheduleActivity> activities)
+    {
+        var deps = new List<PmScheduleDependency>();
+        var tasks = activities.Where(a => a.ActivityType == ScheduleActivityType.Task).ToList();
+
+        // Create finish-to-start dependencies between sequential tasks
+        for (var i = 1; i < tasks.Count; i++)
+        {
+            // Link each task to the previous one within the same WBS group
+            var prev = tasks[i - 1];
+            var curr = tasks[i];
+            if (prev.WbsCode[..1] == curr.WbsCode[..1]) // Same phase group
+            {
+                deps.Add(new PmScheduleDependency
+                {
+                    ScheduleId = schedule.Id,
+                    PredecessorActivityId = prev.Id,
+                    SuccessorActivityId = curr.Id,
+                    DependencyType = ScheduleDependencyType.FS,
+                    LagDays = 0,
+                });
+            }
+        }
+
+        // Cross-phase dependencies: Foundation → Structure, Structure → MEP, etc.
+        var phaseFirstTasks = tasks
+            .GroupBy(t => t.WbsCode[..1])
+            .Select(g => (Phase: g.Key, First: g.First(), Last: g.Last()))
+            .OrderBy(g => g.Phase)
+            .ToList();
+
+        for (var i = 1; i < phaseFirstTasks.Count; i++)
+        {
+            deps.Add(new PmScheduleDependency
+            {
+                ScheduleId = schedule.Id,
+                PredecessorActivityId = phaseFirstTasks[i - 1].Last.Id,
+                SuccessorActivityId = phaseFirstTasks[i].First.Id,
+                DependencyType = ScheduleDependencyType.FS,
+                LagDays = 2,
+            });
+        }
+
+        return deps;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 2. RFIs — 12-15 across active projects
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static List<Rfi> CreateRfis(List<Project> activeProjects, Guid seedUserId)
+    {
+        var now = DateTime.UtcNow;
+        var rfis = new List<Rfi>();
+        var rfiNumber = 1;
+
+        var rfiTemplates = new[]
+        {
+            // (Subject, Question, SpecSection, HasCostImpact, Status, Priority, DaysAgo)
+            ("Foundation Reinforcement Detail — Grid Line C",
+             "Drawing S-102 shows #5 rebar @ 12\" OC for the grade beam at Grid Line C, but the geotechnical report recommends additional reinforcement for the expansive soil conditions. Please clarify the required reinforcement detail.",
+             "03 30 00", true, RfiStatus.Open, RfiPriority.High, 3),
+
+            ("HVAC Duct Routing Conflict — 2nd Floor Corridor",
+             "The mechanical drawings show a 24\" supply duct running through the 2nd floor corridor at elevation 10'-6\", but the structural drawings show a beam at the same location. Please provide a revised routing or confirm coordination has been resolved.",
+             "23 31 00", false, RfiStatus.Open, RfiPriority.Urgent, 1),
+
+            ("Exterior Window Finish — Aluminum vs Bronze Anodized",
+             "Spec Section 08 51 13 calls for 'bronze anodized aluminum', but the elevation drawings show 'clear anodized'. Please confirm the intended finish for all exterior windows.",
+             "08 51 13", false, RfiStatus.Answered, RfiPriority.Normal, 14),
+
+            ("Fire Sprinkler Head Placement — Server Room",
+             "The fire protection drawings do not show pre-action sprinkler coverage for the server room per the owner's requirement. Should we add pre-action heads, or is the clean agent system on the electrical drawings the intended protection?",
+             "21 13 13", true, RfiStatus.Open, RfiPriority.High, 7),
+
+            ("Waterproofing Membrane — Below-Grade Walls",
+             "Please confirm the waterproofing membrane spec for below-grade foundation walls. Detail 5/S-104 references Carlisle CCW 705, but the spec section 07 11 13 lists Tremco Paraseal. Which product should be used?",
+             "07 11 13", false, RfiStatus.Answered, RfiPriority.Normal, 21),
+
+            ("Electrical Panel Schedule Discrepancy — Panel 2A",
+             "The panel schedule for Panel 2A on sheet E-301 shows a 200A main breaker, but the single line diagram on sheet E-001 shows 225A. Please clarify the correct rating.",
+             "26 24 16", false, RfiStatus.Closed, RfiPriority.Normal, 30),
+
+            ("Accessible Parking Signage Location",
+             "Civil drawing C-102 shows ADA signage at the east parking lot entrance, but the architect's site plan A-001 shows it at the north entrance. Please confirm the required location per local code.",
+             "10 14 53", false, RfiStatus.Closed, RfiPriority.Low, 28),
+
+            ("Roof Drain Location — Area B",
+             "Structural framing at Area B does not accommodate the roof drain location shown on sheet P-201. The drain falls directly on a beam. Please provide a revised drain location or structural modification.",
+             "22 14 29", true, RfiStatus.Open, RfiPriority.High, 5),
+
+            ("Lobby Floor Finish — Porcelain vs Natural Stone",
+             "Interior finish schedule calls for 24x24 porcelain tile in the main lobby, but the rendering approved by the owner shows natural stone. Please confirm the intended material — there is a significant cost difference.",
+             "09 30 00", true, RfiStatus.Answered, RfiPriority.Normal, 18),
+
+            ("Structural Steel Connection Detail — Moment Frame",
+             "Detail 3/S-401 shows a bolted moment connection, but the structural general notes require welded moment connections per AISC 358. Please clarify which connection type is intended.",
+             "05 12 00", false, RfiStatus.Closed, RfiPriority.High, 35),
+
+            ("MEP Coordination — Ceiling Plenum Height",
+             "With all MEP systems routed per the coordination drawings, the available ceiling plenum height is 14\" instead of the specified 18\". Please advise if ceiling height can be lowered or if MEP routing needs to be revised.",
+             "23 00 00", true, RfiStatus.Open, RfiPriority.Urgent, 2),
+
+            ("Exterior Paint Color — South Elevation Accent Band",
+             "Drawing A-201 notes 'accent color per owner selection' for the south elevation band. The owner has not yet selected a color. Please provide the color specification so we can order materials.",
+             "09 91 00", false, RfiStatus.Open, RfiPriority.Normal, 10),
+
+            ("Elevator Pit Depth Discrepancy",
+             "The architectural plans show the elevator pit at 5'-0 deep, but the elevator manufacturer shop drawings require 5'-6 minimum. Please confirm if the structural design can accommodate the additional depth.",
+             "14 20 00", true, RfiStatus.Answered, RfiPriority.High, 12),
+        };
+
+        var projectIndex = 0;
+        foreach (var (subject, question, spec, hasCost, status, priority, daysAgo) in rfiTemplates)
+        {
+            var project = activeProjects[projectIndex % activeProjects.Count];
+            projectIndex++;
+
+            var rfi = new Rfi
+            {
+                ProjectId = project.Id,
+                Number = rfiNumber++,
+                Subject = subject,
+                Question = question,
+                SpecSection = spec,
+                Status = status,
+                Priority = priority,
+                HasCostImpact = hasCost,
+                EstimatedCostImpact = hasCost ? rfiNumber * 12_500m : null,
+                EstimatedDelayDays = hasCost ? rfiNumber % 5 + 1 : null,
+                CreatedByName = "Marcus Williams",
+                AssignedToName = "Smith & Associates Architects",
+                BallInCourtName = status == RfiStatus.Open ? "Smith & Associates Architects" : "Summit Commercial Construction",
+                DueDate = now.AddDays(-daysAgo + 14), // 14-day response window
+            };
+
+            if (status is RfiStatus.Answered or RfiStatus.Closed)
+            {
+                rfi.Answer = "See attached sketch SK-" + rfiNumber + ". Proceed per revised detail.";
+                rfi.AnsweredAt = now.AddDays(-daysAgo + 7);
+            }
+
+            if (status == RfiStatus.Closed)
+            {
+                rfi.ClosedAt = now.AddDays(-daysAgo + 10);
+            }
+
+            // Mark overdue: open RFIs past their due date
+            rfis.Add(rfi);
+        }
+
+        return rfis;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 3. DAILY REPORTS — 10 over last 2 weeks
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static List<PmDailyReport> CreateDailyReports(List<Project> activeProjects, Guid seedUserId)
+    {
+        var reports = new List<PmDailyReport>();
+        if (seedUserId == Guid.Empty) return reports;
+
+        var now = DateTime.UtcNow;
+        var random = new Random(77); // Fixed seed for reproducibility
+
+        var weatherOptions = new[]
+        {
+            ("Clear skies, sunny", "None", "Light breeze 5-10 mph"),
+            ("Partly cloudy", "None", "Calm"),
+            ("Overcast", "Light drizzle AM — cleared by 10am", "Gusty 15-20 mph"),
+            ("Sunny, hot", "None", "Light 5 mph"),
+            ("Fog AM, clearing by noon", "None", "Calm"),
+            ("Clear, cool morning", "None", "Moderate 10-15 mph"),
+            ("Partly cloudy, pleasant", "None", "Light 5 mph"),
+            ("Overcast AM, sunny PM", "Brief sprinkle 8-9am", "Moderate 10 mph"),
+            ("Clear, warm", "None", "Calm to light"),
+            ("Mostly sunny", "None", "Breezy 15 mph"),
+        };
+
+        var workNarratives = new[]
+        {
+            "Continued structural steel erection on the north wing. Crane crew set 12 beams at the 2nd floor level. Ironworkers bolting connections on previously set steel at ground floor. Concrete crew stripped forms from grade beams poured yesterday.",
+            "Completed excavation for the east utility trench. Plumbing sub installed 8\" sewer main from building to tie-in point. Backfill and compaction started on the west trench. Surveyors confirmed foundation layout for Building B.",
+            "Poured 120 CY of concrete for the 2nd floor elevated deck. Pump truck on site from 6am-2pm. Finishing crew working the surface. MEP subs completed all embeds and sleeves prior to pour.",
+            "Framing crew completed exterior wall framing on the south elevation. Sheathing and weather barrier installation started. Roofing sub began mobilization and material staging on the north wing.",
+            "HVAC ductwork installation on 1st floor — main trunk lines and VAV boxes set. Electrical sub pulling wire on 2nd floor. Fire sprinkler rough-in 60% complete on the north wing.",
+            "Drywall hanging started on 1st floor offices. Tape and mud crew following 1 day behind. Ceiling grid layout started in the main corridor. Painters prepping exterior metal panels.",
+            "Site concrete crew poured sidewalks and curb ramps at the main entrance. Landscaping sub started irrigation rough-in. Paving sub scheduled for next Tuesday.",
+            "MEP trim work in progress — plumbing fixtures being set on 1st floor. HVAC startup testing on RTU-1 and RTU-2. Electrician trimming out panels in the electrical room.",
+            "Punch list walk with architect and owner rep. Documented 47 items (see punch list). Majority are minor finish items. Targeting completion of all items by end of next week.",
+            "Continued structural steel erection — 3rd floor columns and beams. Metal deck installation following 1 floor behind. Concrete testing lab on site for compressive strength testing of recent pours.",
+        };
+
+        // Generate 10 daily reports across last 2 weeks (skip weekends)
+        var reportDates = new List<DateTime>();
+        var date = now.AddDays(-14);
+        while (reportDates.Count < 10)
+        {
+            if (date.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday))
+                reportDates.Add(date);
+            date = date.AddDays(1);
+        }
+
+        for (var i = 0; i < reportDates.Count; i++)
+        {
+            var project = activeProjects[i % Math.Min(activeProjects.Count, 3)];
+            var (weatherSummary, precip, wind) = weatherOptions[i];
+            var tempLow = 42 + random.Next(20);
+            var tempHigh = tempLow + 15 + random.Next(15);
+
+            reports.Add(new PmDailyReport
+            {
+                ProjectId = project.Id,
+                ReportDate = reportDates[i],
+                ReportType = DailyReportType.Foreman,
+                Status = i < 7 ? DailyReportStatus.Approved : DailyReportStatus.Submitted,
+                WeatherSummary = weatherSummary,
+                TemperatureLow = tempLow,
+                TemperatureHigh = tempHigh,
+                Precipitation = precip,
+                Wind = wind,
+                WorkNarrative = workNarratives[i],
+                DelaysNarrative = i == 2 ? "Morning rain delay — 1 hour lost. Crane operations suspended until 10am per safety protocol." : null,
+                SafetyNarrative = i == 8
+                    ? "Near-miss incident: unsecured tool fell from 2nd floor scaffold. Area barricaded, toolbox talk conducted with all crews. No injuries."
+                    : "No safety incidents. Daily stretch and flex completed. All PPE inspected and compliant.",
+                PreparedByUserId = seedUserId,
+            });
+        }
+
+        return reports;
+    }
+
+    private static List<PmDailyReportCrew> CreateDailyReportCrews(PmDailyReport report)
+    {
+        var random = new Random(report.ReportDate.GetHashCode());
+        return
+        [
+            new() { DailyReportId = report.Id, CompanyName = "Summit Commercial Construction", Trade = "Carpentry", HeadCount = 4 + random.Next(3), HoursWorked = 8m },
+            new() { DailyReportId = report.Id, CompanyName = "Summit Commercial Construction", Trade = "Laborers", HeadCount = 3 + random.Next(4), HoursWorked = 8m },
+            new() { DailyReportId = report.Id, CompanyName = "Summit Mechanical Inc", Trade = "Plumbing", HeadCount = 2 + random.Next(2), HoursWorked = 8m },
+            new() { DailyReportId = report.Id, CompanyName = "Delta Electrical Services", Trade = "Electrical", HeadCount = 3 + random.Next(2), HoursWorked = 8m },
+            new() { DailyReportId = report.Id, CompanyName = "Summit Commercial Construction", Trade = "Iron Workers", HeadCount = random.Next(2, 5), HoursWorked = 8m },
+        ];
+    }
+
+    private static List<PmDailyReportEquipment> CreateDailyReportEquipment(PmDailyReport report)
+    {
+        var random = new Random(report.ReportDate.GetHashCode() + 1);
+        var equipment = new List<PmDailyReportEquipment>
+        {
+            new() { DailyReportId = report.Id, EquipmentName = "Tower Crane TC-1", HoursUsed = 6m + random.Next(3) },
+            new() { DailyReportId = report.Id, EquipmentName = "Concrete Pump Truck", HoursUsed = random.Next(2) == 0 ? 0 : 4m + random.Next(4) },
+            new() { DailyReportId = report.Id, EquipmentName = "Scissor Lift #3", HoursUsed = 4m + random.Next(4) },
+        };
+        return equipment;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 4. GL / CHART OF ACCOUNTS / JOURNAL ENTRIES (CFO)
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static List<ChartOfAccount> CreateChartOfAccounts()
+    {
+        return
+        [
+            // Assets (1xxx)
+            new() { AccountNumber = "1000", AccountName = "Cash — Operating", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1010", AccountName = "Cash — Payroll", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1100", AccountName = "Accounts Receivable", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true, IsSubledgerControl = true },
+            new() { AccountNumber = "1150", AccountName = "Retention Receivable", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1200", AccountName = "Costs in Excess of Billings (Underbilled)", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1300", AccountName = "Prepaid Insurance", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1400", AccountName = "Equipment — Net", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "1500", AccountName = "Vehicles — Net", AccountType = AccountType.Asset, NormalBalance = NormalBalance.Debit, IsActive = true },
+
+            // Liabilities (2xxx)
+            new() { AccountNumber = "2000", AccountName = "Accounts Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsActive = true, IsSubledgerControl = true },
+            new() { AccountNumber = "2050", AccountName = "Retention Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "2100", AccountName = "Accrued Payroll", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "2150", AccountName = "Payroll Taxes Payable", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "2200", AccountName = "Billings in Excess of Costs (Overbilled)", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "2300", AccountName = "Current Portion — Line of Credit", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "2400", AccountName = "Notes Payable — Equipment", AccountType = AccountType.Liability, NormalBalance = NormalBalance.Credit, IsActive = true },
+
+            // Equity (3xxx)
+            new() { AccountNumber = "3000", AccountName = "Retained Earnings", AccountType = AccountType.Equity, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "3100", AccountName = "Owner's Equity", AccountType = AccountType.Equity, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "3200", AccountName = "Current Year Earnings", AccountType = AccountType.Equity, NormalBalance = NormalBalance.Credit, IsActive = true },
+
+            // Revenue (4xxx)
+            new() { AccountNumber = "4000", AccountName = "Contract Revenue", AccountType = AccountType.Revenue, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "4100", AccountName = "Change Order Revenue", AccountType = AccountType.Revenue, NormalBalance = NormalBalance.Credit, IsActive = true },
+            new() { AccountNumber = "4200", AccountName = "T&M / Extra Work Revenue", AccountType = AccountType.Revenue, NormalBalance = NormalBalance.Credit, IsActive = true },
+
+            // Cost of Revenue (5xxx)
+            new() { AccountNumber = "5000", AccountName = "Direct Labor", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "5100", AccountName = "Labor Burden & Benefits", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "5200", AccountName = "Materials", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "5300", AccountName = "Subcontract Costs", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "5400", AccountName = "Equipment Costs", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "5500", AccountName = "Other Direct Costs", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+
+            // G&A Expenses (6xxx)
+            new() { AccountNumber = "6000", AccountName = "Office Salaries", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6100", AccountName = "Office Rent", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6200", AccountName = "Insurance — General Liability", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6300", AccountName = "Insurance — Workers Comp", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6400", AccountName = "Professional Services", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6500", AccountName = "Vehicle Expense", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6600", AccountName = "Utilities & Telecom", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6700", AccountName = "Depreciation", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+            new() { AccountNumber = "6800", AccountName = "Interest Expense", AccountType = AccountType.Expense, NormalBalance = NormalBalance.Debit, IsActive = true },
+        ];
+    }
+
+    private static List<AccountingPeriod> CreateAccountingPeriods()
+    {
+        var now = DateTime.UtcNow;
+        var currentMonth = now.Month;
+        var currentYear = now.Year;
+        var periods = new List<AccountingPeriod>();
+
+        // Create 3 periods: two closed, one open (current)
+        for (var offset = -2; offset <= 0; offset++)
+        {
+            var periodDate = new DateTime(currentYear, currentMonth, 1).AddMonths(offset);
+            var startDate = new DateOnly(periodDate.Year, periodDate.Month, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
+
+            periods.Add(new AccountingPeriod
+            {
+                PeriodNumber = periodDate.Month,
+                FiscalYear = periodDate.Year,
+                PeriodName = periodDate.ToString("MMMM yyyy"),
+                StartDate = startDate,
+                EndDate = endDate,
+                Status = offset < 0 ? PeriodStatus.HardClosed : PeriodStatus.Open,
+                ClosedAt = offset < 0 ? DateTime.UtcNow.AddDays(offset * 15) : null,
+            });
+        }
+
+        return periods;
+    }
+
+    private static List<JournalEntry> CreateJournalEntries(
+        List<ChartOfAccount> accounts, List<Project> activeProjects, Guid seedUserId)
+    {
+        var now = DateTime.UtcNow;
+        var entries = new List<JournalEntry>();
+        var entryNumber = 1;
+
+        // Helper to find GL account by number
+        ChartOfAccount acct(string num) => accounts.First(a => a.AccountNumber == num);
+
+        // Generate ~25 journal entries over the last 3 months
+        var jeTemplates = new[]
+        {
+            // (Description, SourceModule, DebitAccount, CreditAccount, Amount, DaysAgo)
+            ("AP payment — Summit Mechanical #INV-4521",     "Billing", "2000", "1000", 45_200.00m, 60),
+            ("AP payment — Delta Electrical #INV-3308",      "Billing", "2000", "1000", 32_750.00m, 58),
+            ("AP payment — Capitol Roofing #INV-1182",       "Billing", "2000", "1000", 28_400.00m, 55),
+            ("AR receipt — Summit Health Partners App #2", "Billing", "1000", "1100", 325_000.00m, 52),
+            ("Payroll — Week ending 12/20",                  "Payroll", "5000", "1010", 87_350.00m, 50),
+            ("Payroll taxes — Week ending 12/20",            "Payroll", "5100", "2150", 22_311.25m, 50),
+            ("Subcontract cost — Summit Fire Protection",   "Billing", "5300", "2000", 67_800.00m, 45),
+            ("Material purchase — Lumber & sheathing",       "Billing", "5200", "2000", 18_925.00m, 42),
+            ("AR receipt — Summit Tower Draw #3",             "Billing", "1000", "1100", 1_250_000.00m, 40),
+            ("AP payment — Sacramento Ready Mix",            "Billing", "2000", "1000", 24_650.00m, 38),
+            ("Payroll — Week ending 01/03",                  "Payroll", "5000", "1010", 91_200.00m, 35),
+            ("Payroll taxes — Week ending 01/03",            "Payroll", "5100", "2150", 23_256.00m, 35),
+            ("Equipment rental — Crane Services Inc",        "Billing", "5400", "2000", 15_800.00m, 32),
+            ("Office rent — January",                        "Manual",  "6100", "1000", 8_500.00m, 30),
+            ("Insurance — GL policy premium Q1",             "Manual",  "6200", "1000", 42_000.00m, 28),
+            ("AR receipt — County Admin Bldg Draw #1",       "Billing", "1000", "1100", 485_000.00m, 25),
+            ("AP payment — Summit Mechanical #INV-4703",     "Billing", "2000", "1000", 38_600.00m, 22),
+            ("WIP adjustment — Summit Medical (overbilled)", "WIP",  "4000", "2200", 45_000.00m, 20),
+            ("Payroll — Week ending 01/17",                  "Payroll", "5000", "1010", 89_750.00m, 18),
+            ("Payroll taxes — Week ending 01/17",            "Payroll", "5100", "2150", 22_886.25m, 18),
+            ("Workers comp insurance accrual — January",     "Manual",  "6300", "2100", 12_450.00m, 15),
+            ("AP payment — Delta Electrical #INV-3452",      "Billing", "2000", "1000", 41_200.00m, 12),
+            ("Retention release — Summit Tower sub payment",  "Billing", "2050", "1000", 22_500.00m, 10),
+            ("Depreciation — January equipment",             "Manual",  "6700", "1400", 8_200.00m, 8),
+            ("AR receipt — Summit Health Partners App #3", "Billing", "1000", "1100", 287_500.00m, 5),
+        };
+
+        foreach (var (desc, source, debitAcct, creditAcct, amount, daysAgo) in jeTemplates)
+        {
+            var entryDate = DateOnly.FromDateTime(now.AddDays(-daysAgo));
+            var isPosted = daysAgo > 3;
+
+            var je = new JournalEntry
+            {
+                EntryNumber = $"JE-{now.Year}-{entryNumber:D6}",
+                EntryDate = entryDate,
+                Description = desc,
+                Status = isPosted ? JournalEntryStatus.Posted : JournalEntryStatus.Draft,
+                SourceModule = source == "Manual" ? null : source,
+                IsAutoGenerated = source != "Manual",
+                TotalDebits = amount,
+                TotalCredits = amount,
+                PostedByUserId = isPosted && seedUserId != Guid.Empty ? seedUserId : null,
+                PostedAt = isPosted ? now.AddDays(-daysAgo + 1) : null,
+                Lines =
+                [
+                    new JournalEntryLine
+                    {
+                        LineNumber = 1,
+                        GlAccountId = acct(debitAcct).Id,
+                        DebitAmount = amount,
+                        CreditAmount = 0m,
+                        Description = desc,
+                        ProjectId = activeProjects.Count > 0 ? activeProjects[entryNumber % activeProjects.Count].Id : null,
+                    },
+                    new JournalEntryLine
+                    {
+                        LineNumber = 2,
+                        GlAccountId = acct(creditAcct).Id,
+                        DebitAmount = 0m,
+                        CreditAmount = amount,
+                        Description = desc,
+                        ProjectId = activeProjects.Count > 0 ? activeProjects[entryNumber % activeProjects.Count].Id : null,
+                    }
+                ]
+            };
+
+            entries.Add(je);
+            entryNumber++;
+        }
+
+        return entries;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 5. LIEN WAIVERS — tied to existing subcontracts
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static List<LienWaiver> CreateLienWaivers(
+        List<Project> projects, List<Subcontract> subcontracts, List<Vendor> vendors)
+    {
+        var now = DateTime.UtcNow;
+        var waivers = new List<LienWaiver>();
+
+        // Create waivers for subcontracts that have been paid
+        var activeOrCompleteSubs = subcontracts
+            .Where(s => s.Status is SubcontractStatus.InProgress or SubcontractStatus.Complete or SubcontractStatus.ClosedOut)
+            .Take(10)
+            .ToList();
+
+        var vendorList = vendors.ToList();
+        var waiterTemplates = new[]
+        {
+            (LienWaiverType.Conditional, LienWaiverStatus.Received,  0.25m, 30),
+            (LienWaiverType.Unconditional, LienWaiverStatus.Approved, 0.25m, 45),
+            (LienWaiverType.Conditional, LienWaiverStatus.Received,  0.50m, 20),
+            (LienWaiverType.Conditional, LienWaiverStatus.Requested, 0.75m, 5),
+            (LienWaiverType.Unconditional, LienWaiverStatus.Approved, 0.50m, 35),
+            (LienWaiverType.Final, LienWaiverStatus.Requested,       1.00m, 3),
+            (LienWaiverType.Conditional, LienWaiverStatus.Approved,  0.60m, 25),
+            (LienWaiverType.Progress, LienWaiverStatus.Received,     0.40m, 15),
+            (LienWaiverType.Unconditional, LienWaiverStatus.Rejected, 0.50m, 10),
+            (LienWaiverType.Conditional, LienWaiverStatus.Received,  0.80m, 8),
+        };
+
+        for (var i = 0; i < Math.Min(waiterTemplates.Length, activeOrCompleteSubs.Count); i++)
+        {
+            var sub = activeOrCompleteSubs[i];
+            var (type, status, pctOfContract, daysAgo) = waiterTemplates[i];
+            var amount = Math.Round(sub.CurrentValue * pctOfContract, 2);
+
+            waivers.Add(new LienWaiver
+            {
+                ProjectId = sub.ProjectId,
+                VendorId = vendorList.Count > i ? vendorList[i].Id : null,
+                WaiverType = type,
+                Amount = amount,
+                ThroughDate = DateOnly.FromDateTime(now.AddDays(-daysAgo)),
+                Status = status,
+                Description = $"{type} lien waiver through {DateOnly.FromDateTime(now.AddDays(-daysAgo)):MMM dd, yyyy} — {sub.ScopeOfWork}",
+                ReviewedAt = status is LienWaiverStatus.Approved or LienWaiverStatus.Rejected ? now.AddDays(-daysAgo + 2) : null,
+                RejectionReason = status == LienWaiverStatus.Rejected ? "Amount on waiver does not match payment amount. Please resubmit with corrected amount." : null,
+            });
+        }
+
+        return waivers;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 6. PURCHASE ORDERS — for purchasing manager
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static List<PurchaseOrder> CreatePurchaseOrders(List<Project> activeProjects, List<Vendor> vendors)
+    {
+        var now = DateTime.UtcNow;
+        var pos = new List<PurchaseOrder>();
+        var vendorList = vendors.ToList();
+        if (activeProjects.Count == 0 || vendorList.Count == 0) return pos;
+
+        var poTemplates = new[]
+        {
+            // (Description, Lines[], Status, DaysAgo)
+            ("Concrete — Foundation Pour Phase 2", new[] { ("Ready-mix concrete 4000 PSI", 180m, 145.00m), ("Rebar #5 Grade 60", 24000m, 0.85m), ("Form release agent", 50m, 32.00m) },
+                PurchaseOrderStatus.Approved, 25),
+            ("Structural steel — 2nd Floor", new[] { ("W14x30 beams", 45m, 1_250.00m), ("HSS 6x6x3/8 columns", 30m, 890.00m), ("Connection hardware", 1m, 4_200.00m) },
+                PurchaseOrderStatus.PartiallyReceived, 20),
+            ("Electrical panels & switchgear", new[] { ("200A main distribution panel", 3m, 4_500.00m), ("100A sub-panels", 8m, 1_200.00m), ("Conduit & fittings lot", 1m, 8_500.00m) },
+                PurchaseOrderStatus.Approved, 18),
+            ("Plumbing fixtures — Floors 1-2", new[] { ("Commercial toilets", 24m, 385.00m), ("Lavatory sinks", 18m, 275.00m), ("Urinals", 8m, 320.00m) },
+                PurchaseOrderStatus.Draft, 5),
+            ("Roofing materials", new[] { ("TPO membrane 60 mil", 15000m, 1.85m), ("ISO board insulation 3\"", 15000m, 1.20m), ("Roof drain assemblies", 12m, 450.00m) },
+                PurchaseOrderStatus.Approved, 30),
+            ("HVAC equipment — RTUs", new[] { ("15-ton rooftop unit RTU-1", 1m, 18_500.00m), ("10-ton rooftop unit RTU-2", 1m, 14_200.00m), ("VFDs and controls", 2m, 3_800.00m) },
+                PurchaseOrderStatus.Received, 45),
+            ("Interior doors & hardware", new[] { ("Solid core wood doors 3070", 48m, 425.00m), ("Commercial door hardware sets", 48m, 185.00m), ("Hollow metal frames", 48m, 195.00m) },
+                PurchaseOrderStatus.Approved, 15),
+            ("Drywall & framing materials", new[] { ("5/8\" Type X drywall", 800m, 14.50m), ("Metal studs 3-5/8\" 25ga", 2000m, 4.25m), ("Joint compound (5 gal)", 60m, 22.00m) },
+                PurchaseOrderStatus.PartiallyReceived, 22),
+            ("Elevator cab & components", new[] { ("Hydraulic passenger elevator", 1m, 65_000.00m), ("Cab interior finish package", 1m, 8_500.00m) },
+                PurchaseOrderStatus.Approved, 35),
+            ("Fire protection materials", new[] { ("Sprinkler heads — standard", 200m, 18.50m), ("Schedule 10 black pipe", 3000m, 3.25m), ("Fire alarm panel", 1m, 6_200.00m) },
+                PurchaseOrderStatus.Approved, 28),
+            ("Landscaping materials", new[] { ("Trees — 24\" box", 15m, 425.00m), ("Shrubs — 5 gallon", 80m, 35.00m), ("Irrigation controller", 2m, 1_200.00m) },
+                PurchaseOrderStatus.Draft, 3),
+            ("Finish flooring", new[] { ("LVT flooring — offices", 4500m, 4.75m), ("Porcelain tile — lobbies", 1200m, 8.50m), ("Carpet tile — conference rooms", 800m, 6.25m) },
+                PurchaseOrderStatus.Approved, 12),
+        };
+
+        for (var i = 0; i < poTemplates.Length; i++)
+        {
+            var (desc, lineItems, status, daysAgo) = poTemplates[i];
+            var project = activeProjects[i % activeProjects.Count];
+            var vendor = vendorList[i % vendorList.Count];
+
+            var lines = lineItems.Select((li, idx) =>
+            {
+                var amount = Math.Round(li.Item2 * li.Item3, 2);
+                return new PurchaseOrderLine
+                {
+                    Description = li.Item1,
+                    Quantity = li.Item2,
+                    UnitPrice = li.Item3,
+                    Amount = amount,
+                    TaxAmount = Math.Round(amount * 0.0875m, 2),
+                    TaxRate = 8.75m,
+                    IsTaxable = true,
+                    ReceivedQuantity = status switch
+                    {
+                        PurchaseOrderStatus.Received => li.Item2,
+                        PurchaseOrderStatus.PartiallyReceived => Math.Round(li.Item2 * 0.6m, 0),
+                        _ => 0m,
+                    },
+                };
+            }).ToList();
+
+            var subtotal = lines.Sum(l => l.Amount);
+            var tax = lines.Sum(l => l.TaxAmount);
+
+            pos.Add(new PurchaseOrder
+            {
+                PONumber = $"PO-{now.Year}-{(i + 1):D4}",
+                ProjectId = project.Id,
+                VendorId = vendor.Id,
+                Description = desc,
+                SubtotalAmount = subtotal,
+                TaxAmount = tax,
+                TotalAmount = subtotal + tax,
+                Status = status,
+                ApprovedAt = status != PurchaseOrderStatus.Draft ? now.AddDays(-daysAgo + 1) : null,
+                Lines = lines,
+            });
+        }
+
+        return pos;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 7. NOTIFICATIONS — for various roles
+    // ────────────────────────────────────────────────────────────────────────
+
+    private static List<Notification> CreateNotifications(
+        Guid userId, List<Rfi> rfis, List<Project> activeProjects)
+    {
+        var now = DateTime.UtcNow;
+        var notifications = new List<Notification>();
+
+        // RFI-related notifications
+        foreach (var rfi in rfis.Where(r => r.Status == RfiStatus.Answered).Take(2))
+        {
+            notifications.Add(new Notification
+            {
+                UserId = userId,
+                Title = $"RFI #{rfi.Number} Responded",
+                Message = $"Architect has responded to RFI #{rfi.Number}: \"{rfi.Subject}\". Review the response and close the RFI if resolved.",
+                Type = NotificationType.RfiAnswered,
+                IsRead = false,
+                RelatedEntityType = "Rfi",
+                RelatedEntityId = rfi.Id,
+            });
+        }
+
+        // Overdue RFI warnings
+        foreach (var rfi in rfis.Where(r => r.Status == RfiStatus.Open && r.DueDate < now).Take(2))
+        {
+            notifications.Add(new Notification
+            {
+                UserId = userId,
+                Title = $"RFI #{rfi.Number} is Overdue",
+                Message = $"RFI #{rfi.Number}: \"{rfi.Subject}\" is past its due date. Follow up with the architect for a response.",
+                Type = NotificationType.OverdueRfi,
+                IsRead = false,
+                RelatedEntityType = "Rfi",
+                RelatedEntityId = rfi.Id,
+            });
+        }
+
+        // Approval request
+        notifications.Add(new Notification
+        {
+            UserId = userId,
+            Title = "Time Entries Pending Approval",
+            Message = "5 time entries from last week are awaiting your approval. Review and approve to keep payroll on schedule.",
+            Type = NotificationType.PendingApproval,
+            IsRead = false,
+        });
+
+        // Deadline warning
+        if (activeProjects.Count > 0)
+        {
+            notifications.Add(new Notification
+            {
+                UserId = userId,
+                Title = "Billing Deadline Approaching",
+                Message = $"Monthly billing application for {activeProjects[0].Name} is due in 3 days. Ensure all cost data is current before submission.",
+                Type = NotificationType.Info,
+                IsRead = false,
+                RelatedEntityType = "Project",
+                RelatedEntityId = activeProjects[0].Id,
+            });
+        }
+
+        // Submittal stale notification
+        notifications.Add(new Notification
+        {
+            UserId = userId,
+            Title = "Submittal Review Overdue",
+            Message = "Submittal #003 (HVAC Equipment Submittals) has been in review for 15 days. The architect was expected to respond within 10 business days.",
+            Type = NotificationType.SubmittalReviewStale,
+            IsRead = false,
+        });
+
+        // Change order notification
+        notifications.Add(new Notification
+        {
+            UserId = userId,
+            Title = "Change Order Requires Review",
+            Message = "Change Order #CO-002 for structural modifications has been submitted for your review. Estimated cost impact: $45,000.",
+            Type = NotificationType.ChangeOrder,
+            IsRead = true,
+            ReadAt = now.AddDays(-1),
+        });
+
+        // System update (read)
+        notifications.Add(new Notification
+        {
+            UserId = userId,
+            Title = "System Update: New Dashboard Layouts",
+            Message = "Role-adaptive dashboard layouts are now available. Your dashboard has been automatically configured based on your role.",
+            Type = NotificationType.SystemUpdate,
+            IsRead = true,
+            ReadAt = now.AddDays(-3),
+        });
+
+        return notifications;
     }
 }
