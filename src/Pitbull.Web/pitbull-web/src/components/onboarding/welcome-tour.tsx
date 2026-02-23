@@ -159,12 +159,12 @@ export function WelcomeTour() {
           {/* Body */}
           <div className="p-4">
             <p className="text-sm font-medium mb-1">{step.title}</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              You&apos;re here! Take a look around, then click Next when ready.
+            <p className="text-xs text-muted-foreground mb-4">
+              You&apos;re here! Take a look around, then continue when ready.
             </p>
 
             {/* Step dots */}
-            <div className="flex justify-center gap-1.5 mb-3">
+            <div className="flex justify-center gap-1.5 mb-4">
               {tour.steps.map((_, i) => (
                 <div
                   key={i}
@@ -179,20 +179,20 @@ export function WelcomeTour() {
               ))}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-between gap-2">
+            {/* Navigation */}
+            <div className="flex items-center justify-between">
               <div className="flex gap-1">
                 {!isFirst && (
-                  <Button variant="outline" size="sm" onClick={handlePrev}>
+                  <Button variant="ghost" size="sm" onClick={handlePrev}>
                     <ArrowLeft className="w-3 h-3 mr-1" /> Back
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" onClick={handleSkip}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSkip}>
                   Skip
                 </Button>
               </div>
-              <Button size="sm" onClick={handleNext}>
-                {isLast ? "Finish" : "Next"}
+              <Button size="sm" className="min-w-[80px]" onClick={handleNext}>
+                {isLast ? "🎉 Finish" : "Next"}
                 {!isLast && <ArrowRight className="w-3 h-3 ml-1" />}
               </Button>
             </div>
@@ -223,6 +223,7 @@ export function WelcomeTour() {
               <button
                 onClick={handleSkip}
                 className="text-white/70 hover:text-white transition-colors"
+                aria-label="Close tour"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -232,10 +233,22 @@ export function WelcomeTour() {
 
           {/* Body */}
           <div className="p-6">
-            <p className="text-muted-foreground leading-relaxed">{step.description}</p>
+            <p className="text-muted-foreground leading-relaxed mb-6">{step.description}</p>
+
+            {/* "Go to page" button — standalone row so it doesn't crowd nav */}
+            {step.targetPage !== "dashboard" && (
+              <Button
+                variant="outline"
+                className="w-full mb-4"
+                onClick={handleGoToPage}
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                Go to {step.title}
+              </Button>
+            )}
 
             {/* Step dots */}
-            <div className="flex justify-center gap-1.5 mt-6 mb-4">
+            <div className="flex justify-center gap-1.5 mb-5">
               {tour.steps.map((_, i) => (
                 <div
                   key={i}
@@ -250,29 +263,22 @@ export function WelcomeTour() {
               ))}
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center justify-between gap-3">
+            {/* Navigation — clean row: Back | Skip ... Next/Finish */}
+            <div className="flex items-center justify-between">
               <div className="flex gap-2">
                 {!isFirst && (
-                  <Button variant="outline" size="sm" onClick={handlePrev}>
+                  <Button variant="ghost" size="sm" onClick={handlePrev}>
                     <ArrowLeft className="w-4 h-4 mr-1" /> Back
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" onClick={handleSkip}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={handleSkip}>
                   Skip tour
                 </Button>
               </div>
-              <div className="flex gap-2">
-                {step.targetPage !== "dashboard" && (
-                  <Button variant="outline" size="sm" onClick={handleGoToPage}>
-                    Go to {step.title}
-                  </Button>
-                )}
-                <Button size="sm" onClick={handleNext}>
-                  {isLast ? "Finish" : "Next"}
-                  {!isLast && <ArrowRight className="w-4 h-4 ml-1" />}
-                </Button>
-              </div>
+              <Button onClick={handleNext} className="min-w-[100px]">
+                {isLast ? "🎉 Finish" : "Next"}
+                {!isLast && <ArrowRight className="w-4 h-4 ml-2" />}
+              </Button>
             </div>
           </div>
         </div>
