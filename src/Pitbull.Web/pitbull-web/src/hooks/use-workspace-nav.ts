@@ -190,7 +190,7 @@ export function useWorkspaceNav() {
     [favorites]
   );
 
-  // Get visible workspaces (filtered by permissions)
+  // Get visible workspaces (filtered by permissions + demo user restrictions)
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- user?.permissions is the correct dependency
   const visibleWorkspaces = useMemo(() => {
     // If no user/permissions yet, show all (permissions will re-filter on load)
@@ -200,11 +200,13 @@ export function useWorkspaceNav() {
     const hasAnyPerm = (ps: string[]) => perms.has("*") || ps.some((p) => perms.has(p));
 
     return workspaces.filter((ws) => {
+      // Demo users cannot access admin workspace
+      if (user.isDemoUser && ws.id === "admin") return false;
       if (ws.requiredPermission) return hasPerm(ws.requiredPermission);
       if (ws.requiredAnyPermission) return hasAnyPerm(ws.requiredAnyPermission);
       return true; // my-work is always visible
     });
-  }, [user?.permissions]);
+  }, [user?.permissions, user?.isDemoUser]);
 
   return {
     // State

@@ -43,6 +43,7 @@ interface JwtPayload {
   tenantId: string;
   companyId?: string;
   companyIds?: string[];
+  isDemoUser?: boolean;
   exp: number;
   [key: string]: unknown;
 }
@@ -88,6 +89,7 @@ export function decodeToken(token: string): JwtPayload | null {
       tenantId: raw.tenant_id ?? raw.tenantId ?? "",
       companyId: raw.company_id ?? raw.companyId ?? undefined,
       companyIds,
+      isDemoUser: raw.is_demo_user === "true",
     } as JwtPayload;
   } catch {
     return null;

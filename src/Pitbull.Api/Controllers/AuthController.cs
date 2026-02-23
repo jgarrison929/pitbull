@@ -17,6 +17,7 @@ using Pitbull.Core.Data;
 using Pitbull.Api.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Entities;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Controllers;
 
@@ -536,6 +537,203 @@ public class AuthController(
     }
 
     /// <summary>
+    /// Self-service demo registration. Creates a demo user in the shared demo tenant.
+    /// </summary>
+    [HttpPost("demo-register")]
+    [EnableRateLimiting("demo-register")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DemoRegister([FromBody] DemoRegisterRequest request)
+    {
+        if (!demoOptions.Value.Enabled)
+            return this.NotFoundError("Demo registration is not available");
+
+        // Validate inputs
+        if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
+            return this.BadRequestError("First name and last name are required");
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return this.BadRequestError("Email is required");
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
+            return this.BadRequestError("Password must be at least 8 characters");
+
+        // Map role to Identity role + title
+        var (identityRole, title) = request.Role?.ToLowerInvariant() switch
+        {
+            "ceo"            => (RoleSeeder.Roles.Manager, "Chief Executive Officer"),
+            "cfo"            => (RoleSeeder.Roles.Manager, "Chief Financial Officer"),
+            "pm"             => (RoleSeeder.Roles.Supervisor, "Project Manager"),
+            "field-engineer" => (RoleSeeder.Roles.User, "Field Engineer"),
+            "estimator"      => (RoleSeeder.Roles.User, "Estimator"),
+            "ap-clerk"       => (RoleSeeder.Roles.User, "AP / AR Clerk"),
+            "hr-manager"     => (RoleSeeder.Roles.Manager, "HR Manager"),
+            "it-admin"       => (RoleSeeder.Roles.Manager, "IT Administrator"),
+            _                => (RoleSeeder.Roles.User, "Demo User")
+        };
+
+        // Validate company code
+        var validCodes = new[] { "02", "03", "04" };
+        var companyCode = validCodes.Contains(request.CompanyCode) ? request.CompanyCode : "02";
+
+        // Find the demo tenant
+        var demo = demoOptions.Value;
+        var tenant = await db.Set<Tenant>().FirstOrDefaultAsync(t => t.Slug == demo.TenantSlug);
+        if (tenant is null)
+            return this.BadRequestError("Demo environment is not ready. Please try again later.");
+
+        // Check if email already taken
+        var existingUser = await userManager.FindByEmailAsync(request.Email);
+        if (existingUser is not null)
+            return this.BadRequestError("An account with this email already exists. Try logging in.");
+
+        // Find the company
+        var company = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.TenantId == tenant.Id && c.Code == companyCode && !c.IsDeleted);
+        if (company is null)
+            return this.BadRequestError("Selected company not found in demo environment");
+
+        // Create user
+        var user = new AppUser
+        {
+            UserName = request.Email,
+            Email = request.Email,
+            EmailConfirmed = true,
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            Title = title,
+            TenantId = tenant.Id,
+            CompanyId = company.Id,
+            Type = UserType.Internal,
+            Status = UserStatus.Active,
+            IsDemoUser = true
+        };
+
+        var result = await userManager.CreateAsync(user, request.Password);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+            return this.BadRequestError(errors);
+        }
+
+        // Assign role
+        await roleSeeder.EnsureRolesForTenantAsync(tenant.Id);
+        await roleSeeder.AssignRoleToUserAsync(user, identityRole);
+
+        // Grant company access
+        var access = new UserCompanyAccess
+        {
+            TenantId = tenant.Id,
+            UserId = user.Id,
+            CompanyId = company.Id,
+            IsDefault = true,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "demo-register"
+        };
+        db.Set<UserCompanyAccess>().Add(access);
+        await db.SaveChangesAsync();
+
+        // Create Employee record inside RLS context
+        tenantContext.TenantId = tenant.Id;
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_tenant', {tenant.Id.ToString()}, false)");
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_company', {company.Id.ToString()}, false)");
+
+        var employee = new Pitbull.TimeTracking.Domain.Employee
+        {
+            EmployeeNumber = $"DEMO-PUB-{user.Id.ToString()[..8].ToUpperInvariant()}",
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email!,
+            Title = title,
+            Classification = Pitbull.TimeTracking.Domain.EmployeeClassification.Salaried,
+            BaseHourlyRate = 50.00m,
+            HireDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            IsActive = true,
+            HomeCompanyId = company.Id,
+            Notes = "Self-service demo signup"
+        };
+        db.Set<Pitbull.TimeTracking.Domain.Employee>().Add(employee);
+        await db.SaveChangesAsync();
+
+        user.EmployeeId = employee.Id;
+        await userManager.UpdateAsync(user);
+
+        // Generate JWT + refresh token (auto-login)
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+        var token = await GenerateJwtTokenAsync(user);
+        var refreshToken = GenerateRefreshToken();
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        await userManager.UpdateAsync(user);
+
+        logger.LogInformation("Demo user registered: {Email} as {Role} in company {CompanyCode}", request.Email, request.Role, companyCode);
+
+        return Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
+    }
+
+    /// <summary>
+    /// Export demo user signups as CSV (admin-only, for sales pipeline).
+    /// </summary>
+    [HttpGet("demo-users/export")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> ExportDemoUsers()
+    {
+        if (!demoOptions.Value.Enabled)
+            return NotFound();
+
+        var demoUsers = await db.Users
+            .Where(u => u.IsDemoUser)
+            .OrderByDescending(u => u.CreatedAt)
+            .Select(u => new
+            {
+                u.Email,
+                u.FirstName,
+                u.LastName,
+                u.Title,
+                u.CreatedAt,
+                u.LastLoginAt,
+                CompanyId = u.CompanyId
+            })
+            .ToListAsync();
+
+        // Resolve company codes
+        var companyIds = demoUsers.Where(u => u.CompanyId.HasValue).Select(u => u.CompanyId!.Value).Distinct().ToList();
+        var companies = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .Where(c => companyIds.Contains(c.Id))
+            .ToDictionaryAsync(c => c.Id, c => c.Code);
+
+        var csv = new System.Text.StringBuilder();
+        csv.AppendLine("email,firstName,lastName,role,companyCode,createdAt,lastLoginAt");
+        foreach (var u in demoUsers)
+        {
+            var code = u.CompanyId.HasValue && companies.TryGetValue(u.CompanyId.Value, out var c) ? c : "";
+            csv.AppendLine($"{Escape(u.Email)},{Escape(u.FirstName)},{Escape(u.LastName)},{Escape(u.Title)},{code},{u.CreatedAt:O},{u.LastLoginAt?.ToString("O") ?? ""}");
+        }
+
+        return File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "demo-users.csv");
+
+        static string Escape(string? v)
+        {
+            if (string.IsNullOrEmpty(v)) return "";
+            // Prevent CSV injection: prefix formula-starting chars with single quote
+            var sanitized = v;
+            if (sanitized.Length > 0 && "=+-@\t\r".Contains(sanitized[0]))
+                sanitized = "'" + sanitized;
+            // Escape quotes and wrap in quotes if needed
+            if (sanitized.Contains(',') || sanitized.Contains('"') || sanitized.Contains('\n') || sanitized.Contains('\''))
+                return $"\"{sanitized.Replace("\"", "\"\"")}\"";
+            return sanitized;
+        }
+    }
+
+    /// <summary>
     /// Get the current user's profile
     /// </summary>
     /// <remarks>
@@ -847,6 +1045,9 @@ public class AuthController(
             new("user_type", user.Type.ToString()),
         };
 
+        if (user.IsDemoUser)
+            claims.Add(new Claim("is_demo_user", "true"));
+
         // Add company claims if available
         if (defaultCompanyId != Guid.Empty)
         {
@@ -1003,3 +1204,14 @@ public record ResetPasswordRequest(
 public record RefreshTokenRequest(
     string Token,
     string RefreshToken);
+
+/// <summary>
+/// Demo self-service registration request
+/// </summary>
+public record DemoRegisterRequest(
+    string FirstName,
+    string LastName,
+    string Email,
+    string Password,
+    string? Role = "pm",
+    string? CompanyCode = "02");

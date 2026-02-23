@@ -36,4 +36,12 @@ public sealed class DemoOptions
     public string UserPassword { get; init; } = string.Empty;
     public string UserFirstName { get; init; } = "Demo";
     public string UserLastName { get; init; } = "User";
+
+    // AI config for demo users
+    public string AiModel { get; init; } = "claude-3-5-haiku-latest";
+    public int AiMaxTokensPerUser { get; init; } = 10000;
+    public string AiSystemPrompt { get; init; } =
+        "You are the AI assistant for Pitbull Construction Solutions, an AI-native ERP platform for construction companies. " +
+        "Help users understand the platform features and answer construction industry questions. " +
+        "Do not discuss pricing, competitors, or internal implementation details.";
 }

@@ -18,6 +18,7 @@ function buildUserFromToken(token: string): User | null {
     roles: payload.roles,
     permissions: payload.permissions,
     tenantId: payload.tenantId,
+    isDemoUser: payload.isDemoUser,
   };
 }
 
@@ -28,12 +29,14 @@ interface User {
   roles: string[];
   permissions: string[];
   tenantId: string;
+  isDemoUser?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isDemoUser: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
@@ -167,6 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.roles?.includes("Admin") ?? false;
   const isManager = user?.roles?.includes("Manager") ?? false;
+  const isDemoUser = user?.isDemoUser ?? false;
 
   return (
     <AuthContext.Provider
@@ -174,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
+        isDemoUser,
         login,
         register,
         logout,

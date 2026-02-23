@@ -105,8 +105,10 @@ builder.Services.AddScoped<Pitbull.Api.Features.SeedData.ISeedDataService, Pitbu
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
+    // Only trust the first hop (Railway's edge proxy).
+    // Do NOT clear KnownNetworks/KnownProxies — that trusts ALL X-Forwarded-For headers,
+    // allowing rate limit bypass via header spoofing.
+    options.ForwardLimit = 1;
 });
 
 // Module registrations (MediatR handlers + FluentValidation)
@@ -523,6 +525,17 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 2;
     });
 
+    // Demo registration: 10 signups per hour per IP
+    options.AddPolicy("demo-register", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0
+            }));
+
     // AI endpoints: per-user rate limits (keyed by user ID from JWT, fallback to IP)
     options.AddPolicy("ai-chat", context =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -695,6 +708,10 @@ app.UseResponseCompression();
 
 app.UseRequestTimeouts();
 app.UseAuthentication();
+// Demo restriction MUST run after auth (needs claims) but before authorization
+// to prevent demo users from reaching admin endpoints
+if (app.Configuration.GetValue<bool>("Demo:Enabled"))
+    app.UseMiddleware<Pitbull.Api.Middleware.DemoRestrictionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
 app.UseMiddleware<TenantMiddleware>();

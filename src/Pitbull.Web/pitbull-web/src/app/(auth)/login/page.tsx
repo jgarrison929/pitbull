@@ -240,6 +240,22 @@ function LoginForm() {
             </LoadingButton>
           </form>
 
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
+
+          <Link
+            href="/demo"
+            className="flex items-center justify-center w-full h-11 rounded-md border-2 border-amber-500 text-amber-600 dark:text-amber-400 font-medium hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors"
+          >
+            Try the Demo
+          </Link>
+
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-amber-600 dark:text-amber-400 hover:underline font-medium">

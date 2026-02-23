@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Pitbull.AI.Providers;
 using Pitbull.AI.Services;
+using Pitbull.Api.Demo;
 using Pitbull.Api.Validation;
 using Pitbull.Core.Data;
 
@@ -20,7 +22,7 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("ai-chat")]
 [Produces("application/json")]
 [Tags("AI")]
-public class AiChatController(IAiService aiService, PitbullDbContext db) : ControllerBase
+public class AiChatController(IAiService aiService, PitbullDbContext db, IOptions<DemoOptions> demoOptions) : ControllerBase
 {
     private const int MaxMessageLength = 4000;
     private const int MaxHistoryItems = 20;
@@ -72,8 +74,12 @@ public class AiChatController(IAiService aiService, PitbullDbContext db) : Contr
         // Build enriched context from pageContext (entity data) + systemContext (page label)
         var enrichedContext = await BuildEnrichedContextAsync(request.PageContext, request.SystemContext);
 
-        var aiRequest = new AiCompletionRequest(
-            SystemPrompt: $"""
+        var isDemoUser = User.FindFirst("is_demo_user")?.Value == "true";
+        var demo = demoOptions.Value;
+
+        var systemPrompt = isDemoUser && demo.Enabled
+            ? $"{demo.AiSystemPrompt}{enrichedContext}"
+            : $"""
                 You are Pitbull AI, an in-app assistant for a construction management platform.
                 You help project managers, estimators, and superintendents with:
                 - Project management questions (budgets, schedules, phases)
@@ -86,11 +92,17 @@ public class AiChatController(IAiService aiService, PitbullDbContext db) : Contr
                 Be concise, professional, and practical. Use construction industry terminology.
                 If you don't know something specific to the user's data, say so.
                 Format responses with markdown when helpful.{enrichedContext}
-                """,
+                """;
+
+        var modelOverride = isDemoUser && demo.Enabled ? demo.AiModel : null;
+
+        var aiRequest = new AiCompletionRequest(
+            SystemPrompt: systemPrompt,
             UserPrompt: userPrompt,
             Capability: AiCapability.TextGeneration,
-            MaxTokens: 2048,
-            Temperature: 0.5m);
+            MaxTokens: isDemoUser ? 1024 : 2048,
+            Temperature: 0.5m,
+            ModelOverride: modelOverride);
 
         var tenantId = GetTenantId();
         var result = await aiService.CompleteAsync(tenantId, aiRequest, null, ct);

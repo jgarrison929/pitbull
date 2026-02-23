@@ -33,6 +33,12 @@ public class AppUser : IdentityUser<Guid>
     /// </summary>
     public Guid? CompanyId { get; set; }
 
+    /// <summary>
+    /// True for self-service demo signups. Demo users have restricted access:
+    /// no admin workspace, can't see other users, data resets with seed version bumps.
+    /// </summary>
+    public bool IsDemoUser { get; set; }
+
     // Navigation
     public Tenant Tenant { get; set; } = null!;
 }

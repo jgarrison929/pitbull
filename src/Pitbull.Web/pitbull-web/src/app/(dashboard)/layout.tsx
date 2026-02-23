@@ -14,6 +14,7 @@ import { AiChatPanel } from "@/components/ai-chat-panel";
 import { FeedbackWidget } from "@/components/layout/feedback-widget";
 import { WelcomeTour } from "@/components/onboarding/welcome-tour";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { DemoBanner } from "@/components/layout/demo-banner";
 
 export default function DashboardLayout({
   children,
@@ -43,6 +44,7 @@ export default function DashboardLayout({
 
   return (
     <KeyboardShortcutsProvider>
+      <DemoBanner />
       <div className="flex min-h-screen">
         <AppSidebar />
         <div className="flex-1 flex flex-col">
