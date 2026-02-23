@@ -9,14 +9,19 @@ export function OfflineIndicator() {
   const { isOnline, syncStatus, pendingCount, syncNow } = useOnlineStatus();
   const [showReconnected, setShowReconnected] = useState(false);
   const wasOfflineRef = React.useRef(false);
+  const prevOnlineRef = React.useRef(isOnline);
 
   useEffect(() => {
+    const wasOnline = prevOnlineRef.current;
+    prevOnlineRef.current = isOnline;
+
     if (!isOnline) {
       wasOfflineRef.current = true;
-      setShowReconnected(false);
-    } else if (wasOfflineRef.current) {
+    } else if (wasOfflineRef.current && !wasOnline) {
+      // Just came back online after being offline
       wasOfflineRef.current = false;
-      setShowReconnected(true);
+      const id = requestAnimationFrame(() => setShowReconnected(true));
+      return () => cancelAnimationFrame(id);
     }
   }, [isOnline]);
 

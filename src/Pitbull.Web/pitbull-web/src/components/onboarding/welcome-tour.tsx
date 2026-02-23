@@ -66,15 +66,6 @@ export function WelcomeTour() {
     );
   }, [tour, visible, currentIndex, pathname]);
 
-  // Auto-mark step as seen when user navigates to its target page
-  useEffect(() => {
-    if (!isOnTargetPage || !tour) return;
-    const step = tour.steps[currentIndex];
-    if (!step || markedSeenRef.current.has(step.id)) return;
-    markedSeenRef.current.add(step.id);
-    markStepSeen(step.id);
-  }, [isOnTargetPage, tour, currentIndex]);
-
   async function markStepSeen(stepId: string) {
     try {
       await api(`/api/onboarding/tour/steps/${stepId}/seen`, {
@@ -84,6 +75,15 @@ export function WelcomeTour() {
       // Non-critical
     }
   }
+
+  // Auto-mark step as seen when user navigates to its target page
+  useEffect(() => {
+    if (!isOnTargetPage || !tour) return;
+    const step = tour.steps[currentIndex];
+    if (!step || markedSeenRef.current.has(step.id)) return;
+    markedSeenRef.current.add(step.id);
+    markStepSeen(step.id);
+  }, [isOnTargetPage, tour, currentIndex]);
 
   async function completeTour() {
     try {
