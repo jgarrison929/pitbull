@@ -8,6 +8,7 @@ using Pitbull.Notifications.Domain;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.RFIs.Domain;
+using Pitbull.SystemAdmin.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Entities;
 
@@ -23,6 +24,12 @@ namespace Pitbull.Api.Features.SeedData;
 public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConfiguration configuration)
     : ISeedDataService
 {
+    /// <summary>
+    /// Bump this version whenever seed data content changes.
+    /// On next startup, old seed data is cleared and re-seeded automatically.
+    /// </summary>
+    private const int SeedDataVersion = 2;
+
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default)
     {
         var allowNonDev = configuration.GetValue<bool>("SeedData:AllowInNonDevelopment")
@@ -32,14 +39,26 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             return Result.Failure<SeedDataResult>(
                 "Seed data is only available in Development environment", "FORBIDDEN");
 
-        // Check if seed data already exists (idempotency)
-        var existingProjects = await db.Set<Project>()
+        // Check if seed data already exists and whether it's at the current version
+        var demoProject = await db.Set<Project>()
             .IgnoreQueryFilters()
-            .AnyAsync(p => p.Number.StartsWith("DEMO-PRJ"), cancellationToken);
+            .Where(p => p.Number.StartsWith("DEMO-PRJ") && !p.IsDeleted)
+            .Select(p => new { p.TenantId })
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (existingProjects)
-            return Result.Failure<SeedDataResult>(
-                "Seed data already exists. Delete existing demo data first.", "ALREADY_EXISTS");
+        if (demoProject is not null)
+        {
+            var settings = await db.Set<TenantSettings>()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(s => s.TenantId == demoProject.TenantId, cancellationToken);
+
+            if (settings is not null && settings.SeedDataVersion >= SeedDataVersion)
+                return Result.Failure<SeedDataResult>(
+                    "Seed data already exists at current version.", "ALREADY_EXISTS");
+
+            // Old version (or no version recorded) — clear and re-seed
+            await ClearSeedDataAsync(demoProject.TenantId, cancellationToken);
+        }
 
         // NpgsqlRetryingExecutionStrategy requires transactions to start inside ExecuteAsync.
         // Wrap entire seed operation for atomicity — if any step fails, everything rolls back.
@@ -220,6 +239,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             await db.SaveChangesAsync(ct);
         }
 
+        // Stamp the seed data version so future startups can skip or refresh
+        await StampSeedVersionAsync(ct);
+
         await transaction.CommitAsync(ct);
 
         var totalPhases = projects.Sum(p => p.Phases.Count);
@@ -287,6 +309,123 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             throw;
         }
         }, cancellationToken);
+    }
+
+    /// <summary>
+    /// Removes all seed-created domain data for the tenant so it can be re-seeded at a new version.
+    /// Deletes in reverse FK order to avoid constraint violations.
+    /// Does NOT touch AppUser, Company, or UserCompanyAccess — those are managed by DemoBootstrapper.
+    /// </summary>
+    private async Task ClearSeedDataAsync(Guid tenantId, CancellationToken ct)
+    {
+        // Leaf entities (no children reference them)
+        await BulkDeleteAsync<Notification>(tenantId, ct);
+        await BulkDeleteAsync<PmScheduleDependency>(tenantId, ct);
+        await BulkDeleteAsync<PmDailyReportCrew>(tenantId, ct);
+        await BulkDeleteAsync<PmDailyReportEquipment>(tenantId, ct);
+        await BulkDeleteAsync<PmPunchListItem>(tenantId, ct);
+        await BulkDeleteAsync<RetentionHold>(tenantId, ct);
+        await BulkDeleteAsync<LienWaiver>(tenantId, ct);
+
+        // Journal entries (lines → entries → accounts/periods)
+        await BulkDeleteAsync<JournalEntryLine>(tenantId, ct);
+        await BulkDeleteAsync<JournalEntry>(tenantId, ct);
+        await BulkDeleteAsync<AccountingPeriod>(tenantId, ct);
+        await BulkDeleteAsync<ChartOfAccount>(tenantId, ct);
+
+        // Purchase orders (lines → POs)
+        await BulkDeleteAsync<PurchaseOrderLine>(tenantId, ct);
+        await BulkDeleteAsync<PurchaseOrder>(tenantId, ct);
+
+        // PM entities
+        await BulkDeleteAsync<PmScheduleActivity>(tenantId, ct);
+        await BulkDeleteAsync<PmSchedule>(tenantId, ct);
+        await BulkDeleteAsync<Rfi>(tenantId, ct);
+        await BulkDeleteAsync<PmDailyReport>(tenantId, ct);
+        await BulkDeleteAsync<PmSubmittal>(tenantId, ct);
+
+        // Billing chain (lines → apps → SOV → contracts)
+        await BulkDeleteAsync<BillingApplicationLineItem>(tenantId, ct);
+        await BulkDeleteAsync<BillingApplication>(tenantId, ct);
+        await BulkDeleteAsync<OwnerSOVLineItem>(tenantId, ct);
+        await BulkDeleteAsync<OwnerScheduleOfValues>(tenantId, ct);
+        await BulkDeleteAsync<OwnerContract>(tenantId, ct);
+
+        // AP chain (WIP, payment apps, subcontracts)
+        await BulkDeleteAsync<WipReportLine>(tenantId, ct);
+        await BulkDeleteAsync<WipReport>(tenantId, ct);
+        await BulkDeleteAsync<PaymentApplicationBookEntry>(tenantId, ct);
+        await BulkDeleteAsync<PaymentApplicationLineItem>(tenantId, ct);
+        await BulkDeleteAsync<PaymentApplication>(tenantId, ct);
+        await BulkDeleteAsync<InvoiceMatchResult>(tenantId, ct);
+        await BulkDeleteAsync<VendorInvoice>(tenantId, ct);
+        await BulkDeleteAsync<ChangeOrder>(tenantId, ct);
+        await BulkDeleteAsync<Subcontract>(tenantId, ct);
+
+        // Payroll
+        await BulkDeleteAsync<PayrollRun>(tenantId, ct);
+        await BulkDeleteAsync<PayPeriod>(tenantId, ct);
+
+        // Time & assignments
+        await BulkDeleteAsync<TimeEntry>(tenantId, ct);
+        await BulkDeleteAsync<ProjectAssignment>(tenantId, ct);
+
+        // Root entities
+        await BulkDeleteAsync<BidItem>(tenantId, ct);
+        await BulkDeleteAsync<Bid>(tenantId, ct);
+        await BulkDeleteAsync<Phase>(tenantId, ct);
+        await BulkDeleteAsync<Projection>(tenantId, ct);
+        await BulkDeleteAsync<Employee>(tenantId, ct);
+        await BulkDeleteAsync<Customer>(tenantId, ct);
+        await BulkDeleteAsync<Vendor>(tenantId, ct);
+        await BulkDeleteAsync<CostCode>(tenantId, ct);
+        await BulkDeleteAsync<Project>(tenantId, ct);
+    }
+
+    /// <summary>
+    /// Bulk-deletes all non-soft-deleted records for a tenant from a given entity type.
+    /// Uses EF Core 7+ ExecuteDeleteAsync for efficient server-side deletion.
+    /// </summary>
+    private async Task BulkDeleteAsync<T>(Guid tenantId, CancellationToken ct) where T : BaseEntity
+    {
+        await db.Set<T>()
+            .IgnoreQueryFilters()
+            .Where(x => x.TenantId == tenantId)
+            .ExecuteDeleteAsync(ct);
+    }
+
+    /// <summary>
+    /// Upserts the seed data version into TenantSettings for the current tenant.
+    /// </summary>
+    private async Task StampSeedVersionAsync(CancellationToken ct)
+    {
+        // Find tenant ID from the projects we just created
+        var tenantId = await db.Set<Project>()
+            .Where(p => p.Number.StartsWith("DEMO-PRJ"))
+            .Select(p => p.TenantId)
+            .FirstOrDefaultAsync(ct);
+
+        if (tenantId == Guid.Empty) return;
+
+        var settings = await db.Set<TenantSettings>()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.TenantId == tenantId, ct);
+
+        if (settings is not null)
+        {
+            settings.SeedDataVersion = SeedDataVersion;
+        }
+        else
+        {
+            db.Set<TenantSettings>().Add(new TenantSettings
+            {
+                TenantId = tenantId,
+                CompanyName = "Summit Builders Group",
+                SeedDataVersion = SeedDataVersion
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>

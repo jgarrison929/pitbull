@@ -28,6 +28,9 @@ public class TenantSettings : BaseEntity
     public string Currency { get; set; } = "USD";
     public int FiscalYearStartMonth { get; set; } = 1;
 
+    // Seed Data
+    public int SeedDataVersion { get; set; }
+
     // Feature Flags
     public bool EnableTimeTracking { get; set; } = true;
     public bool EnableBidManagement { get; set; } = true;

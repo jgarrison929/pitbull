@@ -420,11 +420,11 @@ public sealed class DemoBootstrapper(
     // ────────────────────────────────────────────────────────────────────────
 
     private const string ParentCode = "01";
-    private const string CommercialCode = "02";
-    private const string CivilCode = "03";
-    private const string MechanicalCode = "04";
+    private const string WaterInfraCode = "02";   // Summit Water Infrastructure — civil/water GC ($400M)
+    private const string HighwayCode = "03";       // Summit Highway Division — heavy highway GC/sub ($40M)
+    private const string ElectricalCode = "04";    // Summit Electric Co. — electrical sub ($30M)
 
-    private static readonly string[] AllCompanyCodes = [ParentCode, CommercialCode, CivilCode, MechanicalCode];
+    private static readonly string[] AllCompanyCodes = [ParentCode, WaterInfraCode, HighwayCode, ElectricalCode];
 
     /// <summary>
     /// A single demo user definition: identity, role, employee info, and company access.
@@ -483,7 +483,7 @@ public sealed class DemoBootstrapper(
         new("mgr-it@demo.example.com",          "Scott",    "Yamamoto",  "IT Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MI",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
         new("mgr-safety@demo.example.com",      "Rosa",     "Alvarez",   "Safety Manager",                   RoleSeeder.Roles.Manager,    "DEMO-MS",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
         new("mgr-payroll@demo.example.com",     "Amy",      "Cooper",    "Payroll Manager",                  RoleSeeder.Roles.Manager,    "DEMO-MP",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
-        new("mgr-purchasing@demo.example.com",  "Derek",    "Olson",     "Purchasing Manager",               RoleSeeder.Roles.Manager,    "DEMO-MPU",   EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode, MechanicalCode]),
+        new("mgr-purchasing@demo.example.com",  "Derek",    "Olson",     "Purchasing Manager",               RoleSeeder.Roles.Manager,    "DEMO-MPU",   EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode, ElectricalCode]),
 
         // Staff Level (5) — User role, parent company only
         new("staff-accountant@demo.example.com", "Jessica",  "Tran",     "Staff Accountant",                 RoleSeeder.Roles.User,       "DEMO-SA",    EmployeeClassification.Salaried,    55.00m, ParentCode, [ParentCode]),
@@ -492,24 +492,24 @@ public sealed class DemoBootstrapper(
         new("payroll-clerk@demo.example.com",    "Tyler",    "Jackson",  "Payroll Clerk",                    RoleSeeder.Roles.User,       "DEMO-PRC",   EmployeeClassification.Hourly,      36.00m, ParentCode, [ParentCode]),
         new("hr-coordinator@demo.example.com",   "Samantha", "Cruz",     "HR Coordinator",                   RoleSeeder.Roles.User,       "DEMO-HRC",   EmployeeClassification.Hourly,      35.00m, ParentCode, [ParentCode]),
 
-        // Project/Field — Sr Leadership (4) — Manager role, Pacific Commercial
-        new("sr-project-exec@demo.example.com",  "William",  "Hartley",  "Sr Project Executive",             RoleSeeder.Roles.Manager,    "DEMO-SPE",   EmployeeClassification.Salaried,   145.00m, CommercialCode, [CommercialCode]),
-        new("project-exec@demo.example.com",     "Christine","Novak",    "Project Executive",                RoleSeeder.Roles.Manager,    "DEMO-PEX",   EmployeeClassification.Salaried,   130.00m, CommercialCode, [CommercialCode]),
-        new("chief-estimator@demo.example.com",  "Paul",     "Bergstrom","Chief Estimator",                  RoleSeeder.Roles.Manager,    "DEMO-CE",    EmployeeClassification.Salaried,   125.00m, CommercialCode, [CommercialCode, CivilCode]),
-        new("chief-engineer@demo.example.com",   "Laura",    "Kim",      "Chief Engineer",                   RoleSeeder.Roles.Manager,    "DEMO-CHE",   EmployeeClassification.Salaried,   125.00m, CommercialCode, [CommercialCode, MechanicalCode]),
+        // Project/Field — Sr Leadership (4) — Manager role, Summit Water Infrastructure
+        new("sr-project-exec@demo.example.com",  "William",  "Hartley",  "Sr Project Executive",             RoleSeeder.Roles.Manager,    "DEMO-SPE",   EmployeeClassification.Salaried,   145.00m, WaterInfraCode, [WaterInfraCode]),
+        new("project-exec@demo.example.com",     "Christine","Novak",    "Project Executive",                RoleSeeder.Roles.Manager,    "DEMO-PEX",   EmployeeClassification.Salaried,   130.00m, WaterInfraCode, [WaterInfraCode]),
+        new("chief-estimator@demo.example.com",  "Paul",     "Bergstrom","Chief Estimator",                  RoleSeeder.Roles.Manager,    "DEMO-CE",    EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, HighwayCode]),
+        new("chief-engineer@demo.example.com",   "Laura",    "Kim",      "Chief Engineer",                   RoleSeeder.Roles.Manager,    "DEMO-CHE",   EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, ElectricalCode]),
 
-        // Project/Field — Project Management (7) — Supervisor role, Pacific Commercial (field-eng → Civil)
-        new("sr-pm@demo.example.com",            "Marcus",   "Williams", "Sr Project Manager",               RoleSeeder.Roles.Supervisor, "DEMO-SPM",   EmployeeClassification.Salaried,    95.00m, CommercialCode, [CommercialCode]),
-        new("pm@demo.example.com",               "Ashley",   "Rodriguez","Project Manager",                  RoleSeeder.Roles.Supervisor, "DEMO-PM",    EmployeeClassification.Salaried,    85.00m, CommercialCode, [CommercialCode]),
-        new("project-coord@demo.example.com",    "Natalie",  "Dunn",     "Project Coordinator",              RoleSeeder.Roles.User,       "DEMO-PC",    EmployeeClassification.Salaried,    55.00m, CommercialCode, [CommercialCode]),
-        new("sr-project-eng@demo.example.com",   "Ryan",     "Mitchell", "Sr Project Engineer",              RoleSeeder.Roles.Supervisor, "DEMO-SPG",   EmployeeClassification.Salaried,    80.00m, CommercialCode, [CommercialCode]),
-        new("project-eng@demo.example.com",      "Jasmine",  "Okafor",   "Project Engineer",                 RoleSeeder.Roles.User,       "DEMO-PEG",   EmployeeClassification.Salaried,    65.00m, CommercialCode, [CommercialCode]),
-        new("field-eng@demo.example.com",        "Cody",     "Larsen",   "Field Engineer",                   RoleSeeder.Roles.User,       "DEMO-FE",    EmployeeClassification.Hourly,      48.00m, CivilCode,      [CivilCode]),
-        new("commissioning@demo.example.com",    "Evan",     "Phillips", "Commissioning Officer",            RoleSeeder.Roles.Supervisor, "DEMO-COM",   EmployeeClassification.Salaried,    75.00m, CommercialCode, [CommercialCode, MechanicalCode]),
+        // Project/Field — Project Management (7) — Supervisor role, Summit Water Infrastructure
+        new("sr-pm@demo.example.com",            "Marcus",   "Williams", "Sr Project Manager",               RoleSeeder.Roles.Supervisor, "DEMO-SPM",   EmployeeClassification.Salaried,    95.00m, WaterInfraCode, [WaterInfraCode]),
+        new("pm@demo.example.com",               "Ashley",   "Rodriguez","Project Manager",                  RoleSeeder.Roles.Supervisor, "DEMO-PM",    EmployeeClassification.Salaried,    85.00m, WaterInfraCode, [WaterInfraCode]),
+        new("project-coord@demo.example.com",    "Natalie",  "Dunn",     "Project Coordinator",              RoleSeeder.Roles.User,       "DEMO-PC",    EmployeeClassification.Salaried,    55.00m, WaterInfraCode, [WaterInfraCode]),
+        new("sr-project-eng@demo.example.com",   "Ryan",     "Mitchell", "Sr Project Engineer",              RoleSeeder.Roles.Supervisor, "DEMO-SPG",   EmployeeClassification.Salaried,    80.00m, WaterInfraCode, [WaterInfraCode]),
+        new("project-eng@demo.example.com",      "Jasmine",  "Okafor",   "Project Engineer",                 RoleSeeder.Roles.User,       "DEMO-PEG",   EmployeeClassification.Salaried,    65.00m, WaterInfraCode, [WaterInfraCode]),
+        new("field-eng@demo.example.com",        "Cody",     "Larsen",   "Field Engineer",                   RoleSeeder.Roles.User,       "DEMO-FE",    EmployeeClassification.Hourly,      48.00m, HighwayCode,    [WaterInfraCode, HighwayCode]),
+        new("commissioning@demo.example.com",    "Evan",     "Phillips", "Commissioning Officer",            RoleSeeder.Roles.Supervisor, "DEMO-COM",   EmployeeClassification.Salaried,    75.00m, ElectricalCode, [WaterInfraCode, ElectricalCode]),
 
-        // Estimating (2) — User role, Pacific Civil
-        new("sr-estimator@demo.example.com",     "Gregory",  "Townsend", "Sr Estimator",                     RoleSeeder.Roles.User,       "DEMO-SES",   EmployeeClassification.Salaried,    80.00m, CivilCode, [CivilCode]),
-        new("estimator@demo.example.com",        "Hannah",   "Stewart",  "Estimator",                        RoleSeeder.Roles.User,       "DEMO-EST",   EmployeeClassification.Salaried,    60.00m, CivilCode, [CivilCode]),
+        // Estimating (2) — User role, Summit Highway Division (bidding lots of small jobs)
+        new("sr-estimator@demo.example.com",     "Gregory",  "Townsend", "Sr Estimator",                     RoleSeeder.Roles.User,       "DEMO-SES",   EmployeeClassification.Salaried,    80.00m, HighwayCode, [HighwayCode]),
+        new("estimator@demo.example.com",        "Hannah",   "Stewart",  "Estimator",                        RoleSeeder.Roles.User,       "DEMO-EST",   EmployeeClassification.Salaried,    60.00m, HighwayCode, [HighwayCode]),
     ];
 
     /// <summary>
@@ -535,9 +535,9 @@ public sealed class DemoBootstrapper(
 
         var subsidiaries = new[]
         {
-            (Code: CommercialCode, Name: "Summit Commercial Construction", ShortName: "PCC"),
-            (Code: CivilCode,     Name: "Summit Civil",                   ShortName: "PCivil"),
-            (Code: MechanicalCode,Name: "Summit Mechanical",              ShortName: "PMech"),
+            (Code: WaterInfraCode, Name: "Summit Water Infrastructure", ShortName: "PWI"),
+            (Code: HighwayCode,    Name: "Summit Highway Division",      ShortName: "VHD"),
+            (Code: ElectricalCode, Name: "Summit Electric Co.",      ShortName: "CVE"),
         };
 
         foreach (var (code, name, shortName) in subsidiaries)
@@ -548,7 +548,14 @@ public sealed class DemoBootstrapper(
 
             if (company is not null)
             {
-                logger.LogInformation("Subsidiary company {Code} already exists: {Name}", code, company.Name);
+                // Update name/shortname if the company was created with old values
+                if (company.Name != name || company.ShortName != shortName)
+                {
+                    company.Name = name;
+                    company.ShortName = shortName;
+                    await db.SaveChangesAsync(ct);
+                    logger.LogInformation("Updated subsidiary {Code} name to {Name} ({ShortName})", code, name, shortName);
+                }
                 result[code] = company;
                 continue;
             }
@@ -561,7 +568,7 @@ public sealed class DemoBootstrapper(
                 ShortName = shortName,
                 IsDefault = false,
                 IsActive = true,
-                IndustryType = code == MechanicalCode ? "specialty-contractor" : "general-contractor",
+                IndustryType = code == ElectricalCode ? "specialty-contractor" : "general-contractor",
                 State = "CA",
                 City = "Sacramento",
                 SortOrder = int.Parse(code),
