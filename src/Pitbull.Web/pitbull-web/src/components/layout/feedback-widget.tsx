@@ -73,11 +73,12 @@ export function FeedbackWidget() {
     <>
       <Button
         type="button"
-        size="lg"
-        className="fixed bottom-5 right-5 z-50 shadow-lg"
+        size="sm"
+        variant="outline"
+        className="fixed bottom-20 right-5 z-40 shadow-md opacity-70 hover:opacity-100 transition-opacity"
         onClick={() => setOpen(true)}
       >
-        <MessageSquarePlus className="mr-2 h-4 w-4" />
+        <MessageSquarePlus className="mr-1.5 h-3.5 w-3.5" />
         Feedback
       </Button>
 
