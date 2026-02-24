@@ -61,11 +61,6 @@ function formatRate(rate: number) {
   return `${rate.toFixed(2)}%`;
 }
 
-function formatDate(d: string | null) {
-  if (!d) return "\u2014";
-  return new Date(d).toLocaleDateString();
-}
-
 export default function TaxSettingsPage() {
   const { isAdmin } = useRequireAdmin();
   const [jurisdictions, setJurisdictions] = useState<TaxJurisdiction[]>([]);

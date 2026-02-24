@@ -50,8 +50,6 @@ import type {
   PaymentApplicationLineItemInput,
 } from "@/lib/types";
 import {
-  paymentApplicationStatusBadgeClass,
-  paymentApplicationStatusLabel,
   formatCurrency,
   formatPercent,
 } from "@/lib/contracts";
