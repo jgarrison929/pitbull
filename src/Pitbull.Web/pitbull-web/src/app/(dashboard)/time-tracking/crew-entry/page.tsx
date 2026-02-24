@@ -463,15 +463,18 @@ export default function CrewEntryPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
-              <FolderKanban className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Create a Project First</h3>
+              <Users className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Crew Assigned</h3>
               <p className="text-muted-foreground max-w-md">
-                Your crew needs at least one active project to log time against.
-                Create a project and assign your crew to it.
+                Crew time entry is for supervisors and foremen to log time for their team.
+                You need crew members assigned to you with active project assignments.
+              </p>
+              <p className="text-muted-foreground max-w-md text-sm mt-2">
+                To log your own time, use the individual time entry instead.
               </p>
               <div className="flex gap-3 mt-6">
                 <Button asChild className="min-h-[48px] touch-manipulation bg-amber-500 hover:bg-amber-600">
-                  <Link href="/projects/new">Create Project</Link>
+                  <Link href="/time-tracking/new">Log My Time</Link>
                 </Button>
                 <Button variant="outline" asChild className="min-h-[48px] touch-manipulation">
                   <Link href="/time-tracking">Back to Time Tracking</Link>
