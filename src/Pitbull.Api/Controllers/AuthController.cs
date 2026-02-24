@@ -202,17 +202,41 @@ public class AuthController(
                     await db.SaveChangesAsync();
                 }
 
-                // Grant user access to the default company
-                var access = new Pitbull.Core.Domain.UserCompanyAccess
+                // In demo mode, grant access to ALL companies (same as demo-register)
+                // so users can explore the full multi-company experience.
+                var isDemoEnvironment = configuration.GetValue<bool>("Demo:Enabled");
+                if (isDemoEnvironment)
                 {
-                    TenantId = tenantId,
-                    UserId = user.Id,
-                    CompanyId = defaultCompany.Id,
-                    IsDefault = true,
-                    CreatedAt = DateTime.UtcNow,
-                    CreatedBy = user.Id.ToString()
-                };
-                db.Set<Pitbull.Core.Domain.UserCompanyAccess>().Add(access);
+                    var allCompanies = await db.Set<Pitbull.Core.Domain.Company>()
+                        .IgnoreQueryFilters()
+                        .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                        .ToListAsync();
+                    foreach (var comp in allCompanies)
+                    {
+                        db.Set<Pitbull.Core.Domain.UserCompanyAccess>().Add(new Pitbull.Core.Domain.UserCompanyAccess
+                        {
+                            TenantId = tenantId,
+                            UserId = user.Id,
+                            CompanyId = comp.Id,
+                            IsDefault = comp.Id == defaultCompany.Id,
+                            CreatedAt = DateTime.UtcNow,
+                            CreatedBy = user.Id.ToString()
+                        });
+                    }
+                }
+                else
+                {
+                    // Standard: grant access to default company only
+                    db.Set<Pitbull.Core.Domain.UserCompanyAccess>().Add(new Pitbull.Core.Domain.UserCompanyAccess
+                    {
+                        TenantId = tenantId,
+                        UserId = user.Id,
+                        CompanyId = defaultCompany.Id,
+                        IsDefault = true,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = user.Id.ToString()
+                    });
+                }
                 await db.SaveChangesAsync();
 
                 // Get user's roles for JWT

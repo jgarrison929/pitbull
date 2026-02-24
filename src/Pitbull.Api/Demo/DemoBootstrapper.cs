@@ -38,6 +38,10 @@ public sealed class DemoBootstrapper(
         await EnsureDemoUserAsync(demo, tenant.Id, company.Id, cancellationToken);
         await EnsureAllDemoUsersAsync(tenant.Id, allCompanies, demo.UserPassword, cancellationToken);
 
+        // Grant all-company access to any user missing it (fixes users who registered
+        // via standard /register before we added demo-aware multi-company access).
+        await GrantAllCompanyAccessToAllUsersAsync(tenant.Id, allCompanies, cancellationToken);
+
         // Establish tenant context for EF audit fields.
         tenantContext.TenantId = tenant.Id;
         tenantContext.TenantName = tenant.Name;
@@ -372,6 +376,56 @@ public sealed class DemoBootstrapper(
         logger.LogInformation(
             "Demo employee {Email}: {CrewCount} crew linked ({Repaired} repaired), {ProjectCount} project assignments ({NewAssigned} new)",
             demoEmail, crewMembers.Count, crewRepaired, projects.Count, projectsAssigned);
+    }
+
+    /// <summary>
+    /// Grants all-company access to every user in the tenant that's missing it.
+    /// Fixes users who registered via standard /register before demo-aware multi-company access.
+    /// </summary>
+    private async Task GrantAllCompanyAccessToAllUsersAsync(
+        Guid tenantId,
+        Dictionary<string, Company> allCompanies,
+        CancellationToken ct)
+    {
+        var allUsers = await userManager.Users
+            .Where(u => u.TenantId == tenantId)
+            .Select(u => u.Id)
+            .ToListAsync(ct);
+
+        var existingAccess = await db.Set<UserCompanyAccess>()
+            .IgnoreQueryFilters()
+            .Where(a => a.TenantId == tenantId)
+            .Select(a => new { a.UserId, a.CompanyId })
+            .ToListAsync(ct);
+
+        var accessLookup = existingAccess.Select(a => (a.UserId, a.CompanyId)).ToHashSet();
+        var added = 0;
+
+        foreach (var userId in allUsers)
+        {
+            foreach (var company in allCompanies.Values)
+            {
+                if (!accessLookup.Contains((userId, company.Id)))
+                {
+                    db.Set<UserCompanyAccess>().Add(new UserCompanyAccess
+                    {
+                        TenantId = tenantId,
+                        UserId = userId,
+                        CompanyId = company.Id,
+                        IsDefault = false,
+                        CreatedAt = DateTime.UtcNow,
+                        CreatedBy = "demo-bootstrap-fix"
+                    });
+                    added++;
+                }
+            }
+        }
+
+        if (added > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Granted {Count} missing company access records to {Users} users", added, allUsers.Count);
+        }
     }
 
     /// <summary>
