@@ -152,6 +152,19 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
 
             if (allEmployees.IsSuccess && allEmployees.Value!.Items.Count > 0)
             {
+                // Load active projects so demo users see projects in the crew entry dropdown.
+                // Without this, AssignedProjects would be empty and the page shows "Create Project".
+                var activeProjects = await db.Set<Pitbull.Projects.Domain.Project>()
+                    .Where(p => !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active)
+                    .OrderBy(p => p.Number)
+                    .Take(20)
+                    .Select(p => new { p.Id, p.Number, p.Name })
+                    .ToListAsync();
+
+                var projectDtos = activeProjects
+                    .Select(p => new CrewMemberProjectDto(p.Id, p.Number, p.Name, true))
+                    .ToList();
+
                 var crewMembers = allEmployees.Value.Items.Select(e =>
                     new CrewMemberDto(
                         Id: e.Id,
@@ -163,7 +176,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
                         Classification: e.Classification,
                         BaseHourlyRate: e.BaseHourlyRate,
                         IsActive: e.IsActive,
-                        AssignedProjects: []
+                        AssignedProjects: projectDtos
                     )).ToList();
 
                 return Ok(new MyCrewResult(
