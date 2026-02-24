@@ -262,14 +262,26 @@ public sealed class BriefingService(
     private static string BuildGreeting(string userName, DateTime utcNow)
     {
         var firstName = userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? userName;
-        var hour = utcNow.Hour;
-        var timeOfDay = hour switch
+        // Convert UTC to Pacific Time for greeting (most demo/early users are Pacific).
+        // TODO: Use user's timezone preference when available.
+        try
         {
-            < 12 => "Good morning",
-            < 17 => "Good afternoon",
-            _ => "Good evening"
-        };
-        return $"{timeOfDay}, {firstName}";
+            var pacificZone = TimeZoneInfo.FindSystemTimeZoneById("America/Los_Angeles");
+            var localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, pacificZone);
+            var hour = localTime.Hour;
+            var timeOfDay = hour switch
+            {
+                < 12 => "Good morning",
+                < 17 => "Good afternoon",
+                _ => "Good evening"
+            };
+            return $"{timeOfDay}, {firstName}";
+        }
+        catch
+        {
+            // Fallback if timezone conversion fails
+            return $"Welcome back, {firstName}";
+        }
     }
 
     private async Task<T> SafeAsync<T>(string name, Func<Task<T>> factory, T fallback)
