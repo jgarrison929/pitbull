@@ -40,6 +40,34 @@ function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
     new: "New",
     contracts: "Contracts",
     documents: "Documents",
+    settings: "Settings",
+    company: "Company",
+    setup: "Setup",
+    admin: "Admin",
+    employees: "Employees",
+    "time-tracking": "Time Tracking",
+    "crew-entry": "Crew Entry",
+    "payment-applications": "Payment Applications",
+    "project-management": "Project Management",
+    reports: "Reports",
+    rfis: "RFIs",
+    help: "Help",
+    search: "Search",
+    edit: "Edit",
+    import: "Import",
+    onboarding: "Onboarding",
+    approval: "Approval",
+    notifications: "Notifications",
+    roles: "Roles",
+    secrets: "Secrets",
+    "api-keys": "API Keys",
+    feedback: "Feedback",
+    health: "Health",
+    "system-health": "System Health",
+    "tax-settings": "Tax Settings",
+    migration: "Migration",
+    tasks: "Tasks",
+    my: "My Tasks",
   };
 
   let path = "";
@@ -112,14 +140,26 @@ export function AppHeader() {
 
         {/* Breadcrumbs */}
         <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {breadcrumbs.map((crumb, i) => (
-            <span key={i} className="flex items-center gap-1.5">
-              {i > 0 && <span className="text-neutral-300">/</span>}
-              <span className={i === breadcrumbs.length - 1 ? "text-foreground font-medium" : ""}>
-                {crumb.label}
+          {breadcrumbs.map((crumb, i) => {
+            const isLast = i === breadcrumbs.length - 1;
+            return (
+              <span key={i} className="flex items-center gap-1.5">
+                {i > 0 && <span className="text-neutral-300">/</span>}
+                {isLast || !crumb.href ? (
+                  <span className={isLast ? "text-foreground font-medium" : ""}>
+                    {crumb.label}
+                  </span>
+                ) : (
+                  <Link
+                    href={crumb.href}
+                    className="hover:text-foreground transition-colors"
+                  >
+                    {crumb.label}
+                  </Link>
+                )}
               </span>
-            </span>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Active Company Switcher (visible on desktop) */}
