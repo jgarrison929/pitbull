@@ -4,6 +4,7 @@ using Pitbull.Billing.Features.Aging;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.RFIs.Domain;
@@ -63,6 +64,7 @@ public interface IBriefingService
 
 public sealed class BriefingService(
     PitbullDbContext db,
+    ICompanyContext companyContext,
     IAgingReportService agingReportService,
     ILogger<BriefingService> logger) : IBriefingService
 {
@@ -72,7 +74,8 @@ public sealed class BriefingService(
     {
         var now = DateTime.UtcNow;
         var primaryRole = ResolvePrimaryRole(roles);
-        var greeting = BuildGreeting(userName, now);
+        var timezone = await ResolveTimezoneAsync(ct);
+        var greeting = BuildGreeting(userName, now, timezone);
 
         // Core section (universal for all roles)
         var core = await BuildCoreSectionAsync(userId, ct);
@@ -259,15 +262,37 @@ public sealed class BriefingService(
         return "PM";
     }
 
-    private static string BuildGreeting(string userName, DateTime utcNow)
+    /// <summary>
+    /// Resolves the timezone for the current company from the database.
+    /// Falls back to "America/Los_Angeles" if not found or not resolved.
+    /// </summary>
+    private async Task<string> ResolveTimezoneAsync(CancellationToken ct)
     {
-        var firstName = userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? userName;
-        // Convert UTC to Pacific Time for greeting (most demo/early users are Pacific).
-        // TODO: Use user's timezone preference when available.
+        const string fallback = "America/Los_Angeles";
+        if (!companyContext.IsResolved) return fallback;
+
         try
         {
-            var pacificZone = TimeZoneInfo.FindSystemTimeZoneById("America/Los_Angeles");
-            var localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, pacificZone);
+            var tz = await db.Set<Company>()
+                .Where(c => c.Id == companyContext.CompanyId)
+                .Select(c => c.Timezone)
+                .FirstOrDefaultAsync(ct);
+            return string.IsNullOrWhiteSpace(tz) ? fallback : tz;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve company timezone; using fallback");
+            return fallback;
+        }
+    }
+
+    internal static string BuildGreeting(string userName, DateTime utcNow, string timezoneId = "America/Los_Angeles")
+    {
+        var firstName = userName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? userName;
+        try
+        {
+            var zone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+            var localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, zone);
             var hour = localTime.Hour;
             var timeOfDay = hour switch
             {
@@ -279,7 +304,7 @@ public sealed class BriefingService(
         }
         catch
         {
-            // Fallback if timezone conversion fails
+            // Fallback if timezone conversion fails (invalid IANA id, etc.)
             return $"Welcome back, {firstName}";
         }
     }
