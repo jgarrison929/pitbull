@@ -17,7 +17,7 @@ import { AppSidebar } from "./app-sidebar";
 import { NotificationCenter } from "./notification-center";
 import { ConnectionStatus } from "./connection-status";
 import { HelpPanel } from "@/components/help/help-panel";
-import { Sun, Moon, Monitor, Building2, Settings, HelpCircle } from "lucide-react";
+import { Sun, Moon, Monitor, Building2, Settings, HelpCircle, ChevronsUpDown, Check } from "lucide-react";
 import Link from "next/link";
 import {
   Tooltip,
@@ -25,6 +25,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { useCompany } from "@/contexts/company-context";
 
 function getBreadcrumbs(pathname: string): { label: string; href?: string }[] {
@@ -57,7 +58,7 @@ export function AppHeader() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const { activeCompany } = useCompany();
+  const { activeCompany, companies, hasMultipleCompanies, switchCompany } = useCompany();
   const breadcrumbs = getBreadcrumbs(pathname);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -121,8 +122,58 @@ export function AppHeader() {
           ))}
         </nav>
 
-        {/* Active Company Indicator (visible on desktop, hidden on mobile - sidebar has switcher) */}
-        {activeCompany && (
+        {/* Active Company Switcher (visible on desktop) */}
+        {activeCompany && hasMultipleCompanies && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="hidden lg:flex items-center gap-1.5 ml-2 px-2 py-1 rounded-md hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500/50">
+                <Building2 className="h-3.5 w-3.5 text-amber-500" />
+                <Badge
+                  variant="secondary"
+                  className="bg-amber-50 text-amber-700 border-amber-200 font-mono text-[10px] px-1.5 py-0 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30"
+                >
+                  {activeCompany.code}
+                </Badge>
+                <span className="text-xs text-muted-foreground max-w-[160px] truncate">
+                  {activeCompany.shortName || activeCompany.name}
+                </span>
+                <ChevronsUpDown className="h-3 w-3 text-muted-foreground/50" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-72">
+              <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Switch Company
+              </div>
+              <DropdownMenuSeparator />
+              {companies.map((company) => (
+                <DropdownMenuItem
+                  key={company.id}
+                  onClick={() => company.id !== activeCompany.id && switchCompany(company.id)}
+                  className="flex items-center gap-3 cursor-pointer"
+                >
+                  <Badge
+                    variant="secondary"
+                    className={cn(
+                      "font-mono text-[10px] px-1.5 py-0 shrink-0",
+                      company.id === activeCompany.id
+                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 border-amber-200"
+                        : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {company.code}
+                  </Badge>
+                  <span className="truncate font-medium text-sm">
+                    {company.shortName || company.name}
+                  </span>
+                  {company.id === activeCompany.id && (
+                    <Check className="h-4 w-4 shrink-0 ml-auto text-amber-500" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {activeCompany && !hasMultipleCompanies && (
           <div className="hidden lg:flex items-center gap-1.5 ml-2">
             <Building2 className="h-3.5 w-3.5 text-amber-500" />
             <Badge

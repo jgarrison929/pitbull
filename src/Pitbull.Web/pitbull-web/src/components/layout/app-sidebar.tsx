@@ -495,6 +495,7 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
           <Separator className="bg-sidebar-border mx-3" />
         </>
       )}
+      {/* When collapsed, company switcher is available in the header */}
 
       {/* Workspace Switcher */}
       <div className={cn("pt-2", effectiveCollapsed ? "px-0.5" : "px-3")}>
