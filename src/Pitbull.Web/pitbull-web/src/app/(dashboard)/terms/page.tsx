@@ -29,9 +29,9 @@ export default function TermsOfServicePage() {
 
           <h2>2. License</h2>
           <p>
-            Pitbull is licensed on a per-organization basis for self-hosted deployment.
-            Your license grants your organization the right to install, configure, and use
-            the software on your own infrastructure.
+            Pitbull is licensed on a per-organization subscription basis.
+            Your subscription grants your organization the right to access and use
+            the platform and all included modules.
           </p>
 
           <h2>3. User Responsibilities</h2>
@@ -43,8 +43,8 @@ export default function TermsOfServicePage() {
 
           <h2>4. Data Ownership</h2>
           <p>
-            All data entered into Pitbull remains the property of your organization. As a
-            self-hosted solution, you retain full control over your data at all times.
+            All data entered into Pitbull remains the property of your organization. You retain
+            full ownership of your data at all times and can export it on request.
           </p>
 
           <h2>5. Limitation of Liability</h2>

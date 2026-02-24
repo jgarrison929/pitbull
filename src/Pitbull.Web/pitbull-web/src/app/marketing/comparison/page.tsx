@@ -352,7 +352,7 @@ export default function ComparisonPage() {
             <StatCard number="14" label="Integrated Modules" />
             <StatCard number="7" label="AI Features" />
             <StatCard number="100+" label="Pages & Views" />
-            <StatCard number="$0" label="Implementation Fee" />
+            <StatCard number="4" label="Demo Companies" />
           </div>
         </div>
       </section>

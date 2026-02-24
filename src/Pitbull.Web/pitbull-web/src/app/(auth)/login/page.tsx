@@ -112,18 +112,18 @@ function LoginForm() {
             </p>
             <div className="flex items-center gap-6 pt-4">
               <div className="text-center">
-                <div className="text-3xl font-bold">100%</div>
-                <div className="text-amber-200 text-xs uppercase tracking-wider">Self-hosted</div>
+                <div className="text-3xl font-bold">14</div>
+                <div className="text-amber-200 text-xs uppercase tracking-wider">Modules</div>
               </div>
               <div className="h-10 w-px bg-white/30" />
               <div className="text-center">
-                <div className="text-3xl font-bold">$0</div>
-                <div className="text-amber-200 text-xs uppercase tracking-wider">Per seat fees</div>
+                <div className="text-3xl font-bold">AI</div>
+                <div className="text-amber-200 text-xs uppercase tracking-wider">Native</div>
               </div>
               <div className="h-10 w-px bg-white/30" />
               <div className="text-center">
-                <div className="text-3xl font-bold">∞</div>
-                <div className="text-amber-200 text-xs uppercase tracking-wider">Users</div>
+                <div className="text-3xl font-bold">1</div>
+                <div className="text-amber-200 text-xs uppercase tracking-wider">Platform</div>
               </div>
             </div>
           </div>

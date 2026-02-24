@@ -23,9 +23,9 @@ export default function PrivacyPolicyPage() {
         <CardContent className="pt-6 prose prose-sm dark:prose-invert max-w-none">
           <h2>1. Information We Collect</h2>
           <p>
-            Pitbull Construction Solutions is a self-hosted application. All data is stored on
-            your organization&apos;s own infrastructure. We do not collect, transmit, or store
-            any of your data on external servers.
+            Pitbull Construction Solutions is a cloud-hosted platform. Your data is stored securely
+            in isolated, tenant-specific databases with row-level security. We do not share
+            your data with third parties or use it for any purpose beyond providing the service.
           </p>
 
           <h2>2. How Your Data Is Used</h2>
@@ -37,9 +37,9 @@ export default function PrivacyPolicyPage() {
 
           <h2>3. Data Security</h2>
           <p>
-            As a self-hosted solution, data security is managed by your organization&apos;s IT
-            infrastructure. Pitbull employs encryption in transit (TLS), role-based access
+            Pitbull employs encryption in transit (TLS), encryption at rest, role-based access
             control, and row-level security at the database level to protect tenant data.
+            Each organization&apos;s data is fully isolated from other tenants.
           </p>
 
           <h2>4. Third-Party Services</h2>
