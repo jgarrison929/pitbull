@@ -369,7 +369,7 @@ export function AiChatPanel() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-20 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg hover:bg-amber-600 transition-all hover:scale-105"
+          className="fixed bottom-20 right-6 z-50 hidden h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg hover:bg-amber-600 transition-all hover:scale-105 md:flex"
           aria-label="Open AI Assistant"
         >
           <Sparkles className="h-6 w-6" />

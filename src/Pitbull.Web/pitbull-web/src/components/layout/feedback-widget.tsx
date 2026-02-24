@@ -75,7 +75,7 @@ export function FeedbackWidget() {
         type="button"
         size="sm"
         variant="outline"
-        className="fixed bottom-20 right-5 z-40 shadow-md opacity-70 hover:opacity-100 transition-opacity"
+        className="fixed bottom-20 right-5 z-40 hidden shadow-md opacity-70 hover:opacity-100 transition-opacity md:inline-flex"
         onClick={() => setOpen(true)}
       >
         <MessageSquarePlus className="mr-1.5 h-3.5 w-3.5" />
