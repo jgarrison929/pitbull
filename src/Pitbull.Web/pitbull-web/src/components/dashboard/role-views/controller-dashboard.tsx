@@ -32,34 +32,38 @@ export function ControllerDashboard({ data, isLoading }: { data: DashboardAnalyt
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total AR</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-bold">{formatCurrency(totalBudget - totalSpent)}</div>
-                <Badge variant="secondary" className="mt-1 text-xs">Remaining contract value</Badge>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total AP</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
-                <Badge variant="secondary" className="mt-1 text-xs">Costs to date</Badge>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <Link href="/billing/aging" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total AR</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-24" /> : (
+                <>
+                  <div className="text-2xl font-bold">{formatCurrency(totalBudget - totalSpent)}</div>
+                  <Badge variant="secondary" className="mt-1 text-xs">Remaining contract value</Badge>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/procurement/invoices" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total AP</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-24" /> : (
+                <>
+                  <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
+                  <Badge variant="secondary" className="mt-1 text-xs">Costs to date</Badge>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Cash Position</CardTitle>
@@ -70,20 +74,22 @@ export function ControllerDashboard({ data, isLoading }: { data: DashboardAnalyt
             <Badge variant="outline" className="mt-1 text-xs">Coming soon</Badge>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Budget Alerts</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : (
-              <>
+        <Link href="/projects" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Budget Alerts</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-16" /> : (
+                <>
                 <div className="text-2xl font-bold">{budgetAlerts}</div>
                 {budgetAlerts > 0 && <Badge className="mt-1 bg-red-100 text-red-800">Projects over 90%</Badge>}
               </>
             )}
           </CardContent>
-        </Card>
+          </Card>
+        </Link>
       </div>
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">

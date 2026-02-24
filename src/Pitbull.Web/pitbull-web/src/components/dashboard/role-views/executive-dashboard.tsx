@@ -33,24 +33,28 @@ export function ExecutiveDashboard({ data, isLoading }: { data: DashboardAnalyti
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{data?.activeProjects ?? 0}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{data?.totalEmployees ?? 0}</div>}
-          </CardContent>
-        </Card>
+        <Link href="/projects" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
+              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{data?.activeProjects ?? 0}</div>}
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/employees" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{data?.totalEmployees ?? 0}</div>}
+            </CardContent>
+          </Card>
+        </Link>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Revenue</CardTitle>
@@ -61,20 +65,22 @@ export function ExecutiveDashboard({ data, isLoading }: { data: DashboardAnalyti
             <Badge variant="outline" className="mt-1 text-xs">Coming soon</Badge>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Backlog</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-24" /> : (
-              <>
-                <div className="text-2xl font-bold">{formatCurrency(totalBudget - totalSpent)}</div>
-                <p className="text-xs text-muted-foreground">Remaining contract value</p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <Link href="/contracts" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Backlog</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-24" /> : (
+                <>
+                  <div className="text-2xl font-bold">{formatCurrency(totalBudget - totalSpent)}</div>
+                  <p className="text-xs text-muted-foreground">Remaining contract value</p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
       </div>
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">

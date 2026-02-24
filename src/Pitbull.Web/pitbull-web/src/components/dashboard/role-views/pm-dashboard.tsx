@@ -35,59 +35,67 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{data?.activeProjects ?? 0}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Open RFIs</CardTitle>
-            <MessageCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : (
-              <>
-                <div className="text-2xl font-bold">{data?.openRFIs ?? 0}</div>
-                {(data?.openRFIs ?? 0) > 5 && <Badge className="mt-1 bg-amber-100 text-amber-800">Needs attention</Badge>}
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
-            <Inbox className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : (
-              <>
-                <div className="text-2xl font-bold">{data?.pendingApprovals ?? 0}</div>
-                {(data?.pendingApprovals ?? 0) > 0 && <Badge className="mt-1 bg-amber-100 text-amber-800">Needs review</Badge>}
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Hours This Week</CardTitle>
-            <Clock3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-20" /> : (
-              <>
-                <div className="text-2xl font-bold">{(data?.hoursThisWeek ?? 0).toFixed(1)}</div>
-                <p className={`text-xs ${hoursDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  {hoursDelta >= 0 ? "+" : ""}{hoursDelta.toFixed(1)}% vs last week
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <Link href="/projects" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
+              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{data?.activeProjects ?? 0}</div>}
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/rfis" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Open RFIs</CardTitle>
+              <MessageCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-16" /> : (
+                <>
+                  <div className="text-2xl font-bold">{data?.openRFIs ?? 0}</div>
+                  {(data?.openRFIs ?? 0) > 5 && <Badge className="mt-1 bg-amber-100 text-amber-800">Needs attention</Badge>}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/time-tracking/approval" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+              <Inbox className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-16" /> : (
+                <>
+                  <div className="text-2xl font-bold">{data?.pendingApprovals ?? 0}</div>
+                  {(data?.pendingApprovals ?? 0) > 0 && <Badge className="mt-1 bg-amber-100 text-amber-800">Needs review</Badge>}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/time-tracking" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Hours This Week</CardTitle>
+              <Clock3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-20" /> : (
+                <>
+                  <div className="text-2xl font-bold">{(data?.hoursThisWeek ?? 0).toFixed(1)}</div>
+                  <p className={`text-xs ${hoursDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    {hoursDelta >= 0 ? "+" : ""}{hoursDelta.toFixed(1)}% vs last week
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
       </div>
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">

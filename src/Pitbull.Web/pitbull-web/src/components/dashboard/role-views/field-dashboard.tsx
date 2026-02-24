@@ -30,41 +30,47 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
   return (
     <div className="space-y-6">
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">My Projects Today</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-3xl font-bold">{data?.activeProjects ?? 0}</div>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Hours This Week</CardTitle>
-            <Clock3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {isLoading ? <Skeleton className="h-8 w-20" /> : (
-              <>
-                <div className="text-3xl font-bold">{(data?.hoursThisWeek ?? 0).toFixed(1)}</div>
-                <p className={`text-xs ${hoursDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  {hoursDelta >= 0 ? "+" : ""}{hoursDelta.toFixed(1)}% vs last week
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Equipment Assigned</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-muted-foreground">--</div>
-            <Badge variant="outline" className="mt-1 text-xs">Coming soon</Badge>
-          </CardContent>
-        </Card>
+        <Link href="/projects" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">My Projects Today</CardTitle>
+              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-3xl font-bold">{data?.activeProjects ?? 0}</div>}
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/time-tracking" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Hours This Week</CardTitle>
+              <Clock3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {isLoading ? <Skeleton className="h-8 w-20" /> : (
+                <>
+                  <div className="text-3xl font-bold">{(data?.hoursThisWeek ?? 0).toFixed(1)}</div>
+                  <p className={`text-xs ${hoursDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    {hoursDelta >= 0 ? "+" : ""}{hoursDelta.toFixed(1)}% vs last week
+                  </p>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/equipment" className="group">
+          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Equipment Assigned</CardTitle>
+              <Truck className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-muted-foreground">--</div>
+              <Badge variant="outline" className="mt-1 text-xs">Coming soon</Badge>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
       <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-500/30 dark:bg-amber-500/5">
         <CardContent className="flex flex-col items-center justify-center py-8 gap-4">
