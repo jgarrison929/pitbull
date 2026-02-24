@@ -283,10 +283,12 @@ public sealed class DemoBootstrapper(
         // Look up by EmployeeNumber (the unique key) instead of email to avoid
         // mismatches when the demo email config changes. Use IgnoreQueryFilters
         // to bypass RLS/tenant filters during bootstrap.
+        // Scope by TenantId to prevent cross-tenant lookups in multi-tenant deployments.
+        var currentTenantId = tenantContext.TenantId;
         const string supEmployeeNumber = "DEMO-SUP";
         var superintendent = await db.Set<Employee>()
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(e => e.EmployeeNumber == supEmployeeNumber && !e.IsDeleted, ct);
+            .FirstOrDefaultAsync(e => e.TenantId == currentTenantId && e.EmployeeNumber == supEmployeeNumber && !e.IsDeleted, ct);
 
         if (superintendent is not null)
         {
@@ -325,7 +327,7 @@ public sealed class DemoBootstrapper(
         var crewNumbers = new[] { "DEMO-007", "DEMO-008", "DEMO-009", "DEMO-010", "DEMO-011", "DEMO-012", "DEMO-013", "DEMO-014" };
         var crewMembers = await db.Set<Employee>()
             .IgnoreQueryFilters()
-            .Where(e => crewNumbers.Contains(e.EmployeeNumber) && !e.IsDeleted)
+            .Where(e => e.TenantId == currentTenantId && crewNumbers.Contains(e.EmployeeNumber) && !e.IsDeleted)
             .ToListAsync(ct);
 
         var crewRepaired = 0;
@@ -344,7 +346,7 @@ public sealed class DemoBootstrapper(
         // Always ensure superintendent is assigned to active seed projects
         var projects = await db.Set<Pitbull.Projects.Domain.Project>()
             .IgnoreQueryFilters()
-            .Where(p => !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active)
+            .Where(p => p.TenantId == currentTenantId && !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active)
             .Take(3)
             .ToListAsync(ct);
 
@@ -433,10 +435,11 @@ public sealed class DemoBootstrapper(
     /// </summary>
     private async Task EnsureUserCompanyAccessAsync(Guid userId, Guid tenantId, Guid companyId, CancellationToken ct, bool isDefault = true)
     {
-        // Check for any existing record, including soft-deleted ones
+        // Check for any existing record, including soft-deleted ones.
+        // Scope by tenantId to prevent cross-tenant lookups.
         var existingAccess = await db.Set<UserCompanyAccess>()
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(uca => uca.UserId == userId && uca.CompanyId == companyId, ct);
+            .FirstOrDefaultAsync(uca => uca.TenantId == tenantId && uca.UserId == userId && uca.CompanyId == companyId, ct);
 
         if (existingAccess is not null)
         {

@@ -142,6 +142,7 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
 /// <param name="BuildTime">Build timestamp (UTC)</param>
 /// <param name="Environment">Current environment (Development, Staging, Production)</param>
 /// <param name="FrameworkVersion">.NET runtime version</param>
+/// <param name="MachineName">Server machine/container name</param>
 public record VersionInfo(
     string Version,
     DateTime BuildTime,
