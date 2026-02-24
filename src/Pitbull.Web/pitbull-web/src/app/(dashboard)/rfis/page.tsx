@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRegisterShortcut } from "@/contexts/keyboard-shortcuts-context";
@@ -87,8 +87,23 @@ function priorityLabel(priority: RfiPriority) {
   }
 }
 
+const RFI_STATUS_NAME_MAP: Record<string, string> = {
+  open: "0",
+  answered: "1",
+  closed: "2",
+};
+
+function resolveRfiStatusParam(param: string | null): string {
+  if (!param) return "all";
+  const mapped = RFI_STATUS_NAME_MAP[param.toLowerCase()];
+  if (mapped) return mapped;
+  if (["0", "1", "2"].includes(param)) return param;
+  return "all";
+}
+
 export default function RfisPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { activeCompany } = useCompany();
   const [rfis, setRfis] = useState<Rfi[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -97,9 +112,11 @@ export default function RfisPage() {
   const [isLoadingRfis, setIsLoadingRfis] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  const initialStatusFromUrl = useRef(resolveRfiStatusParam(searchParams.get("status")));
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFromUrl.current);
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
 
   // Register keyboard shortcuts
@@ -265,11 +282,16 @@ export default function RfisPage() {
     });
   }, [filteredRfis, selectedProject]);
 
-  // Reset filters when project changes
+  // Reset filters when project changes, but preserve URL-driven status on first project load
+  const hasAppliedUrlFilter = useRef(false);
   useEffect(() => {
     setSearchQuery("");
-    setStatusFilter("all");
     setPriorityFilter("all");
+    if (hasAppliedUrlFilter.current) {
+      setStatusFilter("all");
+    } else {
+      hasAppliedUrlFilter.current = true;
+    }
   }, [selectedProjectId]);
 
   return (

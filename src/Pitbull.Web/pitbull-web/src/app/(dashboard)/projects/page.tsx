@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +36,17 @@ import { useCompany } from "@/contexts/company-context";
 const ALL_VALUE = "__all__";
 const DEFAULT_PAGE_SIZE = 25;
 
+const STATUS_NAME_MAP: Record<string, string> = {
+  bidding: String(ProjectStatus.Bidding),
+  "pre-construction": String(ProjectStatus.PreConstruction),
+  preconstruction: String(ProjectStatus.PreConstruction),
+  active: String(ProjectStatus.Active),
+  completed: String(ProjectStatus.Completed),
+  closed: String(ProjectStatus.Closed),
+  "on-hold": String(ProjectStatus.OnHold),
+  onhold: String(ProjectStatus.OnHold),
+};
+
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -43,12 +55,28 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
+function resolveStatusParam(param: string | null): string {
+  if (!param) return ALL_VALUE;
+  const mapped = STATUS_NAME_MAP[param.toLowerCase()];
+  if (mapped) return mapped;
+  // Allow numeric values directly (e.g. ?status=2)
+  const num = Number(param);
+  if (!isNaN(num) && num >= 0 && num <= 5) return String(num);
+  return ALL_VALUE;
+}
+
 export default function ProjectsPage() {
+  const searchParams = useSearchParams();
   const { activeCompany } = useCompany();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
+  const [statusFilter, setStatusFilter] = useState<string>(() =>
+    resolveStatusParam(searchParams.get("status"))
+  );
+  const [budgetAlertFilter] = useState<boolean>(
+    () => searchParams.get("budgetAlert") === "true"
+  );
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -69,6 +97,7 @@ export default function ProjectsPage() {
       params.set("pageSize", String(DEFAULT_PAGE_SIZE));
       if (search.trim()) params.set("search", search.trim());
       if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
+      if (budgetAlertFilter) params.set("budgetAlert", "true");
       const result = await api<PagedResult<Project>>(
         `/api/projects?${params.toString()}`
       );
@@ -81,7 +110,7 @@ export default function ProjectsPage() {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- activeCompany?.id triggers refetch on company switch
-  }, [page, search, statusFilter, activeCompany?.id]);
+  }, [page, search, statusFilter, budgetAlertFilter, activeCompany?.id]);
 
   useEffect(() => {
     const timer = setTimeout(fetchProjects, 250);

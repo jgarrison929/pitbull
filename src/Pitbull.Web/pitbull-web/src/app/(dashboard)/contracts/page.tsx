@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,18 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FileText, Wallet, HandCoins, Landmark, Scale } from "lucide-react";
 import api from "@/lib/api";
 import type { PagedResult, Subcontract } from "@/lib/types";
+import { SubcontractStatus } from "@/lib/types";
 import {
   subcontractStatusBadgeClass,
   subcontractStatusLabel,
   formatCurrency,
 } from "@/lib/contracts";
+
+// "active" contracts = Executed or InProgress
+const ACTIVE_STATUSES = new Set([
+  SubcontractStatus.Executed,
+  SubcontractStatus.InProgress,
+]);
 import { toast } from "sonner";
 import { ChangeOrderDialog } from "@/components/contracts/change-order-dialog";
 import { useCompany } from "@/contexts/company-context";
@@ -34,6 +41,16 @@ export default function ContractsPage() {
   const { activeCompany } = useCompany();
   const [subcontracts, setSubcontracts] = useState<Subcontract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Read status filter from URL (e.g. /contracts?status=active)
+  const statusParam = searchParams.get("status");
+  const filteredSubcontracts = useMemo(() => {
+    if (!statusParam) return subcontracts;
+    if (statusParam.toLowerCase() === "active") {
+      return subcontracts.filter((s) => ACTIVE_STATUSES.has(s.status));
+    }
+    return subcontracts;
+  }, [subcontracts, statusParam]);
 
   // Check for fromRfi query param to auto-open change order dialog
   const fromRfiId = searchParams.get("fromRfi");
@@ -87,9 +104,10 @@ export default function ContractsPage() {
     // For now, just show the toast (already handled in dialog)
   }
 
-  const totalCommitted = subcontracts.reduce((sum, sub) => sum + sub.currentValue, 0);
-  const totalPaidToDate = subcontracts.reduce((sum, sub) => sum + sub.paidToDate, 0);
-  const totalRetentionHeld = subcontracts.reduce((sum, sub) => sum + sub.retainageHeld, 0);
+  const displayedSubcontracts = filteredSubcontracts;
+  const totalCommitted = displayedSubcontracts.reduce((sum, sub) => sum + sub.currentValue, 0);
+  const totalPaidToDate = displayedSubcontracts.reduce((sum, sub) => sum + sub.paidToDate, 0);
+  const totalRetentionHeld = displayedSubcontracts.reduce((sum, sub) => sum + sub.retainageHeld, 0);
   const totalRemaining = Math.max(0, totalCommitted - totalPaidToDate);
 
   return (
@@ -111,7 +129,17 @@ export default function ContractsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">All Subcontracts</CardTitle>
+          <div className="flex items-center gap-3">
+            <CardTitle className="text-lg">
+              {statusParam ? "Active Subcontracts" : "All Subcontracts"}
+            </CardTitle>
+            {statusParam && (
+              <Badge variant="secondary" className="text-xs">
+                Filtered: {statusParam}
+                <Link href="/contracts" className="ml-1.5 hover:text-foreground">&times;</Link>
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="mb-6 grid gap-4 md:grid-cols-4">
@@ -172,19 +200,30 @@ export default function ContractsPage() {
                 />
               </div>
             </>
-          ) : subcontracts.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="No subcontracts yet"
-              description="Create your first subcontract to start tracking vendors, change orders, and payment applications."
-              actionLabel="+ Create Your First Subcontract"
-              actionHref="/contracts/new"
-            />
+          ) : displayedSubcontracts.length === 0 ? (
+            statusParam ? (
+              <div className="py-12 text-center">
+                <p className="text-muted-foreground">
+                  No subcontracts match the current filter.
+                </p>
+                <Button variant="link" asChild className="mt-2">
+                  <Link href="/contracts">Clear filter</Link>
+                </Button>
+              </div>
+            ) : (
+              <EmptyState
+                icon={FileText}
+                title="No subcontracts yet"
+                description="Create your first subcontract to start tracking vendors, change orders, and payment applications."
+                actionLabel="+ Create Your First Subcontract"
+                actionHref="/contracts/new"
+              />
+            )
           ) : (
             <>
               {/* Mobile card layout */}
               <div className="sm:hidden space-y-3">
-                {subcontracts.map((sub) => (
+                {displayedSubcontracts.map((sub) => (
                   <div
                     key={sub.id}
                     className="border rounded-lg p-4 space-y-3"
@@ -260,7 +299,7 @@ export default function ContractsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {subcontracts.map((sub) => (
+                    {displayedSubcontracts.map((sub) => (
                       <TableRow key={sub.id}>
                         <TableCell className="font-mono text-sm">
                           {sub.subcontractNumber}

@@ -30,7 +30,7 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
   return (
     <div className="space-y-6">
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Link href="/projects" className="group">
+        <Link href="/projects?status=active" className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">My Projects Today</CardTitle>

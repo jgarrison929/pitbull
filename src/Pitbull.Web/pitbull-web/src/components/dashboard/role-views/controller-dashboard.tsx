@@ -74,7 +74,7 @@ export function ControllerDashboard({ data, isLoading }: { data: DashboardAnalyt
             <Badge variant="outline" className="mt-1 text-xs">Coming soon</Badge>
           </CardContent>
         </Card>
-        <Link href="/projects" className="group">
+        <Link href="/projects?budgetAlert=true" className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Budget Alerts</CardTitle>

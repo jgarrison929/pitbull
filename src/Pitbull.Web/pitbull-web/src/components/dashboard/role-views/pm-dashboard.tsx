@@ -35,7 +35,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href="/projects" className="group">
+        <Link href="/projects?status=active" className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
@@ -46,7 +46,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
             </CardContent>
           </Card>
         </Link>
-        <Link href="/rfis" className="group">
+        <Link href="/rfis?status=open" className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Open RFIs</CardTitle>
@@ -62,7 +62,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
             </CardContent>
           </Card>
         </Link>
-        <Link href="/time-tracking/approval" className="group">
+        <Link href="/time-tracking/approval?status=pending" className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
