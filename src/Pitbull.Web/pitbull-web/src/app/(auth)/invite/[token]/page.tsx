@@ -125,10 +125,10 @@ export default function AcceptInvitationPage() {
             {error || "This invitation link is invalid or has expired."}
           </p>
           <Link
-            href="/signup"
+            href="/demo"
             className="text-blue-600 hover:underline text-sm"
           >
-            Create a new account instead
+            Try the demo instead
           </Link>
         </div>
       </div>

@@ -330,7 +330,7 @@ export default function ComparisonPage() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href="/demo"
               className="inline-flex h-12 items-center justify-center rounded-lg bg-amber-500 px-8 text-base font-semibold text-white hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/20"
             >
               Request a Demo
@@ -464,7 +464,7 @@ export default function ComparisonPage() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/signup"
+              href="/demo"
               className="inline-flex h-12 items-center justify-center rounded-lg bg-amber-500 px-8 text-base font-semibold text-white hover:bg-amber-600 transition-colors shadow-lg shadow-amber-500/20"
             >
               Request a Demo

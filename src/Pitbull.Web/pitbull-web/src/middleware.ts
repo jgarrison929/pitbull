@@ -32,6 +32,12 @@ function hasAdminRole(payload: Record<string, unknown>): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // In demo environment, funnel all registration through /demo
+  // so everyone gets the same demo experience with proper company access.
+  if (pathname === "/signup" || pathname === "/register") {
+    return NextResponse.redirect(new URL("/demo", request.url));
+  }
+
   // Allow public paths and portal paths
   if (publicPaths.some((p) => pathname.startsWith(p)) || pathname.startsWith("/portal")) {
     return NextResponse.next();
