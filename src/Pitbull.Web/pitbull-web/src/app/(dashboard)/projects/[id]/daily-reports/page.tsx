@@ -257,7 +257,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
   const [aiMeta, setAiMeta] = useState<{ model: string; provider: string; latencyMs: number } | null>(null);
 
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [galleryReportId, setGalleryReportId] = useState<string | null>(null);
+  const [, setGalleryReportId] = useState<string | null>(null);
   const [galleryPhotos, setGalleryPhotos] = useState<FileAttachmentInfo[]>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
 

@@ -9,7 +9,6 @@ import {
   type SyncQueueItem,
   type OfflineTimeEntry,
   type OfflineDailyReport,
-  type SyncAuthContext,
 } from "./offline-store";
 import { requestBackgroundSync } from "@/components/service-worker-register";
 import { API_BASE_URL } from "./config";

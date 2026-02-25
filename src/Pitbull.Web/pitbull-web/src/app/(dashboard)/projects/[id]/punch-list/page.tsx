@@ -202,20 +202,6 @@ function isOverdue(dueDate: string | null, status: string): boolean {
   return due < new Date();
 }
 
-function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
-  switch (status) {
-    case "Closed":
-      return "default";
-    case "InProgress":
-    case "ReadyForInspection":
-      return "secondary";
-    case "Disputed":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
 function statusBadgeClass(status: string): string {
   switch (status) {
     case "Closed":

@@ -138,7 +138,7 @@ export default function MigrationWizardPage() {
   const [detection, setDetection] = useState<DetectFormatResponse | null>(null);
 
   // Step 2b: entity type for mapping/validation
-  const [entityType, setEntityType] = useState("Employee");
+  const [entityType, _setEntityType] = useState("Employee");
 
   // Step 3: Field mapping
   const [mappings, setMappings] = useState<FieldMapping[]>([]);

@@ -54,28 +54,6 @@ interface FileItem {
   file?: File;
 }
 
-function statusColor(status: RfiStatus) {
-  switch (status) {
-    case 0:
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300";
-    case 1:
-      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300";
-    case 2:
-      return "bg-neutral-100 text-neutral-600";
-    default:
-      return "";
-  }
-}
-
-function statusLabel(status: RfiStatus) {
-  switch (status) {
-    case 0: return "Open";
-    case 1: return "Answered";
-    case 2: return "Closed";
-    default: return "Unknown";
-  }
-}
-
 function priorityLabel(priority: RfiPriority) {
   switch (priority) {
     case 0: return "Low";

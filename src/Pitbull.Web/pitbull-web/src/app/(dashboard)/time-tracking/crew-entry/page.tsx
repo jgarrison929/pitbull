@@ -23,7 +23,7 @@ import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indica
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List, Save, Send, FolderKanban } from "lucide-react";
+import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List, Save, Send } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
 import { toast } from "sonner";
 import api from "@/lib/api";

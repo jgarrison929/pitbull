@@ -20,7 +20,6 @@ import { CompanySwitcher } from "./company-switcher";
 import { ProjectSwitcher } from "./project-switcher";
 import {
   type NavItem as NavItemType,
-  type NavItem,
 } from "./nav-items";
 import {
   type WorkspaceId,
@@ -220,7 +219,6 @@ function MyWorkSection({
   quickActions,
   allItems,
   activeHref,
-  isFavorite,
   onToggleFavorite,
   onNavigate,
 }: {
@@ -229,7 +227,6 @@ function MyWorkSection({
   quickActions: { label: string; href: string; icon: string }[];
   allItems: NavItemType[];
   activeHref: string | null;
-  isFavorite: (href: string) => boolean;
   onToggleFavorite: (href: string) => void;
   onNavigate?: () => void;
 }) {
@@ -317,10 +314,8 @@ function MyWorkSection({
 // ---------------------------------------------------------------------------
 
 function ProjectContextHeader({
-  projectId,
   onBack,
 }: {
-  projectId: string;
   onBack: () => void;
 }) {
   return (
@@ -526,7 +521,6 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
             quickActions={roleDefaults.quickActions}
             allItems={allNavItems}
             activeHref={activeHref}
-            isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
             onNavigate={onNavigate}
           />
@@ -535,7 +529,6 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
         {/* Project Context Header */}
         {activeWorkspace === "projects" && isProjectContext && !effectiveCollapsed && (
           <ProjectContextHeader
-            projectId={currentProjectId!}
             onBack={() => {
               setActiveWorkspace("projects");
               router.push("/projects");
@@ -546,7 +539,7 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
         {/* Workspace items (not My Work) */}
         {activeWorkspace !== "my-work" && (
           <>
-            {itemsWithSeparators.map((entry, i) => {
+            {itemsWithSeparators.map((entry) => {
               if (entry.type === "separator") {
                 if (effectiveCollapsed) return null;
                 return <WorkspaceSectionSeparator key={`sep-${entry.label}`} label={entry.label} />;

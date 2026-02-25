@@ -8,6 +8,16 @@ const eslintConfig = [
   {
     ignores: [".next/**", "out/**", "build/**"],
   },
+  {
+    rules: {
+      // Allow unused variables/args prefixed with _ (common TypeScript convention
+      // for required-but-unused callback parameters).
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
 ];
 
 export default eslintConfig;

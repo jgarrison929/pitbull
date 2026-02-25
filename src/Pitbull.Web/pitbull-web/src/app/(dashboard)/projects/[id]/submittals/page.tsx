@@ -170,22 +170,6 @@ function leadTimeBadgeClass(days: number): string {
   return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200";
 }
 
-function statusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
-  switch (status) {
-    case "Approved":
-    case "ApprovedAsNoted":
-      return "default";
-    case "Submitted":
-    case "InReview":
-      return "secondary";
-    case "Rejected":
-    case "ReviseAndResubmit":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
 function buildSubmittalWorkflowSteps(status: string): WorkflowStep[] {
   // Normal flow: Draft -> Submitted -> In Review -> Approved -> Closed
   // Branching statuses: ApprovedAsNoted (same as Approved), ReviseAndResubmit/Rejected (terminal)
