@@ -46,3 +46,11 @@ prompts/
 
 # Root package-lock (not a Node project at root level)
 /package-lock.json
+
+# Playwright e2e recordings and auth state
+e2e/recordings/**
+!e2e/recordings/.gitkeep
+e2e/.auth/
+e2e/.env
+e2e/test-results/
+e2e/playwright-report/

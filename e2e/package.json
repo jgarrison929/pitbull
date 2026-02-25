@@ -1,0 +1,14 @@
+{
+  "name": "pitbull-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright e2e tests and PR demo recordings for Pitbull Construction Solutions",
+  "scripts": {
+    "test": "npx playwright test",
+    "record-demo": "npx playwright test --project=demo-recording",
+    "record-demo:headed": "npx playwright test --project=demo-recording --headed"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
