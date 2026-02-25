@@ -35,6 +35,9 @@ using Pitbull.Api.Services;
 using Pitbull.Core.Messaging;
 using PostHog;
 using QuestPDF.Infrastructure;
+using Hangfire;
+using Hangfire.PostgreSql;
+using Pitbull.Api.Jobs;
 using Savorboard.CAP.InMemoryMessageQueue;
 using Serilog;
 using Serilog.Formatting.Json;
@@ -450,6 +453,39 @@ builder.Services.AddTransient<TenantCapFilter>();
 builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesSubmittedConsumer>();
 builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesDraftSavedConsumer>();
 
+// Hangfire background job processing — PostgreSQL storage (same DB, separate schema)
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options =>
+        options.UseNpgsqlConnection(builder.Configuration.GetConnectionString("PitbullDb")!),
+        new PostgreSqlStorageOptions
+        {
+            SchemaName = "hangfire",
+            PrepareSchemaIfNecessary = true,
+            QueuePollInterval = TimeSpan.FromSeconds(15),
+        }));
+
+// Global retry policy: 3 retries with exponential backoff
+GlobalJobFilters.Filters.Add(new AutomaticRetryAttribute
+{
+    Attempts = 3,
+    DelaysInSeconds = new[] { 30, 120, 600 }, // 30s, 2min, 10min
+    OnAttemptsExceeded = AttemptsExceededAction.Fail
+});
+
+builder.Services.AddHangfireServer(options =>
+{
+    options.WorkerCount = Environment.ProcessorCount;
+    options.Queues = new[] { "default", "pdf", "ai" };
+});
+
+// Register background job classes
+builder.Services.AddScoped<PdfGenerationJob>();
+builder.Services.AddScoped<AiBatchProcessingJob>();
+builder.Services.AddScoped<WeatherUpdateJob>();
+
 // API
 builder.Services.AddControllers(options =>
     {
@@ -771,6 +807,22 @@ if (app.Configuration.GetValue<bool>("Demo:Enabled"))
     app.UseMiddleware<Pitbull.Api.Middleware.DemoRestrictionMiddleware>();
 app.UseAuthorization();
 app.UseRateLimiter();
+
+// Hangfire dashboard — admin-only, after auth/authz
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireDashboardAuthFilter() },
+    DashboardTitle = "Pitbull — Background Jobs",
+});
+
+// Register recurring jobs
+RecurringJob.AddOrUpdate<WeatherUpdateJob>(
+    "weather-update",
+    job => job.ExecuteAsync(
+        new Pitbull.Core.Jobs.JobContext { TenantId = Guid.Empty, CompanyId = Guid.Empty, UserId = "system" },
+        CancellationToken.None),
+    "0 */6 * * *"); // Every 6 hours
+
 app.UseMiddleware<TenantMiddleware>();
 app.UseMiddleware<Pitbull.Core.MultiTenancy.CompanyMiddleware>();
 app.MapControllers();
