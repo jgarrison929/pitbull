@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Services.Weather;
 using Pitbull.Documents.Services;
+using Pitbull.Api.Features.AI;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.ProjectManagement.Services;
 
@@ -887,7 +888,8 @@ public class ProjectCommunicationsController(ICommunicationService communication
 public class ProjectDailyReportsController(
     IDailyReportService dailyReportService,
     IFileStorageService fileStorageService,
-    IFileValidationService fileValidationService) : ProjectManagementControllerBase
+    IFileValidationService fileValidationService,
+    IDeliveryTicketOcrService deliveryTicketOcrService) : ProjectManagementControllerBase
 {
     private Guid? GetUserId()
     {
@@ -1165,6 +1167,105 @@ public class ProjectDailyReportsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> PatchWeather(Guid projectId, Guid dailyReportId)
         => HandleResult(await dailyReportService.FetchWeatherForReportAsync(projectId, dailyReportId, patch: true));
+
+    // ── Delivery ticket OCR ─────────────────────────────────────────
+
+    /// <summary>
+    /// Uploads a delivery ticket photo and extracts data via OCR (PO number, vendor, materials, quantities).
+    /// </summary>
+    private static readonly HashSet<string> OcrSupportedImageTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "image/jpeg", "image/png", "image/webp", "image/gif"
+    };
+
+    [HttpPost("{dailyReportId:guid}/deliveries/ocr")]
+    [RequestSizeLimit(10_485_760)] // 10 MB
+    [ProducesResponseType(typeof(DeliveryTicketOcrResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ExtractDeliveryTicket(
+        Guid projectId, Guid dailyReportId,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "File is empty." });
+
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(new { error = "File exceeds 10 MB limit." });
+
+        if (!OcrSupportedImageTypes.Contains(file.ContentType))
+            return BadRequest(new { error = $"Unsupported file type for OCR: {file.ContentType}. Upload JPEG, PNG, WEBP, or GIF images.", code = "VALIDATION_ERROR" });
+
+        var validation = fileValidationService.ValidateFile(file.FileName, file.ContentType, file.Length);
+        if (!validation.IsSuccess)
+            return BadRequest(new { error = validation.Error, code = validation.ErrorCode });
+
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
+        // Read file content into memory (needed for both storage and OCR)
+        byte[] content;
+        await using (var readStream = file.OpenReadStream())
+        {
+            using var ms = new MemoryStream();
+            await readStream.CopyToAsync(ms, ct);
+            content = ms.ToArray();
+        }
+
+        // Store the photo via file storage
+        using var uploadStream = new MemoryStream(content);
+        var uploadCommand = new UploadFileCommand(
+            file.FileName,
+            file.ContentType,
+            file.Length,
+            uploadStream,
+            userId.Value,
+            "DeliveryTicket",
+            dailyReportId
+        );
+
+        var uploadResult = await fileStorageService.UploadAsync(uploadCommand, ct);
+        if (!uploadResult.IsSuccess)
+            return BadRequest(new { error = uploadResult.Error, code = uploadResult.ErrorCode });
+
+        var result = await deliveryTicketOcrService.ExtractDeliveryTicketAsync(
+            content, file.ContentType, file.FileName, projectId, ct);
+
+        return Ok(new DeliveryTicketOcrResponse(result, uploadResult.Value!.Id));
+    }
+
+    /// <summary>
+    /// Creates a delivery record on a daily report (from OCR results or manual entry).
+    /// </summary>
+    [HttpPost("{dailyReportId:guid}/deliveries")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateDelivery(
+        Guid projectId, Guid dailyReportId,
+        [FromBody] CreateDeliveryRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.VendorName))
+            return BadRequest(new { error = "VendorName is required.", code = "VALIDATION_ERROR" });
+
+        if (string.IsNullOrWhiteSpace(request.MaterialDescription))
+            return BadRequest(new { error = "MaterialDescription is required.", code = "VALIDATION_ERROR" });
+
+        var deliveryData = new Dictionary<string, object?>
+        {
+            ["DailyReportId"] = dailyReportId,
+            ["VendorName"] = request.VendorName,
+            ["MaterialDescription"] = request.MaterialDescription,
+            ["Quantity"] = request.Quantity,
+            ["Unit"] = request.Unit ?? "EA"
+        };
+
+        if (request.RelatedCostCodeId.HasValue)
+            deliveryData["RelatedCostCodeId"] = request.RelatedCostCodeId.Value;
+
+        var upsertRequest = new PmUpsertRequest(Data: deliveryData);
+        return HandleResult(await dailyReportService.AddDeliveryAsync(projectId, dailyReportId, upsertRequest));
+    }
 }
 
 /// <summary>

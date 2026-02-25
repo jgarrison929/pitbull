@@ -148,6 +148,9 @@ builder.Services.AddScoped<Pitbull.Core.Services.Weather.IWeatherService, Pitbul
 // AI Invoice Vision Extraction (OpenAI Vision API)
 builder.Services.AddScoped<Pitbull.Api.Features.AI.IInvoiceVisionExtractionService, Pitbull.Api.Features.AI.InvoiceVisionExtractionService>();
 
+// Delivery Ticket OCR (OpenAI Vision API)
+builder.Services.AddScoped<Pitbull.Api.Features.AI.IDeliveryTicketOcrService, Pitbull.Api.Features.AI.DeliveryTicketOcrService>();
+
 // AI Insights service (uses Claude for project analysis)
 builder.Services.AddScoped<Pitbull.Api.Services.IAiInsightsService, Pitbull.Api.Services.AiInsightsService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IRoleService, Pitbull.Api.Services.RoleService>();

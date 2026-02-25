@@ -1207,6 +1207,9 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         return weatherResult;
     }
 
+    public Task<Result<PmEntityDto>> AddDeliveryAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
+        => CreateAsync<PmDailyReportDelivery>(projectId, request with { ReferenceId = dailyReportId }, cancellationToken);
+
     private static T ConvertValue<T>(object value)
     {
         if (value is JsonElement je)
