@@ -1,6 +1,8 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Pitbull.Core.CQRS;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Services.Weather;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.ProjectManagement.Services;
@@ -12,7 +14,7 @@ public sealed class DailyReportServiceTests
 {
     private static readonly Guid ProjectId = Guid.NewGuid();
 
-    private static DailyReportService CreateService(Pitbull.Core.Data.PitbullDbContext db)
+    private static DailyReportService CreateService(Pitbull.Core.Data.PitbullDbContext db, IWeatherService? weatherService = null)
     {
         var companyContext = new CompanyContext
         {
@@ -20,7 +22,7 @@ public sealed class DailyReportServiceTests
             CompanyCode = "01",
             CompanyName = "Test Company"
         };
-        return new DailyReportService(db, companyContext);
+        return new DailyReportService(db, companyContext, weatherService: weatherService);
     }
 
     #region CRUD
@@ -661,6 +663,146 @@ public sealed class DailyReportServiceTests
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    #endregion
+
+    #region FetchWeatherForReportAsync
+
+    [Fact]
+    public async Task FetchWeather_ReturnsWeatherData()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await SeedProjectWithCoordsAsync(db, ProjectId);
+        var weather = new FakeWeatherService
+        {
+            ResponseData = new WeatherData { WeatherSummary = "Clear sky", TemperatureHigh = 30m, TemperatureLow = 20m }
+        };
+        var service = CreateService(db, weather);
+        var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        var result = await service.FetchWeatherForReportAsync(ProjectId, report.Id);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.WeatherSummary.Should().Be("Clear sky");
+    }
+
+    [Fact]
+    public async Task FetchWeather_WithPatch_UpdatesReportFields()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await SeedProjectWithCoordsAsync(db, ProjectId);
+        var weather = new FakeWeatherService
+        {
+            ResponseData = new WeatherData
+            {
+                WeatherSummary = "Light rain",
+                TemperatureHigh = 18m,
+                TemperatureLow = 12m,
+                Precipitation = "2.5 mm",
+                Wind = "20 km/h"
+            }
+        };
+        var service = CreateService(db, weather);
+        var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        await service.FetchWeatherForReportAsync(ProjectId, report.Id, patch: true);
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == report.Id);
+        entity.WeatherSummary.Should().Be("Light rain");
+        entity.TemperatureHigh.Should().Be(18m);
+        entity.TemperatureLow.Should().Be(12m);
+        entity.Precipitation.Should().Be("2.5 mm");
+        entity.Wind.Should().Be("20 km/h");
+    }
+
+    [Fact]
+    public async Task FetchWeather_ProjectWithoutCoordinates_ReturnsValidationError()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var weather = new FakeWeatherService();
+        var service = CreateService(db, weather);
+        var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        var result = await service.FetchWeatherForReportAsync(ProjectId, report.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+    }
+
+    [Fact]
+    public async Task FetchWeather_ProjectNotFound_ReturnsNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var weather = new FakeWeatherService();
+        var service = CreateService(db, weather);
+
+        var result = await service.FetchWeatherForReportAsync(Guid.NewGuid(), Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task FetchWeather_ReportNotFound_ReturnsNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await SeedProjectWithCoordsAsync(db, ProjectId);
+        var weather = new FakeWeatherService();
+        var service = CreateService(db, weather);
+
+        var result = await service.FetchWeatherForReportAsync(ProjectId, Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task FetchWeather_NoWeatherServiceConfigured_ReturnsNotConfigured()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await SeedProjectWithCoordsAsync(db, ProjectId);
+        var service = CreateService(db); // no weather service
+
+        var report = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        var result = await service.FetchWeatherForReportAsync(ProjectId, report.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_CONFIGURED");
+    }
+
+    private static async Task SeedProjectWithCoordsAsync(Pitbull.Core.Data.PitbullDbContext db, Guid projectId)
+    {
+        await TestDbContextFactory.SeedProjectAsync(db, projectId);
+        var project = await db.Set<Pitbull.Projects.Domain.Project>().FirstAsync(p => p.Id == projectId);
+        project.Latitude = 40.7128m;
+        project.Longitude = -74.0060m;
+        await db.SaveChangesAsync();
+    }
+
+    private sealed class FakeWeatherService : IWeatherService
+    {
+        public WeatherData? ResponseData { get; set; }
+        public string? FailureError { get; set; }
+        public string? FailureCode { get; set; }
+
+        public Task<Result<WeatherData>> GetWeatherAsync(
+            decimal latitude, decimal longitude, DateTime? date = null, CancellationToken cancellationToken = default)
+        {
+            if (FailureError is not null)
+                return Task.FromResult(Result.Failure<WeatherData>(FailureError, FailureCode ?? "ERROR"));
+
+            return Task.FromResult(Result.Success(ResponseData ?? new WeatherData()));
+        }
     }
 
     #endregion

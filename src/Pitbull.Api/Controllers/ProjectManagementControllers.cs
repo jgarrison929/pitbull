@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Services.Weather;
 using Pitbull.Documents.Services;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.ProjectManagement.Services;
@@ -1132,6 +1133,38 @@ public class ProjectDailyReportsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Rollup(Guid projectId, Guid dailyReportId, [FromBody] PmUpsertRequest request)
         => HandleResult(await dailyReportService.RollupDailyReportAsync(projectId, dailyReportId, request));
+
+    /// <summary>
+    /// Fetches weather for a daily report using the project's lat/lon (read-only).
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <returns>Weather data for the report date and location.</returns>
+    /// <response code="200">Weather data returned.</response>
+    /// <response code="400">Project has no coordinates or weather fetch failed.</response>
+    /// <response code="404">Project or daily report not found.</response>
+    [HttpGet("{dailyReportId:guid}/weather")]
+    [ProducesResponseType(typeof(WeatherData), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetWeather(Guid projectId, Guid dailyReportId)
+        => HandleResult(await dailyReportService.FetchWeatherForReportAsync(projectId, dailyReportId, patch: false));
+
+    /// <summary>
+    /// Fetches weather and patches the daily report's weather fields.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <returns>Weather data that was written to the report.</returns>
+    /// <response code="200">Weather data fetched and saved to report.</response>
+    /// <response code="400">Project has no coordinates or weather fetch failed.</response>
+    /// <response code="404">Project or daily report not found.</response>
+    [HttpPost("{dailyReportId:guid}/weather")]
+    [ProducesResponseType(typeof(WeatherData), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PatchWeather(Guid projectId, Guid dailyReportId)
+        => HandleResult(await dailyReportService.FetchWeatherForReportAsync(projectId, dailyReportId, patch: true));
 }
 
 /// <summary>

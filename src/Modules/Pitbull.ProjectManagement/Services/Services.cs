@@ -1007,7 +1007,12 @@ public class CommunicationService : PmServiceBase, ICommunicationService
 
 public class DailyReportService : PmServiceBase, IDailyReportService
 {
-    public DailyReportService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null) : base(db, companyContext, httpContextAccessor) { }
+    private readonly Pitbull.Core.Services.Weather.IWeatherService? _weatherService;
+
+    public DailyReportService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null, Pitbull.Core.Services.Weather.IWeatherService? weatherService = null) : base(db, companyContext, httpContextAccessor)
+    {
+        _weatherService = weatherService;
+    }
 
     public async Task<Result<PmEntityDto>> CreateDailyReportAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
@@ -1154,6 +1159,52 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         Db.Set<PmDailyReportRollup>().Add(rollup);
         await Db.SaveChangesAsync(cancellationToken);
         return Action("Daily report rollup complete", dailyReportId, new { rollup.Id });
+    }
+
+    public async Task<Result<Pitbull.Core.Services.Weather.WeatherData>> FetchWeatherForReportAsync(
+        Guid projectId, Guid dailyReportId, bool patch = false, CancellationToken cancellationToken = default)
+    {
+        if (_weatherService is null)
+            return Result.Failure<Pitbull.Core.Services.Weather.WeatherData>("Weather service not configured", "NOT_CONFIGURED");
+
+        var project = await Db.Set<Pitbull.Projects.Domain.Project>().AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);
+        if (project is null)
+            return Result.Failure<Pitbull.Core.Services.Weather.WeatherData>("Project not found", "NOT_FOUND");
+
+        if (!project.Latitude.HasValue || !project.Longitude.HasValue)
+            return Result.Failure<Pitbull.Core.Services.Weather.WeatherData>(
+                "Project does not have GPS coordinates configured", "VALIDATION_ERROR");
+
+        var report = await ProjectScoped<PmDailyReport>(projectId)
+            .FirstOrDefaultAsync(r => r.Id == dailyReportId, cancellationToken);
+        if (report is null)
+            return Result.Failure<Pitbull.Core.Services.Weather.WeatherData>("Daily report not found", "NOT_FOUND");
+
+        var weatherResult = await _weatherService.GetWeatherAsync(
+            project.Latitude.Value, project.Longitude.Value, report.ReportDate, cancellationToken);
+
+        if (!weatherResult.IsSuccess)
+            return weatherResult;
+
+        if (patch && weatherResult.Value is not null)
+        {
+            // Re-fetch tracked entity for update
+            var tracked = await Db.Set<PmDailyReport>()
+                .FirstOrDefaultAsync(r => r.Id == dailyReportId && !r.IsDeleted, cancellationToken);
+            if (tracked is not null)
+            {
+                tracked.WeatherSummary = weatherResult.Value.WeatherSummary;
+                tracked.TemperatureHigh = weatherResult.Value.TemperatureHigh;
+                tracked.TemperatureLow = weatherResult.Value.TemperatureLow;
+                tracked.Precipitation = weatherResult.Value.Precipitation;
+                tracked.Wind = weatherResult.Value.Wind;
+                tracked.UpdatedAt = DateTime.UtcNow;
+                await Db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        return weatherResult;
     }
 
     private static T ConvertValue<T>(object value)

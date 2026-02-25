@@ -88,6 +88,7 @@ public interface IDailyReportService
     Task<Result<PagedResult<PmEntityDto>>> ListPhotosAsync(Guid projectId, Guid dailyReportId, PmListQuery query, CancellationToken cancellationToken = default);
     Task<Result> DeletePhotoAsync(Guid projectId, Guid dailyReportId, Guid photoId, CancellationToken cancellationToken = default);
     Task<Result<PmActionResultDto>> RollupDailyReportAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default);
+    Task<Result<Pitbull.Core.Services.Weather.WeatherData>> FetchWeatherForReportAsync(Guid projectId, Guid dailyReportId, bool patch = false, CancellationToken cancellationToken = default);
 }
 
 public interface IProgressService

@@ -134,6 +134,14 @@ builder.Services.AddPitbullModuleServices<BillingModuleMarker>(); // Billing mod
 // AI module registration (providers + HttpClients)
 builder.Services.AddPitbullAiModule(builder.Configuration);
 
+// Weather service (Open-Meteo, no API key required)
+builder.Services.AddHttpClient("OpenMeteo", client =>
+{
+    client.BaseAddress = new Uri("https://api.open-meteo.com/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddScoped<Pitbull.Core.Services.Weather.IWeatherService, Pitbull.Core.Services.Weather.WeatherService>();
+
 // AI Invoice Vision Extraction (OpenAI Vision API)
 builder.Services.AddScoped<Pitbull.Api.Features.AI.IInvoiceVisionExtractionService, Pitbull.Api.Features.AI.InvoiceVisionExtractionService>();
 
