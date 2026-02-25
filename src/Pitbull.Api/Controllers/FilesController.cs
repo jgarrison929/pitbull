@@ -139,6 +139,22 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
         return Ok(result.Value);
     }
 
+    [HttpGet("{id:guid}/presigned-url")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPresignedUrl(Guid id, [FromQuery] int? expiresInMinutes = null)
+    {
+        var minutes = Math.Clamp(expiresInMinutes ?? 60, 1, 1440);
+        var expiresIn = TimeSpan.FromMinutes(minutes);
+        var result = await fileStorageService.GetPresignedUrlAsync(id, expiresIn);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error, code = "NOT_FOUND" })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return Ok(new { url = result.Value, expiresIn = expiresIn.TotalMinutes });
+    }
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(Guid id)

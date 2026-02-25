@@ -2254,8 +2254,17 @@ public class ProjectDocumentsController(IDocumentService documentService) : Proj
 [Produces("application/json")]
 [Route("api/projects/{projectId:guid}/punch-list")]
 [Tags("Project Management")]
-public class PunchListController(IPunchListService punchListService, Pitbull.Api.Services.IPdfReportService pdfReportService) : ProjectManagementControllerBase
+public class PunchListController(
+    IPunchListService punchListService,
+    Pitbull.Api.Services.IPdfReportService pdfReportService,
+    IFileStorageService fileStorageService,
+    IFileValidationService fileValidationService) : ProjectManagementControllerBase
 {
+    private Guid? GetUserId()
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier) ?? User.FindFirst("sub");
+        return claim != null && Guid.TryParse(claim.Value, out var id) ? id : null;
+    }
     /// <summary>
     /// Creates a new punch list item for the specified project.
     /// </summary>
@@ -2312,6 +2321,71 @@ public class PunchListController(IPunchListService punchListService, Pitbull.Api
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AddPhoto(Guid projectId, Guid itemId, [FromBody] PmUpsertRequest request)
         => HandleResult(await punchListService.AddPhotoAsync(projectId, itemId, request));
+
+    /// <summary>
+    /// Uploads a photo file and attaches it to a punch list item.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="itemId">Punch list item identifier.</param>
+    /// <param name="file">The photo file to upload.</param>
+    /// <param name="caption">Optional photo caption.</param>
+    /// <param name="latitude">Optional GPS latitude.</param>
+    /// <param name="longitude">Optional GPS longitude.</param>
+    /// <returns>The created photo record.</returns>
+    /// <response code="200">Photo uploaded and attached successfully.</response>
+    /// <response code="400">Validation failed or file is invalid.</response>
+    /// <response code="404">Punch list item not found.</response>
+    [HttpPost("{itemId:guid}/photos/upload")]
+    [RequestSizeLimit(26_214_400)] // 25 MB
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UploadPhoto(
+        Guid projectId, Guid itemId,
+        IFormFile file,
+        [FromForm] string? caption = null,
+        [FromForm] decimal? latitude = null,
+        [FromForm] decimal? longitude = null)
+    {
+        var userId = GetUserId();
+        if (userId is null) return Unauthorized();
+
+        if (file.Length == 0)
+            return BadRequest(new { error = "File is empty" });
+
+        var validation = fileValidationService.ValidateFile(file.FileName, file.ContentType, file.Length);
+        if (!validation.IsSuccess)
+            return BadRequest(new { error = validation.Error, code = validation.ErrorCode });
+
+        await using var stream = file.OpenReadStream();
+        var uploadCommand = new UploadFileCommand(
+            file.FileName,
+            file.ContentType,
+            file.Length,
+            stream,
+            userId.Value,
+            "PunchListPhoto",
+            itemId
+        );
+
+        var uploadResult = await fileStorageService.UploadAsync(uploadCommand);
+        if (!uploadResult.IsSuccess)
+            return BadRequest(new { error = uploadResult.Error, code = uploadResult.ErrorCode });
+
+        var photoData = new Dictionary<string, object?>
+        {
+            ["DocumentId"] = uploadResult.Value!.Id,
+            ["PunchListItemId"] = itemId,
+            ["TakenByUserId"] = userId.Value,
+            ["TakenAt"] = DateTime.UtcNow
+        };
+        if (caption != null) photoData["Caption"] = caption;
+        if (latitude.HasValue) photoData["Latitude"] = latitude.Value;
+        if (longitude.HasValue) photoData["Longitude"] = longitude.Value;
+
+        var request = new PmUpsertRequest(Data: photoData);
+        return HandleResult(await punchListService.AddPhotoAsync(projectId, itemId, request));
+    }
 
     /// <summary>
     /// Lists photos for a punch list item.

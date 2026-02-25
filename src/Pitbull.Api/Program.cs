@@ -209,6 +209,57 @@ builder.Services.AddScoped<Pitbull.ProjectManagement.Services.INarrativeService,
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IDocumentService, Pitbull.ProjectManagement.Services.DocumentService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IPunchListService, Pitbull.ProjectManagement.Services.PunchListService>();
 
+// Blob storage — provider-based (local filesystem or S3/MinIO)
+{
+    var blobSection = builder.Configuration.GetSection(Pitbull.Core.Services.BlobStorage.BlobStorageOptions.SectionName);
+    builder.Services.Configure<Pitbull.Core.Services.BlobStorage.BlobStorageOptions>(blobSection);
+
+    // Allow env vars to override config
+    var blobOptions = new Pitbull.Core.Services.BlobStorage.BlobStorageOptions();
+    blobSection.Bind(blobOptions);
+    var provider = Environment.GetEnvironmentVariable("BLOB_PROVIDER") ?? blobOptions.Provider;
+
+    if (string.Equals(provider, "s3", StringComparison.OrdinalIgnoreCase))
+    {
+        var bucket = Environment.GetEnvironmentVariable("S3_BUCKET") ?? blobOptions.S3Bucket;
+        var region = Environment.GetEnvironmentVariable("S3_REGION") ?? blobOptions.S3Region ?? "us-east-1";
+        var accessKey = Environment.GetEnvironmentVariable("S3_ACCESS_KEY") ?? blobOptions.S3AccessKey;
+        var secretKey = Environment.GetEnvironmentVariable("S3_SECRET_KEY") ?? blobOptions.S3SecretKey;
+        var endpoint = Environment.GetEnvironmentVariable("S3_ENDPOINT") ?? blobOptions.S3Endpoint;
+
+        // Propagate env var overrides into the options so S3BlobService sees them
+        builder.Services.PostConfigure<Pitbull.Core.Services.BlobStorage.BlobStorageOptions>(opts =>
+        {
+            opts.Provider = "s3";
+            opts.S3Bucket = bucket;
+            opts.S3Region = region;
+            opts.S3AccessKey = accessKey;
+            opts.S3SecretKey = secretKey;
+            opts.S3Endpoint = endpoint;
+        });
+
+        var s3Config = new Amazon.S3.AmazonS3Config
+        {
+            RegionEndpoint = Amazon.RegionEndpoint.GetBySystemName(region),
+        };
+
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            s3Config.ServiceURL = endpoint;
+            s3Config.ForcePathStyle = true; // Required for MinIO
+        }
+
+        builder.Services.AddSingleton<Amazon.S3.IAmazonS3>(_ =>
+            new Amazon.S3.AmazonS3Client(
+                new Amazon.Runtime.BasicAWSCredentials(accessKey, secretKey), s3Config));
+        builder.Services.AddSingleton<Pitbull.Core.Services.BlobStorage.IBlobStorageService, Pitbull.Storage.S3BlobService>();
+    }
+    else
+    {
+        builder.Services.AddSingleton<Pitbull.Core.Services.BlobStorage.IBlobStorageService, Pitbull.Core.Services.BlobStorage.LocalFileSystemBlobService>();
+    }
+}
+
 // Documents module (file attachments)
 builder.Services.AddSingleton<Pitbull.Documents.Services.IFileValidationService, Pitbull.Documents.Services.FileValidationService>();
 builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbull.Documents.Services.FileStorageService>();

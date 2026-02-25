@@ -7,6 +7,7 @@ public interface IFileStorageService
     Task<Result<FileAttachmentDto>> UploadAsync(UploadFileCommand command, CancellationToken ct = default);
     Task<Result<FileDownloadResult>> DownloadAsync(Guid fileId, Guid userId, CancellationToken ct = default);
     Task<Result> DeleteAsync(Guid fileId, Guid userId, CancellationToken ct = default);
+    Task<Result<string>> GetPresignedUrlAsync(Guid fileId, TimeSpan expiresIn, CancellationToken ct = default);
     Task<Result<IReadOnlyList<FileAttachmentDto>>> GetByEntityAsync(string entityType, Guid entityId, CancellationToken ct = default);
     Task<Result<FileAttachmentDto>> GetByIdAsync(Guid fileId, CancellationToken ct = default);
 }
