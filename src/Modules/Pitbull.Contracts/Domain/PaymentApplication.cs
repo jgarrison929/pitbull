@@ -63,6 +63,11 @@ public class PaymentApplication : BaseEntity, ICompanyScoped
     public decimal? PaidAmount { get; set; }
     public string? PaidReference { get; set; }
 
+    // Owner payment tracking
+    public DateTime? ExpectedPaymentDate { get; set; }
+    public string? PaymentMethod { get; set; } // Check, ACH, Wire
+    public string? PaymentNotes { get; set; }
+
     // Reference
     public string? InvoiceNumber { get; set; } // Sub's invoice reference
     public string? CheckNumber { get; set; } // Payment reference

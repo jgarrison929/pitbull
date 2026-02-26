@@ -114,6 +114,9 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
         payApp.Status = PaymentApplicationStatus.Submitted;
         payApp.SubmittedDate = DateTime.UtcNow;
 
+        // Auto-calculate expected payment date from company payment terms
+        payApp.ExpectedPaymentDate = payApp.SubmittedDate.Value.AddDays(settings.DefaultPaymentTermDays);
+
         await db.SaveChangesAsync(cancellationToken);
 
         if (workflowTransitions is not null)
@@ -494,6 +497,11 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
             InvoiceNumber: payApp.InvoiceNumber,
             CheckNumber: payApp.CheckNumber,
             Notes: payApp.Notes,
+            ExpectedPaymentDate: payApp.ExpectedPaymentDate,
+            PaymentMethod: payApp.PaymentMethod,
+            PaymentNotes: payApp.PaymentNotes,
+            PaymentTrackingStatus: ComputePaymentStatus(payApp),
+            DaysOutstanding: ComputeDaysOutstanding(payApp),
             G702: g702,
             G703LineItems: lineItems.Select(MapLineItemToDto).ToList(),
             BookEntries: bookEntries.Select(MapBookEntryToDto).ToList()
@@ -531,4 +539,192 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
         new(be.Id, be.BookType, be.EarnedRevenueToDate, be.CurrentPeriodRevenue,
             be.BillingsToDate, be.CurrentPeriodBilling, be.RetainageHeldToDate,
             be.OverUnderBilling, be.GeneratedAt);
+
+    // === Owner Payment Tracking ===
+
+    public async Task<Result<PaymentTrackingDto>> RecordPaymentAsync(
+        Guid id, RecordOwnerPaymentRequest request, CancellationToken cancellationToken = default)
+    {
+        var payApp = await db.Set<PaymentApplication>()
+            .FirstOrDefaultAsync(pa => pa.Id == id && !pa.IsDeleted, cancellationToken);
+
+        if (payApp is null)
+            return Result.Failure<PaymentTrackingDto>("Payment application not found", "NOT_FOUND");
+
+        if (payApp.Status != PaymentApplicationStatus.Approved && payApp.Status != PaymentApplicationStatus.Paid)
+            return Result.Failure<PaymentTrackingDto>(
+                "Only approved or paid applications can receive payments", "INVALID_STATUS");
+
+        if (request.PaymentAmount <= 0)
+            return Result.Failure<PaymentTrackingDto>(
+                "Payment amount must be greater than zero", "VALIDATION_ERROR");
+
+        var existingPaid = payApp.PaidAmount ?? 0;
+        if (existingPaid + request.PaymentAmount > payApp.CurrentPaymentDue)
+            return Result.Failure<PaymentTrackingDto>(
+                $"Payment of {request.PaymentAmount:C} would exceed remaining balance of {payApp.CurrentPaymentDue - existingPaid:C}",
+                "OVERPAYMENT");
+
+        payApp.PaidAmount = existingPaid + request.PaymentAmount;
+        payApp.PaidDate = request.PaymentDate;
+        payApp.PaymentMethod = request.PaymentMethod;
+        payApp.CheckNumber = request.CheckNumber ?? payApp.CheckNumber;
+        payApp.PaymentNotes = request.Notes;
+
+        // Always update subcontract PaidToDate on every payment recording
+        var subcontract = await db.Set<Subcontract>()
+            .FirstOrDefaultAsync(s => s.Id == payApp.SubcontractId && !s.IsDeleted, cancellationToken);
+
+        if (subcontract is not null)
+            subcontract.PaidToDate += request.PaymentAmount;
+
+        // Only transition to Paid when fully paid
+        if (payApp.PaidAmount >= payApp.CurrentPaymentDue && payApp.Status == PaymentApplicationStatus.Approved)
+        {
+            payApp.Status = PaymentApplicationStatus.Paid;
+            payApp.PaidReference = request.CheckNumber ?? request.PaymentMethod;
+
+            if (subcontract is not null)
+            {
+                subcontract.BilledToDate += payApp.CurrentPaymentDue;
+                subcontract.RetainageHeld = payApp.TotalRetainage;
+            }
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(await BuildTrackingDto(payApp, cancellationToken));
+    }
+
+    public async Task<Result<PaymentTrackingDto>> GetPaymentStatusAsync(
+        Guid id, CancellationToken cancellationToken = default)
+    {
+        var payApp = await db.Set<PaymentApplication>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(pa => pa.Id == id && !pa.IsDeleted, cancellationToken);
+
+        if (payApp is null)
+            return Result.Failure<PaymentTrackingDto>("Payment application not found", "NOT_FOUND");
+
+        return Result.Success(await BuildTrackingDto(payApp, cancellationToken));
+    }
+
+    public async Task<Result<IReadOnlyList<PaymentTrackingDto>>> GetPaymentTrackingAsync(
+        Guid projectId, CancellationToken cancellationToken = default)
+    {
+        var payApps = await (
+            from pa in db.Set<PaymentApplication>().AsNoTracking()
+            join s in db.Set<Subcontract>().AsNoTracking() on pa.SubcontractId equals s.Id
+            where !pa.IsDeleted && !s.IsDeleted && s.ProjectId == projectId
+            orderby pa.SubmittedDate descending, pa.ApplicationNumber descending
+            select new { PayApp = pa, s.SubcontractorName }
+        ).ToListAsync(cancellationToken);
+
+        var dtos = payApps.Select(x => MapToTrackingDto(x.PayApp, x.SubcontractorName)).ToList();
+        return Result.Success<IReadOnlyList<PaymentTrackingDto>>(dtos);
+    }
+
+    public async Task<Result<PaymentAgingReportDto>> GetPaymentAgingAsync(
+        Guid? projectId, CancellationToken cancellationToken = default)
+    {
+        var query = from pa in db.Set<PaymentApplication>().AsNoTracking()
+            join s in db.Set<Subcontract>().AsNoTracking() on pa.SubcontractId equals s.Id
+            where !pa.IsDeleted && !s.IsDeleted
+                  && pa.SubmittedDate != null
+                  && pa.Status != PaymentApplicationStatus.Draft
+                  && pa.Status != PaymentApplicationStatus.Void
+            select new { PayApp = pa, s.SubcontractorName, s.ProjectId };
+
+        if (projectId.HasValue)
+            query = query.Where(x => x.ProjectId == projectId.Value);
+
+        var data = await query.ToListAsync(cancellationToken);
+
+        var trackingItems = data
+            .Select(x => MapToTrackingDto(x.PayApp, x.SubcontractorName))
+            .ToList();
+
+        var buckets = new (string Label, int Min, int? Max)[]
+        {
+            ("0-30 days", 0, 30),
+            ("31-60 days", 31, 60),
+            ("61-90 days", 61, 90),
+            ("90+ days", 91, null)
+        };
+
+        var agingBuckets = buckets.Select(b =>
+        {
+            var items = trackingItems
+                .Where(t => t.PaymentStatus is OwnerPaymentStatus.Pending or OwnerPaymentStatus.Overdue or OwnerPaymentStatus.Partial)
+                .Where(t => t.DaysOutstanding >= b.Min && (!b.Max.HasValue || t.DaysOutstanding <= b.Max.Value))
+                .ToList();
+
+            return new PaymentAgingBucketDto(
+                Label: b.Label,
+                MinDays: b.Min,
+                MaxDays: b.Max,
+                Count: items.Count,
+                TotalAmount: items.Sum(i => i.CurrentPaymentDue - (i.PaidAmount ?? 0)),
+                Items: items);
+        }).ToList();
+
+        var totalOutstanding = agingBuckets.Sum(b => b.TotalAmount);
+
+        return Result.Success(new PaymentAgingReportDto(agingBuckets, totalOutstanding));
+    }
+
+    private async Task<PaymentTrackingDto> BuildTrackingDto(
+        PaymentApplication payApp, CancellationToken cancellationToken)
+    {
+        var subcontractor = await db.Set<Subcontract>()
+            .AsNoTracking()
+            .Where(s => s.Id == payApp.SubcontractId && !s.IsDeleted)
+            .Select(s => s.SubcontractorName)
+            .FirstOrDefaultAsync(cancellationToken) ?? "Unknown";
+
+        return MapToTrackingDto(payApp, subcontractor);
+    }
+
+    public static PaymentTrackingDto MapToTrackingDto(PaymentApplication pa, string subcontractorName) =>
+        new(
+            Id: pa.Id,
+            SubcontractId: pa.SubcontractId,
+            SubcontractorName: subcontractorName,
+            ApplicationNumber: pa.ApplicationNumber,
+            WorkflowStatus: pa.Status,
+            CurrentPaymentDue: pa.CurrentPaymentDue,
+            SubmittedDate: pa.SubmittedDate,
+            ExpectedPaymentDate: pa.ExpectedPaymentDate,
+            PaidDate: pa.PaidDate,
+            PaidAmount: pa.PaidAmount,
+            PaymentMethod: pa.PaymentMethod,
+            CheckNumber: pa.CheckNumber,
+            PaymentStatus: ComputePaymentStatus(pa),
+            DaysOutstanding: ComputeDaysOutstanding(pa));
+
+    public static OwnerPaymentStatus ComputePaymentStatus(PaymentApplication pa)
+    {
+        if (pa.SubmittedDate is null)
+            return OwnerPaymentStatus.NotDue;
+
+        if (pa.PaidAmount.HasValue && pa.PaidAmount >= pa.CurrentPaymentDue)
+            return OwnerPaymentStatus.Received;
+
+        if (pa.PaidAmount.HasValue && pa.PaidAmount > 0)
+            return OwnerPaymentStatus.Partial;
+
+        if (pa.ExpectedPaymentDate.HasValue && DateTime.UtcNow > pa.ExpectedPaymentDate.Value)
+            return OwnerPaymentStatus.Overdue;
+
+        return OwnerPaymentStatus.Pending;
+    }
+
+    public static int ComputeDaysOutstanding(PaymentApplication pa)
+    {
+        if (pa.SubmittedDate is null)
+            return 0;
+
+        var endDate = pa.PaidDate ?? DateTime.UtcNow;
+        return Math.Max(0, (int)(endDate - pa.SubmittedDate.Value).TotalDays);
+    }
 }

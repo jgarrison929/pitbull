@@ -49,4 +49,18 @@ public interface IPaymentApplicationService
 
     Task<Result<PaymentApplicationG702Dto>> GetSummaryAsync(
         Guid id, AccountingBookType? bookType = null, CancellationToken cancellationToken = default);
+
+    // === Owner Payment Tracking ===
+
+    Task<Result<PaymentTrackingDto>> RecordPaymentAsync(
+        Guid id, RecordOwnerPaymentRequest request, CancellationToken cancellationToken = default);
+
+    Task<Result<PaymentTrackingDto>> GetPaymentStatusAsync(
+        Guid id, CancellationToken cancellationToken = default);
+
+    Task<Result<IReadOnlyList<PaymentTrackingDto>>> GetPaymentTrackingAsync(
+        Guid projectId, CancellationToken cancellationToken = default);
+
+    Task<Result<PaymentAgingReportDto>> GetPaymentAgingAsync(
+        Guid? projectId, CancellationToken cancellationToken = default);
 }

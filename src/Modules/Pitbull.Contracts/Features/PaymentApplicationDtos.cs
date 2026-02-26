@@ -84,6 +84,11 @@ public sealed record PaymentApplicationDetailDto(
     string? InvoiceNumber,
     string? CheckNumber,
     string? Notes,
+    DateTime? ExpectedPaymentDate,
+    string? PaymentMethod,
+    string? PaymentNotes,
+    OwnerPaymentStatus PaymentTrackingStatus,
+    int DaysOutstanding,
     PaymentApplicationG702Dto G702,
     IReadOnlyList<PaymentApplicationLineItemDto> G703LineItems,
     IReadOnlyList<PaymentApplicationBookEntryDto> BookEntries
@@ -128,6 +133,47 @@ public sealed record CreatePaymentApplicationFromSovRequest(
     string? Notes
 );
 
+// === Owner Payment Tracking DTOs ===
+
+public sealed record RecordOwnerPaymentRequest(
+    decimal PaymentAmount,
+    DateTime PaymentDate,
+    string? PaymentMethod,
+    string? CheckNumber,
+    string? Notes
+);
+
+public sealed record PaymentTrackingDto(
+    Guid Id,
+    Guid SubcontractId,
+    string SubcontractorName,
+    int ApplicationNumber,
+    PaymentApplicationStatus WorkflowStatus,
+    decimal CurrentPaymentDue,
+    DateTime? SubmittedDate,
+    DateTime? ExpectedPaymentDate,
+    DateTime? PaidDate,
+    decimal? PaidAmount,
+    string? PaymentMethod,
+    string? CheckNumber,
+    OwnerPaymentStatus PaymentStatus,
+    int DaysOutstanding
+);
+
+public sealed record PaymentAgingReportDto(
+    IReadOnlyList<PaymentAgingBucketDto> Buckets,
+    decimal TotalOutstanding
+);
+
+public sealed record PaymentAgingBucketDto(
+    string Label,
+    int MinDays,
+    int? MaxDays,
+    int Count,
+    decimal TotalAmount,
+    IReadOnlyList<PaymentTrackingDto> Items
+);
+
 // === Settings DTOs ===
 
 public sealed record PaymentApplicationSettingsDto(
@@ -138,7 +184,8 @@ public sealed record PaymentApplicationSettingsDto(
     bool AllowRetainageReleaseBeforeFinal,
     string DefaultBookMode,
     bool LockSubmittedLineItems,
-    bool RequireLienWaiverBeforePaid
+    bool RequireLienWaiverBeforePaid,
+    int DefaultPaymentTermDays
 );
 
 public sealed record UpdatePaymentApplicationSettingsRequest(
@@ -149,5 +196,6 @@ public sealed record UpdatePaymentApplicationSettingsRequest(
     bool AllowRetainageReleaseBeforeFinal,
     string DefaultBookMode,
     bool LockSubmittedLineItems,
-    bool RequireLienWaiverBeforePaid
+    bool RequireLienWaiverBeforePaid,
+    int DefaultPaymentTermDays = 30
 );

@@ -29,4 +29,7 @@ public class PaymentApplicationSettings
 
     /// <summary>Require lien waiver before marking as Paid (future-compatible toggle).</summary>
     public bool RequireLienWaiverBeforePaid { get; set; }
+
+    /// <summary>Default payment terms in days (Net 30/45/60). Used to auto-calculate ExpectedPaymentDate.</summary>
+    public int DefaultPaymentTermDays { get; set; } = 30;
 }

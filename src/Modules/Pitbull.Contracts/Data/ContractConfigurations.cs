@@ -52,6 +52,10 @@ public class PaymentApplicationConfiguration : IEntityTypeConfiguration<PaymentA
         builder.Property(x => x.ReviewedBy).HasMaxLength(200);
         builder.Property(x => x.ReviewedNotes).HasMaxLength(4000);
 
+        // Owner payment tracking
+        builder.Property(x => x.PaymentMethod).HasMaxLength(50);
+        builder.Property(x => x.PaymentNotes).HasMaxLength(4000);
+
         builder.HasIndex(x => x.ScheduleOfValuesId);
 
         // Optimistic concurrency (PostgreSQL xmin)

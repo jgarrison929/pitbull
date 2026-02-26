@@ -78,6 +78,7 @@ public class PaymentApplicationSettingsController(
         settings.DefaultBookMode = request.DefaultBookMode;
         settings.LockSubmittedLineItems = request.LockSubmittedLineItems;
         settings.RequireLienWaiverBeforePaid = request.RequireLienWaiverBeforePaid;
+        settings.DefaultPaymentTermDays = Math.Clamp(request.DefaultPaymentTermDays, 1, 365);
 
         await db.SaveChangesAsync();
 
@@ -92,5 +93,6 @@ public class PaymentApplicationSettingsController(
         AllowRetainageReleaseBeforeFinal: s.AllowRetainageReleaseBeforeFinal,
         DefaultBookMode: s.DefaultBookMode,
         LockSubmittedLineItems: s.LockSubmittedLineItems,
-        RequireLienWaiverBeforePaid: s.RequireLienWaiverBeforePaid);
+        RequireLienWaiverBeforePaid: s.RequireLienWaiverBeforePaid,
+        DefaultPaymentTermDays: s.DefaultPaymentTermDays);
 }

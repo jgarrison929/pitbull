@@ -356,4 +356,56 @@ public class PaymentApplicationsController(
 
         return CreatedAtAction(nameof(GetDetail), new { id = result.Value!.Id }, result.Value);
     }
+
+    // ── Owner Payment Tracking ──────────────────────────
+
+    /// <summary>
+    /// Record a payment received for a pay app
+    /// </summary>
+    [HttpPost("{id:guid}/payment")]
+    [ProducesResponseType(typeof(PaymentTrackingDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RecordPayment(Guid id, [FromBody] RecordOwnerPaymentRequest request)
+    {
+        var result = await payAppService.RecordPaymentAsync(id, request);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Get payment tracking status for a pay app
+    /// </summary>
+    [HttpGet("{id:guid}/payment")]
+    [Cacheable(DurationSeconds = 60)]
+    [ProducesResponseType(typeof(PaymentTrackingDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPaymentStatus(Guid id)
+    {
+        var result = await payAppService.GetPaymentStatusAsync(id);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// List all pay apps for a project with payment tracking status
+    /// </summary>
+    [HttpGet("project/{projectId:guid}/tracking")]
+    [Cacheable(DurationSeconds = 60)]
+    [ProducesResponseType(typeof(IReadOnlyList<PaymentTrackingDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPaymentTracking(Guid projectId)
+    {
+        var result = await payAppService.GetPaymentTrackingAsync(projectId);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Payment aging report — pay apps bucketed by days outstanding (0-30, 31-60, 61-90, 90+)
+    /// </summary>
+    [HttpGet("project/{projectId:guid}/aging")]
+    [Cacheable(DurationSeconds = 120)]
+    [ProducesResponseType(typeof(PaymentAgingReportDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPaymentAging(Guid projectId)
+    {
+        var result = await payAppService.GetPaymentAgingAsync(projectId);
+        return this.HandleResult(result);
+    }
 }
