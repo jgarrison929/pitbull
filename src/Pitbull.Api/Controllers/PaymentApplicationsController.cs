@@ -19,7 +19,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = "Billing.View")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Payment Applications")]

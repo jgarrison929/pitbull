@@ -14,7 +14,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/jobs")]
-[Authorize]
+[Authorize(Policy = "SystemAdmin.Health")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Jobs")]
