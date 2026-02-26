@@ -35,7 +35,7 @@
     </PackageReference>
     <PackageReference Include="PostHog" Version="2.2.2" />
     <PackageReference Include="PostHog.AspNetCore" Version="2.2.2" />
-    <PackageReference Include="QuestPDF" Version="2025.1.2" />
+    <PackageReference Include="QuestPDF" Version="2026.2.1" />
     <PackageReference Include="Resend" Version="0.2.1" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
