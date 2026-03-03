@@ -81,6 +81,20 @@ public sealed class DemoBootstrapper(
                 // Assign PM-level and executive demo users to seed projects
                 await EnsureDemoProjectAssignmentsAsync(cancellationToken);
 
+                // Dismiss onboarding checklists for demo users so the wizard doesn't show
+                var undismissedChecklists = await db.Set<OnboardingChecklist>()
+                    .Where(c => !c.Dismissed)
+                    .ToListAsync(cancellationToken);
+
+                foreach (var cl in undismissedChecklists)
+                    cl.Dismissed = true;
+
+                if (undismissedChecklists.Count > 0)
+                {
+                    await db.SaveChangesAsync(cancellationToken);
+                    logger.LogInformation("Dismissed {Count} onboarding checklists for demo users", undismissedChecklists.Count);
+                }
+
                 await tx.CommitAsync(cancellationToken);
 
                 if (result.IsSuccess)
@@ -92,6 +106,52 @@ public sealed class DemoBootstrapper(
             }
 
             logger.LogWarning("Demo seed failed: {Code} {Message}", result.ErrorCode, result.Error);
+        });
+
+        // Post-seed maintenance: keep time entry dates current so dashboard KPIs have data
+        await RefreshTimeEntryDatesAsync(tenant.Id, cancellationToken);
+    }
+
+    /// <summary>
+    /// Shifts all time entry dates forward so the newest entry is "today".
+    /// This keeps dashboard KPIs (Hours This Week, Hours Last Week) populated
+    /// even when the DB was seeded days/weeks ago.
+    /// </summary>
+    private async Task RefreshTimeEntryDatesAsync(Guid tenantId, CancellationToken ct)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, true)", ct);
+
+            var maxDate = await db.Set<TimeEntry>()
+                .AsNoTracking()
+                .OrderByDescending(te => te.Date)
+                .Select(te => (DateOnly?)te.Date)
+                .FirstOrDefaultAsync(ct);
+
+            if (maxDate is null)
+            {
+                await tx.CommitAsync(ct);
+                return;
+            }
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var offsetDays = today.DayNumber - maxDate.Value.DayNumber;
+
+            if (offsetDays <= 0)
+            {
+                await tx.CommitAsync(ct);
+                return;
+            }
+
+            var updated = await db.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE time_entries SET \"Date\" = \"Date\" + {offsetDays} WHERE \"TenantId\" = {tenantId} AND \"IsDeleted\" = false", ct);
+
+            await tx.CommitAsync(ct);
+            logger.LogInformation("Refreshed time entry dates: shifted {Updated} rows forward by {Days} days", updated, offsetDays);
         });
     }
 
