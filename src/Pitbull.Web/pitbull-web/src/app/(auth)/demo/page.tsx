@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Check, X } from "lucide-react";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,6 +44,15 @@ export default function DemoSignupPage() {
   const [companyCode, setCompanyCode] = useState("01");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const passwordChecks = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /[0-9]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordChecks).every(Boolean);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -214,10 +224,35 @@ export default function DemoSignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={8}
                 className="h-10"
                 placeholder="At least 8 characters"
               />
+              {password && (
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  {[
+                    { key: "length", label: "8+ characters" },
+                    { key: "upper", label: "Uppercase" },
+                    { key: "lower", label: "Lowercase" },
+                    { key: "number", label: "Number" },
+                  ].map(({ key, label }) => (
+                    <span
+                      key={key}
+                      className={`flex items-center gap-1 ${
+                        passwordChecks[key as keyof typeof passwordChecks]
+                          ? "text-green-600"
+                          : "text-slate-400"
+                      }`}
+                    >
+                      {passwordChecks[key as keyof typeof passwordChecks] ? (
+                        <Check className="w-3 h-3" />
+                      ) : (
+                        <X className="w-3 h-3" />
+                      )}
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -257,6 +292,7 @@ export default function DemoSignupPage() {
               className="w-full h-11 bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm"
               loading={isLoading}
               loadingText="Creating account..."
+              disabled={!isPasswordValid}
             >
               Start Demo
             </LoadingButton>
