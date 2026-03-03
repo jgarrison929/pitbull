@@ -83,7 +83,7 @@ public class SystemHealthService(PitbullDbContext db) : ISystemHealthService
             // Table names cannot be parameterized in SQL; the whitelist above prevents injection.
 #pragma warning disable EF1002
             return await db.Database
-                .SqlQueryRaw<int>($"SELECT count(*)::int AS \"Value\" FROM {tableName} WHERE is_deleted = false")
+                .SqlQueryRaw<int>($"SELECT count(*)::int AS \"Value\" FROM {tableName} WHERE \"IsDeleted\" = false")
                 .FirstOrDefaultAsync(ct);
 #pragma warning restore EF1002
         }
