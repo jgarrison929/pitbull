@@ -225,7 +225,7 @@ export default function DemoSignupPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="h-10"
-                placeholder="At least 8 characters"
+                placeholder="Min 8 chars, uppercase + number"
               />
               {password && (
                 <div className="grid grid-cols-2 gap-1 text-xs">
@@ -292,7 +292,7 @@ export default function DemoSignupPage() {
               className="w-full h-11 bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm"
               loading={isLoading}
               loadingText="Creating account..."
-              disabled={!isPasswordValid}
+              disabled={!isPasswordValid || !firstName.trim() || !lastName.trim() || !email.trim()}
             >
               Start Demo
             </LoadingButton>

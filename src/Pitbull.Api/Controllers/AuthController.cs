@@ -581,6 +581,12 @@ public class AuthController(
             return this.BadRequestError("Email is required");
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
+        if (!request.Password.Any(char.IsUpper))
+            return this.BadRequestError("Password must contain at least one uppercase letter");
+        if (!request.Password.Any(char.IsLower))
+            return this.BadRequestError("Password must contain at least one lowercase letter");
+        if (!request.Password.Any(char.IsDigit))
+            return this.BadRequestError("Password must contain at least one number");
 
         // Map role to Identity role + title.
         // Demo users get appropriate roles (NOT Admin). The frontend handles
