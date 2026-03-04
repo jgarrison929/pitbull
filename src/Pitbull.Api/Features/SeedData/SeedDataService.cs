@@ -2259,9 +2259,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 OriginalValue = 2_100_000m,
                 CurrentValue = 2_245_000m, // After approved COs
                 BilledToDate = 420_000m,
-                PaidToDate = 378_000m,
+                PaidToDate = 420_000m, // Billings paid in full
                 RetainagePercent = 10m,
-                RetainageHeld = 42_000m,
+                RetainageHeld = 224_500m, // 10% of contract value, held from execution
                 ExecutionDate = now.AddMonths(-3),
                 StartDate = now.AddMonths(-2),
                 CompletionDate = now.AddMonths(5),
@@ -2328,9 +2328,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 OriginalValue = 1_850_000m,
                 CurrentValue = 1_920_000m,
                 BilledToDate = 370_000m,
-                PaidToDate = 333_000m,
+                PaidToDate = 370_000m, // Billings paid in full
                 RetainagePercent = 10m,
-                RetainageHeld = 37_000m,
+                RetainageHeld = 192_000m, // 10% of contract value, held from execution
                 ExecutionDate = now.AddMonths(-3),
                 StartDate = now.AddMonths(-2),
                 CompletionDate = now.AddMonths(6),
@@ -2373,9 +2373,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 OriginalValue = 1_200_000m,
                 CurrentValue = 1_200_000m,
                 BilledToDate = 180_000m,
-                PaidToDate = 162_000m,
+                PaidToDate = 180_000m, // Billings paid in full
                 RetainagePercent = 10m,
-                RetainageHeld = 18_000m,
+                RetainageHeld = 120_000m, // 10% of contract value, held from execution
                 ExecutionDate = now.AddMonths(-3),
                 StartDate = now.AddMonths(-1),
                 CompletionDate = now.AddMonths(7),
@@ -2427,9 +2427,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 OriginalValue = 1_800_000m,
                 CurrentValue = 1_925_000m,
                 BilledToDate = 960_000m,
-                PaidToDate = 864_000m,
+                PaidToDate = 960_000m, // Billings paid in full
                 RetainagePercent = 10m,
-                RetainageHeld = 96_000m,
+                RetainageHeld = 192_500m, // 10% of contract value, held from execution
                 ExecutionDate = now.AddMonths(-5),
                 StartDate = now.AddMonths(-4),
                 CompletionDate = now.AddMonths(2),
@@ -2472,9 +2472,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 OriginalValue = 3_500_000m,
                 CurrentValue = 3_650_000m,
                 BilledToDate = 2_920_000m,
-                PaidToDate = 2_628_000m,
+                PaidToDate = 2_920_000m, // Billings paid in full
                 RetainagePercent = 10m,
-                RetainageHeld = 292_000m,
+                RetainageHeld = 365_000m, // 10% of contract value, held from execution
                 ExecutionDate = now.AddMonths(-5),
                 StartDate = now.AddMonths(-5),
                 CompletionDate = now.AddMonths(3),
@@ -2517,9 +2517,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 OriginalValue = 4_200_000m,
                 CurrentValue = 4_200_000m,
                 BilledToDate = 4_200_000m,
-                PaidToDate = 3_780_000m,
+                PaidToDate = 4_200_000m, // Billings paid in full
                 RetainagePercent = 10m,
-                RetainageHeld = 420_000m,
+                RetainageHeld = 420_000m, // 10% of contract value, still held pending closeout
                 ExecutionDate = now.AddMonths(-4),
                 StartDate = now.AddMonths(-3),
                 CompletionDate = now.AddDays(-30),
@@ -2618,20 +2618,20 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 var completedWork = isLast ? billedRemaining : Math.Min(scheduledValue, billedRemaining);
                 billedRemaining -= completedWork;
 
-                var retainageAmount = completedWork * (sub.RetainagePercent / 100);
-                var netPayable = completedWork - retainageAmount;
-
-                var previouslyPaid = sub.PaidToDate - paidRemaining;
-                var currentPayment = isLast ? paidRemaining : Math.Min(netPayable, paidRemaining);
+                // Retention is held on contract value from execution, NOT deducted per billing
+                var retainageAmount = 0m; // No per-billing retainage deduction
+                var currentPayment = isLast ? paidRemaining : Math.Min(completedWork, paidRemaining);
                 paidRemaining -= currentPayment;
+
+                var previouslyPaid = sub.PaidToDate - paidRemaining - currentPayment;
 
                 var status = currentPayment > 0
                     ? PaymentApplicationStatus.Paid
                     : (isLast ? PaymentApplicationStatus.Approved : PaymentApplicationStatus.Paid);
 
                 var workCompletedToDate = sub.BilledToDate - billedRemaining;
-                var totalRetainage = workCompletedToDate * (sub.RetainagePercent / 100);
-                var totalEarnedLessRetainage = workCompletedToDate * (1 - sub.RetainagePercent / 100);
+                var totalRetainage = sub.RetainageHeld; // Fixed hold on contract value
+                var totalEarnedLessRetainage = workCompletedToDate; // Billings paid in full
 
                 payApps.Add(new PaymentApplication
                 {
@@ -3410,7 +3410,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             s.Status is SubcontractStatus.InProgress or SubcontractStatus.Complete or SubcontractStatus.ClosedOut))
         {
             var retPct = sub.RetainagePercent;
-            var retainedAmt = sub.BilledToDate * (retPct / 100m);
+            var retainedAmt = sub.CurrentValue * (retPct / 100m); // Retention on contract value, not billings
             var releasedAmt = sub.Status == SubcontractStatus.ClosedOut ? retainedAmt : 0m;
 
             var status = sub.Status == SubcontractStatus.ClosedOut
@@ -5445,8 +5445,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     : Math.Round(0.15m + (decimal)random.NextDouble() * 0.45m, 2);
                 var billed = Math.Round(baseValue * billedPct, 2);
                 var retPct = 10m;
-                var retHeld = Math.Round(billed * (retPct / 100m), 2);
-                var paid = Math.Round(billed - retHeld, 2);
+                var retHeld = isComplete ? 0m : Math.Round(baseValue * (retPct / 100m), 2); // Retention on contract value, released at closeout
+                var paid = billed; // Billings paid in full; retention is a separate hold
 
                 var prefix = project.Number.Split('-')[0]; // PWI, VHD, CVE
                 var sub = new Subcontract
@@ -5480,6 +5480,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 {
                     var coAmount = Math.Round(baseValue * 0.06m, 2);
                     sub.CurrentValue += coAmount;
+                    // Recalculate retention on updated contract value
+                    if (!isComplete)
+                        sub.RetainageHeld = Math.Round(sub.CurrentValue * (retPct / 100m), 2);
                     sub.ChangeOrders =
                     [
                         new ChangeOrder
