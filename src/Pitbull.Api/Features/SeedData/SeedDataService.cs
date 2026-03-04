@@ -3264,8 +3264,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     break;
                 }
 
-                var retOnWork = Math.Round(totalBilled * (retPct / 100m), 2);
-                var earnedLessRet = Math.Round(totalBilled - retOnWork, 2);
+                var retOnWork = Math.Round(contractSum * (retPct / 100m), 2); // Retention on contract value, not billings
+                var earnedLessRet = Math.Round(Math.Max(0, totalBilled - retOnWork), 2);
 
                 // Determine status — older ones are paid, recent ones are in various stages
                 BillingApplicationStatus status;
@@ -3290,9 +3290,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                         ? BillingApplicationStatus.SubmittedToOwner
                         : BillingApplicationStatus.PmReview;
 
-                var currentPaymentDue = Math.Round(progressThisPeriod * (1 - retPct / 100m), 2);
-                var previousCerts = Math.Round(Math.Max(0, earnedLessRet - currentPaymentDue), 2);
-                var balanceToFinish = Math.Round(contractSum - totalBilled + retOnWork, 2);
+                var currentPaymentDue = Math.Round(progressThisPeriod, 2); // Billings paid in full, retention is separate hold
+                var previousCerts = Math.Round(Math.Max(0, totalBilled - progressThisPeriod), 2);
+                var balanceToFinish = Math.Round(contractSum - totalBilled, 2);
 
                 apps.Add(new BillingApplication
                 {
@@ -5445,7 +5445,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     : Math.Round(0.15m + (decimal)random.NextDouble() * 0.45m, 2);
                 var billed = Math.Round(baseValue * billedPct, 2);
                 var retPct = 10m;
-                var retHeld = isComplete ? 0m : Math.Round(baseValue * (retPct / 100m), 2); // Retention on contract value, released at closeout
+                var retHeld = Math.Round(baseValue * (retPct / 100m), 2); // Retention on contract value, held until closeout
                 var paid = billed; // Billings paid in full; retention is a separate hold
 
                 var prefix = project.Number.Split('-')[0]; // PWI, VHD, CVE
