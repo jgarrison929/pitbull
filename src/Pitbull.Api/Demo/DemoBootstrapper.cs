@@ -110,6 +110,71 @@ public sealed class DemoBootstrapper(
 
         // Post-seed maintenance: keep time entry dates current so dashboard KPIs have data
         await RefreshTimeEntryDatesAsync(tenant.Id, cancellationToken);
+
+        // Fix retention model: retention is held on contract value from execution, not accumulated per billing.
+        // Billings are paid in full; retention is a separate hold released only at closeout.
+        await FixRetentionModelAsync(tenant.Id, cancellationToken);
+    }
+
+    /// <summary>
+    /// Corrects the retention model on all subcontracts:
+    /// - Active/InProgress/Complete: RetainageHeld = CurrentValue × RetainagePercent / 100
+    /// - ClosedOut: RetainageHeld = 0 (released)
+    /// - PaidToDate = BilledToDate (billings paid in full; retention is a separate hold)
+    /// Idempotent — runs every startup and only updates rows that need fixing.
+    /// </summary>
+    private async Task FixRetentionModelAsync(Guid tenantId, CancellationToken ct)
+    {
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, true)", ct);
+
+            // Fix active/in-progress/complete: retention = % of contract value, paid = billed
+            var fixedActive = await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE ""Subcontracts""
+                SET ""RetainageHeld"" = ROUND(""CurrentValue"" * ""RetainagePercent"" / 100, 2),
+                    ""PaidToDate"" = ""BilledToDate""
+                WHERE ""TenantId"" = {0}
+                  AND ""IsDeleted"" = false
+                  AND ""Status"" != 4
+                  AND (""RetainageHeld"" != ROUND(""CurrentValue"" * ""RetainagePercent"" / 100, 2)
+                       OR ""PaidToDate"" != ""BilledToDate"")",
+                [tenantId], ct);
+
+            // Fix closed-out: retention released, fully paid
+            var fixedClosed = await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE ""Subcontracts""
+                SET ""RetainageHeld"" = 0,
+                    ""PaidToDate"" = ""BilledToDate""
+                WHERE ""TenantId"" = {0}
+                  AND ""IsDeleted"" = false
+                  AND ""Status"" = 4
+                  AND (""RetainageHeld"" != 0 OR ""PaidToDate"" != ""BilledToDate"")",
+                [tenantId], ct);
+
+            // Also fix RetentionHold records to match
+            var fixedHolds = await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE ""RetentionHolds"" rh
+                SET ""RetainedAmount"" = ROUND(s.""CurrentValue"" * s.""RetainagePercent"" / 100, 2),
+                    ""ReleasedAmount"" = CASE WHEN s.""Status"" = 4
+                        THEN ROUND(s.""CurrentValue"" * s.""RetainagePercent"" / 100, 2)
+                        ELSE 0 END
+                FROM ""Subcontracts"" s
+                WHERE rh.""ContractId"" = s.""Id""
+                  AND s.""TenantId"" = {0}
+                  AND s.""IsDeleted"" = false",
+                [tenantId], ct);
+
+            await tx.CommitAsync(ct);
+
+            if (fixedActive + fixedClosed > 0)
+                logger.LogInformation(
+                    "Fixed retention model: {Active} active/complete + {Closed} closed-out subcontracts updated, {Holds} retention holds corrected",
+                    fixedActive, fixedClosed, fixedHolds);
+        });
     }
 
     /// <summary>
