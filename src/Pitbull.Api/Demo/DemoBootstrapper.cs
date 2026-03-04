@@ -133,36 +133,37 @@ public sealed class DemoBootstrapper(
                 $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, true)", ct);
 
             // Fix active/in-progress/complete: retention = % of contract value, paid = billed
+            // Table names are lowercase (EF ToTable), column names are PascalCase (EF default)
             var fixedActive = await db.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""Subcontracts""
+                UPDATE subcontracts
                 SET ""RetainageHeld"" = ROUND(""CurrentValue"" * ""RetainagePercent"" / 100, 2),
                     ""PaidToDate"" = ""BilledToDate""
                 WHERE ""TenantId"" = {0}
                   AND ""IsDeleted"" = false
-                  AND ""Status"" != 4
+                  AND ""Status"" != 'ClosedOut'
                   AND (""RetainageHeld"" != ROUND(""CurrentValue"" * ""RetainagePercent"" / 100, 2)
                        OR ""PaidToDate"" != ""BilledToDate"")",
                 [tenantId], ct);
 
             // Fix closed-out: retention released, fully paid
             var fixedClosed = await db.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""Subcontracts""
+                UPDATE subcontracts
                 SET ""RetainageHeld"" = 0,
                     ""PaidToDate"" = ""BilledToDate""
                 WHERE ""TenantId"" = {0}
                   AND ""IsDeleted"" = false
-                  AND ""Status"" = 4
+                  AND ""Status"" = 'ClosedOut'
                   AND (""RetainageHeld"" != 0 OR ""PaidToDate"" != ""BilledToDate"")",
                 [tenantId], ct);
 
             // Also fix RetentionHold records to match
             var fixedHolds = await db.Database.ExecuteSqlRawAsync(@"
-                UPDATE ""RetentionHolds"" rh
+                UPDATE retention_holds rh
                 SET ""RetainedAmount"" = ROUND(s.""CurrentValue"" * s.""RetainagePercent"" / 100, 2),
-                    ""ReleasedAmount"" = CASE WHEN s.""Status"" = 4
+                    ""ReleasedAmount"" = CASE WHEN s.""Status"" = 'ClosedOut'
                         THEN ROUND(s.""CurrentValue"" * s.""RetainagePercent"" / 100, 2)
                         ELSE 0 END
-                FROM ""Subcontracts"" s
+                FROM subcontracts s
                 WHERE rh.""ContractId"" = s.""Id""
                   AND s.""TenantId"" = {0}
                   AND s.""IsDeleted"" = false",
