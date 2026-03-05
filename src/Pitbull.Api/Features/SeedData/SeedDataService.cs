@@ -272,6 +272,19 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<PmScheduleDependency>().AddRange(scheduleDeps);
         await db.SaveChangesAsync(ct);
 
+        // Progress → Schedule → Cost seed data (Phase 1 Foundation)
+        var (mappings, progressEntries, evSnapshots) = CreateProgressScheduleCostSeedData(
+            activeProjects, costCodes, scheduleActivities, companyId);
+        StampCompanyId(mappings, companyId);
+        StampCompanyId(progressEntries, companyId);
+        StampCompanyId(evSnapshots, companyId);
+        db.Set<PmCostCodeActivityMapping>().AddRange(mappings);
+        await db.SaveChangesAsync(ct);
+        db.Set<PmFieldProgressEntry>().AddRange(progressEntries);
+        await db.SaveChangesAsync(ct);
+        db.Set<PmCostCodeEarnedValueSnapshot>().AddRange(evSnapshots);
+        await db.SaveChangesAsync(ct);
+
         // RFIs across active projects
         var rfis = CreateRfis(activeProjects, seedUserId);
         StampCompanyId(rfis, companyId);
@@ -498,6 +511,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             TaxJurisdictionsCreated: taxJurisdictions.Count,
             MeetingsCreated: meetings.Count,
             TasksCreated: tasks.Count,
+            CostCodeActivityMappingsCreated: mappings.Count,
+            FieldProgressEntriesCreated: progressEntries.Count,
+            EarnedValueSnapshotsCreated: evSnapshots.Count,
             Summary: $"Created {projects.Count} projects, {bids.Count} bids, " +
                      $"{totalBidItems} bid items, {totalPhases} phases, {costCodes.Count} cost codes, " +
                      $"{employees.Count} employees, {customers.Count} customers, {vendors.Count} vendors, " +
@@ -547,6 +563,11 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         await BulkDeleteAsync<BankReconciliation>(tenantId, ct);
         await BulkDeleteAsync<BankAccount>(tenantId, ct);
         await BulkDeleteAsync<Equipment>(tenantId, ct);
+
+        // Phase 1: Progress → Schedule → Cost (leaf → parent order)
+        await BulkDeleteAsync<PmCostCodeEarnedValueSnapshot>(tenantId, ct);
+        await BulkDeleteAsync<PmFieldProgressEntry>(tenantId, ct);
+        await BulkDeleteAsync<PmCostCodeActivityMapping>(tenantId, ct);
 
         // Leaf entities (no children reference them)
         await BulkDeleteAsync<Notification>(tenantId, ct);
@@ -5989,6 +6010,209 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         new("CVE-007", "Kevin", "Yamamoto", "ksoto2@demo.example", "(916) 555-8007", "Low-Voltage Technician", EmployeeClassification.Hourly, 40.00m),
         new("CVE-001", "Demo", "Employee116", "demo.employee.117@demo.example", "(555) 000-8001", "Project Manager", EmployeeClassification.Salaried, 80.00m),
     ];
+
+    // ── Phase 1: Progress → Schedule → Cost Foundation Seed Data ─────────────
+
+    /// <summary>
+    /// Creates the Progress → Schedule → Cost seed data narrative for the demo.
+    ///
+    /// Story: Riverside Medical Office Building (DEMO-PRJ-2026-001) is ~45% complete.
+    /// - Slightly behind schedule (SPI ~0.93) — weather delays in foundations
+    /// - Under budget (CPI ~1.06) — concrete crews working efficiently
+    /// - 28 progress entries over 3 months tell the story a PM would recognize
+    /// </summary>
+    private static (
+        List<PmCostCodeActivityMapping>,
+        List<PmFieldProgressEntry>,
+        List<PmCostCodeEarnedValueSnapshot>
+    ) CreateProgressScheduleCostSeedData(
+        List<Project> activeProjects,
+        List<CostCode> allCostCodes,
+        List<PmScheduleActivity> allActivities,
+        Guid companyId)
+    {
+        var mappings = new List<PmCostCodeActivityMapping>();
+        var entries = new List<PmFieldProgressEntry>();
+        var snapshots = new List<PmCostCodeEarnedValueSnapshot>();
+
+        // Work with the first active project (Riverside Medical Office Building)
+        var project = activeProjects.FirstOrDefault(p => p.Number == "DEMO-PRJ-2026-001");
+        if (project is null)
+            return (mappings, entries, snapshots);
+
+        // Helper: find cost code by code
+        CostCode? CC(string code) => allCostCodes.FirstOrDefault(c => c.Code == code);
+        // Helper: find schedule activity by activity code for this project
+        PmScheduleActivity? Act(string actCode) => allActivities.FirstOrDefault(a => a.ActivityCode == actCode && a.ProjectId == project.Id);
+
+        // ── CostCode ↔ ScheduleActivity Mappings ────────────────────────────
+        // Map key cost codes to their primary schedule activities
+        var mappingDefs = new[]
+        {
+            ("02-100", "A1030"),  // Excavation → Erosion Control & Grading
+            ("02-200", "A1030"),  // Trenching → same activity, weight 0.4
+            ("03-100", "A2010"),  // Concrete Formwork → Excavation & Footings
+            ("03-200", "A2010"),  // Rebar → Excavation & Footings (weight 0.4)
+            ("03-300", "A2020"),  // Concrete Placement → Foundation Walls & Slab
+            ("03-400", "A2020"),  // Concrete Finishing → Foundation Walls & Slab
+            ("07-100", "A2030"),  // Waterproofing → Foundation Waterproofing
+            ("05-100", "A3010"),  // Structural Steel → Steel Erection
+            ("05-300", "A3020"),  // Metal Deck → Metal Deck & Concrete Pours
+        };
+
+        foreach (var (ccCode, actCode) in mappingDefs)
+        {
+            var cc = CC(ccCode);
+            var act = Act(actCode);
+            if (cc is null || act is null) continue;
+
+            // Adjust weight for shared activities
+            var weight = ccCode is "02-200" or "03-200" or "03-400" ? 0.35m : 0.65m;
+            if (ccCode is "02-100" or "03-100" or "03-300" or "07-100" or "05-100" or "05-300")
+                weight = 1.0m;
+
+            mappings.Add(new PmCostCodeActivityMapping
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                CompanyId = companyId,
+                CostCodeId = cc.Id,
+                ScheduleActivityId = act.Id,
+                WeightFactor = weight,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        // ── Progress Entries ─────────────────────────────────────────────────
+        // ~28 entries over Dec 2025 – Feb 2026, telling the narrative:
+        // Phase 1 (mobilization) done on time
+        // Phase 2 (foundations) slightly behind (weather)
+        // Phase 3 (structure) starting, slightly behind schedule
+
+        var now = DateTime.UtcNow.Date;
+        var projectStart = project.StartDate ?? now.AddMonths(-3);
+
+        var entryDefs = new[]
+        {
+            // ── MOBILIZATION (Dec 2025) — on time, erosion control & grading ──
+            ("02-100", DateOnly.FromDateTime(projectStart.AddDays(6)),  450m,  2000m, "CY", 6, 48m,  WeatherCondition.Clear, "Grading north site boundary per civil drawings"),
+            ("02-100", DateOnly.FromDateTime(projectStart.AddDays(10)), 380m,  2000m, "CY", 5, 40m,  WeatherCondition.Cloudy, "West boundary grading complete"),
+            ("02-100", DateOnly.FromDateTime(projectStart.AddDays(14)), 520m,  2000m, "CY", 6, 48m,  WeatherCondition.Clear, "South section, on schedule with erosion matting"),
+            ("02-100", DateOnly.FromDateTime(projectStart.AddDays(18)), 430m,  2000m, "CY", 5, 40m,  WeatherCondition.Clear, "Final grading pass, site ready for foundations"),
+            ("02-200", DateOnly.FromDateTime(projectStart.AddDays(12)), 180m,   600m, "LF", 4, 32m,  WeatherCondition.Clear, "Storm drain rough grading"),
+            ("02-200", DateOnly.FromDateTime(projectStart.AddDays(16)), 220m,   600m, "LF", 4, 32m,  WeatherCondition.Clear, "Utility stub-outs installed"),
+
+            // ── FOUNDATIONS (Jan 2026) — slightly behind, 2-day rain delay ──
+            ("03-100", DateOnly.FromDateTime(projectStart.AddDays(22)), 1200m, 8000m, "SF", 8, 64m,  WeatherCondition.Clear, "Footing formwork, grid lines A through C"),
+            ("03-200", DateOnly.FromDateTime(projectStart.AddDays(23)), 28m,    180m, "TN", 5, 40m,  WeatherCondition.Clear, "Mat rebar installation grids A-C"),
+            ("03-300", DateOnly.FromDateTime(projectStart.AddDays(25)), 320m,  2400m, "CY", 7, 56m,  WeatherCondition.Clear, "First footing pour — 12 CY/hr pump rate"),
+            ("03-400", DateOnly.FromDateTime(projectStart.AddDays(26)), 320m,  2400m, "CY", 4, 32m,  WeatherCondition.Clear, "Broom finish, curing compound applied"),
+            ("03-100", DateOnly.FromDateTime(projectStart.AddDays(30)), 1400m, 8000m, "SF", 8, 64m,  WeatherCondition.Cloudy, "Wall forms grids D-F — rain delayed 2 days"),
+            ("03-200", DateOnly.FromDateTime(projectStart.AddDays(31)), 32m,    180m, "TN", 5, 40m,  WeatherCondition.Rain, "Partial rebar — rain stopped work at noon"),
+            ("03-200", DateOnly.FromDateTime(projectStart.AddDays(34)), 38m,    180m, "TN", 6, 48m,  WeatherCondition.Clear, "Catch-up day — made up rebar behind"),
+            ("03-300", DateOnly.FromDateTime(projectStart.AddDays(36)), 280m,  2400m, "CY", 7, 56m,  WeatherCondition.Clear, "Foundation wall pour, grid D-F, good consistency"),
+            ("03-400", DateOnly.FromDateTime(projectStart.AddDays(37)), 280m,  2400m, "CY", 3, 24m,  WeatherCondition.Clear, "Wall finish, patching form tie holes"),
+            ("07-100", DateOnly.FromDateTime(projectStart.AddDays(43)), 2200m, 7500m, "SF", 5, 40m,  WeatherCondition.Clear, "Waterproof membrane, below-grade walls"),
+            ("07-100", DateOnly.FromDateTime(projectStart.AddDays(47)), 2600m, 7500m, "SF", 5, 40m,  WeatherCondition.Cloudy, "East wing membrane, drainage mat installed"),
+            ("03-100", DateOnly.FromDateTime(projectStart.AddDays(42)), 1600m, 8000m, "SF", 8, 64m,  WeatherCondition.Clear, "SOG prep, vapor barrier"),
+            ("03-300", DateOnly.FromDateTime(projectStart.AddDays(46)), 480m,  2400m, "CY", 8, 64m,  WeatherCondition.Clear, "SOG pour — building footprint complete"),
+            ("03-400", DateOnly.FromDateTime(projectStart.AddDays(47)), 480m,  2400m, "CY", 5, 40m,  WeatherCondition.Clear, "Power trowel finish, excellent flatness F(F)/F(L)"),
+
+            // ── STRUCTURE (Feb 2026) — starting, tight but manageable ──
+            ("05-100", DateOnly.FromDateTime(projectStart.AddDays(58)), 48m,    320m, "TN", 6, 48m,  WeatherCondition.Clear, "Column anchor bolts set, steel delivery confirmed"),
+            ("05-100", DateOnly.FromDateTime(projectStart.AddDays(62)), 62m,    320m, "TN", 8, 64m,  WeatherCondition.Clear, "Level 1 columns and beams, grid A-C"),
+            ("05-100", DateOnly.FromDateTime(projectStart.AddDays(66)), 58m,    320m, "TN", 8, 64m,  WeatherCondition.Wind, "Level 1 remaining bays — wind stopped crane work 1hr"),
+            ("05-100", DateOnly.FromDateTime(projectStart.AddDays(70)), 65m,    320m, "TN", 8, 64m,  WeatherCondition.Clear, "Level 2 columns, all plumb and aligned"),
+            ("05-300", DateOnly.FromDateTime(projectStart.AddDays(65)), 3200m, 22000m, "SF", 6, 48m, WeatherCondition.Clear, "1.5\" metal deck, Level 1 bays 1-4"),
+            ("05-300", DateOnly.FromDateTime(projectStart.AddDays(69)), 4100m, 22000m, "SF", 6, 48m, WeatherCondition.Clear, "Metal deck, Level 1 bays 5-9, weld pattern per shop dwg"),
+            ("05-300", DateOnly.FromDateTime(projectStart.AddDays(73)), 3800m, 22000m, "SF", 6, 48m, WeatherCondition.Cloudy, "Level 2 deck started — ahead on this activity"),
+        };
+
+        foreach (var (ccCode, date, qty, budgeted, uom, crewSize, hrs, weather, notes) in entryDefs)
+        {
+            var cc = CC(ccCode);
+            if (cc is null) continue;
+
+            // Find the mapped schedule activity
+            var mapping = mappings.FirstOrDefault(m => m.CostCodeId == cc.Id);
+            Guid? actId = mapping?.ScheduleActivityId;
+
+            // Find cumulative quantity so far for this cost code
+            var priorEntries = entries.Where(e => e.CostCodeId == cc.Id && e.Date <= date).ToList();
+            var cumQty = priorEntries.Sum(e => e.QuantityInstalled) + qty;
+            var pctComplete = budgeted > 0 ? Math.Min(cumQty / budgeted, 1.0m) : 0m;
+
+            entries.Add(new PmFieldProgressEntry
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                CompanyId = companyId,
+                CostCodeId = cc.Id,
+                ScheduleActivityId = actId,
+                Date = date,
+                QuantityInstalled = qty,
+                TotalBudgetedQuantity = budgeted,
+                CumulativeQuantity = cumQty,
+                PercentComplete = pctComplete,
+                UnitOfMeasure = uom,
+                CrewSize = crewSize,
+                HoursWorked = hrs,
+                Notes = notes,
+                WeatherCondition = weather,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        // ── Earned Value Snapshots ───────────────────────────────────────────
+        // Snapshot as of today telling the narrative:
+        // Concrete (03-300): 66% complete, BCWP slightly below BCWS → SPI 0.93
+        // Steel (05-100): 72% complete, under budget → CPI 1.08
+
+        var snapshotDate = DateOnly.FromDateTime(now);
+        var evDefs = new[]
+        {
+            // (costCodeCode, BAC, BCWS, BCWP, ACWP) — tells the story
+            ("02-100", 285_000m,  285_000m, 285_000m, 268_000m),  // Grading: done, under budget
+            ("02-200",  62_000m,   62_000m,  62_000m,  58_500m),  // Trenching: done, clean
+            ("03-100", 440_000m,  380_000m, 358_000m, 342_000m),  // Formwork: slightly behind
+            ("03-200", 210_000m,  185_000m, 172_000m, 163_000m),  // Rebar: slightly behind
+            ("03-300", 520_000m,  445_000m, 422_000m, 398_000m),  // Concrete: behind, under $
+            ("03-400", 145_000m,  128_000m, 122_000m, 114_000m),  // Finishing: behind, under $
+            ("07-100", 198_000m,  162_000m, 158_000m, 149_000m),  // Waterproofing: on track
+            ("05-100", 885_000m,  312_000m, 324_000m, 300_000m),  // Steel: ahead, under budget ✅
+            ("05-300", 340_000m,  118_000m, 126_000m, 116_000m),  // Metal deck: ahead ✅
+        };
+
+        foreach (var (ccCode, bac, bcws, bcwp, acwp) in evDefs)
+        {
+            var cc = CC(ccCode);
+            if (cc is null) continue;
+
+            var sv = bcwp - bcws;
+            var cv = bcwp - acwp;
+            var spi = bcws > 0 ? Math.Round(bcwp / bcws, 4) : 1m;
+            var cpi = acwp > 0 ? Math.Round(bcwp / acwp, 4) : 1m;
+            var eac = cpi > 0 ? Math.Round(bac / cpi, 2) : bac;
+            var etc = eac - acwp;
+            var tcpi = (bac - acwp) > 0 ? Math.Round((bac - bcwp) / (bac - acwp), 4) : 1m;
+
+            snapshots.Add(new PmCostCodeEarnedValueSnapshot
+            {
+                Id = Guid.NewGuid(),
+                ProjectId = project.Id,
+                CompanyId = companyId,
+                CostCodeId = cc.Id,
+                SnapshotDate = snapshotDate,
+                BCWS = bcws, BCWP = bcwp, ACWP = acwp,
+                BAC = bac, SV = sv, CV = cv,
+                SPI = spi, CPI = cpi, EAC = eac,
+                ETC = etc, TCPI = tcpi,
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        return (mappings, entries, snapshots);
+    }
 
     // ── Definition record types ─────────────────────────────────────
 

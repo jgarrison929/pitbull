@@ -1365,3 +1365,91 @@ public class PmPunchListPhotoConfiguration : IEntityTypeConfiguration<PmPunchLis
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+// ─── Phase 1: Progress → Schedule → Cost Foundation ───────────────────────
+
+public class PmCostCodeActivityMappingConfiguration : IEntityTypeConfiguration<PmCostCodeActivityMapping>
+{
+    public void Configure(EntityTypeBuilder<PmCostCodeActivityMapping> builder)
+    {
+        builder.ConfigureBase("pm_cost_code_activity_mappings");
+        builder.Property(x => x.WeightFactor).HasPrecision(5, 4);
+        builder.HasIndex(x => new { x.TenantId, x.ProjectId, x.CostCodeId, x.ScheduleActivityId }).IsUnique();
+        builder.HasIndex(x => new { x.ProjectId, x.CostCodeId });
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<CostCode>()
+            .WithMany()
+            .HasForeignKey(x => x.CostCodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<PmScheduleActivity>()
+            .WithMany()
+            .HasForeignKey(x => x.ScheduleActivityId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class PmFieldProgressEntryConfiguration : IEntityTypeConfiguration<PmFieldProgressEntry>
+{
+    public void Configure(EntityTypeBuilder<PmFieldProgressEntry> builder)
+    {
+        builder.ConfigureBase("pm_field_progress_entries");
+        builder.Property(x => x.UnitOfMeasure).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Notes).HasMaxLength(4000);
+        builder.Property(x => x.QuantityInstalled).HasPrecision(18, 4);
+        builder.Property(x => x.CumulativeQuantity).HasPrecision(18, 4);
+        builder.Property(x => x.TotalBudgetedQuantity).HasPrecision(18, 4);
+        builder.Property(x => x.PercentComplete).HasPrecision(7, 4);
+        builder.Property(x => x.HoursWorked).HasPrecision(10, 2);
+        builder.Property(x => x.WeatherCondition).HasConversion<string>().HasMaxLength(50);
+        builder.HasIndex(x => new { x.ProjectId, x.CostCodeId, x.Date });
+        builder.HasIndex(x => new { x.ProjectId, x.Date });
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<CostCode>()
+            .WithMany()
+            .HasForeignKey(x => x.CostCodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<PmScheduleActivity>()
+            .WithMany()
+            .HasForeignKey(x => x.ScheduleActivityId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Employee>()
+            .WithMany()
+            .HasForeignKey(x => x.ReportedById)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class PmCostCodeEarnedValueSnapshotConfiguration : IEntityTypeConfiguration<PmCostCodeEarnedValueSnapshot>
+{
+    public void Configure(EntityTypeBuilder<PmCostCodeEarnedValueSnapshot> builder)
+    {
+        builder.ConfigureBase("pm_cost_code_ev_snapshots");
+        builder.Property(x => x.BCWS).HasPrecision(18, 2);
+        builder.Property(x => x.BCWP).HasPrecision(18, 2);
+        builder.Property(x => x.ACWP).HasPrecision(18, 2);
+        builder.Property(x => x.BAC).HasPrecision(18, 2);
+        builder.Property(x => x.SV).HasPrecision(18, 2);
+        builder.Property(x => x.CV).HasPrecision(18, 2);
+        builder.Property(x => x.SPI).HasPrecision(12, 4);
+        builder.Property(x => x.CPI).HasPrecision(12, 4);
+        builder.Property(x => x.EAC).HasPrecision(18, 2);
+        builder.Property(x => x.ETC).HasPrecision(18, 2);
+        builder.Property(x => x.TCPI).HasPrecision(12, 4);
+        builder.HasIndex(x => new { x.TenantId, x.ProjectId, x.CostCodeId, x.SnapshotDate }).IsUnique();
+        builder.HasIndex(x => new { x.ProjectId, x.SnapshotDate });
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<CostCode>()
+            .WithMany()
+            .HasForeignKey(x => x.CostCodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

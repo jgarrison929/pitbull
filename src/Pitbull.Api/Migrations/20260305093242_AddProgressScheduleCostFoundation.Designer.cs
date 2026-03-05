@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305093242_AddProgressScheduleCostFoundation")]
+    partial class AddProgressScheduleCostFoundation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -10788,9 +10791,6 @@ namespace Pitbull.Api.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
-                    b.Property<bool>("PhotoRequired")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -10817,11 +10817,6 @@ namespace Pitbull.Api.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");

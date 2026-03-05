@@ -46,5 +46,8 @@ public record SeedDataResult(
     int TaxJurisdictionsCreated = 0,
     int MeetingsCreated = 0,
     int TasksCreated = 0,
+    int CostCodeActivityMappingsCreated = 0,
+    int FieldProgressEntriesCreated = 0,
+    int EarnedValueSnapshotsCreated = 0,
     string Summary = ""
 );

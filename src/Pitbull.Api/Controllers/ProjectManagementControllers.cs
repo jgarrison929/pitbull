@@ -2527,3 +2527,153 @@ public class PunchListController(
         return File(bytes, "application/pdf", $"punch-list-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
     }
 }
+
+// ─── Phase 1: Progress → Schedule → Cost Foundation ─────────────────────────
+
+/// <summary>
+/// Manages CostCode ↔ ScheduleActivity mappings — the critical link that enables
+/// a single field progress entry to automatically update schedule completion and
+/// drive earned value calculations.
+/// </summary>
+[ApiController]
+[Authorize]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Route("api/projects/{projectId:guid}/cost-code-activity-mappings")]
+[Tags("Progress → Schedule → Cost")]
+public class CostCodeActivityMappingsController(ICostCodeActivityMappingService mappingService) : ProjectManagementControllerBase
+{
+    /// <summary>Creates a CostCode ↔ ScheduleActivity mapping for a project.</summary>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await mappingService.CreateMappingAsync(projectId, request));
+
+    /// <summary>Updates the weight factor on a mapping.</summary>
+    [HttpPut("{mappingId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid mappingId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await mappingService.UpdateMappingAsync(projectId, mappingId, request));
+
+    /// <summary>Deletes a CostCode ↔ ScheduleActivity mapping.</summary>
+    [HttpDelete("{mappingId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid mappingId)
+        => HandleAction(await mappingService.DeleteMappingAsync(projectId, mappingId));
+
+    /// <summary>Lists all CostCode ↔ ScheduleActivity mappings for a project.</summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await mappingService.ListMappingsAsync(projectId, query));
+}
+
+/// <summary>
+/// Field progress entries — the single input that cascades across schedule and cost.
+/// POST creates an entry, auto-resolves the schedule activity from the cost code mapping,
+/// recalculates cumulative quantities, and updates ScheduleActivity.PercentComplete.
+/// </summary>
+[ApiController]
+[Authorize]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Route("api/projects/{projectId:guid}/field-progress")]
+[Tags("Progress → Schedule → Cost")]
+public class FieldProgressController(IFieldProgressService fieldProgressService) : ProjectManagementControllerBase
+{
+    /// <summary>
+    /// Creates a field progress entry. This is THE core action:
+    /// one POST updates schedule percent complete and drives earned value recalculation.
+    /// Required fields in Data: CostCodeId, QuantityInstalled, TotalBudgetedQuantity.
+    /// Optional: ScheduleActivityId (auto-resolved if omitted), Date, UnitOfMeasure,
+    /// CrewSize, HoursWorked, Notes, WeatherCondition, ReportedById.
+    /// </summary>
+    [HttpPost]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Create(Guid projectId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await fieldProgressService.CreateFieldProgressEntryAsync(projectId, request));
+
+    /// <summary>Gets a specific field progress entry.</summary>
+    [HttpGet("{entryId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Get(Guid projectId, Guid entryId)
+        => HandleResult(await fieldProgressService.GetFieldProgressEntryAsync(projectId, entryId));
+
+    /// <summary>Lists field progress entries for a project with optional date range filtering.</summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await fieldProgressService.ListFieldProgressEntriesAsync(projectId, query));
+
+    /// <summary>Updates a field progress entry and recalculates derived fields.</summary>
+    [HttpPut("{entryId:guid}")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Update(Guid projectId, Guid entryId, [FromBody] PmUpsertRequest request)
+        => HandleResult(await fieldProgressService.UpdateFieldProgressEntryAsync(projectId, entryId, request));
+
+    /// <summary>Soft-deletes a field progress entry and recalculates activity percent complete.</summary>
+    [HttpDelete("{entryId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid entryId)
+        => HandleAction(await fieldProgressService.DeleteFieldProgressEntryAsync(projectId, entryId));
+}
+
+/// <summary>
+/// Earned value analysis — BCWS, BCWP, ACWP, SPI, CPI, EAC, ETC, TCPI.
+/// All metrics are per cost code, stored as snapshots for performance.
+/// Recalculate after posting progress entries for real-time dashboard data.
+/// </summary>
+[ApiController]
+[Authorize]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Route("api/projects/{projectId:guid}/earned-value")]
+[Tags("Progress → Schedule → Cost")]
+public class EarnedValueController(IEarnedValueService earnedValueService) : ProjectManagementControllerBase
+{
+    /// <summary>
+    /// Calculates and stores the earned value snapshot for a specific cost code on a given date.
+    /// Computes BCWS (from schedule), BCWP (from progress entries), ACWP (from job cost actuals),
+    /// and all derived indices (SPI, CPI, EAC, ETC, TCPI).
+    /// </summary>
+    [HttpPost("calculate")]
+    [ProducesResponseType(typeof(PmEntityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Calculate(Guid projectId, [FromQuery] Guid costCodeId, [FromQuery] DateOnly date)
+        => HandleResult(await earnedValueService.CalculateEarnedValueAsync(projectId, costCodeId, date));
+
+    /// <summary>
+    /// Recalculates earned value snapshots for ALL cost codes on the project for a given date.
+    /// Run this after bulk progress entry imports for a consistent state.
+    /// </summary>
+    [HttpPost("recalculate")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Recalculate(Guid projectId, [FromQuery] DateOnly date)
+        => HandleResult(await earnedValueService.RecalculateProjectEarnedValueAsync(projectId, date));
+
+    /// <summary>
+    /// Returns the project-level earned value summary aggregated across all cost codes.
+    /// Includes overall SPI, CPI, EAC, VAC, and percent complete as of the specified date.
+    /// </summary>
+    [HttpGet("summary")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Summary(Guid projectId, [FromQuery] DateOnly asOfDate)
+        => HandleResult(await earnedValueService.GetProjectEarnedValueSummaryAsync(projectId, asOfDate));
+
+    /// <summary>Lists stored per-cost-code earned value snapshots for a project.</summary>
+    [HttpGet("snapshots")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Snapshots(Guid projectId, [FromQuery] PmListQuery query)
+        => HandleResult(await earnedValueService.GetCostCodeSnapshotsAsync(projectId, query));
+}

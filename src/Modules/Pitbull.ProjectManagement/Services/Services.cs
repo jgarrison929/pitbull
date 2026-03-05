@@ -1774,3 +1774,459 @@ public class PunchListService : PmServiceBase, IPunchListService
         return Action("Punch list summary", projectId, summary);
     }
 }
+
+// ─── Phase 1: Progress → Schedule → Cost Foundation ─────────────────────────
+
+public class CostCodeActivityMappingService : PmServiceBase, ICostCodeActivityMappingService
+{
+    public CostCodeActivityMappingService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null)
+        : base(db, companyContext, httpContextAccessor) { }
+
+    public Task<Result<PmEntityDto>> CreateMappingAsync(Guid projectId, PmUpsertRequest request, CancellationToken ct = default)
+        => CreateAsync<PmCostCodeActivityMapping>(projectId, request, ct);
+
+    public Task<Result<PmEntityDto>> UpdateMappingAsync(Guid projectId, Guid mappingId, PmUpsertRequest request, CancellationToken ct = default)
+        => UpdateAsync<PmCostCodeActivityMapping>(projectId, mappingId, request, ct);
+
+    public Task<Result> DeleteMappingAsync(Guid projectId, Guid mappingId, CancellationToken ct = default)
+        => DeleteAsync<PmCostCodeActivityMapping>(projectId, mappingId, ct);
+
+    public Task<Result<PagedResult<PmEntityDto>>> ListMappingsAsync(Guid projectId, PmListQuery query, CancellationToken ct = default)
+        => ListAsync(ProjectScoped<PmCostCodeActivityMapping>(projectId), query, ct);
+}
+
+public class FieldProgressService : PmServiceBase, IFieldProgressService
+{
+    public FieldProgressService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null)
+        : base(db, companyContext, httpContextAccessor) { }
+
+    /// <summary>
+    /// Creates a field progress entry and executes the core integration:
+    /// 1. Resolves ScheduleActivityId from CostCodeActivityMapping if not provided
+    /// 2. Calculates CumulativeQuantity across all prior entries for same project+cost code
+    /// 3. Calculates PercentComplete = CumulativeQuantity / TotalBudgetedQuantity
+    /// 4. Updates ScheduleActivity.PercentComplete — THE critical cascade behavior
+    /// </summary>
+    public async Task<Result<PmEntityDto>> CreateFieldProgressEntryAsync(Guid projectId, PmUpsertRequest request, CancellationToken ct = default)
+    {
+        var projectExists = await Db.Set<Pitbull.Projects.Domain.Project>()
+            .AnyAsync(p => p.Id == projectId, ct);
+        if (!projectExists)
+            return Result.Failure<PmEntityDto>("Project not found", "NOT_FOUND");
+
+        if (request.Data is null)
+            return Result.Failure<PmEntityDto>("Request data is required", "VALIDATION");
+
+        // Extract required fields from Data dictionary
+        if (!request.Data.TryGetValue("CostCodeId", out var costCodeIdRaw) || costCodeIdRaw is null)
+            return Result.Failure<PmEntityDto>("CostCodeId is required", "VALIDATION");
+        if (!request.Data.TryGetValue("QuantityInstalled", out var qtyRaw) || qtyRaw is null)
+            return Result.Failure<PmEntityDto>("QuantityInstalled is required", "VALIDATION");
+        if (!request.Data.TryGetValue("TotalBudgetedQuantity", out var budgetedRaw) || budgetedRaw is null)
+            return Result.Failure<PmEntityDto>("TotalBudgetedQuantity is required", "VALIDATION");
+
+        var costCodeId = ParseGuid(costCodeIdRaw);
+        if (costCodeId == Guid.Empty)
+            return Result.Failure<PmEntityDto>("Invalid CostCodeId", "VALIDATION");
+
+        var quantityInstalled = ParseDecimal(qtyRaw);
+        var totalBudgeted = ParseDecimal(budgetedRaw);
+
+        // Parse date; default to today
+        DateOnly entryDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (request.Data.TryGetValue("Date", out var dateRaw) && dateRaw is not null)
+        {
+            if (dateRaw is System.Text.Json.JsonElement je && je.ValueKind == System.Text.Json.JsonValueKind.String)
+                DateOnly.TryParse(je.GetString(), out entryDate);
+            else if (dateRaw is string dateStr)
+                DateOnly.TryParse(dateStr, out entryDate);
+        }
+
+        // Resolve ScheduleActivityId from mapping if not explicitly provided
+        Guid? scheduleActivityId = null;
+        if (request.Data.TryGetValue("ScheduleActivityId", out var actRaw) && actRaw is not null)
+            scheduleActivityId = ParseGuidNullable(actRaw);
+
+        if (!scheduleActivityId.HasValue)
+        {
+            var mapping = await Db.Set<PmCostCodeActivityMapping>()
+                .Where(m => !m.IsDeleted && m.ProjectId == projectId && m.CostCodeId == costCodeId)
+                .OrderByDescending(m => m.WeightFactor)
+                .FirstOrDefaultAsync(ct);
+            scheduleActivityId = mapping?.ScheduleActivityId;
+        }
+
+        // Calculate cumulative quantity for this project + cost code
+        var previousCumulative = await Db.Set<PmFieldProgressEntry>()
+            .Where(e => !e.IsDeleted && e.ProjectId == projectId && e.CostCodeId == costCodeId && e.Date <= entryDate)
+            .SumAsync(e => e.QuantityInstalled, ct);
+        var cumulativeQuantity = previousCumulative + quantityInstalled;
+
+        var percentComplete = totalBudgeted > 0
+            ? Math.Min(cumulativeQuantity / totalBudgeted, 1.0m)
+            : 0m;
+
+        var entry = new PmFieldProgressEntry
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = CurrentCompanyId,
+            ProjectId = projectId,
+            CostCodeId = costCodeId,
+            ScheduleActivityId = scheduleActivityId,
+            Date = entryDate,
+            QuantityInstalled = quantityInstalled,
+            TotalBudgetedQuantity = totalBudgeted,
+            CumulativeQuantity = cumulativeQuantity,
+            PercentComplete = percentComplete,
+            CreatedAt = DateTime.UtcNow,
+        };
+        SetIfExists(entry, "CrewSize", request.Data.TryGetValue("CrewSize", out var cs) && cs is not null ? ParseInt(cs) : 0);
+        SetIfExists(entry, "HoursWorked", request.Data.TryGetValue("HoursWorked", out var hw) && hw is not null ? ParseDecimal(hw) : 0m);
+        if (request.Data.TryGetValue("Notes", out var notes) && notes is not null)
+            entry.Notes = notes.ToString();
+        if (request.Data.TryGetValue("WeatherCondition", out var wc) && wc is not null)
+        {
+            if (Enum.TryParse<WeatherCondition>(wc.ToString(), true, out var weather))
+                entry.WeatherCondition = weather;
+        }
+        if (request.Data.TryGetValue("ReportedById", out var repRaw) && repRaw is not null)
+        {
+            var repId = ParseGuidNullable(repRaw);
+            if (repId.HasValue) entry.ReportedById = repId;
+        }
+        SetIfExists(entry, "UnitOfMeasure", request.Data.TryGetValue("UnitOfMeasure", out var uom) && uom is not null ? uom.ToString()! : "EA");
+
+        Db.Set<PmFieldProgressEntry>().Add(entry);
+
+        // THE CRITICAL CASCADE: update ScheduleActivity.PercentComplete
+        if (scheduleActivityId.HasValue)
+        {
+            var activity = await Db.Set<PmScheduleActivity>()
+                .FirstOrDefaultAsync(a => !a.IsDeleted && a.Id == scheduleActivityId.Value, ct);
+            if (activity is not null)
+            {
+                activity.PercentComplete = percentComplete * 100m; // Activity stores 0-100, not 0-1
+                if (percentComplete >= 1.0m)
+                    activity.Status = ScheduleActivityStatus.Completed;
+                else if (percentComplete > 0m)
+                    activity.Status = ScheduleActivityStatus.InProgress;
+                activity.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        await Db.SaveChangesAsync(ct);
+        return Result.Success(ToDto(entry));
+    }
+
+    public Task<Result<PmEntityDto>> GetFieldProgressEntryAsync(Guid projectId, Guid entryId, CancellationToken ct = default)
+        => GetAsync<PmFieldProgressEntry>(projectId, entryId, ct);
+
+    public Task<Result<PagedResult<PmEntityDto>>> ListFieldProgressEntriesAsync(Guid projectId, PmListQuery query, CancellationToken ct = default)
+    {
+        var q = ProjectScoped<PmFieldProgressEntry>(projectId).AsNoTracking();
+        if (query.StartDate.HasValue)
+            q = q.Where(e => e.Date >= DateOnly.FromDateTime(query.StartDate.Value));
+        if (query.EndDate.HasValue)
+            q = q.Where(e => e.Date <= DateOnly.FromDateTime(query.EndDate.Value));
+        return ListAsync(q, query, ct);
+    }
+
+    public async Task<Result<PmEntityDto>> UpdateFieldProgressEntryAsync(Guid projectId, Guid entryId, PmUpsertRequest request, CancellationToken ct = default)
+    {
+        var entry = await ProjectScoped<PmFieldProgressEntry>(projectId)
+            .FirstOrDefaultAsync(e => e.Id == entryId, ct);
+        if (entry is null)
+            return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
+
+        if (request.Data is not null)
+        {
+            if (request.Data.TryGetValue("QuantityInstalled", out var qRaw) && qRaw is not null)
+                entry.QuantityInstalled = ParseDecimal(qRaw);
+            if (request.Data.TryGetValue("TotalBudgetedQuantity", out var tbRaw) && tbRaw is not null)
+                entry.TotalBudgetedQuantity = ParseDecimal(tbRaw);
+            if (request.Data.TryGetValue("Notes", out var notes) && notes is not null)
+                entry.Notes = notes.ToString();
+            if (request.Data.TryGetValue("CrewSize", out var cs) && cs is not null)
+                entry.CrewSize = ParseInt(cs);
+            if (request.Data.TryGetValue("HoursWorked", out var hw) && hw is not null)
+                entry.HoursWorked = ParseDecimal(hw);
+            if (request.Data.TryGetValue("WeatherCondition", out var wc) && wc is not null)
+            {
+                if (Enum.TryParse<WeatherCondition>(wc.ToString(), true, out var weather))
+                    entry.WeatherCondition = weather;
+            }
+        }
+
+        // Recalculate cumulative and percent complete
+        var previousCumulative = await Db.Set<PmFieldProgressEntry>()
+            .Where(e => !e.IsDeleted && e.ProjectId == projectId && e.CostCodeId == entry.CostCodeId
+                        && e.Date <= entry.Date && e.Id != entryId)
+            .SumAsync(e => e.QuantityInstalled, ct);
+        entry.CumulativeQuantity = previousCumulative + entry.QuantityInstalled;
+        entry.PercentComplete = entry.TotalBudgetedQuantity > 0
+            ? Math.Min(entry.CumulativeQuantity / entry.TotalBudgetedQuantity, 1.0m)
+            : 0m;
+
+        // Cascade to schedule activity
+        if (entry.ScheduleActivityId.HasValue)
+        {
+            var activity = await Db.Set<PmScheduleActivity>()
+                .FirstOrDefaultAsync(a => !a.IsDeleted && a.Id == entry.ScheduleActivityId.Value, ct);
+            if (activity is not null)
+            {
+                activity.PercentComplete = entry.PercentComplete * 100m;
+                activity.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        entry.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(ct);
+        return Result.Success(ToDto(entry));
+    }
+
+    public async Task<Result> DeleteFieldProgressEntryAsync(Guid projectId, Guid entryId, CancellationToken ct = default)
+    {
+        var entry = await ProjectScoped<PmFieldProgressEntry>(projectId)
+            .FirstOrDefaultAsync(e => e.Id == entryId, ct);
+        if (entry is null)
+            return Result.Failure("Not found", "NOT_FOUND");
+
+        entry.IsDeleted = true;
+        entry.DeletedAt = DateTime.UtcNow;
+        entry.UpdatedAt = DateTime.UtcNow;
+
+        // Recalculate activity % from remaining entries after delete
+        if (entry.ScheduleActivityId.HasValue)
+        {
+            var latestEntry = await Db.Set<PmFieldProgressEntry>()
+                .Where(e => !e.IsDeleted && e.Id != entryId && e.ProjectId == projectId && e.CostCodeId == entry.CostCodeId)
+                .OrderByDescending(e => e.Date)
+                .FirstOrDefaultAsync(ct);
+
+            var activity = await Db.Set<PmScheduleActivity>()
+                .FirstOrDefaultAsync(a => !a.IsDeleted && a.Id == entry.ScheduleActivityId.Value, ct);
+            if (activity is not null)
+            {
+                activity.PercentComplete = latestEntry?.PercentComplete * 100m ?? 0m;
+                activity.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        await Db.SaveChangesAsync(ct);
+        return Result.Success();
+    }
+
+    private static Guid ParseGuid(object value)
+    {
+        if (value is System.Text.Json.JsonElement je)
+            return je.ValueKind == System.Text.Json.JsonValueKind.String ? je.GetGuid() : Guid.Empty;
+        return Guid.TryParse(value.ToString(), out var g) ? g : Guid.Empty;
+    }
+
+    private static Guid? ParseGuidNullable(object value)
+    {
+        var g = ParseGuid(value);
+        return g == Guid.Empty ? null : g;
+    }
+
+    private static decimal ParseDecimal(object value)
+    {
+        if (value is System.Text.Json.JsonElement je) return je.GetDecimal();
+        return decimal.TryParse(value.ToString(), out var d) ? d : 0m;
+    }
+
+    private static int ParseInt(object value)
+    {
+        if (value is System.Text.Json.JsonElement je) return je.GetInt32();
+        return int.TryParse(value.ToString(), out var i) ? i : 0;
+    }
+}
+
+public class EarnedValueService : PmServiceBase, IEarnedValueService
+{
+    public EarnedValueService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null)
+        : base(db, companyContext, httpContextAccessor) { }
+
+    /// <summary>
+    /// Calculates all EV metrics for a single cost code on a given date, stores the snapshot, and returns it.
+    /// ACWP = TimeEntry labor costs (hours × employee base rate) + Subcontract BilledToDate for this cost code.
+    /// BCWS = BAC × planned % complete based on schedule activity date proportions.
+    /// BCWP = BAC × actual % complete from PmFieldProgressEntry.
+    /// </summary>
+    public async Task<Result<PmEntityDto>> CalculateEarnedValueAsync(Guid projectId, Guid costCodeId, DateOnly date, CancellationToken ct = default)
+    {
+        // Budget from PmJobCostBudget
+        var budget = await Db.Set<PmJobCostBudget>()
+            .Where(b => !b.IsDeleted && b.ProjectId == projectId && b.CostCodeId == costCodeId)
+            .FirstOrDefaultAsync(ct);
+
+        var bac = budget?.CurrentBudget ?? 0m;
+
+        // Actual % complete from most recent field progress entry on or before date
+        var latestProgress = await Db.Set<PmFieldProgressEntry>()
+            .Where(e => !e.IsDeleted && e.ProjectId == projectId && e.CostCodeId == costCodeId && e.Date <= date)
+            .OrderByDescending(e => e.Date)
+            .FirstOrDefaultAsync(ct);
+
+        var actualPct = latestProgress?.PercentComplete ?? 0m;
+        var bcwp = bac * actualPct;
+
+        // ACWP: prefer PmJobCostActual (aggregated actuals by cost code) for efficiency.
+        // Fallback: compute from TimeEntry labor hours × employee base rate.
+        var jobCostActual = await Db.Set<PmJobCostActual>()
+            .Where(a => !a.IsDeleted && a.ProjectId == projectId && a.CostCodeId == costCodeId
+                        && a.AsOfDate <= date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc))
+            .OrderByDescending(a => a.AsOfDate)
+            .FirstOrDefaultAsync(ct);
+
+        decimal acwp;
+        if (jobCostActual is not null)
+        {
+            acwp = jobCostActual.TotalActualCost;
+        }
+        else
+        {
+            // Compute from raw time entries (labor cost only as fallback)
+            acwp = await Db.Set<Pitbull.TimeTracking.Domain.TimeEntry>()
+                .Where(te => !te.IsDeleted && te.ProjectId == projectId && te.CostCodeId == costCodeId
+                             && te.Date <= date && te.Status == Pitbull.TimeTracking.Domain.TimeEntryStatus.Approved)
+                .Join(Db.Set<Pitbull.TimeTracking.Domain.Employee>(),
+                    te => te.EmployeeId, emp => emp.Id,
+                    (te, emp) => (te.RegularHours + te.OvertimeHours * 1.5m + te.DoubletimeHours * 2.0m) * emp.BaseHourlyRate)
+                .SumAsync(ct);
+        }
+
+        // BCWS = BAC × planned % based on schedule activity planned dates
+        var mapping = await Db.Set<PmCostCodeActivityMapping>()
+            .Where(m => !m.IsDeleted && m.ProjectId == projectId && m.CostCodeId == costCodeId)
+            .FirstOrDefaultAsync(ct);
+
+        decimal plannedPct = 0m;
+        if (mapping is not null)
+        {
+            var activity = await Db.Set<PmScheduleActivity>()
+                .Where(a => !a.IsDeleted && a.Id == mapping.ScheduleActivityId)
+                .FirstOrDefaultAsync(ct);
+            if (activity?.PlannedStart is not null && activity.PlannedFinish is not null)
+            {
+                var start = activity.PlannedStart.Value;
+                var finish = activity.PlannedFinish.Value;
+                var asOfDate = date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+                if (asOfDate >= finish)
+                    plannedPct = 1.0m;
+                else if (asOfDate > start)
+                    plannedPct = (decimal)(asOfDate - start).TotalDays / (decimal)(finish - start).TotalDays;
+            }
+        }
+        var bcws = bac * plannedPct;
+
+        // Derived metrics
+        var sv = bcwp - bcws;
+        var cv = bcwp - acwp;
+        var spi = bcws > 0 ? bcwp / bcws : 1m;
+        var cpi = acwp > 0 ? bcwp / acwp : 1m;
+        var eac = cpi > 0 ? bac / cpi : bac;
+        var etc = eac - acwp;
+        var tcpi = (bac - acwp) > 0 ? (bac - bcwp) / (bac - acwp) : 1m;
+
+        // Upsert snapshot (delete-insert for simplicity)
+        var existing = await Db.Set<PmCostCodeEarnedValueSnapshot>()
+            .Where(s => !s.IsDeleted && s.ProjectId == projectId && s.CostCodeId == costCodeId && s.SnapshotDate == date)
+            .FirstOrDefaultAsync(ct);
+
+        if (existing is not null)
+        {
+            existing.BCWS = bcws; existing.BCWP = bcwp; existing.ACWP = acwp;
+            existing.BAC = bac; existing.SV = sv; existing.CV = cv;
+            existing.SPI = spi; existing.CPI = cpi; existing.EAC = eac;
+            existing.ETC = etc; existing.TCPI = tcpi;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await Db.SaveChangesAsync(ct);
+            return Result.Success(ToDto(existing));
+        }
+
+        var snapshot = new PmCostCodeEarnedValueSnapshot
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = CurrentCompanyId,
+            ProjectId = projectId,
+            CostCodeId = costCodeId,
+            SnapshotDate = date,
+            BCWS = bcws, BCWP = bcwp, ACWP = acwp,
+            BAC = bac, SV = sv, CV = cv,
+            SPI = spi, CPI = cpi, EAC = eac,
+            ETC = etc, TCPI = tcpi,
+            CreatedAt = DateTime.UtcNow,
+        };
+        Db.Set<PmCostCodeEarnedValueSnapshot>().Add(snapshot);
+        await Db.SaveChangesAsync(ct);
+        return Result.Success(ToDto(snapshot));
+    }
+
+    public async Task<Result<PmActionResultDto>> RecalculateProjectEarnedValueAsync(Guid projectId, DateOnly date, CancellationToken ct = default)
+    {
+        // Get all cost codes with progress entries or budgets for this project
+        var costCodeIds = await Db.Set<PmFieldProgressEntry>()
+            .Where(e => !e.IsDeleted && e.ProjectId == projectId)
+            .Select(e => e.CostCodeId)
+            .Union(Db.Set<PmJobCostBudget>()
+                .Where(b => !b.IsDeleted && b.ProjectId == projectId)
+                .Select(b => b.CostCodeId))
+            .Distinct()
+            .ToListAsync(ct);
+
+        var calculated = 0;
+        foreach (var ccId in costCodeIds)
+        {
+            await CalculateEarnedValueAsync(projectId, ccId, date, ct);
+            calculated++;
+        }
+
+        return Action($"Recalculated EV for {calculated} cost codes as of {date:yyyy-MM-dd}", projectId);
+    }
+
+    public Task<Result<PagedResult<PmEntityDto>>> GetCostCodeSnapshotsAsync(Guid projectId, PmListQuery query, CancellationToken ct = default)
+        => ListAsync(ProjectScoped<PmCostCodeEarnedValueSnapshot>(projectId), query, ct);
+
+    public async Task<Result<PmActionResultDto>> GetProjectEarnedValueSummaryAsync(Guid projectId, DateOnly asOfDate, CancellationToken ct = default)
+    {
+        var snapshots = await Db.Set<PmCostCodeEarnedValueSnapshot>()
+            .Where(s => !s.IsDeleted && s.ProjectId == projectId && s.SnapshotDate <= asOfDate)
+            .GroupBy(s => s.CostCodeId)
+            .Select(g => g.OrderByDescending(s => s.SnapshotDate).First())
+            .ToListAsync(ct);
+
+        if (!snapshots.Any())
+            return Action("No earned value data found for this project", projectId, new { AsOfDate = asOfDate });
+
+        var totalBcws = snapshots.Sum(s => s.BCWS);
+        var totalBcwp = snapshots.Sum(s => s.BCWP);
+        var totalAcwp = snapshots.Sum(s => s.ACWP);
+        var totalBac = snapshots.Sum(s => s.BAC);
+
+        var projectSpi = totalBcws > 0 ? totalBcwp / totalBcws : 1m;
+        var projectCpi = totalAcwp > 0 ? totalBcwp / totalAcwp : 1m;
+        var projectEac = projectCpi > 0 ? totalBac / projectCpi : totalBac;
+        var projectVac = totalBac - projectEac; // Variance at Completion
+        var overallPct = totalBac > 0 ? totalBcwp / totalBac : 0m;
+
+        var summary = new
+        {
+            AsOfDate = asOfDate,
+            CostCodeCount = snapshots.Count,
+            TotalBAC = totalBac,
+            TotalBCWS = totalBcws,
+            TotalBCWP = totalBcwp,
+            TotalACWP = totalAcwp,
+            SPI = Math.Round(projectSpi, 3),
+            CPI = Math.Round(projectCpi, 3),
+            EAC = Math.Round(projectEac, 2),
+            VAC = Math.Round(projectVac, 2),
+            OverallPercentComplete = Math.Round(overallPct * 100, 1),
+            ScheduleStatus = projectSpi >= 1.0m ? "Ahead" : projectSpi >= 0.9m ? "Slightly Behind" : "Behind",
+            CostStatus = projectCpi >= 1.0m ? "Under Budget" : projectCpi >= 0.9m ? "Slightly Over" : "Over Budget",
+        };
+
+        return Action("Project earned value summary", projectId, summary);
+    }
+}

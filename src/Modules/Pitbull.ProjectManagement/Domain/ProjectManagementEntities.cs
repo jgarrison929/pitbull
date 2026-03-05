@@ -875,3 +875,103 @@ public class PmPunchListPhoto : BaseEntity, ICompanyScoped
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4.16 Progress → Schedule → Cost integration (Phase 1 Foundation)
+// The moat feature: one field entry automatically updates schedule + earned value
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum WeatherCondition { Clear = 0, Cloudy = 1, Rain = 2, Snow = 3, Wind = 4, Extreme = 5 }
+
+/// <summary>
+/// Maps a CostCode to one or more ScheduleActivities.
+/// This is the critical link that enables a single progress entry to
+/// automatically update the schedule and drive earned value calculations.
+/// WeightFactor handles activities that span multiple cost codes (e.g., 0.6 concrete + 0.4 rebar).
+/// </summary>
+public class PmCostCodeActivityMapping : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid CostCodeId { get; set; }
+    public Guid ScheduleActivityId { get; set; }
+    /// <summary>
+    /// Weight of this cost code's contribution to the activity's overall progress.
+    /// Sum of all weights for an activity should equal 1.0.
+    /// Default 1.0 = this cost code fully drives the activity.
+    /// </summary>
+    public decimal WeightFactor { get; set; } = 1.0m;
+}
+
+/// <summary>
+/// Field-reported quantity progress. One entry per cost code per day.
+/// Creating this entry auto-updates ScheduleActivity.PercentComplete
+/// and triggers earned value recalculation.
+/// </summary>
+public class PmFieldProgressEntry : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid ProjectId { get; set; }
+    public DateOnly Date { get; set; }
+    public Guid CostCodeId { get; set; }
+    /// <summary>
+    /// Auto-resolved from CostCodeActivityMapping when not explicitly provided.
+    /// </summary>
+    public Guid? ScheduleActivityId { get; set; }
+    public decimal QuantityInstalled { get; set; }
+    public string UnitOfMeasure { get; set; } = string.Empty;
+    /// <summary>
+    /// Running total of all QuantityInstalled for this project+costcode up to and including this entry.
+    /// Calculated automatically on create/update.
+    /// </summary>
+    public decimal CumulativeQuantity { get; set; }
+    /// <summary>
+    /// Denormalized from the cost code's budget quantity for fast percent-complete calculation.
+    /// </summary>
+    public decimal TotalBudgetedQuantity { get; set; }
+    /// <summary>
+    /// Auto-calculated: CumulativeQuantity / TotalBudgetedQuantity.
+    /// Drives ScheduleActivity.PercentComplete when a mapping exists.
+    /// </summary>
+    public decimal PercentComplete { get; set; }
+    public int CrewSize { get; set; }
+    public decimal HoursWorked { get; set; }
+    public string? Notes { get; set; }
+    public WeatherCondition WeatherCondition { get; set; } = WeatherCondition.Clear;
+    public Guid? ReportedById { get; set; }
+}
+
+/// <summary>
+/// Earned value snapshot stored per cost code per date.
+/// Computed and stored for performance — recalculated when progress entries change.
+/// All metrics use standard PMBOK/ANSI 748 earned value definitions.
+/// </summary>
+public class PmCostCodeEarnedValueSnapshot : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid CostCodeId { get; set; }
+    public DateOnly SnapshotDate { get; set; }
+    /// <summary>BCWS: Budgeted Cost of Work Scheduled = BAC × planned % complete based on schedule dates</summary>
+    public decimal BCWS { get; set; }
+    /// <summary>BCWP: Budgeted Cost of Work Performed = BAC × actual % complete from progress entries</summary>
+    public decimal BCWP { get; set; }
+    /// <summary>ACWP: Actual Cost of Work Performed = sum of time entry costs + subcontract billings for this cost code</summary>
+    public decimal ACWP { get; set; }
+    /// <summary>BAC: Budget at Completion = total budgeted cost for this cost code</summary>
+    public decimal BAC { get; set; }
+    /// <summary>SV: Schedule Variance = BCWP - BCWS (positive = ahead of schedule)</summary>
+    public decimal SV { get; set; }
+    /// <summary>CV: Cost Variance = BCWP - ACWP (positive = under budget)</summary>
+    public decimal CV { get; set; }
+    /// <summary>SPI: Schedule Performance Index = BCWP / BCWS (>1.0 = ahead of schedule)</summary>
+    public decimal SPI { get; set; }
+    /// <summary>CPI: Cost Performance Index = BCWP / ACWP (>1.0 = under budget)</summary>
+    public decimal CPI { get; set; }
+    /// <summary>EAC: Estimate at Completion = BAC / CPI</summary>
+    public decimal EAC { get; set; }
+    /// <summary>ETC: Estimate to Complete = EAC - ACWP</summary>
+    public decimal ETC { get; set; }
+    /// <summary>TCPI: To-Complete Performance Index = (BAC - BCWP) / (BAC - ACWP)</summary>
+    public decimal TCPI { get; set; }
+}

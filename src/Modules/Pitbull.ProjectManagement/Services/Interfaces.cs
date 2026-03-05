@@ -170,6 +170,31 @@ public interface IDocumentService
     Task<Result> DeleteDocumentAsync(Guid projectId, Guid documentId, CancellationToken cancellationToken = default);
 }
 
+public interface ICostCodeActivityMappingService
+{
+    Task<Result<PmEntityDto>> CreateMappingAsync(Guid projectId, PmUpsertRequest request, CancellationToken ct = default);
+    Task<Result<PmEntityDto>> UpdateMappingAsync(Guid projectId, Guid mappingId, PmUpsertRequest request, CancellationToken ct = default);
+    Task<Result> DeleteMappingAsync(Guid projectId, Guid mappingId, CancellationToken ct = default);
+    Task<Result<PagedResult<PmEntityDto>>> ListMappingsAsync(Guid projectId, PmListQuery query, CancellationToken ct = default);
+}
+
+public interface IFieldProgressService
+{
+    Task<Result<PmEntityDto>> CreateFieldProgressEntryAsync(Guid projectId, PmUpsertRequest request, CancellationToken ct = default);
+    Task<Result<PmEntityDto>> GetFieldProgressEntryAsync(Guid projectId, Guid entryId, CancellationToken ct = default);
+    Task<Result<PagedResult<PmEntityDto>>> ListFieldProgressEntriesAsync(Guid projectId, PmListQuery query, CancellationToken ct = default);
+    Task<Result<PmEntityDto>> UpdateFieldProgressEntryAsync(Guid projectId, Guid entryId, PmUpsertRequest request, CancellationToken ct = default);
+    Task<Result> DeleteFieldProgressEntryAsync(Guid projectId, Guid entryId, CancellationToken ct = default);
+}
+
+public interface IEarnedValueService
+{
+    Task<Result<PmEntityDto>> CalculateEarnedValueAsync(Guid projectId, Guid costCodeId, DateOnly date, CancellationToken ct = default);
+    Task<Result<PmActionResultDto>> RecalculateProjectEarnedValueAsync(Guid projectId, DateOnly date, CancellationToken ct = default);
+    Task<Result<PagedResult<PmEntityDto>>> GetCostCodeSnapshotsAsync(Guid projectId, PmListQuery query, CancellationToken ct = default);
+    Task<Result<PmActionResultDto>> GetProjectEarnedValueSummaryAsync(Guid projectId, DateOnly asOfDate, CancellationToken ct = default);
+}
+
 public interface IPunchListService
 {
     Task<Result<PmEntityDto>> CreatePunchListItemAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default);
