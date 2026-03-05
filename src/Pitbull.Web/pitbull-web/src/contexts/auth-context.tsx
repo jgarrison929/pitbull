@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect, startTransition } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, startTransition } from "react";
+import { toast } from "sonner";
 import api from "@/lib/api";
-import { getToken, setToken, removeToken, setRefreshToken, removeRefreshToken, decodeToken, isTokenExpired } from "@/lib/auth";
+import { getToken, setToken, removeToken, getRefreshToken, setRefreshToken, removeRefreshToken, decodeToken, isTokenExpired } from "@/lib/auth";
 import { posthog } from "@/lib/posthog";
 import { API_BASE_URL } from "@/lib/config";
 
@@ -68,6 +69,50 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Schedule a "session expiring soon" toast 5 minutes before JWT expiry.
+  // Clears any previous timer first to handle token rotation correctly.
+  const scheduleExpiryWarning = useCallback((token: string) => {
+    if (expiryTimerRef.current) clearTimeout(expiryTimerRef.current);
+
+    const payload = decodeToken(token);
+    if (!payload) return;
+
+    const msUntilExpiry = payload.exp * 1000 - Date.now();
+    const msUntilWarning = msUntilExpiry - 5 * 60 * 1000; // warn 5 min before
+    if (msUntilWarning <= 0) return;
+
+    expiryTimerRef.current = setTimeout(() => {
+      toast.warning("Your session expires soon", {
+        description: "You'll be signed out in 5 minutes. Save any unsaved work.",
+        duration: Infinity,
+        action: {
+          label: "Stay signed in",
+          onClick: async () => {
+            const currentToken = getToken();
+            const refreshToken = getRefreshToken();
+            if (!currentToken || !refreshToken) return;
+            try {
+              const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: currentToken, refreshToken }),
+              });
+              if (res.ok) {
+                const data = await res.json();
+                setToken(data.token);
+                if (data.refreshToken) setRefreshToken(data.refreshToken);
+                scheduleExpiryWarning(data.token);
+              }
+            } catch {
+              // Refresh failed — session will expire naturally
+            }
+          },
+        },
+      });
+    }, msUntilWarning);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Read token from localStorage after hydration to avoid SSR mismatch.
   // Server and client both render isLoading=true initially, then useEffect
@@ -77,10 +122,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     startTransition(() => {
       if (token) {
         setUser(buildUserFromToken(token));
+        scheduleExpiryWarning(token);
       }
       setIsLoading(false);
     });
-  }, []);
+  }, [scheduleExpiryWarning]);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await api<AuthResponse>("/api/auth/login", {
@@ -92,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (response.refreshToken) setRefreshToken(response.refreshToken);
     const u = buildUserFromToken(response.token);
     setUser(u);
+    scheduleExpiryWarning(response.token);
 
     // Identify user in PostHog
     if (u && posthog.__loaded) {
@@ -101,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         tenant_id: u.tenantId,
       });
     }
-  }, []);
+  }, [scheduleExpiryWarning]);
 
   const register = useCallback(async (data: RegisterData) => {
     const response = await api<AuthResponse>("/api/auth/register", {
@@ -112,9 +159,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(response.token);
     if (response.refreshToken) setRefreshToken(response.refreshToken);
     setUser(buildUserFromToken(response.token));
-  }, []);
+    scheduleExpiryWarning(response.token);
+  }, [scheduleExpiryWarning]);
 
   const logout = useCallback(() => {
+    // Clear the expiry warning timer
+    if (expiryTimerRef.current) {
+      clearTimeout(expiryTimerRef.current);
+      expiryTimerRef.current = null;
+    }
+
     // Revoke refresh token server-side (fire-and-forget)
     const token = getToken();
     if (token) {

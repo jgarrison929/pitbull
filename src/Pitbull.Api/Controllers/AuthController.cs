@@ -245,7 +245,7 @@ public class AuthController(
                 // Generate and store refresh token
                 var refreshToken = GenerateRefreshToken();
                 user.RefreshToken = refreshToken;
-                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
                 await userManager.UpdateAsync(user);
 
                 await transaction.CommitAsync();
@@ -335,7 +335,7 @@ public class AuthController(
         // Generate and store refresh token
         var refreshToken = GenerateRefreshToken();
         user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
         await userManager.UpdateAsync(user);
 
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
@@ -398,7 +398,7 @@ public class AuthController(
         var newRefreshToken = GenerateRefreshToken();
 
         user.RefreshToken = newRefreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
         var updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
             return StatusCode(500, new { error = "Failed to persist token rotation", code = "INTERNAL_ERROR" });
@@ -554,7 +554,7 @@ public class AuthController(
 
         var refreshToken = GenerateRefreshToken();
         user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
         await userManager.UpdateAsync(user);
 
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
@@ -709,7 +709,7 @@ public class AuthController(
         var token = await GenerateJwtTokenAsync(user);
         var refreshToken = GenerateRefreshToken();
         user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
         await userManager.UpdateAsync(user);
 
         logger.LogInformation("Demo user registered: {Email} as {Role} in company {CompanyCode}", request.Email, request.Role, companyCode);
@@ -1139,7 +1139,7 @@ public class AuthController(
             }
         }
 
-        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
+        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");
 
         var token = new JwtSecurityToken(
             issuer: configuration["Jwt:Issuer"],

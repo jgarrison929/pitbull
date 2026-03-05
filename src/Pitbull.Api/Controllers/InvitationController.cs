@@ -325,7 +325,7 @@ public class InvitationController(
                 claims.Add(new Claim("permissions", perm));
         }
 
-        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "60");
+        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");
 
         var token = new JwtSecurityToken(
             issuer: configuration["Jwt:Issuer"],
