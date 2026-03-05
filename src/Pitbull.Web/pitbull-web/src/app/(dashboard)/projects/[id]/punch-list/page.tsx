@@ -92,6 +92,7 @@ interface DataMap {
 interface PunchListRow {
   id: string;
   itemNumber: number;
+  title: string;
   location: string;
   category: string;
   description: string;
@@ -108,6 +109,7 @@ interface PunchListRow {
 
 interface PunchListFormState {
   id?: string;
+  title: string;
   location: string;
   category: string;
   description: string;
@@ -146,21 +148,25 @@ const STATUS_LABELS: Record<string, string> = {
   Disputed: "Disputed",
 };
 
-// PunchListCategory enum
-const CATEGORIES = ["Architectural", "Structural", "MEP", "Sitework", "LifeSafety", "Other"];
+// PunchListCategory enum — matches backend PunchListCategory exactly
+const CATEGORIES = ["Architectural", "Structural", "Mechanical", "Electrical", "Plumbing", "FireProtection", "Sitework", "LifeSafety", "Finishes", "Other"];
 const CATEGORY_LABELS: Record<string, string> = {
   Architectural: "Architectural",
   Structural: "Structural",
-  MEP: "MEP",
+  Mechanical: "Mechanical",
+  Electrical: "Electrical",
+  Plumbing: "Plumbing",
+  FireProtection: "Fire Protection",
   Sitework: "Sitework",
   LifeSafety: "Life Safety",
+  Finishes: "Finishes",
   Other: "Other",
 };
 
-// PunchListResponsiblePartyType enum
-const RESPONSIBLE_PARTIES = ["GC", "Subcontractor", "Owner", "Architect"];
+// PunchListResponsiblePartyType enum — matches backend enum names exactly
+const RESPONSIBLE_PARTIES = ["GeneralContractor", "Subcontractor", "Owner", "Architect"];
 const PARTY_LABELS: Record<string, string> = {
-  GC: "General Contractor",
+  GeneralContractor: "General Contractor",
   Subcontractor: "Subcontractor",
   Owner: "Owner",
   Architect: "Architect",
@@ -317,6 +323,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<PunchListFormState>({
+    title: "",
     location: "",
     category: "Architectural",
     description: "",
@@ -404,10 +411,11 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
       return {
         id: item.id,
         itemNumber: asNumber(data.ItemNumber),
+        title: item.title || asString(data.Description) || "Untitled",
         location: asString(data.Location),
         category: asString(data.Category) || "Other",
-        description: item.name || asString(data.Description) || "No description",
-        responsiblePartyType: asString(data.ResponsiblePartyType) || "GC",
+        description: asString(data.Description),
+        responsiblePartyType: asString(data.ResponsiblePartyType) || "GeneralContractor",
         assignedToName: asString(data.AssignedToName),
         dueDate: asString(data.DueDate) || null,
         status: item.status || "Open",
@@ -427,6 +435,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
       if (overdueOnly && !isOverdue(row.dueDate, row.status)) return false;
       if (q) {
         return (
+          row.title.toLowerCase().includes(q) ||
           row.description.toLowerCase().includes(q) ||
           row.location.toLowerCase().includes(q) ||
           String(row.itemNumber).includes(q) ||
@@ -537,12 +546,12 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
     for (const item of eligibleItems) {
       try {
         const payload: PmUpsertRequest = {
-          name: item.description,
+          title: item.title,
           status: "ReadyForInspection",
           data: {
             Location: item.location,
             Category: item.category,
-            Description: item.description,
+            Description: item.description || null,
             ResponsiblePartyType: item.responsiblePartyType,
             AssignedToName: item.assignedToName || null,
             DueDate: item.dueDate || null,
@@ -574,6 +583,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
   function openCreate() {
     setEditing(false);
     setForm({
+      title: "",
       location: "",
       category: "Architectural",
       description: "",
@@ -595,6 +605,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
     setEditing(true);
     setForm({
       id: row.id,
+      title: row.title,
       location: row.location,
       category: row.category,
       description: row.description,
@@ -615,8 +626,8 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
   }
 
   async function saveItem() {
-    if (!form.description.trim()) {
-      toast.error("Description is required");
+    if (!form.title.trim()) {
+      toast.error("Title is required");
       return;
     }
     if (!form.location.trim()) {
@@ -625,12 +636,12 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
     }
 
     const payload: PmUpsertRequest = {
-      name: form.description.trim(),
+      title: form.title.trim(),
       status: form.status,
       data: {
         Location: form.location.trim(),
         Category: form.category,
-        Description: form.description.trim(),
+        Description: form.description.trim() || null,
         ResponsiblePartyType: form.responsiblePartyType,
         AssignedToName: form.assignedToName || null,
         DueDate: form.dueDate || null,
@@ -715,12 +726,12 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
     } catch (error) {
       if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
         const payload: PmUpsertRequest = {
-          name: pendingDelete.description,
+          title: pendingDelete.title,
           status: "Closed",
           data: {
             Location: pendingDelete.location,
             Category: pendingDelete.category,
-            Description: pendingDelete.description,
+            Description: pendingDelete.description || null,
           },
         };
         await api<PmEntityDto>(`/api/projects/${projectId}/punch-list/${pendingDelete.id}`, {
@@ -946,7 +957,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                 <CardListSkeleton rows={3} />
               </div>
               <div className="hidden sm:block">
-                <TableSkeleton headers={["", "#", "Description", "Location", "Category", "Due Date", "Priority", "Status", "Actions"]} rows={5} />
+                <TableSkeleton headers={["", "#", "Title", "Location", "Category", "Due Date", "Priority", "Status", "Actions"]} rows={5} />
               </div>
             </>
           ) : (
@@ -981,7 +992,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                           </Badge>
                         </div>
                       </div>
-                      <p className="font-medium">{row.description}</p>
+                      <p className="font-medium">{row.title}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
                         <span>{row.location}</span>
                         <span>{CATEGORY_LABELS[row.category] || row.category}</span>
@@ -1058,7 +1069,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                           />
                         </TableHead>
                         <SortableHeader label="#" field="itemNumber" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort} />
-                        <TableHead>Description</TableHead>
+                        <TableHead>Title</TableHead>
                         <TableHead>Location</TableHead>
                         <SortableHeader label="Category" field="category" currentSort={sortField} currentDirection={sortDirection} onSort={handleSort} />
                         <TableHead>Responsible</TableHead>
@@ -1094,7 +1105,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
                             </TableCell>
                             <TableCell className="font-mono text-sm">#{row.itemNumber}</TableCell>
                             <TableCell className="font-medium max-w-[200px] truncate">
-                              {row.description}
+                              {row.title}
                             </TableCell>
                             <TableCell>{row.location || "-"}</TableCell>
                             <TableCell>{CATEGORY_LABELS[row.category] || row.category}</TableCell>
@@ -1201,14 +1212,23 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
             <fieldset className="space-y-4 rounded-lg border border-border/50 p-4">
               <legend className="text-sm font-semibold text-foreground px-2">Item Details</legend>
               <div className="space-y-2">
-                <Label htmlFor="pl-desc">
-                  Description <span className="text-destructive">*</span>
+                <Label htmlFor="pl-title">
+                  Title <span className="text-destructive">*</span>
                 </Label>
+                <Input
+                  id="pl-title"
+                  value={form.title}
+                  onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g., Paint touch-up needed on east wall"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pl-desc">Description</Label>
                 <Textarea
                   id="pl-desc"
                   value={form.description}
                   onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Describe the deficiency (e.g., Paint touch-up needed on east wall)"
+                  placeholder="Additional details about the deficiency (optional)"
                   rows={2}
                 />
               </div>
@@ -1421,7 +1441,7 @@ function PunchListContent({ params }: { params: Promise<{ id: string }> }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Punch List Item</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete item #{pendingDelete?.itemNumber ?? ""} &quot;{pendingDelete?.description ?? "this item"}&quot;? If delete is
+              Delete item #{pendingDelete?.itemNumber ?? ""} &quot;{pendingDelete?.title ?? "this item"}&quot;? If delete is
               unavailable, it will be marked Closed.
             </AlertDialogDescription>
           </AlertDialogHeader>
