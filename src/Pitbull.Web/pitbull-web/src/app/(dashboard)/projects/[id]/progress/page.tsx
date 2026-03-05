@@ -1,15 +1,14 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
-import api, { ApiError } from "@/lib/api";
-import { isValidGuid } from "@/lib/utils";
-import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
+import { use, useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
+import { Plus, Pencil, Trash2, CloudSun, BarChart2, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -34,607 +33,603 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { TableSkeleton } from "@/components/skeletons";
+import { Breadcrumbs } from "@/components/ui/breadcrumbs";
+import api from "@/lib/api";
+import type { CostCode, ListCostCodesResult } from "@/lib/types";
+import type { PmEntityDto } from "@/lib/pm-types";
+import {
+  listFieldProgress,
+  createFieldProgressEntry,
+  updateFieldProgressEntry,
+  deleteFieldProgressEntry,
+} from "@/lib/progress-api";
+import { cn } from "@/lib/utils";
 
-interface DataMap {
-  [key: string]: unknown;
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+function d(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
-
-interface ProgressRow {
-  id: string;
-  entryDate: string;
-  name: string;
-  percentComplete: number;
-  plannedPercent: number;
-  earnedValue: number;
-  measurementMethod: string;
-  quantity: number;
-  unit: string;
-  description: string;
-  status: string;
-}
-
-interface ProgressFormState {
-  id?: string;
-  name: string;
-  entryDate: string;
-  percentComplete: string;
-  plannedPercent: string;
-  earnedValue: string;
-  measurementMethod: string;
-  quantity: string;
-  unit: string;
-  description: string;
-  status: string;
-}
-
-const STATUSES = ["Draft", "Submitted", "Approved"];
-const MEASUREMENT_METHODS = ["Percentage", "Units", "Milestones", "LevelOfEffort", "WeightedSteps"];
-
-function asDataMap(value: unknown): DataMap {
-  return value && typeof value === "object" ? (value as DataMap) : {};
-}
-
-function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-function asNumber(value: unknown): number {
-  if (typeof value === "number") return value;
-  if (typeof value === "string") {
-    const n = parseFloat(value);
-    return Number.isNaN(n) ? 0 : n;
-  }
+function asNum(v: unknown): number {
+  if (typeof v === "number") return v;
+  if (typeof v === "string") { const n = Number(v); return isNaN(n) ? 0 : n; }
   return 0;
 }
-
-function formatDate(date: string | null): string {
-  if (!date) return "-";
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "-";
-  return parsed.toLocaleDateString();
+function asStr(v: unknown): string {
+  return typeof v === "string" ? v : "";
+}
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const s = iso.slice(0, 10);
+  const [y, mo, day] = s.split("-").map(Number);
+  return new Date(y, mo - 1, day).toLocaleDateString("en-US", {
+    month: "short", day: "numeric", year: "numeric",
+  });
+}
+function fmtPct(v: number): string {
+  return (v * 100).toFixed(1) + "%";
+}
+function pctBadgeClass(pct: number): string {
+  if (pct >= 0.9) return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400";
+  if (pct >= 0.5) return "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
+  return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
 }
 
-function statusBadgeVariant(status: string): "default" | "secondary" | "outline" {
-  switch (status) {
-    case "Approved":
-      return "default";
-    case "Submitted":
-      return "secondary";
-    default:
-      return "outline";
-  }
+const WEATHER_OPTIONS = ["Clear", "Cloudy", "Rain", "Snow", "Wind", "Extreme"];
+const WEATHER_LABELS: Record<string, string> = {
+  Clear: "☀️ Clear", Cloudy: "☁️ Cloudy", Rain: "🌧️ Rain",
+  Snow: "❄️ Snow", Wind: "💨 Wind", Extreme: "⚠️ Extreme",
+};
+
+// ─── form state ──────────────────────────────────────────────────────────────
+
+interface ProgressForm {
+  id?: string;
+  date: string;
+  costCodeId: string;
+  quantityInstalled: string;
+  totalBudgetedQuantity: string;
+  unitOfMeasure: string;
+  crewSize: string;
+  hoursWorked: string;
+  weatherCondition: string;
+  notes: string;
 }
+
+function emptyForm(): ProgressForm {
+  return {
+    date: new Date().toISOString().slice(0, 10),
+    costCodeId: "",
+    quantityInstalled: "",
+    totalBudgetedQuantity: "",
+    unitOfMeasure: "EA",
+    crewSize: "",
+    hoursWorked: "",
+    weatherCondition: "Clear",
+    notes: "",
+  };
+}
+
+// ─── component ───────────────────────────────────────────────────────────────
 
 export default function ProgressPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: projectId } = use(params);
-  const isProjectIdValid = isValidGuid(projectId);
+  const { id } = use(params);
 
   const [entries, setEntries] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [costCodes, setCostCodes] = useState<CostCode[]>([]);
+  const [projectName, setProjectName] = useState("Project");
+  const [avgComplete, setAvgComplete] = useState(0);
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<ProgressFormState>({
-    name: "",
-    entryDate: new Date().toISOString().slice(0, 10),
-    percentComplete: "0",
-    plannedPercent: "0",
-    earnedValue: "0",
-    measurementMethod: "Percentage",
-    quantity: "0",
-    unit: "",
-    description: "",
-    status: "Draft",
-  });
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<ProgressForm>(emptyForm());
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [pendingDelete, setPendingDelete] = useState<ProgressRow | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  const loadEntries = useCallback(async () => {
     try {
-      const result = await api<PmPagedResult>(
-        `/api/projects/${projectId}/progress-entries?page=1&pageSize=500`
-      );
-      setEntries(result.items ?? []);
-    } catch (error) {
-      toast.error("Failed to load progress entries", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
-    } finally {
-      setLoading(false);
+      const result = await listFieldProgress(id, { pageSize: 200 });
+      setEntries(result.items);
+      if (result.items.length > 0) {
+        const pcts = result.items.map((e) => asNum(d(e.data).PercentComplete));
+        setAvgComplete(pcts.reduce((a, b) => a + b, 0) / pcts.length);
+      } else {
+        setAvgComplete(0);
+      }
+    } catch {
+      toast.error("Failed to load progress entries");
     }
-  }, [projectId]);
+  }, [id]);
 
   useEffect(() => {
-    if (!isProjectIdValid) {
-      setLoading(false);
-      return;
+    let cancelled = false;
+    async function init() {
+      setLoading(true);
+      try {
+        const [projectData, costCodeData] = await Promise.all([
+          api<{ name: string }>(`/api/projects/${id}`).catch(() => ({ name: "Project" })),
+          api<ListCostCodesResult>(`/api/cost-codes?pageSize=200`).catch(
+            () => ({ items: [] as CostCode[], totalCount: 0, page: 1, pageSize: 200, totalPages: 0 })
+          ),
+        ]);
+        if (cancelled) return;
+        setProjectName(projectData.name);
+        setCostCodes(costCodeData.items);
+        await loadEntries();
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     }
-    void load();
-  }, [isProjectIdValid, load]);
+    init();
+    return () => { cancelled = true; };
+  }, [id, loadEntries]);
 
-  const rows = useMemo(() => {
-    const mapped = entries.map<ProgressRow>((entry) => {
-      const data = asDataMap(entry.data);
-      return {
-        id: entry.id,
-        entryDate: asString(data.ProgressDate ?? data.progressDate ?? data.EntryDate ?? data.entryDate) || entry.createdAt,
-        name: entry.name || entry.title || "Untitled",
-        percentComplete: asNumber(data.PercentComplete ?? data.percentComplete),
-        plannedPercent: asNumber(data.PlannedPercent ?? data.plannedPercent),
-        earnedValue: asNumber(data.EarnedValue ?? data.earnedValue),
-        measurementMethod: asString(data.MeasurementMethod ?? data.measurementMethod) || "Percentage",
-        quantity: asNumber(data.Quantity ?? data.quantity),
-        unit: asString(data.Unit ?? data.unit),
-        description: asString(data.Description ?? data.description),
-        status: entry.status || "Draft",
-      };
-    });
-
-    const q = search.trim().toLowerCase();
-    return mapped.filter((row) => {
-      if (statusFilter !== "all" && row.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        row.name.toLowerCase().includes(q) ||
-        row.description.toLowerCase().includes(q) ||
-        row.measurementMethod.toLowerCase().includes(q)
-      );
-    });
-  }, [entries, search, statusFilter]);
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (
+        e.key === "n" && !dialogOpen && !deleteId &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target instanceof HTMLSelectElement)
+      ) {
+        e.preventDefault();
+        openCreate();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dialogOpen, deleteId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function openCreate() {
-    setEditing(false);
+    setForm(emptyForm());
+    setDialogOpen(true);
+    setTimeout(() => firstFieldRef.current?.focus(), 50);
+  }
+
+  function openEdit(entry: PmEntityDto) {
+    const data = d(entry.data);
     setForm({
-      name: "",
-      entryDate: new Date().toISOString().slice(0, 10),
-      percentComplete: "0",
-      plannedPercent: "0",
-      earnedValue: "0",
-      measurementMethod: "Percentage",
-      quantity: "0",
-      unit: "",
-      description: "",
-      status: "Draft",
+      id: entry.id,
+      date: asStr(data.Date).slice(0, 10) || new Date().toISOString().slice(0, 10),
+      costCodeId: asStr(data.CostCodeId),
+      quantityInstalled: String(asNum(data.QuantityInstalled)),
+      totalBudgetedQuantity: String(asNum(data.TotalBudgetedQuantity)),
+      unitOfMeasure: asStr(data.UnitOfMeasure) || "EA",
+      crewSize: asNum(data.CrewSize) > 0 ? String(asNum(data.CrewSize)) : "",
+      hoursWorked: asNum(data.HoursWorked) > 0 ? String(asNum(data.HoursWorked)) : "",
+      weatherCondition: asStr(data.WeatherCondition) || "Clear",
+      notes: asStr(data.Notes),
     });
     setDialogOpen(true);
   }
 
-  function openEdit(row: ProgressRow) {
-    setEditing(true);
-    setForm({
-      id: row.id,
-      name: row.name,
-      entryDate: row.entryDate ? row.entryDate.slice(0, 10) : "",
-      percentComplete: row.percentComplete.toString(),
-      plannedPercent: row.plannedPercent.toString(),
-      earnedValue: row.earnedValue.toString(),
-      measurementMethod: row.measurementMethod,
-      quantity: row.quantity.toString(),
-      unit: row.unit,
-      description: row.description,
-      status: row.status,
-    });
-    setDialogOpen(true);
-  }
-
-  async function saveEntry() {
-    if (!form.name.trim()) {
-      toast.error("Name is required");
-      return;
+  async function handleSave() {
+    if (!form.costCodeId) { toast.error("Select a cost code"); return; }
+    if (!form.quantityInstalled || isNaN(parseFloat(form.quantityInstalled))) {
+      toast.error("Enter quantity installed"); return;
     }
-
-    const payload: PmUpsertRequest = {
-      name: form.name.trim(),
-      status: form.status,
-      data: {
-        ProgressDate: form.entryDate
-          ? new Date(form.entryDate + "T00:00:00Z").toISOString()
-          : new Date().toISOString(),
-        EntryType: form.measurementMethod === "Units" || form.measurementMethod === "Milestones"
-          ? "Quantity"
-          : form.measurementMethod === "WeightedSteps"
-            ? "EarnedValue"
-            : "Activity",
-        PercentComplete: parseFloat(form.percentComplete) || 0,
-        PlannedPercent: parseFloat(form.plannedPercent) || 0,
-        EarnedValue: parseFloat(form.earnedValue) || 0,
-        MeasurementMethod: form.measurementMethod,
-        Quantity: parseFloat(form.quantity) || 0,
-        Unit: form.unit || null,
-        Description: form.description || null,
-      },
-    };
-
+    if (!form.totalBudgetedQuantity || isNaN(parseFloat(form.totalBudgetedQuantity))) {
+      toast.error("Enter total budgeted quantity"); return;
+    }
     setSaving(true);
     try {
-      if (editing && form.id) {
-        await api<PmEntityDto>(`/api/projects/${projectId}/progress-entries/${form.id}`, {
-          method: "PUT",
-          body: payload,
-        });
+      const payload = {
+        CostCodeId: form.costCodeId,
+        QuantityInstalled: parseFloat(form.quantityInstalled),
+        TotalBudgetedQuantity: parseFloat(form.totalBudgetedQuantity),
+        Date: form.date,
+        UnitOfMeasure: form.unitOfMeasure || "EA",
+        CrewSize: form.crewSize ? parseInt(form.crewSize, 10) : 0,
+        HoursWorked: form.hoursWorked ? parseFloat(form.hoursWorked) : 0,
+        WeatherCondition: form.weatherCondition,
+        Notes: form.notes || undefined,
+      };
+      if (form.id) {
+        await updateFieldProgressEntry(id, form.id, payload);
         toast.success("Progress entry updated");
       } else {
-        await api<PmEntityDto>(`/api/projects/${projectId}/progress-entries`, {
-          method: "POST",
-          body: payload,
-        });
-        toast.success("Progress entry created");
+        await createFieldProgressEntry(id, payload);
+        toast.success("Progress entry logged");
       }
       setDialogOpen(false);
-      await load();
-    } catch (error) {
-      toast.error("Failed to save progress entry", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
+      await loadEntries();
+    } catch (err: unknown) {
+      const msg = err && typeof err === "object" && "message" in err
+        ? (err as { message: string }).message : "Failed to save";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
   }
 
-  async function approveEntry(id: string) {
-    setSaving(true);
+  async function handleDelete() {
+    if (!deleteId) return;
+    setDeleting(true);
     try {
-      await api<PmEntityDto>(`/api/projects/${projectId}/progress-entries/${id}/approve`, {
-        method: "POST",
-      });
-      toast.success("Progress entry approved");
-      await load();
-    } catch (error) {
-      toast.error("Failed to approve", {
-        description: error instanceof Error ? error.message : "Unknown error",
-      });
+      await deleteFieldProgressEntry(id, deleteId);
+      toast.success("Entry deleted");
+      setDeleteId(null);
+      await loadEntries();
+    } catch {
+      toast.error("Failed to delete entry");
     } finally {
-      setSaving(false);
+      setDeleting(false);
     }
   }
 
-  async function deleteEntry() {
-    if (!pendingDelete) return;
-
-    setSaving(true);
-    try {
-      await api<void>(`/api/projects/${projectId}/progress-entries/${pendingDelete.id}`, {
-        method: "DELETE",
-      });
-      toast.success("Progress entry deleted");
-      setDeleteOpen(false);
-      setPendingDelete(null);
-      await load();
-    } catch (error) {
-      const message =
-        error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete is not available yet for progress entries"
-          : error instanceof Error
-            ? error.message
-            : "Unknown error";
-      toast.error("Failed to delete", { description: message });
-    } finally {
-      setSaving(false);
-    }
+  function getCostCodeLabel(costCodeId: unknown): string {
+    const ccId = asStr(costCodeId);
+    const cc = costCodes.find((c) => c.id === ccId);
+    return cc ? `${cc.code} — ${cc.description}` : ccId.slice(0, 8) + "…";
   }
 
-  if (!isProjectIdValid) {
-    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Breadcrumbs items={[
+          { label: "Projects", href: "/projects" },
+          { label: projectName, href: `/projects/${id}` },
+          { label: "Progress" },
+        ]} />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <div className="h-16 bg-muted animate-pulse rounded" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <TableSkeleton headers={["Date", "Cost Code", "Qty", "%", "Crew", "Hours", "Weather", ""]} />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Breadcrumbs items={[
+        { label: "Projects", href: "/projects" },
+        { label: projectName, href: `/projects/${id}` },
+        { label: "Progress" },
+      ]} />
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Progress Tracking</h1>
-          <p className="text-muted-foreground">
-            Track project progress with percent complete, earned value, and measurement data.
+          <h1 className="text-2xl font-bold">Field Progress</h1>
+          <p className="text-sm text-muted-foreground">
+            Log daily quantities — entries auto-update schedule percent complete.
           </p>
         </div>
-        <Button onClick={openCreate}>+ New Entry</Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/projects/${id}/earned-value`}>
+              <BarChart2 className="h-3.5 w-3.5 mr-1.5" />
+              Earned Value
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/projects/${id}/settings/cost-code-mapping`}>
+              Configure Mapping
+            </Link>
+          </Button>
+          <Button
+            onClick={openCreate}
+            className="bg-amber-500 hover:bg-amber-600 text-white"
+            size="sm"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Log Entry
+            <kbd className="ml-2 text-[10px] opacity-60 border rounded px-1">N</kbd>
+          </Button>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Progress Entries</CardTitle>
-          <CardDescription>
-            Record and monitor progress measurements for this project.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-[1fr_220px]">
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, description, or method"
-            />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <BarChart2 className="h-4 w-4" />
+              Total Entries
+            </div>
+            <p className="text-2xl font-bold">{entries.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <BarChart2 className="h-4 w-4" />
+              Avg % Complete
+            </div>
+            <p className={cn("text-2xl font-bold",
+              avgComplete >= 0.9 ? "text-green-600" :
+              avgComplete >= 0.5 ? "text-amber-600" : "text-foreground"
+            )}>
+              {fmtPct(avgComplete)}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground mb-2">Cost Codes Tracked</div>
+            <p className="text-2xl font-bold">
+              {new Set(entries.map((e) => asStr(d(e.data).CostCodeId))).size}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-sm text-muted-foreground mb-2">Earned Value</div>
+            <Button asChild variant="link" className="p-0 h-auto text-amber-600 font-semibold">
+              <Link href={`/projects/${id}/earned-value`}>View Dashboard →</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading progress entries...</p>
-          ) : (
-            <>
-              {/* Mobile card layout */}
-              <div className="space-y-3 sm:hidden">
-                {rows.length === 0 ? (
-                  <div className="rounded-lg border border-dashed p-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No progress entries yet. Create your first entry.
-                    </p>
-                    <Button className="mt-3" size="sm" onClick={openCreate}>Create Entry</Button>
-                  </div>
-                ) : (
-                  rows.map((row) => (
-                    <div key={row.id} className="rounded-lg border p-4 space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-mono text-muted-foreground">
-                          {formatDate(row.entryDate)}
-                        </span>
-                        <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                      </div>
-                      <p className="font-medium">{row.name}</p>
-                      <div className="flex gap-4 text-sm">
-                        <span>Actual: {row.percentComplete}%</span>
-                        <span>Planned: {row.plannedPercent}%</span>
-                      </div>
-                      {row.description && (
-                        <p className="text-sm text-muted-foreground truncate">{row.description}</p>
-                      )}
-                      <div className="flex gap-2 pt-1">
-                        <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                          Edit
-                        </Button>
-                        {row.status === "Submitted" && (
-                          <Button variant="outline" size="sm" onClick={() => approveEntry(row.id)} disabled={saving}>
-                            Approve
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => { setPendingDelete(row); setDeleteOpen(true); }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Desktop table layout */}
-              <div className="hidden sm:block">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead className="text-right">Actual %</TableHead>
-                        <TableHead className="text-right">Planned %</TableHead>
-                        <TableHead className="text-right">Earned Value</TableHead>
-                        <TableHead>Method</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="w-[200px]">Actions</TableHead>
+      {entries.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <CloudSun className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="font-medium mb-1">No progress entries yet</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              Log your first field progress entry to start tracking schedule completion and earned
+              value.
+            </p>
+            <Button onClick={openCreate} className="bg-amber-500 hover:bg-amber-600 text-white">
+              <Plus className="h-4 w-4 mr-2" />
+              Log First Entry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Progress Entries ({entries.length})</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Cost Code</TableHead>
+                    <TableHead className="text-right">Qty Installed</TableHead>
+                    <TableHead className="text-right">Cumulative %</TableHead>
+                    <TableHead className="text-center">
+                      <span className="flex items-center justify-center gap-1">
+                        <Users className="h-3 w-3" />Crew
+                      </span>
+                    </TableHead>
+                    <TableHead className="text-center">
+                      <span className="flex items-center justify-center gap-1">
+                        <Clock className="h-3 w-3" />Hours
+                      </span>
+                    </TableHead>
+                    <TableHead>Weather</TableHead>
+                    <TableHead className="w-[80px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => {
+                    const data = d(entry.data);
+                    const pct = asNum(data.PercentComplete);
+                    return (
+                      <TableRow key={entry.id}>
+                        <TableCell className="whitespace-nowrap font-mono text-sm">
+                          {fmtDate(asStr(data.Date) || entry.createdAt)}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] text-sm">
+                          <span className="truncate block">
+                            {getCostCodeLabel(data.CostCodeId)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-sm font-mono">
+                          {asNum(data.QuantityInstalled).toLocaleString()}{" "}
+                          <span className="text-muted-foreground">{asStr(data.UnitOfMeasure)}</span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Badge className={cn("text-xs font-mono", pctBadgeClass(pct))}>
+                            {fmtPct(pct)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center text-sm">
+                          {asNum(data.CrewSize) || "—"}
+                        </TableCell>
+                        <TableCell className="text-center text-sm font-mono">
+                          {asNum(data.HoursWorked) > 0
+                            ? asNum(data.HoursWorked).toFixed(1)
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {WEATHER_LABELS[asStr(data.WeatherCondition)] ||
+                            asStr(data.WeatherCondition) || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => openEdit(entry)}
+                              title="Edit"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              <span className="sr-only">Edit</span>
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteId(entry.id)}
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span className="sr-only">Delete</span>
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8}>
-                            <div className="flex flex-col items-center gap-3 py-6 text-center">
-                              <p className="text-sm text-muted-foreground">
-                                No progress entries yet.
-                              </p>
-                              <Button size="sm" onClick={openCreate}>Create Entry</Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        rows.map((row) => (
-                          <TableRow key={row.id}>
-                            <TableCell className="font-mono text-sm">{formatDate(row.entryDate)}</TableCell>
-                            <TableCell className="font-medium">{row.name}</TableCell>
-                            <TableCell className="text-right font-mono">{row.percentComplete}%</TableCell>
-                            <TableCell className="text-right font-mono">{row.plannedPercent}%</TableCell>
-                            <TableCell className="text-right font-mono">
-                              ${row.earnedValue.toLocaleString()}
-                            </TableCell>
-                            <TableCell>{row.measurementMethod}</TableCell>
-                            <TableCell>
-                              <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button variant="outline" size="sm" onClick={() => openEdit(row)}>
-                                  Edit
-                                </Button>
-                                {row.status === "Submitted" && (
-                                  <Button variant="outline" size="sm" onClick={() => approveEntry(row.id)} disabled={saving}>
-                                    Approve
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => { setPendingDelete(row); setDeleteOpen(true); }}
-                                >
-                                  Delete
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit Progress Entry" : "New Progress Entry"}</DialogTitle>
+            <DialogTitle>
+              {form.id ? "Edit Progress Entry" : "Log Field Progress"}
+            </DialogTitle>
             <DialogDescription>
-              Record progress measurement data for this project.
+              {form.id
+                ? "Update this progress entry."
+                : "Record what was installed today. Qty / budgeted qty = % complete."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="progress-name">Name</Label>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-date">Date</Label>
                 <Input
-                  id="progress-name"
-                  value={form.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Foundation Phase"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="progress-date">Entry Date</Label>
-                <Input
-                  id="progress-date"
+                  id="entry-date"
+                  ref={firstFieldRef}
                   type="date"
-                  value={form.entryDate}
-                  onChange={(e) => setForm((prev) => ({ ...prev, entryDate: e.target.value }))}
+                  value={form.date}
+                  onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
                 />
               </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="progress-percent">Percent Complete (%)</Label>
-                <Input
-                  id="progress-percent"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={form.percentComplete}
-                  onChange={(e) => setForm((prev) => ({ ...prev, percentComplete: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="progress-planned">Planned Percent (%)</Label>
-                <Input
-                  id="progress-planned"
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.1"
-                  value={form.plannedPercent}
-                  onChange={(e) => setForm((prev) => ({ ...prev, plannedPercent: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="progress-ev">Earned Value ($)</Label>
-                <Input
-                  id="progress-ev"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.earnedValue}
-                  onChange={(e) => setForm((prev) => ({ ...prev, earnedValue: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Measurement Method</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-weather">Weather</Label>
                 <Select
-                  value={form.measurementMethod}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, measurementMethod: value }))}
+                  value={form.weatherCondition}
+                  onValueChange={(v) => setForm((f) => ({ ...f, weatherCondition: v }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="entry-weather">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {MEASUREMENT_METHODS.map((method) => (
-                      <SelectItem key={method} value={method}>{method}</SelectItem>
+                    {WEATHER_OPTIONS.map((w) => (
+                      <SelectItem key={w} value={w}>{WEATHER_LABELS[w]}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="progress-qty">Quantity</Label>
-                <Input
-                  id="progress-qty"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.quantity}
-                  onChange={(e) => setForm((prev) => ({ ...prev, quantity: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="progress-unit">Unit</Label>
-                <select
-                  id="progress-unit"
-                  value={form.unit}
-                  onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="">Select unit...</option>
-                  <option value="LS">LS — Lump Sum</option>
-                  <option value="EA">EA — Each</option>
-                  <option value="LF">LF — Linear Feet</option>
-                  <option value="SF">SF — Square Feet</option>
-                  <option value="CY">CY — Cubic Yards</option>
-                  <option value="TON">TON — Tons</option>
-                  <option value="GAL">GAL — Gallons</option>
-                  <option value="HR">HR — Hours</option>
-                  <option value="DAY">DAY — Days</option>
-                  <option value="MO">MO — Months</option>
-                  <option value="PCT">PCT — Percent</option>
-                </select>
-              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="progress-desc">Description</Label>
-              <Textarea
-                id="progress-desc"
-                value={form.description}
-                onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                rows={3}
-                placeholder="Notes about this progress measurement"
-              />
-            </div>
-
-            <div className="w-48">
-              <Label>Status</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="entry-costcode">Cost Code</Label>
               <Select
-                value={form.status}
-                onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
+                value={form.costCodeId}
+                onValueChange={(v) => setForm((f) => ({ ...f, costCodeId: v }))}
               >
-                <SelectTrigger>
-                  <SelectValue />
+                <SelectTrigger id="entry-costcode">
+                  <SelectValue placeholder="Select cost code…" />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  {costCodes.length === 0 && (
+                    <SelectItem value="_none" disabled>No cost codes found</SelectItem>
+                  )}
+                  {costCodes.map((cc) => (
+                    <SelectItem key={cc.id} value={cc.id}>
+                      {cc.code} — {cc.description}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-qty">Qty Installed</Label>
+                <Input
+                  id="entry-qty"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={form.quantityInstalled}
+                  onChange={(e) => setForm((f) => ({ ...f, quantityInstalled: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-budget">Total Budgeted</Label>
+                <Input
+                  id="entry-budget"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={form.totalBudgetedQuantity}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, totalBudgetedQuantity: e.target.value }))
+                  }
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-uom">Unit</Label>
+                <Input
+                  id="entry-uom"
+                  value={form.unitOfMeasure}
+                  onChange={(e) => setForm((f) => ({ ...f, unitOfMeasure: e.target.value }))}
+                  placeholder="EA"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-crew">Crew Size</Label>
+                <Input
+                  id="entry-crew"
+                  type="number"
+                  min="0"
+                  value={form.crewSize}
+                  onChange={(e) => setForm((f) => ({ ...f, crewSize: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="entry-hours">Hours Worked</Label>
+                <Input
+                  id="entry-hours"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={form.hoursWorked}
+                  onChange={(e) => setForm((f) => ({ ...f, hoursWorked: e.target.value }))}
+                  placeholder="0.0"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="entry-notes">Notes</Label>
+              <Textarea
+                id="entry-notes"
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Optional field notes…"
+                className="h-20 resize-none"
+              />
             </div>
           </div>
 
@@ -642,32 +637,34 @@ export default function ProgressPage({ params }: { params: Promise<{ id: string 
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button onClick={saveEntry} disabled={saving}>
-              {saving ? "Saving..." : editing ? "Save Changes" : "Create Entry"}
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              {saving ? "Saving…" : form.id ? "Save Changes" : "Log Entry"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete Progress Entry</DialogTitle>
-            <DialogDescription>
-              Delete &quot;{pendingDelete?.name ?? "this entry"}&quot;? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={saving}>
-              Cancel
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete progress entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deleting this entry will recalculate the activity percent complete. This cannot be
+              undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
             </Button>
-            <Button variant="destructive" onClick={deleteEntry} disabled={saving}>
-              {saving ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

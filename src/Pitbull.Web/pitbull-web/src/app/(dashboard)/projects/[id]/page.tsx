@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Briefcase,
   ClipboardCheck,
+  TrendingUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -497,6 +498,8 @@ export default function ProjectDetailPage({
           { label: "Tasks", href: `/projects/${id}/tasks`, icon: CheckSquare },
           { label: "Job Cost", href: `/projects/${id}/job-cost`, icon: Briefcase },
           { label: "Punch List", href: `/projects/${id}/punch-list`, icon: ClipboardCheck },
+          { label: "Progress", href: `/projects/${id}/progress`, icon: TrendingUp },
+          { label: "Earned Value", href: `/projects/${id}/earned-value`, icon: BarChart3 },
         ].map((tab) => (
           <Link
             key={tab.label}
