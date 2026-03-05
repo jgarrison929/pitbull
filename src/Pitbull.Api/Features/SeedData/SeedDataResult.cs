@@ -39,6 +39,8 @@ public record SeedDataResult(
     int NotificationsCreated = 0,
     int EquipmentCreated = 0,
     int BankAccountsCreated = 0,
+    int BankTransactionsCreated = 0,
+    int BankReconciliationsCreated = 0,
     int WageDeterminationsCreated = 0,
     int ComplianceDocumentsCreated = 0,
     int TaxJurisdictionsCreated = 0,

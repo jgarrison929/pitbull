@@ -32,7 +32,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 8;
+    private const int SeedDataVersion = 9;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default, bool useExternalTransaction = false)
     {
@@ -351,6 +351,16 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<BankAccount>().AddRange(bankAccounts);
         await db.SaveChangesAsync(ct);
 
+        // Bank transactions and reconciliations (3 months of history for Operating Account)
+        var (bankTransactions, bankReconciliations) = CreateBankTransactionsAndReconciliations(bankAccounts, seedUserId);
+        StampCompanyId(bankTransactions, companyId);
+        StampCompanyId(bankReconciliations, companyId);
+        // Reconciliations must be saved first — transactions FK-reference them
+        db.Set<BankReconciliation>().AddRange(bankReconciliations);
+        await db.SaveChangesAsync(ct);
+        db.Set<BankTransaction>().AddRange(bankTransactions);
+        await db.SaveChangesAsync(ct);
+
         // Wage determinations with work classifications and rates
         var workClassifications = CreateWorkClassifications();
         StampCompanyId(workClassifications, companyId);
@@ -481,6 +491,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             NotificationsCreated: notifications.Count,
             EquipmentCreated: equipment.Count,
             BankAccountsCreated: bankAccounts.Count,
+            BankTransactionsCreated: bankTransactions.Count,
+            BankReconciliationsCreated: bankReconciliations.Count,
             WageDeterminationsCreated: wageDeterminations.Count,
             ComplianceDocumentsCreated: complianceDocs.Count,
             TaxJurisdictionsCreated: taxJurisdictions.Count,
@@ -503,6 +515,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                      $"{lienWaivers.Count} lien waivers, {purchaseOrders.Count} purchase orders, " +
                      $"{notifications.Count} notifications, " +
                      $"{equipment.Count} equipment, {bankAccounts.Count} bank accounts, " +
+                     $"{bankTransactions.Count} bank transactions, {bankReconciliations.Count} bank reconciliations, " +
                      $"{wageDeterminations.Count} wage determinations, {complianceDocs.Count} compliance docs, " +
                      $"{taxJurisdictions.Count} tax jurisdictions, {meetings.Count} meetings, {tasks.Count} tasks"
         ));
@@ -529,6 +542,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         await BulkDeleteAsync<WageDeterminationRate>(tenantId, ct);
         await BulkDeleteAsync<WageDetermination>(tenantId, ct);
         await BulkDeleteAsync<WorkClassification>(tenantId, ct);
+        // Bank rec data: transactions → reconciliations → accounts (FK order)
+        await BulkDeleteAsync<BankTransaction>(tenantId, ct);
+        await BulkDeleteAsync<BankReconciliation>(tenantId, ct);
         await BulkDeleteAsync<BankAccount>(tenantId, ct);
         await BulkDeleteAsync<Equipment>(tenantId, ct);
 
@@ -4576,6 +4592,263 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 OpeningBalanceDate = new DateOnly(2025, 1, 1),
             },
         ];
+    }
+
+    /// <summary>
+    /// Creates realistic bank transactions and reconciliations for the Operating Account.
+    /// Spans Dec 2025 – Feb 2026. Dec/Jan are completed; Feb is in-progress.
+    ///
+    /// Story: Profitable GC with healthy cash flow — regular owner payments, timely sub payments,
+    /// bi-weekly payroll, and clean bank recs. Feb is 75% reconciled with 5 outstanding items.
+    /// </summary>
+    private static (List<BankTransaction> transactions, List<BankReconciliation> reconciliations)
+        CreateBankTransactionsAndReconciliations(List<BankAccount> bankAccounts, Guid completedByUserId)
+    {
+        var operating = bankAccounts.First(a => a.AccountNumberLast4 == "4821");
+        var payroll   = bankAccounts.First(a => a.AccountNumberLast4 == "7395");
+        var reserve   = bankAccounts.First(a => a.AccountNumberLast4 == "2108");
+        var trust     = bankAccounts.First(a => a.AccountNumberLast4 == "6643");
+
+        var txns = new List<BankTransaction>();
+        var recs = new List<BankReconciliation>();
+
+        // ── Operating Account — December 2025 ────────────────────────
+        // Owner payments + retention release overwhelm payroll/sub costs → healthy cash build
+        var decTxns = new List<BankTransaction>
+        {
+            T(operating.Id, new DateOnly(2025, 12, 1),  "ADP Payroll — 12/01 Run",                                -92_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2025, 12, 3),  "Summit Dewatering Inc",                                 -45_000.00m, BankTransactionType.Check, "5421"),
+            T(operating.Id, new DateOnly(2025, 12, 5),  "Owner Payment — Bay Bridge Transit Center App #8",      +308_032.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2025, 12, 6),  "Summit Electric Co",                                     -38_500.00m, BankTransactionType.Check, "5422"),
+            T(operating.Id, new DateOnly(2025, 12, 8),  "Atlas Ready Mix — Materials",                            -12_450.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 9),  "Sunbelt Rentals — Equipment",                             -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 10), "HD Supply — Materials",                                   -4_850.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 12), "Owner Payment — Westside Mixed-Use Dev App #5",         +175_000.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2025, 12, 14), "Sierra Fire Protection Inc",                             -22_000.00m, BankTransactionType.Check, "5423"),
+            T(operating.Id, new DateOnly(2025, 12, 15), "ADP Payroll — 12/15 Run",                                -87_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2025, 12, 16), "Hartford Commercial Insurance — Premium",                 -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 18), "Retention Release — Eastside Housing Project",           +27_510.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2025, 12, 19), "PG&E Fleet Card — Fuel",                                  -3_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 22), "Summit Dewatering Inc",                                 -18_000.00m, BankTransactionType.Check, "5424"),
+            T(operating.Id, new DateOnly(2025, 12, 29), "ADP Payroll — 12/29 Run",                                -91_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2025, 12, 31), "Interest Income",                                            +125.00m, BankTransactionType.Interest),
+            T(operating.Id, new DateOnly(2025, 12, 31), "Monthly Service Fee",                                        -35.00m, BankTransactionType.Fee),
+            T(operating.Id, new DateOnly(2025, 12, 31), "Wire Transfer Fee",                                          -25.00m, BankTransactionType.Fee),
+        };
+        // Dec: Deposits 510,667 | Withdrawals 430,460 | Net +80,207
+        // BeginningBalance 1,201,000 → EndingBalance 1,281,207
+        decimal decBegin = 1_201_000.00m;
+        decimal decDeposits    = decTxns.Where(t => t.Amount > 0).Sum(t => t.Amount);    // 510,667
+        decimal decWithdrawals = decTxns.Where(t => t.Amount < 0).Sum(t => Math.Abs(t.Amount)); // 430,460
+        decimal decEnding = decBegin + decDeposits - decWithdrawals;                             // 1,281,207
+
+        var decRecId = Guid.NewGuid();
+        var decCompletedAt = new DateTime(2026, 1, 5, 14, 22, 0, DateTimeKind.Utc);
+        foreach (var t in decTxns)
+        {
+            t.IsCleared = true;
+            t.BankReconciliationId = decRecId;
+            t.ClearedAt = decCompletedAt;
+        }
+        recs.Add(new BankReconciliation
+        {
+            Id = decRecId,
+            BankAccountId = operating.Id,
+            StatementDate = new DateOnly(2025, 12, 31),
+            BeginningBalance = decBegin,
+            ClearedDeposits = decDeposits,
+            ClearedWithdrawals = decWithdrawals,
+            StatementEndingBalance = decEnding,
+            Difference = 0m,
+            Status = BankReconciliationStatus.Completed,
+            CompletedByUserId = completedByUserId,
+            CompletedAt = decCompletedAt,
+        });
+        txns.AddRange(decTxns);
+
+        // ── Operating Account — January 2026 ─────────────────────────
+        // Large Bay Bridge payment + Eastside close-out + Westside progress → strong month
+        var janTxns = new List<BankTransaction>
+        {
+            T(operating.Id, new DateOnly(2026, 1, 2),  "ADP Payroll — 01/02 Run",                               -88_500.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 1, 5),  "Summit Electric Co",                                    -52_000.00m, BankTransactionType.Check, "5425"),
+            T(operating.Id, new DateOnly(2026, 1, 6),  "Atlas Ready Mix — Materials",                           -15_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 7),  "Owner Payment — Bay Bridge Transit Center App #9",     +412_500.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2026, 1, 8),  "Summit Dewatering Inc",                                -62_000.00m, BankTransactionType.Check, "5426"),
+            T(operating.Id, new DateOnly(2026, 1, 9),  "Sunbelt Rentals — Equipment",                           -9_500.00m,  BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 10), "HD Supply — Materials",                                  -6_800.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 12), "Steel & Wire Co — Rebar/Mesh",                         -18_400.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 13), "Owner Payment — Eastside Housing Dev App #3",           +89_500.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2026, 1, 14), "Sierra Fire Protection Inc",                            -28_500.00m, BankTransactionType.Check, "5427"),
+            T(operating.Id, new DateOnly(2026, 1, 15), "ADP Payroll — 01/15 Run",                               -94_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 1, 16), "Hartford Commercial Insurance — Premium",                -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 17), "Bay Concrete Supply — Materials",                        -9_800.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 19), "PG&E Fleet Card — Fuel",                                 -4_100.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 20), "Owner Payment — Westside Mixed-Use Dev App #6",        +145_000.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2026, 1, 23), "Summit Dewatering Inc",                                -25_000.00m, BankTransactionType.Check, "5428"),
+            T(operating.Id, new DateOnly(2026, 1, 29), "ADP Payroll — 01/29 Run",                               -92_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 1, 31), "Interest Income",                                          +142.00m, BankTransactionType.Interest),
+            T(operating.Id, new DateOnly(2026, 1, 31), "Monthly Service Fee",                                      -35.00m,  BankTransactionType.Fee),
+            T(operating.Id, new DateOnly(2026, 1, 31), "Wire Transfer Fee",                                        -25.00m,  BankTransactionType.Fee),
+        };
+        // Jan: Deposits 647,142 | Withdrawals 514,060 | Net +133,082
+        // BeginningBalance 1,281,207 → EndingBalance 1,414,289
+        decimal janBegin = decEnding;
+        decimal janDeposits    = janTxns.Where(t => t.Amount > 0).Sum(t => t.Amount);
+        decimal janWithdrawals = janTxns.Where(t => t.Amount < 0).Sum(t => Math.Abs(t.Amount));
+        decimal janEnding = janBegin + janDeposits - janWithdrawals;
+
+        var janRecId = Guid.NewGuid();
+        var janCompletedAt = new DateTime(2026, 2, 4, 9, 15, 0, DateTimeKind.Utc);
+        foreach (var t in janTxns)
+        {
+            t.IsCleared = true;
+            t.BankReconciliationId = janRecId;
+            t.ClearedAt = janCompletedAt;
+        }
+        recs.Add(new BankReconciliation
+        {
+            Id = janRecId,
+            BankAccountId = operating.Id,
+            StatementDate = new DateOnly(2026, 1, 31),
+            BeginningBalance = janBegin,
+            ClearedDeposits = janDeposits,
+            ClearedWithdrawals = janWithdrawals,
+            StatementEndingBalance = janEnding,
+            Difference = 0m,
+            Status = BankReconciliationStatus.Completed,
+            CompletedByUserId = completedByUserId,
+            CompletedAt = janCompletedAt,
+        });
+        txns.AddRange(janTxns);
+
+        // ── Operating Account — February 2026 (in-progress) ──────────
+        // 15 cleared + 5 outstanding (late payroll run, end-of-month fees, temp labor)
+        var febClearedTxns = new List<BankTransaction>
+        {
+            T(operating.Id, new DateOnly(2026, 2, 1),  "ADP Payroll — 02/01 Run",                               -91_500.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 2, 3),  "Summit Electric Co",                                    -48_000.00m, BankTransactionType.Check, "5429"),
+            T(operating.Id, new DateOnly(2026, 2, 4),  "Summit Dewatering Inc",                                -38_500.00m, BankTransactionType.Check, "5430"),
+            T(operating.Id, new DateOnly(2026, 2, 5),  "Atlas Ready Mix — Materials",                           -11_800.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 5),  "Owner Payment — Bay Bridge Transit Center App #10",    +325_000.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2026, 2, 6),  "Sunbelt Rentals — Equipment",                            -8_750.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 9),  "HD Supply — Materials",                                  -5_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 10), "Steel & Wire Co — Rebar/Mesh",                         -14_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 12), "Owner Payment — Westside Mixed-Use Dev App #7",        +112_000.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2026, 2, 13), "Sierra Fire Protection Inc",                            -31_000.00m, BankTransactionType.Check, "5431"),
+            T(operating.Id, new DateOnly(2026, 2, 14), "ADP Payroll — 02/14 Run",                               -93_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 2, 15), "Hartford Commercial Insurance — Premium",                -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 18), "Bay Concrete Supply — Materials",                        -7_400.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 19), "Retention Release — Shoreline Office Park",             +52_200.00m, BankTransactionType.Deposit),
+            T(operating.Id, new DateOnly(2026, 2, 20), "PG&E Fleet Card — Fuel",                                 -3_800.00m, BankTransactionType.Other),
+        };
+        var febUnclearedTxns = new List<BankTransaction>
+        {
+            // Outstanding items: posted in our books, not yet cleared on bank statement
+            T(operating.Id, new DateOnly(2026, 2, 25), "StaffOne Staffing — Temp Labor",                         -4_500.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 28), "ADP Payroll — 02/28 Run",                               -89_500.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 2, 28), "Interest Income",                                          +118.00m, BankTransactionType.Interest),
+            T(operating.Id, new DateOnly(2026, 2, 28), "Monthly Service Fee",                                       -35.00m, BankTransactionType.Fee),
+            T(operating.Id, new DateOnly(2026, 2, 28), "Wire Transfer Fee",                                         -25.00m, BankTransactionType.Fee),
+        };
+
+        decimal febBegin = janEnding;
+        decimal febClearedDeposits    = febClearedTxns.Where(t => t.Amount > 0).Sum(t => t.Amount);    // 489,200
+        decimal febClearedWithdrawals = febClearedTxns.Where(t => t.Amount < 0).Sum(t => Math.Abs(t.Amount)); // 361,350
+        // Statement ending = only the cleared items (outstanding items haven't cleared the bank yet)
+        decimal febStatementEnding = febBegin + febClearedDeposits - febClearedWithdrawals;            // 1,542,139
+
+        var febRecId = Guid.NewGuid();
+        foreach (var t in febClearedTxns)
+        {
+            t.IsCleared = true;
+            t.BankReconciliationId = febRecId;
+            t.ClearedAt = new DateTime(2026, 3, 3, 10, 45, 0, DateTimeKind.Utc);
+        }
+        // Uncleared transactions are left with IsCleared = false (default)
+        recs.Add(new BankReconciliation
+        {
+            Id = febRecId,
+            BankAccountId = operating.Id,
+            StatementDate = new DateOnly(2026, 2, 28),
+            BeginningBalance = febBegin,
+            ClearedDeposits = febClearedDeposits,
+            ClearedWithdrawals = febClearedWithdrawals,
+            StatementEndingBalance = febStatementEnding,
+            Difference = 0m, // Balanced — 5 outstanding items are normal end-of-month float
+            Status = BankReconciliationStatus.InProgress,
+        });
+        txns.AddRange(febClearedTxns);
+        txns.AddRange(febUnclearedTxns);
+
+        // ── Payroll Account (7395) — 3 months of payroll cycles ──────
+        // Each bi-weekly run: transfer in from operating, ACH direct deposits, payroll tax payment
+        var payrollCycles = new[]
+        {
+            (new DateOnly(2025, 12, 1),  +92_000.00m, -88_240.00m, -3_760.00m),
+            (new DateOnly(2025, 12, 15), +87_000.00m, -83_520.00m, -3_480.00m),
+            (new DateOnly(2025, 12, 29), +91_000.00m, -87_360.00m, -3_640.00m),
+            (new DateOnly(2026, 1, 2),   +88_500.00m, -84_960.00m, -3_540.00m),
+            (new DateOnly(2026, 1, 15),  +94_000.00m, -90_240.00m, -3_760.00m),
+            (new DateOnly(2026, 1, 29),  +92_000.00m, -88_320.00m, -3_680.00m),
+            (new DateOnly(2026, 2, 1),   +91_500.00m, -87_840.00m, -3_660.00m),
+            (new DateOnly(2026, 2, 14),  +93_000.00m, -89_280.00m, -3_720.00m),
+            (new DateOnly(2026, 2, 28),  +89_500.00m, -85_920.00m, -3_580.00m),
+        };
+        foreach (var (date, xferIn, dirDep, taxPmt) in payrollCycles)
+        {
+            txns.Add(T(payroll.Id, date, "Transfer from Operating — Payroll Funding", xferIn, BankTransactionType.Transfer));
+            txns.Add(T(payroll.Id, date, "ADP Payroll — Direct Deposits",            dirDep, BankTransactionType.Transfer));
+            txns.Add(T(payroll.Id, date, "IRS EFTPS — Payroll Tax Deposit",          taxPmt, BankTransactionType.Other));
+        }
+
+        // ── Equipment Reserve Account (2108) — monthly transfers + one purchase ──
+        txns.AddRange([
+            T(reserve.Id, new DateOnly(2025, 12, 1),  "Monthly Transfer — Equipment Reserve",  +10_000.00m, BankTransactionType.Transfer),
+            T(reserve.Id, new DateOnly(2025, 12, 10), "Interest Income",                            +135.20m, BankTransactionType.Interest),
+            T(reserve.Id, new DateOnly(2026, 1, 1),   "Monthly Transfer — Equipment Reserve",  +10_000.00m, BankTransactionType.Transfer),
+            T(reserve.Id, new DateOnly(2026, 1, 8),   "Caterpillar Financial — Skid Steer Pmt", -3_850.00m, BankTransactionType.Other),
+            T(reserve.Id, new DateOnly(2026, 1, 31),  "Interest Income",                            +148.75m, BankTransactionType.Interest),
+            T(reserve.Id, new DateOnly(2026, 2, 1),   "Monthly Transfer — Equipment Reserve",  +10_000.00m, BankTransactionType.Transfer),
+            T(reserve.Id, new DateOnly(2026, 2, 15),  "John Deere Financial — Forklift Pmt",    -4_200.00m, BankTransactionType.Other),
+            T(reserve.Id, new DateOnly(2026, 2, 28),  "Interest Income",                            +156.40m, BankTransactionType.Interest),
+        ]);
+
+        // ── Trust Account (6643) — Retention holds and releases ──────
+        txns.AddRange([
+            T(trust.Id, new DateOnly(2025, 12, 5),  "Retention Held — Bay Bridge Transit Center App #8",      +30_803.20m, BankTransactionType.Deposit),
+            T(trust.Id, new DateOnly(2025, 12, 12), "Retention Held — Westside Mixed-Use Dev App #5",         +17_500.00m, BankTransactionType.Deposit),
+            T(trust.Id, new DateOnly(2025, 12, 18), "Retention Release — Eastside Housing (Final)",           -27_510.00m, BankTransactionType.Other),
+            T(trust.Id, new DateOnly(2025, 12, 31), "Interest Income — Trust",                                    +325.80m, BankTransactionType.Interest),
+            T(trust.Id, new DateOnly(2026, 1, 7),   "Retention Held — Bay Bridge Transit Center App #9",      +41_250.00m, BankTransactionType.Deposit),
+            T(trust.Id, new DateOnly(2026, 1, 13),  "Retention Held — Eastside Housing Dev App #3",            +8_950.00m, BankTransactionType.Deposit),
+            T(trust.Id, new DateOnly(2026, 1, 20),  "Retention Held — Westside Mixed-Use Dev App #6",         +14_500.00m, BankTransactionType.Deposit),
+            T(trust.Id, new DateOnly(2026, 1, 31),  "Interest Income — Trust",                                    +340.15m, BankTransactionType.Interest),
+            T(trust.Id, new DateOnly(2026, 2, 5),   "Retention Held — Bay Bridge Transit Center App #10",     +32_500.00m, BankTransactionType.Deposit),
+            T(trust.Id, new DateOnly(2026, 2, 12),  "Retention Held — Westside Mixed-Use Dev App #7",         +11_200.00m, BankTransactionType.Deposit),
+            T(trust.Id, new DateOnly(2026, 2, 19),  "Retention Release — Shoreline Office Park (Final)",      -52_200.00m, BankTransactionType.Other),
+            T(trust.Id, new DateOnly(2026, 2, 28),  "Interest Income — Trust",                                    +318.90m, BankTransactionType.Interest),
+        ]);
+
+        return (txns, recs);
+
+        // ── Local helper: construct a BankTransaction ─────────────────
+        static BankTransaction T(
+            Guid accountId,
+            DateOnly date,
+            string description,
+            decimal amount,
+            BankTransactionType type,
+            string? checkNumber = null)
+        => new()
+        {
+            BankAccountId = accountId,
+            TransactionDate = date,
+            Description = description,
+            Amount = amount,
+            TransactionType = type,
+            CheckNumber = checkNumber,
+        };
     }
 
     private static List<WorkClassification> CreateWorkClassifications()
