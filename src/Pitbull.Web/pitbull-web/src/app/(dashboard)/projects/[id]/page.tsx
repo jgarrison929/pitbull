@@ -17,6 +17,7 @@ import {
   CheckSquare,
   MessageSquare,
   Briefcase,
+  ClipboardCheck,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -495,6 +496,7 @@ export default function ProjectDetailPage({
           { label: "Daily Reports", href: `/projects/${id}/daily-reports`, icon: FileText },
           { label: "Tasks", href: `/projects/${id}/tasks`, icon: CheckSquare },
           { label: "Job Cost", href: `/projects/${id}/job-cost`, icon: Briefcase },
+          { label: "Punch List", href: `/projects/${id}/punch-list`, icon: ClipboardCheck },
         ].map((tab) => (
           <Link
             key={tab.label}

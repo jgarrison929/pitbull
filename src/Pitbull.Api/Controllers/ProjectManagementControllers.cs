@@ -2404,6 +2404,16 @@ public class PunchListController(
         => HandleResult(await punchListService.UpdatePunchListItemAsync(projectId, itemId, request));
 
     /// <summary>
+    /// Soft-deletes a punch list item. Closed items cannot be deleted.
+    /// </summary>
+    [HttpDelete("{itemId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid itemId)
+        => HandleAction(await punchListService.DeletePunchListItemAsync(projectId, itemId));
+
+    /// <summary>
     /// Closes a punch list item that is in ReadyForInspection status.
     /// </summary>
     [HttpPost("{itemId:guid}/close")]

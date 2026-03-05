@@ -3629,51 +3629,51 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         var items = new List<PmPunchListItem>();
         var random = new Random(66);
 
-        var punchTemplates = new (string Desc, string Location, PunchListCategory Cat)[]
+        // Realistic construction punch list items with varied statuses
+        var punchTemplates = new (string Title, string Desc, string Location, PunchListCategory Cat, PunchListPriority Pri, PunchListItemStatus Status)[]
         {
-            ("Touch-up paint on corridor walls", "Level 2 Corridor", PunchListCategory.Finishes),
-            ("Adjust door closer - Suite 201", "Suite 201", PunchListCategory.Architectural),
-            ("HVAC balancing incomplete - Zone 3", "Mechanical Room", PunchListCategory.Mechanical),
-            ("Missing outlet cover plate", "Level 1 Lobby", PunchListCategory.Electrical),
-            ("Cracked floor tile at entry", "Main Entry", PunchListCategory.Finishes),
-            ("Fire damper access panel missing", "Level 3 Plenum", PunchListCategory.FireProtection),
-            ("Parking lot striping touch-up", "Parking Level B1", PunchListCategory.Sitework),
-            ("Emergency light not functioning", "Stairwell B", PunchListCategory.LifeSafety),
-            ("Ceiling tile damaged from pipe leak", "Room 305", PunchListCategory.Finishes),
-            ("Handrail loose at landing", "Stairwell A", PunchListCategory.Structural),
-            ("Plumbing fixture dripping", "Restroom 2F", PunchListCategory.Plumbing),
-            ("Thermostat not responding", "Conference Room A", PunchListCategory.Mechanical),
-            ("Baseboard scuff marks", "Level 1 Break Room", PunchListCategory.Finishes),
-            ("Exit sign not illuminated", "East Wing Exit", PunchListCategory.LifeSafety),
-            ("Landscaping dead plant replacement", "North Entrance", PunchListCategory.Sitework),
+            ("Drywall tape joint visible", "Drywall tape joint visible at corridor intersection, requires skim coat and repaint", "Building A, Floor 3, Room 301", PunchListCategory.Architectural, PunchListPriority.Normal, PunchListItemStatus.Open),
+            ("Fire damper not accessible", "Fire damper not accessible for inspection — access panel required per NFPA 80", "Level 3 Plenum, Zone B", PunchListCategory.FireProtection, PunchListPriority.Critical, PunchListItemStatus.Open),
+            ("Roof drain not connected", "Roof drain leader not connected to storm line; ponding water observed on membrane", "Roof — Grid C-7", PunchListCategory.Plumbing, PunchListPriority.High, PunchListItemStatus.InProgress),
+            ("Paint touch-up at door frames", "Paint touch-up needed at all door frames Level 2 — scuffs from hardware installation", "Level 2 Corridor", PunchListCategory.Architectural, PunchListPriority.Low, PunchListItemStatus.Closed),
+            ("Emergency light not operational", "Emergency light fixture not operational — battery backup failed self-test", "Stairwell B, Level 1", PunchListCategory.Electrical, PunchListPriority.Critical, PunchListItemStatus.ReadyForInspection),
+            ("HVAC balancing incomplete", "HVAC air balancing report not submitted; Zone 3 airflow exceeds design by 30%", "Mechanical Room, Level B1", PunchListCategory.Mechanical, PunchListPriority.High, PunchListItemStatus.InProgress),
+            ("Handrail loose at landing", "Handrail has excessive lateral movement at 3rd floor landing — safety hazard", "Stairwell A, Level 3", PunchListCategory.Structural, PunchListPriority.Critical, PunchListItemStatus.Open),
+            ("Parking lot striping incomplete", "Parking lot striping incomplete — ADA stall markings and van-accessible space missing", "Parking Level B1, North Section", PunchListCategory.Sitework, PunchListPriority.High, PunchListItemStatus.Closed),
+            ("Missing outlet cover plate", "Electrical outlet cover plate missing in lobby — exposed wiring hazard", "Level 1 Lobby, Column Line 4", PunchListCategory.Electrical, PunchListPriority.High, PunchListItemStatus.Closed),
+            ("Ceiling tile water stain", "Ceiling tile shows water stain from prior pipe leak — tile replaced but stain remains on adjacent tile", "Room 305, Level 3", PunchListCategory.Finishes, PunchListPriority.Low, PunchListItemStatus.Closed),
+            ("Plumbing fixture dripping", "Lavatory faucet dripping in women's restroom — needs washer replacement", "Restroom 2F, Level 2", PunchListCategory.Plumbing, PunchListPriority.Normal, PunchListItemStatus.Closed),
+            ("Exit sign not illuminated", "Exit sign at east wing not illuminated; LED lamp failed", "East Wing Exit, Level 1", PunchListCategory.LifeSafety, PunchListPriority.Critical, PunchListItemStatus.ReadyForInspection),
+            ("Thermostat unresponsive", "Zone thermostat not responding to temperature adjustments — BAS point mapping error suspected", "Conference Room A, Level 2", PunchListCategory.Mechanical, PunchListPriority.Normal, PunchListItemStatus.InProgress),
+            ("Cracked floor tile", "Cracked floor tile at main entry vestibule — full-depth crack, replacement required", "Main Entry Vestibule", PunchListCategory.Finishes, PunchListPriority.Normal, PunchListItemStatus.Closed),
+            ("Landscaping incomplete", "Dead plant material not replaced per landscape contract scope; 3 ornamental grasses missing", "North Entrance, Planting Bed B", PunchListCategory.Sitework, PunchListPriority.Low, PunchListItemStatus.Open),
+            ("Door closer misadjusted", "Door closer not holding door open — closing force exceeds ADA compliance threshold", "Suite 201, Entry Door", PunchListCategory.Architectural, PunchListPriority.Normal, PunchListItemStatus.Closed),
+            ("Conduit not secured", "Electrical conduit run in mechanical room unsupported for >6 ft span — add strut support", "Mechanical Room, Level B1", PunchListCategory.Electrical, PunchListPriority.High, PunchListItemStatus.Open),
+            ("Sealant missing at penetration", "Fire-rated sealant missing at pipe penetration through 2-hr rated wall assembly", "East Mechanical Chase, Level 2", PunchListCategory.FireProtection, PunchListPriority.Critical, PunchListItemStatus.InProgress),
         };
 
         foreach (var project in completedProjects)
         {
-            var count = random.Next(8, 15);
-            for (int i = 0; i < count && i < punchTemplates.Length; i++)
+            var count = Math.Min(random.Next(10, 18), punchTemplates.Length);
+            for (int i = 0; i < count; i++)
             {
                 var template = punchTemplates[i];
-                var isClosed = random.Next(100) < 70; // 70% closed on completed projects
+                var isClosed = template.Status == PunchListItemStatus.Closed;
 
                 items.Add(new PmPunchListItem
                 {
                     ProjectId = project.Id,
                     ItemNumber = i + 1,
+                    Title = template.Title,
                     Location = template.Location,
                     Category = template.Cat,
                     Description = template.Desc,
                     ResponsiblePartyType = random.Next(100) < 60
                         ? PunchListResponsiblePartyType.Subcontractor
                         : PunchListResponsiblePartyType.GeneralContractor,
-                    Status = isClosed ? PunchListItemStatus.Closed : PunchListItemStatus.Open,
-                    Priority = random.Next(4) switch
-                    {
-                        0 => TaskPriority.Low,
-                        1 => TaskPriority.Normal,
-                        2 => TaskPriority.High,
-                        _ => TaskPriority.Urgent
-                    },
+                    Status = template.Status,
+                    Priority = template.Pri,
+                    PhotoRequired = template.Pri == PunchListPriority.Critical,
                     CreatedByUserId = createdByUserId,
                     ClosedAt = isClosed ? DateTime.UtcNow.AddDays(-random.Next(5, 30)) : null,
                 });

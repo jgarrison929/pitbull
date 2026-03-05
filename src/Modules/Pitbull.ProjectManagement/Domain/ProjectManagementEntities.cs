@@ -64,6 +64,7 @@ public enum TaskReferenceType { None = 0, Rfi = 1, Submittal = 2, Meeting = 3, D
 public enum PunchListCategory { Architectural = 0, Structural = 1, Mechanical = 2, Electrical = 3, Plumbing = 4, FireProtection = 5, Sitework = 6, LifeSafety = 7, Finishes = 8, Other = 9 }
 public enum PunchListResponsiblePartyType { GeneralContractor = 0, Subcontractor = 1, Owner = 2, Architect = 3 }
 public enum PunchListItemStatus { Open = 0, InProgress = 1, ReadyForInspection = 2, Closed = 3, Disputed = 4 }
+public enum PunchListPriority { Critical = 0, High = 1, Normal = 2, Low = 3 }
 
 // 4.1 Schedule
 public class PmSchedule : BaseEntity, ICompanyScoped
@@ -842,6 +843,7 @@ public class PmPunchListItem : BaseEntity, ICompanyScoped
     public Guid CompanyId { get; set; }
     public Guid ProjectId { get; set; }
     public int ItemNumber { get; set; }
+    public string Title { get; set; } = string.Empty;
     public string Location { get; set; } = string.Empty;
     public PunchListCategory Category { get; set; }
     public string Description { get; set; } = string.Empty;
@@ -850,7 +852,8 @@ public class PmPunchListItem : BaseEntity, ICompanyScoped
     public string? AssignedToName { get; set; }
     public DateTime? DueDate { get; set; }
     public PunchListItemStatus Status { get; set; }
-    public TaskPriority Priority { get; set; }
+    public PunchListPriority Priority { get; set; }
+    public bool PhotoRequired { get; set; }
     public decimal? CostImpact { get; set; }
     public int? ScheduleImpactDays { get; set; }
     public Guid CreatedByUserId { get; set; }

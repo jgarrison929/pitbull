@@ -1306,11 +1306,13 @@ public class PmPunchListItemConfiguration : IEntityTypeConfiguration<PmPunchList
     public void Configure(EntityTypeBuilder<PmPunchListItem> builder)
     {
         builder.ConfigureBase("pm_punch_list_items");
+        builder.Property(x => x.Title).HasMaxLength(500).IsRequired();
         builder.Property(x => x.Location).HasMaxLength(500).IsRequired();
         builder.Property(x => x.Description).HasMaxLength(4000).IsRequired();
         builder.Property(x => x.AssignedToName).HasMaxLength(200);
         builder.Property(x => x.Notes).HasMaxLength(4000);
         builder.Property(x => x.CostImpact).HasPrecision(18, 2);
+        builder.Property(x => x.PhotoRequired);
         builder.Property(x => x.Category).HasConversion<string>().HasMaxLength(50);
         builder.Property(x => x.ResponsiblePartyType).HasConversion<string>().HasMaxLength(50);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);

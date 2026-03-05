@@ -1727,6 +1727,22 @@ public class PunchListService : PmServiceBase, IPunchListService
         return Action("Punch list item closed", itemId, new { Status = item.Status.ToString(), item.ClosedAt });
     }
 
+    public async Task<Result> DeletePunchListItemAsync(Guid projectId, Guid itemId, CancellationToken cancellationToken = default)
+    {
+        var item = await ProjectScoped<PmPunchListItem>(projectId).FirstOrDefaultAsync(p => p.Id == itemId, cancellationToken);
+        if (item == null)
+            return Result.Failure("Not found", "NOT_FOUND");
+
+        if (item.Status == PunchListItemStatus.Closed)
+            return Result.Failure("Cannot delete a closed punch list item", "INVALID_STATUS");
+
+        item.IsDeleted = true;
+        item.DeletedAt = DateTime.UtcNow;
+        item.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     public Task<Result<PmEntityDto>> AddPhotoAsync(Guid projectId, Guid itemId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmPunchListPhoto>(projectId, request with { ReferenceId = itemId }, cancellationToken);
 
