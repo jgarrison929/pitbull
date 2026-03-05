@@ -38,6 +38,17 @@ public class WipReportLine : BaseEntity, ICompanyScoped
     public decimal BilledToDate { get; set; }
     public decimal OverUnderBilling { get; set; }
 
+    // Earned Value fields — enriched from PM progress engine when available,
+    // otherwise derived from WIP cost-to-cost data.
+    /// <summary>% complete from physical EV measurement (vs cost-to-cost PercentComplete).</summary>
+    public decimal? EvPercentComplete { get; set; }
+    /// <summary>Cost Performance Index = EarnedRevenue / TotalCostToDate. &gt;1 = profitable, &lt;1 = overrun.</summary>
+    public decimal? CostPerformanceIndex { get; set; }
+    /// <summary>Schedule Performance Index = EarnedRevenue / ScheduledRevenue. &gt;1 = ahead, &lt;1 = behind.</summary>
+    public decimal? SchedulePerformanceIndex { get; set; }
+    /// <summary>Projected final profit = RevisedContractAmount - EstimatedTotalCost.</summary>
+    public decimal? ProjectedGainLoss { get; set; }
+
     public WipReport? WipReport { get; set; }
 }
 

@@ -158,6 +158,23 @@ public class WipReportsController(
         return CreatedAtAction(nameof(GetById), new { id = result.Value!.Id }, result.Value);
     }
 
+    [HttpGet("{id:guid}/surety-export")]
+    [ProducesResponseType(typeof(WipSuretyExportDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> GetSuretyExport(Guid id)
+    {
+        var result = await wipReportService.GetSuretyExportAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error, code = result.ErrorCode })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return Ok(result.Value);
+    }
+
     [HttpPost("{id:guid}/post-to-gl")]
     [ProducesResponseType(typeof(WipGlPostResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

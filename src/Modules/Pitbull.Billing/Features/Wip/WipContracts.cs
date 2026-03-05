@@ -46,7 +46,12 @@ public record WipReportLineDto(
     decimal EarnedRevenue,
     decimal BilledToDate,
     decimal OverUnderBilling,
-    WipOverUnderClassification OverUnderClassification
+    WipOverUnderClassification OverUnderClassification,
+    // Earned Value fields
+    decimal? EvPercentComplete = null,
+    decimal? CostPerformanceIndex = null,
+    decimal? SchedulePerformanceIndex = null,
+    decimal? ProjectedGainLoss = null
 );
 
 public enum WipOverUnderClassification
@@ -120,6 +125,53 @@ public record WipGlPostResult(
     decimal TotalDebits,
     decimal TotalCredits,
     int LineCount
+);
+
+/// <summary>
+/// Surety-grade WIP schedule export DTO — the format bonding companies and controllers expect.
+/// Columns follow the standard AIA / surety WIP schedule layout.
+/// </summary>
+public record WipSuretyExportDto(
+    Guid WipReportId,
+    DateOnly ReportDate,
+    int FiscalYear,
+    int PeriodNumber,
+    string StatusName,
+    IReadOnlyList<WipSuretyLineDto> Lines,
+    // Portfolio totals
+    decimal TotalContractAmount,
+    decimal TotalCostToDate,
+    decimal TotalEstimatedCostToComplete,
+    decimal TotalEstimatedTotalCost,
+    decimal TotalBilledToDate,
+    decimal TotalEarnedRevenue,
+    decimal TotalOverUnderBilling,
+    decimal TotalProjectedGainLoss
+);
+
+/// <summary>Single project row on a surety WIP schedule.</summary>
+public record WipSuretyLineDto(
+    string ProjectNumber,
+    string ProjectName,
+    decimal ContractAmount,
+    decimal ApprovedChangeOrders,
+    decimal RevisedContractAmount,
+    decimal TotalCostToDate,
+    decimal EstimatedCostToComplete,
+    decimal EstimatedTotalCost,
+    decimal BilledToDate,
+    decimal EarnedRevenue,
+    decimal OverUnderBilling,
+    WipOverUnderClassification OverUnderClassification,
+    // Cost basis % complete
+    decimal PercentComplete,
+    // EV-enriched fields
+    decimal? EvPercentComplete,
+    decimal? CostPerformanceIndex,
+    decimal? SchedulePerformanceIndex,
+    // Profitability
+    decimal ProjectedGainLoss,
+    decimal GrossMarginPercent
 );
 
 public static class WipMapper

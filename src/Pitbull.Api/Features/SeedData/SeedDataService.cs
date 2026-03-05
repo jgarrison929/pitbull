@@ -3382,9 +3382,22 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
             var random = new Random(monthOffset + 100);
 
-            foreach (var project in projects.Where(p =>
-                p.Status is ProjectStatus.Active or ProjectStatus.Completed))
+            // Assign each project to one of three EV profiles to tell a story:
+            // Profile A (1st third of projects): healthy — CPI ~1.15, slightly ahead of schedule
+            // Profile B (2nd third): on track — CPI ~1.05, SPI ~1.02
+            // Profile C (last third): troubled — CPI ~0.85, cost overrun (surety flag)
+            var workableProjects = projects
+                .Where(p => p.Status is ProjectStatus.Active or ProjectStatus.Completed)
+                .ToList();
+            int projectCount = workableProjects.Count;
+
+            for (int i = 0; i < projectCount; i++)
             {
+                var project = workableProjects[i];
+                var evProfile = projectCount <= 3
+                    ? i  // one project per profile when ≤ 3 projects
+                    : i * 3 / projectCount;  // distribute evenly: 0=healthy, 1=on-track, 2=troubled
+
                 // Calculate WIP values based on project progress at that point in time
                 var contractAmt = project.ContractAmount;
                 var changeOrders = contractAmt * 0.02m;
@@ -3407,10 +3420,48 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 if (project.Status == ProjectStatus.Completed)
                     pctComplete = 100m;
 
-                var estimatedTotalCost = revisedContract * 0.92m; // Target ~8% margin
+                // EV-profile-specific cost efficiency factors.
+                // Profile A: running lean (~8% margin, spending efficiently)
+                // Profile B: on budget (~8% margin, on pace)
+                // Profile C: cost overrun (~3% projected margin — surety concern)
+                decimal costEfficiencyFactor = evProfile switch
+                {
+                    0 => 0.87m,   // Profile A: spending 87 cents per dollar of budget (CPI > 1)
+                    1 => 0.92m,   // Profile B: on budget (CPI ≈ 1)
+                    _ => 1.06m,   // Profile C: spending 6% over budget (CPI < 1)
+                };
+
+                var estimatedTotalCost = revisedContract * costEfficiencyFactor;
                 var costToDate = estimatedTotalCost * (pctComplete / 100m);
                 var earnedRevenue = revisedContract * (pctComplete / 100m);
                 var billedToDate = earnedRevenue * (0.95m + (decimal)random.NextDouble() * 0.10m);
+
+                // CPI = EarnedRevenue / TotalCostToDate (revenue earned per cost dollar)
+                decimal? cpi = costToDate > 0m
+                    ? Math.Round(earnedRevenue / costToDate, 4)
+                    : null;
+
+                // SPI: profile-specific schedule performance
+                // Profile A: slightly ahead, Profile B: on schedule, Profile C: behind
+                decimal? spi = evProfile switch
+                {
+                    0 => Math.Round(1.08m + (decimal)random.NextDouble() * 0.05m, 4),  // ahead
+                    1 => Math.Round(0.98m + (decimal)random.NextDouble() * 0.07m, 4),  // on track
+                    _ => Math.Round(0.82m + (decimal)random.NextDouble() * 0.08m, 4),  // behind
+                };
+
+                // EvPercentComplete: physical progress may differ from cost %.
+                // Profile C projects tend to have less physical progress than cost would suggest.
+                decimal evPctModifier = evProfile switch
+                {
+                    0 => 1.03m,  // slightly ahead physically vs cost
+                    1 => 1.00m,  // same as cost basis
+                    _ => 0.92m,  // behind physically (spending more than earned)
+                };
+                var evPct = Math.Clamp(pctComplete * evPctModifier, 0m, 99.999999m);
+
+                // ProjectedGainLoss = RevisedContract - EstimatedTotalCost
+                var projectedGainLoss = Math.Round(revisedContract - estimatedTotalCost, 2);
 
                 // PercentComplete column is numeric(8,6) — max 99.999999.
                 // Clamp to 99.999999 to prevent overflow for 100% complete projects.
@@ -3429,6 +3480,11 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     EarnedRevenue = Math.Round(earnedRevenue, 2),
                     BilledToDate = Math.Round(billedToDate, 2),
                     OverUnderBilling = Math.Round(earnedRevenue - billedToDate, 2),
+                    // EV fields
+                    EvPercentComplete = Math.Round(evPct, 6),
+                    CostPerformanceIndex = cpi,
+                    SchedulePerformanceIndex = spi,
+                    ProjectedGainLoss = projectedGainLoss,
                 });
             }
 

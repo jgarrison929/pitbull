@@ -62,6 +62,12 @@ public class WipReportLineConfiguration : IEntityTypeConfiguration<WipReportLine
         builder.Property(l => l.BilledToDate).HasPrecision(18, 2);
         builder.Property(l => l.OverUnderBilling).HasPrecision(18, 2);
 
+        // Earned Value columns (nullable — populated from PM engine or computed)
+        builder.Property(l => l.EvPercentComplete).HasPrecision(8, 6);
+        builder.Property(l => l.CostPerformanceIndex).HasPrecision(12, 4);
+        builder.Property(l => l.SchedulePerformanceIndex).HasPrecision(12, 4);
+        builder.Property(l => l.ProjectedGainLoss).HasPrecision(18, 2);
+
         builder.HasIndex(l => new { l.TenantId, l.CompanyId, l.WipReportId })
             .HasDatabaseName("IX_wip_report_lines_tenant_company_report");
 

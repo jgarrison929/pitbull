@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pitbull.Core.Data;
@@ -11,9 +12,11 @@ using Pitbull.Core.Data;
 namespace Pitbull.Api.Migrations
 {
     [DbContext(typeof(PitbullDbContext))]
-    partial class PitbullDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305120441_AddWipEarnedValueColumns")]
+    partial class AddWipEarnedValueColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -7392,186 +7395,6 @@ namespace Pitbull.Api.Migrations
                     b.ToTable("pm_communication_attachments", (string)null);
                 });
 
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCostCodeActivityMapping", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CostCodeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ScheduleActivityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("WeightFactor")
-                        .HasPrecision(5, 4)
-                        .HasColumnType("numeric(5,4)");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("ScheduleActivityId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("ProjectId", "CostCodeId");
-
-                    b.HasIndex("TenantId", "ProjectId", "CostCodeId", "ScheduleActivityId")
-                        .IsUnique();
-
-                    b.ToTable("pm_cost_code_activity_mappings", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCostCodeEarnedValueSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("ACWP")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("BAC")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("BCWP")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("BCWS")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("CPI")
-                        .HasPrecision(12, 4)
-                        .HasColumnType("numeric(12,4)");
-
-                    b.Property<decimal>("CV")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CostCodeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("EAC")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("ETC")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("SPI")
-                        .HasPrecision(12, 4)
-                        .HasColumnType("numeric(12,4)");
-
-                    b.Property<decimal>("SV")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateOnly>("SnapshotDate")
-                        .HasColumnType("date");
-
-                    b.Property<decimal>("TCPI")
-                        .HasPrecision(12, 4)
-                        .HasColumnType("numeric(12,4)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("ProjectId", "SnapshotDate");
-
-                    b.HasIndex("TenantId", "ProjectId", "CostCodeId", "SnapshotDate")
-                        .IsUnique();
-
-                    b.ToTable("pm_cost_code_ev_snapshots", (string)null);
-                });
-
             modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCostCodeProgress", b =>
                 {
                     b.Property<Guid>("Id")
@@ -8749,117 +8572,6 @@ namespace Pitbull.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("pm_earned_value_snapshots", (string)null);
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmFieldProgressEntry", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CompanyId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("CostCodeId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("CrewSize")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal>("CumulativeQuantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DeletedBy")
-                        .HasColumnType("text");
-
-                    b.Property<decimal>("HoursWorked")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(4000)
-                        .HasColumnType("character varying(4000)");
-
-                    b.Property<decimal>("PercentComplete")
-                        .HasPrecision(7, 4)
-                        .HasColumnType("numeric(7,4)");
-
-                    b.Property<Guid>("ProjectId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("QuantityInstalled")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<Guid?>("ReportedById")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ScheduleActivityId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("TotalBudgetedQuantity")
-                        .HasPrecision(18, 4)
-                        .HasColumnType("numeric(18,4)");
-
-                    b.Property<string>("UnitOfMeasure")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("text");
-
-                    b.Property<string>("WeatherCondition")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<uint>("xmin")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("CostCodeId");
-
-                    b.HasIndex("ReportedById");
-
-                    b.HasIndex("ScheduleActivityId");
-
-                    b.HasIndex("TenantId");
-
-                    b.HasIndex("ProjectId", "Date");
-
-                    b.HasIndex("ProjectId", "CostCodeId", "Date");
-
-                    b.ToTable("pm_field_progress_entries", (string)null);
                 });
 
             modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmGeneratedDocument", b =>
@@ -10804,9 +10516,6 @@ namespace Pitbull.Api.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
-                    b.Property<bool>("PhotoRequired")
-                        .HasColumnType("boolean");
-
                     b.Property<string>("Priority")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -10833,11 +10542,6 @@ namespace Pitbull.Api.Migrations
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -15323,42 +15027,6 @@ namespace Pitbull.Api.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCostCodeActivityMapping", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleActivityId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCostCodeEarnedValueSnapshot", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmCostCodeProgress", b =>
                 {
                     b.HasOne("Pitbull.Core.Domain.CostCode", null)
@@ -15549,31 +15217,6 @@ namespace Pitbull.Api.Migrations
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmFieldProgressEntry", b =>
-                {
-                    b.HasOne("Pitbull.Core.Domain.CostCode", null)
-                        .WithMany()
-                        .HasForeignKey("CostCodeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.Projects.Domain.Project", null)
-                        .WithMany()
-                        .HasForeignKey("ProjectId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Pitbull.TimeTracking.Domain.Employee", null)
-                        .WithMany()
-                        .HasForeignKey("ReportedById")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Pitbull.ProjectManagement.Domain.PmScheduleActivity", null)
-                        .WithMany()
-                        .HasForeignKey("ScheduleActivityId")
-                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Pitbull.ProjectManagement.Domain.PmGeneratedDocument", b =>

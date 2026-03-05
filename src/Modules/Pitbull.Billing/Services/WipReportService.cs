@@ -325,7 +325,11 @@ public class WipReportService(
             EarnedRevenue: line.EarnedRevenue,
             BilledToDate: line.BilledToDate,
             OverUnderBilling: line.OverUnderBilling,
-            OverUnderClassification: WipMapper.ClassifyOverUnder(line.OverUnderBilling));
+            OverUnderClassification: WipMapper.ClassifyOverUnder(line.OverUnderBilling),
+            EvPercentComplete: line.EvPercentComplete,
+            CostPerformanceIndex: line.CostPerformanceIndex,
+            SchedulePerformanceIndex: line.SchedulePerformanceIndex,
+            ProjectedGainLoss: line.ProjectedGainLoss);
     }
 
     private static void ApplyCalculatedValues(WipReportLine line, WipReportLineCalculationResult result)
@@ -340,5 +344,91 @@ public class WipReportService(
         line.EarnedRevenue = result.EarnedRevenue;
         line.BilledToDate = result.BilledToDate;
         line.OverUnderBilling = result.OverUnderBilling;
+
+        // Compute EV metrics from WIP data.
+        // CPI = EarnedRevenue / TotalCostToDate: revenue earned per cost dollar.
+        // >1.0 means the project is generating more revenue than it costs (profitable).
+        // <1.0 means cost overrun relative to earned revenue.
+        line.CostPerformanceIndex = result.TotalCostToDate > 0m
+            ? Math.Round(result.EarnedRevenue / result.TotalCostToDate, 4)
+            : null;
+
+        // EV % starts same as cost-to-cost; PM physical progress enriches it post-generation.
+        line.EvPercentComplete = result.PercentComplete;
+
+        // Projected final profit = revised contract - estimated total cost
+        line.ProjectedGainLoss = Math.Round(result.RevisedContractAmount - result.EstimatedTotalCost, 2);
+
+        // SPI requires a schedule baseline — set null here; enriched from PM EV snapshots.
+        line.SchedulePerformanceIndex = null;
+    }
+
+    public async Task<Result<WipSuretyExportDto>> GetSuretyExportAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        WipReport? report = await db.Set<WipReport>()
+            .Include(r => r.Lines)
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+
+        if (report is null)
+            return Result.Failure<WipSuretyExportDto>("WIP report not found", "NOT_FOUND");
+
+        List<Guid> projectIds = report.Lines.Select(l => l.ProjectId).Distinct().ToList();
+        Dictionary<Guid, Project> projectsById = await db.Set<Project>()
+            .AsNoTracking()
+            .Where(p => projectIds.Contains(p.Id))
+            .ToDictionaryAsync(p => p.Id, cancellationToken);
+
+        List<WipSuretyLineDto> suretyLines = report.Lines
+            .OrderBy(l => projectsById.TryGetValue(l.ProjectId, out Project? p) ? p.Number : string.Empty)
+            .Select(line =>
+            {
+                projectsById.TryGetValue(line.ProjectId, out Project? project);
+                decimal projectedGainLoss = line.ProjectedGainLoss
+                    ?? Math.Round(line.RevisedContractAmount - line.EstimatedTotalCost, 2);
+                decimal grossMarginPct = line.RevisedContractAmount > 0m
+                    ? Math.Round(projectedGainLoss / line.RevisedContractAmount, 4)
+                    : 0m;
+
+                return new WipSuretyLineDto(
+                    ProjectNumber: project?.Number ?? "Unknown",
+                    ProjectName: project?.Name ?? "Unknown Project",
+                    ContractAmount: line.ContractAmount,
+                    ApprovedChangeOrders: line.ApprovedChangeOrders,
+                    RevisedContractAmount: line.RevisedContractAmount,
+                    TotalCostToDate: line.TotalCostToDate,
+                    EstimatedCostToComplete: line.EstimatedCostToComplete,
+                    EstimatedTotalCost: line.EstimatedTotalCost,
+                    BilledToDate: line.BilledToDate,
+                    EarnedRevenue: line.EarnedRevenue,
+                    OverUnderBilling: line.OverUnderBilling,
+                    OverUnderClassification: WipMapper.ClassifyOverUnder(line.OverUnderBilling),
+                    PercentComplete: line.PercentComplete,
+                    EvPercentComplete: line.EvPercentComplete,
+                    CostPerformanceIndex: line.CostPerformanceIndex,
+                    SchedulePerformanceIndex: line.SchedulePerformanceIndex,
+                    ProjectedGainLoss: projectedGainLoss,
+                    GrossMarginPercent: grossMarginPct);
+            })
+            .ToList();
+
+        WipSuretyExportDto exportDto = new(
+            WipReportId: report.Id,
+            ReportDate: report.ReportDate,
+            FiscalYear: report.FiscalYear,
+            PeriodNumber: report.PeriodNumber,
+            StatusName: report.Status.ToString(),
+            Lines: suretyLines,
+            TotalContractAmount: suretyLines.Sum(l => l.ContractAmount),
+            TotalCostToDate: suretyLines.Sum(l => l.TotalCostToDate),
+            TotalEstimatedCostToComplete: suretyLines.Sum(l => l.EstimatedCostToComplete),
+            TotalEstimatedTotalCost: suretyLines.Sum(l => l.EstimatedTotalCost),
+            TotalBilledToDate: suretyLines.Sum(l => l.BilledToDate),
+            TotalEarnedRevenue: suretyLines.Sum(l => l.EarnedRevenue),
+            TotalOverUnderBilling: suretyLines.Sum(l => l.OverUnderBilling),
+            TotalProjectedGainLoss: suretyLines.Sum(l => l.ProjectedGainLoss));
+
+        return Result.Success(exportDto);
     }
 }
