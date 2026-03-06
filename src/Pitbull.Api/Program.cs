@@ -613,12 +613,12 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
 
-    // API endpoints: 60 requests per minute
+    // API endpoints: 200 requests per minute
     options.AddFixedWindowLimiter("api", opt =>
     {
-        opt.PermitLimit = 60;
+        opt.PermitLimit = 200;
         opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 2;
+        opt.QueueLimit = 5;
     });
 
     // Demo registration: 10 signups per hour per IP

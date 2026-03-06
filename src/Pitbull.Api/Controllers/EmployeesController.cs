@@ -247,7 +247,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
     /// <param name="classification">Filter by classification (Hourly=0, Salary=1, Contractor=2)</param>
     /// <param name="search">Search by name or employee number</param>
     /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Items per page (default: 50, max: 100)</param>
+    /// <param name="pageSize">Items per page (default: 50, max: 200)</param>
     /// <returns>Paginated list of employees</returns>
     /// <response code="200">Employee list</response>
     /// <response code="401">Not authenticated</response>
@@ -264,6 +264,7 @@ public class EmployeesController(IEmployeeService employeeService, PitbullDbCont
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50)
     {
+        pageSize = Math.Clamp(pageSize, 1, 200);
         // Cache only unfiltered default queries (dropdown-style "get all")
         var isDefaultQuery = isActive is null && classification is null
             && string.IsNullOrEmpty(search) && page == 1 && pageSize == 50;
