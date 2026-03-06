@@ -561,7 +561,7 @@ public class PdfReportServiceTests
             ResponsiblePartyType = PunchListResponsiblePartyType.Subcontractor,
             AssignedToName = "ABC Painting Co.",
             Status = PunchListItemStatus.Open,
-            Priority = TaskPriority.Normal,
+            Priority = PunchListPriority.Normal,
             DueDate = DateTime.UtcNow.AddDays(7),
             CreatedByUserId = Guid.NewGuid()
         });
@@ -576,7 +576,7 @@ public class PdfReportServiceTests
             Description = "Door closer adjustment required",
             ResponsiblePartyType = PunchListResponsiblePartyType.GeneralContractor,
             Status = PunchListItemStatus.Closed,
-            Priority = TaskPriority.High,
+            Priority = PunchListPriority.High,
             CreatedByUserId = Guid.NewGuid(),
             ClosedByUserId = Guid.NewGuid(),
             ClosedAt = DateTime.UtcNow
