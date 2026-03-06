@@ -3,14 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import api from "@/lib/api";
+import api, { ApiError } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/skeletons";
-import { Plus } from "lucide-react";
+import { Plus, ShieldAlert } from "lucide-react";
 
 interface InvoiceMatchResult {
   variancePercent: number;
@@ -32,14 +33,20 @@ export default function ProcurementInvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [invoices, setInvoices] = useState<VendorInvoiceDto[]>([]);
   const [isMatchingId, setIsMatchingId] = useState<string | null>(null);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   const fetchInvoices = useCallback(async () => {
     setIsLoading(true);
+    setPermissionDenied(false);
     try {
       const result = await api<ListResult>("/api/vendor-invoices?page=1&pageSize=100");
       setInvoices(result.items);
-    } catch {
-      toast.error("Failed to load invoices");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 403) {
+        setPermissionDenied(true);
+      } else {
+        toast.error("Failed to load invoices");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -73,6 +80,23 @@ export default function ProcurementInvoicesPage() {
     }
 
     return <Badge className="bg-yellow-100 text-yellow-900 border-yellow-300">Variance</Badge>;
+  }
+
+  if (permissionDenied) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Vendor Invoices</h1>
+          <p className="text-muted-foreground">Review invoice matching status and resolve variances</p>
+        </div>
+        <Alert>
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>
+            You don&apos;t have permission to view invoices. Contact your administrator to request access.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
   }
 
   return (

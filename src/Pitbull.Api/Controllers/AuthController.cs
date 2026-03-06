@@ -615,10 +615,28 @@ public class AuthController(
         if (tenant is null)
             return this.BadRequestError("Demo environment is not ready. Please try again later.");
 
-        // Check if email already taken
+        // Check if email already taken — if it's an existing demo user, just log them in
         var existingUser = await userManager.FindByEmailAsync(request.Email);
         if (existingUser is not null)
+        {
+            if (existingUser.IsDemoUser)
+            {
+                // Handle retry scenario: user was created but response was lost.
+                // Generate a fresh JWT and log them in instead of showing an error.
+                var existingRoles = await roleSeeder.GetUserRolesAsync(existingUser);
+                var existingToken = await GenerateJwtTokenAsync(existingUser);
+                var existingRefresh = GenerateRefreshToken();
+                existingUser.RefreshToken = existingRefresh;
+                existingUser.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                await userManager.UpdateAsync(existingUser);
+
+                logger.LogInformation("Demo user re-login via registration retry: {Email}", request.Email);
+
+                return Ok(new AuthResponse(existingToken, existingUser.Id, existingUser.FullName, existingUser.Email!, existingRoles.ToArray(), existingRefresh));
+            }
+
             return this.BadRequestError("An account with this email already exists. Try logging in.");
+        }
 
         // Find the company
         var company = await db.Set<Company>()

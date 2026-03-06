@@ -137,6 +137,7 @@ export default function CompanySetupWizard() {
   const [currentStep, setCurrentStep] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Step 1: Company profile (read-only display from existing company)
   const [company, setCompany] = useState<Company | null>(null);
@@ -157,6 +158,7 @@ export default function CompanySetupWizard() {
   // Load existing company data
   const loadCompany = useCallback(async () => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const data = await api<Company[]>("/api/companies");
       if (data.length > 0) {
@@ -167,8 +169,9 @@ export default function CompanySetupWizard() {
           reportBrandingName: prev.reportBrandingName || data[0].name,
         }));
       }
-    } catch {
-      // Company may not exist yet -- that's OK in setup
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to load company data";
+      setLoadError(message);
     } finally {
       setIsLoading(false);
     }
@@ -248,6 +251,28 @@ export default function CompanySetupWizard() {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6">
+        <Breadcrumbs
+          items={[
+            { label: "Settings", href: "/settings" },
+            { label: "Company Setup" },
+          ]}
+        />
+        <Alert variant="destructive">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            {loadError}
+          </AlertDescription>
+        </Alert>
+        <Button variant="outline" onClick={loadCompany}>
+          Try Again
+        </Button>
       </div>
     );
   }
