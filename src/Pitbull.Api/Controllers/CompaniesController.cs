@@ -158,7 +158,9 @@ public class CompaniesController(
         if (!isAdmin)
             isAdmin = roles.Contains("Admin");
 
-        if (isAdmin)
+        // Demo users and admins get wildcard — DemoRestrictionMiddleware enforces the real
+        // security boundary, so granting * here is safe for demo accounts.
+        if (user.IsDemoUser || isAdmin)
         {
             claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
         }
