@@ -109,13 +109,19 @@ public class AiChatController(IAiService aiService, PitbullDbContext db, IOption
 
         if (!result.IsSuccess)
         {
-            return StatusCode(503, new
+            string errorMessage;
+            if (result.ErrorCode == "AI_NOT_CONFIGURED")
             {
-                error = result.ErrorCode == "AI_NOT_CONFIGURED"
-                    ? "AI service is not configured. Add an API key in Settings → AI to enable the assistant."
-                    : "AI service is temporarily unavailable. Please try again later.",
-                code = result.ErrorCode
-            });
+                errorMessage = isDemoUser && demo.Enabled
+                    ? "AI features are not configured in the demo environment."
+                    : "AI service is not configured. Add an API key in Settings → AI to enable the assistant.";
+            }
+            else
+            {
+                errorMessage = "AI service is temporarily unavailable. Please try again later.";
+            }
+
+            return StatusCode(503, new { error = errorMessage, code = result.ErrorCode });
         }
 
         return Ok(new AiChatResponse(
