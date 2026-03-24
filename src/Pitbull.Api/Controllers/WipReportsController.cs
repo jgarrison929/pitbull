@@ -10,6 +10,7 @@ namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/wip-reports")]
+[Route("api/reports/wip")] // alias: some callers use /api/reports/wip instead of /api/wip-reports
 [Authorize(Policy = "Accounting.ViewWIP")]
 [EnableRateLimiting("api")]
 [Produces("application/json")]

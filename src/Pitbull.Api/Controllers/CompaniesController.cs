@@ -40,6 +40,27 @@ public class CompaniesController(
 {
     // Suppress unused parameter warning - tenantContext reserved for future use
     private readonly ITenantContext _tenantContext = tenantContext;
+
+    /// <summary>
+    /// List all companies accessible to the current user.
+    /// Returns { items: [...] } so callers can use result.items consistently.
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    public async Task<IActionResult> List()
+    {
+        var accessibleIds = companyContext.AccessibleCompanyIds;
+
+        var companies = await db.Companies
+            .Where(c => accessibleIds.Contains(c.Id) && c.IsActive)
+            .OrderBy(c => c.SortOrder)
+            .ThenBy(c => c.Code)
+            .ToListAsync();
+
+        var items = companies.Select(MapToResponse).ToList();
+        return Ok(new { items, total = items.Count });
+    }
+
     /// <summary>
     /// Get the currently active company
     /// </summary>

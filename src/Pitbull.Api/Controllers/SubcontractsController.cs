@@ -18,6 +18,7 @@ namespace Pitbull.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Route("api/contracts")] // alias: frontend may call /api/contracts instead of /api/subcontracts
 [Authorize]
 [EnableRateLimiting("api")]
 [Produces("application/json")]

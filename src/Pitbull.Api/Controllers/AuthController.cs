@@ -786,6 +786,7 @@ public class AuthController(
     /// <response code="200">Returns user profile</response>
     /// <response code="401">Not authenticated</response>
     [HttpGet("me")]
+    [HttpGet("/api/users/me")] // alias: some callers use /api/users/me instead of /api/auth/me
     [Microsoft.AspNetCore.Authorization.Authorize]
     [EnableRateLimiting("api")]
     [ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
