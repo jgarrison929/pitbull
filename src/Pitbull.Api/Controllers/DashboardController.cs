@@ -165,7 +165,9 @@ public class DashboardController(
 
     /// <summary>
     /// Get all enhanced dashboard KPI analytics in one call.
+    /// Accessible at both GET /api/dashboard and GET /api/dashboard/analytics.
     /// </summary>
+    [HttpGet]
     [HttpGet("analytics")]
     [Cacheable(DurationSeconds = 60)]
     [ProducesResponseType(typeof(DashboardAnalyticsDto), StatusCodes.Status200OK)]
