@@ -1,5 +1,46 @@
 import posthog from "posthog-js";
 
+// Tracks whether we've flagged this page-load session as having API errors
+let sessionErrorFlagged = false;
+
+/**
+ * Capture a failed API call in PostHog.
+ * Called by the global fetch interceptor in posthog-provider.tsx, which covers all
+ * fetch() calls: JSON API responses, PDF downloads, file uploads, offline sync, etc.
+ */
+export function captureApiError(
+  status: number,
+  method: string,
+  endpoint: string,
+  errorData: unknown
+): void {
+  if (!posthog.__loaded) return;
+
+  const errorMsg =
+    (errorData as Record<string, string>)?.error ||
+    (errorData as Record<string, string>)?.message ||
+    `${status}`;
+
+  const rawBody = errorData ? JSON.stringify(errorData).slice(0, 500) : undefined;
+
+  if (!sessionErrorFlagged) {
+    posthog.register_for_session({ has_api_errors: true });
+    sessionErrorFlagged = true;
+  }
+
+  posthog.capture("api_error", {
+    status,
+    method,
+    endpoint,
+    error_message: errorMsg,
+    error: rawBody,
+    error_code: (errorData as Record<string, string>)?.code ?? undefined,
+    trace_id: (errorData as Record<string, string>)?.traceId ?? undefined,
+    correlation_id: (errorData as Record<string, string>)?.correlationId ?? undefined,
+    severity: status >= 500 ? "error" : "warning",
+  });
+}
+
 /**
  * Initialize PostHog analytics (client-side only).
  * Safe to call multiple times — guards against double-init and SSR.

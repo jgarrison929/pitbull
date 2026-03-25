@@ -8,48 +8,11 @@ import {
   removeRefreshToken,
 } from "./auth";
 import { reportError } from "./error-reporter";
-import { posthog } from "./posthog";
 
 const ACTIVE_COMPANY_KEY = "pitbull_active_company_id";
 
 // Shared refresh promise prevents concurrent 401s from triggering multiple refreshes
 let refreshPromise: Promise<string | null> | null = null;
-
-// Tracks whether we've flagged this page-load session as having API errors
-let sessionErrorFlagged = false;
-
-function captureApiError(
-  status: number,
-  method: string,
-  endpoint: string,
-  errorData: unknown
-): void {
-  if (!posthog.__loaded) return;
-
-  const errorMsg =
-    (errorData as Record<string, string>)?.error ||
-    (errorData as Record<string, string>)?.message ||
-    `${status}`;
-
-  const rawBody = errorData ? JSON.stringify(errorData).slice(0, 500) : undefined;
-
-  if (!sessionErrorFlagged) {
-    posthog.register_for_session({ has_api_errors: true });
-    sessionErrorFlagged = true;
-  }
-
-  posthog.capture("api_error", {
-    status,
-    method,
-    endpoint,
-    error_message: errorMsg,
-    error: rawBody,
-    error_code: (errorData as Record<string, string>)?.code ?? undefined,
-    trace_id: (errorData as Record<string, string>)?.traceId ?? undefined,
-    correlation_id: (errorData as Record<string, string>)?.correlationId ?? undefined,
-    severity: status >= 500 ? "error" : "warning",
-  });
-}
 
 async function tryRefreshToken(): Promise<string | null> {
   const token = getToken();
@@ -154,7 +117,6 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
 
       if (!retryResponse.ok) {
         const errorData = await retryResponse.json().catch(() => null);
-        captureApiError(retryResponse.status, method, endpoint, errorData);
         throw new ApiError(
           retryResponse.status,
           errorData?.error || errorData?.message || `Request failed with status ${retryResponse.status}`,
@@ -184,8 +146,6 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
         message: `API ${method} ${endpoint} returned ${response.status}: ${errorMsg}`,
       });
     }
-
-    captureApiError(response.status, method, endpoint, errorData);
 
     throw new ApiError(
       response.status,
@@ -258,7 +218,6 @@ async function uploadFiles<T>(
 
       if (!retryResponse.ok) {
         const errorData = await retryResponse.json().catch(() => null);
-        captureApiError(retryResponse.status, "POST", endpoint, errorData);
         throw new ApiError(
           retryResponse.status,
           errorData?.error || errorData?.message || `Upload failed with status ${retryResponse.status}`,
@@ -275,7 +234,6 @@ async function uploadFiles<T>(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => null);
-    captureApiError(response.status, "POST", endpoint, errorData);
     throw new ApiError(
       response.status,
       errorData?.error || errorData?.message || `Upload failed with status ${response.status}`,

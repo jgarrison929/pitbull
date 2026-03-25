@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { posthog, initPostHog } from "@/lib/posthog";
+import { posthog, initPostHog, captureApiError } from "@/lib/posthog";
+import { API_BASE_URL } from "@/lib/config";
 
 /**
  * Inner component that uses useSearchParams (requires Suspense boundary).
@@ -36,12 +37,51 @@ function PostHogPageViewTracker() {
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   const initialized = useRef(false);
 
-  // Initialize PostHog once
+  // Initialize PostHog and install global fetch error interceptor (once)
   useEffect(() => {
-    if (!initialized.current) {
-      initPostHog();
-      initialized.current = true;
-    }
+    if (initialized.current) return;
+    initialized.current = true;
+
+    initPostHog();
+
+    // Monkey-patch window.fetch so ALL raw fetch() failures are captured in PostHog,
+    // not just calls that go through the api() wrapper. Uses response.clone() to read
+    // the error body without consuming the stream the caller needs (e.g. for .blob()).
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async function fetchWithTracking(input, init) {
+      const response = await originalFetch(input, init);
+
+      if (!response.ok) {
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : (input as Request).url;
+
+        // Only track calls to our own backend; skip auth-refresh (expected failures)
+        // and health-check pings (connectivity probe, not app errors).
+        if (
+          url.startsWith(API_BASE_URL) &&
+          !url.includes("/api/auth/refresh") &&
+          !url.includes("/api/health")
+        ) {
+          const method =
+            init?.method ?? (input instanceof Request ? input.method : "GET");
+          const endpoint = url.slice(API_BASE_URL.length).split("?")[0];
+
+          // Fire-and-forget: clone lets us read the body without touching the
+          // original stream that the caller will consume (blob, json, etc.).
+          response
+            .clone()
+            .json()
+            .catch(() => null)
+            .then((errorData) => captureApiError(response.status, method, endpoint, errorData));
+        }
+      }
+
+      return response;
+    };
   }, []);
 
   return (
