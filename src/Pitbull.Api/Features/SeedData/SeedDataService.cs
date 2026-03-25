@@ -32,7 +32,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 9;
+    private const int SeedDataVersion = 10;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default, bool useExternalTransaction = false)
     {
@@ -424,6 +424,20 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             await db.SaveChangesAsync(ct);
         }
 
+        // ── Job cost budgets + cost predictions ─────────────────────────
+        // PmJobCostBudget: required by CostToCompleteService — throws 400 if absent.
+        // CostPrediction: pre-seed one row so GET /api/cost-predictions/project/{id}
+        //                 returns data instead of 404 on first load.
+        var jobCostBudgets = CreateJobCostBudgets(activeProjects, costCodes);
+        StampCompanyId(jobCostBudgets, companyId);
+        db.Set<PmJobCostBudget>().AddRange(jobCostBudgets);
+        await db.SaveChangesAsync(ct);
+
+        var costPredictions = CreateSeedCostPredictions(activeProjects);
+        StampCompanyId(costPredictions, companyId);
+        db.Set<CostPrediction>().AddRange(costPredictions);
+        await db.SaveChangesAsync(ct);
+
         // ── End V3 ──────────────────────────────────────────────────────
 
         // ── Multi-company seed data (Companies 02, 03, 04) ───────────
@@ -620,6 +634,10 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Time & assignments
         await BulkDeleteAsync<TimeEntry>(tenantId, ct);
         await BulkDeleteAsync<ProjectAssignment>(tenantId, ct);
+
+        // Cost feature data (no children — delete before projects/cost codes)
+        await BulkDeleteAsync<CostPrediction>(tenantId, ct);
+        await BulkDeleteAsync<PmJobCostBudget>(tenantId, ct);
 
         // Root entities
         await BulkDeleteAsync<BidItem>(tenantId, ct);
@@ -5648,6 +5666,17 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         db.Set<WageDetermination>().AddRange(wageDeterminations);
         await db.SaveChangesAsync(ct);
 
+        // ── 19. Job cost budgets + cost predictions ─────────────────
+        var jobCostBudgets = CreateJobCostBudgets(activeProjects, costCodes);
+        StampCompanyId(jobCostBudgets, companyId);
+        db.Set<PmJobCostBudget>().AddRange(jobCostBudgets);
+        await db.SaveChangesAsync(ct);
+
+        var costPredictions = CreateSeedCostPredictions(activeProjects);
+        StampCompanyId(costPredictions, companyId);
+        db.Set<CostPrediction>().AddRange(costPredictions);
+        await db.SaveChangesAsync(ct);
+
         // Restore transaction-local RLS + DI context back to previous company
         await db.Database.ExecuteSqlInterpolatedAsync(
             $"SELECT set_config('app.current_company', {previousCompanyId.ToString()}, true)", ct);
@@ -6268,6 +6297,117 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         }
 
         return (mappings, entries, snapshots);
+    }
+
+    // ── Cost feature seed factories ──────────────────────────────────
+
+    /// <summary>
+    /// Creates per-cost-code job cost budgets for each active project.
+    /// Required by CostToCompleteService — it throws 400 when none exist.
+    /// Budget amounts are realistic proportions of the project's OriginalBudget.
+    /// </summary>
+    private static List<PmJobCostBudget> CreateJobCostBudgets(
+        List<Project> activeProjects, List<CostCode> costCodes)
+    {
+        var budgets = new List<PmJobCostBudget>();
+        var ccMap = costCodes.ToDictionary(c => c.Code, c => c.Id);
+
+        // (cost code, fraction of OriginalBudget) — typical commercial GC split
+        (string Code, decimal Fraction)[] templates =
+        [
+            ("LAB",    0.25m),   // Self-perform labor
+            ("03-100", 0.11m),   // Concrete formwork
+            ("05-100", 0.14m),   // Structural steel
+            ("09-100", 0.09m),   // Drywall & framing
+            ("15-100", 0.06m),   // Plumbing rough-in
+            ("15-300", 0.07m),   // HVAC rough-in
+            ("16-100", 0.08m),   // Electrical rough-in
+            ("MAT",    0.10m),   // Direct materials
+            ("SUB-100", 0.05m),  // Electrical subcontract
+            ("OVH",    0.05m),   // Overhead & GC
+        ];
+
+        foreach (var project in activeProjects)
+        {
+            var baseBudget = project.OriginalBudget ?? project.ContractAmount;
+            if (baseBudget <= 0) continue;
+
+            foreach (var (code, fraction) in templates)
+            {
+                if (!ccMap.TryGetValue(code, out var ccId)) continue;
+                var amount = Math.Round(baseBudget * fraction, 2);
+                budgets.Add(new PmJobCostBudget
+                {
+                    ProjectId = project.Id,
+                    CostCodeId = ccId,
+                    OriginalBudget = amount,
+                    ApprovedBudgetChanges = 0m,
+                    CurrentBudget = amount,
+                    LaborBurdenRate = 0.30m,
+                });
+            }
+        }
+
+        return budgets;
+    }
+
+    /// <summary>
+    /// Creates one seed CostPrediction per active project so the
+    /// GET /api/cost-predictions/project/{id} endpoint returns data (not 404) on first load.
+    /// Values are computed from the project's budget and timeline — realistic but not exact.
+    /// Demo users can regenerate via the "Generate Forecast" button to get live calculations.
+    /// </summary>
+    private static List<CostPrediction> CreateSeedCostPredictions(List<Project> activeProjects)
+    {
+        var predictions = new List<CostPrediction>();
+        var now = DateTime.UtcNow;
+
+        foreach (var project in activeProjects)
+        {
+            var budgetAtCompletion = project.OriginalBudget ?? project.ContractAmount;
+            if (budgetAtCompletion <= 0) continue;
+
+            var projectStart = project.StartDate ?? project.CreatedAt;
+            var projectEnd = project.EstimatedCompletionDate ?? now.AddDays(180);
+            var daysElapsed = Math.Max(1, (int)(now - projectStart).TotalDays);
+            var daysRemaining = Math.Max(0, (int)(projectEnd - now).TotalDays);
+            var totalDays = daysElapsed + daysRemaining;
+
+            // Cost-to-date: proportional to elapsed time with a slight efficiency discount
+            var timeProgress = totalDays > 0 ? (decimal)daysElapsed / totalDays : 0.30m;
+            var costToDate = Math.Round(budgetAtCompletion * timeProgress * 0.92m, 2);
+            var burnRate = daysElapsed > 0 ? Math.Round(costToDate / daysElapsed, 4) : 0m;
+
+            // Construction projects typically run 2-4% over on EAC — reflect that
+            var predictedFinalCost = Math.Round(costToDate + burnRate * daysRemaining * 1.03m, 2);
+            predictedFinalCost = Math.Max(predictedFinalCost, budgetAtCompletion);
+
+            var estimatedCostToComplete = Math.Round(Math.Max(0m, predictedFinalCost - costToDate), 2);
+            var varianceToBudget = Math.Round(predictedFinalCost - budgetAtCompletion, 2);
+            var variancePercent = budgetAtCompletion > 0
+                ? Math.Round(varianceToBudget / budgetAtCompletion, 4) : 0m;
+
+            // Confidence: 60 elapsed days, ~50 time entries, has WIP data → ~0.72
+            var confidence = 0.72m;
+
+            predictions.Add(new CostPrediction
+            {
+                ProjectId = project.Id,
+                PredictedFinalCost = predictedFinalCost,
+                ConfidenceLevel = confidence,
+                PredictionMethod = PredictionMethod.WeightedAverage,
+                VarianceToBudget = varianceToBudget,
+                VariancePercent = variancePercent,
+                BudgetAtCompletion = Math.Round(budgetAtCompletion, 2),
+                CostToDate = costToDate,
+                EstimatedCostToComplete = estimatedCostToComplete,
+                BurnRate = burnRate,
+                DaysRemaining = daysRemaining,
+                Notes = "Seed forecast — click Regenerate for live calculation.",
+            });
+        }
+
+        return predictions;
     }
 
     // ── Definition record types ─────────────────────────────────────
