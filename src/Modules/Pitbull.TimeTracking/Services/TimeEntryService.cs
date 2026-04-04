@@ -103,6 +103,8 @@ public class TimeEntryService : ITimeEntryService
     {
         var timeEntry = await _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
             .Include(te => te.SubmittedBy)
@@ -127,6 +129,8 @@ public class TimeEntryService : ITimeEntryService
     {
         var query = _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
             .Include(te => te.SubmittedBy)
@@ -269,6 +273,8 @@ public class TimeEntryService : ITimeEntryService
 
         var query = _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .Include(te => te.ApprovedBy)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
@@ -580,6 +586,8 @@ public class TimeEntryService : ITimeEntryService
 
         var query = _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
             .Where(te => !te.IsDeleted)
@@ -959,6 +967,7 @@ public class TimeEntryService : ITimeEntryService
         var entries = await _db.Set<TimeEntry>()
             .Include(te => te.Employee)
             .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .Where(te => command.TimeEntryIds.Contains(te.Id))
             .ToListAsync(cancellationToken);
 
@@ -1065,6 +1074,8 @@ public class TimeEntryService : ITimeEntryService
         var ids = command.Decisions.Select(d => d.TimeEntryId).ToList();
         var entries = await _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .Where(te => ids.Contains(te.Id) && !te.IsDeleted)
             .ToDictionaryAsync(te => te.Id, cancellationToken);
 
@@ -1212,6 +1223,8 @@ public class TimeEntryService : ITimeEntryService
         // Fetch the time entry
         var timeEntry = await _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .Include(te => te.Phase)
             .Include(te => te.Equipment)
             .Include(te => te.SubmittedBy)
@@ -1429,6 +1442,8 @@ public class TimeEntryService : ITimeEntryService
         // Resolve existing entry by explicit ID when provided, otherwise by unique key.
         var existingEntry = await _db.Set<TimeEntry>()
             .Include(te => te.Employee)
+            .Include(te => te.Project)
+            .Include(te => te.CostCode)
             .FirstOrDefaultAsync(te =>
                 item.TimeEntryId.HasValue
                     ? te.Id == item.TimeEntryId.Value

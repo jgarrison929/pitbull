@@ -350,7 +350,7 @@ export default function ProjectDetailPage({
           id: `time-${entry.id}`,
           type: "timeentry",
           title: `Time entry: ${entry.employeeName}`,
-          detail: `${entry.totalHours.toFixed(1)}h on ${entry.costCodeDescription || "cost code"}`,
+          detail: `${entry.totalHours.toFixed(1)}h on ${entry.costCodeDescription || entry.costCodeId || "Unassigned"}`,
           timestamp: entry.createdAt || entry.date,
         }));
 
