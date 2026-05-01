@@ -5,16 +5,20 @@ using Microsoft.IdentityModel.Tokens;
 namespace Pitbull.Api.Middleware;
 
 /// <summary>
-/// Gates access to /swagger/* endpoints behind JWT Bearer authentication.
+/// Gates access to API documentation endpoints (/openapi/*, /scalar/*) behind JWT Bearer authentication.
 /// Controlled by configuration:
-///   ApiDocs:Enabled (default true) — set false to disable Swagger entirely.
+///   ApiDocs:Enabled (default true) — set false to disable API docs entirely.
 ///   ApiDocs:RequireAuth (default true) — set false to allow unauthenticated access (e.g. in development).
 /// </summary>
 public class SwaggerAuthMiddleware(RequestDelegate next, IConfiguration configuration)
 {
+    private static bool IsApiDocsPath(PathString path) =>
+        path.StartsWithSegments("/openapi") ||
+        path.StartsWithSegments("/scalar");
+
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!context.Request.Path.StartsWithSegments("/swagger"))
+        if (!IsApiDocsPath(context.Request.Path))
         {
             await next(context);
             return;

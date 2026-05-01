@@ -1,5 +1,6 @@
 using FluentValidation;
 using HealthChecks.UI.Client;
+using Scalar.AspNetCore;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -526,58 +527,58 @@ builder.Services.AddRequestTimeouts(options =>
         TimeoutStatusCode = 408
     });
 });
-builder.Services.AddSwaggerGen(c =>
+builder.Services.AddOpenApi("v1", options =>
 {
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
-        Title = "Pitbull Construction Solutions \u2014 API Reference",
-        Version = "v1",
-        Description = "RESTful API for AI-native construction ERP. Multi-tenant, role-based access control, real-time event bus. " +
-                      "Covers the full construction lifecycle: bids, projects, contracts, billing (AIA G702/G703), " +
-                      "time tracking, payroll, RFIs, submittals, and AI-powered document intelligence.",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        document.Info = new Microsoft.OpenApi.Models.OpenApiInfo
         {
-            Name = "Pitbull Construction Solutions",
-            Email = "joshuag@pitbullconstructionsolutions.com",
-            Url = new Uri("https://pitbullconstructionsolutions.com")
-        },
-        License = new Microsoft.OpenApi.Models.OpenApiLicense
-        {
-            Name = "Proprietary"
-        }
-    });
-
-    // JWT Bearer auth definition
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Enter your token below (do not include 'Bearer ' prefix).",
-        Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT"
-    });
-
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
-    {
-        {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            Title = "Pitbull Construction Solutions \u2014 API Reference",
+            Version = "v1",
+            Description = "RESTful API for AI-native construction ERP. Multi-tenant, role-based access control, real-time event bus. " +
+                          "Covers the full construction lifecycle: bids, projects, contracts, billing (AIA G702/G703), " +
+                          "time tracking, payroll, RFIs, submittals, and AI-powered document intelligence.",
+            Contact = new Microsoft.OpenApi.Models.OpenApiContact
             {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
+                Name = "Pitbull Construction Solutions",
+                Email = "joshuag@pitbullconstructionsolutions.com",
+                Url = new Uri("https://pitbullconstructionsolutions.com")
             },
-            Array.Empty<string>()
-        }
-    });
+            License = new Microsoft.OpenApi.Models.OpenApiLicense
+            {
+                Name = "Proprietary"
+            }
+        };
 
-    // Include XML comments from API assembly
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-        c.IncludeXmlComments(xmlPath);
+        // JWT Bearer auth definition
+        document.Components ??= new Microsoft.OpenApi.Models.OpenApiComponents();
+        document.Components.SecuritySchemes["Bearer"] = new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        {
+            Description = "JWT Authorization header using the Bearer scheme. Enter your token below (do not include 'Bearer ' prefix).",
+            Name = "Authorization",
+            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT"
+        };
+
+        document.SecurityRequirements.Add(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        {
+            {
+                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                    {
+                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
+        });
+
+        return Task.CompletedTask;
+    });
 });
 
 // CORS
@@ -799,13 +800,14 @@ else
     app.UseCors("Production");
 }
 
-// Swagger — available in all environments, gated by ApiDocs:Enabled + ApiDocs:RequireAuth
+// API Documentation — available in all environments, gated by ApiDocs:Enabled + ApiDocs:RequireAuth
 app.UseMiddleware<Pitbull.Api.Middleware.SwaggerAuthMiddleware>();
-app.UseSwagger();
-app.UseSwaggerUI(c =>
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Pitbull API v1");
-    c.DocumentTitle = "Pitbull Construction Solutions \u2014 API Reference";
+    options
+        .WithTitle("Pitbull Construction Solutions — API Reference")
+        .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
 });
 
 // Response compression (before other middlewares that generate responses)
