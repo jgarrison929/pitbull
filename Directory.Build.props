@@ -1,0 +1,6 @@
+<Project>
+  <!-- Pin vulnerable transitive dependencies to patched versions -->
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="9.0.15" />
+  </ItemGroup>
+</Project>
