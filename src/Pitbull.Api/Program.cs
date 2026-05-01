@@ -528,41 +528,48 @@ builder.Services.AddRequestTimeouts(options =>
 });
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
         Title = "Pitbull Construction Solutions \u2014 API Reference",
         Version = "v1",
         Description = "RESTful API for AI-native construction ERP. Multi-tenant, role-based access control, real-time event bus. " +
                       "Covers the full construction lifecycle: bids, projects, contracts, billing (AIA G702/G703), " +
                       "time tracking, payroll, RFIs, submittals, and AI-powered document intelligence.",
-        Contact = new Microsoft.OpenApi.OpenApiContact
+        Contact = new Microsoft.OpenApi.Models.OpenApiContact
         {
             Name = "Pitbull Construction Solutions",
             Email = "joshuag@pitbullconstructionsolutions.com",
             Url = new Uri("https://pitbullconstructionsolutions.com")
         },
-        License = new Microsoft.OpenApi.OpenApiLicense
+        License = new Microsoft.OpenApi.Models.OpenApiLicense
         {
             Name = "Proprietary"
         }
     });
 
     // JWT Bearer auth definition
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Enter your token below (do not include 'Bearer ' prefix).",
         Name = "Authorization",
-        In = Microsoft.OpenApi.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT"
     });
 
-    c.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
         {
-            new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document),
-            new List<string>()
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
         }
     });
 
