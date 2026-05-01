@@ -179,6 +179,7 @@ builder.Services.AddScoped<Pitbull.Billing.Features.Aging.IAgingReportService, P
 builder.Services.AddScoped<Pitbull.Billing.Features.FinancialStatements.IFinancialStatementService, Pitbull.Billing.Features.FinancialStatements.FinancialStatementService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Wip.IWipGlPostingService, Pitbull.Billing.Features.Wip.WipGlPostingService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.BankReconciliation.IBankReconciliationService, Pitbull.Billing.Features.BankReconciliation.BankReconciliationService>();
+builder.Services.AddScoped<Pitbull.Billing.Features.VendorPayments.IVendorPaymentService, Pitbull.Billing.Features.VendorPayments.VendorPaymentService>();
 
 // Vendor portal service (token-based access for vendors)
 builder.Services.AddScoped<Pitbull.Billing.Services.IVendorPortalService, Pitbull.Billing.Services.VendorPortalService>();

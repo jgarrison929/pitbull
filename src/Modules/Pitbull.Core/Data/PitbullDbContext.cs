@@ -45,6 +45,8 @@ public class PitbullDbContext(
     public DbSet<PurchaseOrderLine> PurchaseOrderLines => Set<PurchaseOrderLine>();
     public DbSet<VendorInvoice> VendorInvoices => Set<VendorInvoice>();
     public DbSet<InvoiceMatchResult> InvoiceMatchResults => Set<InvoiceMatchResult>();
+    public DbSet<VendorPayment> VendorPayments => Set<VendorPayment>();
+    public DbSet<VendorPaymentApplication> VendorPaymentApplications => Set<VendorPaymentApplication>();
     public DbSet<RetentionPolicy> RetentionPolicies => Set<RetentionPolicy>();
     public DbSet<RetentionHold> RetentionHolds => Set<RetentionHold>();
     public DbSet<LienWaiver> LienWaivers => Set<LienWaiver>();

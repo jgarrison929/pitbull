@@ -76,6 +76,7 @@ export const moduleGroups: ModuleGroup[] = [
     items: [
       { label: "Purchase Orders", href: "/procurement/purchase-orders", icon: "🧱", requiredPermission: "AP.View" },
       { label: "Vendor Invoices", href: "/procurement/invoices", icon: "🧾", requiredPermission: "AP.View" },
+      { label: "Vendor Payments", href: "/procurement/payments", icon: "💳", requiredPermission: "AP.View" },
       { label: "Vendors", href: "/vendors", icon: "🏢", requiredPermission: "AP.View" },
       { label: "Customers", href: "/customers", icon: "🤝", requiredPermission: "AR.View" },
       { label: "Contracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
