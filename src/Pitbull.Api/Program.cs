@@ -179,6 +179,8 @@ builder.Services.AddScoped<Pitbull.Core.Features.Feedback.IFeedbackService, Pitb
 builder.Services.AddScoped<Pitbull.Billing.Features.Aging.IAgingReportService, Pitbull.Billing.Features.Aging.AgingReportService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.FinancialStatements.IFinancialStatementService, Pitbull.Billing.Features.FinancialStatements.FinancialStatementService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.Wip.IWipGlPostingService, Pitbull.Billing.Features.Wip.WipGlPostingService>();
+builder.Services.AddScoped<Pitbull.Billing.Services.IWipReportService, Pitbull.Billing.Services.WipReportService>();
+builder.Services.AddScoped<Pitbull.Billing.Services.IWipCalculationService, Pitbull.Billing.Services.WipCalculationService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.BankReconciliation.IBankReconciliationService, Pitbull.Billing.Features.BankReconciliation.BankReconciliationService>();
 builder.Services.AddScoped<Pitbull.Billing.Features.VendorPayments.IVendorPaymentService, Pitbull.Billing.Features.VendorPayments.VendorPaymentService>();
 
