@@ -688,6 +688,19 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
           </DropdownMenu>
         )}
       </div>
+
+      {/* Version */}
+      <div className={cn(
+        "px-3 pb-2 text-center",
+        effectiveCollapsed && "px-1"
+      )}>
+        <Link
+          href="/settings/about"
+          className="text-[10px] text-sidebar-foreground/30 hover:text-sidebar-foreground/50 transition-colors"
+        >
+          {effectiveCollapsed ? `v${process.env.NEXT_PUBLIC_APP_VERSION}` : `Pitbull v${process.env.NEXT_PUBLIC_APP_VERSION}`}
+        </Link>
+      </div>
     </aside>
   );
 }

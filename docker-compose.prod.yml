@@ -9,6 +9,10 @@ services:
     build:
       context: .
       dockerfile: src/Pitbull.Api/Dockerfile
+      args:
+        - VERSION=${APP_VERSION:-0.15.0}
+        - COMMIT_HASH=${COMMIT_HASH:-unknown}
+        - BUILD_DATE=${BUILD_DATE:-}
     environment:
       - ConnectionStrings__PitbullDb=Host=postgres;Port=5432;Database=pitbull;Username=pitbull;Password=${DB_PASSWORD}
       - Jwt__Key=${JWT_KEY}
@@ -30,6 +34,8 @@ services:
       context: ./src/Pitbull.Web/pitbull-web
       args:
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+        - NEXT_PUBLIC_APP_VERSION=${APP_VERSION:-0.15.0}
+        - COMMIT_HASH=${COMMIT_HASH:-unknown}
     ports:
       - "3000:3000"
     depends_on:

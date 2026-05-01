@@ -6,6 +6,180 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.15.0] - 2026-05-01
+
+### Added
+
+- **Trial Balance, Balance Sheet, and Income Statement** financial reports with drill-down (#0315e8c)
+- **AP Payment Processing** with GL integration — partial payments, status workflow, auto journal entries (#cbafeac)
+- **Real Estate Development Partnership** COA template with 40 accounts and company provisioning service + admin UI (#e731544)
+- **Punch List module** — backend entities, API, migration, seed data, summary cards, filterable table, CRUD dialogs (#d173ff7, #3fb6ae3)
+- **Progress → Schedule → Cost** foundation and frontend — progress entry, earned value dashboard, cost code mapping, WIP integration (#c0eed35, #0d15015, #0d0100b)
+- **Owner-side payment tracking** for pay applications (#d5441c1)
+- **Delivery ticket OCR** for daily reports using Vision API (#a1c20e2)
+- **Hangfire background job infrastructure** (#36e3bb8)
+- **Playwright PR demo video recording** infrastructure (#39df0ff)
+- **Blob storage abstraction** with local filesystem and S3/MinIO providers (#e0cb37b)
+- **Weather API integration** for daily reports (#1228a5f)
+- **Dashboard KPI drill-down** — all cards clickable with filtered URLs (#573ea87, #07696f8)
+- **Multi-company demo seed data** — Companies 02, 03, 04 with full data (#140d06b)
+- **Public demo self-service signup** with permission lockdown (#7d75717)
+- **Seed data versioning** + company profile renames (Pacific Water, Valley Highway, Summit Electric Co.) (#be03406)
+- **Comprehensive seed data** for all modules and roles (#de6f7fc)
+- **Role-adaptive welcome tour** steps based on user title and role (#208ca12)
+- **Secure Swagger API docs** for all environments (#362eaab)
+- **O3 offline PWA** with service worker, IndexedDB sync, and offline fallback (#f696828)
+- **F4 multi-currency & sales tax** support (#8b16884)
+- **Encrypted secrets vault** — entity, CRUD API, admin UI (#9d0921d)
+- **Workflow status indicators** — StatusBadge, StatusTimeline, transition tracking (#faacc5b)
+- **Cost-to-complete predictions** — per-cost-code linear regression (#2af9706)
+- **AI invoice extraction** — Vision API, fuzzy vendor matching, PO lookup (#2116aef)
+- **Response caching** extended to read-heavy endpoints (#d56c4bd)
+- **Bid-to-project conversion** with Converted status (#072fe20)
+- **Stale submittal review notifications** (48h+) (#3e459d5)
+- **PDF reports** — WIP Schedule, AR Aging, Project Cost, Submittal Log, Punch List (#77cef80)
+- **Enhanced feedback widget** (#b3065e9)
+- **Realistic bank reconciliation seed data** for demo (#0b25725)
+- **Version API endpoint** (`GET /api/version`) returning version, build date, and commit hash
+- **Version display** in sidebar footer and `/settings/about` page
+- **Changelog** (this file) updated with full release history
+
+### Fixed
+
+- TypeScript errors in recharts charts blocking deployments since April 4 (#2060897)
+- Stale `eslint-plugin-react` patch breaking all frontend builds (#6eea551)
+- Token refresh — 30-min JWT, 30-day refresh, session expiry toast (#7146999)
+- Mobile navigation visible up to lg breakpoint (#f0cc54f)
+- Retention model corrected — hold on contract value from execution, not per-billing (#10e2fa2, #faa3dc9)
+- P1 404s — companies list, users/me, contracts, WIP, glossary (#37ad609)
+- Dashboard 404 — GET /api/dashboard returns analytics (#b8530c4)
+- PostHog error tracking — intercept all fetch() calls, global tracking with session flag (#de234e6, #b0c63f0)
+- React hydration mismatch on /employees and /time-tracking/audit (#3e2c92b)
+- WipReportLine PercentComplete overflow — numeric(8,6) cannot hold 100 (#5ab50f7)
+- BulkDeleteAsync uses SAVEPOINT to prevent transaction poisoning (#ee07ebd)
+- Demo signup UX — company switcher 403, wrong default company (#85a6285)
+- Company switcher dropdown now functional in header (#d4a8e3a)
+- Welcome tour persists across page navigation (#3b83922)
+- RBAC policy authorization added to Jobs, PaymentApplications, PaymentApplicationSettings controllers (#410ccad)
+- P0 production bugs — workspace switcher, progress entry save, date mapping (#9fd045f)
+- Change Orders 404 when navigating from project workspace (#567d9db)
+- CI integration fixes — execution strategy, deadline disposal, orphan migration (#cf14552)
+- Demo users see pre-seeded employees in crew timecard grid (#2149cac)
+- Demo users get wildcard permission in JWT for API policy gates (#5afd576)
+- Password validation UI on demo registration page (#6b0e454)
+- System health raw SQL column name casing (#583597d)
+- Time entry CostCode includes on all queries (#b224b50)
+
+### Security
+
+- Pinned `System.Security.Cryptography.Xml` to 9.0.15 (2 HIGH advisories) (#b678235)
+- Updated Next.js → latest (HTTP smuggling, CSRF bypass, DoS fixes) (#b678235)
+- Fixed dompurify, protobufjs, postcss vulnerabilities — 0 npm audit findings (#b678235)
+- MEDIUM security — 7 findings + email enumeration fix (#8032d19)
+
+### Changed
+
+- Upgraded Swashbuckle 7.2.0 → 10.1.4 (#35b7b60)
+- Bumped recharts, posthog-js, vitest, UI group, Microsoft packages, AWSSDK.S3, Hangfire.PostgreSql, QuestPDF, coverlet.collector
+- Bumped React 19.2.4 → 19.2.5, eslint-config-next updates
+- Version bumped to 0.15.0 across frontend (package.json) and backend (.csproj)
+
+### Tests
+
+- Coverage wave 3 — 43 tests for 5 billing services (#995f34e)
+- Punch list report tests use PunchListPriority enum (#abb53ca)
+
+---
+
+## [0.14.4] - 2026-02-21
+
+### Fixed
+
+- Flaky SystemAdmin tests — register module assembly in ModuleInit + sequential collection (#dca3616)
+
+---
+
+## [0.14.3] - 2026-02-21
+
+### Security
+
+- CRITICAL + HIGH — JWT key validation, admin seed gate, pageSize clamp, CORS hardening (#0b35709)
+
+---
+
+## [0.14.2] - 2026-02-21
+
+### Added
+
+- Test coverage wave 2 — EmployeeOnboarding, Employee, AiUsage, TenantSettings (22 tests) (#0044bca)
+- Test coverage — PaymentApplicationService + ApiKeyService tests (#bf4244f)
+
+### Security
+
+- HIGH — JWT claim parity + admin route guard (#c109591)
+- Open redirect, CSPRNG tokens, constant-time compare, security headers (#73b6e13)
+
+---
+
+## [0.14.1] - 2026-02-21
+
+### Fixed
+
+- Middleware security — tenant enforcement, response sanitization, health check auth (#3309a36)
+- Frontend security — Secure cookie flag, no localhost fallback, omit empty auth header (#6650aa4)
+- Middleware pipeline ordering — security headers and correlation before exception handler (#b778248)
+- Program.cs architecture — auth before rate limiter, Redis health check, gate dev tools (#b778248)
+- MEDIUM middleware findings — 404 rate limit, seed timeout gate, company fallback warning (#422f76d)
+
+---
+
+## [0.14.0] - 2026-02-21
+
+### Added
+
+- **AI morning briefing** — role-adaptive personalized dashboard landing (#6c67c78)
+- **Workspace navigation** — 7 focused workspaces replace 78-item flat sidebar (#472c9e6)
+- **AIA G702/G703 billing system** with owner contracts and SOV (#0b9c46e)
+- **Prevailing wage determinations**, PM review workflow, and export system (#52e9ee7)
+- **Payroll compliance runs** and certified reports (#51d28d3)
+- **Retention & Lien Waiver tracking** + pay period test mocks (#94c774f)
+- **Purchase order and invoice matching** workflows (#2a6c1fa)
+- **WIP Schedule Phase 1** (#c7e567e)
+- **GL Module Phase 1** — journal entries and accounting periods (#5de4b28)
+- **Chart of accounts** CRUD and tree UI (#04dce10)
+- **AP/AR foundation** entities and vendor/customer CRUD (#20e612a)
+- **Bank reconciliation module** — entities, migration, services, controllers, frontend, 24 tests (Sprint 4) (#89960b5)
+- **Feature-level RBAC** with 45 permissions and 8 role templates (Sprint 3) (#839cc29)
+- **Punch list module**, Gantt chart, submittal PDF (Sprint 2) (#13b3c1d)
+- **WH-347 certified payroll** PDF export and AI usage dashboard (Sprint 5) (#ffddc5b)
+- **Secrets management**, AI confidence scoring, migration testing (Sprint 6) (#a97da4a)
+- **Cost-to-complete prediction**, AI data entry, deadline notifications (Sprint 7) (#efd5232)
+- **Integration exports**, AI invoice extraction, notification expansion (Sprint 8) (#265f0d5)
+- **Mobile daily reports** with photo capture, dedicated mobile views (Sprint 9) (#a8e34c9)
+- **Dashboard customization**, vendor portal, field encryption (Sprint 10) (#98d86df)
+- **Migration accelerator**, offline PWA, GPS geofencing, AI service decomposition (Sprint 11) (#647156a)
+- **PDF report generation** with QuestPDF + enhanced seed data (#bd88119)
+- **AP/AR aging dashboard** + bid-to-project conversion wizard (#febc518)
+- **PM module polish** — domain validation, FK fix, Gantt chart, 200+ new tests (#f02b789, #33c7172, #e178ef8)
+- **Structured logging** (Serilog), admin health dashboard, in-app feedback widget (#de47645)
+- **File upload security validation** (#6a1aea1)
+- **UX overhaul** — PM dashboard, help panel, glossary, dashboard preferences (#f8b0438)
+- Comprehensive design specs: GL, WIP, AP/AR, payroll compliance, retention, AIA billing, PO matching, Vista migration, schedule module, job cost, document management, workflow engine
+
+### Fixed
+
+- 3 CRITICAL stability bugs — WIP GL double-posting, payment app delta logic, journal entry number races (#69539c3)
+- 14 HIGH severity stability bugs — financial integrity, payroll, vendor, time entry (#42ee327)
+- 8 MEDIUM severity stability bugs — validation, rounding, security (#9ee73d8)
+- Billing carry-forward double-counting and voided app handling (#cd0a319)
+- WIP GL posting — account type validation and entry number generation (#00856b1)
+- Aging report date arithmetic (#50bea40)
+- DemoBootstrapper crash-loop (#4e8a3dc)
+- ajv ReDoS vulnerability (#ba9b349)
+- Time entry draft hours, PO approval flow, meeting service types (#7da8b6f)
+
+---
+
 ## [0.13.0] - 2026-02-19
 
 ### Added

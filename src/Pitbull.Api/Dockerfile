@@ -31,12 +31,18 @@ COPY src/Infrastructure/Pitbull.Messaging/Pitbull.Messaging.csproj src/Infrastru
 # Restore dependencies (cached unless .csproj files change)
 RUN dotnet restore src/Pitbull.Api/Pitbull.Api.csproj
 
+# Build args for version info
+ARG VERSION=0.15.0
+ARG COMMIT_HASH=unknown
+
 # Copy source and publish
 COPY src/ src/
 RUN dotnet publish src/Pitbull.Api/Pitbull.Api.csproj \
     -c Release \
     -o /out \
-    --no-restore
+    --no-restore \
+    -p:Version=${VERSION} \
+    -p:InformationalVersion=${VERSION}+${COMMIT_HASH}
 
 # --- Stage 2: Runtime ---
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
@@ -44,8 +50,13 @@ WORKDIR /app
 
 COPY --from=build /out .
 
+ARG VERSION=0.15.0
+ARG COMMIT_HASH=unknown
+ARG BUILD_DATE=""
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
+ENV BUILD_DATE=${BUILD_DATE}
+ENV COMMIT_HASH=${COMMIT_HASH}
 
 EXPOSE 8080
 
