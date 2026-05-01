@@ -140,16 +140,36 @@ public class PostHogDbInterceptor(
         try
         {
             var endpoint = GetCurrentEndpoint();
+            var exceptionString = eventData.Exception.ToString();
+            var truncatedSql = TruncateSql(command.CommandText);
+            var durationMs = Math.Round(eventData.Duration.TotalMilliseconds, 1);
+
+            // Keep existing db_error event for backwards compatibility
             posthog.Capture(
                 "pitbull-api",
                 "db_error",
                 new Dictionary<string, object>
                 {
-                    ["sql"] = TruncateSql(command.CommandText),
+                    ["sql"] = truncatedSql,
                     ["error_type"] = eventData.Exception.GetType().Name,
                     ["error_message"] = eventData.Exception.Message,
                     ["endpoint"] = endpoint,
-                    ["duration_ms"] = Math.Round(eventData.Duration.TotalMilliseconds, 1)
+                    ["duration_ms"] = durationMs
+                });
+
+            // Also emit $exception so DB errors appear in PostHog Error Tracking
+            posthog.Capture(
+                "pitbull-api",
+                "$exception",
+                new Dictionary<string, object>
+                {
+                    ["$exception_type"] = eventData.Exception.GetType().Name,
+                    ["$exception_message"] = eventData.Exception.Message,
+                    ["$exception_stack_trace_raw"] = exceptionString[..Math.Min(8000, exceptionString.Length)],
+                    ["$exception_source"] = "ef_core_interceptor",
+                    ["sql"] = truncatedSql,
+                    ["endpoint"] = endpoint,
+                    ["duration_ms"] = durationMs
                 });
         }
         catch (Exception ex)

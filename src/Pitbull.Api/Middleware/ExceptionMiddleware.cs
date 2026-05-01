@@ -69,20 +69,22 @@ public class ExceptionMiddleware(
                 logger.LogWarning(saveEx, "Failed to save diagnostic error to database");
             }
 
-            // Send to PostHog for analytics dashboard (fire-and-forget)
+            // Send to PostHog Error Tracking (fire-and-forget)
             try
             {
+                var exceptionString = ex.ToString();
                 posthog?.Capture(
                     "pitbull-api",
-                    "server_error",
+                    "$exception",
                     new Dictionary<string, object>
                     {
-                        ["error_type"] = ex.GetType().Name,
-                        ["error_message"] = ex.Message,
+                        ["$exception_type"] = ex.GetType().Name,
+                        ["$exception_message"] = ex.Message,
+                        ["$exception_stack_trace_raw"] = exceptionString[..Math.Min(8000, exceptionString.Length)],
+                        ["$exception_source"] = "dotnet_middleware",
                         ["endpoint"] = context.Request.Path.Value ?? "unknown",
                         ["method"] = context.Request.Method,
                         ["status_code"] = 500,
-                        ["stack_trace"] = (ex.StackTrace ?? "")[..Math.Min(500, ex.StackTrace?.Length ?? 0)]
                     });
             }
             catch (Exception phEx)

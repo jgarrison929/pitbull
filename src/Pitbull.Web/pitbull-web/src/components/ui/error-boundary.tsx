@@ -3,6 +3,8 @@
 import React from "react";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import posthog from "posthog-js";
+import { reportError } from "@/lib/error-reporter";
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -34,6 +36,28 @@ export class ErrorBoundary extends React.Component<
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     const displayLabel = this.props.label || this.props.section;
     console.error(`ErrorBoundary${displayLabel ? ` [${displayLabel}]` : ""}:`, error, errorInfo);
+
+    // Report to backend DB
+    reportError({
+      source: "frontend",
+      level: "error",
+      message: error.message,
+      stackTrace: error.stack,
+      componentStack: errorInfo.componentStack ?? undefined,
+      metadata: JSON.stringify({ label: displayLabel }),
+    });
+
+    // Report to PostHog Error Tracking
+    if (posthog.__loaded) {
+      posthog.capture("$exception", {
+        $exception_message: error.message,
+        $exception_type: "ReactError",
+        $exception_stack_trace_raw: error.stack,
+        $exception_source: "react_error_boundary",
+        $exception_component_stack: errorInfo.componentStack,
+        label: displayLabel,
+      });
+    }
   }
 
   handleReset = () => {
