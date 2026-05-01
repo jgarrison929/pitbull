@@ -76,7 +76,25 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
             .clone()
             .json()
             .catch(() => null)
-            .then((errorData) => captureApiError(response.status, method, endpoint, errorData));
+            .then((errorData) => {
+              captureApiError(response.status, method, endpoint, errorData);
+
+              // Also emit $exception for 5xx so server errors appear in PostHog Error Tracking
+              if (response.status >= 500 && posthog.__loaded) {
+                const errorMsg =
+                  (errorData as Record<string, string>)?.error ||
+                  (errorData as Record<string, string>)?.message ||
+                  `HTTP ${response.status}`;
+                posthog.capture("$exception", {
+                  $exception_message: errorMsg,
+                  $exception_type: "ApiError",
+                  $exception_source: "fetch_interceptor",
+                  status_code: response.status,
+                  method,
+                  endpoint,
+                });
+              }
+            });
         }
       }
 

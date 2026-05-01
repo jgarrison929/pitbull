@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { reportError } from "@/lib/error-reporter";
+import posthog from "posthog-js";
 
 /**
  * Installs global window.onerror and unhandledrejection handlers
@@ -22,6 +23,18 @@ export function GlobalErrorHandlers() {
           colno: event.colno,
         }),
       });
+
+      if (posthog.__loaded) {
+        posthog.capture("$exception", {
+          $exception_message: String(event.message),
+          $exception_type: event.error?.name ?? "Error",
+          $exception_stack_trace_raw: event.error?.stack,
+          $exception_source: "window_onerror",
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+        });
+      }
     };
 
     const handleRejection = (event: PromiseRejectionEvent) => {
@@ -32,6 +45,15 @@ export function GlobalErrorHandlers() {
         message: reason?.message || String(reason),
         stackTrace: reason?.stack,
       });
+
+      if (posthog.__loaded) {
+        posthog.capture("$exception", {
+          $exception_message: reason?.message || String(reason),
+          $exception_type: reason?.name ?? "UnhandledPromiseRejection",
+          $exception_stack_trace_raw: reason?.stack,
+          $exception_source: "unhandled_rejection",
+        });
+      }
     };
 
     window.addEventListener("error", handleError);

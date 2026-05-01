@@ -3,6 +3,7 @@
 import Link from "next/link";
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { reportError } from "@/lib/error-reporter";
+import posthog from "posthog-js";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -44,7 +45,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorInfo
     );
 
-    // Report to diagnostic error tracking
+    // Report to backend DB
     reportError({
       source: "frontend",
       level: "error",
@@ -59,6 +60,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           : undefined,
       }),
     });
+
+    // Report to PostHog Error Tracking
+    if (posthog.__loaded) {
+      posthog.capture("$exception", {
+        $exception_message: error.message,
+        $exception_type: "ReactError",
+        $exception_stack_trace_raw: error.stack,
+        $exception_source: "react_error_boundary",
+        $exception_component_stack: errorInfo.componentStack,
+        section,
+      });
+    }
 
     if (onError) {
       onError(error, errorInfo);
