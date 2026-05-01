@@ -103,6 +103,7 @@ builder.Services.AddSingleton<Pitbull.Core.Services.IFieldEncryptionService, Pit
 builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOptions.SectionName));
 builder.Services.AddScoped<DemoBootstrapper>();
 builder.Services.AddScoped<Pitbull.Api.Features.SeedData.ISeedDataService, Pitbull.Api.Features.SeedData.SeedDataService>();
+builder.Services.AddScoped<Pitbull.Api.Features.CompanyProvisioning.ICompanyProvisioningService, Pitbull.Api.Features.CompanyProvisioning.CompanyProvisioningService>();
 
 // Configure forwarded headers for reverse proxy (Railway, Docker, etc.)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -525,48 +526,41 @@ builder.Services.AddRequestTimeouts(options =>
 });
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.OpenApiInfo
     {
         Title = "Pitbull Construction Solutions \u2014 API Reference",
         Version = "v1",
         Description = "RESTful API for AI-native construction ERP. Multi-tenant, role-based access control, real-time event bus. " +
                       "Covers the full construction lifecycle: bids, projects, contracts, billing (AIA G702/G703), " +
                       "time tracking, payroll, RFIs, submittals, and AI-powered document intelligence.",
-        Contact = new Microsoft.OpenApi.Models.OpenApiContact
+        Contact = new Microsoft.OpenApi.OpenApiContact
         {
             Name = "Pitbull Construction Solutions",
             Email = "joshuag@pitbullconstructionsolutions.com",
             Url = new Uri("https://pitbullconstructionsolutions.com")
         },
-        License = new Microsoft.OpenApi.Models.OpenApiLicense
+        License = new Microsoft.OpenApi.OpenApiLicense
         {
             Name = "Proprietary"
         }
     });
 
     // JWT Bearer auth definition
-    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Enter your token below (do not include 'Bearer ' prefix).",
         Name = "Authorization",
-        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        In = Microsoft.OpenApi.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.SecuritySchemeType.Http,
         Scheme = "bearer",
         BearerFormat = "JWT"
     });
 
-    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    c.AddSecurityRequirement(document => new Microsoft.OpenApi.OpenApiSecurityRequirement
     {
         {
-            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-            {
-                Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                {
-                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
+            new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document),
+            new List<string>()
         }
     });
 
