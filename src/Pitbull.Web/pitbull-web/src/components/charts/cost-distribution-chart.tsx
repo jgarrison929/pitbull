@@ -10,6 +10,7 @@ import {
   Legend,
 } from "recharts";
 import type { PieLabelRenderProps } from "recharts";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -218,8 +219,8 @@ export function CostDistributionChart({
   }, [drillInto, segments]);
 
   const handlePieClick = useCallback(
-    (data: { name: string }) => {
-      if (!drillInto) {
+    (data: { name?: string }) => {
+      if (!drillInto && data.name) {
         setDrillInto(data.name);
       }
     },
@@ -336,7 +337,7 @@ export function CostDistributionChart({
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                formatter={(value?: number) => [formatCurrency(value ?? 0)]}
+                formatter={(value) => [formatCurrency(Number(value) || 0)]}
               />
               <Legend
                 wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}

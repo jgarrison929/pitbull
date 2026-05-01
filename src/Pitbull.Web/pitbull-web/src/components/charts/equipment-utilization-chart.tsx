@@ -224,8 +224,8 @@ export function EquipmentUtilizationChart({
                   borderRadius: "8px",
                   fontSize: "12px",
                 }}
-                formatter={(value?: number, name?: string) => [
-                  formatCurrency(value ?? 0),
+                formatter={(value, name) => [
+                  formatCurrency(Number(value) || 0),
                   name ?? "",
                 ]}
                 labelFormatter={(label) => {

@@ -20,13 +20,20 @@ import { getWeekStart as getWeekStartFn } from "@/lib/date-utils";
 import type { TimeEntry } from "@/lib/types";
 
 // ── Types ──────────────────────────────────────────────
-interface DailyDataPoint {
+interface DataPoint {
   label: string;
-  date: string;
   regular: number;
   overtime: number;
   doubleTime: number;
   total: number;
+}
+
+interface DailyDataPoint extends DataPoint {
+  date: string;
+}
+
+interface WeeklyDataPoint extends DataPoint {
+  key: string;
 }
 
 interface HoursTrendChartProps {
@@ -138,10 +145,7 @@ export function HoursTrendChart({
 
   // Build weekly data
   const weeklyData = useMemo(() => {
-    const map = new Map<
-      string,
-      { label: string; key: string; regular: number; overtime: number; doubleTime: number; total: number }
-    >();
+    const map = new Map<string, WeeklyDataPoint>();
 
     for (const day of dailyData) {
       const d = new Date(day.date);
@@ -166,7 +170,7 @@ export function HoursTrendChart({
     return Array.from(map.values());
   }, [dailyData]);
 
-  const chartData = view === "daily" ? dailyData : weeklyData;
+  const chartData: DataPoint[] = view === "daily" ? dailyData : weeklyData;
   const hasData = entries.length > 0;
 
   // Skeleton loading
@@ -257,8 +261,8 @@ export function HoursTrendChart({
                       borderRadius: "8px",
                       fontSize: "12px",
                     }}
-                    formatter={(value?: number, name?: string) => [
-                      `${(value ?? 0).toFixed(1)} hrs`,
+                    formatter={(value, name) => [
+                      `${(Number(value) || 0).toFixed(1)} hrs`,
                       name ?? "",
                     ]}
                   />
