@@ -9,6 +9,8 @@
 
 **Cloud-native construction management software.** Built for commercial general contractors who need unified project management without the complexity of managing multiple SaaS tools.
 
+> **Portfolio project.** Full-stack construction ERP built as a personal reference implementation. Hosted demo environments have been decommissioned — clone and run locally via Docker Compose. Safe to link on a resume or portfolio.
+
 Loyal. Tenacious. Won't let go. 🐕
 
 ---
