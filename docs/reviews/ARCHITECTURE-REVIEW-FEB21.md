@@ -40,7 +40,7 @@ Recommendation:
 ### 4. MEDIUM — Hardcoded admin seed is environment-agnostic
 - `src/Pitbull.Api/Program.cs:606`
 
-`EnsureAdminForEmailAsync("jgarrison929@gmail.com")` runs on startup whenever migrations are enabled. This should be environment-specific and externally configurable.
+Dev admin bootstrap runs via `DEV_ADMIN_EMAIL` when set in Development. Keep unset in shared/public environments.
 
 Recommendation:
 - Gate to development/staging or controlled via config flag and configured email list.

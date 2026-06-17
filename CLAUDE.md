@@ -45,7 +45,7 @@ These decisions are final. Do not propose alternatives or revisit them.
 ## Directory Structure
 
 ```
-pitbull-private/
+pitbull/
 ├── src/
 │   ├── Pitbull.Api/                    # ASP.NET Core host
 │   │   ├── Controllers/               # 77 REST API controllers
@@ -344,7 +344,7 @@ List of files for future reference.
 
 ### Backend
 ```bash
-cd /mnt/c/pitbull-private
+cd /mnt/c/pitbull
 dotnet build src/Pitbull.Api/Pitbull.Api.csproj           # Build (must be 0 warnings)
 dotnet test tests/Pitbull.Tests.Unit/                       # Unit tests
 dotnet test tests/Pitbull.Tests.Integration/                # Integration tests (needs PostgreSQL)
@@ -353,7 +353,7 @@ cd src/Pitbull.Api && dotnet ef migrations add <Name>       # New migration
 
 ### Frontend
 ```bash
-cd /mnt/c/pitbull-private/src/Pitbull.Web/pitbull-web
+cd /mnt/c/pitbull/src/Pitbull.Web/pitbull-web
 npm ci                    # Install deps
 npm run dev               # Dev server
 npx next build            # Production build (must succeed)

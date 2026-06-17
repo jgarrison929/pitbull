@@ -1,4 +1,4 @@
-# Josh Testing Feedback — Feb 21, 2026 (4:09 PM PST)
+# Production Testing Feedback — Feb 21, 2026
 
 Source: Production testing at https://pitbull-web-production.up.railway.app
 
@@ -59,7 +59,7 @@ Source: Production testing at https://pitbull-web-production.up.railway.app
   - File sharing capabilities
   - Permissions by Project and by Role
   - Handle sensitive data
-- **Note from Josh:** "This module will need a full spec to be iterated on several times and we'll need to address file storage and handling sensitive data"
+- **Note:** This module will need a full spec iterated several times; file storage and sensitive data handling must be addressed
 - **Priority:** P2 (needs full spec first)
 
 ### 9. Schedule — Modern P6/Procore Killer

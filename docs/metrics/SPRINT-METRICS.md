@@ -81,7 +81,7 @@ After each sprint merge, add a row with:
 ## Compound Infrastructure Inventory
 | Asset | Path | Created | Purpose |
 |-------|------|---------|---------|
-| CLAUDE.md | /mnt/c/pitbull-private/CLAUDE.md | Feb 20 07:25 | Settled decisions, module boundaries, domain context |
+| CLAUDE.md | pitbull/CLAUDE.md | Feb 20 07:25 | Settled decisions, module boundaries, domain context |
 | erp-accounting | .claude/skills/erp-accounting/ | Feb 20 07:25 | GAAP, WIP, GL, retention, AIA billing |
 | erp-architecture | .claude/skills/erp-architecture/ | Feb 20 07:25 | Module creation, patterns, multi-tenancy |
 | erp-contracts | .claude/skills/erp-contracts/ | Feb 20 07:25 | Subcontracts, change orders, SOV, lien waivers |

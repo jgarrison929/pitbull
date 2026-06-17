@@ -2,7 +2,7 @@
 
 > **"One platform. One cost per user. The entire construction lifecycle from design through operations, powered by AI agents that understand the domain."**
 
-**Author:** Joshua Garrison, Director of Technology Innovation
+**Author:** Joshua Garrison
 **Date:** February 20, 2026
 **Status:** Vision Document — Pre-Seed ($500K target)
 
@@ -124,7 +124,7 @@ The per-seat economics work because:
 ### First Customers
 
 Target: 3-5 GCs in California Central Valley ($50M-$200M annual revenue)
-- **Already have relationships** (Josh's 10 years of Vista across 7 entities)
+- **Domain depth** — built by someone with 10+ years implementing Vista/Viewpoint in multi-entity construction holdings
 - **Vista pain is acute** — $200K implementations, Windows-only, 1990s UI
 - **Balance forward approach** — Don't migrate historical data. Start fresh, run parallel for 1 month, cut over
 - **$2-5K/month per GC = $100-300K ARR** = self-sustaining

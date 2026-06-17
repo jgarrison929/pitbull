@@ -18,7 +18,7 @@ Pitbull Construction Solutions is a construction ERP handling financial data, pa
 - **Email:** Resend (transactional), Google Workspace (business)
 - **Monitoring:** PostHog (analytics, error tracking, session recording)
 - **DNS/CDN:** Cloudflare (example.com, pitbullconstructionsolutions.com)
-- **Source:** GitHub (jgarrison929/pitbull-private)
+- **Source:** GitHub (jgarrison929/pitbull)
 - **Domains:** demo.example.com (web), demo-api.example.com (API)
 
 ---

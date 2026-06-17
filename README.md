@@ -1,6 +1,6 @@
 # Pitbull Construction Solutions
 
-[![CI](https://github.com/jgarrison929/pitbull-private/actions/workflows/ci.yml/badge.svg)](https://github.com/jgarrison929/pitbull-private/actions/workflows/ci.yml)
+[![CI](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml/badge.svg)](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
@@ -157,7 +157,10 @@ pitbull/
 **Web Service:**
 - Root directory: `src/Pitbull.Web/pitbull-web`
 - Custom Dockerfile: `src/Pitbull.Web/pitbull-web/Dockerfile`
-- Build args: `NEXT_PUBLIC_API_BASE_URL` → your API Railway URL
+- Build args (required at build time):
+  - `NEXT_PUBLIC_API_BASE_URL` → your API Railway URL
+  - `NEXT_PUBLIC_POSTHOG_KEY` → PostHog project key (optional; client-side analytics)
+  - `NEXT_PUBLIC_POSTHOG_HOST` → `https://us.i.posthog.com`
 
 6. Deploy! Railway auto-deploys on push to `main`.
 

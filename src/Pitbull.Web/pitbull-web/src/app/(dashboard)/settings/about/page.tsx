@@ -112,7 +112,7 @@ export default function AboutPage() {
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2">
             <Link
-              href="https://github.com/jgarrison929/pitbull-private/blob/main/CHANGELOG.md"
+              href="https://github.com/jgarrison929/pitbull/blob/main/CHANGELOG.md"
               target="_blank"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -121,7 +121,7 @@ export default function AboutPage() {
               <ExternalLink className="h-3 w-3" />
             </Link>
             <Link
-              href="https://github.com/jgarrison929/pitbull-private"
+              href="https://github.com/jgarrison929/pitbull"
               target="_blank"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -134,7 +134,7 @@ export default function AboutPage() {
       </Card>
 
       <p className="text-xs text-muted-foreground text-center">
-        Pitbull Construction Solutions © {new Date().getFullYear()} Lyles Construction Technology
+        Pitbull Construction Solutions © {new Date().getFullYear()}
       </p>
     </div>
   );

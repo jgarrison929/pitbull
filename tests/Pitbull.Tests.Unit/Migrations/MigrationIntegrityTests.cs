@@ -170,9 +170,6 @@ public class MigrationIntegrityTests
             if (dir is null) break;
         }
 
-        // Try the workspace root directly
-        var workspaceRoot = "/mnt/c/pitbull-private";
-        var fallback = Path.Combine(workspaceRoot, "src", "Pitbull.Api", "Migrations");
-        return Directory.Exists(fallback) ? fallback : null;
+        return null;
     }
 }
