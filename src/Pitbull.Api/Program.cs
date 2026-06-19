@@ -546,7 +546,8 @@ builder.Services.AddOpenApi("v1", options =>
             },
             License = new Microsoft.OpenApi.Models.OpenApiLicense
             {
-                Name = "Proprietary"
+                Name = "MIT",
+                Url = new Uri("https://opensource.org/licenses/MIT")
             }
         };
 
@@ -764,10 +765,12 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
         startupLogger.LogWarning(ex, "DemoBootstrapper failed — skipping seed refresh. App continues normally.");
     }
 
-    // Development-only: ensure dev admin has Admin role (idempotent startup seed)
+    // Development-only: ensure configured dev admin has Admin role (idempotent startup seed)
     if (app.Environment.IsDevelopment())
     {
-        await roleSeeder.EnsureAdminForEmailAsync("jgarrison929@gmail.com");
+        var devAdminEmail = app.Configuration["DevAdmin:Email"];
+        if (!string.IsNullOrWhiteSpace(devAdminEmail))
+            await roleSeeder.EnsureAdminForEmailAsync(devAdminEmail);
     }
 }
 

@@ -32,6 +32,15 @@ Thumbs.db
 pitbull-pgdata/
 pitbull-redis/
 
+# Agent local settings (machine-specific permissions)
+.claude/settings.local.json
+
+# Internal-only content (kept out of public history)
+memory/
+docs/sales/
+docs/feedback/
+planning/
+
 # Secrets
 appsettings.Production.json
 *.pfx

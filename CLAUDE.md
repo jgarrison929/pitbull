@@ -393,9 +393,8 @@ cd src/Pitbull.Web/pitbull-web && npx next build  # Succeeds
 
 | Doc | Purpose |
 |-----|---------|
-| `docs/EXECUTIVE-REVIEW-FEB19.md` | 8-persona review with all concerns + prioritized roadmap |
-| `docs/EXECUTIVE-ROADMAP-COMPREHENSIVE.md` | All 40 suggestions, 4 sprints planned |
 | `docs/ARCHITECTURE.md` | System architecture overview |
+| `docs/PRODUCT-VISION.md` | Product direction and goals |
 | `docs/roles/*.md` | 8 functional role perspectives (CFO, PM, HR, etc.) |
 | `docs/plans/*.md` | 25+ design specs for upcoming features |
 | `docs/solutions/*.md` | Compound learning: past bugs, patterns, lessons |

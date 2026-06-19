@@ -169,4 +169,4 @@ The February 19 executive review evaluated Pitbull as a construction ERP. This v
 
 ---
 
-*This document should be reviewed alongside `docs/EXECUTIVE-REVIEW-FEB19.md` and `docs/EXECUTIVE-ROADMAP-COMPREHENSIVE.md`.*
+*See also `docs/ARCHITECTURE.md` and `docs/PRODUCT-VISION.md`.*

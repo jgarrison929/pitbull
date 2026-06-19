@@ -1,8 +1,7 @@
 name: Sync to Public Repository
 
-# Disabled: public repo has diverged from private. Re-enable after
-# reconciling histories or switching to force-push strategy.
-# See: https://github.com/jgarrison929/pitbull-private/pull/48
+# Optional: push a scrubbed copy to jgarrison929/pitbull if you keep
+# a private fork for internal notes. Not needed if this repo is public.
 on:
   workflow_dispatch:
 
@@ -17,11 +16,11 @@ jobs:
 
       - name: Remove private content
         run: |
-          # Remove private folder and any sensitive files
           rm -rf .private/
-          rm -rf .github/workflows/sync-to-public.yml
-          # Add any other exclusions here
-          
+          rm -rf memory/ docs/sales/ docs/feedback/ planning/
+          rm -f docs/EXECUTIVE-*.md docs/MARKETING-PLAN.md
+          rm -f .github/workflows/sync-to-public.yml
+
       - name: Push to public repo
         uses: cpina/github-action-push-to-another-repository@main
         env:
