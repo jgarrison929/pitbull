@@ -59,9 +59,9 @@ Invoke-Gh @("repo", "edit", $Repo, "--default-branch", "main")
 
 Write-Host "`n=== Close completed / stale issues ===" -ForegroundColor Cyan
 $closeIssues = @(
-    @{ Number = 118; Comment = "Completed Feb 2026 — MediatR removed, direct service injection in all controllers." }
-    @{ Number = 15;  Comment = "Documents module shipped — file upload/download with tenant isolation." }
-    @{ Number = 17;  Comment = "Billing module shipped — AIA G702/G703 payment applications, SOV, retention." }
+    @{ Number = 118; Comment = "Completed Feb 2026 - MediatR removed, direct service injection in all controllers." }
+    @{ Number = 15;  Comment = "Documents module shipped - file upload/download with tenant isolation." }
+    @{ Number = 17;  Comment = "Billing module shipped - AIA G702/G703 payment applications, SOV, retention." }
 )
 foreach ($issue in $closeIssues) {
     Invoke-Gh @("issue", "comment", $issue.Number, "--repo", $Repo, "--body", $issue.Comment)
@@ -69,7 +69,7 @@ foreach ($issue in $closeIssues) {
 }
 
 Write-Host "`n=== Close empty milestones ===" -ForegroundColor Cyan
-$milestones = & gh api "repos/$Repo/milestones?state=open&per_page=20" 2>$null | ConvertFrom-Json
+$milestones = & gh api "repos/$Repo/milestones?state=open" 2>$null | ConvertFrom-Json
 foreach ($m in $milestones) {
     if ($m.open_issues -eq 0) {
         Write-Host "Closing milestone #$($m.number): $($m.title)"
