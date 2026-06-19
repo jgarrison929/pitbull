@@ -765,10 +765,11 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
         startupLogger.LogWarning(ex, "DemoBootstrapper failed — skipping seed refresh. App continues normally.");
     }
 
-    // Development-only: ensure configured dev admin has Admin role (idempotent startup seed)
+    // Development-only: ensure dev admin has Admin role (set DEV_ADMIN_EMAIL in .env or DevAdmin:Email in appsettings)
     if (app.Environment.IsDevelopment())
     {
-        var devAdminEmail = app.Configuration["DevAdmin:Email"];
+        var devAdminEmail = Environment.GetEnvironmentVariable("DEV_ADMIN_EMAIL")
+            ?? app.Configuration["DevAdmin:Email"];
         if (!string.IsNullOrWhiteSpace(devAdminEmail))
             await roleSeeder.EnsureAdminForEmailAsync(devAdminEmail);
     }

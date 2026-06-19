@@ -145,7 +145,7 @@ railway logs -n 20            # check deploy logs
 - **API:** https://pitbull-api-production.up.railway.app
 - **Web:** https://pitbull-web-production.up.railway.app
 - **Health:** https://pitbull-api-production.up.railway.app/health
-- **Repo:** https://github.com/jgarrison929/pitbull (private)
+- **Repo:** https://github.com/jgarrison929/pitbull
 
 ## What NOT to Do
 

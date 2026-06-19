@@ -50,6 +50,10 @@ appsettings.Production.json
 .env.production
 docs/josh-built-cover-letter.txt
 
+# Internal dev notes (not for public repo)
+memory/
+.private/
+
 # Agent prompts (used locally for AI coding agents)
 prompts/
 

@@ -10,10 +10,10 @@ Add optional Phase and Equipment tracking to time entries so job cost reports br
 
 ## Context
 
-### Business Reality (from Josh/Lyles)
+### Business Reality (multi-location GC)
 - Workers may split across **multiple projects in one day** (one entry per project/cost code/phase combo)
 - Foremen enter time for crews remotely (30-45 min to 3 hours from PM's office)
-- Lyles operates across Fresno, Visalia, Bakersfield, Rocklin, Sacramento, Union City, Temecula, Murrieta
+- Mid-size contractors often operate across multiple regional offices and job sites statewide
 - PMs manage multiple smaller jobs with several crews each
 - Phase and equipment must be trackable per time entry for accurate job costing
 - Equipment hours charged to specific jobs/phases for utilization and billing (especially T&M contracts)
