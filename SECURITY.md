@@ -2,16 +2,13 @@
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.10.x  | :white_check_mark: |
-| < 0.10  | :x:                |
+Only the `main` branch is supported. This is a learning/portfolio project, not a commercially supported product.
 
 ## Reporting a Vulnerability
 
 **Do not report security vulnerabilities through public GitHub issues.**
 
-Please email security concerns to **security@pitbullconstructionsolutions.com** (or contact the maintainers directly).
+Please open a [GitHub Security Advisory](https://github.com/jgarrison929/pitbull/security/advisories/new) (preferred) or email **security@pitbullconstructionsolutions.com**.
 
 You should receive a response within 48 hours. If the issue is confirmed, we will release a patch as soon as possible depending on complexity.
 

@@ -137,7 +137,7 @@ Railway auto-deploy from `main`. See [docs/deployment/](docs/deployment/) for Ra
 
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [Adding a Module](docs/ADDING-A-MODULE.md)
-- [Security Policy](SECURITY.md)
+- [Security Policy](SECURITY.md) — report vulnerabilities responsibly
 - [Contributing Guide](CONTRIBUTING.md)
 - [Functional Role Docs](docs/roles/) — CFO, PM, HR perspectives
 

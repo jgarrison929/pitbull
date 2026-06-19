@@ -17,9 +17,13 @@ body:
         - Projects
         - Bids
         - Contracts
+        - Billing
+        - TimeTracking
+        - ProjectManagement
+        - AI
+        - Reports
         - Documents
         - Portal
-        - Billing
         - Frontend
         - Infrastructure
     validations:

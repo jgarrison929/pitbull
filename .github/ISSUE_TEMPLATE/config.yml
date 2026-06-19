@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Live Demo
+    url: https://demo.example.com
+    about: Try the deployed demo environment
+  - name: Architecture Docs
+    url: https://github.com/jgarrison929/pitbull/blob/main/docs/ARCHITECTURE.md
+    about: Read the system architecture overview
+  - name: Security Policy
+    url: https://github.com/jgarrison929/pitbull/blob/main/SECURITY.md
+    about: Report vulnerabilities responsibly (do not open public issues for critical bugs)
