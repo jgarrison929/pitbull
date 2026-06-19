@@ -12,7 +12,7 @@ set -euo pipefail
 #   DEMO_PASSWORD  — login password
 #
 # Environment variables (optional):
-#   DEMO_BASE_URL  — target URL (default: https://demo.example.com)
+#   DEMO_BASE_URL  — target URL (default: http://localhost:3000)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
@@ -27,7 +27,7 @@ if [ -z "${DEMO_USER:-}" ] || [ -z "${DEMO_PASSWORD:-}" ]; then
   exit 1
 fi
 
-export DEMO_BASE_URL="${DEMO_BASE_URL:-https://demo.example.com}"
+export DEMO_BASE_URL="${DEMO_BASE_URL:-http://localhost:3000}"
 export DEMO_USER
 export DEMO_PASSWORD
 

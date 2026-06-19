@@ -1,6 +1,8 @@
-# Railway Demo Deployment (demo.pitbullconstructionsolutions.com)
+# Railway Demo Deployment (decommissioned)
 
-This document describes how to stand up a **public demo** of Pitbull on **Railway** with:
+> **Hosted environments are offline.** Run locally via Docker Compose — see [README.md](../README.md#quick-start). This doc is kept for historical reference only.
+
+This document described how to stand up a **public demo** of Pitbull on **Railway** with:
 
 - a real Postgres database
 - **one shared demo tenant**

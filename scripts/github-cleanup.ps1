@@ -48,7 +48,7 @@ Write-Host "`n=== Repo metadata: $Repo ===" -ForegroundColor Cyan
 Invoke-Gh @(
     "repo", "edit", $Repo,
     "--description", "Learning project: full-stack construction ERP (.NET 9 + Next.js 16 + PostgreSQL). MIT licensed portfolio piece.",
-    "--homepage", "https://demo.example.com",
+    "--homepage", "https://github.com/jgarrison929/pitbull",
     "--enable-wiki=false",
     "--enable-projects=false"
 )

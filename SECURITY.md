@@ -8,7 +8,7 @@ Only the `main` branch is supported. This is a learning/portfolio project, not a
 
 **Do not report security vulnerabilities through public GitHub issues.**
 
-Please open a [GitHub Security Advisory](https://github.com/jgarrison929/pitbull/security/advisories/new) (preferred) or email **security@pitbullconstructionsolutions.com**.
+Please open a [GitHub Security Advisory](https://github.com/jgarrison929/pitbull/security/advisories/new).
 
 You should receive a response within 48 hours. If the issue is confirmed, we will release a patch as soon as possible depending on complexity.
 

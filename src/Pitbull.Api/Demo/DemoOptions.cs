@@ -32,7 +32,7 @@ public sealed class DemoOptions
     public string TenantName { get; init; } = "Pitbull Demo";
     public string TenantSlug { get; init; } = "demo";
 
-    public string UserEmail { get; init; } = "demo@pitbullconstructionsolutions.com";
+    public string UserEmail { get; init; } = "demo@example.com";
     public string UserPassword { get; init; } = string.Empty;
     public string UserFirstName { get; init; } = "Demo";
     public string UserLastName { get; init; } = "User";

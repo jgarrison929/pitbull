@@ -10,7 +10,7 @@
 
 This is my first serious "vibe coded" application — built to learn modern .NET, multi-tenant SaaS patterns, and construction domain modeling. It's rough in places, but the architecture, test coverage, and module boundaries are real.
 
-**[Live demo](https://demo.example.com)** · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
+**Clone and run locally** (Docker Compose) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
 
 ---
 
@@ -121,7 +121,7 @@ dotnet test tests/Pitbull.Tests.Integration --configuration Release
 
 ## Deployment
 
-Railway auto-deploy from `main`. See [docs/deployment/](docs/deployment/) for Railway and self-hosted Docker Compose instructions.
+Self-hosted via Docker Compose. See [docker-compose.prod.yml](docker-compose.prod.yml) and [.env.example](.env.example).
 
 | Variable | Description |
 |----------|-------------|
@@ -150,7 +150,7 @@ This is a learning project, not production-ready software:
 - Some modules are stubs or thin wrappers around domain concepts I was exploring
 - UI polish varies — some pages are scaffolded, others are fully built out
 - I built this with AI coding agents; the architecture decisions are mine, but the line-by-line code isn't all hand-written
-- No paying customers, no production workloads beyond a demo environment
+- No hosted demo — run locally to explore. No paying customers or production deployment.
 
 If you're reviewing this for a job or collaboration: look at the test suite, the RLS implementation, and the module boundary enforcement — that's where the real engineering lives.
 

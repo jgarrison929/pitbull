@@ -12,7 +12,7 @@ Pitbull is a **modular monolith** built on .NET 9 and Next.js 16. It uses CQRS f
 | Cache | Redis 7 | Session and data caching |
 | Auth | ASP.NET Identity + JWT | Token-based auth with role claims |
 | Messaging | DotNetCore.CAP | Event bus (MIT-licensed, replaced MassTransit) |
-| Email | Resend | Transactional email via example.com domain |
+| Email | Resend | Transactional email (optional; configure `Email:FromAddress` in settings) |
 | AI | Anthropic Claude + OpenAI | Project health analysis, context-aware chat |
 
 ## High-Level Architecture

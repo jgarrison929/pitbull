@@ -1,4 +1,6 @@
-# Railway Deployment Setup - Dev & Staging Environments
+# Railway Deployment Setup (decommissioned)
+
+> **Hosted environments are offline.** Run locally via Docker Compose — see [README.md](../../README.md#quick-start). This doc is kept for historical reference only.
 
 ## Task: Wire in Railway Dev and Staging Environments
 

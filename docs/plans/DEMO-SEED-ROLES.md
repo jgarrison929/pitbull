@@ -5,83 +5,83 @@
 ## C-Suite
 | Role | Email | Replaces |
 |------|-------|----------|
-| CEO | ceo@demo.example.com | Executive dashboards, board reporting |
-| COO | coo@demo.example.com | Operations oversight, field performance |
-| CFO | cfo@demo.example.com | Vista financials, Excel WIP, bank portals |
-| CAO (Chief Administrative Officer) | cao@demo.example.com | HR systems, compliance, admin |
-| CIO | cio@demo.example.com | System integrations, data strategy |
-| CTO | cto@demo.example.com | Innovation, technical infrastructure |
-| CISO | ciso@demo.example.com | Security, compliance, audit |
-| CRO (Chief Revenue Officer) | cro@demo.example.com | Business development, pipeline |
-| CPO (Chief People Officer) | cpo@demo.example.com | HR, talent, culture |
-| Chief Safety Officer | safety-chief@demo.example.com | Safety management systems, OSHA |
-| Chief of Staff | cos@demo.example.com | Cross-functional coordination |
+| CEO | ceo@demo.local | Executive dashboards, board reporting |
+| COO | coo@demo.local | Operations oversight, field performance |
+| CFO | cfo@demo.local | Vista financials, Excel WIP, bank portals |
+| CAO (Chief Administrative Officer) | cao@demo.local | HR systems, compliance, admin |
+| CIO | cio@demo.local | System integrations, data strategy |
+| CTO | cto@demo.local | Innovation, technical infrastructure |
+| CISO | ciso@demo.local | Security, compliance, audit |
+| CRO (Chief Revenue Officer) | cro@demo.local | Business development, pipeline |
+| CPO (Chief People Officer) | cpo@demo.local | HR, talent, culture |
+| Chief Safety Officer | safety-chief@demo.local | Safety management systems, OSHA |
+| Chief of Staff | cos@demo.local | Cross-functional coordination |
 
 ## VP Level
 | Role | Email | Replaces |
 |------|-------|----------|
-| VP of Legal | vp-legal@demo.example.com | Contract management, risk |
-| VP of HR | vp-hr@demo.example.com | HRIS, payroll oversight |
-| VP of IT | vp-it@demo.example.com | Vista admin, system management |
-| VP of Innovation | vp-innovation@demo.example.com | New tech adoption, AI strategy |
-| VP of Estimating | vp-estimating@demo.example.com | Estimating software, bid management |
-| VP of Operations | vp-ops@demo.example.com | Procore, field ops, scheduling |
-| VP of Accounting | vp-accounting@demo.example.com | Vista GL, AP/AR, financial reporting |
-| VP Controller | vp-controller@demo.example.com | WIP, job cost, compliance |
+| VP of Legal | vp-legal@demo.local | Contract management, risk |
+| VP of HR | vp-hr@demo.local | HRIS, payroll oversight |
+| VP of IT | vp-it@demo.local | Vista admin, system management |
+| VP of Innovation | vp-innovation@demo.local | New tech adoption, AI strategy |
+| VP of Estimating | vp-estimating@demo.local | Estimating software, bid management |
+| VP of Operations | vp-ops@demo.local | Procore, field ops, scheduling |
+| VP of Accounting | vp-accounting@demo.local | Vista GL, AP/AR, financial reporting |
+| VP Controller | vp-controller@demo.local | WIP, job cost, compliance |
 
 ## Sr Director Level
 | Role | Email | Replaces |
 |------|-------|----------|
-| Sr Director of Accounting | sr-dir-accounting@demo.example.com | Vista daily operations |
-| Sr Director of HR | sr-dir-hr@demo.example.com | HRIS, benefits admin |
-| Sr Director of Legal/Risk | sr-dir-legal@demo.example.com | Contract review, insurance |
-| Sr Director of IT | sr-dir-it@demo.example.com | Infrastructure, helpdesk |
-| Sr Director of Innovation | sr-dir-innovation@demo.example.com | R&D, process improvement |
-| Sr Director of Safety | sr-dir-safety@demo.example.com | Safety programs, training |
+| Sr Director of Accounting | sr-dir-accounting@demo.local | Vista daily operations |
+| Sr Director of HR | sr-dir-hr@demo.local | HRIS, benefits admin |
+| Sr Director of Legal/Risk | sr-dir-legal@demo.local | Contract review, insurance |
+| Sr Director of IT | sr-dir-it@demo.local | Infrastructure, helpdesk |
+| Sr Director of Innovation | sr-dir-innovation@demo.local | R&D, process improvement |
+| Sr Director of Safety | sr-dir-safety@demo.local | Safety programs, training |
 
 ## Manager Level
 | Role | Email | Replaces |
 |------|-------|----------|
-| Accounting Manager | mgr-accounting@demo.example.com | AP/AR daily, journal entries |
-| HR Manager | mgr-hr@demo.example.com | Onboarding, timekeeping |
-| IT Manager | mgr-it@demo.example.com | System support |
-| Safety Manager | mgr-safety@demo.example.com | Inspections, incident tracking |
-| Payroll Manager | mgr-payroll@demo.example.com | Payroll processing, certified payroll |
-| Purchasing Manager | mgr-purchasing@demo.example.com | POs, vendor management |
+| Accounting Manager | mgr-accounting@demo.local | AP/AR daily, journal entries |
+| HR Manager | mgr-hr@demo.local | Onboarding, timekeeping |
+| IT Manager | mgr-it@demo.local | System support |
+| Safety Manager | mgr-safety@demo.local | Inspections, incident tracking |
+| Payroll Manager | mgr-payroll@demo.local | Payroll processing, certified payroll |
+| Purchasing Manager | mgr-purchasing@demo.local | POs, vendor management |
 
 ## Staff Level
 | Role | Email | Replaces |
 |------|-------|----------|
-| Staff Accountant | staff-accountant@demo.example.com | GL entries, reconciliation |
-| AP Clerk | ap-clerk@demo.example.com | Invoice processing, payments |
-| AR Clerk | ar-clerk@demo.example.com | Billing, collections |
-| Payroll Clerk | payroll-clerk@demo.example.com | Time entry processing |
-| HR Coordinator | hr-coordinator@demo.example.com | Employee records |
+| Staff Accountant | staff-accountant@demo.local | GL entries, reconciliation |
+| AP Clerk | ap-clerk@demo.local | Invoice processing, payments |
+| AR Clerk | ar-clerk@demo.local | Billing, collections |
+| Payroll Clerk | payroll-clerk@demo.local | Time entry processing |
+| HR Coordinator | hr-coordinator@demo.local | Employee records |
 
 ## Project/Field — Sr Project Leadership
 | Role | Email | Replaces |
 |------|-------|----------|
-| Sr Project Executive | sr-project-exec@demo.example.com | Portfolio oversight |
-| Project Executive | project-exec@demo.example.com | Multi-project oversight, P&L |
-| Chief Estimator | chief-estimator@demo.example.com | Bid strategy, win rates |
-| Chief Engineer | chief-engineer@demo.example.com | Technical standards |
+| Sr Project Executive | sr-project-exec@demo.local | Portfolio oversight |
+| Project Executive | project-exec@demo.local | Multi-project oversight, P&L |
+| Chief Estimator | chief-estimator@demo.local | Bid strategy, win rates |
+| Chief Engineer | chief-engineer@demo.local | Technical standards |
 
 ## Project/Field — Project Management
 | Role | Email | Replaces |
 |------|-------|----------|
-| Sr Project Manager | sr-pm@demo.example.com | Procore, P6, Excel schedules |
-| Project Manager | pm@demo.example.com | Daily project operations |
-| Project Coordinator | project-coord@demo.example.com | RFIs, submittals, docs |
-| Sr Project Engineer | sr-project-eng@demo.example.com | Technical submittals, QA/QC |
-| Project Engineer | project-eng@demo.example.com | Field engineering, as-builts |
-| Field Engineer | field-eng@demo.example.com | Daily reports, inspections |
-| Commissioning Officer | commissioning@demo.example.com | System turnover, closeout |
+| Sr Project Manager | sr-pm@demo.local | Procore, P6, Excel schedules |
+| Project Manager | pm@demo.local | Daily project operations |
+| Project Coordinator | project-coord@demo.local | RFIs, submittals, docs |
+| Sr Project Engineer | sr-project-eng@demo.local | Technical submittals, QA/QC |
+| Project Engineer | project-eng@demo.local | Field engineering, as-builts |
+| Field Engineer | field-eng@demo.local | Daily reports, inspections |
+| Commissioning Officer | commissioning@demo.local | System turnover, closeout |
 
 ## Project/Field — Estimating
 | Role | Email | Replaces |
 |------|-------|----------|
-| Sr Estimator | sr-estimator@demo.example.com | Estimating software, takeoffs |
-| Estimator | estimator@demo.example.com | Bid prep, sub buyout |
+| Sr Estimator | sr-estimator@demo.local | Estimating software, takeoffs |
+| Estimator | estimator@demo.local | Bid prep, sub buyout |
 
 ---
 

@@ -77,7 +77,7 @@ public class AuthControllerTests
     private static IOptions<DemoOptions> CreateDemoOptions(
         bool enabled = false,
         bool disableRegistration = true,
-        string userEmail = "demo@pitbullconstructionsolutions.com")
+        string userEmail = "demo@example.com")
     {
         return Options.Create(new DemoOptions
         {
@@ -852,7 +852,7 @@ public class AuthControllerTests
         var userManager = CreateMockUserManager();
         var roleManager = CreateMockRoleManager();
         var userId = Guid.NewGuid();
-        var demoEmail = "demo@pitbullconstructionsolutions.com";
+        var demoEmail = "demo@example.com";
 
         var user = CreateTestUser(id: userId, email: demoEmail, firstName: "Demo", lastName: "User");
         db.Users.Add(user);
@@ -927,7 +927,7 @@ public class AuthControllerTests
         using var db = TestDbContextFactory.Create();
         var userManager = CreateMockUserManager();
         var userId = Guid.NewGuid();
-        var demoOptions = CreateDemoOptions(enabled: true, userEmail: "demo@pitbullconstructionsolutions.com");
+        var demoOptions = CreateDemoOptions(enabled: true, userEmail: "demo@example.com");
 
         var user = CreateTestUser(id: userId, email: "notdemo@test.com");
         db.Users.Add(user);
@@ -1011,7 +1011,7 @@ public class AuthControllerTests
         var demoOptions = CreateDemoOptions(enabled: true,
             userEmail: "Demo@PitbullConstructionSolutions.com");
 
-        var user = CreateTestUser(id: userId, email: "demo@pitbullconstructionsolutions.com");
+        var user = CreateTestUser(id: userId, email: "demo@example.com");
         db.Users.Add(user);
         await db.SaveChangesAsync();
 

@@ -541,8 +541,7 @@ builder.Services.AddOpenApi("v1", options =>
             Contact = new Microsoft.OpenApi.Models.OpenApiContact
             {
                 Name = "Pitbull Construction Solutions",
-                Email = "joshuag@pitbullconstructionsolutions.com",
-                Url = new Uri("https://pitbullconstructionsolutions.com")
+                Url = new Uri("https://github.com/jgarrison929/pitbull")
             },
             License = new Microsoft.OpenApi.Models.OpenApiLicense
             {

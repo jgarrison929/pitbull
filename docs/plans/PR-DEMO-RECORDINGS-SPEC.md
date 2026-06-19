@@ -11,7 +11,7 @@ Inspired by Cursor's agent demo feature (Feb 25, 2026).
 1. Claude Code finishes feature, creates PR
 2. River reads the PR diff and determines which pages/features changed
 3. River writes a Playwright test script tailored to the feature
-4. Script runs against localhost (dev server) or demo.example.com
+4. Script runs against localhost (dev server)
 5. Playwright records video (MP4)
 6. Video is uploaded to the PR as a comment via `gh pr comment`
 7. Optional: generate GIF thumbnail for PR description
@@ -100,7 +100,7 @@ import { test as setup, expect } from '@playwright/test';
 
 setup('authenticate', async ({ page }) => {
   await page.goto('/login');
-  await page.fill('[name="email"]', process.env.DEMO_USER || 'ceo@demo.example.com');
+  await page.fill('[name="email"]', process.env.DEMO_USER || 'ceo@demo.local');
   await page.fill('[name="password"]', process.env.DEMO_PASSWORD || 'PitbullDemo2026!');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL(/dashboard/);
@@ -197,10 +197,10 @@ kill $DEV_PID
 
 ## OR: Record Against Production Demo
 
-Simpler approach — record against demo.example.com after Railway deploys:
+Record against local dev server:
 
 ```bash
-DEMO_BASE_URL=https://demo.example.com npx playwright test --project=demo-recording
+DEMO_BASE_URL=http://localhost:3000 npx playwright test --project=demo-recording
 ```
 
 This avoids spinning up a local dev server entirely. Works for any feature that's been merged and deployed.

@@ -13,7 +13,7 @@ export default defineConfig({
   workers: 1,
 
   use: {
-    baseURL: process.env.DEMO_BASE_URL || 'https://demo.example.com',
+    baseURL: process.env.DEMO_BASE_URL || 'http://localhost:3000',
     video: {
       mode: 'on',
       size: { width: 1280, height: 720 },

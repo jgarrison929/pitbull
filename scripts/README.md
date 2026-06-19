@@ -33,10 +33,7 @@ DB_CONNECTION_STRING="Host=prod-db;Database=pitbull;Username=app;Password=***" .
 - `gh` CLI (optional - for GitHub deployment info)
 
 **Environments Checked:**
-- Development: `duke.pitbullconstructionsolutions.com`
-- Staging: `theo.pitbullconstructionsolutions.com`
-- Demo: `demo.pitbullconstructionsolutions.com`
-- Production: `app.pitbullconstructionsolutions.com`
+- Local: `localhost:5081` (hosted environments decommissioned)
 
 ### `check-database-health.sh`
 **Purpose:** Database connectivity, schema validation, and performance metrics
@@ -104,7 +101,7 @@ These scripts can be integrated into CI/CD pipelines for automated health checks
 🏗️  Pitbull Deployment Status Check
 ==================================
 
-🌐 Production Environment (app.pitbullconstructionsolutions.com)
+🌐 Local Environment (localhost:5081)
 ----------------------------------------
 📡 Health Check: ✅ HTTP 200
 📡 Health Live: ✅ HTTP 200

@@ -76,10 +76,8 @@ We use a three-branch promotion model:
 - **Feature branches** (`feat/`, `fix/`, `docs/`, `test/`, `refactor/`) branch off `develop`.
 - **All PRs target `develop`** (not main). GitHub default branch is set to `develop`.
 
-### Railway Environments
-- **production** — tied to `main`, live at pitbull-api-production.up.railway.app
-- **staging** — tied to `staging`, for pre-release testing
-- **dev** — tied to `develop`, for integration testing
+### Environments
+- **Local** — Docker Compose (`docker compose up -d`). No hosted deployment.
 
 ## Git Workflow (MANDATORY)
 
@@ -134,17 +132,13 @@ cd /mnt/c/pitbull
 # Always start with (develop is the default working branch)
 git pull origin develop
 
-# Railway CLI (already linked)
-railway service pitbull-api   # switch to API service
-railway service pitbull-web   # switch to web service
-railway logs -n 20            # check deploy logs
 ```
 
-## Live URLs
+## Local URLs (development)
 
-- **API:** https://pitbull-api-production.up.railway.app
-- **Web:** https://pitbull-web-production.up.railway.app
-- **Health:** https://pitbull-api-production.up.railway.app/health
+- **API:** http://localhost:5081
+- **Web:** http://localhost:3000
+- **Health:** http://localhost:5081/health
 - **Repo:** https://github.com/jgarrison929/pitbull
 
 ## What NOT to Do

@@ -1,7 +1,9 @@
-# Demo Environment Setup Guide
+# Demo Environment Setup Guide (decommissioned)
+
+> **Hosted demo is offline.** Run locally via Docker Compose — see [README.md](../../README.md#quick-start).
 
 **Purpose:** Set up a public demo environment for Pitbull UAT testing.
-**Domain:** `demo.pitbullconstructionsolutions.com`
+**Domain:** (decommissioned)
 
 ## Prerequisites
 

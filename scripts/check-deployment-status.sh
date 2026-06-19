@@ -68,12 +68,9 @@ get_version_info() {
     fi
 }
 
-# Environment configurations
+# Environment configurations (local dev only — hosted environments decommissioned)
 declare -A environments
-environments[Development]="duke.pitbullconstructionsolutions.com"
-environments[Staging]="theo.pitbullconstructionsolutions.com" 
-environments[Demo]="demo.pitbullconstructionsolutions.com"
-environments[Production]="app.pitbullconstructionsolutions.com"
+environments[Local]="localhost:5081"
 
 # Check each environment
 for env_name in "${!environments[@]}"; do
@@ -82,12 +79,12 @@ for env_name in "${!environments[@]}"; do
     echo "----------------------------------------"
     
     # Health check endpoints
-    check_endpoint "Health Check" "https://$domain/health"
-    check_endpoint "Health Live" "https://$domain/health/live"
-    check_endpoint "Health Ready" "https://$domain/health/ready"
+    check_endpoint "Health Check" "http://$domain/health"
+    check_endpoint "Health Live" "http://$domain/health/live"
+    check_endpoint "Health Ready" "http://$domain/health/ready"
     
     # API endpoints (these require auth, so we expect 401)
-    check_endpoint "API Base" "https://$domain/api/dashboard/stats" "401"
+    check_endpoint "API Base" "http://$domain/api/dashboard/stats" "401"
     
     # Version info (if monitoring endpoints are available)
     get_version_info "$env_name API" "https://$domain/api/monitoring/version"

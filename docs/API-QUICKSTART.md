@@ -23,7 +23,7 @@ Get up and running with the Pitbull Construction Solutions API in minutes.
 | Environment | URL |
 |-------------|-----|
 | Local Development | `http://localhost:5000/api` |
-| Production | `https://your-app.railway.app/api` |
+| Production | `https://your-api-host.example.com/api` (self-hosted) |
 
 **Interactive Docs:** Swagger UI is available at `/swagger` in all environments.
 
