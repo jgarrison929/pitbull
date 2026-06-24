@@ -401,8 +401,8 @@ public class ListEmployeesHandlerTests
             new Employee
             {
                 EmployeeNumber = "EMP-003",
-                FirstName = "Bob",
                 FirstName = "Demo",
+                LastName = "Employee 03",
                 Classification = EmployeeClassification.Hourly,
                 BaseHourlyRate = 30.00m,
                 HireDate = new DateOnly(2025, 2, 1),
@@ -423,8 +423,8 @@ public class ListEmployeesHandlerTests
             new Employee
             {
                 EmployeeNumber = "EMP-005",
-                FirstName = "Charlie",
                 FirstName = "Demo",
+                LastName = "Employee 05",
                 Classification = EmployeeClassification.Hourly,
                 BaseHourlyRate = 28.00m,
                 HireDate = new DateOnly(2024, 9, 1),

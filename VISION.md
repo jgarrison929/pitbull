@@ -10,27 +10,25 @@ Meanwhile, the software vendors keep raising prices, locking data behind proprie
 
 Construction is the least digitized major industry on the planet. Not because contractors are behind. Because the software has failed them.
 
-## The Vision
+## The Vision (Aspirational)
 
 One platform. One login. One database. Everything talks to everything.
 
-Pitbull replaces the entire disconnected toolchain with a single, AI-powered construction management platform. Projects, bids, contracts, documents, submittals, RFIs, daily logs, insurance tracking, billing, and a client portal. All in one place.
+**This is the aspirational vision.** Pitbull is a learning/prototype project implementing parts of this (see CHANGELOG.md and code for delivered features like projects, bids, contracts/SOV, time tracking, billing elements, PM, AI chat, financial reports, Punch List). It does **not** yet replace Procore, Vista, or full toolchains. Many listed AI capabilities (full submittal review, bid leveling, contract ops assistant) are partial or planned.
 
-And it runs on YOUR servers if you want it to.
+Pitbull aims to provide core construction ERP functionality in a modular monolith. It can run self-hosted via Docker.
+
+See "Current State" below and CHANGELOG for what is implemented vs planned.
 
 ## What Makes Pitbull Different
 
-### AI That Actually Does Work
+### AI Features (Implemented and Planned)
 
-This isn't a chatbot bolted onto a project list. Pitbull's AI reads your documents, understands your contracts, and catches problems before they cost you money.
+Some AI capabilities exist today (chat, document extraction/OCR for invoices/daily reports, project summaries, cost predictions), powered by abstractions over OpenAI/Anthropic. Many advanced features listed below are aspirational/planned and not fully implemented (see code in Pitbull.AI, AI controllers, and CHANGELOG for delivered items like AI invoice extraction, briefing, confidence scoring).
 
-- **Submittal vs Spec Review**: Upload a submittal, AI checks it against the spec. "Concrete mix shows 3500 PSI, spec requires 4000. Flag."
-- **Preconstruction Intelligence**: Ingest a full plan set, AI identifies scope gaps, coordination issues, and ambiguities before they become RFIs.
-- **Bid Leveling**: OCR sub bids, extract line items, auto-compare. "Electrical sub #3 is 40% below average on conduit. Verify scope."
-- **Contract Ops Assistant**: PM asks "what do I do about a weather delay?" and gets WHO needs to send notice, WHAT it must say, WHEN it's due, and a TEMPLATE generated from the actual contract language. At 6am. No lawyer needed.
-- **Redline Detection**: Upload two versions of anything. AI tells you what changed and what it means for your project. No more buried scope changes in rev 3.
-- **Insurance Compliance**: OCR every COI, cross-reference against contract requirements. "Sub's CGL is occurrence-based but contract requires claims-made." Auto-track expirations.
-- **Sub Compliance Dashboard**: Every sub, every requirement, one view. Insurance, licenses, safety records, prevailing wage, bonding, certifications. Auto-flag before anyone steps on site with a lapsed cert.
+- **AI Chat & Summaries**: Implemented project health, suggestions.
+- **Document/Invoice Extraction**: Partial (Vision API usage in billing/daily reports).
+- **Advanced (not yet)**: Full submittal vs spec, preconstruction plan set review, comprehensive bid leveling, contract ops assistant, redline detection, full insurance compliance automation.
 
 ### Cloud-Native. Built for Tomorrow.
 
@@ -50,39 +48,26 @@ No "contact sales for a quote." No per-user pricing that punishes you for growin
 
 ## The Platform
 
-### Today (v0.1 Alpha)
-- Multi-tenant architecture with row-level security
-- Project management (CRUD, phases, budgets, projections)
-- Bid management (CRUD, line items, bid-to-project conversion)
-- JWT authentication with tenant isolation
-- Deployed to Railway (cloud) with Docker support
+### Current State (as of mid-2026)
+- Multi-tenant architecture with PostgreSQL Row-Level Security (RLS) and company scoping (14 modules)
+- Implemented: 95 controllers, projects/bids/contracts (SOV/COs/payment apps), time tracking, project management (RFIs/submittals/daily reports/Punch List), billing (vendors, AP/AR, GL, WIP, retention, lien waivers, financial statements), AI, reports, etc.
+- JWT + ASP.NET Identity auth, CAP messaging, significant test coverage (253 test files), CI green
+- Docker support; Railway auto from main (demos decommissioned)
+- See CHANGELOG.md for precise recent deliveries (0.15.0: financial reports, AP payments, Punch List, etc.) and "Honest Caveats" in README.md. Not a full replacement for commercial tools.
 
-### Next (v0.2 Beta)
-- Contracts module
-- Mobile-responsive UI
-- Seed data for demos
-- CI/CD pipeline
+### Roadmap (Historical / Aspirational)
+Early roadmaps (v0.2 etc.) from project history are superseded. Many items like Contracts, RFIs, Billing elements, PM, daily reports, client portal stub, AI extraction are partially or fully in current codebase (see CHANGELOG and Modules/ for status). Full vision items remain future work. Consult CHANGELOG, code, and docs/archive/ for historical priorities and plans.
 
-### Coming (v0.5 Early Access)
-- Document management with AI OCR pipeline
-- RFIs and Submittals
-- Daily Logs
-- Client Portal
-- Billing
+## The Stack (current implementation)
 
-### The Future (v1.0 and Beyond)
-- Full AI document intelligence (submittal review, bid leveling, contract ops, redlines)
-- Insurance and sub compliance automation
-- QuickBooks/accounting integration
-- Advanced analytics and reporting
-- Payroll, HR, Safety/compliance modules
+- **Backend**: .NET 9, modular monolith, CQRS with direct service injection (no MediatR), PostgreSQL 17 with Row-Level Security (RLS)
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui
+- **AI**: Anthropic Claude and OpenAI abstractions for chat, summaries, and some extraction (OCR/extraction features are partial)
+- **Messaging**: DotNetCore.CAP (PostgreSQL outbox + Redis)
+- **Email**: Resend (optional)
+- **Deployment**: Railway (from main), Docker Compose for local/dev, self-hosted support
 
-## The Stack
-
-- **Backend**: .NET 9, modular monolith, CQRS/MediatR, PostgreSQL with pgvector
-- **Frontend**: Next.js 15, TypeScript, Tailwind CSS, shadcn/ui
-- **AI**: Docling (self-hosted OCR), Azure Document Intelligence (cloud OCR), pgvector for embeddings
-- **Deployment**: Cloud-native on Railway, Docker for development
+**Status**: This is an active learning/prototype project with multiple implemented modules. Not all vision items are complete. See CHANGELOG.md and code for delivered features.
 
 ## Who We Are
 

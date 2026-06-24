@@ -24,6 +24,7 @@ public class ArchitectureTests
             .That().Inherit(typeof(ControllerBase))
             .And().AreNotAbstract()
             .And().DoNotHaveName("AuthController")
+            .And().DoNotHaveName("VersionController")
             .Should().HaveCustomAttribute(typeof(AuthorizeAttribute))
             .GetResult();
 

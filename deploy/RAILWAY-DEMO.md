@@ -35,8 +35,8 @@ Create a Railway project, then add these services:
 
 Suggested:
 
-- Web: `demo.pitbullconstructionsolutions.com` → Railway **Web** service
-- API: `api-demo.pitbullconstructionsolutions.com` → Railway **API** service
+- Web: `demo.example.com` → Railway **Web** service
+- API: `api-demo.example.com` → Railway **API** service
 
 CORS must include the web origin.
 
@@ -52,7 +52,7 @@ Required:
 - `Jwt__Key` = 32+ char random string
 - `Jwt__Issuer` = `pitbull-api`
 - `Jwt__Audience` = `pitbull-client`
-- `Cors__AllowedOrigins__0` = `https://demo.pitbullconstructionsolutions.com`
+- `Cors__AllowedOrigins__0` = `https://demo.example.com`
 
 Recommended demo safety:
 
@@ -61,7 +61,7 @@ Recommended demo safety:
 - `Demo__DisableRegistration=true`
 - `Demo__TenantSlug=demo`
 - `Demo__TenantName=Pitbull Demo`
-- `Demo__UserEmail=demo@pitbullconstructionsolutions.com`
+- `Demo__UserEmail=demo@example.com`
 - `Demo__UserPassword=<set a strong password and rotate periodically>`
 
 Optional (only needed if seeding outside Demo bootstrap):
@@ -70,7 +70,7 @@ Optional (only needed if seeding outside Demo bootstrap):
 
 ### Web service
 
-- `NEXT_PUBLIC_API_BASE_URL=https://api-demo.pitbullconstructionsolutions.com`
+- `NEXT_PUBLIC_API_BASE_URL=https://api-demo.example.com`
 
 > Note: `NEXT_PUBLIC_*` values are baked into the client bundle at build time.
 > Changing this requires a rebuild/redeploy of the Web service.

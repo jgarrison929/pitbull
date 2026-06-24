@@ -11,7 +11,7 @@ Pitbull is a **modular monolith** built on .NET 9 and Next.js 16. It uses CQRS f
 | Database | PostgreSQL 17 | Multi-tenant with Row-Level Security |
 | Cache | Redis 7 | Session and data caching |
 | Auth | ASP.NET Identity + JWT | Token-based auth with role claims |
-| Messaging | DotNetCore.CAP | Event bus (MIT-licensed, replaced MassTransit) |
+| Messaging | DotNetCore.CAP | Event bus (PostgreSQL outbox + Redis) |
 | Email | Resend | Transactional email (optional; configure `Email:FromAddress` in settings) |
 | AI | Anthropic Claude + OpenAI | Project health analysis, context-aware chat |
 
@@ -54,31 +54,30 @@ Pitbull is a **modular monolith** built on .NET 9 and Next.js 16. It uses CQRS f
 
 ## Module Structure
 
-Each module is a separate .NET project under `src/Modules/`. Modules follow vertical slice architecture — each feature contains its command/query, handler, and validator in a single folder.
+Each module is a separate .NET project under `src/Modules/`. 
 
-### Shipped Modules
+**Current implementation (verified June 2026):** 14 modules, ~97 controllers, 155 migrations, ~255 test files. Direct `I*Service` injection in controllers. `AddPitbullModule<T>` + `AddPitbullModuleServices<T>` for registration. Some internal MediatR retained for handlers/validators only.
+
+### Implemented Modules (current)
 
 | Module | Responsibility |
 |--------|---------------|
-| **Core** | Shared kernel, multi-tenancy, employees, equipment, `PitbullDbContext` |
-| **Projects** | Project management, cost codes (CSI MasterFormat), budgets, phases |
-| **ProjectManagement** | Submittals, daily reports, meetings, tasks, documents, communications |
-| **Bids** | Opportunity tracking, bid management, win/loss analytics, bid-to-project conversion |
-| **TimeTracking** | Labor hours, phase/equipment tracking, crew entry, approval workflow, pay periods |
-| **RFIs** | RFI tracking, cost impact analysis |
-| **Contracts** | Subcontracts, change orders, AIA G702/G703 payment applications |
-| **Reports** | Labor cost, profitability, equipment reports, CSV exports, Vista/Viewpoint export |
-| **AI** | Provider abstraction (Claude + OpenAI), context-aware chat, smart fields |
-| **SystemAdmin** | RBAC admin, audit log, system health monitoring, API keys, user invitations |
-| **Notifications** | In-app + email (Resend), notification preferences per user |
+| **Core** | Shared kernel, multi-tenancy (RLS + company scoping), base entities, `PitbullDbContext`, audit, Result<T> |
+| **Projects** | Projects, cost codes (CSI MasterFormat), phases, budgets |
+| **Bids** | Bid tracking, items, conversion to project |
+| **Contracts** | Subcontracts, SOV, change orders |
+| **TimeTracking** | TimeEntry, crew timecards, pay periods, payroll workflow, employees |
+| **ProjectManagement** | Schedule, RFIs, submittals, daily reports, punch lists, meetings, tasks |
+| **Billing** | Vendors, customers, payment apps (AIA G702/G703), GL/journal, WIP, AP/AR, retention, lien waivers, POs/invoices, bank rec |
+| **Reports** | Labor cost, profitability, exports (PDF/CSV), financial statements (trial balance etc.) |
+| **AI** | Provider abstraction (Anthropic + OpenAI), orchestrator, usage tracking, extraction handlers (invoice, delivery ticket) |
+| **SystemAdmin** | Users/roles/RBAC, API keys, secrets vault, settings, health |
+| **Notifications** | In-app + Resend email |
+| **Documents** | File attachments, storage abstraction (local/S3) |
+| **Portal** | External vendor/owner access (limited) |
+| **RFIs** | Legacy RFI support (largely merged into ProjectManagement) |
 
-### Planned Modules
-
-| Module | Target |
-|--------|--------|
-| **Documents** | Document management and compliance tracking |
-| **Portal** | Subcontractor self-service portal |
-| **Billing** | Owner billing, invoicing, retainage release |
+**Notes:** Always verify exact state via source (`ls src/Modules`, controller list, CHANGELOG.md entries after May 2026). Many /plans and /specs remain aspirational/historical. Portal is stub/limited. Full dual-book accounting and some advanced features continue to evolve.
 
 ### Infrastructure Layer
 
@@ -88,20 +87,19 @@ Each module is a separate .NET project under `src/Modules/`. Modules follow vert
 | **Pitbull.Storage** | File storage abstraction |
 | **Pitbull.Messaging** | CAP event bus for domain events |
 
-## Key Patterns
+## Key Patterns (Grounded in Current Code)
 
-### CQRS + Result Pattern
+**Controllers:** Primary ctor injection of `I*Service`. Direct calls. No `IMediator`. `[Authorize]`, rate limiting, `PagedResult<T>`.
 
-All commands and queries return `Result<T>` — never throw exceptions for business logic:
+**Services:** Interface + impl injected with `PitbullDbContext`, `ITenantContext`, `ICompanyContext`. Always `AsNoTracking()` for reads, `!IsDeleted` filter, `CancellationToken`.
 
-```csharp
-// Command
-public record CreateProjectCommand(string Name, string Number) : ICommand<ProjectDto>;
+**CQRS remnants:** `ICommand`/`IQuery` + `AddPitbullModule` exist for module registration/FluentValidation pipeline in some areas. New logic favors services. `Result<T>` pattern used internally.
 
-// Handler returns Result
-return Result.Success(dto);
-return Result.Failure<ProjectDto>("Not found", "NOT_FOUND");
-```
+**Multi-tenancy:** TenantMiddleware + `set_config('app.current_tenant', ...)` + RLS policies. Company scoping for `ICompanyScoped`.
+
+**Soft-delete + UTC:** Global filters + SaveChanges UTC normalization.
+
+See the source code, tests, and docs/ARCHITECTURE.md (this file) for current patterns and anti-patterns. Cross-reference live code.
 
 ### Multi-Tenancy
 

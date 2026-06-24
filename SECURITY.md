@@ -18,7 +18,7 @@ You should receive a response within 48 hours. If the issue is confirmed, we wil
 - **JWT Authentication**: All API endpoints (except auth) require valid JWT tokens
 - **Role-Based Access Control (RBAC)**: Admin, Manager, Supervisor, User roles
 - **Password Security**: Minimum 8 characters, requires uppercase, lowercase, digit
-- **Token Expiration**: 60-minute access tokens, 7-day refresh tokens
+- **Token Expiration**: 24-hour access tokens (1440 minutes), 7-day refresh tokens (configurable via appsettings.json)
 
 ### API Security
 - **Rate Limiting**: All controllers protected with configurable rate limits

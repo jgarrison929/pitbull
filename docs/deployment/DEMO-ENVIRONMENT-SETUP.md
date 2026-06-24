@@ -8,7 +8,7 @@
 ## Prerequisites
 
 1. Railway project access (`pretty-communication`)
-2. Cloudflare DNS access for `pitbullconstructionsolutions.com`
+2. Cloudflare DNS access for `example.com`
 3. PostgreSQL database provisioned on Railway
 
 ## Step 1: Create Demo Service on Railway
@@ -40,7 +40,7 @@ Set these variables in Railway for the demo service:
 | `Demo__TenantId` | `a1b2c3d4-...` (new GUID) | Fixed tenant ID |
 | `Demo__TenantSlug` | `demo` | URL-friendly tenant slug |
 | `Demo__TenantName` | `Pitbull Demo` | Display name |
-| `Demo__UserEmail` | `demo@pitbullconstructionsolutions.com` | Demo login |
+| `Demo__UserEmail` | `demo@example.com` | Demo login |
 | `Demo__UserPassword` | `[SECURE PASSWORD]` | Demo login password |
 | `Demo__UserFirstName` | `Demo` | User display name |
 | `Demo__UserLastName` | `User` | User display name |
@@ -50,20 +50,20 @@ Set these variables in Railway for the demo service:
 | Variable | Value |
 |----------|-------|
 | `Jwt__Secret` | `[UNIQUE 256-BIT KEY]` |
-| `Jwt__Issuer` | `https://demo.pitbullconstructionsolutions.com` |
-| `Jwt__Audience` | `https://demo.pitbullconstructionsolutions.com` |
+| `Jwt__Issuer` | `https://demo.example.com` |
+| `Jwt__Audience` | `https://demo.example.com` |
 
 ### CORS Variables
 
 ```
-Cors__AllowedOrigins__0=https://demo.pitbullconstructionsolutions.com
+Cors__AllowedOrigins__0=https://demo.example.com
 Cors__AllowedOrigins__1=https://pitbull-web-demo.up.railway.app
 ```
 
 ## Step 3: Configure DNS in Cloudflare
 
 1. Login to Cloudflare dashboard
-2. Navigate to `pitbullconstructionsolutions.com` → DNS
+2. Navigate to `example.com` → DNS
 3. Add CNAME record:
 
 ```
@@ -80,12 +80,12 @@ TTL:   Auto
 
 ```bash
 # Add custom domain to demo service
-railway domain add demo.pitbullconstructionsolutions.com --service pitbull-api-demo
+railway domain add demo.example.com --service pitbull-api-demo
 ```
 
 Or in Railway dashboard:
 1. Go to demo service → Settings → Domains
-2. Add `demo.pitbullconstructionsolutions.com`
+2. Add `demo.example.com`
 3. Wait for SSL certificate provisioning (usually 5-10 minutes)
 
 ## Step 5: Deploy and Verify
@@ -105,7 +105,7 @@ Check logs for:
 ```
 Demo bootstrap enabled; ensuring demo tenant + seed data
 Created demo tenant [tenant-id] (demo)
-Created demo user demo@pitbullconstructionsolutions.com
+Created demo user demo@example.com
 Demo seed complete: Created 5 projects, 10 bids, ...
 ```
 
@@ -113,12 +113,12 @@ Demo seed complete: Created 5 projects, 10 bids, ...
 
 ```bash
 # Health check
-curl https://demo.pitbullconstructionsolutions.com/health
+curl https://demo.example.com/health
 
 # Login test
-curl -X POST https://demo.pitbullconstructionsolutions.com/api/auth/login \
+curl -X POST https://demo.example.com/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"demo@pitbullconstructionsolutions.com","password":"[PASSWORD]"}'
+  -d '{"email":"demo@example.com","password":"[PASSWORD]"}'
 ```
 
 ## What Gets Seeded
@@ -198,15 +198,15 @@ DELETE FROM "Employees" WHERE "EmployeeNumber" LIKE 'DEMO-%';
 ### CORS Errors
 
 Ensure `Cors__AllowedOrigins` includes both:
-- Custom domain (`demo.pitbullconstructionsolutions.com`)
+- Custom domain (`demo.example.com`)
 - Railway domain (`pitbull-web-demo.up.railway.app`)
 
 ## Demo User Credentials
 
 | Field | Value |
 |-------|-------|
-| URL | `https://demo.pitbullconstructionsolutions.com` |
-| Email | `demo@pitbullconstructionsolutions.com` |
+| URL | `https://demo.example.com` |
+| Email | `demo@example.com` |
 | Password | (set in Railway env vars) |
 | Role | Admin (full access) |
 

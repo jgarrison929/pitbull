@@ -1,6 +1,8 @@
 # Pitbull API Endpoint Reference
 
-Complete reference for all Pitbull Construction Management API endpoints.
+**Snapshot / incomplete.** As of early 2026. Current ~97 controllers + many endpoints added (Punch List, financial reports, AP payments, etc. per CHANGELOG 0.15). 
+
+**Ground truth:** Inspect controllers in `src/Pitbull.Api/Controllers/` or run the app + Swagger at /swagger (dev). Always verify against source.
 
 ## Authentication
 
@@ -65,7 +67,7 @@ Create a new user account. Optionally creates a new tenant (organization).
 **Response:** `201 Created`
 ```json
 {
-  "token": "REDACTED...",
+  "token": "REDACTED",
   "userId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "fullName": "John Doe",
   "email": "john@acmeconstruction.com",
@@ -96,7 +98,7 @@ Authenticate and receive a JWT token.
 **Response:** `200 OK`
 ```json
 {
-  "token": "REDACTED...",
+  "token": "REDACTED",
   "userId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "fullName": "John Doe",
   "email": "john@acmeconstruction.com",

@@ -67,3 +67,9 @@ e2e/.auth/
 e2e/.env
 e2e/test-results/
 e2e/playwright-report/
+
+# Test results with machine names/PII (tracked artifacts)
+tests/**/TestResults/
+tests/Pitbull.Tests.*/TestResults/
+TestResults/
+*.trx

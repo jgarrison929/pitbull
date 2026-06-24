@@ -632,69 +632,69 @@ public sealed class DemoBootstrapper(
     private static readonly DemoUserDef[] DemoUsers =
     [
         // C-Suite (11)
-        new("ceo@demo.local",           "Richard",   "Morrison",   "Chief Executive Officer",          RoleSeeder.Roles.Admin,      "DEMO-CEO",   EmployeeClassification.Salaried,   250.00m, ParentCode, AllCompanyCodes),
-        new("coo@demo.local",           "Patricia",  "Chen",       "Chief Operating Officer",          RoleSeeder.Roles.Admin,      "DEMO-COO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
-        new("cfo@demo.local",           "David",     "Blackwell",  "Chief Financial Officer",          RoleSeeder.Roles.Admin,      "DEMO-CFO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
-        new("cao@demo.local",           "Sandra",    "Martinez",   "Chief Administrative Officer",     RoleSeeder.Roles.Admin,      "DEMO-CAO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("cio@demo.local",           "James",     "Tanaka",     "Chief Information Officer",        RoleSeeder.Roles.Admin,      "DEMO-CIO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("cto@demo.local",           "Andrew",    "Foster",     "Chief Technology Officer",         RoleSeeder.Roles.Admin,      "DEMO-CTO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("ciso@demo.local",          "Michelle",  "Okonjo",     "Chief Information Security Officer", RoleSeeder.Roles.Admin,    "DEMO-CISO",  EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
-        new("cro@demo.local",           "Robert",    "Garrison",   "Chief Revenue Officer",            RoleSeeder.Roles.Admin,      "DEMO-CRO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("cpo@demo.local",           "Lisa",      "Nguyen",     "Chief People Officer",             RoleSeeder.Roles.Admin,      "DEMO-CPO",   EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
-        new("safety-chief@demo.local",  "Thomas",    "Reeves",     "Chief Safety Officer",             RoleSeeder.Roles.Admin,      "DEMO-CSO",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
-        new("cos@demo.local",           "Jennifer",  "Blake",      "Chief of Staff",                   RoleSeeder.Roles.Admin,      "DEMO-COS",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
+        new("ceo@demo.local", "Demo", "User01",   "Chief Executive Officer",          RoleSeeder.Roles.Admin,      "DEMO-CEO",   EmployeeClassification.Salaried,   250.00m, ParentCode, AllCompanyCodes),
+        new("coo@demo.local", "Demo", "User02",       "Chief Operating Officer",          RoleSeeder.Roles.Admin,      "DEMO-COO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
+        new("cfo@demo.local", "Demo", "User03",  "Chief Financial Officer",          RoleSeeder.Roles.Admin,      "DEMO-CFO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
+        new("cao@demo.local", "Demo", "User04",   "Chief Administrative Officer",     RoleSeeder.Roles.Admin,      "DEMO-CAO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cio@demo.local", "Demo", "User05",     "Chief Information Officer",        RoleSeeder.Roles.Admin,      "DEMO-CIO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cto@demo.local", "Demo", "User06",     "Chief Technology Officer",         RoleSeeder.Roles.Admin,      "DEMO-CTO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("ciso@demo.local", "Demo", "User07",     "Chief Information Security Officer", RoleSeeder.Roles.Admin,    "DEMO-CISO",  EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
+        new("cro@demo.local", "Demo", "User08",   "Chief Revenue Officer",            RoleSeeder.Roles.Admin,      "DEMO-CRO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cpo@demo.local", "Demo", "User09",     "Chief People Officer",             RoleSeeder.Roles.Admin,      "DEMO-CPO",   EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
+        new("safety-chief@demo.local", "Demo", "User10",     "Chief Safety Officer",             RoleSeeder.Roles.Admin,      "DEMO-CSO",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
+        new("cos@demo.local", "Demo", "User11",      "Chief of Staff",                   RoleSeeder.Roles.Admin,      "DEMO-COS",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
 
         // VP Level (8) — Manager role, access to all companies
-        new("vp-legal@demo.local",      "Catherine", "Holloway",   "VP of Legal",                      RoleSeeder.Roles.Manager,    "DEMO-VPL",   EmployeeClassification.Salaried,   165.00m, ParentCode, AllCompanyCodes),
-        new("vp-hr@demo.local",         "Maria",     "Vasquez",    "VP of HR",                         RoleSeeder.Roles.Manager,    "DEMO-VPHR",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
-        new("vp-it@demo.local",         "Kevin",     "Park",       "VP of IT",                         RoleSeeder.Roles.Manager,    "DEMO-VPIT",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
-        new("vp-innovation@demo.local",  "Sarah",    "Lindgren",   "VP of Innovation",                 RoleSeeder.Roles.Manager,    "DEMO-VPIN",  EmployeeClassification.Salaried,   150.00m, ParentCode, AllCompanyCodes),
-        new("vp-estimating@demo.local",  "Michael",  "DeLuca",     "VP of Estimating",                 RoleSeeder.Roles.Manager,    "DEMO-VPES",  EmployeeClassification.Salaried,   160.00m, ParentCode, AllCompanyCodes),
-        new("vp-ops@demo.local",         "Brian",    "Kowalski",   "VP of Operations",                 RoleSeeder.Roles.Manager,    "DEMO-VPOP",  EmployeeClassification.Salaried,   160.00m, ParentCode, AllCompanyCodes),
-        new("vp-accounting@demo.local",  "Angela",   "Washington", "VP of Accounting",                 RoleSeeder.Roles.Manager,    "DEMO-VPAC",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
-        new("vp-controller@demo.local",  "Diane",    "Schmidt",    "VP Controller",                    RoleSeeder.Roles.Manager,    "DEMO-VPCR",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+        new("vp-legal@demo.local", "Demo", "User12",   "VP of Legal",                      RoleSeeder.Roles.Manager,    "DEMO-VPL",   EmployeeClassification.Salaried,   165.00m, ParentCode, AllCompanyCodes),
+        new("vp-hr@demo.local", "Demo", "User13",    "VP of HR",                         RoleSeeder.Roles.Manager,    "DEMO-VPHR",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+        new("vp-it@demo.local", "Demo", "User14",       "VP of IT",                         RoleSeeder.Roles.Manager,    "DEMO-VPIT",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+        new("vp-innovation@demo.local", "Demo", "User15",   "VP of Innovation",                 RoleSeeder.Roles.Manager,    "DEMO-VPIN",  EmployeeClassification.Salaried,   150.00m, ParentCode, AllCompanyCodes),
+        new("vp-estimating@demo.local", "Demo", "User16",     "VP of Estimating",                 RoleSeeder.Roles.Manager,    "DEMO-VPES",  EmployeeClassification.Salaried,   160.00m, ParentCode, AllCompanyCodes),
+        new("vp-ops@demo.local", "Demo", "User17",   "VP of Operations",                 RoleSeeder.Roles.Manager,    "DEMO-VPOP",  EmployeeClassification.Salaried,   160.00m, ParentCode, AllCompanyCodes),
+        new("vp-accounting@demo.local", "Demo", "User18", "VP of Accounting",                 RoleSeeder.Roles.Manager,    "DEMO-VPAC",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
+        new("vp-controller@demo.local", "Demo", "User19",    "VP Controller",                    RoleSeeder.Roles.Manager,    "DEMO-VPCR",  EmployeeClassification.Salaried,   155.00m, ParentCode, AllCompanyCodes),
 
         // Sr Director Level (6) — Manager role, parent company only
-        new("sr-dir-accounting@demo.local", "Nancy",  "Fielding",  "Sr Director of Accounting",        RoleSeeder.Roles.Manager,    "DEMO-SDA",   EmployeeClassification.Salaried,   120.00m, ParentCode, [ParentCode]),
-        new("sr-dir-hr@demo.local",         "Rachel", "Torres",    "Sr Director of HR",                RoleSeeder.Roles.Manager,    "DEMO-SDH",   EmployeeClassification.Salaried,   115.00m, ParentCode, [ParentCode]),
-        new("sr-dir-legal@demo.local",      "Mark",   "Jennings",  "Sr Director of Legal/Risk",        RoleSeeder.Roles.Manager,    "DEMO-SDL",   EmployeeClassification.Salaried,   120.00m, ParentCode, [ParentCode]),
-        new("sr-dir-it@demo.local",         "Daniel", "Rossi",     "Sr Director of IT",                RoleSeeder.Roles.Manager,    "DEMO-SDI",   EmployeeClassification.Salaried,   115.00m, ParentCode, [ParentCode]),
-        new("sr-dir-innovation@demo.local", "Priya",  "Patel",     "Sr Director of Innovation",        RoleSeeder.Roles.Manager,    "DEMO-SDN",   EmployeeClassification.Salaried,   110.00m, ParentCode, [ParentCode]),
-        new("sr-dir-safety@demo.local",     "Carlos", "Mendez",    "Sr Director of Safety",            RoleSeeder.Roles.Manager,    "DEMO-SDS",   EmployeeClassification.Salaried,   110.00m, ParentCode, [ParentCode]),
+        new("sr-dir-accounting@demo.local", "Demo", "User20",  "Sr Director of Accounting",        RoleSeeder.Roles.Manager,    "DEMO-SDA",   EmployeeClassification.Salaried,   120.00m, ParentCode, [ParentCode]),
+        new("sr-dir-hr@demo.local", "Demo", "User21",    "Sr Director of HR",                RoleSeeder.Roles.Manager,    "DEMO-SDH",   EmployeeClassification.Salaried,   115.00m, ParentCode, [ParentCode]),
+        new("sr-dir-legal@demo.local", "Demo", "User22",  "Sr Director of Legal/Risk",        RoleSeeder.Roles.Manager,    "DEMO-SDL",   EmployeeClassification.Salaried,   120.00m, ParentCode, [ParentCode]),
+        new("sr-dir-it@demo.local", "Demo", "User23",     "Sr Director of IT",                RoleSeeder.Roles.Manager,    "DEMO-SDI",   EmployeeClassification.Salaried,   115.00m, ParentCode, [ParentCode]),
+        new("sr-dir-innovation@demo.local", "Demo", "User24",     "Sr Director of Innovation",        RoleSeeder.Roles.Manager,    "DEMO-SDN",   EmployeeClassification.Salaried,   110.00m, ParentCode, [ParentCode]),
+        new("sr-dir-safety@demo.local", "Demo", "User25",    "Sr Director of Safety",            RoleSeeder.Roles.Manager,    "DEMO-SDS",   EmployeeClassification.Salaried,   110.00m, ParentCode, [ParentCode]),
 
         // Manager Level (6) — Manager role, parent company only
-        new("mgr-accounting@demo.local",  "Karen",    "Liu",       "Accounting Manager",               RoleSeeder.Roles.Manager,    "DEMO-MA",    EmployeeClassification.Salaried,    95.00m, ParentCode, [ParentCode]),
-        new("mgr-hr@demo.local",          "Trevor",   "Banks",     "HR Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MH",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
-        new("mgr-it@demo.local",          "Scott",    "Yamamoto",  "IT Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MI",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
-        new("mgr-safety@demo.local",      "Rosa",     "Alvarez",   "Safety Manager",                   RoleSeeder.Roles.Manager,    "DEMO-MS",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
-        new("mgr-payroll@demo.local",     "Amy",      "Cooper",    "Payroll Manager",                  RoleSeeder.Roles.Manager,    "DEMO-MP",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
-        new("mgr-purchasing@demo.local",  "Derek",    "Olson",     "Purchasing Manager",               RoleSeeder.Roles.Manager,    "DEMO-MPU",   EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode, ElectricalCode]),
+        new("mgr-accounting@demo.local", "Demo", "User26",       "Accounting Manager",               RoleSeeder.Roles.Manager,    "DEMO-MA",    EmployeeClassification.Salaried,    95.00m, ParentCode, [ParentCode]),
+        new("mgr-hr@demo.local", "Demo", "User27",     "HR Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MH",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
+        new("mgr-it@demo.local", "Demo", "User28",  "IT Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MI",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
+        new("mgr-safety@demo.local", "Demo", "User29",   "Safety Manager",                   RoleSeeder.Roles.Manager,    "DEMO-MS",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
+        new("mgr-payroll@demo.local", "Demo", "User30",    "Payroll Manager",                  RoleSeeder.Roles.Manager,    "DEMO-MP",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
+        new("mgr-purchasing@demo.local", "Demo", "User31",     "Purchasing Manager",               RoleSeeder.Roles.Manager,    "DEMO-MPU",   EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode, ElectricalCode]),
 
         // Staff Level (5) — User role, parent company only
-        new("staff-accountant@demo.local", "Jessica",  "Tran",     "Staff Accountant",                 RoleSeeder.Roles.User,       "DEMO-SA",    EmployeeClassification.Salaried,    55.00m, ParentCode, [ParentCode]),
-        new("ap-clerk@demo.local",         "Brandon",  "Wells",    "AP Clerk",                         RoleSeeder.Roles.User,       "DEMO-APC",   EmployeeClassification.Hourly,      38.00m, ParentCode, [ParentCode]),
-        new("ar-clerk@demo.local",         "Megan",    "O'Brien",  "AR Clerk",                         RoleSeeder.Roles.User,       "DEMO-ARC",   EmployeeClassification.Hourly,      38.00m, ParentCode, [ParentCode]),
-        new("payroll-clerk@demo.local",    "Tyler",    "Jackson",  "Payroll Clerk",                    RoleSeeder.Roles.User,       "DEMO-PRC",   EmployeeClassification.Hourly,      36.00m, ParentCode, [ParentCode]),
-        new("hr-coordinator@demo.local",   "Samantha", "Cruz",     "HR Coordinator",                   RoleSeeder.Roles.User,       "DEMO-HRC",   EmployeeClassification.Hourly,      35.00m, ParentCode, [ParentCode]),
+        new("staff-accountant@demo.local", "Demo", "User32",     "Staff Accountant",                 RoleSeeder.Roles.User,       "DEMO-SA",    EmployeeClassification.Salaried,    55.00m, ParentCode, [ParentCode]),
+        new("ap-clerk@demo.local", "Demo", "User33",    "AP Clerk",                         RoleSeeder.Roles.User,       "DEMO-APC",   EmployeeClassification.Hourly,      38.00m, ParentCode, [ParentCode]),
+        new("ar-clerk@demo.local", "Demo", "User34",  "AR Clerk",                         RoleSeeder.Roles.User,       "DEMO-ARC",   EmployeeClassification.Hourly,      38.00m, ParentCode, [ParentCode]),
+        new("payroll-clerk@demo.local", "Demo", "User35",  "Payroll Clerk",                    RoleSeeder.Roles.User,       "DEMO-PRC",   EmployeeClassification.Hourly,      36.00m, ParentCode, [ParentCode]),
+        new("hr-coordinator@demo.local", "Demo", "User36",     "HR Coordinator",                   RoleSeeder.Roles.User,       "DEMO-HRC",   EmployeeClassification.Hourly,      35.00m, ParentCode, [ParentCode]),
 
         // Project/Field — Sr Leadership (4) — Manager role, Summit Water Infrastructure
-        new("sr-project-exec@demo.local",  "William",  "Hartley",  "Sr Project Executive",             RoleSeeder.Roles.Manager,    "DEMO-SPE",   EmployeeClassification.Salaried,   145.00m, WaterInfraCode, [WaterInfraCode]),
-        new("project-exec@demo.local",     "Christine","Novak",    "Project Executive",                RoleSeeder.Roles.Manager,    "DEMO-PEX",   EmployeeClassification.Salaried,   130.00m, WaterInfraCode, [WaterInfraCode]),
-        new("chief-estimator@demo.local",  "Paul",     "Bergstrom","Chief Estimator",                  RoleSeeder.Roles.Manager,    "DEMO-CE",    EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, HighwayCode]),
-        new("chief-engineer@demo.local",   "Laura",    "Kim",      "Chief Engineer",                   RoleSeeder.Roles.Manager,    "DEMO-CHE",   EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, ElectricalCode]),
+        new("sr-project-exec@demo.local", "Demo", "User37",  "Sr Project Executive",             RoleSeeder.Roles.Manager,    "DEMO-SPE",   EmployeeClassification.Salaried,   145.00m, WaterInfraCode, [WaterInfraCode]),
+        new("project-exec@demo.local", "Demo", "User38",    "Project Executive",                RoleSeeder.Roles.Manager,    "DEMO-PEX",   EmployeeClassification.Salaried,   130.00m, WaterInfraCode, [WaterInfraCode]),
+        new("chief-estimator@demo.local", "Demo", "User39","Chief Estimator",                  RoleSeeder.Roles.Manager,    "DEMO-CE",    EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, HighwayCode]),
+        new("chief-engineer@demo.local", "Demo", "User40",      "Chief Engineer",                   RoleSeeder.Roles.Manager,    "DEMO-CHE",   EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, ElectricalCode]),
 
         // Project/Field — Project Management (7) — Supervisor role, Summit Water Infrastructure
-        new("sr-pm@demo.local",            "Marcus",   "Williams", "Sr Project Manager",               RoleSeeder.Roles.Supervisor, "DEMO-SPM",   EmployeeClassification.Salaried,    95.00m, WaterInfraCode, [WaterInfraCode]),
-        new("pm@demo.local",               "Ashley",   "Rodriguez","Project Manager",                  RoleSeeder.Roles.Supervisor, "DEMO-PM",    EmployeeClassification.Salaried,    85.00m, WaterInfraCode, [WaterInfraCode]),
-        new("project-coord@demo.local",    "Natalie",  "Dunn",     "Project Coordinator",              RoleSeeder.Roles.User,       "DEMO-PC",    EmployeeClassification.Salaried,    55.00m, WaterInfraCode, [WaterInfraCode]),
-        new("sr-project-eng@demo.local",   "Ryan",     "Mitchell", "Sr Project Engineer",              RoleSeeder.Roles.Supervisor, "DEMO-SPG",   EmployeeClassification.Salaried,    80.00m, WaterInfraCode, [WaterInfraCode]),
-        new("project-eng@demo.local",      "Jasmine",  "Okafor",   "Project Engineer",                 RoleSeeder.Roles.User,       "DEMO-PEG",   EmployeeClassification.Salaried,    65.00m, WaterInfraCode, [WaterInfraCode]),
-        new("field-eng@demo.local",        "Cody",     "Larsen",   "Field Engineer",                   RoleSeeder.Roles.User,       "DEMO-FE",    EmployeeClassification.Hourly,      48.00m, HighwayCode,    [WaterInfraCode, HighwayCode]),
-        new("commissioning@demo.local",    "Evan",     "Phillips", "Commissioning Officer",            RoleSeeder.Roles.Supervisor, "DEMO-COM",   EmployeeClassification.Salaried,    75.00m, ElectricalCode, [WaterInfraCode, ElectricalCode]),
+        new("sr-pm@demo.local", "Demo", "User41", "Sr Project Manager",               RoleSeeder.Roles.Supervisor, "DEMO-SPM",   EmployeeClassification.Salaried,    95.00m, WaterInfraCode, [WaterInfraCode]),
+        new("pm@demo.local", "Demo", "User42","Project Manager",                  RoleSeeder.Roles.Supervisor, "DEMO-PM",    EmployeeClassification.Salaried,    85.00m, WaterInfraCode, [WaterInfraCode]),
+        new("project-coord@demo.local", "Demo", "User43",     "Project Coordinator",              RoleSeeder.Roles.User,       "DEMO-PC",    EmployeeClassification.Salaried,    55.00m, WaterInfraCode, [WaterInfraCode]),
+        new("sr-project-eng@demo.local", "Demo", "User44", "Sr Project Engineer",              RoleSeeder.Roles.Supervisor, "DEMO-SPG",   EmployeeClassification.Salaried,    80.00m, WaterInfraCode, [WaterInfraCode]),
+        new("project-eng@demo.local", "Demo", "User45",   "Project Engineer",                 RoleSeeder.Roles.User,       "DEMO-PEG",   EmployeeClassification.Salaried,    65.00m, WaterInfraCode, [WaterInfraCode]),
+        new("field-eng@demo.local", "Demo", "User46",   "Field Engineer",                   RoleSeeder.Roles.User,       "DEMO-FE",    EmployeeClassification.Hourly,      48.00m, HighwayCode,    [WaterInfraCode, HighwayCode]),
+        new("commissioning@demo.local", "Demo", "User47", "Commissioning Officer",            RoleSeeder.Roles.Supervisor, "DEMO-COM",   EmployeeClassification.Salaried,    75.00m, ElectricalCode, [WaterInfraCode, ElectricalCode]),
 
         // Estimating (2) — User role, Summit Highway Division (bidding lots of small jobs)
-        new("sr-estimator@demo.local",     "Gregory",  "Townsend", "Sr Estimator",                     RoleSeeder.Roles.User,       "DEMO-SES",   EmployeeClassification.Salaried,    80.00m, HighwayCode, [HighwayCode]),
-        new("estimator@demo.local",        "Hannah",   "Stewart",  "Estimator",                        RoleSeeder.Roles.User,       "DEMO-EST",   EmployeeClassification.Salaried,    60.00m, HighwayCode, [HighwayCode]),
+        new("sr-estimator@demo.local", "Demo", "User48", "Sr Estimator",                     RoleSeeder.Roles.User,       "DEMO-SES",   EmployeeClassification.Salaried,    80.00m, HighwayCode, [HighwayCode]),
+        new("estimator@demo.local", "Demo", "User49",  "Estimator",                        RoleSeeder.Roles.User,       "DEMO-EST",   EmployeeClassification.Salaried,    60.00m, HighwayCode, [HighwayCode]),
     ];
 
     /// <summary>
@@ -708,7 +708,7 @@ public sealed class DemoBootstrapper(
         if (parentCompany.Name != "Summit Builders Group")
         {
             parentCompany.Name = "Summit Builders Group";
-            parentCompany.ShortName = "PBG";
+            parentCompany.ShortName = "SBG";
             parentCompany.IndustryType = "general-contractor";
             parentCompany.State = "CA";
             parentCompany.City = "Sacramento";
@@ -720,9 +720,9 @@ public sealed class DemoBootstrapper(
 
         var subsidiaries = new[]
         {
-            (Code: WaterInfraCode, Name: "Summit Water Infrastructure", ShortName: "PWI"),
-            (Code: HighwayCode,    Name: "Summit Highway Division",      ShortName: "VHD"),
-            (Code: ElectricalCode, Name: "Summit Electric Co.",      ShortName: "CVE"),
+            (Code: WaterInfraCode, Name: "Summit Water Infrastructure", ShortName: "SWI"),
+            (Code: HighwayCode,    Name: "Summit Highway Division",      ShortName: "SHD"),
+            (Code: ElectricalCode, Name: "Summit Electric Co.",      ShortName: "SEC"),
         };
 
         foreach (var (code, name, shortName) in subsidiaries)

@@ -4,6 +4,8 @@ All notable changes to Pitbull Construction Solutions are documented in this fil
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+**Note:** Learning/prototype project. Recent entries (0.15.0 May 2026+) reflect delivered features in code (95 controllers, 14 modules). Older sections document evolution and may reference superseded architecture or removed modules. Always verify vs src/ and `dotnet build`.
+
 ---
 
 ## [0.15.0] - 2026-05-01
@@ -24,7 +26,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Dashboard KPI drill-down** — all cards clickable with filtered URLs (#573ea87, #07696f8)
 - **Multi-company demo seed data** — Companies 02, 03, 04 with full data (#140d06b)
 - **Public demo self-service signup** with permission lockdown (#7d75717)
-- **Seed data versioning** + company profile renames (Pacific Water, Valley Highway, Summit Electric Co.) (#be03406)
+- **Seed data versioning** + company profile renames (redacted internal profiles) (#be03406)
 - **Comprehensive seed data** for all modules and roles (#de6f7fc)
 - **Role-adaptive welcome tour** steps based on user title and role (#208ca12)
 - **Secure Swagger API docs** for all environments (#362eaab)
@@ -1658,8 +1660,7 @@ Initial feature-complete MVP for construction project and bid management.
 
 - Best practices and patterns guide (`docs/BEST-PRACTICES.md`)
 - Module creation guide (`docs/ADDING-A-MODULE.md`)
-- Team protocol (`docs/TEAM-PROTOCOL.md`)
-- Quality strategy (`docs/QUALITY-STRATEGY.md`)
+- Team protocol and quality strategy (internal process docs, now archived)
 - Vision document (`docs/VISION.md`)
 - RLS implementation documentation
 - Release plan

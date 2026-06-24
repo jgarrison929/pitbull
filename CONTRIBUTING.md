@@ -77,15 +77,13 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 
 ### Branching Strategy
 
-We use a three-branch promotion model:
+Main-only strategy (no long-lived develop/staging branches):
 
 | Branch | Purpose | Deploys To |
 |--------|---------|------------|
-| `main` | Production (sacred) | Railway production |
-| `staging` | Pre-release testing | Railway staging |
-| `develop` | Active development (default) | Railway dev |
+| `main` | Production (sacred) | Railway (from main) |
 
-**All feature branches target `develop`.** Never commit directly to `main` or `staging`.
+Feature branches are created from main and target main via PR. Never commit directly to `main`. (Historical docs referenced multi-branch + Railway staging; current CI and practice is main-only.)
 
 ### Branch Naming
 
@@ -99,33 +97,35 @@ Use conventional prefixes:
 
 ### Workflow
 
-1. **Start from develop:**
+The project uses a **main-only** branch strategy (no long-lived develop branch). Feature branches are created from main. (See earlier Branching Strategy section for details.)
+
+1. **Create feature branch from main:**
 
    ```bash
-   git checkout develop
-   git pull origin develop
+   git checkout main
+   git pull origin main
    git checkout -b feat/your-feature
    ```
 
 2. **Do your work.** Commit early, commit often.
 
-3. **Build before pushing:**
+3. **Validate before pushing** (per README and build validation section):
 
    ```bash
    # Backend
-   cd src/Pitbull.Api && dotnet build
+   dotnet build Pitbull.sln --configuration Release
 
    # Frontend
-   cd src/Pitbull.Web/pitbull-web && npm run build
+   cd src/Pitbull.Web/pitbull-web && npm run build && npm run lint
    ```
 
-   Both must pass. No exceptions.
+   Both must pass cleanly.
 
 4. **Push and open a PR:**
 
    ```bash
    git push -u origin feat/your-feature
-   gh pr create --title "feat: your feature description" --base develop
+   gh pr create --title "feat: your feature description" --base main  # or use GitHub UI
    ```
 
 ### Conventional Commits
@@ -167,28 +167,17 @@ src/
 
 Each module owns its domain entities, features, EF configurations, and validators. The API project wires everything together but contains no business logic.
 
-### CQRS with MediatR
+### CQRS (direct service injection, no MediatR in controllers)
 
-Commands (writes) and queries (reads) are separated:
+Commands/queries separated via `ICommand`/`IQuery` + handlers, but controllers use direct service injection (post-MediatR removal).
 
-- **Commands** implement `ICommand<TResponse>` and change state
-- **Queries** implement `IQuery<TResponse>` and only read data
-- Both return `Result<T>` -- never throw exceptions for business logic failures
+- Handlers often return `Result<T>`
+- Services registered via AddPitbullModule + AddPitbullModuleServices
+- See docs/ARCHITECTURE.md and module code for current patterns. (MediatR was removed Feb 2026 per CHANGELOG.)
 
-### Vertical Slice Architecture
+### Feature + Service Pattern
 
-Each feature gets its own folder containing everything it needs:
-
-```
-Pitbull.Projects/
-  Features/
-    CreateProject/
-      CreateProjectCommand.cs     # Request + response DTOs
-      CreateProjectHandler.cs     # Business logic
-      CreateProjectValidator.cs   # FluentValidation rules
-```
-
-No hunting across `Services/`, `Repositories/`, and `DTOs/` folders. Everything for a feature lives together.
+Some features use dedicated folders (e.g. Projects/Features/CreateProject/*Command.cs), but most modules use service interfaces + impls (e.g. IProjectService / ProjectService). Controllers inject services directly. No repositories. See actual code in Modules/ for patterns.
 
 ### Multi-Tenancy
 
@@ -218,7 +207,7 @@ For deeper architecture details, see `docs/BEST-PRACTICES.md` and `docs/ADDING-A
 - **Queries:** Always use `.AsNoTracking()` for read operations
 - **Controllers:** `[Authorize]` at the class level. Only `AuthController` is public.
 - **Error codes:** Uppercase strings: `NOT_FOUND`, `VALIDATION_ERROR`, `INVALID_STATUS`
-- **No repositories:** Inject `PitbullDbContext` directly, use `db.Set<T>()`
+- **No repositories:** Inject `PitbullDbContext` directly, use `db.Set<T>()` (or module services)
 - **Pass `CancellationToken`** through all async calls
 
 ### Frontend (TypeScript/React)
@@ -246,8 +235,8 @@ For deeper architecture details, see `docs/BEST-PRACTICES.md` and `docs/ADDING-A
 Both of these must pass:
 
 ```bash
-# Backend build
-cd src/Pitbull.Api && dotnet build
+# Backend build (from repo root)
+dotnet build Pitbull.sln --configuration Release
 
 # Frontend build + lint
 cd src/Pitbull.Web/pitbull-web && npm run build && npm run lint
@@ -255,24 +244,25 @@ cd src/Pitbull.Web/pitbull-web && npm run build && npm run lint
 
 ### CI Pipeline
 
-GitHub Actions runs automatically on push/PR to `main` and `develop`:
+GitHub Actions runs automatically on push/PR to `main` (see .github/workflows/ci.yml):
 
 **Backend:**
 - `dotnet restore` / `dotnet build --configuration Release`
+- Migration safety check (no RenameColumn/RenameTable or DROP/TRUNCATE)
 - Unit tests (`tests/Pitbull.Tests.Unit`)
 - Integration tests with PostgreSQL 17 service container
 
 **Frontend:**
 - `npm ci` / `npm run build` / `npm run lint`
 
-Both jobs must pass before merge.
+Both jobs must pass before merge. (No develop branch in current CI.)
 
 ### Writing Tests
 
 - Unit tests go in `tests/Pitbull.Tests.Unit/`
 - Integration tests use a real PostgreSQL instance via service containers
-- Test the handler, not the controller -- controllers are thin
-- Use the Result pattern assertions: check `result.IsSuccess` and `result.ErrorCode`
+- Test the service/handler logic; controllers are thin
+- Use the Result pattern assertions where applicable: check `result.IsSuccess` and `result.ErrorCode` (also PagedResult)
 
 ---
 

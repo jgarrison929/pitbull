@@ -11,10 +11,10 @@
 
 ### Custom Domain Configuration
 **DNS Requirements:**
-- `duke.pitbullconstructionsolutions.com` → Railway dev service
-- `theo.pitbullconstructionsolutions.com` → Railway staging service  
-- `demo.pitbullconstructionsolutions.com` → Railway demo service
-- `app.pitbullconstructionsolutions.com` → Railway production service
+- `duke.example.com` → Railway dev service
+- `theo.example.com` → Railway staging service  
+- `demo.example.com` → Railway demo service
+- `app.example.com` → Railway production service
 - All need CNAME records pointing to Railway's domain
 - SSL certificates auto-provisioned by Railway
 
@@ -22,25 +22,25 @@
 - **Branch:** `develop`  
 - **Railway Service:** `pitbull-dev`
 - **Database:** PostgreSQL (dev instance)
-- **Domain:** `duke.pitbullconstructionsolutions.com`
+- **Domain:** `duke.example.com`
 
 ### Staging Environment  
 - **Branch:** `staging`
 - **Railway Service:** `pitbull-staging`
 - **Database:** PostgreSQL (staging instance) 
-- **Domain:** `theo.pitbullconstructionsolutions.com`
+- **Domain:** `theo.example.com`
 
 ### Demo Environment
 - **Branch:** `main` (or `demo` branch)
 - **Railway Service:** `pitbull-demo`
 - **Database:** PostgreSQL (demo instance with sample data)
-- **Domain:** `demo.pitbullconstructionsolutions.com`
+- **Domain:** `demo.example.com`
 
 ### Production Environment
 - **Branch:** `main` (manual promotion)
 - **Railway Service:** `pitbull-production`
 - **Database:** PostgreSQL (production instance)
-- **Domain:** `app.pitbullconstructionsolutions.com`
+- **Domain:** `app.example.com`
 
 ## Implementation Steps
 
@@ -78,17 +78,17 @@ railway variables --environment production
 DATABASE_URL=postgresql://...
 ASPNETCORE_ENVIRONMENT=Development|Staging
 JWT_SECRET=...
-CORS_ORIGINS=https://duke.pitbullconstructionsolutions.com,https://theo.pitbullconstructionsolutions.com,https://demo.pitbullconstructionsolutions.com,https://app.pitbullconstructionsolutions.com
+CORS_ORIGINS=https://duke.example.com,https://theo.example.com,https://demo.example.com,https://app.example.com
 FRONTEND_URL=...
 ```
 
 ### 4. Custom Domain Setup
 ```bash
 # Configure custom domains in Railway
-railway domain add duke.pitbullconstructionsolutions.com --service pitbull-dev
-railway domain add theo.pitbullconstructionsolutions.com --service pitbull-staging
-railway domain add demo.pitbullconstructionsolutions.com --service pitbull-demo
-railway domain add app.pitbullconstructionsolutions.com --service pitbull-production
+railway domain add duke.example.com --service pitbull-dev
+railway domain add theo.example.com --service pitbull-staging
+railway domain add demo.example.com --service pitbull-demo
+railway domain add app.example.com --service pitbull-production
 
 # Verify SSL certificate provisioning
 railway domain list
@@ -96,7 +96,7 @@ railway domain list
 
 ## ⚠️ CLOUDFLARE DNS CONFIGURATION REQUIRED
 
-**Critical:** These DNS changes must be made in Cloudflare for `pitbullconstructionsolutions.com`:
+**Critical:** These DNS changes must be made in Cloudflare for `example.com`:
 
 ```bash
 # Add these CNAME records in Cloudflare DNS dashboard:
@@ -111,7 +111,7 @@ app      CNAME    pitbull-production.up.railway.app  (Proxy status: DNS only)
 
 **Cloudflare Access Required:**
 - Login: `https://dash.cloudflare.com`
-- Domain: `pitbullconstructionsolutions.com` 
+- Domain: `example.com` 
 - Navigate to: DNS → Records → Add record
 - **TTL:** Auto or 300 seconds for faster propagation during setup
 

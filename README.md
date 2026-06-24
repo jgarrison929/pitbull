@@ -6,7 +6,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**A learning project:** a full-stack construction ERP built with AI-assisted development.
+**A learning/prototype project:** a full-stack construction ERP built with AI-assisted development. Not production-ready.
 
 This is my first serious "vibe coded" application — built to learn modern .NET, multi-tenant SaaS patterns, and construction domain modeling. It's rough in places, but the architecture, test coverage, and module boundaries are real.
 
@@ -24,7 +24,7 @@ A modular monolith for commercial general contractors: projects, bids, contracts
 | Frontend | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui |
 | Auth | JWT + ASP.NET Identity, row-level security (RLS) |
 | Events | DotNetCore.CAP (PostgreSQL outbox + Redis) |
-| Tests | 1,800+ unit + integration (Testcontainers) |
+| Tests | ~253 test .cs files (unit + integration via Testcontainers) |
 
 ### Modules shipped
 
@@ -50,7 +50,7 @@ Things I figured out (often the hard way) while building this:
 - **Testcontainers for integration tests** — real PostgreSQL in CI, not mocked DbContext
 - **AI-native development** — agent skills, compound learning docs, systematic code review loops
 
-See [docs/solutions/](docs/solutions/) for specific bugs and patterns I captured along the way.
+See [docs/archive/](docs/archive/) (historical solutions/ and compound lessons) for specific bugs and patterns captured along the way during development.
 
 ---
 
@@ -139,7 +139,7 @@ Self-hosted via Docker Compose. See [docker-compose.prod.yml](docker-compose.pro
 - [Adding a Module](docs/ADDING-A-MODULE.md)
 - [Security Policy](SECURITY.md) — report vulnerabilities responsibly
 - [Contributing Guide](CONTRIBUTING.md)
-- [Functional Role Docs](docs/roles/) — CFO, PM, HR perspectives
+- Historical functional role perspectives (CFO, PM, HR etc.) — see docs/archive/ (roles docs archived as internal)
 
 ---
 
@@ -147,10 +147,10 @@ Self-hosted via Docker Compose. See [docker-compose.prod.yml](docker-compose.pro
 
 This is a learning project, not production-ready software:
 
-- Some modules are stubs or thin wrappers around domain concepts I was exploring
-- UI polish varies — some pages are scaffolded, others are fully built out
-- I built this with AI coding agents; the architecture decisions are mine, but the line-by-line code isn't all hand-written
-- No hosted demo — run locally to explore. No paying customers or production deployment.
+- Significant portions of several modules are implemented (Projects, Bids, Contracts, TimeTracking, ProjectManagement, Billing elements, AI, Reports).
+- Some areas remain partial, stubbed, or more aspirational (see /plans and CHANGELOG for delivered vs. planned).
+- Built with heavy AI agent assistance alongside human architecture decisions.
+- Demo environments are decommissioned; run locally via Docker. This remains a learning/prototype project with no current paying customers or production deployments at scale.
 
 If you're reviewing this for a job or collaboration: look at the test suite, the RLS implementation, and the module boundary enforcement — that's where the real engineering lives.
 

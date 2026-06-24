@@ -85,10 +85,10 @@ Define the process for identifying, responding to, and recovering from security 
 
 | Role | Name | Contact |
 |---|---|---|
-| Incident Lead | Josh Garrison | joshuag@pitbullconstructionsolutions.com |
+| Incident Lead | Security Lead | security@example.com |
 | Technical Response | River (AI Agent) | Automated monitoring + response |
 | Legal | TBD | (Engage counsel for Critical incidents) |
-| Affected Customers | Via Resend | noreply@example.com |
+| Affected Customers | Via Email Provider | noreply@example.com |
 
 ## Incident Log Template
 

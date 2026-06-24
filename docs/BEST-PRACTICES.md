@@ -1,6 +1,6 @@
 # Pitbull Construction Solutions - Best Practices & Patterns Guide
 
-A practical reference for developers (and AI agents) contributing to the Pitbull codebase.
+A practical reference for developers and contributors to the Pitbull codebase.
 
 ---
 
@@ -20,24 +20,21 @@ A practical reference for developers (and AI agents) contributing to the Pitbull
 
 ### Modular Monolith
 
-Pitbull is a **modular monolith** -- a single deployable unit with clear internal module boundaries. Each domain gets its own .NET class library project under `src/Modules/`:
+Pitbull is a **modular monolith** -- a single deployable unit with clear internal module boundaries. Each domain gets its own .NET class library project under `src/Modules/`.
+
+**Current (post-2026-05):** 14 modules including fully implemented Billing, Contracts, ProjectManagement, AI, Reports, etc. Contracts/Billing/Documents no longer "planned."
 
 ```
 src/
   Modules/
-    Pitbull.Core/         # Shared kernel: DbContext, CQRS, multi-tenancy, base entities
-    Pitbull.Projects/     # Project management domain
-    Pitbull.Bids/         # Bid/estimating domain
-    Pitbull.Contracts/    # Contract management (planned)
-    Pitbull.Documents/    # Document management (planned)
-    Pitbull.Billing/      # Billing domain (planned)
-    Pitbull.Portal/       # Client portal (planned)
-  Pitbull.Api/            # ASP.NET Core host -- controllers, middleware, DI composition
-  Pitbull.Web/            # Next.js frontend
-  Infrastructure/         # Cross-cutting infra (email, storage, etc.)
+    Pitbull.Core/         # Shared kernel...
+    Pitbull.Projects/ ...
+    ... (see ARCHITECTURE.md for live list)
+  Pitbull.Api/ ...
+  Pitbull.Web/ ...
 ```
 
-**Key principle:** Modules own their domain entities, features, EF configurations, and validators. The API project wires everything together but contains no business logic.
+**Key principle:** Modules own domain, EF configs, services. API wires. Use direct services in controllers. Check live modules (Pitbull.Billing etc.) for patterns.
 
 ### When to Create a New Module vs. Add to Existing
 
@@ -268,7 +265,7 @@ Pitbull uses a **shared database, shared schema** multi-tenancy model with two e
 **Resolution order in `TenantMiddleware`:**
 1. JWT `tenant_id` claim (preferred -- set during login)
 2. `X-Tenant-Id` header (for API integrations)
-3. Subdomain (e.g., `acme.pitbull.local`) -- planned but not yet implemented
+3. Subdomain tenant resolution -- placeholder exists in TenantMiddleware but not actively used (JWT claim + X-Tenant-Id header are primary; see code for current logic)
 
 **Global query filter** on all `BaseEntity` types filters soft-deleted records automatically:
 
@@ -641,4 +638,4 @@ await strategy.ExecuteAsync(async () =>
 
 ## Known Issues
 
-1. **Subdomain tenant resolution not implemented:** `TenantMiddleware` has a placeholder for subdomain-based tenant lookup but returns null. Will need a tenant lookup service.
+1. **Subdomain tenant resolution:** `TenantMiddleware` has placeholder logic for subdomain-based lookup (currently returns null/falls back); primary methods are JWT `tenant_id` claim and `X-Tenant-Id` header. See TenantMiddleware.cs for implementation.

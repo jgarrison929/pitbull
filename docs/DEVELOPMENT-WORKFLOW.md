@@ -6,20 +6,19 @@
 
 ### Process
 
-1. **Claude Code** creates a feature branch (`fix/description` or `feat/description`)
-2. **Claude Code** makes changes, writes tests, commits to branch
-3. **Claude Code** opens a PR against `main` with description of changes
-4. **Codex** reviews the PR diff (`gh pr diff <number>`) and posts review comments
-5. **Claude Code** addresses review comments on the branch
-6. **Codex** re-reviews until clean
-7. **Merge** when CI green + review approved
+1. Create a feature branch from main (`fix/description` or `feat/description`)
+2. Make changes, write tests, commit to branch
+3. Open a PR against `main` with description of changes
+4. Address review comments on the branch
+5. Merge when CI green + review approved
 
 ### Branch Naming
 
-- `fix/` — bug fixes, stability improvements
-- `feat/` — new features, test coverage
-- `security/` — security hardening
-- `refactor/` — code quality, architecture
+- `feature/description`
+- `fix/description`
+- `hotfix/description`
+
+**main only** (no develop branch). Feature branches + PRs. User merges after review. CI must be green (dotnet build + frontend build+lint).
 
 ### Review Standards
 

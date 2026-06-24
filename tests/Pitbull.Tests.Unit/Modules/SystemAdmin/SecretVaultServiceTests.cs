@@ -24,7 +24,7 @@ public sealed class SecretVaultServiceTests
         var result = await service.CreateAsync(new CreateSecretVaultCommand(
             Key: "RESEND_API_KEY",
             DisplayName: "Resend API Key",
-            Value: "re_1234567890abcdef",
+            Value: "REDACTED",
             Category: "API",
             Description: "Email service key"));
 

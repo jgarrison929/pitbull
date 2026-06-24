@@ -847,7 +847,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             City = "Sacramento",
             State = "CA",
             ZipCode = "95833",
-            ClientName = "Riverside Health Partners LLC",
+            ClientName = "Summit Health Partners LLC",
             ClientContact = "Demo Contact 20",
             ClientEmail = "contact20@example.com",
             ClientPhone = "(555) 000-0142",
@@ -1184,7 +1184,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             ZipCode = "95207",
             ClientName = "Lincoln Unified School District",
             ClientContact = "Demo Contact 24",
-            ClientEmail = "smorales@example.edu",
+            ClientEmail = "contact24@example.com",
             ClientPhone = "(555) 000-0674",
             StartDate = now.AddMonths(2),
             EstimatedCompletionDate = now.AddMonths(9),
@@ -1246,7 +1246,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedValue = 12_500_000m,
                 BidDate = now.AddMonths(-6),
                 DueDate = now.AddMonths(-5),
-                Owner = "Mike Reynolds",
+                Owner = "Demo User",
                 Description = "3-story MOB with underground parking. Full GC scope.",
                 Items = CreateMedicalOfficeBidItems()
             },
@@ -1260,7 +1260,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedValue = 22_750_000m,
                 BidDate = now.AddMonths(-4),
                 DueDate = now.AddMonths(-3),
-                Owner = "Lisa Tran",
+                Owner = "Demo User",
                 Description = "48-unit luxury townhome community. Phase II.",
                 Items = CreateResidentialBidItems()
             },
@@ -1273,7 +1273,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 Status = BidStatus.Draft,
                 EstimatedValue = 18_000_000m,
                 DueDate = now.AddDays(21),
-                Owner = "Mike Reynolds",
+                Owner = "Demo User",
                 Description = "6-level precast parking structure, 800 stalls. " +
                               "City of Sacramento RFP.",
                 Items = CreateParkingStructureBidItems()
@@ -1288,7 +1288,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedValue = 35_500_000m,
                 BidDate = now.AddDays(-10),
                 DueDate = now.AddDays(-7),
-                Owner = "Carlos Gutierrez",
+                Owner = "Demo User",
                 Description = "Expansion of existing WTP from 10 MGD to 20 MGD. " +
                               "Includes new clarifiers, filters, and chemical feed.",
                 Items = CreateWaterTreatmentBidItems()
@@ -1303,7 +1303,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedValue = 28_000_000m,
                 BidDate = now.AddMonths(-3),
                 DueDate = now.AddMonths(-3),
-                Owner = "Lisa Tran",
+                Owner = "Demo User",
                 Description = "4-story Class A office building, 120,000 SF. " +
                               "Lost to competitor by $1.2M.",
                 Items = CreateOfficeBidItems()
@@ -1317,7 +1317,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 Status = BidStatus.Draft,
                 EstimatedValue = 6_800_000m,
                 DueDate = now.AddDays(45),
-                Owner = "Carlos Gutierrez",
+                Owner = "Demo User",
                 Description = "New 3-bay fire station with living quarters, " +
                               "training tower, and apparatus storage.",
                 Items = CreateFireStationBidItems()
@@ -1332,7 +1332,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedValue = 14_200_000m,
                 BidDate = now.AddDays(-3),
                 DueDate = now.AddDays(-2),
-                Owner = "Mike Reynolds",
+                Owner = "Demo User",
                 Description = "Complete renovation of 1970s science building. " +
                               "New labs, fume hoods, ADA compliance.",
                 Items = CreateScienceBuildingBidItems()
@@ -1346,7 +1346,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 Status = BidStatus.NoBid,
                 EstimatedValue = 9_500_000m,
                 DueDate = now.AddDays(-14),
-                Owner = "Lisa Tran",
+                Owner = "Demo User",
                 Description = "New K-6 elementary school. No-bid due to schedule conflict " +
                               "with Oakwood project.",
             },
@@ -1359,7 +1359,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 Status = BidStatus.Draft,
                 EstimatedValue = 42_000_000m,
                 DueDate = now.AddDays(30),
-                Owner = "Carlos Gutierrez",
+                Owner = "Demo User",
                 Description = "200,000 SF last-mile delivery station with " +
                               "van fleet parking and charging stations.",
                 Items = CreateLastMileBidItems()
@@ -1374,7 +1374,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedValue = 8_900_000m,
                 BidDate = now.AddMonths(-18),
                 DueDate = now.AddMonths(-17),
-                Owner = "Mike Reynolds",
+                Owner = "Demo User",
                 Description = "Seismic retrofit and deck replacement. Caltrans project.",
                 Items = CreateBridgeBidItems()
             }
@@ -1511,9 +1511,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-001",
-                FirstName = "Michael",
                 FirstName = "Demo",
-                Email = "mrodriguez@demo.example",
+                LastName = "Employee 01",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1001",
                 Title = "Project Manager",
                 Classification = EmployeeClassification.Salaried,
@@ -1525,9 +1525,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-002",
-                FirstName = "Jennifer",
                 FirstName = "Demo",
-                Email = "jthompson@demo.example",
+                LastName = "Employee 02",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1002",
                 Title = "Project Engineer",
                 Classification = EmployeeClassification.Salaried,
@@ -1539,9 +1539,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-003",
-                FirstName = "David",
                 FirstName = "Demo",
-                Email = "dchen@demo.example",
+                LastName = "Employee 03",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1003",
                 Title = "Estimator",
                 Classification = EmployeeClassification.Salaried,
@@ -1555,9 +1555,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-004",
-                FirstName = "Robert",
                 FirstName = "Demo",
-                Email = "rmartinez@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1004",
                 Title = "General Superintendent",
                 Classification = EmployeeClassification.Supervisor,
@@ -1569,9 +1569,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-005",
-                FirstName = "Sarah",
                 FirstName = "Demo",
-                Email = "sjohnson@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1005",
                 Title = "Site Superintendent",
                 Classification = EmployeeClassification.Supervisor,
@@ -1583,9 +1583,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-006",
-                FirstName = "James",
                 FirstName = "Demo",
-                Email = "jwilson@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1006",
                 Title = "Concrete Foreman",
                 Classification = EmployeeClassification.Supervisor,
@@ -1599,9 +1599,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-007",
-                FirstName = "Marcus",
                 FirstName = "Demo",
-                Email = "mbrown@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1007",
                 Title = "Journeyman Carpenter",
                 Classification = EmployeeClassification.Hourly,
@@ -1613,9 +1613,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-008",
-                FirstName = "Antonio",
                 FirstName = "Demo",
-                Email = "agarcia@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1008",
                 Title = "Ironworker",
                 Classification = EmployeeClassification.Hourly,
@@ -1627,9 +1627,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-009",
-                FirstName = "Kevin",
                 FirstName = "Demo",
-                Email = "knguyen@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1009",
                 Title = "Equipment Operator",
                 Classification = EmployeeClassification.Hourly,
@@ -1641,9 +1641,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-010",
-                FirstName = "Carlos",
                 FirstName = "Demo",
-                Email = "cramirez@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1010",
                 Title = "Concrete Finisher",
                 Classification = EmployeeClassification.Hourly,
@@ -1655,9 +1655,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-011",
-                FirstName = "Thomas",
                 FirstName = "Demo",
-                Email = "tanderson@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1011",
                 Title = "Laborer",
                 Classification = EmployeeClassification.Hourly,
@@ -1669,9 +1669,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-012",
-                FirstName = "Miguel",
                 FirstName = "Demo",
-                Email = "mhernandez@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1012",
                 Title = "Laborer",
                 Classification = EmployeeClassification.Hourly,
@@ -1685,9 +1685,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-013",
-                FirstName = "Tyler",
                 FirstName = "Demo",
-                Email = "tdavis@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1013",
                 Title = "Carpenter Apprentice",
                 Classification = EmployeeClassification.Apprentice,
@@ -1699,9 +1699,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-014",
-                FirstName = "Ashley",
                 FirstName = "Demo",
-                Email = "amiller@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1014",
                 Title = "Ironworker Apprentice",
                 Classification = EmployeeClassification.Apprentice,
@@ -1715,9 +1715,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-015",
-                FirstName = "Brian",
                 FirstName = "Demo",
-                Email = "btaylor@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1015",
                 Title = "Journeyman Carpenter",
                 Classification = EmployeeClassification.Hourly,
@@ -1730,9 +1730,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-016",
-                FirstName = "Priya",
                 FirstName = "Demo",
-                Email = "ppatel@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1016",
                 Title = "Project Coordinator",
                 Classification = EmployeeClassification.Salaried,
@@ -1744,9 +1744,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-017",
-                FirstName = "Ethan",
                 FirstName = "Demo",
-                Email = "ewalker@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1017",
                 Title = "Safety Manager",
                 Classification = EmployeeClassification.Supervisor,
@@ -1758,9 +1758,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-018",
-                FirstName = "Nina",
                 FirstName = "Demo",
-                Email = "nlopez@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1018",
                 Title = "Journeyman Electrician",
                 Classification = EmployeeClassification.Hourly,
@@ -1772,9 +1772,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-019",
-                FirstName = "Omar",
                 FirstName = "Demo",
-                Email = "okhan@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1019",
                 Title = "Plumber",
                 Classification = EmployeeClassification.Hourly,
@@ -1786,9 +1786,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new Employee
             {
                 EmployeeNumber = "DEMO-020",
-                FirstName = "Grace",
                 FirstName = "Demo",
-                Email = "glee@demo.example",
+                LastName = "Employee",
+                Email = "demo.employee@demo.example",
                 Phone = "(555) 000-1020",
                 Title = "Field Engineer",
                 Classification = EmployeeClassification.Salaried,
@@ -2229,11 +2229,11 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     {
         return
         [
-            new() { Name = "Riverside Health Partners LLC", Code = "CUST-001", ContactName = "Demo Contact 20", ContactEmail = "contact20@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Summit Development Group", Code = "CUST-002", ContactName = "Demo Contact 21", ContactEmail = "contact21@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Summit Logistics Inc.", Code = "CUST-003", ContactName = "Demo Contact 22", ContactEmail = "contact22@example.com", PaymentTerms = "Net 45", IsActive = true },
-            new() { Name = "California Department of Transportation", Code = "CUST-004", ContactName = "Demo Contact 23", ContactEmail = "contact23@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Lincoln Unified School District", Code = "CUST-005", ContactName = "Demo Contact 24", ContactEmail = "smorales@example.edu", PaymentTerms = "Net 30", IsActive = true }
+            new() { Name = "Summit Health Partners LLC", Code = "CUST-001", ContactName = "Demo Contact 200", ContactEmail = "contact101@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Development Group", Code = "CUST-002", ContactName = "Demo Contact 201", ContactEmail = "contact102@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Logistics Inc.", Code = "CUST-003", ContactName = "Demo Contact 202", ContactEmail = "contact103@example.com", PaymentTerms = "Net 45", IsActive = true },
+            new() { Name = "California Department of Transportation", Code = "CUST-004", ContactName = "Demo Contact 203", ContactEmail = "contact104@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Lincoln Unified School District", Code = "CUST-005", ContactName = "Demo Contact 204", ContactEmail = "contact105@example.com", PaymentTerms = "Net 30", IsActive = true }
         ];
     }
 
@@ -2241,16 +2241,16 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     {
         return
         [
-            new() { Name = "Summit Mechanical Systems Inc.", Code = "VEND-001", ContactName = "Demo Contact", ContactEmail = "trivera@summitmech.example", TradeClassification = "Mechanical", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Summit Electric Company", Code = "VEND-002", ContactName = "Maria Lopez", ContactEmail = "mlopez@summitelec.example", TradeClassification = "Electrical", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Capitol Plumbing & Medical Gas", Code = "VEND-003", ContactName = "Demo Contact", ContactEmail = "drichardson@summitplumb.example", TradeClassification = "Plumbing", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Sierra Drywall & Acoustical", Code = "VEND-004", ContactName = "Demo Contact", ContactEmail = "kmorrison@summitdrywall.example", TradeClassification = "Drywall", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Advanced Fire Protection Inc.", Code = "VEND-005", ContactName = "Demo Contact", ContactEmail = "rkim@advancedfire.com", TradeClassification = "Fire Protection", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Summit Sitework & Paving", Code = "VEND-006", ContactName = "Demo Contact", ContactEmail = "jwalsh@summitsite.example", TradeClassification = "Sitework", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Delta Steel Erectors", Code = "VEND-007", ContactName = "Demo Contact", ContactEmail = "mhuang@deltasteel.com", TradeClassification = "Structural Steel", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Golden State Bridge Works", Code = "VEND-008", ContactName = "Demo Contact", ContactEmail = "fdeluca@gsbridgeworks.com", TradeClassification = "Concrete", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "NorCal Ready Mix", Code = "VEND-009", ContactName = "Amanda Price", ContactEmail = "aprice@ncrmix.com", TradeClassification = "Concrete Supply", PaymentTerms = "Net 20", W9OnFile = true, IsActive = true },
-            new() { Name = "Capital Rentals & Equipment", Code = "VEND-010", ContactName = "Steven Clark", ContactEmail = "sclark@capitalrentals.example", TradeClassification = "Equipment Rental", PaymentTerms = "Net 15", W9OnFile = true, IsActive = true }
+            new() { Name = "Summit Mechanical Systems Inc.", Code = "VEND-001", ContactName = "Demo Contact 205", ContactEmail = "contact106@example.com", TradeClassification = "Mechanical", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Summit Electric Company", Code = "VEND-002", ContactName = "Demo Contact 206", ContactEmail = "contact107@example.com", TradeClassification = "Electrical", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Capitol Plumbing & Medical Gas", Code = "VEND-003", ContactName = "Demo Contact 207", ContactEmail = "contact108@example.com", TradeClassification = "Plumbing", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Sierra Drywall & Acoustical", Code = "VEND-004", ContactName = "Demo Contact 208", ContactEmail = "contact109@example.com", TradeClassification = "Drywall", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Advanced Fire Protection Inc.", Code = "VEND-005", ContactName = "Demo Contact 209", ContactEmail = "contact110@example.com", TradeClassification = "Fire Protection", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Summit Sitework & Paving", Code = "VEND-006", ContactName = "Demo Contact 210", ContactEmail = "contact111@example.com", TradeClassification = "Sitework", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Delta Steel Erectors", Code = "VEND-007", ContactName = "Demo Contact 211", ContactEmail = "contact112@example.com", TradeClassification = "Structural Steel", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Golden State Bridge Works", Code = "VEND-008", ContactName = "Demo Contact 212", ContactEmail = "contact113@example.com", TradeClassification = "Concrete", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "NorCal Ready Mix", Code = "VEND-009", ContactName = "Demo Contact 213", ContactEmail = "contact114@example.com", TradeClassification = "Concrete Supply", PaymentTerms = "Net 20", W9OnFile = true, IsActive = true },
+            new() { Name = "Capital Rentals & Equipment", Code = "VEND-010", ContactName = "Demo Contact 214", ContactEmail = "contact115@example.com", TradeClassification = "Equipment Rental", PaymentTerms = "Net 15", W9OnFile = true, IsActive = true }
         ];
     }
 
@@ -2374,7 +2374,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 ProjectId = mobProject.Id,
                 SubcontractNumber = "SC-2026-002",
                 SubcontractorName = "Summit Electric Company",
-                SubcontractorContact = "Maria Lopez",
+                SubcontractorContact = "Demo Contact",
                 SubcontractorEmail = "mlopez@summitelec.example",
                 SubcontractorPhone = "(555) 000-2200",
                 SubcontractorAddress = "4521 Power Line Rd, West Sacramento, CA 95691",
@@ -2474,7 +2474,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 SubcontractNumber = "SC-2026-005",
                 SubcontractorName = "Advanced Fire Protection Inc.",
                 SubcontractorContact = "Demo Contact",
-                SubcontractorEmail = "rkim@advancedfire.com",
+                SubcontractorEmail = "rkim@summitfire.example",
                 SubcontractorPhone = "(555) 000-3100",
                 SubcontractorAddress = "7842 Industrial Blvd, Stockton, CA 95206",
                 ScopeOfWork = "ESFR sprinkler system for 450,000 SF warehouse. Includes fire pump, underground fire main, and NFPA 13 compliant system.",
@@ -2564,7 +2564,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 SubcontractNumber = "SC-2026-007",
                 SubcontractorName = "Delta Steel Erectors",
                 SubcontractorContact = "Demo Contact",
-                SubcontractorEmail = "mhuang@deltasteel.com",
+                SubcontractorEmail = "mhuang@summitsteel.example",
                 SubcontractorPhone = "(555) 000-3300",
                 SubcontractorAddress = "8100 Port Road, Stockton, CA 95206",
                 ScopeOfWork = "Structural steel erection, metal deck installation, and miscellaneous iron.",
@@ -2598,7 +2598,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 SubcontractNumber = "SC-2025-001",
                 SubcontractorName = "Golden State Bridge Works",
                 SubcontractorContact = "Demo Contact",
-                SubcontractorEmail = "fdeluca@gsbridgeworks.com",
+                SubcontractorEmail = "fdeluca@summitbridge.example",
                 SubcontractorPhone = "(555) 000-4100",
                 SubcontractorAddress = "1200 Bridge Way, West Sacramento, CA 95691",
                 ScopeOfWork = "Seismic retrofit including column jacketing, bearing replacement, and deck demolition/replacement.",
@@ -2743,91 +2743,91 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 "65,000 SF terminal expansion with 8 new gates, passenger bridge connections, and concession area.",
                 ProjectStatus.Active, ProjectType.Commercial,
                 "6900 Airport Blvd", "Sacramento", "CA", "95837",
-                "Sacramento County Airport System", "Brian Whitfield", "bwhitfield@summitvendor.example", "(555) 000-0601",
+                "Sacramento County Airport System", "Demo Contact P01", "contactp01@example.com", "(555) 000-0601",
                 -6, 18, 3_200_000m, 3_000_000m),
 
             ("Folsom Town Center Mixed-Use", "DEMO-PRJ-2026-007",
                 "4-story mixed-use: ground-floor retail, 3 floors residential (72 units), parking structure.",
                 ProjectStatus.Active, ProjectType.Commercial,
                 "800 Sutter Street", "Folsom", "CA", "95630",
-                "Folsom Gateway Partners LLC", "Rachel Ito", "rito@folsomgateway.example", "(555) 000-0702",
+                "Folsom Gateway Partners LLC", "Demo Contact P02", "contactp02@example.com", "(555) 000-0702",
                 -4, 14, 2_800_000m, 2_600_000m),
 
             ("Elk Grove Fire Station #8", "DEMO-PRJ-2026-008",
                 "New 3-bay fire station with living quarters, training tower, apparatus storage, and EV charging.",
                 ProjectStatus.Active, ProjectType.Commercial,
                 "9100 Bond Road", "Elk Grove", "CA", "95624",
-                "City of Elk Grove", "Tom Nakamura", "tnakamura@elkgrovecity.example", "(555) 000-0803",
+                "City of Elk Grove", "Demo Contact P03", "contactp03@example.com", "(555) 000-0803",
                 -2, 10, 1_800_000m, 1_650_000m),
 
             ("Rancho Cordova Data Center", "DEMO-PRJ-2025-009",
                 "Tier III data center, 40,000 SF whitespace, 10MW critical power, redundant cooling.",
                 ProjectStatus.Completed, ProjectType.Industrial,
                 "11200 White Rock Road", "Rancho Cordova", "CA", "95742",
-                "Western Digital Realty Trust", "Samantha Cho", "scho@wdrt.example", "(555) 000-0904",
+                "Western Digital Realty Trust", "Demo Contact P04", "contactp04@example.com", "(555) 000-0904",
                 -18, -2, 4_500_000m, 4_200_000m),
 
             ("West Sacramento Levee Improvements", "DEMO-PRJ-2025-010",
                 "2.5 miles of levee rehabilitation including slurry walls, seepage berms, and erosion protection.",
                 ProjectStatus.Completed, ProjectType.Infrastructure,
                 "River Road at Industrial Blvd", "West Sacramento", "CA", "95691",
-                "Central Valley Flood Protection Board", "Daniel Herrera", "dherrera@cvfpb.ca.gov", "(916) 555-1005",
+                "Central Valley Flood Protection Board", "Demo Contact P05", "contactp05@example.com", "(555) 000-1005",
                 -16, -3, 2_200_000m, 2_050_000m),
 
             ("Natomas Corporate Campus Building B", "DEMO-PRJ-2026-011",
                 "4-story Class A office, 120,000 SF, curtain wall, structured parking, LEED Gold target.",
                 ProjectStatus.Active, ProjectType.Commercial,
                 "2800 Natomas Park Drive", "Sacramento", "CA", "95834",
-                "Natomas Park Investors", "Andrea Sims", "asims@natomaspark.example", "(555) 000-1101",
+                "Natomas Park Investors", "Demo Contact P20", "contactp20@example.com", "(555) 000-1101",
                 -7, 10, 3_500_000m, 3_300_000m),
 
             ("Lodi Memorial Hospital Wing Addition", "DEMO-PRJ-2026-012",
                 "35,000 SF 2-story addition: 24-bed patient wing, nurses stations, support spaces. Occupied hospital.",
                 ProjectStatus.Active, ProjectType.Commercial,
                 "975 S Fairmont Ave", "Lodi", "CA", "95240",
-                "Summit Health Lodi Memorial", "Demo Contact", "pdunn@adventisthealth.org", "(209) 555-1202",
+                "Summit Health Lodi Memorial", "Demo Contact P21", "contactp21@example.com", "(555) 000-1202",
                 -3, 12, 2_400_000m, 2_250_000m),
 
             ("Tracy Logistics Park - Building 2", "DEMO-PRJ-2026-013",
                 "600,000 SF speculative warehouse, 40-ft clear height, ESFR sprinklers, 60 dock doors.",
                 ProjectStatus.Active, ProjectType.Industrial,
                 "4500 W Schulte Road", "Tracy", "CA", "95377",
-                "Summit Logistics Western", "Demo Contact", "kpark@prologis.com", "(209) 555-1303",
+                "Summit Logistics Western", "Demo Contact P06", "contactp06@example.com", "(555) 000-1303",
                 -5, 6, 5_200_000m, 4_900_000m),
 
             ("Roseville Galleria Renovation", "DEMO-PRJ-2026-014",
                 "Interior renovation of 80,000 SF anchor tenant space. New MEP, storefront, finishes.",
                 ProjectStatus.PreConstruction, ProjectType.Renovation,
                 "1151 Galleria Blvd", "Roseville", "CA", "95678",
-                "Westfield Roseville LLC", "Janet Collins", "jcollins@westfield.example", "(555) 000-1404",
+                "Westfield Roseville LLC", "Demo Contact P07", "contactp07@example.com", "(555) 000-1404",
                 2, 8, 1_200_000m, 1_100_000m),
 
             ("Sacramento State Science Complex", "DEMO-PRJ-2026-015",
                 "New 4-story science building: chemistry/biology labs, lecture halls, greenhouse, vivarium.",
                 ProjectStatus.PreConstruction, ProjectType.Commercial,
                 "6000 J Street", "Sacramento", "CA", "95819",
-                "California State University Sacramento", "Mark Orozco", "morozco@csus.example", "(555) 000-1505",
+                "California State University Sacramento", "Demo Contact P08", "contactp08@example.com", "(555) 000-1505",
                 3, 24, 6_500_000m, 6_100_000m),
 
             ("I-80 / Madison Ave Interchange Improvements", "DEMO-PRJ-2025-016",
                 "Interchange reconstruction: new bridge, ramp widening, signal upgrades, sound walls.",
                 ProjectStatus.Completed, ProjectType.Infrastructure,
                 "I-80 at Madison Avenue", "Sacramento", "CA", "95841",
-                "California Department of Transportation", "Demo Contact 23", "contact23@example.com", "(916) 555-0518",
+                "California Department of Transportation", "Demo Contact P11", "contactp11@example.com", "(555) 000-0518",
                 -20, -4, 1_900_000m, 1_800_000m),
 
             ("Davis Senior Living Community", "DEMO-PRJ-2026-017",
                 "128-unit senior living: independent, assisted, memory care. Common areas, dining, medical office.",
                 ProjectStatus.Active, ProjectType.Residential,
                 "3200 Covell Blvd", "Davis", "CA", "95616",
-                "Summit Senior Communities", "Laura Chen", "lchen@sunrisesenior.example", "(555) 000-1702",
+                "Summit Senior Communities", "Demo Contact P09", "contactp09@example.com", "(555) 000-1702",
                 -8, 12, 3_800_000m, 3_500_000m),
 
             ("Woodland Water Treatment Plant Upgrade", "DEMO-PRJ-2026-018",
                 "Treatment plant upgrade from 8 MGD to 14 MGD. New clarifiers, filter gallery, chemical feed.",
                 ProjectStatus.Active, ProjectType.Infrastructure,
                 "1500 E Gibson Road", "Woodland", "CA", "95776",
-                "City of Woodland", "Robert Huang", "rhuang@cityofwoodland.example", "(555) 000-1803",
+                "City of Woodland", "Demo Contact P10", "contactp10@example.com", "(555) 000-1803",
                 -9, 8, 2_100_000m, 1_950_000m),
         };
 
@@ -2984,54 +2984,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         var random = new Random(99); // Fixed seed
 
         // First names pool (diverse)
-        var firstNames = new[]
-        {
-            "Jose", "Maria", "Wei", "Fatima", "Andrei", "Yuki", "Raj", "Ana",
-            "Mohammed", "Lisa", "Dmitri", "Sophia", "Jorge", "Mei", "Hassan",
-            "Elena", "Marco", "Aisha", "Liam", "Rosa", "Ivan", "Carmen",
-            "Jamal", "Sakura", "Diego", "Priya", "Viktor", "Lucia", "Andre",
-            "Hana", "Gabriel", "Noemi", "Alexander", "Fatou", "Rafael", "Yuna",
-            "Nikolai", "Isabella", "Kofi", "Amara", "Darius", "Chiara", "Tariq",
-            "Valentina", "Kwame", "Ingrid", "Pedro", "Lina", "Santos", "Bianca",
-            "Eduardo", "Julia", "Abdul", "Natalia", "Francisco", "Olga", "Emilio",
-            "Teresa", "Raymond", "Christine", "Vincent", "Patricia", "Nathan",
-            "Veronica", "Brandon", "Angela", "Adrian", "Denise", "Frank",
-            "Monique", "Gerald", "Diane", "Howard", "Sandra", "Dennis",
-            "Michelle", "Roger", "Janet", "Wayne", "Carol", "Keith",
-            "Sharon", "Bruce", "Donna", "Philip", "Barbara", "Alan",
-            "Cynthia", "Jesse", "Tamara", "Ruben", "Kelly", "Oscar",
-            "Tiffany", "Sergio", "Rebecca", "Alfredo", "Heather", "Lorenzo",
-            "Stephanie", "Ernesto", "Crystal", "Ricardo", "Amy", "Hector",
-            "Deborah", "Alejandro", "Monica", "Enrique", "Brenda",
-            "Gustavo", "Nicole", "Fernando", "Pamela", "Martin", "Diana",
-            "Roberto", "Lauren", "Arturo", "Karen", "Manuel", "Megan",
-            "Cesar", "Jacqueline", "Alberto", "Victoria", "Raul", "Samantha",
-            "Luis", "Jennifer", "Armando", "Elizabeth", "Ignacio", "Tanya",
-            "Gilberto", "Renee", "Julio", "Lorraine", "Salvador", "Bridget",
-            "Javier", "Marie", "Pablo", "Lydia", "Orlando", "Christina",
-            "Gerardo", "Catherine", "Ramiro", "Gloria", "Miguel", "Irene",
-            "Isidro", "Colleen", "Freddy", "Pauline", "Trinidad", "Sonia",
-            "Rogelio", "Theresa", "Esteban", "Yvonne"
-        };
-
-        var lastNames = new[]
-        {
-            "Gonzalez", "Kim", "Patel", "Nguyen", "Singh", "Liu", "Santos",
-            "Morales", "Park", "Ahmed", "Reyes", "Chen", "Fernandez", "Ali",
-            "Torres", "Yamamoto", "Cruz", "Nakamura", "Diaz", "Tanaka",
-            "Rivera", "Wong", "Castro", "Huang", "Flores", "Gupta", "Mendoza",
-            "Chang", "Gutierrez", "Sharma", "Ortiz", "Suzuki", "Ruiz", "Lee",
-            "Vargas", "Zhao", "Herrera", "Sato", "Alvarez", "Takahashi",
-            "Sanchez", "Watanabe", "Romero", "Kobayashi", "Perez", "Ito",
-            "Delgado", "Wang", "Vasquez", "Zhang", "Aguilar", "Li",
-            "Murphy", "Brown", "Wilson", "Taylor", "Moore", "Jackson",
-            "White", "Harris", "Martin", "Robinson", "Clark", "Lewis",
-            "Walker", "Young", "Allen", "King", "Wright", "Scott",
-            "Green", "Baker", "Adams", "Nelson", "Hill", "Campbell",
-            "Mitchell", "Roberts", "Carter", "Phillips", "Evans", "Turner",
-            "Parker", "Collins", "Edwards", "Stewart", "Morris", "Reed",
-            "Cook", "Morgan", "Bell", "Bailey", "Cooper", "Richardson"
-        };
+        // Sanitized pools - generic Demo only
+        var firstNames = new[] { "Demo", "Demo", "Demo", "Demo", "Demo" };
+        var lastNames = new[] { "Employee", "Employee", "Employee", "Employee", "Employee" };
 
         // Role definitions: (Title, Classification, MinRate, MaxRate, Count)
         var roles = new (string Title, EmployeeClassification Class, decimal MinRate, decimal MaxRate, int Count)[]
@@ -3083,9 +3038,6 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             {
                 var firstName = firstNames[nameIdx % firstNames.Length];
                 var lastName = lastNames[nameIdx % lastNames.Length];
-                // Avoid same first+last by offsetting
-                if (nameIdx >= lastNames.Length)
-                    // Structural sanitization: generic Demo names + fake phone
 
                 var rate = Math.Round(role.MinRate + (decimal)random.NextDouble() * (role.MaxRate - role.MinRate), 2);
                 var hireYear = 2018 + random.Next(0, 7); // 2018-2024
@@ -3098,10 +3050,10 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 employees.Add(new Employee
                 {
                     EmployeeNumber = $"DEMO-{empNum:D3}",
-                    FirstName = firstName,
-                    LastName = lastName,
-                    Email = $"{firstName[..1].ToLower()}{lastName.ToLower()}@demo.example",
+                    FirstName = "Demo",
+                    LastName = $"Employee {empNum}",
                     Email = $"demo.employee{empNum}@demo.example",
+                    Phone = $"(555) 000-{1000 + empNum}",
                     Title = role.Title,
                     Classification = role.Class,
                     BaseHourlyRate = rate,
@@ -3122,18 +3074,18 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     {
         return
         [
-            new() { Name = "Sacramento County Airport System", Code = "CUST-006", ContactName = "Brian Whitfield", ContactEmail = "bwhitfield@sacairport.example", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Folsom Gateway Partners LLC", Code = "CUST-007", ContactName = "Rachel Ito", ContactEmail = "rito@folsomgateway.example", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "City of Elk Grove", Code = "CUST-008", ContactName = "Tom Nakamura", ContactEmail = "tnakamura@elkgrovecity.example", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Western Digital Realty Trust", Code = "CUST-009", ContactName = "Samantha Cho", ContactEmail = "scho@wdrt.example", PaymentTerms = "Net 45", IsActive = true },
-            new() { Name = "Central Valley Flood Protection Board", Code = "CUST-010", ContactName = "Daniel Herrera", ContactEmail = "dherrera@cvfpb.ca.gov", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Summit County Airport System", Code = "CUST-006", ContactName = "Demo Contact 06", ContactEmail = "contact06@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Summit Health Lodi Memorial", Code = "CUST-012", ContactName = "Demo Contact", ContactEmail = "pdunn@adventisthealth.org", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Summit Logistics Western", Code = "CUST-013", ContactName = "Demo Contact", ContactEmail = "kpark@prologis.com", PaymentTerms = "Net 45", IsActive = true },
-            new() { Name = "Westfield Roseville LLC", Code = "CUST-014", ContactName = "Janet Collins", ContactEmail = "jcollins@westfield.example", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "California State University Sacramento", Code = "CUST-015", ContactName = "Mark Orozco", ContactEmail = "morozco@csus.example", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Summit Senior Communities", Code = "CUST-016", ContactName = "Laura Chen", ContactEmail = "lchen@sunrisesenior.example", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "City of Woodland", Code = "CUST-017", ContactName = "Robert Huang", ContactEmail = "rhuang@cityofwoodland.example", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Sacramento County Airport System", Code = "CUST-006", ContactName = "Demo Contact 215", ContactEmail = "contact116@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Folsom Gateway Partners LLC", Code = "CUST-007", ContactName = "Demo Contact 216", ContactEmail = "contact117@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "City of Elk Grove", Code = "CUST-008", ContactName = "Demo Contact 217", ContactEmail = "contact118@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Western Digital Realty Trust", Code = "CUST-009", ContactName = "Demo Contact 218", ContactEmail = "contact119@example.com", PaymentTerms = "Net 45", IsActive = true },
+            new() { Name = "Summit Valley Flood Protection Board", Code = "CUST-010", ContactName = "Demo Contact 219", ContactEmail = "contact120@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Natomas Park Investors", Code = "CUST-011", ContactName = "Demo Contact 220", ContactEmail = "contact121@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Health Lodi Memorial", Code = "CUST-012", ContactName = "Demo Contact 221", ContactEmail = "contact122@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Logistics Western", Code = "CUST-013", ContactName = "Demo Contact 222", ContactEmail = "contact123@example.com", PaymentTerms = "Net 45", IsActive = true },
+            new() { Name = "Westfield Roseville LLC", Code = "CUST-014", ContactName = "Demo Contact 223", ContactEmail = "contact124@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "California State University Sacramento", Code = "CUST-015", ContactName = "Demo Contact 224", ContactEmail = "contact125@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Summit Senior Communities", Code = "CUST-016", ContactName = "Demo Contact 225", ContactEmail = "contact126@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "City of Woodland", Code = "CUST-017", ContactName = "Demo Contact 226", ContactEmail = "contact127@example.com", PaymentTerms = "Net 30", IsActive = true },
         ];
     }
 
@@ -3142,46 +3094,42 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         var vendors = new List<Vendor>();
         var trades = new (string Name, string Code, string Trade, string Contact, string Email)[]
         {
-            ("Summit Steel Fabricators", "VEND-011", "Structural Steel", "Pete Romano", "promano@summitsteel.example"),
-            ("Summit Concrete Pumping", "VEND-012", "Concrete", "Ed Lozano", "elozano@valleypump.com"),
-            ("Acme Roofing Systems", "VEND-013", "Roofing", "Sam Whitley", "swhitley@acmeroofing.example"),
-            ("Summit Glass & Glazing", "VEND-014", "Glazing", "Demo Contact V02", "npark@tricountyglass.example"),
-            ("Summit Elevator Co.", "VEND-015", "Elevator", "Chris Romano", "cromano@goldeneagleelevator.example"),
-            ("Summit Painting Contractors", "VEND-016", "Painting", "Linda Tran", "ltran@capitolpainting.example"),
-            ("Summit Flooring Solutions", "VEND-017", "Flooring", "Mark Stein", "mstein@sierraflooring.example"),
-            ("Summit Roofing Systems", "VEND-013", "Roofing", "Sam Whitley", "swhitley@summitroofing.example"),
-            ("Summit Coast Landscaping", "VEND-019", "Landscaping", "Demo Contact", "rgutierrez@summitcoast.example"),
-            ("Summit Door & Hardware", "VEND-020", "Doors & Hardware", "Tim O'Brien", "tobrien@premierdoor.example"),
-            ("Summit Door & Hardware", "VEND-020", "Doors & Hardware", "Tim O'Brien", "tobrien@summitdoor.example"),
-            ("Summit Valley Masonry", "VEND-022", "Masonry", "Frank Herrera", "fherrera@cvmasonry.com"),
-            ("Advantage Waterproofing", "VEND-023", "Waterproofing", "Jill Sandoval", "jsandoval@advantagewp.example"),
-            ("Delta Crane Services", "VEND-024", "Crane Rental", "Mike Petrov", "mpetrov@deltacrane.example"),
-            ("ProTech Fire Alarm Systems", "VEND-025", "Fire Alarm", "Lisa Park", "lpark@protechfire.example"),
-            ("Summit Waterproofing", "VEND-023", "Waterproofing", "Jill Sandoval", "jsandoval@summitwaterproof.example"),
-            ("Summit Tile & Stone", "VEND-027", "Tile", "Anna Moreno", "amoreno@valleytile.com"),
-            ("Summit Electric Supply", "VEND-028", "Electrical Supply", "Steve Hamilton", "shamilton@allphase.example"),
-            ("Summit Plumbing Supply", "VEND-029", "Plumbing Supply", "Karen Fong", "kfong@westernplumbing.example"),
-            ("Summit Electric Supply", "VEND-028", "Electrical Supply", "Steve Hamilton", "shamilton@summitelecsupply.example"),
-            ("Summit Mechanical Services", "VEND-031", "Mechanical", "Demo Contact", "rvasquez@summitmech.com"),
-            ("Summit Rebar", "VEND-032", "Rebar", "Tony Matsuda", "tmatsuda@summitrebar.example"),
-            ("Pacific Precast Concrete", "VEND-033", "Precast", "Diane Foster", "dfoster@summitprecast.example"),
-            ("Summit Sheet Metal Works", "VEND-034", "Sheet Metal", "Greg Larson", "glarson@summitsheet.example"),
-            ("Valley Demolition Services", "VEND-035", "Demolition", "Juan Estrada", "jestrada@summitdemo.example"),
-            ("Summit Testing & Inspection", "VEND-036", "Testing", "Demo Contact", "skim@apextesting.example"),
-            ("Summit Electrical Contractors", "VEND-037", "Electrical", "Wayne Bell", "wbell@metroelectric.example"),
-            ("Summit Plumbing Co.", "VEND-038", "Plumbing", "Carlos Pena", "cpena@sactownplumbing.example"),
-            ("Summit Earthworks", "VEND-039", "Earthwork", "Demo Contact", "dwright@pioneerearth.example"),
-            ("Summit HVAC Solutions", "VEND-040", "HVAC", "Demo Contact", "treeves@valleyhvac.example"),
-            ("Summit Concrete Cutting", "VEND-041", "Concrete", "Bob Kowalski", "bkowalski@a1concrete.example"),
-            ("Summit Testing & Inspection", "VEND-036", "Testing", "Demo Contact", "skim@summittesting.example"),
-            ("Summit Paving & Striping", "VEND-043", "Paving", "Demo Contact V01", "psantos@summitpave.example"),
-            ("Summit Structural Engineering", "VEND-044", "Engineering", "Nina Chandra", "nchandra@atlaseng.example"),
-            ("Summit Hauling & Trucking", "VEND-045", "Trucking", "Dave Kozlov", "dkozlov@reliablehauling.example"),
-            ("Summit Valley Drywall", "VEND-046", "Drywall", "Matt Yoon", "myoon@trivalleydrywall.example"),
-            ("Summit Ceiling Systems", "VEND-047", "Ceilings", "Jean Mitchell", "jmitchell@capitolceiling.example"),
-            ("Summit Millwork", "VEND-048", "Millwork", "Andrew Lim", "alim@precisionmill.example"),
-            ("Summit Structural Engineering", "VEND-044", "Engineering", "Nina Chandra", "nchandra@summitstructeng.example"),
-            ("Summit Coast Surveying", "VEND-050", "Surveying", "Tom Bradford", "tbradford@summitsurvey.example"),
+            ("Summit Steel Fabricators", "VEND-011", "Structural Steel", "Demo Contact V11", "contactv11@example.com"),
+            ("Summit Concrete Pumping", "VEND-012", "Concrete", "Demo Contact V12", "contactv12@example.com"),
+            ("Acme Roofing Systems", "VEND-013", "Roofing", "Demo Contact V13", "contactv13@example.com"),
+            ("Summit Glass & Glazing", "VEND-014", "Glazing", "Demo Contact V14", "contactv14@example.com"),
+            ("Summit Elevator Co.", "VEND-015", "Elevator", "Demo Contact V15", "contactv15@example.com"),
+            ("Summit Painting Contractors", "VEND-016", "Painting", "Demo Contact V16", "contactv16@example.com"),
+            ("Summit Flooring Solutions", "VEND-017", "Flooring", "Demo Contact V17", "contactv17@example.com"),
+            ("Summit Roofing Systems", "VEND-018", "Roofing", "Demo Contact V18", "contactv18@example.com"),
+            ("Summit Coast Landscaping", "VEND-019", "Landscaping", "Demo Contact V19", "contactv19@example.com"),
+            ("Summit Door & Hardware", "VEND-020", "Doors & Hardware", "Demo Contact V20", "contactv20@example.com"),
+            ("Summit Valley Masonry", "VEND-021", "Masonry", "Demo Contact V21", "contactv21@example.com"),
+            ("Advantage Waterproofing", "VEND-022", "Waterproofing", "Demo Contact V22", "contactv22@example.com"),
+            ("Delta Crane Services", "VEND-023", "Crane Rental", "Demo Contact V23", "contactv23@example.com"),
+            ("ProTech Fire Alarm Systems", "VEND-024", "Fire Alarm", "Demo Contact V24", "contactv24@example.com"),
+            ("Summit Waterproofing", "VEND-025", "Waterproofing", "Demo Contact V25", "contactv25@example.com"),
+            ("Summit Tile & Stone", "VEND-026", "Tile", "Demo Contact V26", "contactv26@example.com"),
+            ("Summit Electric Supply", "VEND-027", "Electrical Supply", "Demo Contact V27", "contactv27@example.com"),
+            ("Summit Plumbing Supply", "VEND-028", "Plumbing Supply", "Demo Contact V28", "contactv28@example.com"),
+            ("Summit Mechanical Services", "VEND-029", "Mechanical", "Demo Contact V29", "contactv29@example.com"),
+            ("Summit Rebar", "VEND-030", "Rebar", "Demo Contact V30", "contactv30@example.com"),
+            ("Summit Precast Concrete", "VEND-031", "Precast", "Demo Contact V31", "contactv31@example.com"),
+            ("Summit Sheet Metal Works", "VEND-032", "Sheet Metal", "Demo Contact V32", "contactv32@example.com"),
+            ("Summit Demolition Services", "VEND-033", "Demolition", "Demo Contact V33", "contactv33@example.com"),
+            ("Summit Testing & Inspection", "VEND-034", "Testing", "Demo Contact V34", "contactv34@example.com"),
+            ("Summit Electrical Contractors", "VEND-035", "Electrical", "Demo Contact V35", "contactv35@example.com"),
+            ("Summit Plumbing Co.", "VEND-036", "Plumbing", "Demo Contact V36", "contactv36@example.com"),
+            ("Summit Earthworks", "VEND-037", "Earthwork", "Demo Contact V37", "contactv37@example.com"),
+            ("Summit HVAC Solutions", "VEND-038", "HVAC", "Demo Contact V38", "contactv38@example.com"),
+            ("Summit Concrete Cutting", "VEND-039", "Concrete", "Demo Contact V39", "contactv39@example.com"),
+            ("Summit Paving & Striping", "VEND-040", "Paving", "Demo Contact V40", "contactv40@example.com"),
+            ("Summit Structural Engineering", "VEND-041", "Engineering", "Demo Contact V41", "contactv41@example.com"),
+            ("Summit Hauling & Trucking", "VEND-042", "Trucking", "Demo Contact V42", "contactv42@example.com"),
+            ("Summit Valley Drywall", "VEND-043", "Drywall", "Demo Contact V43", "contactv43@example.com"),
+            ("Summit Ceiling Systems", "VEND-044", "Ceilings", "Demo Contact V44", "contactv44@example.com"),
+            ("Summit Millwork", "VEND-045", "Millwork", "Demo Contact V45", "contactv45@example.com"),
+            ("Summit Coast Surveying", "VEND-046", "Surveying", "Demo Contact V46", "contactv46@example.com"),
         };
 
         foreach (var t in trades)
@@ -4046,7 +3994,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 HasCostImpact = hasCost,
                 EstimatedCostImpact = hasCost ? rfiNumber * 12_500m : null,
                 EstimatedDelayDays = hasCost ? rfiNumber % 5 + 1 : null,
-                CreatedByName = "Marcus Williams",
+                CreatedByName = "Demo User",
                 AssignedToName = "Smith & Associates Architects",
                 BallInCourtName = status == RfiStatus.Open ? "Smith & Associates Architects" : "Summit Commercial Construction",
                 DueDate = now.AddDays(-daysAgo + 14), // 14-day response window
@@ -5316,7 +5264,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                             {
                                 MeetingId = meeting.Id,
                                 Description = desc,
-                                AssigneeName = i % 3 == 0 ? "Mike Torres" : i % 3 == 1 ? "Sarah Chen" : "James Park",
+                                AssigneeName = i % 3 == 0 ? "Demo User" : i % 3 == 1 ? "Demo User" : "Demo User",
                                 DueDate = meetingDate.AddDays(7),
                                 Priority = priority,
                                 Status = isComplete ? TaskStatus.Complete : TaskStatus.Open,
@@ -5403,8 +5351,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 Priority = priority,
                 Status = status,
                 AssignedByUserId = userId,
-                AssignedToName = priority == TaskPriority.Urgent ? "Mike Torres"
-                    : priority == TaskPriority.High ? "Sarah Chen" : "James Park",
+                AssignedToName = priority == TaskPriority.Urgent ? "Demo User"
+                    : priority == TaskPriority.High ? "Demo User" : "Demo User",
                 DueDate = dueDate,
                 StartedAt = status is TaskStatus.InProgress or TaskStatus.Complete
                     ? dueDate.AddDays(-3) : null,
@@ -5786,7 +5734,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedValue = project.ContractAmount,
                 BidDate = project.StartDate?.AddMonths(-2) ?? now.AddMonths(-1),
                 DueDate = project.StartDate?.AddMonths(-2).AddDays(7) ?? now.AddMonths(-1),
-                Owner = "Estimating Dept",
+                Owner = "Demo Estimating",
                 Description = project.Description,
                 Items =
                 [
@@ -5874,7 +5822,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                             Status = ChangeOrderStatus.Approved,
                             SubmittedDate = now.AddMonths(-1),
                             ApprovedDate = now.AddDays(-15),
-                            ApprovedBy = "Project Manager",
+                            ApprovedBy = "Demo Contact",
                             DaysExtension = 0
                         }
                     ];
@@ -5892,7 +5840,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     // Company data definitions (Companies 02, 03, 04)
     // ===========================================================================================
 
-    // ── Company 02: Summit Water Infrastructure (PWI) ──────────────
+    // ── Company 02: Summit Water Infrastructure (SWI) ──────────────
 
     private static CompanyProjectDef[] GetPwiProjects() =>
     [
@@ -5921,24 +5869,23 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             "12 miles of purple pipe distribution, 3 pump stations, and 2 storage tanks for recycled water delivery to commercial irrigators.",
             ProjectStatus.Completed, ProjectType.Infrastructure,
             "Industrial Blvd at Gerber Rd", "Sacramento", "CA", "95823",
-            "Regional San", "Demo Contact", "contactp04@example.com", "(555) 000-6403",
+            "Regional San", "Demo Contact P04", "contactp04@example.com", "(555) 000-6403",
             -18, -3, 11_200_000m, 10_500_000m),
 
         new("PWI-PRJ-005", "Groundwater Well Field - South County",
             "6 new production wells (1,500 GPM each), raw water transmission main, and well house structures with VFD pumping.",
             ProjectStatus.Active, ProjectType.Infrastructure,
             "Bond Road at Bradshaw", "Elk Grove", "CA", "95624",
-            "Sacramento County Water Agency", "Demo Contact", "contactp05@example.com", "(555) 000-6504",
+            "Sacramento County Water Agency", "Demo Contact P05", "contactp05@example.com", "(555) 000-6504",
             -2, 10, 6_500_000m, 6_100_000m),
     ];
 
     private static CompanyVendorDef[] GetPwiVendors() =>
     [
-        new("Summit Pipe & Supply Co.", "PWI-V-001", "Pipe Supply", "Demo Contact V01", "tbradley@valleypipe.com"),
-        new("Central Coast Excavation Inc.", "PWI-V-002", "Excavation", "Demo Contact", "mgonzalez@ccexcavation.com"),
-        new("Summit Dewatering Systems", "PWI-V-003", "Dewatering", "Demo Contact V03", "snorton@summitdewater.example"),
-        new("Summit Chemical Feed Equipment", "PWI-V-004", "Chemical Systems", "Demo Contact V04", "lchang@sierrachem.example"),
-        new("Summit Chemical Feed Equipment", "PWI-V-004", "Chemical Systems", "Demo Contact V04", "lchang@summitvendor.example"),
+        new("Summit Pipe & Supply Co.", "PWI-V-001", "Pipe Supply", "Demo Contact V01", "contactv01@example.com"),
+        new("Summit Excavation Services", "PWI-V-002", "Excavation", "Demo Contact V02", "contactv02@example.com"),
+        new("Summit Dewatering Systems", "PWI-V-003", "Dewatering", "Demo Contact V03", "contactv03@example.com"),
+        new("Summit Chemical Systems", "PWI-V-004", "Chemical Systems", "Demo Contact V04", "contactv04@example.com"),
     ];
 
     private static CompanyCustomerDef[] GetPwiCustomers() =>
@@ -5950,17 +5897,16 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
     private static CompanyEmployeeDef[] GetPwiEmployees() =>
     [
-        new("PWI-001", "Daniel", "Herrera", "dherrera@demo.example", "(916) 555-6001", "Project Manager", EmployeeClassification.Salaried, 78.00m),
-        new("PWI-002", "Karen", "Yoshida", "kyoshida@demo.example", "(916) 555-6002", "Project Engineer", EmployeeClassification.Salaried, 56.00m),
-        new("PWI-003", "Miguel", "Reyes", "mreyes@demo.example", "(916) 555-6003", "Site Superintendent", EmployeeClassification.Supervisor, 58.00m),
-        new("PWI-004", "Sandra", "Novak", "snovak@demo.example", "(916) 555-6004", "Pipeline Foreman", EmployeeClassification.Supervisor, 52.00m),
-        new("PWI-005", "Carlos", "Mendoza", "cmendoza@demo.example", "(916) 555-6005", "Equipment Operator", EmployeeClassification.Hourly, 42.00m),
-        new("PWI-006", "Lisa", "Tran", "ltran2@demo.example", "(916) 555-6006", "Journeyman Pipefitter", EmployeeClassification.Hourly, 46.00m),
-        new("PWI-007", "Robert", "Okafor", "rokafor@demo.example", "(916) 555-6007", "Heavy Equipment Operator", EmployeeClassification.Hourly, 44.00m),
-        new("PWI-001", "Demo", "Employee100", "demo.employee.101@demo.example", "(555) 000-6001", "Project Manager", EmployeeClassification.Salaried, 78.00m),
+        new("PWI-001", "Demo", "Employee P01", "demo.employee.p01@demo.example", "(555) 000-6001", "Project Manager", EmployeeClassification.Salaried, 78.00m),
+        new("PWI-002", "Demo", "Employee P02", "demo.employee.p02@demo.example", "(555) 000-6002", "Project Engineer", EmployeeClassification.Salaried, 56.00m),
+        new("PWI-003", "Demo", "Employee P03", "demo.employee.p03@demo.example", "(555) 000-6003", "Site Superintendent", EmployeeClassification.Supervisor, 58.00m),
+        new("PWI-004", "Demo", "Employee P04", "demo.employee.p04@demo.example", "(555) 000-6004", "Pipeline Foreman", EmployeeClassification.Supervisor, 52.00m),
+        new("PWI-005", "Demo", "Employee P05", "demo.employee.p05@demo.example", "(555) 000-6005", "Equipment Operator", EmployeeClassification.Hourly, 42.00m),
+        new("PWI-006", "Demo", "Employee P06", "demo.employee.p06@demo.example", "(555) 000-6006", "Journeyman Pipefitter", EmployeeClassification.Hourly, 46.00m),
+        new("PWI-007", "Demo", "Employee P07", "demo.employee.p07@demo.example", "(555) 000-6007", "Heavy Equipment Operator", EmployeeClassification.Hourly, 44.00m),
     ];
 
-    // ── Company 03: Summit Highway Division (VHD) ───────────────────
+    // ── Company 03: Summit Highway Division (SHD) ───────────────────
 
     private static CompanyProjectDef[] GetVhdProjects() =>
     [
@@ -5968,67 +5914,66 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             "Widen existing 4-lane bridge to 6 lanes over Cosumnes River. New prestressed girders, widened abutments, and approach slabs.",
             ProjectStatus.Active, ProjectType.Infrastructure,
             "SR-99 at Cosumnes River", "Elk Grove", "CA", "95624",
-            "California Department of Transportation", "Demo Contact 23", "contact23@example.com", "(555) 000-7100",
+            "California Department of Transportation", "Demo Contact P12", "contactp12@example.com", "(555) 000-7100",
             -6, 12, 22_000_000m, 20_500_000m),
 
         new("VHD-PRJ-002", "I-5 / Pocket Road Interchange Improvement",
             "Interchange reconstruction: new diamond interchange, ramp widening, signal upgrades, sound walls, and utility relocations.",
             ProjectStatus.Active, ProjectType.Infrastructure,
             "I-5 at Pocket Road", "Sacramento", "CA", "95831",
-            "California Department of Transportation", "Demo Contact 23", "contact23@example.com", "(555) 000-7201",
+            "California Department of Transportation", "Demo Contact P13", "contactp13@example.com", "(555) 000-7201",
             -4, 16, 28_500_000m, 26_800_000m),
 
         new("VHD-PRJ-003", "Watt Avenue Resurfacing & Complete Streets",
             "4.2 miles of full-depth reclamation, new AC overlay, Class IV bike lanes, ADA curb ramps, and signal upgrades.",
             ProjectStatus.Active, ProjectType.Infrastructure,
             "Watt Ave - Arden to Elkhorn", "Sacramento", "CA", "95821",
-            "Sacramento County DOT", "Demo Contact", "pliu@summitvendor.example", "(555) 000-7302",
+            "Sacramento County DOT", "Demo Contact P06", "contactp06@example.com", "(555) 000-7302",
             -2, 7, 9_800_000m, 9_200_000m),
 
         new("VHD-PRJ-004", "Highway 50 Sound Wall Project - Rancho Cordova",
             "3.6 miles of precast concrete sound walls (16-ft height), retaining walls, and landscaping along Highway 50.",
             ProjectStatus.Completed, ProjectType.Infrastructure,
             "US-50 at Sunrise Blvd", "Rancho Cordova", "CA", "95742",
-            "California Department of Transportation", "Susan Chen", "susan.chen@dot.ca.gov", "(916) 555-7403",
+            "California Department of Transportation", "Demo Contact P14", "contactp14@example.com", "(555) 000-7403",
             -16, -2, 12_400_000m, 11_800_000m),
 
         new("VHD-PRJ-005", "Hazel Avenue Grade Separation",
             "Railroad grade separation at Hazel Ave/UPRR crossing. New bridge structure, road realignment, utility relocation, and traffic management.",
             ProjectStatus.Active, ProjectType.Infrastructure,
             "Hazel Ave at UPRR", "Rancho Cordova", "CA", "95670",
-            "City of Rancho Cordova", "Demo Contact P17", "mthompson@cityofrc.example", "(555) 000-7504",
+            "City of Rancho Cordova", "Demo Contact P07", "contactp07@example.com", "(555) 000-7504",
             -8, 10, 35_000_000m, 33_000_000m),
     ];
 
     private static CompanyVendorDef[] GetVhdVendors() =>
     [
-        new("Granite Asphalt & Paving Inc.", "VHD-V-001", "Asphalt/Paving", "Demo Contact V01", "rdonovan@graniteasphalt.example"),
-        new("Summit Steel Fabricators LLC", "VHD-V-002", "Steel Fabrication", "Demo Contact V02", "jkim@highwaysteel.example"),
-        new("Summit Guardrail & Barrier", "VHD-V-003", "Guardrail/Barrier", "Demo Contact V03", "trusso@pacguardrail.example"),
-        new("Valley Traffic Control Services", "VHD-V-004", "Traffic Control", "Demo Contact", "rgutierrez@valleytcs.com"),
-        new("NorCal Earthmovers Inc.", "VHD-V-005", "Earthwork/Grading", "Demo Contact", "dwright@summitvendor.example"),
+        new("Summit Asphalt & Paving", "VHD-V-001", "Asphalt/Paving", "Demo Contact V01", "contactv01@example.com"),
+        new("Summit Steel Fabricators LLC", "VHD-V-002", "Steel Fabrication", "Demo Contact V02", "contactv02@example.com"),
+        new("Summit Guardrail & Barrier", "VHD-V-003", "Guardrail/Barrier", "Demo Contact V03", "contactv03@example.com"),
+        new("Summit Traffic Control", "VHD-V-004", "Traffic Control", "Demo Contact V04", "contactv04@example.com"),
+        new("Summit Earthmovers", "VHD-V-005", "Earthwork/Grading", "Demo Contact V05", "contactv05@example.com"),
     ];
 
     private static CompanyCustomerDef[] GetVhdCustomers() =>
     [
-        new("California Department of Transportation", "VHD-C-001", "Demo Contact 23", "contact23@example.com", "Net 30"),
-        new("Sacramento County DOT", "VHD-C-002", "Demo Contact", "pliu@summitvendor.example", "Net 30"),
-        new("City of Rancho Cordova", "VHD-C-003", "Demo Contact P17", "mthompson@cityofrc.example", "Net 30"),
+        new("California Department of Transportation", "VHD-C-001", "Demo Contact P15", "contactp15@example.com", "Net 30"),
+        new("Sacramento County DOT", "VHD-C-002", "Demo Contact P16", "contactp16@example.com", "Net 30"),
+        new("City of Rancho Cordova", "VHD-C-003", "Demo Contact P17", "contactp17@example.com", "Net 30"),
     ];
 
     private static CompanyEmployeeDef[] GetVhdEmployees() =>
     [
-        new("VHD-001", "Patrick", "Sullivan", "psullivan@demo.example", "(916) 555-7001", "Project Manager", EmployeeClassification.Salaried, 82.00m),
-        new("VHD-002", "Angela", "Tran", "atran@demo.example", "(916) 555-7002", "Project Engineer", EmployeeClassification.Salaried, 58.00m),
-        new("VHD-003", "Victor", "Petrov", "vpetrov@demo.example", "(916) 555-7003", "General Superintendent", EmployeeClassification.Supervisor, 65.00m),
-        new("VHD-004", "Maria", "Castillo", "mcastillo2@demo.example", "(916) 555-7004", "Paving Foreman", EmployeeClassification.Supervisor, 54.00m),
-        new("VHD-005", "James", "Nakamura", "jnakamura@demo.example", "(916) 555-7005", "Heavy Equipment Operator", EmployeeClassification.Hourly, 46.00m),
-        new("VHD-006", "Steve", "Morales", "smorales2@demo.example", "(916) 555-7006", "Ironworker", EmployeeClassification.Hourly, 48.00m),
-        new("VHD-007", "Diane", "Chen", "dchen2@demo.example", "(916) 555-7007", "Traffic Control Specialist", EmployeeClassification.Hourly, 38.00m),
-        new("VHD-001", "Demo", "Employee108", "demo.employee.109@demo.example", "(555) 000-7001", "Project Manager", EmployeeClassification.Salaried, 82.00m),
+        new("VHD-001", "Demo", "Employee V01", "demo.employee.v01@demo.example", "(555) 000-7001", "Project Manager", EmployeeClassification.Salaried, 82.00m),
+        new("VHD-002", "Demo", "Employee V02", "demo.employee.v02@demo.example", "(555) 000-7002", "Project Engineer", EmployeeClassification.Salaried, 58.00m),
+        new("VHD-003", "Demo", "Employee V03", "demo.employee.v03@demo.example", "(555) 000-7003", "General Superintendent", EmployeeClassification.Supervisor, 65.00m),
+        new("VHD-004", "Demo", "Employee V04", "demo.employee.v04@demo.example", "(555) 000-7004", "Paving Foreman", EmployeeClassification.Supervisor, 54.00m),
+        new("VHD-005", "Demo", "Employee V05", "demo.employee.v05@demo.example", "(555) 000-7005", "Heavy Equipment Operator", EmployeeClassification.Hourly, 46.00m),
+        new("VHD-006", "Demo", "Employee V06", "demo.employee.v06@demo.example", "(555) 000-7006", "Ironworker", EmployeeClassification.Hourly, 48.00m),
+        new("VHD-007", "Demo", "Employee V07", "demo.employee.v07@demo.example", "(555) 000-7007", "Traffic Control Specialist", EmployeeClassification.Hourly, 38.00m),
     ];
 
-    // ── Company 04: Summit Electric Co. (CVE) ───────────────────
+    // ── Company 04: Summit Electric Co. (SEC) ───────────────────
 
     private static CompanyProjectDef[] GetCveProjects() =>
     [
@@ -6036,64 +5981,62 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             "85 MW ground-mount solar array: 180,000 panels, inverter stations, BESS integration, and gen-tie line to PG&E substation.",
             ProjectStatus.Active, ProjectType.Industrial,
             "14440 Twin Cities Road", "Herald", "CA", "95638",
-            "Summit Solar Development LLC", "Demo Contact C01", "arivera@sunpower.example", "(555) 000-8100",
+            "Summit Solar Development LLC", "Demo Contact C01", "contactc01@example.com", "(555) 000-8100",
             -4, 10, 32_000_000m, 30_000_000m),
 
         new("CVE-PRJ-002", "Hospital Emergency Power Upgrade - Mercy General",
             "Replace 2MW emergency generator system, new ATS gear, paralleling switchgear, and critical branch rewire for OSHPD compliance.",
             ProjectStatus.Active, ProjectType.Renovation,
             "4001 J Street", "Sacramento", "CA", "95819",
-            "Summit Health Sacramento", "Demo Contact C02", "kngo@dignityhealth.example", "(555) 000-8201",
+            "Summit Health Sacramento", "Demo Contact C02", "contactc02@example.com", "(555) 000-8201",
             -3, 8, 6_800_000m, 6_300_000m),
 
         new("CVE-PRJ-003", "PG&E Substation Upgrade - Folsom",
             "230kV/69kV substation modernization: new transformers, breakers, relay protection, SCADA, and control building.",
             ProjectStatus.Active, ProjectType.Infrastructure,
             "2000 Lake Natoma Blvd", "Folsom", "CA", "95630",
-            "Pacific Gas & Electric", "Demo Contact C03", "dpark@pge.example", "(555) 000-8302",
+            "Pacific Gas & Electric", "Demo Contact C03", "contactc03@example.com", "(555) 000-8302",
             -6, 8, 15_500_000m, 14_500_000m),
 
         new("CVE-PRJ-004", "Data Center Power Distribution - Rancho Cordova",
             "20MW critical power infrastructure: medium-voltage switchgear, PDUs, UPS systems, and redundant bus duct for Tier III facility.",
             ProjectStatus.Completed, ProjectType.Industrial,
             "11200 White Rock Road", "Rancho Cordova", "CA", "95742",
-            "Summit Data Centers", "Demo Contact C04", "madams@cyrusone.example", "(555) 000-8403",
+            "Summit Data Centers", "Demo Contact C04", "contactc04@example.com", "(555) 000-8403",
             -14, -1, 18_000_000m, 16_800_000m),
 
         new("CVE-PRJ-005", "EV Charging Hub - Sacramento Railyards",
             "48-stall DC fast-charging hub with 2MW utility service, battery storage, and canopy-mounted solar. 350kW chargers.",
             ProjectStatus.Active, ProjectType.Commercial,
             "300 Railyards Blvd", "Sacramento", "CA", "95811",
-            "Summit EV Charging", "Demo Contact", "skim@summitvendor.example", "(555) 000-8504",
+            "Summit EV Charging", "Demo Contact C05", "contactc05@example.com", "(555) 000-8504",
             -1, 6, 4_200_000m, 3_900_000m),
     ];
 
     private static CompanyVendorDef[] GetCveVendors() =>
     [
-        new("Summit Electrical Wholesale", "CVE-V-001", "Electrical Supply", "Demo Contact V01", "psantos@centralelec.example"),
-        new("Valley Transformer Co.", "CVE-V-002", "Transformers", "Demo Contact V02", "npark@valleytransformer.example"),
-        new("Summit Transformer Co.", "CVE-V-002", "Transformers", "Demo Contact V02", "npark@summittransformer.example"),
-        new("Summit Solar Solutions Inc.", "CVE-V-004", "Solar Installation", "Demo Contact V03", "rgupta@solararraysolutions.example"),
-        new("NorCal Switchgear & Controls", "CVE-V-005", "Switchgear", "Demo Contact", "treeves@summitvendor.example"),
+        new("Summit Electrical Wholesale", "CVE-V-001", "Electrical Supply", "Demo Contact V01", "contactv01@example.com"),
+        new("Summit Transformer Co.", "CVE-V-002", "Transformers", "Demo Contact V02", "contactv02@example.com"),
+        new("Summit Solar Solutions", "CVE-V-003", "Solar Installation", "Demo Contact V03", "contactv03@example.com"),
+        new("Summit Switchgear Controls", "CVE-V-004", "Switchgear", "Demo Contact V04", "contactv04@example.com"),
     ];
 
     private static CompanyCustomerDef[] GetCveCustomers() =>
     [
-        new("Summit Solar Development LLC", "CVE-C-001", "Demo Contact C01", "arivera@sunpower.example", "Net 30"),
-        new("Summit Health Sacramento", "CVE-C-002", "Demo Contact C02", "kngo@dignityhealth.example", "Net 30"),
-        new("Pacific Gas & Electric", "CVE-C-003", "Demo Contact C03", "dpark@pge.example", "Net 45"),
+        new("Summit Solar Development LLC", "CVE-C-001", "Demo Contact C01", "contactc01@example.com", "Net 30"),
+        new("Summit Health Sacramento", "CVE-C-002", "Demo Contact C02", "contactc02@example.com", "Net 30"),
+        new("Pacific Gas & Electric", "CVE-C-003", "Demo Contact C03", "contactc03@example.com", "Net 45"),
     ];
 
     private static CompanyEmployeeDef[] GetCveEmployees() =>
     [
-        new("CVE-001", "Brian", "Whitfield", "bwhitfield2@demo.example", "(916) 555-8001", "Project Manager", EmployeeClassification.Salaried, 80.00m),
-        new("CVE-002", "Jennifer", "Liu", "jliu@demo.example", "(916) 555-8002", "Project Engineer", EmployeeClassification.Salaried, 55.00m),
-        new("CVE-003", "Marcus", "Watts", "mwatts@demo.example", "(916) 555-8003", "Electrical Superintendent", EmployeeClassification.Supervisor, 62.00m),
-        new("CVE-004", "Rosa", "Delgado", "rdelgado@demo.example", "(916) 555-8004", "Electrical Foreman", EmployeeClassification.Supervisor, 54.00m),
-        new("CVE-005", "Tony", "Nguyen", "tnguyen@demo.example", "(916) 555-8005", "Journeyman Electrician", EmployeeClassification.Hourly, 48.00m),
-        new("CVE-006", "Andrea", "Sims", "asims2@demo.example", "(916) 555-8006", "Journeyman Electrician", EmployeeClassification.Hourly, 46.00m),
-        new("CVE-007", "Kevin", "Yamamoto", "ksoto2@demo.example", "(916) 555-8007", "Low-Voltage Technician", EmployeeClassification.Hourly, 40.00m),
-        new("CVE-001", "Demo", "Employee116", "demo.employee.117@demo.example", "(555) 000-8001", "Project Manager", EmployeeClassification.Salaried, 80.00m),
+        new("CVE-001", "Demo", "Employee C01", "demo.employee.c01@demo.example", "(555) 000-8001", "Project Manager", EmployeeClassification.Salaried, 80.00m),
+        new("CVE-002", "Demo", "Employee C02", "demo.employee.c02@demo.example", "(555) 000-8002", "Project Engineer", EmployeeClassification.Salaried, 55.00m),
+        new("CVE-003", "Demo", "Employee C03", "demo.employee.c03@demo.example", "(555) 000-8003", "Electrical Superintendent", EmployeeClassification.Supervisor, 62.00m),
+        new("CVE-004", "Demo", "Employee C04", "demo.employee.c04@demo.example", "(555) 000-8004", "Electrical Foreman", EmployeeClassification.Supervisor, 54.00m),
+        new("CVE-005", "Demo", "Employee C05", "demo.employee.c05@demo.example", "(555) 000-8005", "Journeyman Electrician", EmployeeClassification.Hourly, 48.00m),
+        new("CVE-006", "Demo", "Employee C06", "demo.employee.c06@demo.example", "(555) 000-8006", "Journeyman Electrician", EmployeeClassification.Hourly, 46.00m),
+        new("CVE-007", "Demo", "Employee C07", "demo.employee.c07@demo.example", "(555) 000-8007", "Electrician Apprentice", EmployeeClassification.Apprentice, 24.00m),
     ];
 
     // ── Phase 1: Progress → Schedule → Cost Foundation Seed Data ─────────────
