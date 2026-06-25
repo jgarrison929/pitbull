@@ -59,18 +59,28 @@ export function rfiStatusLabel(status: RfiStatus): string {
 // ─── Change orders ──────────────────────────────────────────
 
 export const changeOrderAllowedTransitions: Record<ChangeOrderStatus, ChangeOrderStatus[]> = {
-  0: [0, 1, 3, 4],
-  1: [1, 2, 3, 4],
-  2: [2, 5],
-  3: [3],
-  4: [4],
-  5: [5],
+  [ChangeOrderStatus.Pending]: [
+    ChangeOrderStatus.Pending,
+    ChangeOrderStatus.UnderReview,
+    ChangeOrderStatus.Rejected,
+    ChangeOrderStatus.Withdrawn,
+  ],
+  [ChangeOrderStatus.UnderReview]: [
+    ChangeOrderStatus.UnderReview,
+    ChangeOrderStatus.Approved,
+    ChangeOrderStatus.Rejected,
+    ChangeOrderStatus.Withdrawn,
+  ],
+  [ChangeOrderStatus.Approved]: [ChangeOrderStatus.Approved, ChangeOrderStatus.Void],
+  [ChangeOrderStatus.Rejected]: [ChangeOrderStatus.Rejected],
+  [ChangeOrderStatus.Withdrawn]: [ChangeOrderStatus.Withdrawn],
+  [ChangeOrderStatus.Void]: [ChangeOrderStatus.Void],
 };
 
 export function getAllowedChangeOrderStatuses(
   current: ChangeOrderStatus | null
 ): ChangeOrderStatus[] {
-  if (current === null) return [0];
+  if (current === null) return [ChangeOrderStatus.Pending];
   return changeOrderAllowedTransitions[current] ?? [current];
 }
 

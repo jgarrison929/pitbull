@@ -42,9 +42,34 @@
 
 ---
 
+## Remediation approach (delete non-conforming paths, recreate modern lifecycles)
+
+Per plan criterion 2, failed workflows were not left patched in place — bypass implementations were **removed** and replaced with explicit transition graphs:
+
+| Removed (non-ERP) | Replaced with (modern) |
+|-------------------|------------------------|
+| Change order `Pending → Approved` skip | `ChangeOrderStatusTransitions` requiring `UnderReview` |
+| RFI free-status PUT jumps | `RfiStatusTransitions` + answer required |
+| Bid status dropdown allowing any enum | `BidStatusTransitions` + UI `getAllowedBidStatuses` |
+| Billing lifecycle ending at submit | Full `BillingApplicationStatusTransitions` + dedicated POST actions |
+| WIP sourcing `PaymentApplication` (sub AP) | `BillingApplication.TotalEarnedLessRetainage` (owner AR) |
+| Daily report status dropdown bypassing submit | Read-only status + Submit/Approve API actions |
+| Submittal delete→Closed fallback | Hard delete or error; status via transition graph only |
+| Vendor invoice Match-only UI | Match + Approve + Mark Paid workflow buttons |
+
+---
+
 ## Subagent review summaries
 
-Detailed findings: `{SCRATCH}/workflow-reviews/` (PM, Finance AR/AP, Payroll perspectives).
+Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-d470372385b3\implementer\workflow-reviews\`
+
+| Review file | Role |
+|-------------|------|
+| `pm-review.md` | Project Manager (RFI, CO, submittal, daily report, bids) |
+| `finance-review.md` | Controller / CFO (cross-domain billing model) |
+| `payroll-review.md` | Payroll Manager (time approval, export) |
+| `ar-review.md` | AR Clerk (owner `BillingApplication` lifecycle) |
+| `ap-review.md` | AP Clerk (sub pay apps, vendor invoices) |
 
 ### PM review — key gaps closed
 
@@ -77,7 +102,12 @@ Detailed findings: `{SCRATCH}/workflow-reviews/` (PM, Finance AR/AP, Payroll per
 | WIP source | `tests/Pitbull.Tests.Unit/Services/WipCalculationServiceTests.cs` |
 | Workflow audit | `tests/Pitbull.Tests.Unit/Features/Workflow/WorkflowTransitionServiceTests.cs` |
 
-Evidence output: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-d470372385b3\implementer\workflow-tests.log`
+| Suite | Result | Log |
+|-------|--------|-----|
+| Workflow unit (`WorkflowTransitionGraphTests` + related) | 17 passed | `workflow-tests.log` |
+| Full integration | **264 passed**, 0 failed, 1 skipped | `integration-tests-full.log` |
+| Full unit | **3147 passed**, 2 failed (pre-existing: `SecretVaultServiceTests`, `AuthControllerTests`), 2 skipped | `unit-tests-full.log` |
+| Bids + change orders integration | 21 passed | `integration-workflow-verify.log` |
 
 ---
 
@@ -98,4 +128,4 @@ Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transit
 
 Subagent frontend review (2026-06-25): all eight PM/finance workflow pages now match backend allowed transitions.
 
-API smoke evidence: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-d470372385b3\implementer\api-workflow-launch.log` (dual-run bid + RFI transitions against live API on port 5081).
+API smoke evidence: `api-workflow-launch.log` — dual-run against live API (`docker compose up -d`, `dotnet run` on port 5081). Validates bid Draft→Submitted→Won (canonical), RFI Open→Answered, and RFI Open→Closed rejection.
