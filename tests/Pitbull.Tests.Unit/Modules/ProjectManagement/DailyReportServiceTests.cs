@@ -101,6 +101,33 @@ public sealed class DailyReportServiceTests
         entity.WeatherSummary.Should().Be("Clear skies");
         entity.WorkNarrative.Should().Be("Poured footings on north wing.");
         entity.PreparedByUserId.Should().Be(preparedBy);
+        entity.Status.Should().Be(DailyReportStatus.Draft);
+    }
+
+    [Fact]
+    public async Task UpdateDailyReport_PersistsDataFieldsFromIntegrationShape()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Rain", ["WorkNarrative"] = "Initial" }))).Value!;
+
+        var result = await service.UpdateDailyReportAsync(ProjectId, created.Id, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["DelaysNarrative"] = "Material delay",
+                ["WorkNarrative"] = "Continued framing",
+                ["WeatherSummary"] = "Overcast"
+            }));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == created.Id);
+        entity.WorkNarrative.Should().Be("Continued framing");
+        entity.DelaysNarrative.Should().Be("Material delay");
+        entity.WeatherSummary.Should().Be("Overcast");
     }
 
     [Fact]

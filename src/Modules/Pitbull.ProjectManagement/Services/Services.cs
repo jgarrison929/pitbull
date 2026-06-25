@@ -315,52 +315,13 @@ public abstract class PmServiceBase
 
     protected static void ApplyUpsert(object entity, PmUpsertRequest request)
     {
-        if (!string.IsNullOrWhiteSpace(request.Name)) SetIfExists(entity, "Name", request.Name);
-        if (!string.IsNullOrWhiteSpace(request.Title)) SetIfExists(entity, "Title", request.Title);
-        if (!string.IsNullOrWhiteSpace(request.Description)) SetIfExists(entity, "Description", request.Description);
+        PmUpsertFieldMapper.MapNonStatusScalars(entity, request);
 
         if (!string.IsNullOrWhiteSpace(request.Status))
         {
             var p = entity.GetType().GetProperty("Status");
             if (p != null && p.PropertyType.IsEnum && Enum.TryParse(p.PropertyType, request.Status, true, out var v))
                 p.SetValue(entity, v);
-        }
-
-        if (request.ReferenceId.HasValue)
-        {
-            foreach (var propName in new[]
-                     {
-                         "ReferenceId", "ScheduleId", "SubmittalId", "TaskId", "MeetingId", "CommunicationId",
-                         "PlanSetId", "PlanSheetId", "SpecSectionId", "DailyReportId", "ProgressEntryId", "NarrativeId", "RfiId",
-                         "PunchListItemId", "DocumentId"
-                     })
-            {
-                if (entity.GetType().GetProperty(propName) != null)
-                {
-                    SetIfExists(entity, propName, request.ReferenceId.Value);
-                    break;
-                }
-            }
-        }
-
-        if (request.DueDate.HasValue)
-            SetIfExists(entity, "DueDate", request.DueDate.Value);
-
-        if (request.Data is null) return;
-        foreach (var kvp in request.Data)
-        {
-            if (ProtectedFields.Contains(kvp.Key)) continue;
-            var p = entity.GetType().GetProperty(kvp.Key);
-            if (p == null || kvp.Value is null) continue;
-            try
-            {
-                var converted = ConvertToPropertyType(kvp.Value, Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType);
-                p.SetValue(entity, converted);
-            }
-            catch
-            {
-                // Ignore incompatible fields in generic upsert.
-            }
         }
     }
 
@@ -874,7 +835,7 @@ public class SubmittalService : PmServiceBase, ISubmittalService
             SubmittalRequestMapper.ApplyStatusSideEffects(submittal, newStatus);
         }
 
-        SubmittalRequestMapper.MapFields(submittal, request);
+        PmUpsertFieldMapper.MapNonStatusScalars(submittal, request);
         submittal.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
 
@@ -1033,6 +994,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
             var created = await CreateAsync<PmDailyReport>(projectId, request, cancellationToken, entity =>
             {
                 entity.Status = DailyReportStatus.Draft;
+                PmUpsertFieldMapper.MapNonStatusScalars(entity, request);
                 DailyReportRequestMapper.MapCreate(entity, request, GetCurrentUserId());
             }, applyGenericUpsert: false);
 
@@ -1064,6 +1026,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (DailyReportRequestMapper.RequestsStatusChange(request))
             return Result.Failure<PmEntityDto>("Daily report status changes require submit/approve/lock workflow actions", "INVALID_STATUS_TRANSITION");
 
+        PmUpsertFieldMapper.MapNonStatusScalars(report, request);
         DailyReportRequestMapper.MapUpdate(report, request);
         await SyncDailyReportCrewEntriesAsync(dailyReportId, request, cancellationToken);
         report.UpdatedAt = DateTime.UtcNow;

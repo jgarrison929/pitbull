@@ -57,7 +57,8 @@ Per plan criterion 2, failed workflows were not left patched in place — bypass
 | WIP sourcing `PaymentApplication` (sub AP) | `BillingApplication.TotalEarnedLessRetainage` (owner AR) |
 | Daily report status dropdown bypassing submit | Read-only status + Submit/Approve/Lock POST actions; PUT rejects status |
 | Submittal inline 10-case switch | `SubmittalStatusTransitions` + graph tests |
-| Daily report `ApplyUpsert` create gaps | `DailyReportRequestMapper.MapCreate` + integration payload unit test |
+| Daily report `ApplyUpsert` create gaps | `PmUpsertFieldMapper` + `DailyReportRequestMapper` + integration payload persistence tests |
+| Submittal generic `ApplyUpsert` status bypass | `SubmittalRequestMapper` + `PmUpsertFieldMapper`; create rejects client status |
 | Submittal delete→Closed fallback | Hard delete or error; status via transition graph only |
 | Vendor invoice Match-only UI | Match + Approve + Mark Paid workflow buttons |
 
@@ -111,7 +112,7 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\imp
 |-------|--------|-----|
 | Workflow unit (`WorkflowTransitionGraphTests` + PM daily/submittal) | 31+ passed | `workflow-tests.log` |
 | Full integration | **266 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
-| Full unit | **3177 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
+| Full unit | **3181 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
 | Daily reports integration | 4 passed (create→submit→approve→lock; PUT status rejected) | `integration-tests-full.log` |
 
 ---

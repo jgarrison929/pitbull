@@ -63,12 +63,42 @@ public sealed class PmSubmittalServiceTests
         var service = CreateService(db);
 
         var result = await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Steel Shop Drawings"));
+            new PmUpsertRequest(
+                Title: "Steel Shop Drawings",
+                Description: "Rebar placement drawings",
+                Data: new Dictionary<string, object?> { ["SpecSectionCode"] = "032000" }));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.ProjectId.Should().Be(ProjectId);
         result.Value.Title.Should().Be("Steel Shop Drawings");
         result.Value.Status.Should().Be("Draft");
+
+        var entity = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == result.Value.Id);
+        entity.Title.Should().Be("Steel Shop Drawings");
+        entity.Description.Should().Be("Rebar placement drawings");
+        entity.SpecSectionCode.Should().Be("032000");
+        entity.Status.Should().Be(SubmittalStatus.Draft);
+    }
+
+    [Fact]
+    public async Task UpdateSubmittal_PersistsTopLevelTitleAndDescription()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var created = (await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Title: "Initial title"))).Value!;
+
+        var result = await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(
+            Title: "Revised title",
+            Description: "Updated scope notes"));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == created.Id);
+        entity.Title.Should().Be("Revised title");
+        entity.Description.Should().Be("Updated scope notes");
     }
 
     [Fact]

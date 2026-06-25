@@ -4,7 +4,7 @@ using Pitbull.ProjectManagement.Features;
 namespace Pitbull.ProjectManagement.Domain;
 
 /// <summary>
-/// Explicit field mapping for submittal create/update — avoids generic ApplyUpsert status bypass.
+/// Submittal status workflow — scalar fields use <see cref="PmUpsertFieldMapper"/>.
 /// </summary>
 public static class SubmittalRequestMapper
 {
@@ -12,40 +12,7 @@ public static class SubmittalRequestMapper
     {
         entity.SubmittalNumber = submittalNumber;
         entity.Status = SubmittalStatus.Draft;
-        MapFields(entity, request);
-    }
-
-    public static void MapFields(PmSubmittal entity, PmUpsertRequest request)
-    {
-        if (!string.IsNullOrWhiteSpace(request.Title))
-            entity.Title = request.Title;
-
-        if (!string.IsNullOrWhiteSpace(request.Description))
-            entity.Description = request.Description;
-
-        if (request.Data is null)
-            return;
-
-        if (TryGetString(request.Data, "SpecSectionCode", out var specCode))
-            entity.SpecSectionCode = specCode;
-
-        if (TryGetString(request.Data, "SpecSectionTitle", out var specTitle))
-            entity.SpecSectionTitle = specTitle;
-
-        if (TryGetEnum(request.Data, "SubmittalType", out SubmittalType submittalType))
-            entity.SubmittalType = submittalType;
-
-        if (TryGetDateTime(request.Data, "RequiredByDate", out var requiredBy))
-            entity.RequiredByDate = requiredBy;
-
-        if (TryGetDateTime(request.Data, "FinalDueDate", out var finalDue))
-            entity.FinalDueDate = finalDue;
-
-        if (TryGetGuid(request.Data, "ScheduleActivityId", out var activityId))
-            entity.ScheduleActivityId = activityId;
-
-        if (TryGetBool(request.Data, "IsSubstitutionRequest", out var isSubstitution))
-            entity.IsSubstitutionRequest = isSubstitution;
+        PmUpsertFieldMapper.MapNonStatusScalars(entity, request);
     }
 
     public static bool TryResolveStatusChange(
@@ -90,88 +57,6 @@ public static class SubmittalRequestMapper
         }
 
         entity.Status = newStatus;
-    }
-
-    private static bool TryGetString(IReadOnlyDictionary<string, object?> data, string key, out string? value)
-    {
-        value = null;
-        if (!data.TryGetValue(key, out var raw) || raw is null)
-            return false;
-        value = raw switch
-        {
-            string s => s,
-            JsonElement je when je.ValueKind == JsonValueKind.String => je.GetString(),
-            _ => raw.ToString()
-        };
-        return !string.IsNullOrWhiteSpace(value);
-    }
-
-    private static bool TryGetGuid(IReadOnlyDictionary<string, object?> data, string key, out Guid value)
-    {
-        value = default;
-        if (!data.TryGetValue(key, out var raw) || raw is null)
-            return false;
-
-        if (raw is Guid g)
-        {
-            value = g;
-            return true;
-        }
-
-        if (raw is JsonElement je)
-        {
-            if (je.ValueKind == JsonValueKind.String && Guid.TryParse(je.GetString(), out value))
-                return true;
-            if (je.TryGetGuid(out value))
-                return true;
-        }
-
-        return Guid.TryParse(raw.ToString(), out value);
-    }
-
-    private static bool TryGetDateTime(IReadOnlyDictionary<string, object?> data, string key, out DateTime value)
-    {
-        value = default;
-        if (!data.TryGetValue(key, out var raw) || raw is null)
-            return false;
-
-        if (raw is DateTime dt)
-        {
-            value = dt;
-            return true;
-        }
-
-        if (raw is JsonElement je && je.ValueKind != JsonValueKind.Null)
-        {
-            value = je.GetDateTime();
-            return true;
-        }
-
-        return DateTime.TryParse(raw.ToString(), out value);
-    }
-
-    private static bool TryGetBool(IReadOnlyDictionary<string, object?> data, string key, out bool value)
-    {
-        value = default;
-        if (!data.TryGetValue(key, out var raw) || raw is null)
-            return false;
-
-        if (raw is bool b)
-        {
-            value = b;
-            return true;
-        }
-
-        if (raw is JsonElement je)
-        {
-            if (je.ValueKind == JsonValueKind.True || je.ValueKind == JsonValueKind.False)
-            {
-                value = je.GetBoolean();
-                return true;
-            }
-        }
-
-        return bool.TryParse(raw.ToString(), out value);
     }
 
     private static bool TryGetEnum<TEnum>(IReadOnlyDictionary<string, object?> data, string key, out TEnum value)
