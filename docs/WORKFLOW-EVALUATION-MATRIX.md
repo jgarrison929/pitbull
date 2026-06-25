@@ -110,9 +110,9 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\imp
 | Suite | Result | Log |
 |-------|--------|-----|
 | Workflow unit (`WorkflowTransitionGraphTests` + PM daily/submittal) | 31+ passed | `workflow-tests.log` |
-| Full integration | **265 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
-| Full unit | **3162 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
-| Daily reports integration | 3 passed (create→submit→approve unskipped) | `integration-tests-full.log` |
+| Full integration | **266 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
+| Full unit | **3172 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
+| Daily reports integration | 4 passed (create→submit→approve→lock; PUT status rejected) | `integration-tests-full.log` |
 
 ---
 
