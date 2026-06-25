@@ -109,3 +109,17 @@ export const dailyReportAllowedTransitions: Record<string, string[]> = {
 export function getNextDailyReportStatuses(from: string): string[] {
   return dailyReportAllowedTransitions[from] ?? [];
 }
+
+// ─── Vendor invoices (AP) ───────────────────────────────────
+
+export const vendorInvoiceAllowedTransitions: Record<string, string[]> = {
+  Pending: ["Matched", "PartiallyMatched", "Approved"],
+  Matched: ["Approved"],
+  PartiallyMatched: ["Approved"],
+  Approved: ["Paid"],
+  Paid: [],
+};
+
+export function getNextVendorInvoiceStatuses(from: string): string[] {
+  return vendorInvoiceAllowedTransitions[from] ?? [];
+}

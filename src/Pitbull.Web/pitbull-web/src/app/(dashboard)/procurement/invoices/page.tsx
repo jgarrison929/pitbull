@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/skeletons";
 import { Plus, ShieldAlert } from "lucide-react";
+import { getNextVendorInvoiceStatuses } from "@/lib/workflow-transitions";
 
 interface InvoiceMatchResult {
   variancePercent: number;
@@ -33,6 +34,7 @@ export default function ProcurementInvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [invoices, setInvoices] = useState<VendorInvoiceDto[]>([]);
   const [isMatchingId, setIsMatchingId] = useState<string | null>(null);
+  const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
 
   const fetchInvoices = useCallback(async () => {
@@ -66,6 +68,26 @@ export default function ProcurementInvoicesPage() {
       toast.error(error instanceof Error ? error.message : "Failed to match invoice");
     } finally {
       setIsMatchingId(null);
+    }
+  }
+
+  async function updateInvoiceStatus(
+    invoice: VendorInvoiceDto,
+    nextStatus: "Approved" | "Paid",
+    label: string
+  ) {
+    setIsUpdatingId(invoice.id);
+    try {
+      await api(`/api/vendor-invoices/${invoice.id}`, {
+        method: "PUT",
+        body: { status: nextStatus },
+      });
+      toast.success(label);
+      fetchInvoices();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : `Failed: ${label}`);
+    } finally {
+      setIsUpdatingId(null);
     }
   }
 
@@ -142,14 +164,37 @@ export default function ProcurementInvoicesPage() {
                     </TableCell>
                     <TableCell>{getMatchIndicator(invoice)}</TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => runMatch(invoice.id)}
-                        disabled={isMatchingId === invoice.id}
-                      >
-                        {isMatchingId === invoice.id ? "Matching..." : "Match"}
-                      </Button>
+                      <div className="flex justify-end gap-1">
+                        {invoice.statusName === "Pending" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => runMatch(invoice.id)}
+                            disabled={isMatchingId === invoice.id}
+                          >
+                            {isMatchingId === invoice.id ? "Matching..." : "Match"}
+                          </Button>
+                        )}
+                        {getNextVendorInvoiceStatuses(invoice.statusName).includes("Approved") && (
+                          <Button
+                            size="sm"
+                            className="bg-amber-500 hover:bg-amber-600 text-white"
+                            onClick={() => updateInvoiceStatus(invoice, "Approved", "Invoice approved")}
+                            disabled={isUpdatingId === invoice.id}
+                          >
+                            Approve
+                          </Button>
+                        )}
+                        {getNextVendorInvoiceStatuses(invoice.statusName).includes("Paid") && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateInvoiceStatus(invoice, "Paid", "Invoice marked paid")}
+                            disabled={isUpdatingId === invoice.id}
+                          >
+                            Mark Paid
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

@@ -29,7 +29,7 @@
 | 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract-scoped CO; owner CO model future |
 | 7 | RFI | Open → Answered → Closed | `RfiStatusTransitions` + answer required on close | **PASS** | PM | Transition enforcement + `ClosedAt` set |
 | 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalService` inline matrix | **PASS** | PM | Backend enforced; UI restricted to `getAllowedSubmittalStatuses` |
-| 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PARTIAL** | AP | Match/pay works; compliance gates & accrual GL future |
+| 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PASS** | AP | Match + Approve + Mark Paid UI actions; GL accrual future |
 | 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatus`; approve Submitted-only; crew JSON synced | **PASS** | PM | Crew `CrewEntries` persisted to `PmDailyReportCrew` |
 
 ### Canonical billing model decision
@@ -94,5 +94,8 @@ Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transit
 | `rfis/[id]` | **PASS** | View-mode workflow buttons + restricted edit dropdown |
 | `projects/.../submittals` | **PASS** | Restricted status on edit; create locks Draft |
 | `projects/.../daily-reports` | **PASS** | Read-only status in form; Submit/Approve list actions |
+| `procurement/invoices` | **PASS** | Match / Approve / Mark Paid gated by `getNextVendorInvoiceStatuses` |
 
-Subagent frontend review (2026-06-25): all seven PM/finance workflow pages now match backend allowed transitions.
+Subagent frontend review (2026-06-25): all eight PM/finance workflow pages now match backend allowed transitions.
+
+API smoke evidence: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-d470372385b3\implementer\api-workflow-launch.log` (dual-run bid + RFI transitions against live API on port 5081).
