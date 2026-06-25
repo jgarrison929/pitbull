@@ -133,7 +133,7 @@ public sealed class PmServiceSubmittalTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.ProjectId.Should().Be(ProjectId);
         result.Value.Title.Should().Be("Shop Drawing A1");
-        result.Value.Status.Should().Be("InReview");
+        result.Value.Status.Should().Be("Draft");
     }
 
     [Fact]

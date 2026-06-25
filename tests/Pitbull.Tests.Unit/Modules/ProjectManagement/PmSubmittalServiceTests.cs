@@ -37,7 +37,7 @@ public sealed class PmSubmittalServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.ProjectId.Should().Be(ProjectId);
         result.Value.Title.Should().Be("Steel Shop Drawings");
-        result.Value.Status.Should().Be("InReview");
+        result.Value.Status.Should().Be("Draft");
     }
 
     [Fact]
@@ -168,7 +168,11 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Closed One", Status: "Closed"))).Value!;
+            new PmUpsertRequest(Title: "Closed One", Status: "Draft"))).Value!;
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "InReview"));
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Approved"));
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Closed"));
 
         var result = await service.UpdateSubmittalAsync(ProjectId, created.Id,
             new PmUpsertRequest(Title: "Try Edit"));
@@ -228,7 +232,9 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Rev Test", Status: "InReview"))).Value!;
+            new PmUpsertRequest(Title: "Rev Test", Status: "Draft"))).Value!;
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
+        await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "InReview"));
 
         var entityBefore = await db.Set<PmSubmittal>().FirstAsync(s => s.Id == created.Id);
         var originalRevision = entityBefore.RevisionNumber;
@@ -248,7 +254,9 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var submittal = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Status: "InReview"))).Value!;
+            new PmUpsertRequest(Status: "Draft"))).Value!;
+        await service.UpdateSubmittalAsync(ProjectId, submittal.Id, new PmUpsertRequest(Status: "Submitted"));
+        await service.UpdateSubmittalAsync(ProjectId, submittal.Id, new PmUpsertRequest(Status: "InReview"));
 
         var result = await service.AddWorkflowEventAsync(ProjectId, submittal.Id,
             new PmUpsertRequest(Data: new Dictionary<string, object?> { ["ToStatus"] = "Approved" }));

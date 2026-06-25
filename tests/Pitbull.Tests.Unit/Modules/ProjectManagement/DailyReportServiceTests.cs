@@ -132,10 +132,8 @@ public sealed class DailyReportServiceTests
         var result = await service.UpdateDailyReportAsync(ProjectId, created.Id,
             new PmUpsertRequest(Status: "Submitted"));
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value!.Id.Should().Be(created.Id);
-        result.Value.Status.Should().Be("Submitted");
-        result.Value.UpdatedAt.Should().NotBeNull();
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     [Fact]
