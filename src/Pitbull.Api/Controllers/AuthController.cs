@@ -250,6 +250,18 @@ public class AuthController(
 
                 await transaction.CommitAsync();
 
+                // Seed default cost codes, permissions, and roles outside the registration transaction
+                try
+                {
+                    using var provisionScope = scopeFactory.CreateScope();
+                    var provisioning = provisionScope.ServiceProvider.GetRequiredService<ITenantProvisioningService>();
+                    await provisioning.ProvisionTenantAsync(tenantId, defaultCompany.Id);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Tenant provisioning failed for {TenantId}; user can retry via onboarding", tenantId);
+                }
+
                 var token = await GenerateJwtTokenAsync(user);
                 actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
             }

@@ -538,9 +538,13 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
         if (subcontract is null)
             return Result.Failure<PaymentApplicationDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
 
-        // Track status transitions
-        var oldStatus = payApp.Status;
-        var newStatus = command.Status;
+        // Status changes must use dedicated workflow endpoints (submit/review/approve/reject/mark-paid).
+        if (command.Status != payApp.Status)
+            return Result.Failure<PaymentApplicationDto>(
+                "Status changes must use workflow actions (submit, review, approve, reject, mark-paid)",
+                "INVALID_STATUS_TRANSITION");
+
+        var currentStatus = payApp.Status;
 
         // Capture old amounts BEFORE mutation for delta calculation on Paid apps
         var oldCurrentPaymentDue = payApp.CurrentPaymentDue;
@@ -562,39 +566,14 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
             payApp.CurrentPaymentDue = payApp.TotalEarnedLessRetainage - payApp.LessPreviousCertificates;
         }
 
-        // Update fields
-        payApp.Status = command.Status;
+        // Update non-status fields only
         payApp.ApprovedBy = command.ApprovedBy;
         payApp.ApprovedAmount = command.ApprovedAmount;
         payApp.InvoiceNumber = command.InvoiceNumber;
         payApp.CheckNumber = command.CheckNumber;
         payApp.Notes = command.Notes;
 
-        // Set dates on status transitions
-        if (oldStatus != newStatus)
-        {
-            switch (newStatus)
-            {
-                case PaymentApplicationStatus.Submitted when !payApp.SubmittedDate.HasValue:
-                    payApp.SubmittedDate = DateTime.UtcNow;
-                    break;
-                case PaymentApplicationStatus.Reviewed when !payApp.ReviewedDate.HasValue:
-                    payApp.ReviewedDate = DateTime.UtcNow;
-                    break;
-                case PaymentApplicationStatus.Approved
-                    when !payApp.ApprovedDate.HasValue:
-                    payApp.ApprovedDate = DateTime.UtcNow;
-                    break;
-                case PaymentApplicationStatus.Paid when !payApp.PaidDate.HasValue:
-                    payApp.PaidDate = DateTime.UtcNow;
-                    // Update subcontract billing totals
-                    subcontract.BilledToDate += payApp.CurrentPaymentDue;
-                    subcontract.PaidToDate += command.ApprovedAmount ?? payApp.CurrentPaymentDue;
-                    subcontract.RetainageHeld = payApp.TotalRetainage;
-                    break;
-            }
-        }
-        else if (newStatus == PaymentApplicationStatus.Paid)
+        if (currentStatus == PaymentApplicationStatus.Paid)
         {
             // Already Paid - sync amount changes as deltas
             var newApprovedAmount = command.ApprovedAmount ?? payApp.CurrentPaymentDue;

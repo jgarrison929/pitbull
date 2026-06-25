@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Projects.Domain;
+using Pitbull.TimeTracking.Domain;
 
 namespace Pitbull.Api.Services;
 
@@ -36,6 +38,8 @@ public class OnboardingService(
             await db.SaveChangesAsync(ct);
             logger.LogInformation("Created onboarding checklist for user {UserId} in company {CompanyId}", userId, companyId);
         }
+
+        await SyncChecklistFromTenantDataAsync(checklist, ct);
 
         return MapToDto(checklist);
     }
@@ -106,6 +110,51 @@ public class OnboardingService(
             IsSetupComplete: isSetupComplete,
             IsChecklistDismissed: checklist?.Dismissed ?? false,
             Checklist: checklist is not null ? MapToDto(checklist) : null);
+    }
+
+    private async Task SyncChecklistFromTenantDataAsync(OnboardingChecklist checklist, CancellationToken ct)
+    {
+        var changed = false;
+
+        if (!checklist.CostCodesConfigured)
+        {
+            var hasCostCodes = await db.Set<CostCode>()
+                .AnyAsync(cc => cc.TenantId == tenantContext.TenantId && !cc.IsDeleted, ct);
+            if (hasCostCodes)
+            {
+                checklist.CostCodesConfigured = true;
+                changed = true;
+            }
+        }
+
+        if (!checklist.EmployeesAdded)
+        {
+            var hasEmployees = await db.Set<Employee>()
+                .AnyAsync(e => e.TenantId == tenantContext.TenantId && !e.IsDeleted, ct);
+            if (hasEmployees)
+            {
+                checklist.EmployeesAdded = true;
+                changed = true;
+            }
+        }
+
+        if (!checklist.FirstProjectCreated)
+        {
+            var hasProjects = await db.Set<Project>()
+                .AnyAsync(p => p.TenantId == tenantContext.TenantId && !p.IsDeleted, ct);
+            if (hasProjects)
+            {
+                checklist.FirstProjectCreated = true;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            if (checklist.IsFullyCompleted && checklist.CompletedAt is null)
+                checklist.CompletedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
     }
 
     private static OnboardingChecklistDto MapToDto(OnboardingChecklist c) => new(

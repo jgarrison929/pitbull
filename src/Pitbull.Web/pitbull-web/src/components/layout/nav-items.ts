@@ -53,9 +53,9 @@ export const moduleGroups: ModuleGroup[] = [
     label: "Billing",
     items: [
       { label: "Owner Contracts", href: "/billing/contracts", icon: "📑", requiredPermission: "Billing.View" },
-      { label: "Billing Applications", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
+      { label: "Owner Billing (AR)", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
       { label: "Aging Reports", href: "/billing/aging", icon: "📊", requiredPermission: "Billing.View" },
-      { label: "Pay Apps", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
+      { label: "Sub Pay Apps (AP)", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
       { label: "Bids", href: "/bids", icon: "📋", requiredPermission: "Bids.View" },
     ],
   },

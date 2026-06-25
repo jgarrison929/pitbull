@@ -95,8 +95,8 @@ const financeItems: NavItem[] = [
   { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋", requiredPermission: "Billing.LienWaivers" },
   // Billing section
   { label: "Owner Contracts", href: "/billing/contracts", icon: "📑", requiredPermission: "Billing.View" },
-  { label: "Billing Applications", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
-  { label: "Pay Apps", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
+  { label: "Owner Billing (AR)", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
+  { label: "Sub Pay Apps (AP)", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
   { label: "AR Aging", href: "/billing/aging", icon: "📊", requiredPermission: "Billing.View" },
   { label: "AI Invoice Extract", href: "/invoices/extract", icon: "🤖", requiredPermission: "AP.View" },
 ];
@@ -114,7 +114,7 @@ const operationsItems: NavItem[] = [
   { label: "Vendor Invoices", href: "/procurement/invoices", icon: "🧾", requiredPermission: "AP.View" },
   { label: "Vendors", href: "/vendors", icon: "🏢", requiredPermission: "AP.View" },
   { label: "Customers", href: "/customers", icon: "🤝", requiredPermission: "AR.View" },
-  { label: "Contracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
+  { label: "Subcontracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
   { label: "Change Orders", href: "/change-orders", icon: "📝", requiredPermission: "Contracts.View" },
 ];
 
@@ -126,7 +126,7 @@ const peopleItems: NavItem[] = [
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
   { label: "Employees", href: "/employees", icon: "👷", requiredPermission: "Employees.View" },
   { label: "Projects", href: "/projects", icon: "🏗️", requiredPermission: "Projects.View" },
-  { label: "Contracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
+  { label: "Subcontracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️", requiredPermission: "TimeTracking.View" },
   { label: "Approvals", href: "/time-tracking/approval", icon: "✅", requiredPermission: "TimeTracking.Approve" },
   // Payroll section
@@ -296,16 +296,16 @@ export const roleDefaults: Record<string, RoleDefaults> = {
   },
   "AP Clerk": {
     defaultWorkspace: "operations",
-    favorites: ["/", "/procurement/invoices", "/procurement/purchase-orders", "/vendors"],
+    favorites: ["/", "/procurement/invoices", "/payment-applications", "/procurement/purchase-orders", "/vendors"],
     quickActions: [
       { label: "Enter Invoice", href: "/procurement/invoices/new", icon: "🧾" },
-      { label: "New PO", href: "/procurement/purchase-orders/new", icon: "🧱" },
+      { label: "Sub Pay Apps", href: "/payment-applications", icon: "💵" },
       { label: "Vendor Lookup", href: "/vendors", icon: "🏢" },
     ],
     mobileTabs: [
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
       { label: "Invoices", href: "/procurement/invoices", icon: "🧾", matchPaths: ["/procurement/invoices"] },
-      { label: "POs", href: "/procurement/purchase-orders", icon: "🧱", matchPaths: ["/procurement/purchase-orders"] },
+      { label: "Pay Apps", href: "/payment-applications", icon: "💵", matchPaths: ["/payment-applications"] },
       { label: "Vendors", href: "/vendors", icon: "🏢", matchPaths: ["/vendors"] },
     ],
   },
@@ -313,13 +313,13 @@ export const roleDefaults: Record<string, RoleDefaults> = {
     defaultWorkspace: "finance",
     favorites: ["/", "/billing/applications", "/billing/aging", "/customers"],
     quickActions: [
-      { label: "New Pay App", href: "/billing/applications", icon: "💰" },
+      { label: "Owner Billing", href: "/billing/applications", icon: "💰" },
       { label: "AR Aging", href: "/billing/aging", icon: "📊" },
       { label: "Customers", href: "/customers", icon: "🤝" },
     ],
     mobileTabs: [
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Pay Apps", href: "/billing/applications", icon: "💰", matchPaths: ["/billing"] },
+      { label: "Owner AR", href: "/billing/applications", icon: "💰", matchPaths: ["/billing"] },
       { label: "AR Aging", href: "/billing/aging", icon: "📊", matchPaths: ["/billing/aging"] },
       { label: "Customers", href: "/customers", icon: "🤝", matchPaths: ["/customers"] },
     ],
@@ -415,7 +415,7 @@ export function getWorkspaceLandingHref(workspaceId: WorkspaceId): string {
     case "operations":
       return "/procurement/purchase-orders";
     case "people":
-      return "/time-tracking";
+      return "/cost-codes";
     case "reports":
       return "/reports";
     case "admin":

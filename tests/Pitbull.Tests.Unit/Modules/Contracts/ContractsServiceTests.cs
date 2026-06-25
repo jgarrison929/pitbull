@@ -7,6 +7,7 @@ using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Contracts.Features.UpdateChangeOrder;
 using Pitbull.Contracts.Features.UpdatePaymentApplication;
+using Pitbull.Contracts.Features;
 using Pitbull.Contracts.Services;
 using Pitbull.Tests.Unit.Helpers;
 
@@ -17,6 +18,9 @@ public sealed class ContractsServiceTests
     private static readonly Guid ProjectId = Guid.NewGuid();
 
     private static ContractsService CreateService(Pitbull.Core.Data.PitbullDbContext db)
+        => new(db);
+
+    private static PaymentApplicationService CreatePayAppService(Pitbull.Core.Data.PitbullDbContext db)
         => new(db);
 
     private static async Task<Result<ChangeOrderDto>> ApproveChangeOrderAsync(
@@ -51,6 +55,7 @@ public sealed class ContractsServiceTests
             CurrentValue = originalValue,
             RetainagePercent = retainagePercent,
             Status = SubcontractStatus.Executed,
+            ExecutionDate = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -449,6 +454,27 @@ public sealed class ContractsServiceTests
         result.ErrorCode.Should().Be("OVERBILLING");
     }
 
+    [Fact]
+    public async Task UpdatePaymentApplication_StatusChange_IsRejected()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var subId = await SeedSubcontractAsync(db);
+
+        var created = await service.CreatePaymentApplicationAsync(
+            new CreatePaymentApplicationCommand(
+                subId, DateTime.UtcNow.AddDays(-30), DateTime.UtcNow,
+                10_000m, 0m, "INV-001", null));
+        created.IsSuccess.Should().BeTrue();
+
+        var result = await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
+            created.Value!.Id, 10_000m, 0m, PaymentApplicationStatus.Submitted,
+            null, null, "INV-001", null, null));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
     // === Payment Application Delta Logic (CRITICAL #2) ===
 
     [Fact]
@@ -458,6 +484,7 @@ public sealed class ContractsServiceTests
         // so that subcontract.BilledToDate is adjusted by the true delta, not zero.
         using var db = TestDbContextFactory.Create();
         var service = CreateService(db);
+        var payAppService = CreatePayAppService(db);
         var subId = await SeedSubcontractAsync(db, originalValue: 200_000m, retainagePercent: 10m);
 
         // Create and pay a first payment app (50,000 work)
@@ -469,19 +496,11 @@ public sealed class ContractsServiceTests
         var payAppId = created.Value!.Id;
         var originalPaymentDue = created.Value!.CurrentPaymentDue; // 45,000 (50k - 10% retainage)
 
-        // Transition to Paid
-        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
-            payAppId, 50_000m, 0m, PaymentApplicationStatus.Submitted,
-            null, null, "INV-001", null, null));
-        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
-            payAppId, 50_000m, 0m, PaymentApplicationStatus.Reviewed,
-            null, null, "INV-001", null, null));
-        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
-            payAppId, 50_000m, 0m, PaymentApplicationStatus.Approved,
-            "Approver", 45_000m, "INV-001", null, null));
-        await service.UpdatePaymentApplicationAsync(new UpdatePaymentApplicationCommand(
-            payAppId, 50_000m, 0m, PaymentApplicationStatus.Paid,
-            "Approver", 45_000m, "INV-001", "CHK-001", null));
+        // Transition to Paid via workflow endpoints
+        (await payAppService.SubmitAsync(payAppId)).IsSuccess.Should().BeTrue();
+        (await payAppService.ReviewAsync(payAppId, new ReviewPaymentApplicationRequest("Reviewer", null))).IsSuccess.Should().BeTrue();
+        (await payAppService.ApproveAsync(payAppId, new ApprovePaymentApplicationRequest("Approver", 45_000m, null, null))).IsSuccess.Should().BeTrue();
+        (await payAppService.MarkPaidAsync(payAppId, new MarkPaymentApplicationPaidRequest(45_000m, DateTime.UtcNow, "CHK-001", null, null))).IsSuccess.Should().BeTrue();
 
         var subBeforeEdit = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
         var billedBefore = subBeforeEdit.BilledToDate;

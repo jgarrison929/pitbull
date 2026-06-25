@@ -93,9 +93,9 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
         if (payApp is null)
             return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
 
-        if (payApp.Status != PaymentApplicationStatus.Draft)
+        if (!PaymentApplicationStatusTransitions.IsValid(payApp.Status, PaymentApplicationStatus.Submitted))
             return Result.Failure<PaymentApplicationDetailDto>(
-                "Only draft applications can be submitted", "INVALID_STATUS");
+                "Only draft applications can be submitted", "INVALID_STATUS_TRANSITION");
 
         var settings = await GetSettingsAsync(payApp.CompanyId, cancellationToken);
 
@@ -137,9 +137,9 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
         if (payApp is null)
             return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
 
-        if (payApp.Status != PaymentApplicationStatus.Submitted)
+        if (!PaymentApplicationStatusTransitions.IsValid(payApp.Status, PaymentApplicationStatus.Reviewed))
             return Result.Failure<PaymentApplicationDetailDto>(
-                "Only submitted applications can be reviewed", "INVALID_STATUS");
+                "Only submitted applications can be reviewed", "INVALID_STATUS_TRANSITION");
 
         payApp.Status = PaymentApplicationStatus.Reviewed;
         payApp.ReviewedBy = request.ReviewedBy;
@@ -167,13 +167,14 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
             return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
 
         var settings = await GetSettingsAsync(payApp.CompanyId, cancellationToken);
-        var approvableStatuses = settings.EnableApprovalWorkflow
-            ? new[] { PaymentApplicationStatus.Reviewed }
-            : new[] { PaymentApplicationStatus.Submitted, PaymentApplicationStatus.Reviewed };
 
-        if (!approvableStatuses.Contains(payApp.Status))
+        if (!PaymentApplicationStatusTransitions.IsValid(
+                payApp.Status, PaymentApplicationStatus.Approved, settings.EnableApprovalWorkflow))
             return Result.Failure<PaymentApplicationDetailDto>(
-                "Only reviewed applications can be approved", "INVALID_STATUS");
+                settings.EnableApprovalWorkflow
+                    ? "Only reviewed applications can be approved"
+                    : "Only submitted or reviewed applications can be approved",
+                "INVALID_STATUS_TRANSITION");
 
         var fromStatus = payApp.Status;
         payApp.Status = PaymentApplicationStatus.Approved;
@@ -202,15 +203,9 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
         if (payApp is null)
             return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
 
-        var rejectableStatuses = new[]
-        {
-            PaymentApplicationStatus.Submitted,
-            PaymentApplicationStatus.Reviewed
-        };
-
-        if (!rejectableStatuses.Contains(payApp.Status))
+        if (!PaymentApplicationStatusTransitions.IsValid(payApp.Status, PaymentApplicationStatus.Rejected))
             return Result.Failure<PaymentApplicationDetailDto>(
-                "Only submitted or reviewed applications can be rejected", "INVALID_STATUS");
+                "Only submitted or reviewed applications can be rejected", "INVALID_STATUS_TRANSITION");
 
         var fromStatus = payApp.Status;
         payApp.Status = PaymentApplicationStatus.Rejected;
@@ -229,6 +224,36 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
         return Result.Success(await BuildDetailDto(payApp, cancellationToken));
     }
 
+    public async Task<Result<PaymentApplicationDetailDto>> ReopenToDraftAsync(
+        Guid id, CancellationToken cancellationToken = default)
+    {
+        var payApp = await db.Set<PaymentApplication>()
+            .FirstOrDefaultAsync(pa => pa.Id == id && !pa.IsDeleted, cancellationToken);
+
+        if (payApp is null)
+            return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
+
+        if (!PaymentApplicationStatusTransitions.IsValid(payApp.Status, PaymentApplicationStatus.Draft))
+            return Result.Failure<PaymentApplicationDetailDto>(
+                "Only rejected applications can be reopened to draft", "INVALID_STATUS_TRANSITION");
+
+        var fromStatus = payApp.Status;
+        payApp.Status = PaymentApplicationStatus.Draft;
+        payApp.RejectedBy = null;
+        payApp.RejectionReason = null;
+        payApp.RejectedDate = null;
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        if (workflowTransitions is not null)
+            await workflowTransitions.RecordTransitionAsync(
+                "PaymentApplication", payApp.Id,
+                fromStatus.ToString(), nameof(PaymentApplicationStatus.Draft),
+                Guid.Empty, null, null, cancellationToken);
+
+        return Result.Success(await BuildDetailDto(payApp, cancellationToken));
+    }
+
     public async Task<Result<PaymentApplicationDetailDto>> MarkPaidAsync(
         Guid id, MarkPaymentApplicationPaidRequest request, CancellationToken cancellationToken = default)
     {
@@ -238,9 +263,9 @@ public class PaymentApplicationService(PitbullDbContext db, IWorkflowTransitionS
         if (payApp is null)
             return Result.Failure<PaymentApplicationDetailDto>("Payment application not found", "NOT_FOUND");
 
-        if (payApp.Status != PaymentApplicationStatus.Approved)
+        if (!PaymentApplicationStatusTransitions.IsValid(payApp.Status, PaymentApplicationStatus.Paid))
             return Result.Failure<PaymentApplicationDetailDto>(
-                "Only approved applications can be marked as paid", "INVALID_STATUS");
+                "Only approved applications can be marked as paid", "INVALID_STATUS_TRANSITION");
 
         var settings = await GetSettingsAsync(payApp.CompanyId, cancellationToken);
 

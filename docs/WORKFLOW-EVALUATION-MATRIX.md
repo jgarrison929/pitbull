@@ -22,10 +22,10 @@
 | # | Lifecycle | Canonical ERP stages (baseline) | Pitbull stages (post-remediation) | Verdict | Reviewer | Remediation status |
 |---|-----------|--------------------------------|-------------------------------------|---------|----------|-------------------|
 | 1 | Bid → Project | Draft → Submitted → Won/Lost → Converted → Project setup | `BidStatus` + `ConvertToProjectAsync`; `BidStatusTransitions` on update | **PASS** | PM | Enforced bid transitions; conversion still Won-only |
-| 2 | Project setup | Create project → SOV → cost codes → budget → contracts → team | `ProjectStatus.PreConstruction`; nav order Cost Codes → Employees → Projects → Contracts → Time | **PARTIAL** | PM | Navigation fixed; full setup orchestration still future work |
+| 2 | Project setup | Create project → SOV → cost codes → budget → contracts → team | `ProjectStatus.PreConstruction`; nav order Cost Codes → Employees → Projects → Contracts → Time; tenant provisioning on register; checklist auto-sync + canonical order | **PARTIAL** | PM | Day-1 chain improved; project create phases/team persistence and activate workflow still future |
 | 3 | Crew time → approval → payroll/export | Draft → Submitted → Approved/Rejected → Payroll run → Export | `TimeEntryService` state machine; `PayrollRunService` approved-only | **PASS** | Payroll | Approval path strong; payroll calc still MVP export |
 | 4 | Owner pay app (AR) | Draft → PM review → Submit → Owner cert → Payment due → Paid | `BillingApplicationStatus` full graph + `BillingApplicationStatusTransitions` | **PASS** | AR / CFO | Post-submit transitions + audit added this sprint |
-| 5 | Subcontract pay app (AP) | Draft → Submitted → Reviewed → Approved → Paid (+ Reject) | `PaymentApplicationService` workflow | **PASS** | AP | Canonical sub billing model (distinct from owner `BillingApplication`) |
+| 5 | Subcontract pay app (AP) | Draft → Submitted → Reviewed → Approved → Paid (+ Reject → Draft) | `PaymentApplicationStatusTransitions` + dedicated POST actions; PUT blocked for status | **PASS** | AP | PUT bypass removed; contracts edit UI no longer skips stages |
 | 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract-scoped CO; owner CO model future |
 | 7 | RFI | Open → Answered → Closed | `RfiStatusTransitions` + answer required on close | **PASS** | PM | Transition enforcement + `ClosedAt` set |
 | 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalService` inline matrix | **PASS** | PM | Backend enforced; UI restricted to `getAllowedSubmittalStatuses` |
@@ -48,6 +48,8 @@ Per plan criterion 2, failed workflows were not left patched in place — bypass
 
 | Removed (non-ERP) | Replaced with (modern) |
 |-------------------|------------------------|
+| Sub pay app PUT status bypass | `PaymentApplicationStatusTransitions` + POST workflow endpoints only |
+| AR/AP nav label "Pay Apps" for owner billing | **Owner Billing (AR)** vs **Sub Pay Apps (AP)** |
 | Change order `Pending → Approved` skip | `ChangeOrderStatusTransitions` requiring `UnderReview` |
 | RFI free-status PUT jumps | `RfiStatusTransitions` + answer required |
 | Bid status dropdown allowing any enum | `BidStatusTransitions` + UI `getAllowedBidStatuses` |
@@ -96,7 +98,8 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-d470372385b3\imp
 
 | Area | Test file |
 |------|-----------|
-| Transition graphs | `tests/Pitbull.Tests.Unit/Workflow/WorkflowTransitionGraphTests.cs` |
+| Transition graphs | `tests/Pitbull.Tests.Unit/Workflow/WorkflowTransitionGraphTests.cs` (incl. `PaymentApplicationStatusTransitions`) |
+| Sub pay app PUT bypass | `tests/Pitbull.Tests.Unit/Modules/Contracts/ContractsServiceTests.cs` |
 | Change orders | `tests/Pitbull.Tests.Unit/Modules/Contracts/ContractsServiceTests.cs` |
 | Billing workflow | `tests/Pitbull.Tests.Unit/Billing/BillingApplicationServiceTests.cs` |
 | WIP source | `tests/Pitbull.Tests.Unit/Services/WipCalculationServiceTests.cs` |

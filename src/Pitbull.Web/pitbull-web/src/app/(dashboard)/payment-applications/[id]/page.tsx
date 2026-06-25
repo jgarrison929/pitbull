@@ -71,7 +71,7 @@ const ALLOWED_ACTIONS: Record<number, string[]> = {
   [PaymentApplicationStatus.Submitted]: ["review"],
   [PaymentApplicationStatus.Reviewed]: ["approve", "reject"],
   [PaymentApplicationStatus.Approved]: ["mark-paid"],
-  [PaymentApplicationStatus.Rejected]: [],
+  [PaymentApplicationStatus.Rejected]: ["reopen"],
   [PaymentApplicationStatus.Paid]: [],
   [PaymentApplicationStatus.Void]: [],
 };
@@ -273,6 +273,19 @@ export default function PaymentApplicationDetailPage() {
     }
   };
 
+  const handleReopen = async () => {
+    setActionLoading(true);
+    try {
+      await api(`/api/paymentapplications/${id}/reopen`, { method: "POST", body: {} });
+      toast.success("Payment application reopened to draft");
+      await loadDetail();
+    } catch {
+      toast.error("Failed to reopen");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleReject = async () => {
     if (!rejectReason.trim()) { toast.error("Rejection reason is required"); return; }
     setActionLoading(true);
@@ -465,6 +478,17 @@ export default function PaymentApplicationDetailPage() {
             >
               <DollarSign className="h-4 w-4 mr-1.5" />
               Mark Paid
+            </Button>
+          )}
+          {actions.includes("reopen") && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleReopen}
+              disabled={actionLoading}
+              className="min-h-[44px]"
+            >
+              Reopen to Draft
             </Button>
           )}
         </div>

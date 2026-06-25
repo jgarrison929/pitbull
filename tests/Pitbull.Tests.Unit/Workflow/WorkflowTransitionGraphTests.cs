@@ -54,6 +54,16 @@ public class WorkflowTransitionGraphTests
     }
 
     [Theory]
+    [InlineData(PaymentApplicationStatus.Draft, PaymentApplicationStatus.Submitted, true)]
+    [InlineData(PaymentApplicationStatus.Draft, PaymentApplicationStatus.Approved, false)]
+    [InlineData(PaymentApplicationStatus.Rejected, PaymentApplicationStatus.Draft, true)]
+    [InlineData(PaymentApplicationStatus.Approved, PaymentApplicationStatus.Paid, true)]
+    public void PaymentApplicationTransitions_MatchErpStages(PaymentApplicationStatus from, PaymentApplicationStatus to, bool allowed)
+    {
+        PaymentApplicationStatusTransitions.IsValid(from, to).Should().Be(allowed);
+    }
+
+    [Theory]
     [InlineData(BillingApplicationStatus.Draft, BillingApplicationStatus.PmReview, true)]
     [InlineData(BillingApplicationStatus.SubmittedToOwner, BillingApplicationStatus.PaymentDue, false)]
     [InlineData(BillingApplicationStatus.ArchitectCertified, BillingApplicationStatus.PaymentDue, true)]

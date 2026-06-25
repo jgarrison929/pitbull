@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Http.Json;
 using Pitbull.Contracts.Domain;
+using Pitbull.Contracts.Features;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.CreateSubcontract;
+using Pitbull.Contracts.Features.UpdateSubcontract;
 using Pitbull.Contracts.Features.UpdatePaymentApplication;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
@@ -72,6 +74,31 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         var scResp = await client.PostAsJsonAsync("/api/subcontracts", subcontractCmd);
         scResp.EnsureSuccessStatusCode();
         var subcontract = (await scResp.Content.ReadFromJsonAsync<SubcontractDto>(TestJsonOptions.Default))!;
+
+        // Sign subcontract so pay app submit passes RequireSignedSubcontract gate
+        var signCmd = new UpdateSubcontractCommand(
+            Id: subcontract.Id,
+            SubcontractNumber: subcontract.SubcontractNumber,
+            SubcontractorName: subcontract.SubcontractorName,
+            SubcontractorContact: subcontract.SubcontractorContact,
+            SubcontractorEmail: subcontract.SubcontractorEmail,
+            SubcontractorPhone: subcontract.SubcontractorPhone,
+            SubcontractorAddress: subcontract.SubcontractorAddress,
+            ScopeOfWork: subcontract.ScopeOfWork,
+            TradeCode: subcontract.TradeCode,
+            OriginalValue: subcontract.OriginalValue,
+            RetainagePercent: subcontract.RetainagePercent,
+            ExecutionDate: DateTime.UtcNow,
+            StartDate: subcontract.StartDate,
+            CompletionDate: subcontract.CompletionDate,
+            Status: SubcontractStatus.Executed,
+            InsuranceExpirationDate: subcontract.InsuranceExpirationDate,
+            InsuranceCurrent: subcontract.InsuranceCurrent,
+            LicenseNumber: subcontract.LicenseNumber,
+            Notes: subcontract.Notes);
+
+        var signResp = await client.PutAsJsonAsync($"/api/subcontracts/{subcontract.Id}", signCmd);
+        signResp.EnsureSuccessStatusCode();
 
         return (client, project.Id, subcontract.Id);
     }
@@ -261,17 +288,17 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         createResp.EnsureSuccessStatusCode();
         var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
-        // Update it
+        // Update amounts while still draft (status changes use workflow endpoints)
         var updateCmd = new UpdatePaymentApplicationCommand(
             Id: created.Id,
             WorkCompletedThisPeriod: 25_000m,
             StoredMaterials: 3_000m,
-            Status: PaymentApplicationStatus.Submitted,
+            Status: PaymentApplicationStatus.Draft,
             ApprovedBy: null,
             ApprovedAmount: null,
             InvoiceNumber: "INV-001-REV",
             CheckNumber: null,
-            Notes: "Revised and submitted");
+            Notes: "Revised draft");
 
         var updateResp = await client.PutAsJsonAsync($"/api/paymentapplications/{created.Id}", updateCmd);
         Assert.Equal(HttpStatusCode.OK, updateResp.StatusCode);
@@ -279,8 +306,14 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         var updated = (await updateResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
         Assert.Equal(25_000m, updated.WorkCompletedThisPeriod);
         Assert.Equal(3_000m, updated.StoredMaterials);
-        Assert.Equal(PaymentApplicationStatus.Submitted, updated.Status);
+        Assert.Equal(PaymentApplicationStatus.Draft, updated.Status);
         Assert.Equal("INV-001-REV", updated.InvoiceNumber);
+
+        var submitResp = await client.PostAsync($"/api/paymentapplications/{created.Id}/submit", null);
+        Assert.Equal(HttpStatusCode.OK, submitResp.StatusCode);
+        var submittedDetail = await submitResp.Content.ReadFromJsonAsync<PaymentApplicationDetailDto>(TestJsonOptions.Default);
+        Assert.NotNull(submittedDetail);
+        Assert.Equal(PaymentApplicationStatus.Submitted, submittedDetail!.Status);
     }
 
     [Fact]
@@ -407,20 +440,9 @@ public sealed class PaymentApplicationsEndpointsTests(PostgresFixture db) : IAsy
         createResp.EnsureSuccessStatusCode();
         var created = (await createResp.Content.ReadFromJsonAsync<PaymentApplicationDto>(TestJsonOptions.Default))!;
 
-        // Submit it
-        var updateCmd = new UpdatePaymentApplicationCommand(
-            Id: created.Id,
-            WorkCompletedThisPeriod: 20_000m,
-            StoredMaterials: 0m,
-            Status: PaymentApplicationStatus.Submitted,
-            ApprovedBy: null,
-            ApprovedAmount: null,
-            InvoiceNumber: "INV-001",
-            CheckNumber: null,
-            Notes: null);
-
-        var updateResp = await client.PutAsJsonAsync($"/api/paymentapplications/{created.Id}", updateCmd);
-        updateResp.EnsureSuccessStatusCode();
+        // Submit via workflow endpoint (PUT cannot change status)
+        var submitResp = await client.PostAsync($"/api/paymentapplications/{created.Id}/submit", null);
+        submitResp.EnsureSuccessStatusCode();
 
         // Try to delete - should fail
         var deleteResp = await client.DeleteAsync($"/api/paymentapplications/{created.Id}");

@@ -1,4 +1,4 @@
-import { BidStatus, ChangeOrderStatus, RfiStatus } from "./types";
+import { BidStatus, ChangeOrderStatus, PaymentApplicationStatus, RfiStatus } from "./types";
 
 /**
  * Frontend mirrors of backend *StatusTransitions classes.
@@ -118,6 +118,22 @@ export const dailyReportAllowedTransitions: Record<string, string[]> = {
 
 export function getNextDailyReportStatuses(from: string): string[] {
   return dailyReportAllowedTransitions[from] ?? [];
+}
+
+// ─── Subcontract pay apps (AP) ──────────────────────────────
+
+export const paymentApplicationAllowedTransitions: Record<PaymentApplicationStatus, PaymentApplicationStatus[]> = {
+  [PaymentApplicationStatus.Draft]: [PaymentApplicationStatus.Submitted],
+  [PaymentApplicationStatus.Submitted]: [PaymentApplicationStatus.Reviewed, PaymentApplicationStatus.Rejected],
+  [PaymentApplicationStatus.Reviewed]: [PaymentApplicationStatus.Approved, PaymentApplicationStatus.Rejected],
+  [PaymentApplicationStatus.Approved]: [PaymentApplicationStatus.Paid],
+  [PaymentApplicationStatus.Rejected]: [PaymentApplicationStatus.Draft],
+  [PaymentApplicationStatus.Paid]: [],
+  [PaymentApplicationStatus.Void]: [],
+};
+
+export function getNextPaymentApplicationStatuses(from: PaymentApplicationStatus): PaymentApplicationStatus[] {
+  return paymentApplicationAllowedTransitions[from] ?? [];
 }
 
 // ─── Vendor invoices (AP) ───────────────────────────────────

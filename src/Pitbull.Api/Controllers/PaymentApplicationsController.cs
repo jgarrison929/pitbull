@@ -139,8 +139,8 @@ public class PaymentApplicationsController(
     /// Update a payment application
     /// </summary>
     /// <remarks>
-    /// Updates payment application details. Status changes automatically set relevant dates.
-    /// When marked as Paid, the subcontract's billing totals are updated.
+    /// Updates payment application amounts and reference fields. Status changes must use
+    /// dedicated workflow endpoints (submit, review, approve, reject, reopen, mark-paid).
     /// </remarks>
     /// <param name="id">Payment application unique identifier</param>
     /// <param name="command">Updated payment application details</param>
@@ -318,6 +318,19 @@ public class PaymentApplicationsController(
     public async Task<IActionResult> Approve(Guid id, [FromBody] ApprovePaymentApplicationRequest request)
     {
         var result = await payAppService.ApproveAsync(id, request);
+        return this.HandleResult(result);
+    }
+
+    /// <summary>
+    /// Reopen a rejected application back to draft for revision and resubmission
+    /// </summary>
+    [HttpPost("{id:guid}/reopen")]
+    [ProducesResponseType(typeof(PaymentApplicationDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ReopenToDraft(Guid id)
+    {
+        var result = await payAppService.ReopenToDraftAsync(id);
         return this.HandleResult(result);
     }
 

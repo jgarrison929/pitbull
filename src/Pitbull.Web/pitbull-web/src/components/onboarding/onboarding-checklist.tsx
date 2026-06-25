@@ -77,12 +77,12 @@ const CHECKLIST_ITEMS = [
     href: "/admin/users",
   },
   {
-    key: "first_project",
-    field: "firstProjectCreated" as const,
-    label: "Create your first project",
-    description: "Set up a project to start tracking work",
-    icon: FolderPlus,
-    href: "/projects/new",
+    key: "cost_codes",
+    field: "costCodesConfigured" as const,
+    label: "Review cost codes",
+    description: "Customize your cost code structure",
+    icon: DollarSign,
+    href: "/cost-codes",
   },
   {
     key: "employees_added",
@@ -93,12 +93,12 @@ const CHECKLIST_ITEMS = [
     href: "/employees/new",
   },
   {
-    key: "cost_codes",
-    field: "costCodesConfigured" as const,
-    label: "Review cost codes",
-    description: "Customize your cost code structure",
-    icon: DollarSign,
-    href: "/cost-codes",
+    key: "first_project",
+    field: "firstProjectCreated" as const,
+    label: "Create your first project",
+    description: "Set up a project to start tracking work",
+    icon: FolderPlus,
+    href: "/projects/new",
   },
 ];
 

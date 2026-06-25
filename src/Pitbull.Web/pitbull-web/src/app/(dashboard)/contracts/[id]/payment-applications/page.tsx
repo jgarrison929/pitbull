@@ -255,7 +255,7 @@ export default function PaymentApplicationsPage() {
           id: editingItem.id,
           workCompletedThisPeriod,
           storedMaterials,
-          status: editForm.status,
+          status: editingItem.status,
           approvedBy: editForm.approvedBy.trim() || null,
           approvedAmount: editForm.approvedAmount
             ? parseFloat(editForm.approvedAmount)
@@ -562,7 +562,7 @@ export default function PaymentApplicationsPage() {
           <DialogHeader>
             <DialogTitle>Edit Payment Application</DialogTitle>
             <DialogDescription>
-              Update values and advance the payment application lifecycle.
+              Update amounts and references. Use the pay app detail page for workflow actions.
             </DialogDescription>
           </DialogHeader>
 
@@ -598,27 +598,15 @@ export default function PaymentApplicationsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="edit-status">Status</Label>
-              <Select
-                value={String(editForm.status)}
-                onValueChange={(value) =>
-                  setEditForm((prev) => ({
-                    ...prev,
-                    status: Number(value) as PaymentApplicationStatus,
-                  }))
-                }
-              >
-                <SelectTrigger id="edit-status">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statusOptions.map((option) => (
-                    <SelectItem key={option.value} value={String(option.value)}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Status</Label>
+              <Badge className={paymentApplicationStatusBadgeClass(editingItem?.status ?? 0)}>
+                {paymentApplicationStatusLabel(editingItem?.status ?? 0)}
+              </Badge>
+              {editingItem && (
+                <Button asChild variant="link" className="h-auto p-0 text-sm">
+                  <Link href={`/payment-applications/${editingItem.id}`}>Open detail for workflow actions →</Link>
+                </Button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">

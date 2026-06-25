@@ -62,6 +62,7 @@ public class TenantProvisioningService(
 
         var defaultCostCodes = new[]
         {
+            ("LAB", "Labor", "Labor"),
             ("01-000", "General Conditions", "01 - General Requirements"),
             ("02-000", "Site Work", "02 - Existing Conditions"),
             ("03-000", "Concrete", "03 - Concrete"),

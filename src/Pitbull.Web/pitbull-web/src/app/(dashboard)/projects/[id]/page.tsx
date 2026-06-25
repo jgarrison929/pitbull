@@ -594,7 +594,7 @@ export default function ProjectDetailPage({
                 </p>
                 <div className="flex justify-center gap-2">
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/time-tracking/crew-entry?projectId=${id}`}>Log Time</Link>
+                    <Link href={`/time-tracking/new?projectId=${id}`}>Log Time</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/projects/${id}/rfis`}>Create RFI</Link>
@@ -681,7 +681,7 @@ export default function ProjectDetailPage({
         <CardContent>
           <div className="flex flex-wrap gap-3">
             <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white">
-              <Link href={`/time-tracking/crew-entry?projectId=${id}`}>
+              <Link href={`/time-tracking/new?projectId=${id}`}>
                 <Clock className="mr-2 h-4 w-4" />
                 Add Time Entry
               </Link>
