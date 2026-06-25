@@ -833,9 +833,7 @@ public class SubmittalService : PmServiceBase, ISubmittalService
         var maxNumber = await ProjectScoped<PmSubmittal>(projectId)
             .MaxAsync(s => (int?)s.SubmittalNumber, cancellationToken) ?? 0;
 
-        var enriched = MergeData(request, "SubmittalNumber", maxNumber + 1);
-        if (string.IsNullOrWhiteSpace(request.Status))
-            enriched = enriched with { Status = "Draft" };
+        var enriched = MergeData(request, "SubmittalNumber", maxNumber + 1) with { Status = "Draft" };
 
         return await CreateAsync<PmSubmittal>(projectId, enriched, cancellationToken);
     }
@@ -1049,6 +1047,11 @@ public class DailyReportService : PmServiceBase, IDailyReportService
 
         if (report.Status is DailyReportStatus.Approved or DailyReportStatus.Locked or DailyReportStatus.Submitted)
             return Result.Failure<PmEntityDto>("Cannot edit a submitted, approved, or locked daily report", "INVALID_STATUS");
+
+        if (!string.IsNullOrWhiteSpace(request.Status)
+            && Enum.TryParse<DailyReportStatus>(request.Status, true, out var requestedStatus)
+            && requestedStatus != report.Status)
+            return Result.Failure<PmEntityDto>("Daily report status changes require submit/approve workflow actions", "INVALID_STATUS_TRANSITION");
 
         ApplyUpsert(report, request);
         await SyncDailyReportCrewEntriesAsync(dailyReportId, request, cancellationToken);
