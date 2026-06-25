@@ -32,7 +32,7 @@ public sealed class SecretVaultServiceTests
         result.Value.Should().NotBeNull();
         result.Value!.Key.Should().Be("RESEND_API_KEY");
         result.Value.Category.Should().Be("API");
-        result.Value.KeyFingerprint.Should().Be("re_1");
+        result.Value.KeyFingerprint.Should().Be("REDA");
     }
 
     [Fact]

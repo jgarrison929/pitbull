@@ -11,6 +11,7 @@ using Pitbull.Contracts.Features.UpdateChangeOrder;
 using Pitbull.Contracts.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.ProjectManagement.Domain;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.UpdateRfi;
@@ -51,6 +52,25 @@ public class WorkflowTransitionGraphTests
     public void BidTransitions_MatchErpStages(BidStatus from, BidStatus to, bool allowed)
     {
         BidStatusTransitions.IsValid(from, to).Should().Be(allowed);
+    }
+
+    [Theory]
+    [InlineData(DailyReportStatus.Draft, DailyReportStatus.Submitted, true)]
+    [InlineData(DailyReportStatus.Draft, DailyReportStatus.Approved, false)]
+    [InlineData(DailyReportStatus.Submitted, DailyReportStatus.Approved, true)]
+    public void DailyReportTransitions_MatchErpStages(DailyReportStatus from, DailyReportStatus to, bool allowed)
+    {
+        DailyReportStatusTransitions.IsValid(from, to).Should().Be(allowed);
+    }
+
+    [Theory]
+    [InlineData(SubmittalStatus.Draft, SubmittalStatus.Submitted, true)]
+    [InlineData(SubmittalStatus.Draft, SubmittalStatus.Approved, false)]
+    [InlineData(SubmittalStatus.InReview, SubmittalStatus.Approved, true)]
+    [InlineData(SubmittalStatus.Rejected, SubmittalStatus.Draft, true)]
+    public void SubmittalTransitions_MatchErpStages(SubmittalStatus from, SubmittalStatus to, bool allowed)
+    {
+        SubmittalStatusTransitions.IsValid(from, to).Should().Be(allowed);
     }
 
     [Theory]

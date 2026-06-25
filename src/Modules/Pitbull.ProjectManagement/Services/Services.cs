@@ -221,7 +221,11 @@ public abstract class PmServiceBase
         return Result.Success(new PagedResult<PmEntityDto>(items.Select(ToDto).ToList(), total, listQuery.Page, listQuery.PageSize));
     }
 
-    protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct)
+    protected Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct)
+        where T : BaseEntity, ICompanyScoped, new()
+        => CreateAsync<T>(projectId, request, ct, configureEntity: null);
+
+    protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct, Action<T>? configureEntity)
         where T : BaseEntity, ICompanyScoped, new()
     {
         // Validate project exists (prevents FK violation on SaveChanges)
@@ -258,6 +262,7 @@ public abstract class PmServiceBase
         }
 
         SetIfExists(entity, "ProjectId", projectId);
+        configureEntity?.Invoke(entity);
         ApplyUpsert(entity, request);
 
         Db.Set<T>().Add(entity);
@@ -853,22 +858,9 @@ public class SubmittalService : PmServiceBase, ISubmittalService
 
         if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<SubmittalStatus>(request.Status, true, out var newStatus) && newStatus != submittal.Status)
         {
-            var validTransition = (submittal.Status, newStatus) switch
-            {
-                (SubmittalStatus.Draft, SubmittalStatus.Submitted) => true,
-                (SubmittalStatus.Submitted, SubmittalStatus.InReview) => true,
-                (SubmittalStatus.InReview, SubmittalStatus.Approved) => true,
-                (SubmittalStatus.InReview, SubmittalStatus.ApprovedAsNoted) => true,
-                (SubmittalStatus.InReview, SubmittalStatus.ReviseAndResubmit) => true,
-                (SubmittalStatus.InReview, SubmittalStatus.Rejected) => true,
-                (SubmittalStatus.ReviseAndResubmit, SubmittalStatus.Draft) => true,
-                (SubmittalStatus.Rejected, SubmittalStatus.Draft) => true,
-                (SubmittalStatus.Approved, SubmittalStatus.Closed) => true,
-                (SubmittalStatus.ApprovedAsNoted, SubmittalStatus.Closed) => true,
-                _ => false
-            };
-            if (!validTransition)
-                return Result.Failure<PmEntityDto>($"Invalid status transition from {submittal.Status} to {newStatus}", "INVALID_STATUS");
+            if (!SubmittalStatusTransitions.IsValid(submittal.Status, newStatus))
+                return Result.Failure<PmEntityDto>(
+                    $"Invalid status transition from {submittal.Status} to {newStatus}", "INVALID_STATUS_TRANSITION");
 
             if (newStatus == SubmittalStatus.Submitted)
                 request = MergeData(request, "SubmittedDate", DateTime.UtcNow);
@@ -1018,33 +1010,24 @@ public class DailyReportService : PmServiceBase, IDailyReportService
     {
         try
         {
-            if (request.Data is not null
-                && request.Data.TryGetValue("ReportDate", out var rdObj) && rdObj is not null
-                && request.Data.TryGetValue("ReportType", out var rtObj) && rtObj is not null)
+            if (DailyReportRequestMapper.TryGetDuplicateKey(request, out var reportDateUtc, out var reportType))
             {
-                DateTime reportDate;
-                DailyReportType reportType;
-                try
-                {
-                    reportDate = ConvertValue<DateTime>(rdObj);
-                    reportType = ConvertValue<DailyReportType>(rtObj);
-                }
-                catch { goto skip; }
-
-                // Npgsql 9.x requires UTC DateTime for timestamptz comparisons.
-                // Convert to a UTC date-range check to avoid DateTimeKind.Unspecified errors.
-                var reportDateUtc = DateTime.SpecifyKind(reportDate.Date, DateTimeKind.Utc);
                 var reportDateNextUtc = reportDateUtc.AddDays(1);
-
                 var duplicate = await ProjectScoped<PmDailyReport>(projectId)
                     .AnyAsync(r => r.ReportDate >= reportDateUtc && r.ReportDate < reportDateNextUtc && r.ReportType == reportType, cancellationToken);
                 if (duplicate)
                     return Result.Failure<PmEntityDto>("A daily report already exists for this date and report type", "DUPLICATE_REPORT");
             }
-            skip:
-            var created = await CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
+
+            var created = await CreateAsync<PmDailyReport>(projectId, request, cancellationToken, entity =>
+            {
+                entity.Status = DailyReportStatus.Draft;
+                DailyReportRequestMapper.MapCreate(entity, request, GetCurrentUserId());
+            });
+
             if (created.IsSuccess && created.Value is not null)
                 await SyncDailyReportCrewEntriesAsync(created.Value.Id, request, cancellationToken);
+
             return created;
         }
         catch (Exception)
@@ -1081,7 +1064,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
 
         if (dailyReport.Status != DailyReportStatus.Draft)
-            return Result.Failure<PmActionResultDto>("Daily report can only be submitted from Draft status", "INVALID_STATUS");
+            return Result.Failure<PmActionResultDto>("Daily report can only be submitted from Draft status", "INVALID_STATUS_TRANSITION");
 
         // Validate weather data is present
         if (string.IsNullOrWhiteSpace(dailyReport.WeatherSummary) && !dailyReport.TemperatureHigh.HasValue && !dailyReport.TemperatureLow.HasValue)
@@ -1103,7 +1086,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
 
         if (dailyReport.Status != DailyReportStatus.Submitted)
-            return Result.Failure<PmActionResultDto>("Daily report can only be approved from Submitted status", "INVALID_STATUS");
+            return Result.Failure<PmActionResultDto>("Daily report can only be approved from Submitted status", "INVALID_STATUS_TRANSITION");
 
         dailyReport.Status = DailyReportStatus.Approved;
         dailyReport.UpdatedAt = DateTime.UtcNow;

@@ -103,7 +103,7 @@ public sealed class PaymentApplicationServiceTests
         var result = await service.ApproveAsync(payAppId, new ApprovePaymentApplicationRequest("controller@pitbull.local", null, null, null));
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("INVALID_STATUS");
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public sealed class PaymentApplicationServiceTests
         var result = await service.RejectAsync(payAppId, new RejectPaymentApplicationRequest("approver@pitbull.local", "no"));
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("INVALID_STATUS");
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     [Fact]
@@ -220,7 +220,7 @@ public sealed class PaymentApplicationServiceTests
             new MarkPaymentApplicationPaidRequest(1000m, DateTime.UtcNow, "CHK-1001", "1001", null));
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("INVALID_STATUS");
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     [Fact]

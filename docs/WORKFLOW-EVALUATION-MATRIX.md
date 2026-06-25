@@ -28,9 +28,9 @@
 | 5 | Subcontract pay app (AP) | Draft → Submitted → Reviewed → Approved → Paid (+ Reject → Draft) | `PaymentApplicationStatusTransitions` + dedicated POST actions; PUT blocked for status | **PASS** | AP | PUT bypass removed; contracts edit UI no longer skips stages |
 | 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract-scoped CO; owner CO model future |
 | 7 | RFI | Open → Answered → Closed | `RfiStatusTransitions` + answer required on close | **PASS** | PM | Transition enforcement + `ClosedAt` set |
-| 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalService` inline matrix | **PASS** | PM | Backend enforced; UI restricted to `getAllowedSubmittalStatuses` |
+| 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalStatusTransitions` in `UpdateSubmittalAsync` | **PASS** | PM | Inline switch removed; `WorkflowTransitionGraphTests.SubmittalTransitions_MatchErpStages` |
 | 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PASS** | AP | Match + Approve + Mark Paid UI actions; GL accrual future |
-| 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatus`; approve Submitted-only; crew JSON synced | **PASS** | PM | Crew `CrewEntries` persisted to `PmDailyReportCrew` |
+| 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatusTransitions` + `DailyReportRequestMapper` | **PASS** | PM | Create maps `ReportDate`/`ReportType`; submit/approve reject non-canonical status; integration test unskipped |
 
 ### Canonical billing model decision
 
@@ -56,6 +56,8 @@ Per plan criterion 2, failed workflows were not left patched in place — bypass
 | Billing lifecycle ending at submit | Full `BillingApplicationStatusTransitions` + dedicated POST actions |
 | WIP sourcing `PaymentApplication` (sub AP) | `BillingApplication.TotalEarnedLessRetainage` (owner AR) |
 | Daily report status dropdown bypassing submit | Read-only status + Submit/Approve API actions |
+| Submittal inline 10-case switch | `SubmittalStatusTransitions` + graph tests |
+| Daily report `ApplyUpsert` create gaps | `DailyReportRequestMapper.MapCreate` + integration payload unit test |
 | Submittal delete→Closed fallback | Hard delete or error; status via transition graph only |
 | Vendor invoice Match-only UI | Match + Approve + Mark Paid workflow buttons |
 
@@ -63,7 +65,7 @@ Per plan criterion 2, failed workflows were not left patched in place — bypass
 
 ## Subagent review summaries
 
-Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-d470372385b3\implementer\workflow-reviews\`
+Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\implementer\workflow-reviews\`
 
 | Review file | Role |
 |-------------|------|
@@ -107,10 +109,10 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-d470372385b3\imp
 
 | Suite | Result | Log |
 |-------|--------|-----|
-| Workflow unit (`WorkflowTransitionGraphTests` + related) | 17 passed | `workflow-tests.log` |
-| Full integration | **264 passed**, 0 failed, 1 skipped | `integration-tests-full.log` |
-| Full unit | **3147 passed**, 2 failed (pre-existing: `SecretVaultServiceTests`, `AuthControllerTests`), 2 skipped | `unit-tests-full.log` |
-| Bids + change orders integration | 21 passed | `integration-workflow-verify.log` |
+| Workflow unit (`WorkflowTransitionGraphTests` + PM daily/submittal) | 31+ passed | `workflow-tests.log` |
+| Full integration | **265 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
+| Full unit | **3162 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
+| Daily reports integration | 3 passed (create→submit→approve unskipped) | `integration-tests-full.log` |
 
 ---
 
@@ -131,4 +133,4 @@ Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transit
 
 Subagent frontend review (2026-06-25): all eight PM/finance workflow pages now match backend allowed transitions.
 
-API smoke evidence: `api-workflow-launch.log` — dual-run against live API (`docker compose up -d`, `dotnet run` on port 5081). Validates bid Draft→Submitted→Won (canonical), RFI Open→Answered, and RFI Open→Closed rejection.
+API smoke evidence: `scripts/workflow-api-smoke.ps1` → `api-workflow-launch.log` — dual-run against live API (`docker compose up -d`, `dotnet run` on port 5081). Covers bid, change order, RFI (+ invalid transition), sub pay app, owner billing, daily report, and time entry lifecycles.

@@ -1011,7 +1011,7 @@ public class AuthControllerTests
         var demoOptions = CreateDemoOptions(enabled: true,
             userEmail: "Demo@PitbullConstructionSolutions.com");
 
-        var user = CreateTestUser(id: userId, email: "demo@example.com");
+        var user = CreateTestUser(id: userId, email: "demo@pitbullconstructionsolutions.com");
         db.Users.Add(user);
         await db.SaveChangesAsync();
 

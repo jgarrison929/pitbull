@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Core.Services.Weather;
 using Pitbull.ProjectManagement.Domain;
@@ -42,6 +43,50 @@ public sealed class DailyReportServiceTests
         result.Value!.ProjectId.Should().Be(ProjectId);
         result.Value.Id.Should().NotBeEmpty();
         result.Value.Status.Should().Be("Draft");
+    }
+
+    [Fact]
+    public async Task CreateDailyReport_WithIntegrationPayload_MapsReportDateAndType()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+
+        var preparedBy = Guid.NewGuid();
+        db.Set<AppUser>().Add(new AppUser
+        {
+            Id = preparedBy,
+            UserName = "pm@test.com",
+            Email = "pm@test.com",
+            TenantId = TestDbContextFactory.TestTenantId,
+            FirstName = "PM",
+            LastName = "User"
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var reportDate = DateTime.UtcNow;
+
+        var result = await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Name: "Daily Report - Field",
+            Data: new Dictionary<string, object?>
+            {
+                ["ReportDate"] = reportDate,
+                ["ReportType"] = "Foreman",
+                ["WeatherSummary"] = "Clear skies",
+                ["WorkNarrative"] = "Poured footings on north wing.",
+                ["CrewCount"] = 12,
+                ["EquipmentCount"] = 3,
+                ["PreparedByUserId"] = preparedBy
+            }));
+
+        result.IsSuccess.Should().BeTrue();
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == result.Value!.Id);
+        entity.ReportDate.Date.Should().Be(reportDate.Date);
+        entity.ReportType.Should().Be(DailyReportType.Foreman);
+        entity.WeatherSummary.Should().Be("Clear skies");
+        entity.WorkNarrative.Should().Be("Poured footings on north wing.");
+        entity.PreparedByUserId.Should().Be(preparedBy);
     }
 
     [Fact]
@@ -647,7 +692,7 @@ public sealed class DailyReportServiceTests
         var result = await service.SubmitDailyReportAsync(ProjectId, created.Id);
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("INVALID_STATUS");
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     [Fact]
@@ -657,14 +702,16 @@ public sealed class DailyReportServiceTests
 
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
-        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Sunny", ["WorkNarrative"] = "Electrical rough-in" }))).Value!;
 
+        await service.SubmitDailyReportAsync(ProjectId, created.Id);
         await service.ApproveDailyReportAsync(ProjectId, created.Id);
 
         var result = await service.ApproveDailyReportAsync(ProjectId, created.Id);
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("INVALID_STATUS");
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     #endregion

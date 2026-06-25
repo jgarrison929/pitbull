@@ -19,7 +19,7 @@ public sealed class DailyReportsEndpointsTests(PostgresFixture db) : ApiIntegrat
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 
-    [Fact(Skip = "Daily report create returns 400 — PmUpsertRequest Data mapping needs investigation")]
+    [Fact]
     public async Task Can_create_submit_approve_and_add_photo_to_daily_report()
     {
         await Db.ResetAsync();
@@ -33,6 +33,7 @@ public sealed class DailyReportsEndpointsTests(PostgresFixture db) : ApiIntegrat
                 ["ReportDate"] = DateTime.UtcNow,
                 ["ReportType"] = "Foreman",
                 ["WeatherSummary"] = "Clear skies",
+                ["WorkNarrative"] = "Poured footings on north wing.",
                 ["CrewCount"] = 12,
                 ["EquipmentCount"] = 3,
                 ["PreparedByUserId"] = auth.UserId
