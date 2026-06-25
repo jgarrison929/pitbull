@@ -12,6 +12,8 @@ using Pitbull.Contracts.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.ProjectManagement.Domain;
+using Pitbull.ProjectManagement.Features;
+using Pitbull.ProjectManagement.Services;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.UpdateRfi;
@@ -170,6 +172,37 @@ public class WorkflowTransitionGraphTests
         var invalid = await service.MarkPaidAsync(created.Value.Id);
         invalid.IsSuccess.Should().BeFalse();
         invalid.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
+    [Fact]
+    public async Task DailyReportService_RecordsWorkflowTransition_OnSubmit()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+
+        var workflow = CreateWorkflowService(db);
+        var service = new DailyReportService(db, new CompanyContext
+        {
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            CompanyCode = "01",
+            CompanyName = "Test Company"
+        }, workflowTransitions: workflow);
+
+        var created = await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["WeatherSummary"] = "Clear",
+                ["WorkNarrative"] = "Foundation pour"
+            }));
+        created.IsSuccess.Should().BeTrue();
+
+        var submitted = await service.SubmitDailyReportAsync(ProjectId, created.Value!.Id);
+        submitted.IsSuccess.Should().BeTrue();
+
+        var transitions = await workflow.GetTransitionsAsync("DailyReport", created.Value.Id, CancellationToken.None);
+        transitions.Should().ContainSingle();
+        transitions[0].FromStatus.Should().Be(nameof(DailyReportStatus.Draft));
+        transitions[0].ToStatus.Should().Be(nameof(DailyReportStatus.Submitted));
     }
 
     [Fact]

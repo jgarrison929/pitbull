@@ -3,7 +3,8 @@
 param(
     [string]$BaseUrl = "http://localhost:5081",
     [int]$RunNumber = 1,
-    [string]$AuthCacheFile = ""
+    [string]$AuthCacheFile = "",
+    [string]$LogFile = ""
 )
 
 if ([string]::IsNullOrWhiteSpace($AuthCacheFile)) {
@@ -14,7 +15,11 @@ $ErrorActionPreference = "Stop"
 
 function Write-SmokeLog([string]$Message) {
     $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    Write-Host "[$ts] [run $RunNumber] $Message"
+    $line = "[$ts] [run $RunNumber] $Message"
+    Write-Host $line
+    if (-not [string]::IsNullOrWhiteSpace($LogFile)) {
+        Add-Content -Path $LogFile -Value $line -Encoding utf8
+    }
 }
 
 function Assert-Status([string]$Label, [int]$Expected, [object]$Response) {

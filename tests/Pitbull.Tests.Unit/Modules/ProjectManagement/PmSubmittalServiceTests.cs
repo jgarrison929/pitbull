@@ -24,7 +24,7 @@ public sealed class PmSubmittalServiceTests
     }
 
     [Fact]
-    public async Task CreateSubmittal_WithTitleAndStatus_PersistsAndReturnsDto()
+    public async Task CreateSubmittal_WithNonDraftStatus_ReturnsInvalidStatusTransition()
     {
         using var db = TestDbContextFactory.Create();
 
@@ -34,10 +34,58 @@ public sealed class PmSubmittalServiceTests
         var result = await service.CreateSubmittalAsync(ProjectId,
             new PmUpsertRequest(Title: "Steel Shop Drawings", Status: "InReview"));
 
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
+    [Fact]
+    public async Task CreateSubmittal_WithStatusInData_ReturnsInvalidStatusTransition()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var result = await service.CreateSubmittalAsync(ProjectId, new PmUpsertRequest(
+            Title: "Bypass attempt",
+            Data: new Dictionary<string, object?> { ["Status"] = "Approved" }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
+    [Fact]
+    public async Task CreateSubmittal_WithTitle_PersistsDraftStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var result = await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Title: "Steel Shop Drawings"));
+
         result.IsSuccess.Should().BeTrue();
         result.Value!.ProjectId.Should().Be(ProjectId);
         result.Value.Title.Should().Be("Steel Shop Drawings");
         result.Value.Status.Should().Be("Draft");
+    }
+
+    [Fact]
+    public async Task UpdateSubmittal_WithStatusInData_UsesTransitionGraph()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateSubmittalAsync(ProjectId,
+            new PmUpsertRequest(Title: "Data status"))).Value!;
+
+        var result = await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(
+            Data: new Dictionary<string, object?> { ["Status"] = "Submitted" }));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Status.Should().Be("Submitted");
     }
 
     [Fact]
@@ -48,7 +96,7 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Draft Package", Status: "Draft"))).Value!;
+            new PmUpsertRequest(Title: "Draft Package"))).Value!;
 
         // Follow valid transition path: Draft → Submitted → InReview → Approved
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
@@ -168,7 +216,7 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Closed One", Status: "Draft"))).Value!;
+            new PmUpsertRequest(Title: "Closed One"))).Value!;
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "InReview"));
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Approved"));
@@ -190,7 +238,7 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "To Submit", Status: "Draft"))).Value!;
+            new PmUpsertRequest(Title: "To Submit"))).Value!;
 
         var beforeSubmit = DateTime.UtcNow;
         await service.UpdateSubmittalAsync(ProjectId, created.Id,
@@ -209,7 +257,7 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "To Approve", Status: "Draft"))).Value!;
+            new PmUpsertRequest(Title: "To Approve"))).Value!;
 
         // Follow valid transition path: Draft → Submitted → InReview → Approved
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
@@ -232,7 +280,7 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Rev Test", Status: "Draft"))).Value!;
+            new PmUpsertRequest(Title: "Rev Test"))).Value!;
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "InReview"));
 
@@ -254,7 +302,7 @@ public sealed class PmSubmittalServiceTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var submittal = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Status: "Draft"))).Value!;
+            new PmUpsertRequest())).Value!;
         await service.UpdateSubmittalAsync(ProjectId, submittal.Id, new PmUpsertRequest(Status: "Submitted"));
         await service.UpdateSubmittalAsync(ProjectId, submittal.Id, new PmUpsertRequest(Status: "InReview"));
 

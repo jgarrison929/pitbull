@@ -24,7 +24,7 @@ public sealed class PmServiceDailyReportTests
     }
 
     [Fact]
-    public async Task CreateDailyReport_WithStatus_ParsesEnumAndReturnsDto()
+    public async Task CreateDailyReport_WithStatus_RejectsStatusBypass()
     {
         using var db = TestDbContextFactory.Create();
 
@@ -34,12 +34,8 @@ public sealed class PmServiceDailyReportTests
         var result = await service.CreateDailyReportAsync(ProjectId,
             new PmUpsertRequest(Status: "Submitted"));
 
-        result.IsSuccess.Should().BeTrue();
-        result.Value!.ProjectId.Should().Be(ProjectId);
-        result.Value.Status.Should().Be("Submitted");
-
-        var entity = await db.Set<PmDailyReport>().FirstAsync(x => x.Id == result.Value.Id);
-        entity.Status.Should().Be(DailyReportStatus.Submitted);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     [Fact]
@@ -120,7 +116,7 @@ public sealed class PmServiceSubmittalTests
     }
 
     [Fact]
-    public async Task CreateSubmittal_WithTitleAndStatus_ReturnsDto()
+    public async Task CreateSubmittal_WithTitle_ReturnsDraftDto()
     {
         using var db = TestDbContextFactory.Create();
 
@@ -128,7 +124,7 @@ public sealed class PmServiceSubmittalTests
         var service = CreateService(db);
 
         var result = await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Shop Drawing A1", Status: "InReview"));
+            new PmUpsertRequest(Title: "Shop Drawing A1"));
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.ProjectId.Should().Be(ProjectId);
@@ -144,7 +140,7 @@ public sealed class PmServiceSubmittalTests
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
         var created = (await service.CreateSubmittalAsync(ProjectId,
-            new PmUpsertRequest(Title: "Initial", Status: "Draft"))).Value!;
+            new PmUpsertRequest(Title: "Initial"))).Value!;
 
         // Follow valid transition path: Draft → Submitted → InReview → Approved
         await service.UpdateSubmittalAsync(ProjectId, created.Id, new PmUpsertRequest(Status: "Submitted"));

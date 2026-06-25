@@ -8,14 +8,8 @@ namespace Pitbull.ProjectManagement.Domain;
 /// </summary>
 public static class DailyReportRequestMapper
 {
-    public static bool RequestsStatusChange(PmUpsertRequest request)
-    {
-        if (!string.IsNullOrWhiteSpace(request.Status))
-            return true;
-
-        return request.Data is not null
-               && request.Data.Keys.Any(k => k.Equals("Status", StringComparison.OrdinalIgnoreCase));
-    }
+    public static bool RequestsStatusChange(PmUpsertRequest request) =>
+        PmUpsertRequestMapper.RequestsStatusChange(request);
 
     public static void MapUpdate(PmDailyReport entity, PmUpsertRequest request)
     {

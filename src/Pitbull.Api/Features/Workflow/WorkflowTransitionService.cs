@@ -15,7 +15,7 @@ public sealed class WorkflowTransitionService(
 {
     private static readonly HashSet<string> ValidEntityTypes = new(StringComparer.OrdinalIgnoreCase)
     {
-        "TimeEntry", "Submittal", "RFI", "ChangeOrder", "PaymentApplication", "VendorInvoice", "BillingApplication"
+        "TimeEntry", "Submittal", "RFI", "ChangeOrder", "PaymentApplication", "VendorInvoice", "BillingApplication", "DailyReport"
     };
 
     public async Task RecordTransitionAsync(

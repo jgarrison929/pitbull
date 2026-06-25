@@ -28,9 +28,9 @@
 | 5 | Subcontract pay app (AP) | Draft → Submitted → Reviewed → Approved → Paid (+ Reject → Draft) | `PaymentApplicationStatusTransitions` + dedicated POST actions; PUT blocked for status | **PASS** | AP | PUT bypass removed; contracts edit UI no longer skips stages |
 | 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract-scoped CO; owner CO model future |
 | 7 | RFI | Open → Answered → Closed | `RfiStatusTransitions` + answer required on close | **PASS** | PM | Transition enforcement + `ClosedAt` set |
-| 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalStatusTransitions` + forced Draft on create | **PASS** | PM | Create ignores client status; update uses graph; optional workflow audit |
+| 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalRequestMapper` + `SubmittalStatusTransitions`; create rejects client status | **PASS** | PM | Create rejects `Status`/`Data.Status`; update uses explicit mapper (no `ApplyUpsert`) |
 | 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PASS** | AP | Match + Approve + Mark Paid UI actions; GL accrual future |
-| 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatusTransitions.CanTransition` + `DailyReportRequestMapper`; PUT blocks status | **PARTIAL** | PM | Full POST chain (submit/approve/lock); PUT bypass removed; `WorkflowTransition` audit not yet wired |
+| 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatusTransitions.CanTransition` + `DailyReportRequestMapper`; create/update reject status | **PASS** | PM | Create rejects status; POST submit/approve/lock; `WorkflowTransition` audit on transitions |
 
 ### Canonical billing model decision
 
@@ -111,7 +111,7 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\imp
 |-------|--------|-----|
 | Workflow unit (`WorkflowTransitionGraphTests` + PM daily/submittal) | 31+ passed | `workflow-tests.log` |
 | Full integration | **266 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
-| Full unit | **3172 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
+| Full unit | **3177 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
 | Daily reports integration | 4 passed (create→submit→approve→lock; PUT status rejected) | `integration-tests-full.log` |
 
 ---

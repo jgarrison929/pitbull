@@ -28,6 +28,10 @@ out/
 .DS_Store
 Thumbs.db
 
+# Agent/session artifacts
+agent-tools/
+terminals/
+
 # Docker
 pitbull-pgdata/
 pitbull-redis/

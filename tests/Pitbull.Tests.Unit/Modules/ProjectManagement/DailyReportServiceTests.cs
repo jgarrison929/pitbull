@@ -37,12 +37,26 @@ public sealed class DailyReportServiceTests
         var service = CreateService(db);
 
         var result = await service.CreateDailyReportAsync(ProjectId,
-            new PmUpsertRequest(Status: "Draft"));
+            new PmUpsertRequest());
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.ProjectId.Should().Be(ProjectId);
         result.Value.Id.Should().NotBeEmpty();
         result.Value.Status.Should().Be("Draft");
+    }
+
+    [Fact]
+    public async Task CreateDailyReport_WithStatusInData_ReturnsInvalidStatusTransition()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var result = await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?> { ["Status"] = "Submitted" }));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
     }
 
     [Fact]

@@ -28,7 +28,6 @@ public sealed class SubmittalsEndpointsTests(PostgresFixture db) : ApiIntegratio
 
         var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/submittals", new PmUpsertRequest(
             Title: "Shop Drawing 033000",
-            Status: "Draft",
             Data: new Dictionary<string, object?>
             {
                 ["SubmittalType"] = "ShopDrawing",

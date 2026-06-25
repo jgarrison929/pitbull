@@ -18,7 +18,7 @@ public abstract class PmServiceBase
 {
     private static readonly HashSet<string> ProtectedFields = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Id", "TenantId", "CompanyId", "IsDeleted", "DeletedAt", "DeletedBy", "CreatedAt", "CreatedBy"
+        "Id", "TenantId", "CompanyId", "IsDeleted", "DeletedAt", "DeletedBy", "CreatedAt", "CreatedBy", "Status"
     };
 
     protected readonly PitbullDbContext Db;
@@ -225,7 +225,11 @@ public abstract class PmServiceBase
         where T : BaseEntity, ICompanyScoped, new()
         => CreateAsync<T>(projectId, request, ct, configureEntity: null);
 
-    protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct, Action<T>? configureEntity)
+    protected Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct, Action<T>? configureEntity)
+        where T : BaseEntity, ICompanyScoped, new()
+        => CreateAsync<T>(projectId, request, ct, configureEntity, applyGenericUpsert: true);
+
+    protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct, Action<T>? configureEntity, bool applyGenericUpsert)
         where T : BaseEntity, ICompanyScoped, new()
     {
         // Validate project exists (prevents FK violation on SaveChanges)
@@ -263,7 +267,8 @@ public abstract class PmServiceBase
 
         SetIfExists(entity, "ProjectId", projectId);
         configureEntity?.Invoke(entity);
-        ApplyUpsert(entity, request);
+        if (applyGenericUpsert)
+            ApplyUpsert(entity, request);
 
         Db.Set<T>().Add(entity);
         await Db.SaveChangesAsync(ct);
@@ -830,12 +835,18 @@ public class SubmittalService : PmServiceBase, ISubmittalService
 
     public async Task<Result<PmEntityDto>> CreateSubmittalAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
+        if (PmUpsertRequestMapper.RequestsStatusChange(request))
+            return Result.Failure<PmEntityDto>(
+                "Submittal status is assigned by the server on create; use update workflow actions to change status",
+                "INVALID_STATUS_TRANSITION");
+
         var maxNumber = await ProjectScoped<PmSubmittal>(projectId)
             .MaxAsync(s => (int?)s.SubmittalNumber, cancellationToken) ?? 0;
 
-        var enriched = MergeData(request, "SubmittalNumber", maxNumber + 1) with { Status = "Draft" };
-
-        return await CreateAsync<PmSubmittal>(projectId, enriched, cancellationToken);
+        return await CreateAsync<PmSubmittal>(projectId, request, cancellationToken, entity =>
+        {
+            SubmittalRequestMapper.MapCreate(entity, request, maxNumber + 1);
+        }, applyGenericUpsert: false);
     }
 
     public Task<Result<PmEntityDto>> GetSubmittalAsync(Guid projectId, Guid submittalId, CancellationToken cancellationToken = default)
@@ -854,26 +865,16 @@ public class SubmittalService : PmServiceBase, ISubmittalService
 
         var oldSubmittalStatus = submittal.Status.ToString();
 
-        if (!string.IsNullOrWhiteSpace(request.Status) && Enum.TryParse<SubmittalStatus>(request.Status, true, out var newStatus) && newStatus != submittal.Status)
+        if (SubmittalRequestMapper.TryResolveStatusChange(request, submittal.Status, out var newStatus))
         {
             if (!SubmittalStatusTransitions.IsValid(submittal.Status, newStatus))
                 return Result.Failure<PmEntityDto>(
                     $"Invalid status transition from {submittal.Status} to {newStatus}", "INVALID_STATUS_TRANSITION");
 
-            if (newStatus == SubmittalStatus.Submitted)
-                request = MergeData(request, "SubmittedDate", DateTime.UtcNow);
-            else if (newStatus is SubmittalStatus.Approved or SubmittalStatus.ApprovedAsNoted or SubmittalStatus.ReviseAndResubmit or SubmittalStatus.Rejected)
-                request = MergeData(request, "ReturnedDate", DateTime.UtcNow);
-
-            if (newStatus == SubmittalStatus.ReviseAndResubmit)
-            {
-                request = MergeData(request, "RevisionNumber", submittal.RevisionNumber + 1);
-                // Reset to Draft for resubmission per construction workflow
-                request = request with { Status = "Draft" };
-            }
+            SubmittalRequestMapper.ApplyStatusSideEffects(submittal, newStatus);
         }
 
-        ApplyUpsert(submittal, request);
+        SubmittalRequestMapper.MapFields(submittal, request);
         submittal.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
 
@@ -998,16 +999,28 @@ public class CommunicationService : PmServiceBase, ICommunicationService
 public class DailyReportService : PmServiceBase, IDailyReportService
 {
     private readonly Pitbull.Core.Services.Weather.IWeatherService? _weatherService;
+    private readonly IWorkflowTransitionService? _workflowTransitions;
 
-    public DailyReportService(PitbullDbContext db, ICompanyContext companyContext, IHttpContextAccessor? httpContextAccessor = null, Pitbull.Core.Services.Weather.IWeatherService? weatherService = null) : base(db, companyContext, httpContextAccessor)
+    public DailyReportService(
+        PitbullDbContext db,
+        ICompanyContext companyContext,
+        IHttpContextAccessor? httpContextAccessor = null,
+        Pitbull.Core.Services.Weather.IWeatherService? weatherService = null,
+        IWorkflowTransitionService? workflowTransitions = null) : base(db, companyContext, httpContextAccessor)
     {
         _weatherService = weatherService;
+        _workflowTransitions = workflowTransitions;
     }
 
     public async Task<Result<PmEntityDto>> CreateDailyReportAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
         try
         {
+            if (DailyReportRequestMapper.RequestsStatusChange(request))
+                return Result.Failure<PmEntityDto>(
+                    "Daily report status is assigned by the server on create; use submit/approve/lock workflow actions",
+                    "INVALID_STATUS_TRANSITION");
+
             if (DailyReportRequestMapper.TryGetDuplicateKey(request, out var reportDateUtc, out var reportType))
             {
                 var reportDateNextUtc = reportDateUtc.AddDays(1);
@@ -1021,7 +1034,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
             {
                 entity.Status = DailyReportStatus.Draft;
                 DailyReportRequestMapper.MapCreate(entity, request, GetCurrentUserId());
-            });
+            }, applyGenericUpsert: false);
 
             if (created.IsSuccess && created.Value is not null)
                 await SyncDailyReportCrewEntriesAsync(created.Value.Id, request, cancellationToken);
@@ -1075,9 +1088,11 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (!await HasDailyReportManpowerAsync(dailyReportId, dailyReport.WorkNarrative, cancellationToken))
             return Result.Failure<PmActionResultDto>("At least one crew/manpower entry or a work narrative is required before submitting", "VALIDATION_ERROR");
 
+        var fromStatus = dailyReport.Status.ToString();
         dailyReport.Status = DailyReportStatus.Submitted;
         dailyReport.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
+        await RecordDailyReportTransitionAsync(dailyReport.Id, fromStatus, dailyReport.Status.ToString(), cancellationToken);
         return Action("Daily report submitted", dailyReportId, new { Status = dailyReport.Status.ToString() });
     }
     public async Task<Result<PmActionResultDto>> ApproveDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
@@ -1089,9 +1104,11 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (!DailyReportStatusTransitions.CanTransition(dailyReport.Status, DailyReportStatus.Approved))
             return Result.Failure<PmActionResultDto>("Daily report can only be approved from Submitted status", "INVALID_STATUS_TRANSITION");
 
+        var fromStatus = dailyReport.Status.ToString();
         dailyReport.Status = DailyReportStatus.Approved;
         dailyReport.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
+        await RecordDailyReportTransitionAsync(dailyReport.Id, fromStatus, dailyReport.Status.ToString(), cancellationToken);
         return Action("Daily report approved", dailyReportId, new { Status = dailyReport.Status.ToString() });
     }
 
@@ -1104,10 +1121,32 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (!DailyReportStatusTransitions.CanTransition(dailyReport.Status, DailyReportStatus.Locked))
             return Result.Failure<PmActionResultDto>("Daily report can only be locked from Approved status", "INVALID_STATUS_TRANSITION");
 
+        var fromStatus = dailyReport.Status.ToString();
         dailyReport.Status = DailyReportStatus.Locked;
         dailyReport.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
+        await RecordDailyReportTransitionAsync(dailyReport.Id, fromStatus, dailyReport.Status.ToString(), cancellationToken);
         return Action("Daily report locked", dailyReportId, new { Status = dailyReport.Status.ToString() });
+    }
+
+    private async Task RecordDailyReportTransitionAsync(
+        Guid dailyReportId,
+        string fromStatus,
+        string toStatus,
+        CancellationToken cancellationToken)
+    {
+        if (_workflowTransitions is null)
+            return;
+
+        await _workflowTransitions.RecordTransitionAsync(
+            "DailyReport",
+            dailyReportId,
+            fromStatus,
+            toStatus,
+            GetCurrentUserId(),
+            null,
+            null,
+            cancellationToken);
     }
 
     public Task<Result<PmEntityDto>> AddPhotoAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
