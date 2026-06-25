@@ -830,7 +830,7 @@ public class TimeEntryService : ITimeEntryService
             OvertimeHours = command.OvertimeHours,
             DoubletimeHours = command.DoubletimeHours,
             Description = command.Description,
-            Status = TimeEntryStatus.Submitted,
+            Status = TimeEntryStatus.Draft,
             Latitude = command.Latitude,
             Longitude = command.Longitude,
             GpsAccuracy = command.GpsAccuracy,

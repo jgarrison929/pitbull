@@ -46,6 +46,32 @@ public sealed class DailyReportsEndpointsTests(PostgresFixture db) : ApiIntegrat
 
         var approveResp = await client.PostAsync($"/api/projects/{projectId}/daily-reports/{reportId}/approve", null);
         approveResp.EnsureSuccessStatusCode();
+
+        var lockResp = await client.PostAsync($"/api/projects/{projectId}/daily-reports/{reportId}/lock", null);
+        lockResp.EnsureSuccessStatusCode();
+    }
+
+    [Fact]
+    public async Task Update_daily_report_with_status_in_body_returns_invalid_transition()
+    {
+        await Db.ResetAsync();
+        var (client, auth, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Daily-Status");
+
+        var createResp = await client.PostAsJsonAsync($"/api/projects/{projectId}/daily-reports", new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["WeatherSummary"] = "Rain",
+                ["WorkNarrative"] = "Interior framing",
+                ["PreparedByUserId"] = auth.UserId
+            }));
+        createResp.EnsureSuccessStatusCode();
+        var reportId = await ReadIdAsync(createResp);
+
+        var updateResp = await client.PutAsJsonAsync($"/api/projects/{projectId}/daily-reports/{reportId}",
+            new PmUpsertRequest(Status: "Submitted"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, updateResp.StatusCode);
     }
 
     [Fact]

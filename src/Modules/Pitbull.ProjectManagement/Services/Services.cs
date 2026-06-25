@@ -1048,12 +1048,10 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (report.Status is DailyReportStatus.Approved or DailyReportStatus.Locked or DailyReportStatus.Submitted)
             return Result.Failure<PmEntityDto>("Cannot edit a submitted, approved, or locked daily report", "INVALID_STATUS");
 
-        if (!string.IsNullOrWhiteSpace(request.Status)
-            && Enum.TryParse<DailyReportStatus>(request.Status, true, out var requestedStatus)
-            && requestedStatus != report.Status)
-            return Result.Failure<PmEntityDto>("Daily report status changes require submit/approve workflow actions", "INVALID_STATUS_TRANSITION");
+        if (DailyReportRequestMapper.RequestsStatusChange(request))
+            return Result.Failure<PmEntityDto>("Daily report status changes require submit/approve/lock workflow actions", "INVALID_STATUS_TRANSITION");
 
-        ApplyUpsert(report, request);
+        DailyReportRequestMapper.MapUpdate(report, request);
         await SyncDailyReportCrewEntriesAsync(dailyReportId, request, cancellationToken);
         report.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
@@ -1066,7 +1064,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (dailyReport == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
 
-        if (dailyReport.Status != DailyReportStatus.Draft)
+        if (!DailyReportStatusTransitions.CanTransition(dailyReport.Status, DailyReportStatus.Submitted))
             return Result.Failure<PmActionResultDto>("Daily report can only be submitted from Draft status", "INVALID_STATUS_TRANSITION");
 
         // Validate weather data is present
@@ -1088,7 +1086,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (dailyReport == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
 
-        if (dailyReport.Status != DailyReportStatus.Submitted)
+        if (!DailyReportStatusTransitions.CanTransition(dailyReport.Status, DailyReportStatus.Approved))
             return Result.Failure<PmActionResultDto>("Daily report can only be approved from Submitted status", "INVALID_STATUS_TRANSITION");
 
         dailyReport.Status = DailyReportStatus.Approved;
@@ -1096,6 +1094,22 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         await Db.SaveChangesAsync(cancellationToken);
         return Action("Daily report approved", dailyReportId, new { Status = dailyReport.Status.ToString() });
     }
+
+    public async Task<Result<PmActionResultDto>> LockDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
+    {
+        var dailyReport = await ProjectScoped<PmDailyReport>(projectId).FirstOrDefaultAsync(r => r.Id == dailyReportId, cancellationToken);
+        if (dailyReport == null)
+            return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
+
+        if (!DailyReportStatusTransitions.CanTransition(dailyReport.Status, DailyReportStatus.Locked))
+            return Result.Failure<PmActionResultDto>("Daily report can only be locked from Approved status", "INVALID_STATUS_TRANSITION");
+
+        dailyReport.Status = DailyReportStatus.Locked;
+        dailyReport.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Action("Daily report locked", dailyReportId, new { Status = dailyReport.Status.ToString() });
+    }
+
     public Task<Result<PmEntityDto>> AddPhotoAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmDailyReportPhoto>(projectId, request with { ReferenceId = dailyReportId }, cancellationToken);
 

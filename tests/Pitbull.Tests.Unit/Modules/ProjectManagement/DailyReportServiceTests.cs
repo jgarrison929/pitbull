@@ -130,7 +130,41 @@ public sealed class DailyReportServiceTests
             new PmUpsertRequest())).Value!;
 
         var result = await service.UpdateDailyReportAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Description: "Updated narrative"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.UpdatedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task UpdateDailyReport_WithStatusProperty_ReturnsInvalidStatusTransition()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        var result = await service.UpdateDailyReportAsync(ProjectId, created.Id,
             new PmUpsertRequest(Status: "Submitted"));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
+    [Fact]
+    public async Task UpdateDailyReport_WithStatusInData_ReturnsInvalidStatusTransition()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        var result = await service.UpdateDailyReportAsync(ProjectId, created.Id,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["Status"] = "Approved" }));
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
@@ -707,6 +741,45 @@ public sealed class DailyReportServiceTests
         await service.ApproveDailyReportAsync(ProjectId, created.Id);
 
         var result = await service.ApproveDailyReportAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
+    [Fact]
+    public async Task LockDailyReport_FromApproved_SetsStatusToLocked()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest(Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Clear", ["WorkNarrative"] = "Steel erection" }))).Value!;
+
+        await service.SubmitDailyReportAsync(ProjectId, created.Id);
+        await service.ApproveDailyReportAsync(ProjectId, created.Id);
+
+        var result = await service.LockDailyReportAsync(ProjectId, created.Id);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Success.Should().BeTrue();
+        result.Value.Message.Should().Contain("locked");
+
+        var entity = await db.Set<PmDailyReport>().FirstAsync(r => r.Id == created.Id);
+        entity.Status.Should().Be(DailyReportStatus.Locked);
+    }
+
+    [Fact]
+    public async Task LockDailyReport_FromDraft_ReturnsInvalidStatusTransition()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId,
+            new PmUpsertRequest())).Value!;
+
+        var result = await service.LockDailyReportAsync(ProjectId, created.Id);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");

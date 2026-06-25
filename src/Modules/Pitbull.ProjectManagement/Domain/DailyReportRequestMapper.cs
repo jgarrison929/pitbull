@@ -8,6 +8,29 @@ namespace Pitbull.ProjectManagement.Domain;
 /// </summary>
 public static class DailyReportRequestMapper
 {
+    public static bool RequestsStatusChange(PmUpsertRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.Status))
+            return true;
+
+        return request.Data is not null
+               && request.Data.Keys.Any(k => k.Equals("Status", StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static void MapUpdate(PmDailyReport entity, PmUpsertRequest request)
+    {
+        if (request.Data is null)
+            return;
+
+        MapCreate(entity, request, entity.PreparedByUserId);
+
+        if (TryGetString(request.Data, "DelaysNarrative", out var delays))
+            entity.DelaysNarrative = delays;
+
+        if (TryGetString(request.Data, "SafetyNarrative", out var safety))
+            entity.SafetyNarrative = safety;
+    }
+
     public static void MapCreate(PmDailyReport entity, PmUpsertRequest request, Guid defaultPreparedByUserId)
     {
         if (request.Data is null)

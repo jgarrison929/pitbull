@@ -362,7 +362,10 @@ Assert-Status "daily report submit" 200 $drSubmit
 $drApprove = Invoke-Api -Method POST -Path "/api/projects/$projectId/daily-reports/$($dailyReport.id)/approve" -Headers $headers
 Assert-Status "daily report approve" 200 $drApprove
 Assert-BodyContains "daily report status" $drApprove.Content @("Approved")
-Write-SmokeLog "PASS daily report Draft->Submitted->Approved"
+$drLock = Invoke-Api -Method POST -Path "/api/projects/$projectId/daily-reports/$($dailyReport.id)/lock" -Headers $headers
+Assert-Status "daily report lock" 200 $drLock
+Assert-BodyContains "daily report lock status" $drLock.Content @("Locked")
+Write-SmokeLog "PASS daily report Draft->Submitted->Approved->Locked"
 
 # --- Time entry: create -> bulk submit -> approve ---
 $ppConfig = Invoke-Api -Method PUT -Path "/api/pay-periods/configuration" -Headers $headers -Body @{
@@ -421,6 +424,7 @@ $teCreate = Invoke-Api -Method POST -Path "/api/time-entries" -Headers $headers 
     description    = "Smoke time"
 }
 Assert-Status "time entry create" 201 $teCreate
+Assert-BodyContains "time entry create status" $teCreate.Content @("Draft")
 $timeEntry = $teCreate.Content | ConvertFrom-Json
 
 $teSubmit = Invoke-Api -Method POST -Path "/api/time-entries/submit" -Headers $headers -Body @{
@@ -428,7 +432,10 @@ $teSubmit = Invoke-Api -Method POST -Path "/api/time-entries/submit" -Headers $h
     submittedById = $employee.id
 }
 Assert-Status "time entry bulk submit" 200 $teSubmit
-Assert-BodyContains "time entry submit" $teSubmit.Content @("Submitted", "success")
+Assert-BodyContains "time entry bulk submit" $teSubmit.Content @("successCount", "success")
+$teGet = Invoke-Api -Method GET -Path "/api/time-entries/$($timeEntry.id)" -Headers $headers
+Assert-Status "time entry get after submit" 200 $teGet
+Assert-BodyContains "time entry status after submit" $teGet.Content @("Submitted")
 
 # Link approver employee to auth user (required for approve endpoint)
 $approverResp = Invoke-Api -Method POST -Path "/api/employees" -Headers $headers -Body @{

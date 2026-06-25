@@ -995,6 +995,16 @@ public class ProjectDailyReportsController(
         => HandleResult(await dailyReportService.ApproveDailyReportAsync(projectId, dailyReportId));
 
     /// <summary>
+    /// Locks an approved daily report (final archival state).
+    /// </summary>
+    [HttpPost("{dailyReportId:guid}/lock")]
+    [ProducesResponseType(typeof(PmActionResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Lock(Guid projectId, Guid dailyReportId)
+        => HandleResult(await dailyReportService.LockDailyReportAsync(projectId, dailyReportId));
+
+    /// <summary>
     /// Adds a photo record to a daily report.
     /// </summary>
     /// <param name="projectId">Project identifier.</param>

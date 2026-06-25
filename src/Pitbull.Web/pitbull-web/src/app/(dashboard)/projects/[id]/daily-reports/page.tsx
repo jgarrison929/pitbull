@@ -41,7 +41,7 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
-import { Plus, Pencil, Trash2, FileText, CheckCircle, Sparkles, Send, Paperclip, Camera, Download, ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, CheckCircle, Sparkles, Send, Paperclip, Camera, Download, ImageIcon, Lock } from "lucide-react";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { getDownloadUrl } from "@/lib/api";
@@ -540,6 +540,23 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
     }
   }
 
+  async function lockReport(id: string) {
+    setSaving(true);
+    try {
+      await api<unknown>(`/api/projects/${projectId}/daily-reports/${id}/lock`, {
+        method: "POST",
+      });
+      toast.success("Report locked");
+      await load();
+    } catch (error) {
+      toast.error("Failed to lock report", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function deleteReport() {
     if (!pendingDelete) return;
 
@@ -797,6 +814,19 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                               <CheckCircle className="h-4 w-4" />
                             </Button>
                           )}
+                          {row.status === "Approved" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => lockReport(row.id)}
+                              title="Lock report"
+                              aria-label="Lock report"
+                              className="min-h-[44px] min-w-[44px]"
+                              disabled={saving}
+                            >
+                              <Lock className="h-4 w-4" />
+                            </Button>
+                          )}
                           {row.attachmentCount > 0 && (
                             <Button
                               variant="ghost"
@@ -941,6 +971,19 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                                     disabled={saving}
                                   >
                                     <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                {row.status === "Approved" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => lockReport(row.id)}
+                                    title="Lock report"
+                                    aria-label="Lock report"
+                                    className="min-h-[44px] min-w-[44px]"
+                                    disabled={saving}
+                                  >
+                                    <Lock className="h-4 w-4" />
                                   </Button>
                                 )}
                                 <Button
@@ -1316,7 +1359,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
                 <Label>Status</Label>
                 <Badge variant={statusBadgeVariant(form.status)}>{form.status}</Badge>
                 <p className="text-xs text-muted-foreground">
-                  Use Submit and Approve actions on the list to advance workflow.
+                  Use Submit, Approve, and Lock actions on the list to advance workflow.
                 </p>
               </div>
 

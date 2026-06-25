@@ -58,9 +58,21 @@ public class WorkflowTransitionGraphTests
     [InlineData(DailyReportStatus.Draft, DailyReportStatus.Submitted, true)]
     [InlineData(DailyReportStatus.Draft, DailyReportStatus.Approved, false)]
     [InlineData(DailyReportStatus.Submitted, DailyReportStatus.Approved, true)]
+    [InlineData(DailyReportStatus.Approved, DailyReportStatus.Locked, true)]
+    [InlineData(DailyReportStatus.Draft, DailyReportStatus.Locked, false)]
     public void DailyReportTransitions_MatchErpStages(DailyReportStatus from, DailyReportStatus to, bool allowed)
     {
         DailyReportStatusTransitions.IsValid(from, to).Should().Be(allowed);
+    }
+
+    [Theory]
+    [InlineData(DailyReportStatus.Draft, DailyReportStatus.Submitted, true)]
+    [InlineData(DailyReportStatus.Draft, DailyReportStatus.Draft, false)]
+    [InlineData(DailyReportStatus.Approved, DailyReportStatus.Locked, true)]
+    [InlineData(DailyReportStatus.Locked, DailyReportStatus.Locked, false)]
+    public void DailyReportCanTransition_RejectsNoOpAndInvalidJumps(DailyReportStatus from, DailyReportStatus to, bool allowed)
+    {
+        DailyReportStatusTransitions.CanTransition(from, to).Should().Be(allowed);
     }
 
     [Theory]

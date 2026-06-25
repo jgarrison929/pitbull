@@ -23,14 +23,14 @@
 |---|-----------|--------------------------------|-------------------------------------|---------|----------|-------------------|
 | 1 | Bid → Project | Draft → Submitted → Won/Lost → Converted → Project setup | `BidStatus` + `ConvertToProjectAsync`; `BidStatusTransitions` on update | **PASS** | PM | Enforced bid transitions; conversion still Won-only |
 | 2 | Project setup | Create project → SOV → cost codes → budget → contracts → team | `ProjectStatus.PreConstruction`; nav order Cost Codes → Employees → Projects → Contracts → Time; tenant provisioning on register; checklist auto-sync + canonical order | **PARTIAL** | PM | Day-1 chain improved; project create phases/team persistence and activate workflow still future |
-| 3 | Crew time → approval → payroll/export | Draft → Submitted → Approved/Rejected → Payroll run → Export | `TimeEntryService` state machine; `PayrollRunService` approved-only | **PASS** | Payroll | Approval path strong; payroll calc still MVP export |
+| 3 | Crew time → approval → payroll/export | Draft → Submitted → Approved/Rejected → Payroll run → Export | `TimeEntryService` creates **Draft**; submit/approve state machine; `PayrollRunService` approved-only | **PARTIAL** | Payroll | Draft-first create fixed; payroll E2E integration still MVP |
 | 4 | Owner pay app (AR) | Draft → PM review → Submit → Owner cert → Payment due → Paid | `BillingApplicationStatus` full graph + `BillingApplicationStatusTransitions` | **PASS** | AR / CFO | Post-submit transitions + audit added this sprint |
 | 5 | Subcontract pay app (AP) | Draft → Submitted → Reviewed → Approved → Paid (+ Reject → Draft) | `PaymentApplicationStatusTransitions` + dedicated POST actions; PUT blocked for status | **PASS** | AP | PUT bypass removed; contracts edit UI no longer skips stages |
 | 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract-scoped CO; owner CO model future |
 | 7 | RFI | Open → Answered → Closed | `RfiStatusTransitions` + answer required on close | **PASS** | PM | Transition enforcement + `ClosedAt` set |
-| 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalStatusTransitions` in `UpdateSubmittalAsync` | **PASS** | PM | Inline switch removed; `WorkflowTransitionGraphTests.SubmittalTransitions_MatchErpStages` |
+| 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalStatusTransitions` + forced Draft on create | **PASS** | PM | Create ignores client status; update uses graph; optional workflow audit |
 | 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PASS** | AP | Match + Approve + Mark Paid UI actions; GL accrual future |
-| 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatusTransitions` + `DailyReportRequestMapper` | **PASS** | PM | Create maps `ReportDate`/`ReportType`; submit/approve reject non-canonical status; integration test unskipped |
+| 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatusTransitions.CanTransition` + `DailyReportRequestMapper`; PUT blocks status | **PARTIAL** | PM | Full POST chain (submit/approve/lock); PUT bypass removed; `WorkflowTransition` audit not yet wired |
 
 ### Canonical billing model decision
 
@@ -55,7 +55,7 @@ Per plan criterion 2, failed workflows were not left patched in place — bypass
 | Bid status dropdown allowing any enum | `BidStatusTransitions` + UI `getAllowedBidStatuses` |
 | Billing lifecycle ending at submit | Full `BillingApplicationStatusTransitions` + dedicated POST actions |
 | WIP sourcing `PaymentApplication` (sub AP) | `BillingApplication.TotalEarnedLessRetainage` (owner AR) |
-| Daily report status dropdown bypassing submit | Read-only status + Submit/Approve API actions |
+| Daily report status dropdown bypassing submit | Read-only status + Submit/Approve/Lock POST actions; PUT rejects status |
 | Submittal inline 10-case switch | `SubmittalStatusTransitions` + graph tests |
 | Daily report `ApplyUpsert` create gaps | `DailyReportRequestMapper.MapCreate` + integration payload unit test |
 | Submittal delete→Closed fallback | Hard delete or error; status via transition graph only |
@@ -128,7 +128,7 @@ Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transit
 | `bids` (list + detail + edit) | **PASS** | Allowed-transition select / workflow buttons |
 | `rfis/[id]` | **PASS** | View-mode workflow buttons + restricted edit dropdown |
 | `projects/.../submittals` | **PASS** | Restricted status on edit; create locks Draft |
-| `projects/.../daily-reports` | **PASS** | Read-only status in form; Submit/Approve list actions |
+| `projects/.../daily-reports` | **PASS** | Read-only status in form; Submit/Approve/Lock list actions match `getNextDailyReportStatuses` |
 | `procurement/invoices` | **PASS** | Match / Approve / Mark Paid gated by `getNextVendorInvoiceStatuses` |
 
 Subagent frontend review (2026-06-25): all eight PM/finance workflow pages now match backend allowed transitions.
