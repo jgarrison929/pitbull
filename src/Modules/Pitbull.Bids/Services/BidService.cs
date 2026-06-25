@@ -147,9 +147,20 @@ public class BidService : IBidService
         if (bid is null)
             return Result.Failure<BidDto>("Bid not found", "NOT_FOUND");
 
+        var oldStatus = bid.Status;
+        var newStatus = command.Status;
+
+        if (newStatus == BidStatus.Converted)
+            return Result.Failure<BidDto>("Converted status is set automatically during bid-to-project conversion", "INVALID_STATUS");
+
+        if (!BidStatusTransitions.IsValid(oldStatus, newStatus))
+            return Result.Failure<BidDto>(
+                $"Cannot transition bid from {oldStatus} to {newStatus}",
+                "INVALID_STATUS_TRANSITION");
+
         bid.Name = command.Name;
         bid.Number = command.Number;
-        bid.Status = command.Status;
+        bid.Status = newStatus;
         bid.EstimatedValue = command.EstimatedValue;
         bid.BidDate = command.BidDate;
         bid.DueDate = command.DueDate;

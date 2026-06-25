@@ -1042,7 +1042,10 @@ public class DailyReportService : PmServiceBase, IDailyReportService
                     return Result.Failure<PmEntityDto>("A daily report already exists for this date and report type", "DUPLICATE_REPORT");
             }
             skip:
-            return await CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
+            var created = await CreateAsync<PmDailyReport>(projectId, request, cancellationToken);
+            if (created.IsSuccess && created.Value is not null)
+                await SyncDailyReportCrewEntriesAsync(created.Value.Id, request, cancellationToken);
+            return created;
         }
         catch (Exception)
         {
@@ -1061,10 +1064,11 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (report == null)
             return Result.Failure<PmEntityDto>("Not found", "NOT_FOUND");
 
-        if (report.Status == DailyReportStatus.Approved || report.Status == DailyReportStatus.Locked)
-            return Result.Failure<PmEntityDto>("Cannot edit an approved or locked daily report", "INVALID_STATUS");
+        if (report.Status is DailyReportStatus.Approved or DailyReportStatus.Locked or DailyReportStatus.Submitted)
+            return Result.Failure<PmEntityDto>("Cannot edit a submitted, approved, or locked daily report", "INVALID_STATUS");
 
         ApplyUpsert(report, request);
+        await SyncDailyReportCrewEntriesAsync(dailyReportId, request, cancellationToken);
         report.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(report));
@@ -1084,9 +1088,7 @@ public class DailyReportService : PmServiceBase, IDailyReportService
             return Result.Failure<PmActionResultDto>("Weather conditions (WeatherSummary or Temperature) are required before submitting", "VALIDATION_ERROR");
 
         // Validate at least one manpower entry (crew) or work narrative
-        var hasCrewEntries = await Db.Set<PmDailyReportCrew>()
-            .AnyAsync(c => !c.IsDeleted && c.DailyReportId == dailyReportId, cancellationToken);
-        if (!hasCrewEntries && string.IsNullOrWhiteSpace(dailyReport.WorkNarrative))
+        if (!await HasDailyReportManpowerAsync(dailyReportId, dailyReport.WorkNarrative, cancellationToken))
             return Result.Failure<PmActionResultDto>("At least one crew/manpower entry or a work narrative is required before submitting", "VALIDATION_ERROR");
 
         dailyReport.Status = DailyReportStatus.Submitted;
@@ -1100,8 +1102,8 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (dailyReport == null)
             return Result.Failure<PmActionResultDto>("Not found", "NOT_FOUND");
 
-        if (dailyReport.Status != DailyReportStatus.Draft && dailyReport.Status != DailyReportStatus.Submitted)
-            return Result.Failure<PmActionResultDto>("Daily report can only be approved from Draft or Submitted status", "INVALID_STATUS");
+        if (dailyReport.Status != DailyReportStatus.Submitted)
+            return Result.Failure<PmActionResultDto>("Daily report can only be approved from Submitted status", "INVALID_STATUS");
 
         dailyReport.Status = DailyReportStatus.Approved;
         dailyReport.UpdatedAt = DateTime.UtcNow;
@@ -1209,6 +1211,66 @@ public class DailyReportService : PmServiceBase, IDailyReportService
 
     public Task<Result<PmEntityDto>> AddDeliveryAsync(Guid projectId, Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmDailyReportDelivery>(projectId, request with { ReferenceId = dailyReportId }, cancellationToken);
+
+    private async Task SyncDailyReportCrewEntriesAsync(
+        Guid dailyReportId, PmUpsertRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Data is null)
+            return;
+
+        if (!request.Data.TryGetValue("CrewEntries", out var crewObj) && !request.Data.TryGetValue("crewEntries", out crewObj))
+            return;
+
+        if (crewObj is null)
+            return;
+
+        var existing = await Db.Set<PmDailyReportCrew>()
+            .Where(c => c.DailyReportId == dailyReportId && !c.IsDeleted)
+            .ToListAsync(cancellationToken);
+
+        foreach (var row in existing)
+        {
+            row.IsDeleted = true;
+            row.DeletedAt = DateTime.UtcNow;
+        }
+
+        if (crewObj is JsonElement json && json.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in json.EnumerateArray())
+            {
+                var trade = item.TryGetProperty("trade", out var tradeProp) ? tradeProp.GetString()
+                    : item.TryGetProperty("Trade", out var tradeProp2) ? tradeProp2.GetString() : null;
+                if (string.IsNullOrWhiteSpace(trade))
+                    continue;
+
+                var count = item.TryGetProperty("count", out var countProp) ? countProp.GetInt32()
+                    : item.TryGetProperty("Count", out var countProp2) ? countProp2.GetInt32()
+                    : item.TryGetProperty("headCount", out var headProp) ? headProp.GetInt32() : 0;
+
+                Db.Set<PmDailyReportCrew>().Add(new PmDailyReportCrew
+                {
+                    CompanyId = CurrentCompanyId,
+                    DailyReportId = dailyReportId,
+                    CompanyName = "Field Crew",
+                    Trade = trade,
+                    HeadCount = count,
+                    HoursWorked = count * 8m,
+                });
+            }
+        }
+
+        await Db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<bool> HasDailyReportManpowerAsync(
+        Guid dailyReportId, string? workNarrative, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(workNarrative))
+            return true;
+
+        return await Db.Set<PmDailyReportCrew>()
+            .AnyAsync(c => !c.IsDeleted && c.DailyReportId == dailyReportId, cancellationToken);
+    }
 
     private static T ConvertValue<T>(object value)
     {

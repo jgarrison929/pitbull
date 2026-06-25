@@ -54,6 +54,7 @@ import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { Pencil, Trash2, Download, Paperclip, FileDown } from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
+import { getAllowedSubmittalStatuses } from "@/lib/workflow-transitions";
 
 interface FileAttachment {
   id: string;
@@ -449,25 +450,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
       await load();
     } catch (error) {
       if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
-        // Fallback: mark as Closed if DELETE not available
-        const payload: PmUpsertRequest = {
-          title: pendingDelete.title,
-          status: "Closed",
-          data: {
-            SpecSectionCode: pendingDelete.specSectionCode || null,
-            SubmittalType: pendingDelete.submittalType,
-          },
-        };
-
-        await api<PmEntityDto>(`/api/projects/${projectId}/submittals/${pendingDelete.id}`, {
-          method: "PUT",
-          body: payload,
-        });
-
-        toast.success("Submittal marked closed (delete endpoint unavailable)");
-        setDeleteOpen(false);
-        setPendingDelete(null);
-        await load();
+        toast.error("Delete is not available for this submittal");
       } else {
         toast.error("Failed to delete submittal", {
           description: error instanceof Error ? error.message : "Unknown error",
@@ -881,21 +864,25 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {STATUS_LABELS[status]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {getAllowedSubmittalStatuses(editing ? form.status : null).length <= 1 ? (
+                  <p className="text-sm font-medium py-2">{STATUS_LABELS[form.status] ?? form.status}</p>
+                ) : (
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAllowedSubmittalStatuses(form.status).map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {STATUS_LABELS[status]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="sub-bic">Ball in Court</Label>

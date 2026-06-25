@@ -189,19 +189,42 @@ public class BillingApplicationsController(IBillingApplicationService billingSer
     [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> SubmitToOwner(Guid id)
-    {
-        var result = await billingService.SubmitToOwnerAsync(id);
-        if (!result.IsSuccess)
-        {
-            return result.ErrorCode switch
-            {
-                "NOT_FOUND" => NotFound(new { error = result.Error, code = result.ErrorCode }),
-                _ => BadRequest(new { error = result.Error, code = result.ErrorCode })
-            };
-        }
+        => await WorkflowAction(billingService.SubmitToOwnerAsync(id));
 
-        return Ok(result.Value);
-    }
+    [HttpPost("{id:guid}/return-to-draft")]
+    [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReturnToDraft(Guid id)
+        => await WorkflowAction(billingService.ReturnToDraftAsync(id));
+
+    [HttpPost("{id:guid}/architect-certified")]
+    [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> MarkArchitectCertified(Guid id)
+        => await WorkflowAction(billingService.MarkArchitectCertifiedAsync(id));
+
+    [HttpPost("{id:guid}/disputed")]
+    [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> MarkDisputed(Guid id)
+        => await WorkflowAction(billingService.MarkDisputedAsync(id));
+
+    [HttpPost("{id:guid}/resolve-dispute")]
+    [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResolveDispute(Guid id)
+        => await WorkflowAction(billingService.ResolveDisputeAsync(id));
+
+    [HttpPost("{id:guid}/payment-due")]
+    [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> MarkPaymentDue(Guid id)
+        => await WorkflowAction(billingService.MarkPaymentDueAsync(id));
+
+    [HttpPost("{id:guid}/partially-paid")]
+    [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> MarkPartiallyPaid(Guid id)
+        => await WorkflowAction(billingService.MarkPartiallyPaidAsync(id));
+
+    [HttpPost("{id:guid}/paid")]
+    [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> MarkPaid(Guid id)
+        => await WorkflowAction(billingService.MarkPaidAsync(id));
 
     [HttpPost("{id:guid}/void")]
     [ProducesResponseType(typeof(BillingApplicationDto), StatusCodes.Status200OK)]
@@ -219,6 +242,22 @@ public class BillingApplicationsController(IBillingApplicationService billingSer
         }
 
         return Ok(result.Value);
+    }
+
+    private static async Task<IActionResult> WorkflowAction(
+        Task<Pitbull.Core.CQRS.Result<BillingApplicationDto>> action)
+    {
+        var result = await action;
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => new NotFoundObjectResult(new { error = result.Error, code = result.ErrorCode }),
+                _ => new BadRequestObjectResult(new { error = result.Error, code = result.ErrorCode })
+            };
+        }
+
+        return new OkObjectResult(result.Value);
     }
 }
 

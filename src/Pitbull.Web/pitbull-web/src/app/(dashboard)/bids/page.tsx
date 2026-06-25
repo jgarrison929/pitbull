@@ -28,6 +28,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { FileText, TrendingUp } from "lucide-react";
 import api from "@/lib/api";
 import { BidStatus, type PagedResult, type Bid, type UpdateBidCommand } from "@/lib/types";
+import { getAllowedBidStatuses } from "@/lib/workflow-transitions";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
 
@@ -97,16 +98,18 @@ function formatCurrency(amount: number) {
   }).format(amount);
 }
 
-function getStatusOptions(): BidStatus[] {
-  // Converted is excluded — it's set programmatically by ConvertToProject, not by users
-  return [
-    BidStatus.Draft,
-    BidStatus.Submitted,
-    BidStatus.Won,
-    BidStatus.Lost,
-    BidStatus.NoResponse,
-    BidStatus.Cancelled,
-  ];
+const BID_FILTER_STATUSES: BidStatus[] = [
+  BidStatus.Draft,
+  BidStatus.Submitted,
+  BidStatus.Won,
+  BidStatus.Lost,
+  BidStatus.NoResponse,
+  BidStatus.Cancelled,
+  BidStatus.Converted,
+];
+
+function getStatusOptions(currentStatus: BidStatus): BidStatus[] {
+  return getAllowedBidStatuses(currentStatus);
 }
 
 function parseDate(value: string | null | undefined): Date | null {
@@ -351,7 +354,7 @@ export default function BidsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_VALUE}>All statuses</SelectItem>
-                  {getStatusOptions().map((status) => (
+                  {BID_FILTER_STATUSES.map((status) => (
                     <SelectItem key={status} value={status}>
                       {statusLabel(status)}
                     </SelectItem>
@@ -594,7 +597,7 @@ export default function BidsPage() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {getStatusOptions().map((status) => (
+                                {getStatusOptions(bid.status).map((status) => (
                                   <SelectItem key={status} value={status}>
                                     {statusLabel(status)}
                                   </SelectItem>

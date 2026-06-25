@@ -1,13 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Pitbull.Billing.Domain;
 using Pitbull.Billing.Features.AiaBilling;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Services;
 
 namespace Pitbull.Billing.Services;
 
-public class BillingApplicationService(PitbullDbContext db, ILogger<BillingApplicationService> logger) : IBillingApplicationService
+public class BillingApplicationService(
+    PitbullDbContext db,
+    ILogger<BillingApplicationService> logger,
+    IWorkflowTransitionService? workflowTransitions = null) : IBillingApplicationService
 {
     private readonly ILogger<BillingApplicationService> _logger = logger;
     public async Task<Result<ListBillingApplicationsResult>> ListAsync(ListBillingApplicationsQuery query, CancellationToken ct = default)
@@ -258,15 +263,15 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
 
     // ── Workflow ──
 
-    public async Task<Result<BillingApplicationDto>> SubmitForReviewAsync(Guid id, CancellationToken ct = default)
-        => await TransitionStatus(id, BillingApplicationStatus.Draft, BillingApplicationStatus.PmReview, ct);
+    public Task<Result<BillingApplicationDto>> SubmitForReviewAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.PmReview, ct);
 
-    public async Task<Result<BillingApplicationDto>> ApproveReviewAsync(Guid id, CancellationToken ct = default)
-        => await TransitionStatus(id, BillingApplicationStatus.PmReview, BillingApplicationStatus.ReadyToSubmit, ct);
+    public Task<Result<BillingApplicationDto>> ApproveReviewAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.ReadyToSubmit, ct);
 
     public async Task<Result<BillingApplicationDto>> RejectReviewAsync(Guid id, string? comments, CancellationToken ct = default)
     {
-        var result = await TransitionStatus(id, BillingApplicationStatus.PmReview, BillingApplicationStatus.PmRejected, ct);
+        var result = await ApplyTransitionAsync(id, BillingApplicationStatus.PmRejected, ct);
         if (result.IsSuccess && comments is not null)
         {
             var app = await db.Set<BillingApplication>().FirstOrDefaultAsync(a => a.Id == id, ct);
@@ -281,8 +286,29 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
         return result;
     }
 
-    public async Task<Result<BillingApplicationDto>> SubmitToOwnerAsync(Guid id, CancellationToken ct = default)
-        => await TransitionStatus(id, BillingApplicationStatus.ReadyToSubmit, BillingApplicationStatus.SubmittedToOwner, ct);
+    public Task<Result<BillingApplicationDto>> ReturnToDraftAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.Draft, ct);
+
+    public Task<Result<BillingApplicationDto>> SubmitToOwnerAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.SubmittedToOwner, ct);
+
+    public Task<Result<BillingApplicationDto>> MarkArchitectCertifiedAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.ArchitectCertified, ct);
+
+    public Task<Result<BillingApplicationDto>> MarkDisputedAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.Disputed, ct);
+
+    public Task<Result<BillingApplicationDto>> ResolveDisputeAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.SubmittedToOwner, ct);
+
+    public Task<Result<BillingApplicationDto>> MarkPaymentDueAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.PaymentDue, ct);
+
+    public Task<Result<BillingApplicationDto>> MarkPartiallyPaidAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.PartiallyPaid, ct);
+
+    public Task<Result<BillingApplicationDto>> MarkPaidAsync(Guid id, CancellationToken ct = default)
+        => ApplyTransitionAsync(id, BillingApplicationStatus.Paid, ct);
 
     public async Task<Result<BillingApplicationDto>> VoidAsync(Guid id, CancellationToken ct = default)
     {
@@ -293,8 +319,11 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
         if (app.Status == BillingApplicationStatus.Paid)
             return Result.Failure<BillingApplicationDto>("Cannot void a paid billing application", "INVALID_STATUS");
 
+        var fromStatus = app.Status;
         app.Status = BillingApplicationStatus.Void;
         await db.SaveChangesAsync(ct);
+
+        await RecordTransitionAsync(app.Id, fromStatus, BillingApplicationStatus.Void, null, ct);
         return Result.Success(MapToDto(app, app.LineItems.Select(MapLineToDto).ToList()));
     }
 
@@ -342,19 +371,42 @@ public class BillingApplicationService(PitbullDbContext db, ILogger<BillingAppli
         app.TotalEarnedLessRetainage = app.TotalCompletedAndStoredToDate - app.TotalRetainage;
     }
 
-    private async Task<Result<BillingApplicationDto>> TransitionStatus(Guid id, BillingApplicationStatus expectedStatus, BillingApplicationStatus newStatus, CancellationToken ct)
+    private async Task<Result<BillingApplicationDto>> ApplyTransitionAsync(
+        Guid id, BillingApplicationStatus newStatus, CancellationToken ct)
     {
         var app = await db.Set<BillingApplication>()
             .Include(a => a.LineItems.OrderBy(l => l.SortOrder))
             .FirstOrDefaultAsync(a => a.Id == id, ct);
 
         if (app is null) return Result.Failure<BillingApplicationDto>("Billing application not found", "NOT_FOUND");
-        if (app.Status != expectedStatus)
-            return Result.Failure<BillingApplicationDto>($"Application must be in {expectedStatus} status (currently {app.Status})", "INVALID_STATUS");
+
+        var fromStatus = app.Status;
+        if (!BillingApplicationStatusTransitions.IsValid(fromStatus, newStatus))
+            return Result.Failure<BillingApplicationDto>(
+                $"Cannot transition billing application from {fromStatus} to {newStatus}",
+                "INVALID_STATUS_TRANSITION");
 
         app.Status = newStatus;
         await db.SaveChangesAsync(ct);
+
+        await RecordTransitionAsync(app.Id, fromStatus, newStatus, null, ct);
         return Result.Success(MapToDto(app, app.LineItems.Select(MapLineToDto).ToList()));
+    }
+
+    private async Task RecordTransitionAsync(
+        Guid entityId,
+        BillingApplicationStatus fromStatus,
+        BillingApplicationStatus toStatus,
+        string? comment,
+        CancellationToken ct)
+    {
+        if (workflowTransitions is null || fromStatus == toStatus)
+            return;
+
+        await workflowTransitions.RecordTransitionAsync(
+            "BillingApplication", entityId,
+            fromStatus.ToString(), toStatus.ToString(),
+            Guid.Empty, null, comment, ct);
     }
 
     // ── Mappers ──

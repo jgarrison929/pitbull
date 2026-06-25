@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Pitbull.Billing.Domain;
 using Pitbull.Billing.Features.Wip;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
 
@@ -31,14 +33,22 @@ public class WipCalculationService(PitbullDbContext db) : IWipCalculationService
                 .Where(co => subcontractIds.Contains(co.SubcontractId) && co.Status == ChangeOrderStatus.Approved)
                 .SumAsync(co => (decimal?)co.Amount, cancellationToken) ?? 0m;
 
-            billedToDate = await db.Set<PaymentApplication>()
-                .AsNoTracking()
-                .Where(pa => subcontractIds.Contains(pa.SubcontractId))
-                .Where(pa => pa.Status != PaymentApplicationStatus.Draft
-                             && pa.Status != PaymentApplicationStatus.Rejected
-                             && pa.Status != PaymentApplicationStatus.Void)
-                .SumAsync(pa => (decimal?)pa.CurrentPaymentDue, cancellationToken) ?? 0m;
         }
+
+        var billableStatuses = new[]
+        {
+            BillingApplicationStatus.SubmittedToOwner,
+            BillingApplicationStatus.Disputed,
+            BillingApplicationStatus.ArchitectCertified,
+            BillingApplicationStatus.PaymentDue,
+            BillingApplicationStatus.PartiallyPaid,
+            BillingApplicationStatus.Paid,
+        };
+
+        billedToDate = await db.Set<BillingApplication>()
+            .AsNoTracking()
+            .Where(ba => ba.ProjectId == project.Id && billableStatuses.Contains(ba.Status))
+            .SumAsync(ba => (decimal?)ba.TotalEarnedLessRetainage, cancellationToken) ?? 0m;
 
         decimal totalCostToDate = await db.Set<TimeEntry>()
             .AsNoTracking()

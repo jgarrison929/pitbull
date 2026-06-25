@@ -35,6 +35,7 @@ import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import type { Rfi, UpdateRfiCommand, RfiStatus, RfiPriority } from "@/lib/types";
+import { getAllowedRfiStatuses, getNextRfiStatuses, rfiStatusLabel } from "@/lib/workflow-transitions";
 import { toast } from "sonner";
 import { Download, Paperclip } from "lucide-react";
 
@@ -194,6 +195,40 @@ export default function RfiDetailPage({
     fetchRfi();
   }, [id, projectId, addRecentItem]);
 
+  async function handleWorkflowTransition(nextStatus: RfiStatus, label: string) {
+    if (!rfi || !projectId) return;
+
+    if (nextStatus === RfiStatus.Answered && !rfi.answer?.trim() && !editAnswer.trim()) {
+      toast.error("An answer is required before marking as Answered");
+      setIsEditing(true);
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const command: UpdateRfiCommand = {
+        subject: rfi.subject,
+        question: rfi.question,
+        answer: rfi.answer || null,
+        status: nextStatus,
+        priority: rfi.priority,
+      };
+      const updated = await api<Rfi>(
+        `/api/projects/${projectId}/rfis/${id}`,
+        { method: "PUT", body: command }
+      );
+      setRfi(updated);
+      setEditStatus(updated.status);
+      toast.success(label);
+    } catch (err) {
+      toast.error("Workflow action failed", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function handleSave() {
     if (!rfi || !projectId) return;
 
@@ -308,14 +343,33 @@ export default function RfiDetailPage({
             RFI-{String(rfi.number).padStart(3, "0")}
           </p>
         </div>
-        <div className="flex gap-2">
-          {!isEditing && (
-            <Button
-              onClick={() => setIsEditing(true)}
-              className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
-            >
-              Edit RFI
-            </Button>
+        <div className="flex flex-wrap gap-2">
+          {!isEditing && rfi.status !== RfiStatus.Closed && (
+            <>
+              {getNextRfiStatuses(rfi.status).map((next) => (
+                <Button
+                  key={next}
+                  variant={next === RfiStatus.Closed ? "outline" : "default"}
+                  className={next !== RfiStatus.Closed ? "bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]" : "min-h-[44px]"}
+                  disabled={isSaving}
+                  onClick={() => handleWorkflowTransition(next, `RFI ${rfiStatusLabel(next).toLowerCase()}`)}
+                >
+                  {next === RfiStatus.Answered && "Mark Answered"}
+                  {next === RfiStatus.Closed && "Close RFI"}
+                  {next === RfiStatus.Open && "Reopen"}
+                </Button>
+              ))}
+              <Button
+                onClick={() => setIsEditing(true)}
+                variant="outline"
+                className="min-h-[44px]"
+              >
+                Edit RFI
+              </Button>
+            </>
+          )}
+          {!isEditing && rfi.status === RfiStatus.Closed && (
+            <p className="text-sm text-muted-foreground self-center">This RFI is closed.</p>
           )}
         </div>
       </div>
@@ -356,19 +410,25 @@ export default function RfiDetailPage({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="status">Status</Label>
-                    <Select
-                      value={String(editStatus)}
-                      onValueChange={(v) => setEditStatus(Number(v) as RfiStatus)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">🔵 Open</SelectItem>
-                        <SelectItem value="1">🟢 Answered</SelectItem>
-                        <SelectItem value="2">⚫ Closed</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    {getAllowedRfiStatuses(rfi.status).length <= 1 ? (
+                      <p className="text-sm font-medium py-2">{rfiStatusLabel(editStatus)}</p>
+                    ) : (
+                      <Select
+                        value={String(editStatus)}
+                        onValueChange={(v) => setEditStatus(Number(v) as RfiStatus)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getAllowedRfiStatuses(rfi.status).map((s) => (
+                            <SelectItem key={s} value={String(s)}>
+                              {rfiStatusLabel(s)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="priority">Priority</Label>

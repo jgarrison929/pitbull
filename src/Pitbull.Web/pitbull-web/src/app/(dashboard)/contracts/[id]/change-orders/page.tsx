@@ -39,6 +39,7 @@ import { ArrowRight, FileText, Pencil, Trash2 } from "lucide-react";
 import api from "@/lib/api";
 import type { ChangeOrder, ChangeOrderStatus, PagedResult, Subcontract } from "@/lib/types";
 import { changeOrderStatusBadgeClass, changeOrderStatusLabel, formatCurrency } from "@/lib/contracts";
+import { getAllowedChangeOrderStatuses } from "@/lib/workflow-transitions";
 import { toast } from "sonner";
 
 type FormData = {
@@ -76,19 +77,8 @@ const allStatusOptions: Array<{ value: ChangeOrderStatus; label: string }> = [
   { value: 5, label: "Void" },
 ];
 
-// Valid transitions per status (mirrors backend ChangeOrderStatusTransitions)
-const allowedTransitions: Record<ChangeOrderStatus, ChangeOrderStatus[]> = {
-  0: [0, 1, 2, 3, 4],   // Pending → UnderReview, Approved, Rejected, Withdrawn
-  1: [1, 2, 3, 4],       // UnderReview → Approved, Rejected, Withdrawn
-  2: [2, 5],              // Approved → Void only
-  3: [3],                 // Rejected → terminal
-  4: [4],                 // Withdrawn → terminal
-  5: [5],                 // Void → terminal
-};
-
 function getStatusOptions(currentStatus: ChangeOrderStatus | null): Array<{ value: ChangeOrderStatus; label: string }> {
-  if (currentStatus === null) return [allStatusOptions[0]]; // create → Pending only
-  const allowed = allowedTransitions[currentStatus] ?? [currentStatus];
+  const allowed = getAllowedChangeOrderStatuses(currentStatus);
   return allStatusOptions.filter((opt) => allowed.includes(opt.value));
 }
 

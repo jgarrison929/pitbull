@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Contracts.Domain;
+using Pitbull.Core.CQRS;
 using Pitbull.Contracts.Features.CreateChangeOrder;
 using Pitbull.Contracts.Features.CreatePaymentApplication;
 using Pitbull.Contracts.Features.CreateSubcontract;
@@ -17,6 +18,18 @@ public sealed class ContractsServiceTests
 
     private static ContractsService CreateService(Pitbull.Core.Data.PitbullDbContext db)
         => new(db);
+
+    private static async Task<Result<ChangeOrderDto>> ApproveChangeOrderAsync(
+        ContractsService service, ChangeOrderDto changeOrder)
+    {
+        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
+            changeOrder.Id, changeOrder.ChangeOrderNumber, changeOrder.Title, changeOrder.Description,
+            changeOrder.Reason, changeOrder.Amount, changeOrder.DaysExtension, ChangeOrderStatus.UnderReview, null));
+
+        return await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
+            changeOrder.Id, changeOrder.ChangeOrderNumber, changeOrder.Title, changeOrder.Description,
+            changeOrder.Reason, changeOrder.Amount, changeOrder.DaysExtension, ChangeOrderStatus.Approved, null));
+    }
 
     private static async Task<Guid> SeedSubcontractAsync(
         Pitbull.Core.Data.PitbullDbContext db,
@@ -49,7 +62,7 @@ public sealed class ContractsServiceTests
     // === Change Order Status Transition Tests ===
 
     [Fact]
-    public async Task UpdateChangeOrder_PendingToApproved_Succeeds()
+    public async Task UpdateChangeOrder_PendingToApproved_Fails()
     {
         using var db = TestDbContextFactory.Create();
         var service = CreateService(db);
@@ -62,6 +75,23 @@ public sealed class ContractsServiceTests
         var result = await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
             created.Value!.Id, "CO-001", "Test CO", "Description", "Reason",
             5000m, null, ChangeOrderStatus.Approved, null));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS_TRANSITION");
+    }
+
+    [Fact]
+    public async Task UpdateChangeOrder_UnderReviewToApproved_Succeeds()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var subId = await SeedSubcontractAsync(db);
+
+        var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
+            subId, "CO-001", "Test CO", "Description", "Reason", 5000m, null, null));
+        created.IsSuccess.Should().BeTrue();
+
+        var result = await ApproveChangeOrderAsync(service, created.Value!);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Status.Should().Be(ChangeOrderStatus.Approved);
@@ -119,9 +149,7 @@ public sealed class ContractsServiceTests
         var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
             subId, "CO-001", "Test CO", "Description", "Reason", 5000m, null, null));
 
-        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
-            created.Value!.Id, "CO-001", "Test CO", "Description", "Reason",
-            5000m, null, ChangeOrderStatus.Approved, null));
+        await ApproveChangeOrderAsync(service, created.Value!);
 
         var result = await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
             created.Value!.Id, "CO-001", "Test CO", "Description", "Reason",
@@ -141,9 +169,7 @@ public sealed class ContractsServiceTests
         var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
             subId, "CO-001", "Test CO", "Description", "Reason", 5000m, null, null));
 
-        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
-            created.Value!.Id, "CO-001", "Test CO", "Description", "Reason",
-            5000m, null, ChangeOrderStatus.Approved, null));
+        await ApproveChangeOrderAsync(service, created.Value!);
 
         var result = await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
             created.Value!.Id, "CO-001", "Test CO", "Description", "Reason",
@@ -165,9 +191,7 @@ public sealed class ContractsServiceTests
         var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
             subId, "CO-001", "Add scope", "Extra work", "Owner request", 15_000m, null, null));
 
-        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
-            created.Value!.Id, "CO-001", "Add scope", "Extra work", "Owner request",
-            15_000m, null, ChangeOrderStatus.Approved, null));
+        await ApproveChangeOrderAsync(service, created.Value!);
 
         var sub = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
         sub.CurrentValue.Should().Be(115_000m);
@@ -183,9 +207,7 @@ public sealed class ContractsServiceTests
         var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
             subId, "CO-001", "Reduce scope", "Remove work", "VE", -10_000m, null, null));
 
-        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
-            created.Value!.Id, "CO-001", "Reduce scope", "Remove work", "VE",
-            -10_000m, null, ChangeOrderStatus.Approved, null));
+        await ApproveChangeOrderAsync(service, created.Value!);
 
         var sub = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
         sub.CurrentValue.Should().Be(90_000m);
@@ -201,6 +223,10 @@ public sealed class ContractsServiceTests
         var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
             subId, "CO-001", "Big deduct", "Remove everything", "VE", -60_000m, null, null));
 
+        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
+            created.Value!.Id, "CO-001", "Big deduct", "Remove everything", "VE",
+            -60_000m, null, ChangeOrderStatus.UnderReview, null));
+
         var result = await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
             created.Value!.Id, "CO-001", "Big deduct", "Remove everything", "VE",
             -60_000m, null, ChangeOrderStatus.Approved, null));
@@ -210,7 +236,7 @@ public sealed class ContractsServiceTests
     }
 
     [Fact]
-    public async Task CreateChangeOrder_AsApproved_UpdatesSubcontractValue()
+    public async Task CreateChangeOrder_AsApproved_Fails()
     {
         using var db = TestDbContextFactory.Create();
         var service = CreateService(db);
@@ -220,25 +246,8 @@ public sealed class ContractsServiceTests
             subId, "CO-001", "Pre-approved", "Already approved", "Owner",
             25_000m, null, null, Status: ChangeOrderStatus.Approved));
 
-        result.IsSuccess.Should().BeTrue();
-
-        var sub = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
-        sub.CurrentValue.Should().Be(125_000m);
-    }
-
-    [Fact]
-    public async Task CreateChangeOrder_AsApproved_NegativeContractSum_Fails()
-    {
-        using var db = TestDbContextFactory.Create();
-        var service = CreateService(db);
-        var subId = await SeedSubcontractAsync(db, originalValue: 10_000m);
-
-        var result = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
-            subId, "CO-001", "Big deduct", "Way too much", "VE",
-            -20_000m, null, null, Status: ChangeOrderStatus.Approved));
-
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("NEGATIVE_CONTRACT_SUM");
+        result.ErrorCode.Should().Be("INVALID_STATUS");
     }
 
     [Fact]
@@ -251,9 +260,7 @@ public sealed class ContractsServiceTests
         var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
             subId, "CO-001", "Add scope", "Extra", "Owner", 20_000m, null, null));
 
-        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
-            created.Value!.Id, "CO-001", "Add scope", "Extra", "Owner",
-            20_000m, null, ChangeOrderStatus.Approved, null));
+        await ApproveChangeOrderAsync(service, created.Value!);
 
         var subAfterApproval = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
         subAfterApproval.CurrentValue.Should().Be(120_000m);
@@ -278,9 +285,7 @@ public sealed class ContractsServiceTests
         // Create and approve a CO for 15k
         var created = await service.CreateChangeOrderAsync(new CreateChangeOrderCommand(
             subId, "CO-001", "Add scope", "Extra work", "Owner", 15_000m, null, null));
-        await service.UpdateChangeOrderAsync(new UpdateChangeOrderCommand(
-            created.Value!.Id, "CO-001", "Add scope", "Extra work", "Owner",
-            15_000m, null, ChangeOrderStatus.Approved, null));
+        await ApproveChangeOrderAsync(service, created.Value!);
 
         var subAfterApproval = await db.Set<Subcontract>().FirstAsync(s => s.Id == subId);
         subAfterApproval.CurrentValue.Should().Be(115_000m);

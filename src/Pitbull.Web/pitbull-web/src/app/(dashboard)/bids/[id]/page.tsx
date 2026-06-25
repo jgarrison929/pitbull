@@ -32,7 +32,8 @@ import {
 import api from "@/lib/api";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
-import { BidStatus, type Bid, type Project } from "@/lib/types";
+import { BidStatus, type Bid, type Project, type UpdateBidCommand } from "@/lib/types";
+import { getNextBidStatuses } from "@/lib/workflow-transitions";
 import { toast } from "sonner";
 
 function formatCurrency(amount: number) {
@@ -98,6 +99,7 @@ export default function BidDetailPage({
   const [convertOpen, setConvertOpen] = useState(false);
   const [projectNumber, setProjectNumber] = useState("");
   const [isConverting, setIsConverting] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const { addRecentItem } = useRecentlyViewed();
 
   useEffect(() => {
@@ -121,6 +123,41 @@ export default function BidDetailPage({
     }
     fetchBid();
   }, [id, addRecentItem]);
+
+  async function handleStatusTransition(nextStatus: BidStatus) {
+    if (!bid || bid.status === nextStatus) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      const command: UpdateBidCommand = {
+        id: bid.id,
+        name: bid.name,
+        number: bid.number,
+        status: nextStatus,
+        estimatedValue: bid.estimatedValue,
+        bidDate: bid.bidDate || undefined,
+        dueDate: bid.dueDate || undefined,
+        owner: bid.owner || undefined,
+        description: bid.description || undefined,
+        notes: bid.description || undefined,
+        items: bid.items?.map((item) => ({
+          description: item.description,
+          category: item.category,
+          quantity: item.quantity,
+          unitCost: item.unitCost,
+        })),
+      };
+      const updated = await api<Bid>(`/api/bids/${bid.id}`, { method: "PUT", body: command });
+      setBid(updated);
+      toast.success(`Bid status updated to ${statusLabel(nextStatus)}`);
+    } catch (err) {
+      toast.error("Failed to update bid status", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }
 
   async function handleConvertToProject() {
     if (!projectNumber.trim()) {
@@ -212,7 +249,24 @@ export default function BidDetailPage({
             {bid.number}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {getNextBidStatuses(bid.status).map((next) => (
+            <Button
+              key={next}
+              className={
+                next === BidStatus.Won
+                  ? "bg-green-600 hover:bg-green-700 text-white min-h-[44px]"
+                  : next === BidStatus.Cancelled || next === BidStatus.Lost
+                    ? "min-h-[44px]"
+                    : "bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]"
+              }
+              variant={next === BidStatus.Cancelled || next === BidStatus.Lost ? "outline" : "default"}
+              disabled={isUpdatingStatus}
+              onClick={() => handleStatusTransition(next)}
+            >
+              {statusLabel(next)}
+            </Button>
+          ))}
           <Button asChild variant="outline" className="min-h-[44px]">
             <Link href={`/bids/${bid.id}/edit`}>Edit Bid</Link>
           </Button>

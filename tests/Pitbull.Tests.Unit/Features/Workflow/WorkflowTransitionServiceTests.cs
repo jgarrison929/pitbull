@@ -83,6 +83,7 @@ public class WorkflowTransitionServiceTests
     [InlineData("ChangeOrder")]
     [InlineData("PaymentApplication")]
     [InlineData("VendorInvoice")]
+    [InlineData("BillingApplication")]
     public async Task RecordTransition_AllValidEntityTypes_Succeeds(string entityType)
     {
         using var db = TestDbContextFactory.Create();

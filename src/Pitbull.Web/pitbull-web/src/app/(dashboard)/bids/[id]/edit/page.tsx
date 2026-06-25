@@ -18,6 +18,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import api from "@/lib/api";
 import { BidStatus, type Bid, type UpdateBidCommand } from "@/lib/types";
+import { getAllowedBidStatuses } from "@/lib/workflow-transitions";
 import { toast } from "sonner";
 
 const MAX_NAME_LENGTH = 150;
@@ -166,19 +167,20 @@ export default function EditBidPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as BidStatus)}>
-                <SelectTrigger id="status">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={BidStatus.Draft}>Draft</SelectItem>
-                  <SelectItem value={BidStatus.Submitted}>Submitted</SelectItem>
-                  <SelectItem value={BidStatus.Won}>Won</SelectItem>
-                  <SelectItem value={BidStatus.Lost}>Lost</SelectItem>
-                  <SelectItem value={BidStatus.NoResponse}>No Response</SelectItem>
-                  <SelectItem value={BidStatus.Cancelled}>Cancelled</SelectItem>
-                </SelectContent>
-              </Select>
+              {getAllowedBidStatuses(status).length <= 1 ? (
+                <p id="status" className="text-sm font-medium py-2">{status}</p>
+              ) : (
+                <Select value={status} onValueChange={(v) => setStatus(v as BidStatus)}>
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAllowedBidStatuses(status).map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
 

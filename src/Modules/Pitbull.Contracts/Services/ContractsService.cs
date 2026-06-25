@@ -242,23 +242,11 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
                 "Change order number already exists for this subcontract",
                 "DUPLICATE_CO_NUMBER");
 
-        // If creating as Approved, validate and update subcontract
-        if (command.Status == ChangeOrderStatus.Approved)
-        {
-            var subcontract = await db.Set<Subcontract>()
-                .FirstOrDefaultAsync(s => s.Id == command.SubcontractId, cancellationToken);
-
-            if (subcontract is null)
-                return Result.Failure<ChangeOrderDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
-
-            var newContractSum = subcontract.CurrentValue + command.Amount;
-            if (newContractSum < 0)
-                return Result.Failure<ChangeOrderDto>(
-                    $"Change order would reduce contract sum below zero (current: {subcontract.CurrentValue:C}, CO amount: {command.Amount:C})",
-                    "NEGATIVE_CONTRACT_SUM");
-
-            subcontract.CurrentValue = newContractSum;
-        }
+        var initialStatus = command.Status;
+        if (initialStatus is ChangeOrderStatus.Approved or ChangeOrderStatus.Void or ChangeOrderStatus.Rejected)
+            return Result.Failure<ChangeOrderDto>(
+                "Change orders must be created in Pending or UnderReview status",
+                "INVALID_STATUS");
 
         var changeOrder = new ChangeOrder
         {
@@ -272,7 +260,7 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
             DelayCost = command.CostImpact,
             ReferenceNumber = command.ReferenceNumber,
             OriginatingRfiId = command.OriginatingRfiId,
-            Status = command.Status,
+            Status = initialStatus,
             SubmittedDate = NormalizeToUtc(command.RequestDate) ?? DateTime.UtcNow,
             ApprovedDate = NormalizeToUtc(command.ApprovedDate)
         };

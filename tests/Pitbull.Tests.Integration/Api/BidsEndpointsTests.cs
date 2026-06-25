@@ -233,7 +233,22 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         createResp.EnsureSuccessStatusCode();
         var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
-        // Update to Won
+        // Draft → Submitted → Won
+        var submit = new
+        {
+            id = created.Id,
+            name = created.Name,
+            number = created.Number,
+            status = (int)BidStatus.Submitted,
+            estimatedValue = created.EstimatedValue,
+            bidDate = created.BidDate,
+            dueDate = created.DueDate,
+            owner = created.Owner,
+            description = created.Description,
+            items = (object?)null
+        };
+        (await client.PutAsJsonAsync($"/api/bids/{created.Id}", submit)).EnsureSuccessStatusCode();
+
         var update = new
         {
             id = created.Id,
@@ -373,7 +388,22 @@ public sealed class BidsEndpointsTests(PostgresFixture db) : IAsyncLifetime
         createResp.EnsureSuccessStatusCode();
         var created = (await createResp.Content.ReadFromJsonAsync<BidDto>(TestJsonOptions.Default))!;
 
-        // Update to Won status
+        // Draft → Submitted → Won
+        var submit = new
+        {
+            id = created.Id,
+            name = created.Name,
+            number = created.Number,
+            status = (int)BidStatus.Submitted,
+            estimatedValue = created.EstimatedValue,
+            bidDate = created.BidDate,
+            dueDate = (DateTime?)null,
+            owner = created.Owner,
+            description = created.Description,
+            items = (object?)null
+        };
+        (await client.PutAsJsonAsync($"/api/bids/{created.Id}", submit)).EnsureSuccessStatusCode();
+
         var update = new
         {
             id = created.Id,

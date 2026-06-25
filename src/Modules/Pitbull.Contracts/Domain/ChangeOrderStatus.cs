@@ -20,7 +20,7 @@ public static class ChangeOrderStatusTransitions
 {
     private static readonly Dictionary<ChangeOrderStatus, HashSet<ChangeOrderStatus>> Allowed = new()
     {
-        [ChangeOrderStatus.Pending] = [ChangeOrderStatus.UnderReview, ChangeOrderStatus.Approved, ChangeOrderStatus.Rejected, ChangeOrderStatus.Withdrawn],
+        [ChangeOrderStatus.Pending] = [ChangeOrderStatus.UnderReview, ChangeOrderStatus.Rejected, ChangeOrderStatus.Withdrawn],
         [ChangeOrderStatus.UnderReview] = [ChangeOrderStatus.Approved, ChangeOrderStatus.Rejected, ChangeOrderStatus.Withdrawn],
         [ChangeOrderStatus.Approved] = [ChangeOrderStatus.Void],
         [ChangeOrderStatus.Rejected] = [],

@@ -155,13 +155,36 @@ public class RfiService : IRfiService
             return Result.Failure<RfiDto>("RFI not found", "NOT_FOUND");
 
         var oldRfiStatus = rfi.Status;
+        var newRfiStatus = command.Status;
+
+        if (!RfiStatusTransitions.IsValid(oldRfiStatus, newRfiStatus))
+            return Result.Failure<RfiDto>(
+                $"Cannot transition RFI from {oldRfiStatus} to {newRfiStatus}",
+                "INVALID_STATUS_TRANSITION");
+
+        if (newRfiStatus == RfiStatus.Closed && oldRfiStatus == RfiStatus.Open && string.IsNullOrWhiteSpace(command.Answer))
+            return Result.Failure<RfiDto>(
+                "An answer is required before closing an RFI from Open status",
+                "ANSWER_REQUIRED");
+
         rfi.Subject = command.Subject;
         rfi.Question = command.Question;
         rfi.Priority = command.Priority;
         rfi.DueDate = command.DueDate;
-        rfi.Status = command.Status;
+        rfi.Status = newRfiStatus;
         rfi.Answer = command.Answer;
-        rfi.AnsweredAt = command.Answer is null ? rfi.AnsweredAt : DateTime.UtcNow;
+
+        if (newRfiStatus == RfiStatus.Answered
+            && oldRfiStatus != RfiStatus.Answered
+            && string.IsNullOrWhiteSpace(command.Answer))
+            return Result.Failure<RfiDto>("Answer text is required when marking an RFI as Answered", "ANSWER_REQUIRED");
+
+        if ((newRfiStatus == RfiStatus.Answered && oldRfiStatus != RfiStatus.Answered)
+            || (!string.IsNullOrWhiteSpace(command.Answer) && command.Answer != rfi.Answer))
+            rfi.AnsweredAt = DateTime.UtcNow;
+
+        if (newRfiStatus == RfiStatus.Closed)
+            rfi.ClosedAt = DateTime.UtcNow;
 
         // Document references
         rfi.SpecSection = command.SpecSection;

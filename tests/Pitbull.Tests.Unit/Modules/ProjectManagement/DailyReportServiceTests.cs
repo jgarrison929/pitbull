@@ -617,8 +617,10 @@ public sealed class DailyReportServiceTests
 
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
         var service = CreateService(db);
-        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?> { ["WeatherSummary"] = "Clear", ["WorkNarrative"] = "Framing" }))).Value!;
 
+        (await service.SubmitDailyReportAsync(ProjectId, created.Id)).IsSuccess.Should().BeTrue();
         await service.ApproveDailyReportAsync(ProjectId, created.Id);
 
         var result = await service.UpdateDailyReportAsync(ProjectId, created.Id,

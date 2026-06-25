@@ -123,7 +123,10 @@ const operationsItems: NavItem[] = [
 // ---------------------------------------------------------------------------
 
 const peopleItems: NavItem[] = [
+  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
   { label: "Employees", href: "/employees", icon: "👷", requiredPermission: "Employees.View" },
+  { label: "Projects", href: "/projects", icon: "🏗️", requiredPermission: "Projects.View" },
+  { label: "Contracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️", requiredPermission: "TimeTracking.View" },
   { label: "Approvals", href: "/time-tracking/approval", icon: "✅", requiredPermission: "TimeTracking.Approve" },
   // Payroll section
@@ -133,13 +136,13 @@ const peopleItems: NavItem[] = [
   { label: "Wage Determinations", href: "/payroll/wage-determinations", icon: "📚", requiredPermission: "Payroll.View" },
   { label: "Payroll Exports", href: "/payroll/exports", icon: "📤", requiredPermission: "Payroll.View" },
   // Resources section
-  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
   { label: "Equipment", href: "/equipment", icon: "🚜", requiredPermission: "Equipment.View" },
 ];
 
 const peopleSeparators: Workspace["separators"] = [
-  { beforeIndex: 3, label: "Payroll" },
-  { beforeIndex: 8, label: "Resources" },
+  { beforeIndex: 0, label: "Day-1 Setup" },
+  { beforeIndex: 6, label: "Payroll" },
+  { beforeIndex: 11, label: "Resources" },
 ];
 
 // ---------------------------------------------------------------------------

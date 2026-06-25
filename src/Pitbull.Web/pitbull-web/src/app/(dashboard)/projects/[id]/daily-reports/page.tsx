@@ -1314,21 +1314,10 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
 
               <div className="space-y-2">
                 <Label>Status</Label>
-                <Select
-                  value={form.status}
-                  onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUSES.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Badge variant={statusBadgeVariant(form.status)}>{form.status}</Badge>
+                <p className="text-xs text-muted-foreground">
+                  Use Submit and Approve actions on the list to advance workflow.
+                </p>
               </div>
 
               <div className="space-y-2">

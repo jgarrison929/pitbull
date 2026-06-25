@@ -217,7 +217,21 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
         Assert.Equal(ChangeOrderStatus.Pending, created.Status);
         Assert.Null(created.ApprovedDate);
 
-        // Update status to Approved via PUT
+        // Move to Under Review, then Approved (canonical ERP path)
+        var reviewPayload = new
+        {
+            id = created.Id,
+            changeOrderNumber = created.ChangeOrderNumber,
+            title = created.Title,
+            description = created.Description,
+            reason = created.Reason,
+            amount = created.Amount,
+            daysExtension = created.DaysExtension,
+            status = (int)ChangeOrderStatus.UnderReview,
+            referenceNumber = created.ReferenceNumber
+        };
+        (await client.PutAsJsonAsync($"/api/changeorders/{created.Id}", reviewPayload)).EnsureSuccessStatusCode();
+
         var updatePayload = new
         {
             id = created.Id,
@@ -346,7 +360,20 @@ public sealed class ChangeOrdersEndpointsTests(PostgresFixture db) : IAsyncLifet
         createResp.EnsureSuccessStatusCode();
         var created = (await createResp.Content.ReadFromJsonAsync<ChangeOrderDto>(TestJsonOptions.Default))!;
 
-        // Approve this one using the typed command
+        // Approve via Under Review → Approved
+        var reviewCmd = new UpdateChangeOrderCommand(
+            Id: created.Id,
+            ChangeOrderNumber: created.ChangeOrderNumber,
+            Title: created.Title,
+            Description: created.Description ?? "",
+            Reason: created.Reason,
+            Amount: created.Amount,
+            DaysExtension: created.DaysExtension,
+            Status: ChangeOrderStatus.UnderReview,
+            ReferenceNumber: created.ReferenceNumber
+        );
+        (await client.PutAsJsonAsync($"/api/changeorders/{created.Id}", reviewCmd)).EnsureSuccessStatusCode();
+
         var updateCmd = new UpdateChangeOrderCommand(
             Id: created.Id,
             ChangeOrderNumber: created.ChangeOrderNumber,

@@ -76,34 +76,55 @@ public class WipCalculationServiceTests
             CreatedBy = "test"
         };
 
-        PaymentApplication approvedPayApp = new()
+        OwnerContract ownerContract = new()
         {
             Id = Guid.NewGuid(),
             CompanyId = TestDbContextFactory.TestCompanyId,
             TenantId = TestDbContextFactory.TestTenantId,
-            SubcontractId = subcontract.Id,
-            ApplicationNumber = 1,
-            PeriodStart = DateTime.UtcNow.AddDays(-30),
-            PeriodEnd = DateTime.UtcNow,
-            ScheduledValue = 25_000m,
-            CurrentPaymentDue = 30_000m,
-            Status = PaymentApplicationStatus.Approved,
+            ProjectId = project.Id,
+            ContractNumber = "OC-100",
+            ProjectName = "North Campus",
+            OriginalContractSum = 100_000m,
+            ContractSumToDate = 100_000m,
+            DefaultRetainagePercent = 10m,
+            RetainagePercentMaterials = 10m,
+            Status = OwnerContractStatus.Active,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "test"
         };
 
-        PaymentApplication draftPayApp = new()
+        BillingApplication submittedBillingApp = new()
         {
             Id = Guid.NewGuid(),
             CompanyId = TestDbContextFactory.TestCompanyId,
             TenantId = TestDbContextFactory.TestTenantId,
-            SubcontractId = subcontract.Id,
+            ProjectId = project.Id,
+            OwnerContractId = ownerContract.Id,
+            OwnerScheduleOfValuesId = Guid.NewGuid(),
+            ApplicationNumber = 1,
+            PeriodFrom = new DateOnly(2026, 1, 1),
+            PeriodThrough = new DateOnly(2026, 1, 31),
+            ApplicationDate = new DateOnly(2026, 1, 25),
+            TotalEarnedLessRetainage = 30_000m,
+            Status = BillingApplicationStatus.SubmittedToOwner,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test"
+        };
+
+        BillingApplication draftBillingApp = new()
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = TestDbContextFactory.TestCompanyId,
+            TenantId = TestDbContextFactory.TestTenantId,
+            ProjectId = project.Id,
+            OwnerContractId = ownerContract.Id,
+            OwnerScheduleOfValuesId = Guid.NewGuid(),
             ApplicationNumber = 2,
-            PeriodStart = DateTime.UtcNow.AddDays(-10),
-            PeriodEnd = DateTime.UtcNow,
-            ScheduledValue = 25_000m,
-            CurrentPaymentDue = 50_000m,
-            Status = PaymentApplicationStatus.Draft,
+            PeriodFrom = new DateOnly(2026, 2, 1),
+            PeriodThrough = new DateOnly(2026, 2, 28),
+            ApplicationDate = new DateOnly(2026, 2, 25),
+            TotalEarnedLessRetainage = 50_000m,
+            Status = BillingApplicationStatus.Draft,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = "test"
         };
@@ -156,8 +177,9 @@ public class WipCalculationServiceTests
         db.Set<Subcontract>().Add(subcontract);
         db.Set<ChangeOrder>().Add(approvedChangeOrder);
         db.Set<ChangeOrder>().Add(pendingChangeOrder);
-        db.Set<PaymentApplication>().Add(approvedPayApp);
-        db.Set<PaymentApplication>().Add(draftPayApp);
+        db.Set<OwnerContract>().Add(ownerContract);
+        db.Set<BillingApplication>().Add(submittedBillingApp);
+        db.Set<BillingApplication>().Add(draftBillingApp);
         db.Set<Employee>().Add(employee);
         db.Set<Equipment>().Add(equipment);
         db.Set<TimeEntry>().Add(timeEntry);

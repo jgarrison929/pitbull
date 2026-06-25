@@ -140,6 +140,32 @@ export default function BillingApplicationDetailPage() {
             Submit to Owner
           </Button>
         )}
+        {app.status === "PmRejected" && (
+          <Button onClick={() => handleWorkflow("return-to-draft", "Returned to draft")} disabled={isTransitioning}>
+            Return to Draft
+          </Button>
+        )}
+        {app.status === "SubmittedToOwner" && (
+          <>
+            <Button onClick={() => handleWorkflow("architect-certified", "Architect certified")} disabled={isTransitioning}>Architect Certified</Button>
+            <Button variant="destructive" onClick={() => handleWorkflow("disputed", "Marked disputed")} disabled={isTransitioning}>Disputed</Button>
+          </>
+        )}
+        {app.status === "Disputed" && (
+          <Button onClick={() => handleWorkflow("resolve-dispute", "Dispute resolved")} disabled={isTransitioning}>Resolve Dispute</Button>
+        )}
+        {app.status === "ArchitectCertified" && (
+          <Button onClick={() => handleWorkflow("payment-due", "Payment due")} disabled={isTransitioning}>Mark Payment Due</Button>
+        )}
+        {app.status === "PaymentDue" && (
+          <>
+            <Button onClick={() => handleWorkflow("partially-paid", "Partially paid")} disabled={isTransitioning}>Partially Paid</Button>
+            <Button onClick={() => handleWorkflow("paid", "Paid")} disabled={isTransitioning}>Mark Paid</Button>
+          </>
+        )}
+        {app.status === "PartiallyPaid" && (
+          <Button onClick={() => handleWorkflow("paid", "Paid")} disabled={isTransitioning}>Mark Paid</Button>
+        )}
         {app.status !== "Paid" && app.status !== "Void" && (
           <Button variant="ghost" className="text-destructive" onClick={() => handleWorkflow("void", "Voided")} disabled={isTransitioning}>
             Void

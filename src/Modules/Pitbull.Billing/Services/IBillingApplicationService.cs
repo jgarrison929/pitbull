@@ -16,6 +16,13 @@ public interface IBillingApplicationService
     Task<Result<BillingApplicationDto>> SubmitForReviewAsync(Guid id, CancellationToken ct = default);
     Task<Result<BillingApplicationDto>> ApproveReviewAsync(Guid id, CancellationToken ct = default);
     Task<Result<BillingApplicationDto>> RejectReviewAsync(Guid id, string? comments, CancellationToken ct = default);
+    Task<Result<BillingApplicationDto>> ReturnToDraftAsync(Guid id, CancellationToken ct = default);
     Task<Result<BillingApplicationDto>> SubmitToOwnerAsync(Guid id, CancellationToken ct = default);
+    Task<Result<BillingApplicationDto>> MarkArchitectCertifiedAsync(Guid id, CancellationToken ct = default);
+    Task<Result<BillingApplicationDto>> MarkDisputedAsync(Guid id, CancellationToken ct = default);
+    Task<Result<BillingApplicationDto>> ResolveDisputeAsync(Guid id, CancellationToken ct = default);
+    Task<Result<BillingApplicationDto>> MarkPaymentDueAsync(Guid id, CancellationToken ct = default);
+    Task<Result<BillingApplicationDto>> MarkPartiallyPaidAsync(Guid id, CancellationToken ct = default);
+    Task<Result<BillingApplicationDto>> MarkPaidAsync(Guid id, CancellationToken ct = default);
     Task<Result<BillingApplicationDto>> VoidAsync(Guid id, CancellationToken ct = default);
 }
