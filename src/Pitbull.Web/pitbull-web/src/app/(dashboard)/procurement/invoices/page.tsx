@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TableSkeleton } from "@/components/skeletons";
+import { Input } from "@/components/ui/input";
 import { Plus, ShieldAlert } from "lucide-react";
 import { getNextVendorInvoiceStatuses } from "@/lib/workflow-transitions";
 
@@ -33,15 +34,24 @@ interface ListResult {
 export default function ProcurementInvoicesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [invoices, setInvoices] = useState<VendorInvoiceDto[]>([]);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [isMatchingId, setIsMatchingId] = useState<string | null>(null);
   const [isUpdatingId, setIsUpdatingId] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
+
+  useEffect(() => {
+    const debounce = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(debounce);
+  }, [search]);
 
   const fetchInvoices = useCallback(async () => {
     setIsLoading(true);
     setPermissionDenied(false);
     try {
-      const result = await api<ListResult>("/api/vendor-invoices?page=1&pageSize=100");
+      const params = new URLSearchParams({ page: "1", pageSize: "100" });
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      const result = await api<ListResult>(`/api/vendor-invoices?${params.toString()}`);
       setInvoices(result.items);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
@@ -52,7 +62,7 @@ export default function ProcurementInvoicesPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [debouncedSearch]);
 
   useEffect(() => {
     fetchInvoices();
@@ -140,7 +150,13 @@ export default function ProcurementInvoicesPage() {
         <CardHeader>
           <CardTitle>Invoices</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by invoice number..."
+            className="max-w-sm"
+          />
           {isLoading ? (
             <TableSkeleton rows={8} headers={["Invoice #", "Amount", "Status", "Match", "Actions"]} />
           ) : (

@@ -25,5 +25,6 @@ public interface IProjectService
     // Command operations
     Task<Result<ProjectDto>> CreateProjectAsync(CreateProjectCommand command, CancellationToken cancellationToken = default);
     Task<Result<ProjectDto>> UpdateProjectAsync(UpdateProjectCommand command, CancellationToken cancellationToken = default);
+    Task<Result<ProjectDto>> ActivateProjectAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Result> DeleteProjectAsync(Guid id, CancellationToken cancellationToken = default);
 }

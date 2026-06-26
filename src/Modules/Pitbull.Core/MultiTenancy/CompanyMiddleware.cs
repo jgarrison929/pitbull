@@ -38,26 +38,6 @@ public class CompanyMiddleware(RequestDelegate next, ILogger<CompanyMiddleware> 
                 .Select(uca => uca.CompanyId)
                 .ToListAsync();
 
-            // If user has no company access entries, give them access to all tenant companies
-            // (backward compatibility for existing users before multi-company was set up).
-            // TODO: Remove this fallback once all tenants have explicit UserCompanyAccess records.
-            if (accessibleCompanyIds.Count == 0)
-            {
-                accessibleCompanyIds = await db.Companies
-                    .IgnoreQueryFilters()
-                    .Where(c => c.TenantId == tenantContext.TenantId && !c.IsDeleted && c.IsActive)
-                    .Select(c => c.Id)
-                    .ToListAsync();
-
-                if (accessibleCompanyIds.Count > 0)
-                {
-                    logger.LogWarning(
-                        "User {UserId} has no explicit company access — falling back to all {Count} tenant companies. " +
-                        "Grant explicit UserCompanyAccess to resolve this.",
-                        userId, accessibleCompanyIds.Count);
-                }
-            }
-
             companyContext.SetAccessibleCompanies(accessibleCompanyIds);
 
             var defaultCompanyId = await db.UserCompanyAccess

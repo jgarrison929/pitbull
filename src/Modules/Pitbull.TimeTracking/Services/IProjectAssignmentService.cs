@@ -1,5 +1,5 @@
 using Pitbull.Core.CQRS;
-using Pitbull.TimeTracking.Domain;
+using Pitbull.Core.Domain;
 using Pitbull.TimeTracking.Features;
 
 namespace Pitbull.TimeTracking.Services;

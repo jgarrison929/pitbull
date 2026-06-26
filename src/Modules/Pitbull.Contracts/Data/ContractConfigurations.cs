@@ -140,6 +140,39 @@ public class SubcontractConfiguration : IEntityTypeConfiguration<Subcontract>
     }
 }
 
+public class OwnerChangeOrderConfiguration : IEntityTypeConfiguration<OwnerChangeOrder>
+{
+    public void Configure(EntityTypeBuilder<OwnerChangeOrder> builder)
+    {
+        builder.ToTable("owner_change_orders");
+        builder.HasKey(co => co.Id);
+
+        builder.Property(co => co.ChangeOrderNumber).HasMaxLength(50).IsRequired();
+        builder.Property(co => co.Title).HasMaxLength(200).IsRequired();
+        builder.Property(co => co.Description).HasMaxLength(4000).IsRequired();
+        builder.Property(co => co.Reason).HasMaxLength(500);
+        builder.Property(co => co.ReferenceNumber).HasMaxLength(100);
+        builder.Property(co => co.ApprovedBy).HasMaxLength(200);
+        builder.Property(co => co.RejectedBy).HasMaxLength(200);
+        builder.Property(co => co.RejectionReason).HasMaxLength(1000);
+        builder.Property(co => co.DelayDescription).HasMaxLength(1000);
+
+        builder.Property(co => co.Amount).HasPrecision(18, 2);
+        builder.Property(co => co.DelayCost).HasPrecision(18, 2);
+
+        builder.Property(co => co.Status).HasConversion<string>().HasMaxLength(50);
+
+        builder.HasIndex(co => new { co.ProjectId, co.ChangeOrderNumber }).IsUnique();
+        builder.HasIndex(co => co.Status);
+        builder.HasIndex(co => co.OwnerContractId);
+
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+    }
+}
+
 public class ChangeOrderConfiguration : IEntityTypeConfiguration<ChangeOrder>
 {
     public void Configure(EntityTypeBuilder<ChangeOrder> builder)

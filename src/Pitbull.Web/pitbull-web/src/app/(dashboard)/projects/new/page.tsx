@@ -134,6 +134,20 @@ const TEAM_ROLES = [
   "Admin/Coordinator",
 ];
 
+/** Maps UI team role labels to AssignmentRole enum values (Worker=0, Supervisor=1, Manager=2). */
+function mapTeamRoleToAssignmentRole(role: string): number {
+  switch (role) {
+    case "Project Manager":
+    case "Safety Manager":
+      return 2;
+    case "Superintendent":
+    case "Foreman":
+      return 1;
+    default:
+      return 0;
+  }
+}
+
 export default function NewProjectPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -390,6 +404,17 @@ export default function NewProjectPage() {
 
     setIsSubmitting(true);
 
+    const pmMember = team.find((m) => m.role === "Project Manager" && m.employeeId);
+    const supMember = team.find((m) => m.role === "Superintendent" && m.employeeId);
+
+    const teamMembers = team
+      .filter((m) => m.employeeId && m.role)
+      .map((m) => ({
+        employeeId: m.employeeId,
+        role: m.role,
+        assignmentRole: mapTeamRoleToAssignmentRole(m.role),
+      }));
+
     const command: CreateProjectCommand = {
       number: projectNumber,
       name: projectName,
@@ -406,6 +431,17 @@ export default function NewProjectPage() {
       startDate: startDate || undefined,
       estimatedCompletionDate: estimatedCompletionDate || undefined,
       contractAmount: contractAmount ? Number(contractAmount) : 0,
+      projectManagerId: pmMember?.employeeId || undefined,
+      superintendentId: supMember?.employeeId || undefined,
+      phases: phases
+        .filter((p) => p.name.trim())
+        .map((p) => ({
+          name: p.name.trim(),
+          costCode: p.costCode.trim(),
+          budgetAmount: p.budget || 0,
+        })),
+      teamMembers: teamMembers.length > 0 ? teamMembers : undefined,
+      activateOnCreate: false,
     };
 
     try {

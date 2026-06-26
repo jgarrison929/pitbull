@@ -787,23 +787,24 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{editing ? "Edit Submittal" : "New Submittal"}</DialogTitle>
-            <DialogDescription>
-              Define submittal details, spec section, type, and review requirements.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0 gap-0">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
+            <DialogHeader className="px-0 pt-2">
+              <DialogTitle>{editing ? "Edit Submittal" : "New Submittal"}</DialogTitle>
+              <DialogDescription>
+                Define submittal details, spec section, type, and review requirements.
+              </DialogDescription>
+            </DialogHeader>
 
-          {editing && (
-            <WorkflowStepper
-              steps={buildSubmittalWorkflowSteps(form.status)}
-              orientation="horizontal"
-              className="py-2"
-            />
-          )}
+            {editing && (
+              <WorkflowStepper
+                steps={buildSubmittalWorkflowSteps(form.status)}
+                orientation="horizontal"
+                className="py-2"
+              />
+            )}
 
-          <div className="space-y-4 py-2">
+            <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label htmlFor="sub-title">
                 Title <span className="text-destructive">*</span>
@@ -957,9 +958,10 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                 maxFiles={5}
               />
             </div>
+            </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 border-t bg-background px-6 py-4">
             <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={saving}>
               Cancel
             </Button>

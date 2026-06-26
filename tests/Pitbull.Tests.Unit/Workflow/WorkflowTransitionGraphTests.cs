@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Moq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pitbull.Api.Features.Workflow;
@@ -211,11 +212,18 @@ public class WorkflowTransitionGraphTests
         using var db = TestDbContextFactory.Create();
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
 
+        var projectAccessMock = new Moq.Mock<Pitbull.Core.Services.IProjectAccessService>();
+        projectAccessMock
+            .Setup(s => s.HasProjectAccessAsync(It.IsAny<Guid>(), It.IsAny<System.Security.Claims.ClaimsPrincipal?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         var rfiService = new RfiService(
             db,
             new Pitbull.RFIs.Features.CreateRfi.CreateRfiValidator(),
             new Pitbull.RFIs.Features.UpdateRfi.UpdateRfiValidator(),
-            NullLogger<RfiService>.Instance);
+            NullLogger<RfiService>.Instance,
+            new Microsoft.AspNetCore.Http.HttpContextAccessor(),
+            projectAccessMock.Object);
 
         var created = await rfiService.CreateRfiAsync(new CreateRfiCommand(
             ProjectId, "Clarify footing", "What depth?", RfiPriority.Normal, null, null, null, null, null, null));

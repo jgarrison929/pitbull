@@ -1,9 +1,12 @@
+using System.Security.Claims;
 using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Pitbull.Contracts.Domain;
+using Pitbull.Core.Services;
 using Pitbull.RFIs.Domain;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.ListRfis;
@@ -18,12 +21,16 @@ public class RfiServiceTests
     private readonly Mock<IValidator<CreateRfiCommand>> _createValidatorMock;
     private readonly Mock<IValidator<UpdateRfiCommand>> _updateValidatorMock;
     private readonly Mock<ILogger<RfiService>> _loggerMock;
+    private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
+    private readonly Mock<IProjectAccessService> _projectAccessServiceMock;
 
     public RfiServiceTests()
     {
         _createValidatorMock = new Mock<IValidator<CreateRfiCommand>>();
         _updateValidatorMock = new Mock<IValidator<UpdateRfiCommand>>();
         _loggerMock = new Mock<ILogger<RfiService>>();
+        _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
+        _projectAccessServiceMock = new Mock<IProjectAccessService>();
 
         // Default to valid
         _createValidatorMock
@@ -32,10 +39,21 @@ public class RfiServiceTests
         _updateValidatorMock
             .Setup(v => v.ValidateAsync(It.IsAny<UpdateRfiCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult());
+
+        _httpContextAccessorMock.Setup(a => a.HttpContext).Returns((HttpContext?)null);
+        _projectAccessServiceMock
+            .Setup(s => s.HasProjectAccessAsync(It.IsAny<Guid>(), It.IsAny<ClaimsPrincipal?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
     }
 
     private RfiService CreateService(Pitbull.Core.Data.PitbullDbContext db) =>
-        new(db, _createValidatorMock.Object, _updateValidatorMock.Object, _loggerMock.Object);
+        new(
+            db,
+            _createValidatorMock.Object,
+            _updateValidatorMock.Object,
+            _loggerMock.Object,
+            _httpContextAccessorMock.Object,
+            _projectAccessServiceMock.Object);
 
     #region GetRfiAsync
 

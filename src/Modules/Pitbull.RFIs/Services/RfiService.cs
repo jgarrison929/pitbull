@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pitbull.Contracts.Domain;
@@ -20,18 +22,24 @@ public class RfiService : IRfiService
     private readonly IValidator<UpdateRfiCommand> _updateValidator;
     private readonly ILogger<RfiService> _logger;
     private readonly IWorkflowTransitionService? _workflowTransitions;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IProjectAccessService _projectAccessService;
 
     public RfiService(
         PitbullDbContext db,
         IValidator<CreateRfiCommand> createValidator,
         IValidator<UpdateRfiCommand> updateValidator,
         ILogger<RfiService> logger,
+        IHttpContextAccessor httpContextAccessor,
+        IProjectAccessService projectAccessService,
         IWorkflowTransitionService? workflowTransitions = null)
     {
         _db = db;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
+        _projectAccessService = projectAccessService;
         _workflowTransitions = workflowTransitions;
     }
 
@@ -44,11 +52,17 @@ public class RfiService : IRfiService
         if (rfi is null)
             return Result.Failure<RfiDto>("RFI not found", "NOT_FOUND");
 
+        if (!await _projectAccessService.HasProjectAccessAsync(rfi.ProjectId, GetCurrentUser(), cancellationToken))
+            return Result.Failure<RfiDto>("Not authorized to access this project", "FORBIDDEN");
+
         return Result.Success(MapToDto(rfi));
     }
 
     public async Task<Result<PagedResult<RfiDto>>> GetRfisAsync(ListRfisQuery query, CancellationToken cancellationToken = default)
     {
+        if (!await _projectAccessService.HasProjectAccessAsync(query.ProjectId, GetCurrentUser(), cancellationToken))
+            return Result.Failure<PagedResult<RfiDto>>("Not authorized to access this project", "FORBIDDEN");
+
         var dbQuery = _db.Set<Rfi>()
             .Where(r => !r.IsDeleted)
             .AsNoTracking();
@@ -90,6 +104,9 @@ public class RfiService : IRfiService
             var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
             return Result.Failure<RfiDto>(errors, "VALIDATION_ERROR");
         }
+
+        if (!await _projectAccessService.HasProjectAccessAsync(command.ProjectId, GetCurrentUser(), cancellationToken))
+            return Result.Failure<RfiDto>("Not authorized to access this project", "FORBIDDEN");
 
         // Auto-assign next sequential number for this project (from CreateRfiHandler logic)
         var maxNumber = await _db.Set<Rfi>()
@@ -348,6 +365,8 @@ public class RfiService : IRfiService
 
         return events.OrderBy(e => e.Date).ToList();
     }
+
+    private ClaimsPrincipal? GetCurrentUser() => _httpContextAccessor.HttpContext?.User;
 
     private static RfiDto MapToDto(Rfi rfi)
     {

@@ -10,6 +10,9 @@ using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
+using Pitbull.Core.CQRS;
+using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Services;
 using Pitbull.Projects.Services;
 using Pitbull.RFIs.Domain;
 using Pitbull.Tests.Unit.Helpers;
@@ -21,6 +24,8 @@ public class ProjectServiceTests
     private readonly Mock<IValidator<CreateProjectCommand>> _createValidatorMock;
     private readonly Mock<IValidator<UpdateProjectCommand>> _updateValidatorMock;
     private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
+    private readonly Mock<ICompanyContext> _companyContextMock;
+    private readonly Mock<IProjectTeamAssignmentService> _teamAssignmentServiceMock;
     private readonly Mock<ILogger<ProjectService>> _loggerMock;
 
     public ProjectServiceTests()
@@ -28,6 +33,16 @@ public class ProjectServiceTests
         _createValidatorMock = new Mock<IValidator<CreateProjectCommand>>();
         _updateValidatorMock = new Mock<IValidator<UpdateProjectCommand>>();
         _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
+        _companyContextMock = new Mock<ICompanyContext>();
+        _companyContextMock.Setup(c => c.IsResolved).Returns(false);
+        _teamAssignmentServiceMock = new Mock<IProjectTeamAssignmentService>();
+        _teamAssignmentServiceMock
+            .Setup(s => s.AssignTeamMembersAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<IReadOnlyList<ProjectTeamMemberRequest>>(),
+                It.IsAny<DateTime?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<(Guid? ProjectManagerId, Guid? SuperintendentId)>((null, null)));
         _loggerMock = new Mock<ILogger<ProjectService>>();
 
         // Default to valid
@@ -40,7 +55,7 @@ public class ProjectServiceTests
     }
 
     private ProjectService CreateService(Pitbull.Core.Data.PitbullDbContext db) =>
-        new(db, _createValidatorMock.Object, _updateValidatorMock.Object, _httpContextAccessorMock.Object, _loggerMock.Object);
+        new(db, _companyContextMock.Object, _teamAssignmentServiceMock.Object, _createValidatorMock.Object, _updateValidatorMock.Object, _httpContextAccessorMock.Object, _loggerMock.Object);
 
     #region GetProjectAsync
 

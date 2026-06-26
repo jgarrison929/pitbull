@@ -20,6 +20,7 @@ public class VendorInvoice : BaseEntity, ICompanyScoped, ITenantScoped
     public PurchaseOrder? PurchaseOrder { get; set; }
     public bool IsTaxExempt { get; set; }
     public string? TaxExemptReason { get; set; }
+    public Guid? AccrualJournalEntryId { get; set; }
 
     public List<InvoiceMatchResult> MatchResults { get; set; } = [];
 }

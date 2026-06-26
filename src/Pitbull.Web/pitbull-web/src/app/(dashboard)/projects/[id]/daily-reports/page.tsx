@@ -307,7 +307,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
       const data = asDataMap(report.data);
       return {
         id: report.id,
-        title: report.title || "Untitled report",
+        title: report.title || asString(data.Title ?? data.title) || "Untitled report",
         reportDate: asString(data.ReportDate ?? data.reportDate) || report.createdAt,
         reportType: asString(data.ReportType ?? data.reportType) || "Foreman",
         weatherSummary: asString(data.WeatherSummary ?? data.weatherSummary),

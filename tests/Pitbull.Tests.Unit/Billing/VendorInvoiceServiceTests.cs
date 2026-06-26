@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Pitbull.Billing.Features.VendorInvoices;
 using Pitbull.Billing.Services;
 using Pitbull.Core.Data;
@@ -26,7 +27,11 @@ public class VendorInvoiceServiceTests : IDisposable
             .Options;
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
-        _service = new VendorInvoiceService(_db, NullLogger<VendorInvoiceService>.Instance);
+        Mock<IJournalEntryService> journalEntryServiceMock = new();
+        _service = new VendorInvoiceService(
+            _db,
+            NullLogger<VendorInvoiceService>.Instance,
+            journalEntryServiceMock.Object);
     }
 
     public void Dispose()

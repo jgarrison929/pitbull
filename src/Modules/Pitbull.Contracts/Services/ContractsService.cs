@@ -6,11 +6,13 @@ using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Contracts.Features.ListChangeOrders;
 using Pitbull.Contracts.Features.ListPaymentApplications;
 using Pitbull.Contracts.Features.ListSubcontracts;
+using Pitbull.Contracts.Features.OwnerChangeOrders;
 using Pitbull.Contracts.Features.UpdateChangeOrder;
 using Pitbull.Contracts.Features.UpdatePaymentApplication;
 using Pitbull.Contracts.Features.UpdateSubcontract;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
 using Pitbull.Core.Services;
 
 namespace Pitbull.Contracts.Services;
@@ -408,6 +410,203 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
         return Result.Success();
     }
 
+    // Owner Change Orders
+    public async Task<Result<OwnerChangeOrderDto>> GetOwnerChangeOrderAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var changeOrder = await db.Set<OwnerChangeOrder>()
+            .FirstOrDefaultAsync(co => co.Id == id && !co.IsDeleted, cancellationToken);
+
+        if (changeOrder is null)
+            return Result.Failure<OwnerChangeOrderDto>("Owner change order not found", "NOT_FOUND");
+
+        return Result.Success(MapOwnerChangeOrderToDto(changeOrder));
+    }
+
+    public async Task<Result<PagedResult<OwnerChangeOrderDto>>> ListOwnerChangeOrdersAsync(
+        ListOwnerChangeOrdersQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        var dbQuery = db.Set<OwnerChangeOrder>().Where(co => !co.IsDeleted).AsQueryable();
+
+        if (query.ProjectId.HasValue)
+            dbQuery = dbQuery.Where(co => co.ProjectId == query.ProjectId.Value);
+
+        if (query.Status.HasValue)
+            dbQuery = dbQuery.Where(co => co.Status == query.Status.Value);
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var search = query.Search.ToLower();
+            dbQuery = dbQuery.Where(co =>
+                co.Title.ToLower().Contains(search.ToLower()) ||
+                co.ChangeOrderNumber.ToLower().Contains(search.ToLower()));
+        }
+
+        var totalCount = await dbQuery.CountAsync(cancellationToken);
+
+        var items = await dbQuery
+            .OrderByDescending(co => co.CreatedAt)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(co => MapOwnerChangeOrderToDto(co))
+            .ToListAsync(cancellationToken);
+
+        return Result.Success(
+            new PagedResult<OwnerChangeOrderDto>(items, totalCount, query.Page, query.PageSize));
+    }
+
+    public async Task<Result<OwnerChangeOrderDto>> CreateOwnerChangeOrderAsync(
+        CreateOwnerChangeOrderCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var projectExists = await db.Database
+            .SqlQueryRaw<int>("SELECT 1 AS \"Value\" FROM projects WHERE \"Id\" = {0} AND \"IsDeleted\" = false LIMIT 1", command.ProjectId)
+            .AnyAsync(cancellationToken);
+        if (!projectExists)
+            return Result.Failure<OwnerChangeOrderDto>("Project not found", "NOT_FOUND");
+
+        if (command.OwnerContractId.HasValue)
+        {
+            var contractExists = await db.Set<OwnerContract>()
+                .AnyAsync(c => c.Id == command.OwnerContractId.Value && !c.IsDeleted, cancellationToken);
+            if (!contractExists)
+                return Result.Failure<OwnerChangeOrderDto>("Owner contract not found", "NOT_FOUND");
+        }
+
+        var duplicateExists = await db.Set<OwnerChangeOrder>()
+            .AnyAsync(co => co.ProjectId == command.ProjectId
+                         && co.ChangeOrderNumber == command.Number,
+                     cancellationToken);
+
+        if (duplicateExists)
+            return Result.Failure<OwnerChangeOrderDto>(
+                "Change order number already exists for this project",
+                "DUPLICATE_CO_NUMBER");
+
+        var initialStatus = command.Status;
+        if (initialStatus is ChangeOrderStatus.Approved or ChangeOrderStatus.Void or ChangeOrderStatus.Rejected)
+            return Result.Failure<OwnerChangeOrderDto>(
+                "Change orders must be created in Pending or UnderReview status",
+                "INVALID_STATUS");
+
+        var changeOrder = new OwnerChangeOrder
+        {
+            ProjectId = command.ProjectId,
+            OwnerContractId = command.OwnerContractId,
+            ChangeOrderNumber = command.Number,
+            Title = command.Title,
+            Description = command.Description,
+            Reason = command.RequestedBy ?? command.Reason,
+            Amount = command.Amount,
+            DaysExtension = command.ScheduleImpactDays ?? command.DaysExtension,
+            DelayCost = command.CostImpact,
+            ReferenceNumber = command.ReferenceNumber,
+            OriginatingRfiId = command.OriginatingRfiId,
+            Status = initialStatus,
+            SubmittedDate = NormalizeToUtc(command.RequestDate) ?? DateTime.UtcNow,
+            ApprovedDate = NormalizeToUtc(command.ApprovedDate)
+        };
+
+        if (changeOrder.Status == ChangeOrderStatus.Approved && !changeOrder.ApprovedDate.HasValue)
+            changeOrder.ApprovedDate = DateTime.UtcNow;
+
+        db.Set<OwnerChangeOrder>().Add(changeOrder);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success(MapOwnerChangeOrderToDto(changeOrder));
+    }
+
+    public async Task<Result<OwnerChangeOrderDto>> UpdateOwnerChangeOrderAsync(
+        UpdateOwnerChangeOrderCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var changeOrder = await db.Set<OwnerChangeOrder>()
+            .FirstOrDefaultAsync(co => co.Id == command.Id, cancellationToken);
+
+        if (changeOrder is null)
+            return Result.Failure<OwnerChangeOrderDto>("Owner change order not found", "NOT_FOUND");
+
+        if (changeOrder.ChangeOrderNumber != command.Number)
+        {
+            var duplicateExists = await db.Set<OwnerChangeOrder>()
+                .AnyAsync(co => co.ProjectId == changeOrder.ProjectId
+                             && co.ChangeOrderNumber == command.Number
+                             && co.Id != command.Id,
+                         cancellationToken);
+
+            if (duplicateExists)
+                return Result.Failure<OwnerChangeOrderDto>(
+                    "Change order number already exists for this project",
+                    "DUPLICATE_CO_NUMBER");
+        }
+
+        if (command.OwnerContractId.HasValue)
+        {
+            var contractExists = await db.Set<OwnerContract>()
+                .AnyAsync(c => c.Id == command.OwnerContractId.Value && !c.IsDeleted, cancellationToken);
+            if (!contractExists)
+                return Result.Failure<OwnerChangeOrderDto>("Owner contract not found", "NOT_FOUND");
+        }
+
+        var oldStatus = changeOrder.Status;
+        var newStatus = command.Status;
+
+        if (!ChangeOrderStatusTransitions.IsValid(oldStatus, newStatus))
+            return Result.Failure<OwnerChangeOrderDto>(
+                $"Cannot transition from {oldStatus} to {newStatus}",
+                "INVALID_STATUS_TRANSITION");
+
+        changeOrder.ChangeOrderNumber = command.Number;
+        changeOrder.Title = command.Title;
+        changeOrder.Description = command.Description;
+        changeOrder.Reason = command.RequestedBy ?? command.Reason;
+        changeOrder.Amount = command.Amount;
+        changeOrder.DaysExtension = command.ScheduleImpactDays ?? command.DaysExtension;
+        changeOrder.DelayCost = command.CostImpact;
+        changeOrder.Status = command.Status;
+        changeOrder.ReferenceNumber = command.ReferenceNumber;
+        changeOrder.OwnerContractId = command.OwnerContractId ?? changeOrder.OwnerContractId;
+        changeOrder.SubmittedDate = NormalizeToUtc(command.RequestDate) ?? changeOrder.SubmittedDate;
+        changeOrder.ApprovedDate = NormalizeToUtc(command.ApprovedDate) ?? changeOrder.ApprovedDate;
+
+        if (oldStatus != newStatus)
+        {
+            if (newStatus == ChangeOrderStatus.Approved && !changeOrder.ApprovedDate.HasValue)
+                changeOrder.ApprovedDate = DateTime.UtcNow;
+            else if (newStatus == ChangeOrderStatus.Rejected && !changeOrder.RejectedDate.HasValue)
+                changeOrder.RejectedDate = DateTime.UtcNow;
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        if (oldStatus != newStatus && workflowTransitions is not null)
+        {
+            await workflowTransitions.RecordTransitionAsync(
+                "OwnerChangeOrder", changeOrder.Id,
+                oldStatus.ToString(), newStatus.ToString(),
+                Guid.Empty, null, null, cancellationToken);
+        }
+
+        return Result.Success(MapOwnerChangeOrderToDto(changeOrder));
+    }
+
+    public async Task<Result> DeleteOwnerChangeOrderAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var changeOrder = await db.Set<OwnerChangeOrder>()
+            .FirstOrDefaultAsync(co => co.Id == id, cancellationToken);
+
+        if (changeOrder is null)
+            return Result.Failure("Owner change order not found", "NOT_FOUND");
+
+        if (changeOrder.Status == ChangeOrderStatus.Approved)
+            return Result.Failure("Cannot delete an approved owner change order", "CANNOT_DELETE");
+
+        db.Set<OwnerChangeOrder>().Remove(changeOrder);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+
     // Payment Applications
     public async Task<Result<PaymentApplicationDto>> GetPaymentApplicationAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -640,6 +839,32 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
         s.LicenseNumber,
         s.Notes,
         s.CreatedAt
+    );
+
+    private static OwnerChangeOrderDto MapOwnerChangeOrderToDto(OwnerChangeOrder co) => new(
+        co.Id,
+        co.ProjectId,
+        co.OwnerContractId,
+        co.ChangeOrderNumber,
+        co.Title,
+        co.Description,
+        co.Reason,
+        co.Amount,
+        co.DaysExtension,
+        co.Status,
+        co.SubmittedDate,
+        co.ApprovedDate,
+        co.RejectedDate,
+        co.ApprovedBy,
+        co.RejectedBy,
+        co.RejectionReason,
+        co.ReferenceNumber,
+        co.ChangeOrderNumber,
+        co.DaysExtension,
+        co.DelayCost,
+        co.Reason,
+        co.SubmittedDate,
+        co.CreatedAt
     );
 
     private static ChangeOrderDto MapChangeOrderToDto(ChangeOrder co) => new(

@@ -91,6 +91,20 @@ public class PayrollRunServiceTests : IDisposable
         return emp;
     }
 
+    private async Task SeedCompany(OvertimeSettings? overtimeSettings = null)
+    {
+        Company company = new()
+        {
+            Id = TestCompanyId,
+            TenantId = TestTenantId,
+            Code = "01",
+            Name = "Test Company",
+            OvertimeSettings = overtimeSettings ?? new OvertimeSettings()
+        };
+        _db.Set<Company>().Add(company);
+        await _db.SaveChangesAsync();
+    }
+
     private async Task SeedApprovedTimeEntry(Guid employeeId, DateOnly date,
         decimal regularHours = 8m, decimal overtimeHours = 0m, decimal doubletimeHours = 0m)
     {
@@ -528,6 +542,7 @@ public class PayrollRunServiceTests : IDisposable
     [Fact]
     public async Task FullLifecycle_Create_Generate_Approve_Export()
     {
+        await SeedCompany();
         PayPeriod period = await SeedLockedPayPeriod();
         Employee emp = await SeedEmployee(60m);
         await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m, overtimeHours: 2m, doubletimeHours: 1m);
@@ -542,17 +557,17 @@ public class PayrollRunServiceTests : IDisposable
         generateResult.Value.Status.Should().Be(PayrollRunStatus.Processing);
         generateResult.Value.EmployeeCount.Should().Be(1);
 
-        // Verify pay calculations: 16 regular hrs * $60 = $960, 2 OT hrs * $90 = $180, 1 DT hr * $120 = $120
+        // OT derived from company settings: day1=11h → 8 reg + 3 OT; day2=8h → 8 reg
         PayrollRunLineDto line = generateResult.Value.Lines[0];
         line.RegularHours.Should().Be(16m);
-        line.OvertimeHours.Should().Be(2m);
-        line.DoubletimeHours.Should().Be(1m);
+        line.OvertimeHours.Should().Be(3m);
+        line.DoubletimeHours.Should().Be(0m);
         line.RegularPay.Should().Be(960m);
-        line.OvertimePay.Should().Be(180m);
-        line.DoubletimePay.Should().Be(120m);
-        line.GrossPay.Should().Be(1260m);
+        line.OvertimePay.Should().Be(270m);
+        line.DoubletimePay.Should().Be(0m);
+        line.GrossPay.Should().Be(1230m);
 
-        generateResult.Value.TotalGross.Should().Be(1260m);
+        generateResult.Value.TotalGross.Should().Be(1230m);
 
         // Approve
         var approveResult = await _service.ApprovePayrollRunAsync(runId);
@@ -566,6 +581,33 @@ public class PayrollRunServiceTests : IDisposable
     }
 
     // ── Generate: Overtime Calculation ──
+
+    [Fact]
+    public async Task GeneratePayrollRun_DerivesOvertimeFromTenHourDay_WithDailyOtThresholdEight()
+    {
+        await SeedCompany(new OvertimeSettings
+        {
+            Enabled = true,
+            DailyOtThreshold = 8m,
+            WeeklyOtThreshold = 40m,
+            DailyDtThreshold = 12m
+        });
+
+        PayPeriod period = await SeedLockedPayPeriod();
+        Employee emp = await SeedEmployee(50m);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 10m);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        PayrollRunLineDto line = result.Value!.Lines[0];
+        line.RegularHours.Should().Be(8m);
+        line.OvertimeHours.Should().Be(2m);
+        line.DoubletimeHours.Should().Be(0m);
+        line.RegularPay.Should().Be(400m);
+        line.OvertimePay.Should().Be(150m);
+    }
 
     [Fact]
     public async Task GeneratePayrollRun_OvertimeCalculation_UsesCorrectMultipliers()

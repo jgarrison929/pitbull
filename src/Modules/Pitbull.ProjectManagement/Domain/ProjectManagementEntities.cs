@@ -456,6 +456,7 @@ public class PmDailyReport : BaseEntity, ICompanyScoped
 {
     public Guid CompanyId { get; set; }
     public Guid ProjectId { get; set; }
+    public string? Title { get; set; }
     public DateTime ReportDate { get; set; }
     public DailyReportType ReportType { get; set; }
     public DailyReportStatus Status { get; set; }

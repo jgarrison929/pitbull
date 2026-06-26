@@ -4,6 +4,7 @@ using System.Text.Json;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Tests.Integration.Infrastructure;
+using Pitbull.Core.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
 

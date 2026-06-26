@@ -137,3 +137,112 @@ jobs:
       - name: Lint
         working-directory: src/Pitbull.Web/pitbull-web
         run: npm run lint
+
+  role-e2e-smoke:
+    name: Role E2E Smoke (Playwright L4)
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pitbull
+          POSTGRES_PASSWORD: pitbull_dev
+          POSTGRES_DB: pitbull_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ConnectionStrings__PitbullDb: "Host=localhost;Port=5432;Database=pitbull_test;Username=pitbull;Password=pitbull_dev"
+      Demo__Enabled: "true"
+      Demo__SeedOnStartup: "true"
+      API_BASE_URL: http://localhost:5081
+      DEMO_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5081
+      SCRATCH_DIR: /tmp/pitbull-role-e2e-ci
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            e2e/package-lock.json
+            src/Pitbull.Web/pitbull-web/package-lock.json
+
+      - name: Build API
+        run: dotnet build --configuration Release src/Pitbull.Api/Pitbull.Api.csproj
+
+      - name: Install frontend dependencies
+        working-directory: src/Pitbull.Web/pitbull-web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: src/Pitbull.Web/pitbull-web
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:5081
+        run: npm run build
+
+      - name: Start API (Development + demo seed)
+        run: |
+          dotnet run --project src/Pitbull.Api/Pitbull.Api.csproj \
+            --configuration Release --no-build \
+            --urls http://localhost:5081 &
+          echo $! > api.pid
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:5081/health/live; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::API failed to start"
+          exit 1
+
+      - name: Start frontend
+        working-directory: src/Pitbull.Web/pitbull-web
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:5081
+        run: |
+          npm run start -- -p 3000 &
+          echo $! > ../../frontend.pid
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000; then
+              echo "Frontend ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Frontend failed to start"
+          exit 1
+
+      - name: Run role E2E smoke (L4 owner billing)
+        run: |
+          chmod +x scripts/run-role-e2e.sh
+          # Full suite is heavy; CI runs L4 smoke via scripts/run-role-e2e.sh --smoke
+          ./scripts/run-role-e2e.sh --smoke --api-url "$API_BASE_URL" --web-url "$DEMO_BASE_URL" --scratch-dir "$SCRATCH_DIR"
+
+      - name: Upload Playwright artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: role-e2e-smoke-artifacts
+          path: |
+            e2e/recordings/**
+            /tmp/pitbull-role-e2e-ci/**
+          if-no-files-found: ignore

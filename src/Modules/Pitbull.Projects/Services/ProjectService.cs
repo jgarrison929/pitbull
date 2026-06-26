@@ -6,6 +6,9 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Services;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Projects.Features.GetProjectPhases;
@@ -24,6 +27,8 @@ namespace Pitbull.Projects.Services;
 public class ProjectService : IProjectService
 {
     private readonly PitbullDbContext _db;
+    private readonly ICompanyContext _companyContext;
+    private readonly IProjectTeamAssignmentService _teamAssignmentService;
     private readonly IValidator<CreateProjectCommand> _createValidator;
     private readonly IValidator<UpdateProjectCommand> _updateValidator;
     private readonly IHttpContextAccessor? _httpContextAccessor;
@@ -31,12 +36,16 @@ public class ProjectService : IProjectService
 
     public ProjectService(
         PitbullDbContext db,
+        ICompanyContext companyContext,
+        IProjectTeamAssignmentService teamAssignmentService,
         IValidator<CreateProjectCommand> createValidator,
         IValidator<UpdateProjectCommand> updateValidator,
         IHttpContextAccessor? httpContextAccessor,
         ILogger<ProjectService> logger)
     {
         _db = db;
+        _companyContext = companyContext;
+        _teamAssignmentService = teamAssignmentService;
         _createValidator = createValidator;
         _updateValidator = updateValidator;
         _httpContextAccessor = httpContextAccessor;
@@ -149,6 +158,83 @@ public class ProjectService : IProjectService
 
         _db.Set<Project>().Add(project);
 
+        ProjectSettings projectSettings = new();
+        if (_companyContext.IsResolved)
+        {
+            Company? company = await _db.Set<Company>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == _companyContext.CompanyId, cancellationToken);
+            if (company is not null)
+                projectSettings = company.ProjectSettings;
+        }
+
+        List<CreateProjectPhaseInput> phasesToCreate;
+        if (request.Phases is { Count: > 0 })
+        {
+            phasesToCreate = request.Phases;
+        }
+        else if (projectSettings.AutoCreatePhases)
+        {
+            phasesToCreate =
+            [
+                new CreateProjectPhaseInput("Preconstruction", "01000"),
+                new CreateProjectPhaseInput("Construction", "05000"),
+                new CreateProjectPhaseInput("Closeout", "01700")
+            ];
+        }
+        else
+        {
+            phasesToCreate = [];
+        }
+
+        for (int i = 0; i < phasesToCreate.Count; i++)
+        {
+            CreateProjectPhaseInput phaseInput = phasesToCreate[i];
+            _db.Set<Phase>().Add(new Phase
+            {
+                ProjectId = project.Id,
+                Name = phaseInput.Name,
+                CostCode = phaseInput.CostCode,
+                BudgetAmount = phaseInput.BudgetAmount,
+                SortOrder = i + 1
+            });
+        }
+
+        if (request.TeamMembers is { Count: > 0 })
+        {
+            var teamMemberRequests = request.TeamMembers
+                .Select(m => new ProjectTeamMemberRequest(m.EmployeeId, m.Role, m.AssignmentRole))
+                .ToList();
+
+            Result<(Guid? ProjectManagerId, Guid? SuperintendentId)> assignmentResult =
+                await _teamAssignmentService.AssignTeamMembersAsync(
+                    project.Id,
+                    teamMemberRequests,
+                    request.StartDate,
+                    cancellationToken);
+
+            if (!assignmentResult.IsSuccess)
+                return Result.Failure<ProjectDto>(assignmentResult.Error!, assignmentResult.ErrorCode);
+
+            if (assignmentResult.Value.ProjectManagerId.HasValue)
+                project.ProjectManagerId = assignmentResult.Value.ProjectManagerId;
+            if (assignmentResult.Value.SuperintendentId.HasValue)
+                project.SuperintendentId = assignmentResult.Value.SuperintendentId;
+        }
+
+        if (request.ActivateOnCreate)
+        {
+            if (projectSettings.RequireBudgetBeforeActivation && project.ContractAmount <= 0)
+            {
+                return Result.Failure<ProjectDto>(
+                    "A contract amount is required before the project can be activated",
+                    "BUDGET_REQUIRED");
+            }
+
+            project.Status = ProjectStatus.Active;
+            project.StartDate ??= DateTime.UtcNow;
+        }
+
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
@@ -159,6 +245,64 @@ public class ProjectService : IProjectService
         {
             _logger.LogError(ex, "Failed to create project '{ProjectName}'", request.Name);
             return Result.Failure<ProjectDto>("Failed to create project", "DATABASE_ERROR");
+        }
+    }
+
+    public async Task<Result<ProjectDto>> ActivateProjectAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var project = await _db.Set<Project>()
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted, cancellationToken);
+
+        if (project is null)
+        {
+            _logger.LogWarning("Project {ProjectId} not found for activation", id);
+            return Result.Failure<ProjectDto>("Project not found", "NOT_FOUND");
+        }
+
+        if (project.Status is not (ProjectStatus.PreConstruction or ProjectStatus.Bidding))
+        {
+            return Result.Failure<ProjectDto>(
+                $"Only projects in PreConstruction or Bidding status can be activated (current: {project.Status})",
+                "INVALID_STATUS");
+        }
+
+        ProjectSettings projectSettings = new();
+        if (_companyContext.IsResolved)
+        {
+            Company? company = await _db.Set<Company>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == _companyContext.CompanyId, cancellationToken);
+            if (company is not null)
+                projectSettings = company.ProjectSettings;
+        }
+
+        if (projectSettings.RequireBudgetBeforeActivation && project.ContractAmount <= 0)
+        {
+            return Result.Failure<ProjectDto>(
+                "A contract amount is required before the project can be activated",
+                "BUDGET_REQUIRED");
+        }
+
+        project.Status = ProjectStatus.Active;
+        project.StartDate ??= DateTime.UtcNow;
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Activated project {ProjectId} '{ProjectName}'", project.Id, project.Name);
+            return Result.Success(MapToDto(project));
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            _logger.LogWarning("Concurrency conflict activating project {ProjectId}", id);
+            return Result.Failure<ProjectDto>(
+                "This project was modified by another user. Please refresh and try again.",
+                "CONFLICT");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to activate project {ProjectId}", id);
+            return Result.Failure<ProjectDto>("Failed to activate project", "DATABASE_ERROR");
         }
     }
 

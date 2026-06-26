@@ -35,7 +35,11 @@ public class VendorInvoicesControllerTests : IDisposable
         _db = new PitbullDbContext(options, tenantContext, companyContext);
 
         IPurchaseOrderService purchaseOrderService = new PurchaseOrderService(_db, NullLogger<PurchaseOrderService>.Instance);
-        IVendorInvoiceService vendorInvoiceService = new VendorInvoiceService(_db, NullLogger<VendorInvoiceService>.Instance);
+        Mock<IJournalEntryService> journalEntryServiceMock = new();
+        IVendorInvoiceService vendorInvoiceService = new VendorInvoiceService(
+            _db,
+            NullLogger<VendorInvoiceService>.Instance,
+            journalEntryServiceMock.Object);
 
         _purchaseOrdersController = new PurchaseOrdersController(purchaseOrderService)
         {

@@ -96,6 +96,18 @@ export interface PagedResult<T> {
   hasNextPage: boolean;
 }
 
+export interface CreateProjectPhaseInput {
+  name: string;
+  costCode: string;
+  budgetAmount: number;
+}
+
+export interface CreateProjectTeamMemberInput {
+  employeeId: string;
+  role?: string;
+  assignmentRole: number;
+}
+
 export interface CreateProjectCommand {
   name: string;
   number: string;
@@ -115,6 +127,9 @@ export interface CreateProjectCommand {
   projectManagerId?: string;
   superintendentId?: string;
   sourceBidId?: string;
+  phases?: CreateProjectPhaseInput[];
+  teamMembers?: CreateProjectTeamMemberInput[];
+  activateOnCreate?: boolean;
 }
 
 export interface UpdateProjectCommand {

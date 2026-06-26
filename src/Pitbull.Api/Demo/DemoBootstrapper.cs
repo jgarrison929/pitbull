@@ -435,6 +435,7 @@ public sealed class DemoBootstrapper(
             {
                 await EnsureDemoEmployeeRecordsAsync(demo, ct);
                 await EnsureAllDemoEmployeesAsync(allCompanies, ct);
+                await EnsureDemoVendorsAsync(tenantId, allCompanies.Values.ToList(), ct);
                 await EnsureDemoProjectAssignmentsAsync(ct);
                 await tx.CommitAsync(ct);
             }
@@ -993,7 +994,7 @@ public sealed class DemoBootstrapper(
         var activeProjects = await db.Set<Pitbull.Projects.Domain.Project>()
             .IgnoreQueryFilters()
             .Where(p => !p.IsDeleted && p.Status == Pitbull.Projects.Domain.ProjectStatus.Active && p.TenantId == tenantId)
-            .Take(5)
+            .OrderBy(p => p.Number)
             .ToListAsync(ct);
 
         if (activeProjects.Count == 0)
@@ -1006,7 +1007,6 @@ public sealed class DemoBootstrapper(
                     && p.Status != Pitbull.Projects.Domain.ProjectStatus.Completed
                     && p.Status != Pitbull.Projects.Domain.ProjectStatus.Closed)
                 .OrderBy(p => p.Number)
-                .Take(5)
                 .ToListAsync(ct);
 
             if (activeProjects.Count > 0)
@@ -1070,6 +1070,52 @@ public sealed class DemoBootstrapper(
             await db.SaveChangesAsync(ct);
 
         return created;
+    }
+
+    /// <summary>
+    /// Ensures each demo company has at least two sample vendors for procurement workflows.
+    /// Idempotent — skips vendors that already exist by code.
+    /// </summary>
+    private async Task EnsureDemoVendorsAsync(Guid tenantId, IReadOnlyList<Company> companies, CancellationToken ct)
+    {
+        var created = 0;
+
+        foreach (var company in companies)
+        {
+            for (var i = 1; i <= 2; i++)
+            {
+                var code = $"DEMO-V-{company.Code}-{i}";
+                var exists = await db.Set<Vendor>()
+                    .IgnoreQueryFilters()
+                    .AnyAsync(v => v.TenantId == tenantId && v.CompanyId == company.Id && v.Code == code && !v.IsDeleted, ct);
+
+                if (exists)
+                    continue;
+
+                db.Set<Vendor>().Add(new Vendor
+                {
+                    TenantId = tenantId,
+                    CompanyId = company.Id,
+                    Code = code,
+                    Name = $"Demo Vendor {company.Code}-{i}",
+                    ContactName = $"Demo Contact {i}",
+                    ContactEmail = $"vendor-{company.Code}-{i}@demo.local",
+                    Phone = $"(555) 100-{company.Code}{i}",
+                    IsActive = true,
+                    W9OnFile = true,
+                    PaymentTerms = "Net 30",
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "demo-bootstrap"
+                });
+                created++;
+            }
+        }
+
+        if (created > 0)
+        {
+            await db.SaveChangesAsync(ct);
+            logger.LogInformation("Created {Count} demo vendors across {CompanyCount} companies", created, companies.Count);
+        }
     }
 
     /// <summary>

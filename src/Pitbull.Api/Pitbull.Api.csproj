@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Pitbull.Tests.Unit" />
+    <Using Include="Pitbull.Core.Domain.AssignmentRole" Alias="AssignmentRole" />
   </ItemGroup>
 
   <ItemGroup>

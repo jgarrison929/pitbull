@@ -664,6 +664,7 @@ public class PmDailyReportConfiguration : IEntityTypeConfiguration<PmDailyReport
     public void Configure(EntityTypeBuilder<PmDailyReport> builder)
     {
         builder.ConfigureBase("pm_daily_reports");
+        builder.Property(x => x.Title).HasMaxLength(200);
         builder.Property(x => x.WeatherSummary).HasMaxLength(200);
         builder.Property(x => x.Precipitation).HasMaxLength(100);
         builder.Property(x => x.Wind).HasMaxLength(100);

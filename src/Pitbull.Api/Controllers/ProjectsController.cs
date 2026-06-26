@@ -74,6 +74,43 @@ public class ProjectsController(
     }
 
     /// <summary>
+    /// Activate a project
+    /// </summary>
+    /// <remarks>
+    /// Transitions a project from PreConstruction or Bidding to Active status.
+    /// Sets the start date to the current UTC time when one is not already set.
+    /// </remarks>
+    /// <param name="id">Project unique identifier</param>
+    /// <returns>The activated project</returns>
+    /// <response code="200">Project activated successfully</response>
+    /// <response code="400">Project cannot be activated in its current state</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">Project not found</response>
+    [HttpPost("{id:guid}/activate")]
+    [ProducesResponseType(typeof(ProjectDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Activate(Guid id)
+    {
+        var result = await projectService.ActivateProjectAsync(id);
+        if (!result.IsSuccess)
+        {
+            return result.ErrorCode switch
+            {
+                "NOT_FOUND" => this.NotFoundError(result.Error ?? "Project not found"),
+                "INVALID_STATUS" => this.BadRequestError(result.Error ?? "Project cannot be activated"),
+                "BUDGET_REQUIRED" => this.BadRequestError(result.Error ?? "Budget is required before activation"),
+                "CONFLICT" => this.Error(409, result.Error ?? "Conflict occurred", "CONFLICT"),
+                _ => this.BadRequestError(result.Error ?? "Activation failed")
+            };
+        }
+
+        cacheService.Remove(CacheKeys.Projects);
+        return Ok(result.Value);
+    }
+
+    /// <summary>
     /// Get a project by ID
     /// </summary>
     /// <remarks>

@@ -1,7 +1,15 @@
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 
 namespace Pitbull.Projects.Features.CreateProject;
+
+public record CreateProjectPhaseInput(string Name, string CostCode, decimal BudgetAmount = 0);
+
+public record CreateProjectTeamMemberInput(
+    Guid EmployeeId,
+    string? Role,
+    AssignmentRole AssignmentRole = AssignmentRole.Worker);
 
 public record CreateProjectCommand(
     string Name,
@@ -21,7 +29,10 @@ public record CreateProjectCommand(
     decimal ContractAmount,
     Guid? ProjectManagerId,
     Guid? SuperintendentId,
-    Guid? SourceBidId
+    Guid? SourceBidId,
+    List<CreateProjectPhaseInput>? Phases = null,
+    List<CreateProjectTeamMemberInput>? TeamMembers = null,
+    bool ActivateOnCreate = false
 ) : ICommand<ProjectDto>;
 
 public record ProjectDto(

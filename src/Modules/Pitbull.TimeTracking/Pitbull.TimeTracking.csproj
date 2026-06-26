@@ -14,6 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="Pitbull.Core.Domain.AssignmentRole" Alias="AssignmentRole" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- FluentValidation, MediatR, and Mapster come from Pitbull.Core transitively -->
   </ItemGroup>
 

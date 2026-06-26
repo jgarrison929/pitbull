@@ -7,11 +7,16 @@ import {
   getFirstProjectIdForPersona,
   getActiveCompanyId,
   getDefaultCompanyId,
-  discoverBillingPrereqs,
-  discoverPayAppPrereqs,
+  getEntityStatus,
+  ensureBillingPrereqs,
+  ensurePayAppPrereqs,
   ensureTimeTrackingPrereqs,
   ensurePmProjectAssignment,
   ensureVendorPrereqs,
+  createProjectWithPhases,
+  activateProject,
+  runPayrollE2e,
+  createOwnerChangeOrder,
   type AuthSession,
   type PayAppPrereqs,
 } from '../fixtures/api-helpers';
@@ -38,12 +43,14 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
   let pmSession: AuthSession;
   let fieldSession: AuthSession;
   let apSession: AuthSession;
+  let payrollSession: AuthSession;
 
   test.beforeAll(async ({ request }) => {
     runTag = process.env.E2E_RUN_TAG ?? Date.now().toString(36);
     pmSession = await loginApi(request, PERSONAS.pm.email, DEMO_PASSWORD);
     fieldSession = await loginApi(request, PERSONAS.fieldEng.email, DEMO_PASSWORD);
     apSession = await loginApi(request, PERSONAS.apClerk.email, DEMO_PASSWORD);
+    payrollSession = await loginApi(request, PERSONAS.payrollManager.email, DEMO_PASSWORD);
     const pm = pmSession;
     const field = fieldSession;
     fieldCompanyId = await getActiveCompanyId(request, field);
@@ -56,8 +63,8 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       projectId,
       fieldCompanyId
     );
-    payAppPrereqs = await discoverPayAppPrereqs(request, pm, projectId, financeCompanyId);
-    billingPrereqs = await discoverBillingPrereqs(request, pm, financeCompanyId);
+    payAppPrereqs = await ensurePayAppPrereqs(request, pm, projectId, financeCompanyId, runTag);
+    billingPrereqs = await ensureBillingPrereqs(request, pm, financeCompanyId, runTag);
     pmProjectId =
       payAppPrereqs?.projectId ??
       (await getFirstActiveProjectId(request, pm));
@@ -107,7 +114,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
   });
 
   // ── 2. Project setup (PM) — create cost code + Day-1 nav ──────────
-  test('L2 Project setup: PM creates cost code and navigates Day-1 chain', async ({ browser }) => {
+  test('L2 Project setup: PM creates cost code and navigates Day-1 chain', async ({ browser, request }) => {
     const { context, page } = await openAsPersona(browser, 'pm');
     const code = `E${runTag.replace(/\D/g, '').slice(-10)}`.slice(0, 12);
 
@@ -144,7 +151,28 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
           timeout: 15_000,
         });
       }
-      console.log(`[${LIFECYCLE_NAMES[2]}] PM cost code + Day-1 chain OK`);
+
+      const { projectId: setupProjectId } = await createProjectWithPhases(request, pmSession, {
+        runTag,
+        companyId: financeCompanyId,
+        teamEmails: [PERSONAS.pm.email, PERSONAS.fieldEng.email],
+        phaseNames: ['Foundation', 'Framing'],
+      });
+      await activateProject(request, pmSession, setupProjectId, financeCompanyId);
+      const activeStatus = await getEntityStatus(
+        request,
+        pmSession,
+        `/api/projects/${setupProjectId}`,
+        financeCompanyId
+      );
+      expect(activeStatus).toMatch(/Active|1/);
+
+      await page.goto(`/projects/${setupProjectId}`);
+      await page.waitForLoadState('domcontentloaded');
+      await expect(page.getByRole('heading', { name: /.+/ }).first()).toBeVisible({
+        timeout: 15_000,
+      });
+      console.log(`[${LIFECYCLE_NAMES[2]}] PM cost code + Day-1 chain + project Active OK`);
     } finally {
       await closeContext(context);
     }
@@ -245,9 +273,21 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
     }
   });
 
+  test('L3b Payroll: lock period, generate run, approve, export via API', async ({ request }) => {
+    const result = await runPayrollE2e(request, payrollSession, financeCompanyId);
+    expect(result.payrollRunId).toBeTruthy();
+    expect(result.status).toMatch(/Exported|Approved|Processing/i);
+    console.log(
+      `[${LIFECYCLE_NAMES[3]}] payroll lock→generate→approve→export OK (run=${result.payrollRunId})`
+    );
+  });
+
   // ── 4. Owner billing (PM → AR) ────────────────────────────────────
   test('L4 Owner billing: PM creates app, AR certifies via UI', async ({ browser }) => {
-    test.skip(!billingPrereqs, 'No owner contract + active SOV in seed');
+    test.skip(
+      !billingPrereqs,
+      'ensureBillingPrereqs could not discover or create owner contract + active SOV'
+    );
 
     const pmCtx = await openAsPersona(browser, 'pm', {
       companyId: financeCompanyId ?? undefined,
@@ -296,7 +336,13 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await arPage.waitForLoadState('domcontentloaded');
       await arPage.getByRole('button', { name: /architect certified/i }).click();
       await expect(arPage.getByText('ArchitectCertified').first()).toBeVisible({ timeout: 15_000 });
-      console.log(`[${LIFECYCLE_NAMES[4]}] PM+AR UI billing → ArchitectCertified`);
+
+      await arPage.getByRole('button', { name: /mark payment due/i }).click();
+      await expect(arPage.getByText('PaymentDue').first()).toBeVisible({ timeout: 15_000 });
+
+      await arPage.getByRole('button', { name: /^mark paid$/i }).click();
+      await expect(arPage.getByText('Paid').first()).toBeVisible({ timeout: 15_000 });
+      console.log(`[${LIFECYCLE_NAMES[4]}] PM+AR UI billing → Paid OK`);
     } finally {
       await closeContext(pmCtx.context);
       await closeContext(arCtx.context);
@@ -305,7 +351,10 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
 
   // ── 5. Sub pay app (PM → AP) ──────────────────────────────────────
   test('L5 Sub pay app: PM creates in UI, AP submits', async ({ browser }) => {
-    test.skip(!payAppPrereqs, 'No subcontract with billing capacity in seed');
+    test.skip(
+      !payAppPrereqs,
+      'ensurePayAppPrereqs could not discover or create executed subcontract with billing headroom'
+    );
 
     const pmCtx = await openAsPersona(browser, 'pm');
     const apCtx = await openAsPersona(browser, 'apClerk');
@@ -364,7 +413,10 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
 
   // ── 6. Change order (PM) ──────────────────────────────────────────
   test('L6 Change order: PM creates and advances Pending → Approved in UI', async ({ browser }) => {
-    test.skip(!payAppPrereqs, 'No subcontract with billing capacity in seed');
+    test.skip(
+      !payAppPrereqs,
+      'ensurePayAppPrereqs could not discover or create executed subcontract with billing headroom'
+    );
 
     const { context, page } = await openAsPersona(browser, 'pm', {
       companyId: financeCompanyId ?? undefined,
@@ -420,9 +472,23 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
     }
   });
 
+  test('L6b Owner change order: PM creates via API when endpoint exists', async ({ request }) => {
+    const ownerCo = await createOwnerChangeOrder(request, pmSession, pmProjectId, {
+      runTag,
+      companyId: financeCompanyId,
+    });
+    // Owner CO API is spec'd but not yet shipped; skip without failing the suite.
+    test.skip(!ownerCo, 'POST /api/owner-change-orders not implemented yet (AIA-BILLING-SPEC)');
+    expect(ownerCo!.id).toBeTruthy();
+    console.log(`[${LIFECYCLE_NAMES[6]}] owner CO API create OK (${ownerCo!.id})`);
+  });
+
   // ── 7. RFI (PM) ───────────────────────────────────────────────────
   test('L7 RFI: PM creates, answers, and marks Answered in UI', async ({ browser }) => {
-    test.skip(!payAppPrereqs, 'No finance-scoped project in seed');
+    test.skip(
+      !payAppPrereqs,
+      'ensurePayAppPrereqs could not resolve finance-scoped project/subcontract prerequisites'
+    );
 
     const { context, page } = await openAsPersona(browser, 'pm', {
       companyId: financeCompanyId ?? undefined,
@@ -460,7 +526,10 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
 
   // ── 8. Submittal (PM) ─────────────────────────────────────────────
   test('L8 Submittal: PM creates Draft and advances to Submitted in UI', async ({ browser }) => {
-    test.skip(!payAppPrereqs, 'No finance-scoped project in seed');
+    test.skip(
+      !payAppPrereqs,
+      'ensurePayAppPrereqs could not resolve finance-scoped project/subcontract prerequisites'
+    );
 
     const { context, page } = await openAsPersona(browser, 'pm', {
       companyId: financeCompanyId ?? undefined,

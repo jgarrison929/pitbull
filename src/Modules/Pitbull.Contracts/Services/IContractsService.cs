@@ -8,6 +8,7 @@ using Pitbull.Contracts.Features.GetSubcontract;
 using Pitbull.Contracts.Features.ListChangeOrders;
 using Pitbull.Contracts.Features.ListPaymentApplications;
 using Pitbull.Contracts.Features.ListSubcontracts;
+using Pitbull.Contracts.Features.OwnerChangeOrders;
 using Pitbull.Contracts.Features.UpdateChangeOrder;
 using Pitbull.Contracts.Features.UpdatePaymentApplication;
 using Pitbull.Contracts.Features.UpdateSubcontract;
@@ -34,6 +35,13 @@ public interface IContractsService
     Task<Result<ChangeOrderDto>> CreateChangeOrderAsync(CreateChangeOrderCommand command, CancellationToken cancellationToken = default);
     Task<Result<ChangeOrderDto>> UpdateChangeOrderAsync(UpdateChangeOrderCommand command, CancellationToken cancellationToken = default);
     Task<Result> DeleteChangeOrderAsync(Guid id, CancellationToken cancellationToken = default);
+
+    // Owner Change Orders
+    Task<Result<OwnerChangeOrderDto>> GetOwnerChangeOrderAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<PagedResult<OwnerChangeOrderDto>>> ListOwnerChangeOrdersAsync(ListOwnerChangeOrdersQuery query, CancellationToken cancellationToken = default);
+    Task<Result<OwnerChangeOrderDto>> CreateOwnerChangeOrderAsync(CreateOwnerChangeOrderCommand command, CancellationToken cancellationToken = default);
+    Task<Result<OwnerChangeOrderDto>> UpdateOwnerChangeOrderAsync(UpdateOwnerChangeOrderCommand command, CancellationToken cancellationToken = default);
+    Task<Result> DeleteOwnerChangeOrderAsync(Guid id, CancellationToken cancellationToken = default);
 
     // Payment Applications
     Task<Result<PaymentApplicationDto>> GetPaymentApplicationAsync(Guid id, CancellationToken cancellationToken = default);

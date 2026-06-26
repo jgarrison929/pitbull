@@ -62,6 +62,9 @@ public static class DailyReportRequestMapper
         if (TryGetString(request.Data, "WorkNarrative", out var work))
             entity.WorkNarrative = work;
 
+        if (TryGetString(request.Data, "Title", out var title))
+            entity.Title = title;
+
         if (TryGetGuid(request.Data, "PreparedByUserId", out var preparedBy))
             entity.PreparedByUserId = preparedBy;
         else if (entity.PreparedByUserId == Guid.Empty && defaultPreparedByUserId != Guid.Empty)

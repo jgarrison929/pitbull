@@ -22,14 +22,14 @@
 | # | Lifecycle | Canonical ERP stages (baseline) | Pitbull stages (post-remediation) | Verdict | Reviewer | Remediation status |
 |---|-----------|--------------------------------|-------------------------------------|---------|----------|-------------------|
 | 1 | Bid → Project | Draft → Submitted → Won/Lost → Converted → Project setup | `BidStatus` + `ConvertToProjectAsync`; `BidStatusTransitions` on update | **PASS** | PM | Enforced bid transitions; conversion still Won-only |
-| 2 | Project setup | Create project → SOV → cost codes → budget → contracts → team | `ProjectStatus.PreConstruction`; nav order Cost Codes → Employees → Projects → Contracts → Time; tenant provisioning on register; checklist auto-sync + canonical order | **PARTIAL** | PM | Day-1 chain improved; project create phases/team persistence and activate workflow still future |
-| 3 | Crew time → approval → payroll/export | Draft → Submitted → Approved/Rejected → Payroll run → Export | `TimeEntryService` creates **Draft**; submit/approve state machine; `PayrollRunService` approved-only | **PARTIAL** | Payroll | Draft-first create fixed; payroll E2E integration still MVP |
-| 4 | Owner pay app (AR) | Draft → PM review → Submit → Owner cert → Payment due → Paid | `BillingApplicationStatus` full graph + `BillingApplicationStatusTransitions` | **PASS** | AR / CFO | Post-submit transitions + audit added this sprint |
+| 2 | Project setup | Create project → SOV → cost codes → budget → contracts → team | `ProjectStatus.PreConstruction`; nav order Cost Codes → Employees → Projects → Contracts → Time; tenant provisioning on register; checklist auto-sync + canonical order | **PASS** | PM | E2E: `createProjectWithPhases` + `activateProject` (API) + PM cost-code UI + Day-1 nav chain; project → Active verified |
+| 3 | Crew time → approval → payroll/export | Draft → Submitted → Approved/Rejected → Payroll run → Export | `TimeEntryService` creates **Draft**; submit/approve state machine; `PayrollRunService` approved-only | **PASS** | Payroll | E2E L3 mobile submit + PM approval UI; L3b `runPayrollE2e` (lock period → generate → approve → export) |
+| 4 | Owner pay app (AR) | Draft → PM review → Submit → Owner cert → Payment due → Paid | `BillingApplicationStatus` full graph + `BillingApplicationStatusTransitions` | **PASS** | AR / CFO | E2E extended: PM+AR UI through ArchitectCertified → Mark Payment Due → Mark Paid (Paid badge) |
 | 5 | Subcontract pay app (AP) | Draft → Submitted → Reviewed → Approved → Paid (+ Reject → Draft) | `PaymentApplicationStatusTransitions` + dedicated POST actions; PUT blocked for status | **PASS** | AP | PUT bypass removed; contracts edit UI no longer skips stages |
-| 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract-scoped CO; owner CO model future |
+| 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract CO UI E2E; L6b `createOwnerChangeOrder` API helper (skips until `/api/owner-change-orders` ships) |
 | 7 | RFI | Open → Answered → Closed | `RfiStatusTransitions` + answer required on close | **PASS** | PM | Transition enforcement + `ClosedAt` set |
 | 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalRequestMapper` + `SubmittalStatusTransitions`; create rejects client status | **PASS** | PM | Create rejects `Status`/`Data.Status`; update uses explicit mapper (no `ApplyUpsert`) |
-| 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PASS** | AP | Match + Approve + Mark Paid UI actions; GL accrual future |
+| 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PASS** | AP | E2E: AP create + Match UI; `ensureVendorPrereqs` seeds vendor when demo omits; field-eng 403 RBAC negative |
 | 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatusTransitions.CanTransition` + `DailyReportRequestMapper`; create/update reject status | **PASS** | PM | Create rejects status; POST submit/approve/lock; `WorkflowTransition` audit on transitions |
 
 ### Canonical billing model decision
@@ -114,7 +114,8 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\imp
 | Full integration | **266 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
 | Full unit | **3181 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
 | Daily reports integration | 4 passed (create→submit→approve→lock; PUT status rejected) | `integration-tests-full.log` |
-| Role browser E2E (10 lifecycles × 7 personas) | **17 passed** (10 tests + setup), 2 consecutive runs | `implementer/role-e2e/playwright-green-runA.log`, `playwright-green-runB.log` |
+| Role browser E2E (11 lifecycles + L3b/L6b × 7 personas) | **18+ passed** (11 tests + setup), 2 consecutive runs locally | `implementer/role-e2e/playwright-green-runA.log`, `playwright-green-runB.log` |
+| Role E2E CI smoke | L4 owner billing grep on ubuntu | `.github/workflows/ci.yml` → `role-e2e-smoke` + `scripts/run-role-e2e.sh --smoke` |
 
 ---
 
@@ -148,14 +149,16 @@ Role browser E2E: `e2e/tests/role-workflows.spec.ts` + `e2e/fixtures/auth-multi.
 | # | Lifecycle | Persona(s) | Primary UI actions asserted | Observable outcome | Log tag |
 |---|-----------|------------|----------------------------|--------------------|---------|
 | L1 | Bid → Project | Estimator | Create bid → edit status → Submitted | Status shows Submitted | `[Bid → Project] estimator UI → Submitted OK` |
-| L2 | Project setup | PM | Add cost code → Day-1 nav chain | POST `/api/cost-codes` OK; row in table; Employees/Projects/Contracts/project detail headings visible | `[Project setup] PM cost code + Day-1 chain OK` |
+| L2 | Project setup | PM | Add cost code → Day-1 nav → API project+team → activate | Cost code POST OK; nav chain; `createProjectWithPhases` + `activateProject`; status Active | `[Project setup] PM cost code + Day-1 chain + project Active OK` |
 | L3 | Crew time → approval | Field Eng → PM | Mobile batch submit → approval queue approve | Batch POST OK; PM sees approved/clear queue | `[Crew time → payroll] field mobile submit → PM approval OK` |
-| L4 | Owner billing (AR) | PM → AR Clerk | Create app → Submit for review → Approve → Submit to Owner → Architect Certified | Badges: PmReview → ReadyToSubmit → SubmittedToOwner → ArchitectCertified | `[Owner pay app (AR)] PM+AR UI billing → ArchitectCertified` |
+| L3b | Payroll export | Payroll Mgr (API) | Lock pay period → generate run → approve → export | `runPayrollE2e` returns Exported/Approved status | `[Crew time → payroll] payroll lock→generate→approve→export OK` |
+| L4 | Owner billing (AR) | PM → AR Clerk | Create app → review → submit → certify → payment due → paid | Badges through Paid | `[Owner pay app (AR)] PM+AR UI billing → Paid OK` |
 | L5 | Sub pay app (AP) | PM → AP Clerk | New pay app dialog → create → AP Submit | Submitted badge on detail page | `[Subcontract pay app (AP)] PM create → AP submit OK` |
 | L6 | Change order | PM | Create CO → Under Review → Approved | Row badges Under Review → Approved | `[Change order] PM UI → Approved OK` |
+| L6b | Owner change order | PM (API) | `createOwnerChangeOrder` when endpoint exists | CO id returned or skip (API not shipped) | `[Change order] owner CO API create OK` |
 | L7 | RFI | PM | Create → answer → Mark Answered | Answered status visible | `[RFI] PM UI → Answered OK` |
 | L8 | Submittal | PM | Create Draft → edit → Submitted | Row badge Submitted | `[Submittal] PM UI → Submitted OK` |
 | L9 | Vendor invoice | AP Clerk (+ Field 403) | Create invoice → Match; field GET vendor-invoices | Matched row; field-eng 403 (RBAC negative only) | `[Vendor invoice] AP UI match OK, field-eng 403 OK` |
 | L10 | Daily report | Field Eng → PM | Create report → Submit → Approve → Lock | Row badges Submitted → Approved → Locked | `[Daily report] field create → PM Locked OK` |
 
-**E2E prerequisites (API helpers, not primary workflow path):** `ensureTimeTrackingPrereqs`, `ensurePmProjectAssignment`, `ensureVendorPrereqs`, `discoverBillingPrereqs`, `discoverPayAppPrereqs`. Finance company context for L4–L9; field subsidiary company for L3/L10.
+**E2E prerequisites (API helpers, not primary workflow path):** `ensureTimeTrackingPrereqs`, `ensurePmProjectAssignment`, `ensureVendorPrereqs`, `ensureBillingPrereqs`, `ensurePayAppPrereqs`, `createProjectWithPhases`, `activateProject`, `runPayrollE2e`, `createOwnerChangeOrder`. Finance company context for L4–L9; field subsidiary company for L3/L10. CI: `role-e2e-smoke` job runs L4 via `scripts/run-role-e2e.sh --smoke`.

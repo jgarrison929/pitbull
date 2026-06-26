@@ -77,7 +77,9 @@ public class RfisController(IRfiService rfiService) : ControllerBase
 
         var result = await rfiService.CreateRfiAsync(command);
         if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error, code = result.ErrorCode });
+            return result.ErrorCode == "FORBIDDEN"
+                ? StatusCode(StatusCodes.Status403Forbidden, new { error = result.Error, code = result.ErrorCode })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return CreatedAtAction(nameof(GetById),
             new { projectId, id = result.Value!.Id }, result.Value);
@@ -106,9 +108,13 @@ public class RfisController(IRfiService rfiService) : ControllerBase
     {
         var result = await rfiService.GetRfiAsync(id);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND"
-                ? NotFound(new { error = result.Error })
-                : BadRequest(new { error = result.Error });
+        {
+            if (result.ErrorCode == "NOT_FOUND")
+                return NotFound(new { error = result.Error });
+            if (result.ErrorCode == "FORBIDDEN")
+                return StatusCode(StatusCodes.Status403Forbidden, new { error = result.Error, code = result.ErrorCode });
+            return BadRequest(new { error = result.Error });
+        }
 
         // Verify RFI belongs to the specified project
         if (result.Value!.ProjectId != projectId)
@@ -166,7 +172,9 @@ public class RfisController(IRfiService rfiService) : ControllerBase
 
         var result = await rfiService.GetRfisAsync(query);
         if (!result.IsSuccess)
-            return BadRequest(new { error = result.Error });
+            return result.ErrorCode == "FORBIDDEN"
+                ? StatusCode(StatusCodes.Status403Forbidden, new { error = result.Error, code = result.ErrorCode })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         return Ok(result.Value);
     }

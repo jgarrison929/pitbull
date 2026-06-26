@@ -172,11 +172,12 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
             Status = PayrollRunStatus.Processing
         };
 
+        OvertimeSettings overtimeSettings = await LoadOvertimeSettingsAsync(payPeriod, approvedEntries, cancellationToken);
+
         foreach (IGrouping<Guid, TimeEntry> group in approvedEntries.GroupBy(x => x.EmployeeId))
         {
-            decimal regularHours = group.Sum(x => x.RegularHours);
-            decimal overtimeHours = group.Sum(x => x.OvertimeHours);
-            decimal doubletimeHours = group.Sum(x => x.DoubletimeHours);
+            (decimal regularHours, decimal overtimeHours, decimal doubletimeHours) =
+                OvertimeHoursCalculator.ClassifyEmployeeHours(group.ToList(), overtimeSettings);
             decimal baseRate = rateByEmployee.GetValueOrDefault(group.Key, 0m);
 
             decimal regularPay = decimal.Round(regularHours * baseRate, 2, MidpointRounding.AwayFromZero);
@@ -315,6 +316,25 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
                 GrossPay: x.GrossPay)).ToList(),
             CreatedAt: run.CreatedAt,
             UpdatedAt: run.UpdatedAt);
+    }
+
+    private async Task<OvertimeSettings> LoadOvertimeSettingsAsync(
+        PayPeriod payPeriod,
+        List<TimeEntry> approvedEntries,
+        CancellationToken cancellationToken)
+    {
+        Guid companyId = payPeriod.CompanyId;
+        if (companyId == Guid.Empty && approvedEntries.Count > 0)
+            companyId = approvedEntries[0].CompanyId;
+
+        if (companyId == Guid.Empty)
+            return new OvertimeSettings();
+
+        Company? company = await db.Set<Company>()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == companyId, cancellationToken);
+
+        return company?.OvertimeSettings ?? new OvertimeSettings();
     }
 
     private static bool IsValidPayrollStatusTransition(PayrollRunStatus from, PayrollRunStatus to)
