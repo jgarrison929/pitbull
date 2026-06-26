@@ -69,9 +69,12 @@ public static class ServiceCollectionExtensions
                 .Log(RelationalEventId.MultipleCollectionIncludeWarning));
         });
 
+        ApplyMediatRLicense(configuration);
+
         // MediatR + pipeline behaviors
         services.AddMediatR(cfg =>
         {
+            ConfigureMediatRLicense(cfg, configuration);
             cfg.RegisterServicesFromAssemblyContaining<PitbullDbContext>();
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
@@ -126,5 +129,19 @@ public static class ServiceCollectionExtensions
         services.AddValidatorsFromAssemblyContaining<TAssemblyMarker>();
 
         return services;
+    }
+
+    private static void ApplyMediatRLicense(IConfiguration configuration)
+    {
+        var licenseKey = configuration["MediatR:LicenseKey"];
+        if (!string.IsNullOrWhiteSpace(licenseKey))
+            Mediator.LicenseKey = licenseKey;
+    }
+
+    private static void ConfigureMediatRLicense(MediatRServiceConfiguration cfg, IConfiguration configuration)
+    {
+        var licenseKey = configuration["MediatR:LicenseKey"];
+        if (!string.IsNullOrWhiteSpace(licenseKey))
+            cfg.LicenseKey = licenseKey;
     }
 }
