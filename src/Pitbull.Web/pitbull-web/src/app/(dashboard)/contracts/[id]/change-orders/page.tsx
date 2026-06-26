@@ -37,8 +37,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowRight, FileText, Pencil, Trash2 } from "lucide-react";
 import api from "@/lib/api";
-import type { ChangeOrder, ChangeOrderStatus, PagedResult, Subcontract } from "@/lib/types";
-import { changeOrderStatusBadgeClass, changeOrderStatusLabel, formatCurrency } from "@/lib/contracts";
+import { ChangeOrderStatus } from "@/lib/types";
+import type { ChangeOrder, PagedResult, Subcontract } from "@/lib/types";
+import {
+  changeOrderStatusBadgeClass,
+  changeOrderStatusLabel,
+  formatCurrency,
+  parseChangeOrderStatus,
+} from "@/lib/contracts";
 import { getAllowedChangeOrderStatuses } from "@/lib/workflow-transitions";
 import { toast } from "sonner";
 
@@ -104,26 +110,33 @@ export default function ChangeOrdersPage() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const approvedTotal = useMemo(
-    () => items.filter((co) => co.status === 2).reduce((sum, co) => sum + co.amount, 0),
+    () =>
+      items
+        .filter((co) => parseChangeOrderStatus(co.status) === ChangeOrderStatus.Approved)
+        .reduce((sum, co) => sum + co.amount, 0),
     [items]
   );
 
   const pendingCount = useMemo(
-    () => items.filter((co) => co.status === 0).length,
+    () => items.filter((co) => parseChangeOrderStatus(co.status) === ChangeOrderStatus.Pending).length,
     [items]
   );
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [subRes, coRes] = await Promise.all([
+      const [subRes, coRes] = await Promise.allSettled([
         api<Subcontract>(`/api/subcontracts/${subcontractId}`),
         api<PagedResult<ChangeOrder>>(`/api/changeorders?subcontractId=${subcontractId}&pageSize=200`),
       ]);
-      setSubcontract(subRes);
-      setItems(coRes.items);
-    } catch {
-      toast.error("Failed to load change orders");
+      if (subRes.status === "fulfilled") {
+        setSubcontract(subRes.value);
+      }
+      if (coRes.status === "fulfilled") {
+        setItems(coRes.value.items);
+      } else if (subRes.status === "rejected" && coRes.status === "rejected") {
+        toast.error("Failed to load change orders");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -141,12 +154,13 @@ export default function ChangeOrdersPage() {
 
   function openEdit(co: ChangeOrder) {
     setEditing(co);
+    const status = parseChangeOrderStatus(co.status);
     setFormData({
       number: co.number || co.changeOrderNumber,
       title: co.title,
       description: co.description,
       amount: String(co.amount),
-      status: co.status,
+      status,
       scheduleImpactDays: String(co.scheduleImpactDays ?? co.daysExtension ?? ""),
       costImpact: String(co.costImpact ?? ""),
       requestedBy: co.requestedBy ?? "",
@@ -193,21 +207,22 @@ export default function ChangeOrdersPage() {
     setIsSubmitting(true);
     try {
       if (editing) {
-        await api<ChangeOrder>(`/api/changeorders/${editing.id}`, {
+        const saved = await api<ChangeOrder>(`/api/changeorders/${editing.id}`, {
           method: "PUT",
           body: payload,
         });
         toast.success("Change order updated");
+        setItems((prev) => prev.map((co) => (co.id === saved.id ? saved : co)));
       } else {
-        await api<ChangeOrder>("/api/changeorders", {
+        const saved = await api<ChangeOrder>("/api/changeorders", {
           method: "POST",
           body: payload,
         });
         toast.success("Change order created");
+        setItems((prev) => [saved, ...prev.filter((co) => co.id !== saved.id)]);
       }
 
       setDialogOpen(false);
-      await fetchData();
     } catch (err) {
       toast.error("Failed to save change order", { description: err instanceof Error ? err.message : undefined });
     } finally {
@@ -355,8 +370,11 @@ export default function ChangeOrdersPage() {
                     <TableCell className="text-right font-mono">{formatCurrency(co.costImpact ?? 0)}</TableCell>
                     <TableCell>{co.scheduleImpactDays ?? co.daysExtension ?? 0}d</TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className={changeOrderStatusBadgeClass(co.status)}>
-                        {changeOrderStatusLabel(co.status)}
+                      <Badge
+                        variant="secondary"
+                        className={changeOrderStatusBadgeClass(parseChangeOrderStatus(co.status))}
+                      >
+                        {changeOrderStatusLabel(parseChangeOrderStatus(co.status))}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -419,7 +437,9 @@ export default function ChangeOrdersPage() {
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getStatusOptions(editing?.status ?? null).map((opt) => (
+                    {getStatusOptions(
+                      editing ? parseChangeOrderStatus(editing.status) : null
+                    ).map((opt) => (
                       <SelectItem key={opt.value} value={String(opt.value)}>
                         {opt.label}
                       </SelectItem>

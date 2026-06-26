@@ -16,6 +16,12 @@ public interface ICompanyContext
     /// Used for cross-company queries and access validation.
     /// </summary>
     IReadOnlyList<Guid> AccessibleCompanyIds { get; }
+
+    /// <summary>
+    /// User's default company (UserCompanyAccess.IsDefault or tenant default).
+    /// Used when X-Company-Id header is absent.
+    /// </summary>
+    Guid? DefaultCompanyId { get; }
 }
 
 /// <summary>
@@ -31,8 +37,15 @@ public class CompanyContext : ICompanyContext
     private List<Guid> _accessibleCompanyIds = [];
     public IReadOnlyList<Guid> AccessibleCompanyIds => _accessibleCompanyIds.AsReadOnly();
 
+    public Guid? DefaultCompanyId { get; private set; }
+
     public void SetAccessibleCompanies(IEnumerable<Guid> companyIds)
     {
         _accessibleCompanyIds = companyIds.ToList();
+    }
+
+    public void SetDefaultCompany(Guid? companyId)
+    {
+        DefaultCompanyId = companyId is Guid id && id != Guid.Empty ? id : null;
     }
 }

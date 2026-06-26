@@ -118,9 +118,8 @@ public sealed class DemoBootstrapper(
         });
 
         // HR + project assignments must survive domain seed rollbacks (e.g. duplicate cost-code keys).
-        await EnsureDemoEmployeeRecordsAsync(demo, cancellationToken);
-        await EnsureAllDemoEmployeesAsync(allCompanies, cancellationToken);
-        await EnsureDemoProjectAssignmentsAsync(cancellationToken);
+        // Run inside an RLS-scoped transaction — inserts fail without app.current_tenant on the connection.
+        await EnsureDemoHrAndAssignmentsAsync(tenant.Id, company.Id, demo, allCompanies, cancellationToken);
 
         // Post-seed maintenance: keep time entry dates current so dashboard KPIs have data
         await RefreshTimeEntryDatesAsync(tenant.Id, cancellationToken);
@@ -407,6 +406,45 @@ public sealed class DemoBootstrapper(
 
         // The demo.UserEmail user was already handled above. If additional
         // hard-coded accounts are needed, add them via DemoOptions instead.
+    }
+
+    /// <summary>
+    /// Creates/links demo employee records and project assignments outside the domain seed
+    /// transaction so HR data survives seed rollbacks (e.g. duplicate cost-code keys).
+    /// </summary>
+    private async Task EnsureDemoHrAndAssignmentsAsync(
+        Guid tenantId,
+        Guid companyId,
+        DemoOptions demo,
+        Dictionary<string, Company> allCompanies,
+        CancellationToken ct)
+    {
+        // Domain seed may leave Added entities on the tracker after a rolled-back transaction.
+        db.ChangeTracker.Clear();
+
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, true)", ct);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_company', {companyId.ToString()}, true)", ct);
+
+            try
+            {
+                await EnsureDemoEmployeeRecordsAsync(demo, ct);
+                await EnsureAllDemoEmployeesAsync(allCompanies, ct);
+                await EnsureDemoProjectAssignmentsAsync(ct);
+                await tx.CommitAsync(ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Demo HR bootstrap failed; rolling back HR transaction");
+                await tx.RollbackAsync(ct);
+                throw;
+            }
+        });
     }
 
     /// <summary>
@@ -960,7 +998,26 @@ public sealed class DemoBootstrapper(
 
         if (activeProjects.Count == 0)
         {
-            logger.LogInformation("No active projects found; skipping demo project assignments");
+            // Demo tenants may only have PreConstruction projects when domain seed partially failed.
+            activeProjects = await db.Set<Pitbull.Projects.Domain.Project>()
+                .IgnoreQueryFilters()
+                .Where(p => !p.IsDeleted
+                    && p.TenantId == tenantId
+                    && p.Status != Pitbull.Projects.Domain.ProjectStatus.Completed
+                    && p.Status != Pitbull.Projects.Domain.ProjectStatus.Closed)
+                .OrderBy(p => p.Number)
+                .Take(5)
+                .ToListAsync(ct);
+
+            if (activeProjects.Count > 0)
+                logger.LogInformation(
+                    "No Active projects; assigning demo users to {Count} workable projects instead",
+                    activeProjects.Count);
+        }
+
+        if (activeProjects.Count == 0)
+        {
+            logger.LogInformation("No workable projects found; skipping demo project assignments");
             return;
         }
 

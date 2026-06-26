@@ -232,10 +232,12 @@ public abstract class PmServiceBase
     protected async Task<Result<PmEntityDto>> CreateAsync<T>(Guid projectId, PmUpsertRequest request, CancellationToken ct, Action<T>? configureEntity, bool applyGenericUpsert)
         where T : BaseEntity, ICompanyScoped, new()
     {
-        // Validate project exists (prevents FK violation on SaveChanges)
-        var projectExists = await Db.Set<Pitbull.Projects.Domain.Project>()
-            .AnyAsync(p => p.Id == projectId, ct);
-        if (!projectExists)
+        // Validate project exists and resolve owning company (prevents FK/RLS mismatch on SaveChanges)
+        var project = await Db.Set<Pitbull.Projects.Domain.Project>()
+            .Where(p => p.Id == projectId)
+            .Select(p => new { p.Id, p.CompanyId })
+            .FirstOrDefaultAsync(ct);
+        if (project == null)
             return Result.Failure<PmEntityDto>("Project not found", "NOT_FOUND");
 
         if (!await HasCurrentUserProjectAccessAsync(projectId, ct))
@@ -250,7 +252,7 @@ public abstract class PmServiceBase
         var entity = new T
         {
             Id = Guid.NewGuid(),
-            CompanyId = CurrentCompanyId,
+            CompanyId = project.CompanyId != Guid.Empty ? project.CompanyId : CurrentCompanyId,
             CreatedAt = DateTime.UtcNow,
         };
 

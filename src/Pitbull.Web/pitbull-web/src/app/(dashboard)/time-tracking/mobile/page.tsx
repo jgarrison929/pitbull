@@ -51,6 +51,7 @@ interface SimpleListResult<T> {
 interface AuthProfile {
   id: string;
   email: string;
+  employeeId?: string | null;
 }
 
 interface FormState {
@@ -456,9 +457,14 @@ export default function MobileTimeEntryPage() {
         if (cancelled) return;
 
         const userEmail = profile.email?.toLowerCase().trim();
-        const matchedEmployee = employeesRes.items.find(
-          (candidate) => (candidate.email || "").toLowerCase().trim() === userEmail
-        );
+        const linkedEmployeeId = profile.employeeId?.trim();
+        const matchedEmployee =
+          (linkedEmployeeId
+            ? employeesRes.items.find((candidate) => candidate.id === linkedEmployeeId)
+            : undefined) ??
+          employeesRes.items.find(
+            (candidate) => (candidate.email || "").toLowerCase().trim() === userEmail
+          );
 
         if (!matchedEmployee) {
           toast.error("No employee record is linked to your login");

@@ -55,9 +55,11 @@ if (-not $SkipPlaywright) {
     Push-Location (Join-Path $PSScriptRoot "..\e2e")
     try {
         foreach ($run in 1..2) {
-            Write-Log "Playwright role-workflows run $run"
+            $env:E2E_RUN_TAG = "orchestrator-run$run-$(Get-Date -Format 'HHmmssfff')"
+            Write-Log "Playwright role-workflows run $run (tag=$env:E2E_RUN_TAG)"
             $outFile = Join-Path $roleE2eDir "playwright-run-$run.log"
-            npx playwright test --project=role-workflows 2>&1 | Tee-Object -FilePath $outFile
+            node node_modules/@playwright/test/cli.js test --project=setup-roles 2>&1 | Tee-Object -FilePath (Join-Path $roleE2eDir "setup-roles-run-$run.log")
+            node node_modules/@playwright/test/cli.js test --project=role-workflows 2>&1 | Tee-Object -FilePath $outFile
             if ($LASTEXITCODE -ne 0) {
                 Write-Log "Playwright run $run exit code $LASTEXITCODE (see $outFile)"
             } else {

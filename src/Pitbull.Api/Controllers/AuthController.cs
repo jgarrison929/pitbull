@@ -850,6 +850,7 @@ public class AuthController(
             TenantName: tenant?.Name ?? "Unknown",
             CreatedAt: user.CreatedAt,
             LastLoginAt: user.LastLoginAt,
+            EmployeeId: user.EmployeeId,
             ActiveCompany: activeCompanyId != null
                 ? new CompanyBriefResponse(activeCompanyId.Id, activeCompanyId.Code, activeCompanyId.Name)
                 : null,
@@ -1173,6 +1174,7 @@ public record UserProfileResponse(
     string TenantName,
     DateTime CreatedAt,
     DateTime? LastLoginAt,
+    Guid? EmployeeId = null,
     CompanyBriefResponse? ActiveCompany = null,
     List<CompanyBriefResponse>? AccessibleCompanies = null,
     string[]? Permissions = null);

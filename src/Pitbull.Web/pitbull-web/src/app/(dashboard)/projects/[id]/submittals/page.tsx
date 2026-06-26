@@ -54,7 +54,7 @@ import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { Pencil, Trash2, Download, Paperclip, FileDown } from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
-import { getAllowedSubmittalStatuses } from "@/lib/workflow-transitions";
+import { getAllowedSubmittalStatuses, parseSubmittalStatus } from "@/lib/workflow-transitions";
 
 interface FileAttachment {
   id: string;
@@ -311,7 +311,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
         specSectionCode: asString(data.SpecSectionCode),
         specSectionTitle: asString(data.SpecSectionTitle),
         submittalType: asString(data.SubmittalType) || "Other",
-        status: sub.status || "Draft",
+        status: parseSubmittalStatus(sub.status),
         requiredByDate: asString(data.RequiredByDate) || null,
         submittedDate: asString(data.SubmittedDate) || null,
         revisionNumber: asNumber(data.RevisionNumber),
@@ -338,9 +338,18 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
   // Summary stats
   const stats = useMemo(() => {
     const total = submittals.length;
-    const pending = submittals.filter((s) => s.status === "Submitted" || s.status === "InReview").length;
-    const approved = submittals.filter((s) => s.status === "Approved" || s.status === "ApprovedAsNoted").length;
-    const actionNeeded = submittals.filter((s) => s.status === "Rejected" || s.status === "ReviseAndResubmit").length;
+    const pending = submittals.filter((s) => {
+      const status = parseSubmittalStatus(s.status);
+      return status === "Submitted" || status === "InReview";
+    }).length;
+    const approved = submittals.filter((s) => {
+      const status = parseSubmittalStatus(s.status);
+      return status === "Approved" || status === "ApprovedAsNoted";
+    }).length;
+    const actionNeeded = submittals.filter((s) => {
+      const status = parseSubmittalStatus(s.status);
+      return status === "Rejected" || status === "ReviseAndResubmit";
+    }).length;
     return { total, pending, approved, actionNeeded };
   }, [submittals]);
 
@@ -367,7 +376,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
       requiredByDate: row.requiredByDate ? row.requiredByDate.slice(0, 10) : "",
       isSubstitutionRequest: row.isSubstitutionRequest,
       ballInCourt: row.ballInCourt,
-      status: row.status,
+      status: parseSubmittalStatus(row.status),
     });
     setPendingFiles([]);
     // Load existing attachments for this submittal
@@ -383,33 +392,41 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
       return;
     }
 
-    const payload: PmUpsertRequest = {
-      title: form.title.trim(),
-      status: form.status,
-      data: {
-        SpecSectionCode: form.specSectionCode || null,
-        SpecSectionTitle: form.specSectionTitle || null,
-        SubmittalType: form.submittalType,
-        Description: form.description || null,
-        RequiredByDate: form.requiredByDate || null,
-        IsSubstitutionRequest: form.isSubstitutionRequest,
-        BallInCourt: form.ballInCourt || null,
-      },
+    const dataPayload = {
+      SpecSectionCode: form.specSectionCode || null,
+      SpecSectionTitle: form.specSectionTitle || null,
+      SubmittalType: form.submittalType,
+      Description: form.description || null,
+      RequiredByDate: form.requiredByDate || null,
+      IsSubstitutionRequest: form.isSubstitutionRequest,
+      BallInCourt: form.ballInCourt || null,
     };
 
     setSaving(true);
     try {
       let submittalId = form.id;
+      let saved: PmEntityDto;
       if (editing && form.id) {
-        await api<PmEntityDto>(`/api/projects/${projectId}/submittals/${form.id}`, {
+        const payload: PmUpsertRequest = {
+          title: form.title.trim(),
+          status: form.status,
+          data: dataPayload,
+        };
+        saved = await api<PmEntityDto>(`/api/projects/${projectId}/submittals/${form.id}`, {
           method: "PUT",
           body: payload,
         });
         toast.success("Submittal updated");
+        setSubmittals((prev) => prev.map((s) => (s.id === saved.id ? saved : s)));
       } else {
-        const created = await api<PmEntityDto>(`/api/projects/${projectId}/submittals`, { method: "POST", body: payload });
-        submittalId = created.id;
+        const payload: PmUpsertRequest = {
+          title: form.title.trim(),
+          data: dataPayload,
+        };
+        saved = await api<PmEntityDto>(`/api/projects/${projectId}/submittals`, { method: "POST", body: payload });
+        submittalId = saved.id;
         toast.success("Submittal created");
+        setSubmittals((prev) => [saved, ...prev.filter((s) => s.id !== saved.id)]);
       }
       // Upload pending files
       const realFiles = pendingFiles.map((f) => f.file).filter((f): f is File => f !== undefined);
@@ -426,7 +443,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
         }
       }
       setPendingFiles([]);
-      setDialogOpen(false); await load();
+      setDialogOpen(false);
     } catch (error) {
       toast.error("Failed to save submittal", {
         description: error instanceof Error ? error.message : "Unknown error",
@@ -863,15 +880,15 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
 
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Status</Label>
+                <Label htmlFor="sub-status">Status</Label>
                 {getAllowedSubmittalStatuses(editing ? form.status : null).length <= 1 ? (
-                  <p className="text-sm font-medium py-2">{STATUS_LABELS[form.status] ?? form.status}</p>
+                  <p id="sub-status" className="text-sm font-medium py-2">{STATUS_LABELS[form.status] ?? form.status}</p>
                 ) : (
                   <Select
                     value={form.status}
                     onValueChange={(value) => setForm((prev) => ({ ...prev, status: value }))}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="sub-status">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

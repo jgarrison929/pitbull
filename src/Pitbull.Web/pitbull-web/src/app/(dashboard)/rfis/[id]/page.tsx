@@ -34,8 +34,13 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import api, { uploadFiles, getDownloadUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
-import type { Rfi, UpdateRfiCommand, RfiStatus, RfiPriority } from "@/lib/types";
-import { getAllowedRfiStatuses, getNextRfiStatuses, rfiStatusLabel } from "@/lib/workflow-transitions";
+import { RfiStatus, RfiPriority, type Rfi, type UpdateRfiCommand } from "@/lib/types";
+import {
+  getAllowedRfiStatuses,
+  getNextRfiStatuses,
+  parseRfiStatus,
+  rfiStatusLabel,
+} from "@/lib/workflow-transitions";
 import { toast } from "sonner";
 import { Download, Paperclip } from "lucide-react";
 
@@ -75,7 +80,8 @@ function priorityColor(priority: RfiPriority) {
   }
 }
 
-function buildRfiWorkflowSteps(status: RfiStatus): WorkflowStep[] {
+function buildRfiWorkflowSteps(status: RfiStatus | string | number): WorkflowStep[] {
+  const parsed = parseRfiStatus(status);
   const steps: { label: string; order: number }[] = [
     { label: "Open", order: 0 },
     { label: "Answered", order: 1 },
@@ -84,8 +90,8 @@ function buildRfiWorkflowSteps(status: RfiStatus): WorkflowStep[] {
   return steps.map((step) => ({
     label: step.label,
     status:
-      step.order < status ? "completed" :
-      step.order === status ? "current" :
+      step.order < parsed ? "completed" :
+      step.order === parsed ? "current" :
       "upcoming",
   }));
 }
@@ -157,18 +163,28 @@ export default function RfiDetailPage({
     async function fetchRfi() {
       try {
         const data = await api<Rfi>(`/api/projects/${projectId}/rfis/${id}`);
-        setRfi(data);
+        const drawingRefs = Array.isArray(data.drawingReferences)
+          ? data.drawingReferences
+          : data.drawingReferences
+            ? [String(data.drawingReferences)]
+            : [];
+        const normalized = {
+          ...data,
+          status: parseRfiStatus(data.status),
+          drawingReferences: drawingRefs,
+        };
+        setRfi(normalized);
         // Initialize edit form
-        setEditSubject(data.subject);
-        setEditQuestion(data.question);
-        setEditAnswer(data.answer || "");
-        setEditStatus(data.status);
+        setEditSubject(normalized.subject);
+        setEditQuestion(normalized.question);
+        setEditAnswer(normalized.answer || "");
+        setEditStatus(normalized.status);
         setEditPriority(data.priority);
         setEditDueDate(data.dueDate ? data.dueDate.split("T")[0] : "");
         setEditBallInCourtName(data.ballInCourtName || "");
         setEditAssignedToName(data.assignedToName || "");
         setEditSpecSection(data.specSection || "");
-        setEditDrawingReferences(data.drawingReferences?.join(", ") || "");
+        setEditDrawingReferences(drawingRefs.join(", "));
         setEditHasCostImpact(data.hasCostImpact);
         setEditEstimatedCostImpact(data.estimatedCostImpact?.toString() || "");
         setEditEstimatedDelayDays(data.estimatedDelayDays?.toString() || "");
@@ -748,7 +764,7 @@ export default function RfiDetailPage({
                     <span className="font-medium">{rfi.specSection || "—"}</span>
                     <span className="text-muted-foreground">Drawings</span>
                     <span className="font-medium">
-                      {rfi.drawingReferences && rfi.drawingReferences.length > 0
+                      {Array.isArray(rfi.drawingReferences) && rfi.drawingReferences.length > 0
                         ? rfi.drawingReferences.join(", ")
                         : "—"}
                     </span>

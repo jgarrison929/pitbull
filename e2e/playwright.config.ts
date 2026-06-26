@@ -49,6 +49,7 @@ export default defineConfig({
       name: 'role-workflows',
       dependencies: ['setup-roles'],
       testMatch: /role-workflows\.spec\.ts/,
+      retries: 0,
     },
   ],
 });

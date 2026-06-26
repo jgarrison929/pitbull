@@ -59,6 +59,29 @@ public class CompanyMiddleware(RequestDelegate next, ILogger<CompanyMiddleware> 
             }
 
             companyContext.SetAccessibleCompanies(accessibleCompanyIds);
+
+            var defaultCompanyId = await db.UserCompanyAccess
+                .IgnoreQueryFilters()
+                .Where(uca => uca.TenantId == tenantContext.TenantId
+                              && uca.UserId == userId.Value
+                              && uca.IsDefault
+                              && !uca.IsDeleted)
+                .Select(uca => (Guid?)uca.CompanyId)
+                .FirstOrDefaultAsync();
+
+            if (!defaultCompanyId.HasValue || defaultCompanyId.Value == Guid.Empty)
+            {
+                defaultCompanyId = await db.Companies
+                    .IgnoreQueryFilters()
+                    .Where(c => c.TenantId == tenantContext.TenantId
+                                && c.IsDefault
+                                && c.IsActive
+                                && !c.IsDeleted)
+                    .Select(c => (Guid?)c.Id)
+                    .FirstOrDefaultAsync();
+            }
+
+            companyContext.SetDefaultCompany(defaultCompanyId);
         }
 
         // Resolve active company (validates against accessible companies with fallback)
@@ -113,15 +136,22 @@ public class CompanyMiddleware(RequestDelegate next, ILogger<CompanyMiddleware> 
             return fromHeader;
         }
 
-        // 2. Try JWT claim (session default)
-        // P1 fix: Only accept if user has access, otherwise fall through
+        // 2. User's default company (parent/subsidiary marked default — finance workflows)
+        if (companyContext is CompanyContext ctx
+            && ctx.DefaultCompanyId is Guid defaultId
+            && IsAccessible(defaultId))
+        {
+            return defaultId;
+        }
+
+        // 3. Try JWT claim (home company on the token)
         var claimValue = context.User?.FindFirstValue(CompanyClaimType);
         if (Guid.TryParse(claimValue, out var fromClaim) && IsAccessible(fromClaim))
         {
             return fromClaim;
         }
 
-        // 3. Fall back to first accessible company
+        // 4. Fall back to first accessible company
         if (hasAccessList)
         {
             return accessibleIds[0];

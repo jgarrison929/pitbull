@@ -34,13 +34,31 @@ export const rfiAllowedTransitions: Record<RfiStatus, RfiStatus[]> = {
   [RfiStatus.Closed]: [],
 };
 
-export function getAllowedRfiStatuses(from: RfiStatus): RfiStatus[] {
-  const next = rfiAllowedTransitions[from] ?? [];
-  return [from, ...next];
+export function parseRfiStatus(status: RfiStatus | string | number): RfiStatus {
+  if (typeof status === "number") return status;
+  if (typeof status === "string") {
+    if (status in RfiStatus) {
+      return RfiStatus[status as keyof typeof RfiStatus];
+    }
+    const byLabel: Record<string, RfiStatus> = {
+      Open: RfiStatus.Open,
+      Answered: RfiStatus.Answered,
+      Closed: RfiStatus.Closed,
+    };
+    if (status in byLabel) return byLabel[status]!;
+  }
+  return RfiStatus.Open;
 }
 
-export function getNextRfiStatuses(from: RfiStatus): RfiStatus[] {
-  return rfiAllowedTransitions[from] ?? [];
+export function getAllowedRfiStatuses(from: RfiStatus | string | number): RfiStatus[] {
+  const parsed = parseRfiStatus(from);
+  const next = rfiAllowedTransitions[parsed] ?? [];
+  return [parsed, ...next];
+}
+
+export function getNextRfiStatuses(from: RfiStatus | string | number): RfiStatus[] {
+  const parsed = parseRfiStatus(from);
+  return rfiAllowedTransitions[parsed] ?? [];
 }
 
 export function rfiStatusLabel(status: RfiStatus): string {
@@ -97,10 +115,44 @@ export const submittalAllowedTransitions: Record<string, string[]> = {
   Closed: [],
 };
 
+const SUBMITTAL_STATUS_ALIASES: Record<string, string> = {
+  Draft: "Draft",
+  Submitted: "Submitted",
+  InReview: "InReview",
+  "In Review": "InReview",
+  Approved: "Approved",
+  ApprovedAsNoted: "ApprovedAsNoted",
+  "Approved as Noted": "ApprovedAsNoted",
+  ReviseAndResubmit: "ReviseAndResubmit",
+  "Revise & Resubmit": "ReviseAndResubmit",
+  Rejected: "Rejected",
+  Closed: "Closed",
+};
+
+export function parseSubmittalStatus(status: string | number | null | undefined): string {
+  if (status === null || status === undefined || status === "") return "Draft";
+  if (typeof status === "number") {
+    const byIndex = [
+      "Draft",
+      "Submitted",
+      "InReview",
+      "Approved",
+      "ApprovedAsNoted",
+      "ReviseAndResubmit",
+      "Rejected",
+      "Closed",
+    ];
+    return byIndex[status] ?? "Draft";
+  }
+  if (status in SUBMITTAL_STATUS_ALIASES) return SUBMITTAL_STATUS_ALIASES[status]!;
+  return status;
+}
+
 export function getAllowedSubmittalStatuses(from: string | null): string[] {
   if (from === null) return ["Draft"];
-  const next = submittalAllowedTransitions[from] ?? [];
-  return [from, ...next];
+  const parsed = parseSubmittalStatus(from);
+  const next = submittalAllowedTransitions[parsed] ?? [];
+  return [parsed, ...next];
 }
 
 export function getNextSubmittalStatuses(from: string): string[] {

@@ -52,6 +52,7 @@ import type {
 import {
   formatCurrency,
   formatPercent,
+  parsePaymentApplicationStatus,
 } from "@/lib/contracts";
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -179,8 +180,9 @@ export default function PaymentApplicationDetailPage() {
     loadDetail();
   }, [loadDetail]);
 
-  const isDraft = detail?.status === PaymentApplicationStatus.Draft;
-  const actions = detail ? ALLOWED_ACTIONS[detail.status] || [] : [];
+  const status = detail ? parsePaymentApplicationStatus(detail.status) : null;
+  const isDraft = status === PaymentApplicationStatus.Draft;
+  const actions = status !== null ? ALLOWED_ACTIONS[status] || [] : [];
 
   const updateLineItem = (sovLineItemId: string, field: "workThisPeriod" | "materialsThisPeriod", value: string) => {
     setEditedItems((prev) => {
@@ -496,12 +498,12 @@ export default function PaymentApplicationDetailPage() {
 
       {/* Workflow Progress */}
       <WorkflowStepper
-        steps={buildPayAppWorkflowSteps(detail.status)}
+        steps={buildPayAppWorkflowSteps(status ?? PaymentApplicationStatus.Draft)}
         className="sm:hidden"
         orientation="vertical"
       />
       <WorkflowStepper
-        steps={buildPayAppWorkflowSteps(detail.status)}
+        steps={buildPayAppWorkflowSteps(status ?? PaymentApplicationStatus.Draft)}
         className="hidden sm:flex"
         orientation="horizontal"
       />

@@ -178,6 +178,7 @@ export default function NewVendorInvoicePage() {
                 }}
               >
                 <SelectTrigger
+                  id="vendorId"
                   className={cn(
                     autoFilledFields.has("vendorId") && autoFillRing
                   )}

@@ -114,6 +114,7 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\imp
 | Full integration | **266 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
 | Full unit | **3181 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
 | Daily reports integration | 4 passed (create→submit→approve→lock; PUT status rejected) | `integration-tests-full.log` |
+| Role browser E2E (10 lifecycles × 7 personas) | **17 passed** (10 tests + setup), 2 consecutive runs | `implementer/role-e2e/playwright-green-runA.log`, `playwright-green-runB.log` |
 
 ---
 
@@ -138,6 +139,23 @@ API smoke evidence: `scripts/workflow-api-smoke.ps1` — single-admin path (`api
 
 Role browser E2E: `e2e/tests/role-workflows.spec.ts` + `e2e/fixtures/auth-multi.setup.ts` — recordings under `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\role-e2e\recordings\`. Requires `pitbull-web/.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:5081`. First-principles review: `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\first-principles-review.md`.
 
-| Gate | Role E2E evidence (2026-06-25) |
+| Gate | Role E2E evidence (2026-06-26) |
 |------|--------------------------------|
-| G6 | L2 Playwright PM Day-1 chain; API smoke project-scoped daily report + assignment fix validates no dead-end on PM-owned steps |
+| G6 | **10/10 UI lifecycles PASS** — two consecutive full-suite greens (`playwright-green-runA.log`, `playwright-green-runB.log`, 17 passed each: 7 setup + 10 lifecycles). Per-lifecycle table below. |
+
+#### G6 per-lifecycle browser evidence
+
+| # | Lifecycle | Persona(s) | Primary UI actions asserted | Observable outcome | Log tag |
+|---|-----------|------------|----------------------------|--------------------|---------|
+| L1 | Bid → Project | Estimator | Create bid → edit status → Submitted | Status shows Submitted | `[Bid → Project] estimator UI → Submitted OK` |
+| L2 | Project setup | PM | Add cost code → Day-1 nav chain | POST `/api/cost-codes` OK; row in table; Employees/Projects/Contracts/project detail headings visible | `[Project setup] PM cost code + Day-1 chain OK` |
+| L3 | Crew time → approval | Field Eng → PM | Mobile batch submit → approval queue approve | Batch POST OK; PM sees approved/clear queue | `[Crew time → payroll] field mobile submit → PM approval OK` |
+| L4 | Owner billing (AR) | PM → AR Clerk | Create app → Submit for review → Approve → Submit to Owner → Architect Certified | Badges: PmReview → ReadyToSubmit → SubmittedToOwner → ArchitectCertified | `[Owner pay app (AR)] PM+AR UI billing → ArchitectCertified` |
+| L5 | Sub pay app (AP) | PM → AP Clerk | New pay app dialog → create → AP Submit | Submitted badge on detail page | `[Subcontract pay app (AP)] PM create → AP submit OK` |
+| L6 | Change order | PM | Create CO → Under Review → Approved | Row badges Under Review → Approved | `[Change order] PM UI → Approved OK` |
+| L7 | RFI | PM | Create → answer → Mark Answered | Answered status visible | `[RFI] PM UI → Answered OK` |
+| L8 | Submittal | PM | Create Draft → edit → Submitted | Row badge Submitted | `[Submittal] PM UI → Submitted OK` |
+| L9 | Vendor invoice | AP Clerk (+ Field 403) | Create invoice → Match; field GET vendor-invoices | Matched row; field-eng 403 (RBAC negative only) | `[Vendor invoice] AP UI match OK, field-eng 403 OK` |
+| L10 | Daily report | Field Eng → PM | Create report → Submit → Approve → Lock | Row badges Submitted → Approved → Locked | `[Daily report] field create → PM Locked OK` |
+
+**E2E prerequisites (API helpers, not primary workflow path):** `ensureTimeTrackingPrereqs`, `ensurePmProjectAssignment`, `ensureVendorPrereqs`, `discoverBillingPrereqs`, `discoverPayAppPrereqs`. Finance company context for L4–L9; field subsidiary company for L3/L10.

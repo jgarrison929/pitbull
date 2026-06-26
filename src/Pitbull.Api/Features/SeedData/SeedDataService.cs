@@ -144,7 +144,30 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         StampCompanyId(customers, companyId);
         StampCompanyId(vendors, companyId);
 
-        db.Set<CostCode>().AddRange(costCodes);
+        // Idempotent: skip cost codes that already exist (e.g. prior partial seed or E2E-created codes).
+        var tenantId = await db.Set<Company>()
+            .IgnoreQueryFilters()
+            .Where(c => c.Id == companyId)
+            .Select(c => c.TenantId)
+            .FirstAsync(ct);
+        var existingCostCodeKeys = await db.Set<CostCode>()
+            .IgnoreQueryFilters()
+            .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+            .Select(c => c.Code)
+            .ToListAsync(ct);
+        var existingCostCodeSet = existingCostCodeKeys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var newCostCodes = costCodes.Where(c => !existingCostCodeSet.Contains(c.Code)).ToList();
+        if (newCostCodes.Count > 0)
+            db.Set<CostCode>().AddRange(newCostCodes);
+        // Use merged list for downstream relationships (time entries, job cost, etc.)
+        if (newCostCodes.Count < costCodes.Count)
+        {
+            var persisted = await db.Set<CostCode>()
+                .IgnoreQueryFilters()
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .ToListAsync(ct);
+            costCodes = persisted;
+        }
         db.Set<Project>().AddRange(projects);
         db.Set<Bid>().AddRange(bids);
         db.Set<Employee>().AddRange(employees);

@@ -224,11 +224,10 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
 
     public async Task<Result<ChangeOrderDto>> CreateChangeOrderAsync(CreateChangeOrderCommand command, CancellationToken cancellationToken = default)
     {
-        // Verify subcontract exists
-        var subcontractExists = await db.Set<Subcontract>()
-            .AnyAsync(s => s.Id == command.SubcontractId, cancellationToken);
+        var subcontract = await db.Set<Subcontract>()
+            .FirstOrDefaultAsync(s => s.Id == command.SubcontractId, cancellationToken);
 
-        if (!subcontractExists)
+        if (subcontract is null)
             return Result.Failure<ChangeOrderDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
 
         // Check for duplicate CO number on this subcontract
@@ -251,6 +250,7 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
         var changeOrder = new ChangeOrder
         {
             SubcontractId = command.SubcontractId,
+            CompanyId = subcontract.CompanyId,
             ChangeOrderNumber = command.Number,
             Title = command.Title,
             Description = command.Description,

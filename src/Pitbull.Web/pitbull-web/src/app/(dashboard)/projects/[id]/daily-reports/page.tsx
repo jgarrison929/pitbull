@@ -400,24 +400,20 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
 
     const title = form.title.trim() || `Daily Report - ${form.reportDate}`;
 
-    const payload: PmUpsertRequest = {
-      title,
-      status: form.status,
-      data: {
-        ReportDate: form.reportDate,
-        ReportType: form.reportType,
-        WeatherSummary: form.weatherSummary || null,
-        TemperatureLow: form.temperatureLow ? Number(form.temperatureLow) : null,
-        TemperatureHigh: form.temperatureHigh ? Number(form.temperatureHigh) : null,
-        Precipitation: form.precipitation || null,
-        Wind: form.wind || null,
-        WorkNarrative: form.workNarrative || null,
-        DelaysNarrative: form.delaysNarrative || null,
-        SafetyNarrative: form.safetyNarrative || null,
-        CrewEntries: form.crewEntries.length > 0 ? form.crewEntries.filter(c => c.trade) : null,
-        Equipment: form.equipment.length > 0 ? form.equipment.filter(e => e.name) : null,
-        Visitors: form.visitors.length > 0 ? form.visitors.filter(v => v.name) : null,
-      },
+    const dataPayload = {
+      ReportDate: form.reportDate,
+      ReportType: form.reportType,
+      WeatherSummary: form.weatherSummary || null,
+      TemperatureLow: form.temperatureLow ? Number(form.temperatureLow) : null,
+      TemperatureHigh: form.temperatureHigh ? Number(form.temperatureHigh) : null,
+      Precipitation: form.precipitation || null,
+      Wind: form.wind || null,
+      WorkNarrative: form.workNarrative || null,
+      DelaysNarrative: form.delaysNarrative || null,
+      SafetyNarrative: form.safetyNarrative || null,
+      CrewEntries: form.crewEntries.length > 0 ? form.crewEntries.filter(c => c.trade) : null,
+      Equipment: form.equipment.length > 0 ? form.equipment.filter(e => e.name) : null,
+      Visitors: form.visitors.length > 0 ? form.visitors.filter(v => v.name) : null,
     };
 
     setSaving(true);
@@ -465,6 +461,11 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
       let savedId: string;
 
       if (editing && form.id) {
+        const payload: PmUpsertRequest = {
+          title,
+          status: form.status,
+          data: dataPayload,
+        };
         await api<PmEntityDto>(`/api/projects/${projectId}/daily-reports/${form.id}`, {
           method: "PUT",
           body: payload,
@@ -472,12 +473,17 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
         savedId = form.id;
         toast.success("Daily report updated");
       } else {
+        const payload: PmUpsertRequest = {
+          title,
+          data: dataPayload,
+        };
         const created = await api<PmEntityDto>(`/api/projects/${projectId}/daily-reports`, {
           method: "POST",
           body: payload,
         });
         savedId = created.id;
         toast.success("Daily report created");
+        setReports((prev) => [created, ...prev.filter((r) => r.id !== created.id)]);
       }
 
       // Upload pending attachments

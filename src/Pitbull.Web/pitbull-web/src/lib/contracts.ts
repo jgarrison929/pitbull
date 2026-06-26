@@ -56,6 +56,28 @@ export function subcontractStatusBadgeClass(status: SubcontractStatus): string {
 }
 
 // Change Order Status helpers
+export function parseChangeOrderStatus(
+  status: ChangeOrderStatus | string | number
+): ChangeOrderStatus {
+  if (typeof status === "number") return status;
+  if (typeof status === "string") {
+    if (status in ChangeOrderStatus) {
+      return ChangeOrderStatus[status as keyof typeof ChangeOrderStatus];
+    }
+    const byLabel: Record<string, ChangeOrderStatus> = {
+      Pending: ChangeOrderStatus.Pending,
+      "Under Review": ChangeOrderStatus.UnderReview,
+      UnderReview: ChangeOrderStatus.UnderReview,
+      Approved: ChangeOrderStatus.Approved,
+      Rejected: ChangeOrderStatus.Rejected,
+      Withdrawn: ChangeOrderStatus.Withdrawn,
+      Void: ChangeOrderStatus.Void,
+    };
+    if (status in byLabel) return byLabel[status]!;
+  }
+  return ChangeOrderStatus.Pending;
+}
+
 export function changeOrderStatusLabel(status: ChangeOrderStatus): string {
   switch (status) {
     case ChangeOrderStatus.Pending:
@@ -95,6 +117,16 @@ export function changeOrderStatusBadgeClass(status: ChangeOrderStatus): string {
 }
 
 // Payment Application Status helpers
+export function parsePaymentApplicationStatus(
+  status: PaymentApplicationStatus | string | number
+): PaymentApplicationStatus {
+  if (typeof status === "number") return status;
+  if (typeof status === "string" && status in PaymentApplicationStatus) {
+    return PaymentApplicationStatus[status as keyof typeof PaymentApplicationStatus];
+  }
+  return PaymentApplicationStatus.Draft;
+}
+
 export function paymentApplicationStatusLabel(
   status: PaymentApplicationStatus
 ): string {
