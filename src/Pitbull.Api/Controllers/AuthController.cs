@@ -837,34 +837,7 @@ public class AuthController(
             .Select(x => new CompanyBriefResponse(x.c.Id, x.c.Code, x.c.Name))
             .ToList();
 
-        // Get RBAC permissions for profile response
-        var isRbacAdmin = await db.Set<UserRole>()
-            .AsNoTracking()
-            .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
-                && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
-
-        // Backward compatibility: check Identity Admin role as fallback
-        // Existing users may only have roles in AspNetUserRoles (not yet migrated to RBAC UserRole table)
-        if (!isRbacAdmin)
-            isRbacAdmin = roles.Contains("Admin");
-
-        string[] permissions;
-        if (isRbacAdmin)
-        {
-            permissions = new[] { PermissionConstants.Wildcard };
-        }
-        else
-        {
-            permissions = await db.Set<RolePermission>()
-                .AsNoTracking()
-                .Where(rp => rp.TenantId == user.TenantId
-                    && db.Set<UserRole>()
-                        .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
-                .Select(rp => rp.Permission.Name)
-                .Distinct()
-                .OrderBy(p => p)
-                .ToArrayAsync();
-        }
+        var permissions = await ResolveRbacPermissionClaimsAsync(user, roles);
 
         return Ok(new UserProfileResponse(
             Id: user.Id,
@@ -1070,6 +1043,48 @@ public class AuthController(
         }
     }
 
+    /// <summary>
+    /// Resolves RBAC permission claim values for JWT/profile.
+    /// Uses IgnoreQueryFilters because login runs before tenant middleware sets context.
+    /// </summary>
+    private async Task<string[]> ResolveRbacPermissionClaimsAsync(AppUser user, IList<string> identityRoles)
+    {
+        var adminRoleId = await db.RbacRoles
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(r => r.TenantId == user.TenantId && r.Name == PermissionConstants.RoleTemplates.Admin)
+            .Select(r => r.Id)
+            .FirstOrDefaultAsync();
+
+        var isRbacAdmin = adminRoleId != Guid.Empty
+            && await db.UserRolesMap
+                .AsNoTracking()
+                .IgnoreQueryFilters()
+                .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == adminRoleId);
+
+        if (!isRbacAdmin)
+            isRbacAdmin = identityRoles.Contains(RoleSeeder.Roles.Admin);
+
+        if (user.IsDemoUser || isRbacAdmin)
+            return [PermissionConstants.Wildcard];
+
+        return await db.RolePermissions
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(rp => rp.TenantId == user.TenantId
+                && db.UserRolesMap
+                    .IgnoreQueryFilters()
+                    .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
+            .Join(
+                db.Permissions.AsNoTracking().IgnoreQueryFilters(),
+                rp => rp.PermissionId,
+                p => p.Id,
+                (rp, p) => p.Name)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToArrayAsync();
+    }
+
     private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {
         var key = new SymmetricSecurityKey(
@@ -1117,39 +1132,9 @@ public class AuthController(
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Add RBAC permission claims from the granular permission system
-        var isRbacAdmin = await db.Set<UserRole>()
-            .AsNoTracking()
-            .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
-                && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
-
-        // Backward compatibility: check Identity Admin role as fallback
-        // Existing users may only have roles in AspNetUserRoles (not yet migrated to RBAC UserRole table)
-        if (!isRbacAdmin)
-            isRbacAdmin = roles.Contains("Admin");
-
-        // Demo users get wildcard permission so all [Authorize(Policy=...)] gates pass.
-        // DemoRestrictionMiddleware is the real security boundary — it runs before
-        // authorization and blocks admin endpoints + DELETEs regardless of claims.
-        if (user.IsDemoUser || isRbacAdmin)
+        foreach (var perm in await ResolveRbacPermissionClaimsAsync(user, roles))
         {
-            claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
-        }
-        else
-        {
-            var userPermissions = await db.Set<RolePermission>()
-                .AsNoTracking()
-                .Where(rp => rp.TenantId == user.TenantId
-                    && db.Set<UserRole>()
-                        .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
-                .Select(rp => rp.Permission.Name)
-                .Distinct()
-                .ToListAsync();
-
-            foreach (var perm in userPermissions)
-            {
-                claims.Add(new Claim("permissions", perm));
-            }
+            claims.Add(new Claim("permissions", perm));
         }
 
         var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");

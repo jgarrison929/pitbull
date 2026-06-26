@@ -134,4 +134,10 @@ Shared transition helpers: `src/Pitbull.Web/pitbull-web/src/lib/workflow-transit
 
 Subagent frontend review (2026-06-25): all eight PM/finance workflow pages now match backend allowed transitions.
 
-API smoke evidence: `scripts/workflow-api-smoke.ps1` → `api-workflow-launch.log` — dual-run against live API (`docker compose up -d`, `dotnet run` on port 5081). Covers bid, change order, RFI (+ invalid transition), sub pay app, owner billing, daily report, and time entry lifecycles.
+API smoke evidence: `scripts/workflow-api-smoke.ps1` — single-admin path (`api-workflow-launch.log`) plus **role paths** (`-RoleProfile PM|AR|AP -UseDemoUsers`) logged to `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\role-smoke.log` (6 runs, 2026-06-25). Per persona: bid, project+assignment, change order, RFI, sub pay app, owner billing, daily report, time entry, submittal; CEO bootstrap for company-scoped pay periods where persona lacks `Admin.Settings`.
+
+Role browser E2E: `e2e/tests/role-workflows.spec.ts` + `e2e/fixtures/auth-multi.setup.ts` — recordings under `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\role-e2e\recordings\`. Requires `pitbull-web/.env.local` with `NEXT_PUBLIC_API_BASE_URL=http://localhost:5081`. First-principles review: `%LOCALAPPDATA%\Temp\grok-goal-7bd6e34ca9b6\implementer\first-principles-review.md`.
+
+| Gate | Role E2E evidence (2026-06-25) |
+|------|--------------------------------|
+| G6 | L2 Playwright PM Day-1 chain; API smoke project-scoped daily report + assignment fix validates no dead-end on PM-owned steps |

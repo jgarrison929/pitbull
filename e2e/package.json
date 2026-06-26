@@ -5,6 +5,8 @@
   "description": "Playwright e2e tests and PR demo recordings for Pitbull Construction Solutions",
   "scripts": {
     "test": "npx playwright test",
+    "test:roles": "npx playwright test --project=role-workflows",
+    "test:roles:setup": "npx playwright test --project=setup-roles",
     "record-demo": "npx playwright test --project=demo-recording",
     "record-demo:headed": "npx playwright test --project=demo-recording --headed"
   },

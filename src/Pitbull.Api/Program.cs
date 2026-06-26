@@ -607,10 +607,11 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
 
-    // Login: 10 requests per minute (allows for typos/retries)
+    // Login: relaxed in Development so role E2E / multi-persona smoke does not hit 429
+    var loginPermitLimit = builder.Environment.IsDevelopment() ? 120 : 10;
     options.AddFixedWindowLimiter("login", opt =>
     {
-        opt.PermitLimit = 10;
+        opt.PermitLimit = loginPermitLimit;
         opt.Window = TimeSpan.FromMinutes(1);
         opt.QueueLimit = 0;
     });

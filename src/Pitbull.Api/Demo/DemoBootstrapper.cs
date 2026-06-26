@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Infrastructure;
+using Pitbull.Api.Services;
+using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
@@ -20,6 +22,7 @@ public sealed class DemoBootstrapper(
     CompanyContext companyContext,
     UserManager<AppUser> userManager,
     RoleSeeder roleSeeder,
+    IRoleService roleService,
     ISeedDataService seedDataService,
     IOptions<DemoOptions> options,
     ILogger<DemoBootstrapper> logger)
@@ -46,6 +49,9 @@ public sealed class DemoBootstrapper(
         tenantContext.TenantId = tenant.Id;
         tenantContext.TenantName = tenant.Name;
 
+        // RBAC must run even when domain seed throws (e.g. duplicate cost-code keys on re-seed).
+        await EnsureDemoRbacRoleAssignmentsAsync(tenant.Id, cancellationToken);
+
         // Establish company context for EF auto-set of CompanyId on ICompanyScoped entities.
         companyContext.CompanyId = company.Id;
         companyContext.CompanyCode = company.Code;
@@ -70,17 +76,20 @@ public sealed class DemoBootstrapper(
             // Seed domain data (projects/bids/etc). This is idempotent per tenant.
             // useExternalTransaction: true — we already have a transaction with RLS set_config.
             // SeedAsync must NOT start a nested transaction or it will throw.
-            var result = await seedDataService.SeedAsync(cancellationToken, useExternalTransaction: true);
+            Pitbull.Core.CQRS.Result<SeedDataResult>? result = null;
+            try
+            {
+                result = await seedDataService.SeedAsync(cancellationToken, useExternalTransaction: true);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Demo domain seed threw; rolling back seed transaction");
+                await tx.RollbackAsync(cancellationToken);
+                return;
+            }
 
             if (result.IsSuccess || result.ErrorCode == "ALREADY_EXISTS")
             {
-                // Ensure demo users have Employee records (for /api/employees/my-crew)
-                await EnsureDemoEmployeeRecordsAsync(demo, cancellationToken);
-                await EnsureAllDemoEmployeesAsync(allCompanies, cancellationToken);
-
-                // Assign PM-level and executive demo users to seed projects
-                await EnsureDemoProjectAssignmentsAsync(cancellationToken);
-
                 // Dismiss onboarding checklists for demo users so the wizard doesn't show
                 var undismissedChecklists = await db.Set<OnboardingChecklist>()
                     .Where(c => !c.Dismissed)
@@ -107,6 +116,11 @@ public sealed class DemoBootstrapper(
 
             logger.LogWarning("Demo seed failed: {Code} {Message}", result.ErrorCode, result.Error);
         });
+
+        // HR + project assignments must survive domain seed rollbacks (e.g. duplicate cost-code keys).
+        await EnsureDemoEmployeeRecordsAsync(demo, cancellationToken);
+        await EnsureAllDemoEmployeesAsync(allCompanies, cancellationToken);
+        await EnsureDemoProjectAssignmentsAsync(cancellationToken);
 
         // Post-seed maintenance: keep time entry dates current so dashboard KPIs have data
         await RefreshTimeEntryDatesAsync(tenant.Id, cancellationToken);
@@ -999,5 +1013,79 @@ public sealed class DemoBootstrapper(
             await db.SaveChangesAsync(ct);
 
         return created;
+    }
+
+    /// <summary>
+    /// Maps pre-seeded demo accounts to granular RBAC roles so JWT permission claims
+    /// reflect persona boundaries (AP clerk vs PM vs Foreman). Identity Admins are
+    /// skipped — RoleService auto-migrates them to RBAC Admin.
+    /// </summary>
+    private async Task EnsureDemoRbacRoleAssignmentsAsync(Guid tenantId, CancellationToken ct)
+    {
+        tenantContext.TenantId = tenantId;
+
+        // Triggers RBAC permission/role seed for the demo tenant
+        var roleList = await roleService.ListRolesAsync(ct);
+        var rbacRoles = roleList.ToDictionary(r => r.Name, r => r.Id, StringComparer.OrdinalIgnoreCase);
+
+        var assigned = 0;
+        foreach (var def in DemoUsers)
+        {
+            var user = await userManager.FindByEmailAsync(def.Email);
+            if (user is null)
+                continue;
+
+            if (await roleSeeder.UserHasRoleAsync(user, RoleSeeder.Roles.Admin))
+                continue;
+
+            var rbacRoleName = ResolveDemoRbacRoleName(def);
+            if (!rbacRoles.TryGetValue(rbacRoleName, out var roleId))
+            {
+                logger.LogWarning("RBAC role {RoleName} not found for demo user {Email}", rbacRoleName, def.Email);
+                continue;
+            }
+
+            if (await roleService.AssignUserRoleAsync(user.Id, roleId, ct))
+                assigned++;
+        }
+
+        if (assigned > 0)
+            logger.LogInformation("Assigned granular RBAC roles to {Count} demo users", assigned);
+    }
+
+    private static string ResolveDemoRbacRoleName(DemoUserDef def)
+    {
+        var email = def.Email.ToLowerInvariant();
+
+        if (email.Contains("payroll"))
+            return PermissionConstants.RoleTemplates.PayrollSpecialist;
+
+        if (email is "ap-clerk@demo.local" or "mgr-purchasing@demo.local")
+            return PermissionConstants.RoleTemplates.Controller;
+
+        if (email is "ar-clerk@demo.local" or "staff-accountant@demo.local"
+            or "mgr-accounting@demo.local" or "vp-accounting@demo.local" or "vp-controller@demo.local"
+            or "sr-dir-accounting@demo.local")
+            return PermissionConstants.RoleTemplates.Controller;
+
+        if (email.Contains("estimator") || email.Contains("estimating"))
+            return PermissionConstants.RoleTemplates.Estimator;
+
+        if (email is "field-eng@demo.local")
+            return PermissionConstants.RoleTemplates.Foreman;
+
+        if (def.Role is RoleSeeder.Roles.Supervisor or RoleSeeder.Roles.Manager
+            && (email.Contains("pm") || email.Contains("project") || email.Contains("commissioning")
+                || email.Contains("chief-eng") || email.Contains("vp-ops")))
+            return PermissionConstants.RoleTemplates.ProjectManager;
+
+        if (def.Role == RoleSeeder.Roles.Manager)
+            return PermissionConstants.RoleTemplates.Executive;
+
+        if (def.Role == RoleSeeder.Roles.User
+            && def.Classification == EmployeeClassification.Hourly)
+            return PermissionConstants.RoleTemplates.Foreman;
+
+        return PermissionConstants.RoleTemplates.Viewer;
     }
 }
