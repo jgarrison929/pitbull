@@ -1,8 +1,7 @@
 {
   "$schema": "https://schema.railpack.com",
   "provider": "dotnet",
-  "installCommand": "dotnet restore Pitbull.sln",
-  "buildCommand": "dotnet publish src/Pitbull.Api/Pitbull.Api.csproj -c Release -o out --no-restore",
+  "buildCommand": "dotnet publish src/Pitbull.Api/Pitbull.Api.csproj -c Release -o out",
   "deploy": {
     "startCommand": "./out/Pitbull.Api"
   }
