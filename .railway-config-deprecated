@@ -1,0 +1,3 @@
+# This file marks that the old railway.toml has been removed.
+# Railway now uses src/Pitbull.Api/railway.json for the API service.
+# This prevents build conflicts.

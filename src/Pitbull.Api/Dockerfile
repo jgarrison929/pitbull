@@ -8,12 +8,11 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /app
 
-# Copy all source files first (before restore)
-COPY src/ src/
+# Copy root files (Directory.Build.props, .sln, etc.)
 COPY . .
 
-# Restore dependencies (now .csproj files are present)
-RUN dotnet restore src/Pitbull.Api/Pitbull.Api.csproj
+# Restore dependencies
+RUN dotnet restore Pitbull.sln
 
 # Build args for version info
 ARG VERSION=0.15.0
