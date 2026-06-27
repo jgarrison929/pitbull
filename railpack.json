@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.railpack.com",
   "provider": "dotnet",
-  "dotnet": {
-    "projectPath": "src/Pitbull.Api/Pitbull.Api.csproj"
+  "buildCommand": "dotnet publish src/Pitbull.Api/Pitbull.Api.csproj -c Release -o out",
+  "deploy": {
+    "startCommand": "./out/Pitbull.Api"
   }
 }
