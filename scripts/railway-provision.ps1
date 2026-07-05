@@ -92,9 +92,12 @@ railway variables set -s pitbull --skip-deploys `
     "Demo__UserPassword=$demoPw" `
     'SeedData__AllowInNonDevelopment=true' 2>&1 | Out-Null
 
+railway variables set -s pitbull --skip-deploys 'RAILWAY_HEALTHCHECK_PATH=/health/live' 2>&1 | Out-Null
+
 railway variables set -s pitbull-web --skip-deploys `
     "NEXT_PUBLIC_API_BASE_URL=$apiUrl" `
-    'RAILWAY_DOCKERFILE_PATH=src/Pitbull.Web/pitbull-web/Dockerfile' 2>&1 | Out-Null
+    'RAILWAY_DOCKERFILE_PATH=src/Pitbull.Web/pitbull-web/Dockerfile' `
+    'RAILWAY_HEALTHCHECK_PATH=/' 2>&1 | Out-Null
 
 Write-Host "`n=== Done ===" -ForegroundColor Cyan
 Write-Host "API:  $apiUrl"

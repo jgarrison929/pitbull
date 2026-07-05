@@ -22,7 +22,17 @@ Railway Project
 
 - GitHub repo: `https://github.com/jgarrison929/pitbull`
 - Railway account with GitHub connected ([railway.com](https://railway.com))
-- Optional: [Railway CLI](https://docs.railway.com/guides/cli) (`npm i -g @railway/cli`)
+- [Railway CLI](https://docs.railway.com/guides/cli): `npm i -g @railway/cli` then `railway login`
+
+### One-command CLI provision
+
+```powershell
+railway login
+.\scripts\railway-provision.ps1
+git push origin main   # one deploy per commit — do NOT also run railway redeploy
+```
+
+**Important:** GitHub auto-deploy is enabled. Pushing to `main` triggers a deploy. Do not chain `railway redeploy --from-source` after a push (that causes double deploys).
 
 ---
 
