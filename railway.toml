@@ -1,5 +1,8 @@
-[deploy]
-startCommand = "./out/Pitbull.Api"
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "src/Pitbull.Api/Dockerfile"
 
-[variables]
-RAILPACK_INSTALL_CMD = "dotnet restore Pitbull.sln"
+[deploy]
+healthcheckPath = "/health/live"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
