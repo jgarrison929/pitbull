@@ -31,7 +31,8 @@ services:
 
   web:
     build:
-      context: ./src/Pitbull.Web/pitbull-web
+      context: .
+      dockerfile: src/Pitbull.Web/pitbull-web/Dockerfile
       args:
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
         - NEXT_PUBLIC_APP_VERSION=${APP_VERSION:-0.15.0}

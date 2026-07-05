@@ -18,19 +18,22 @@ public static class RailwayDatabaseUrl
             return databaseUrl;
         }
 
-        // Repair truncated sslmode query params seen from some Railway templates.
-        if (databaseUrl.EndsWith("?sslmode", StringComparison.OrdinalIgnoreCase) ||
-            databaseUrl.EndsWith("&sslmode", StringComparison.OrdinalIgnoreCase))
+        // NpgsqlConnectionStringBuilder does not accept postgresql:// URIs — parse manually.
+        var uri = new Uri(databaseUrl);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var builder = new NpgsqlConnectionStringBuilder
         {
-            databaseUrl += "=require";
-        }
-
-        var builder = new NpgsqlConnectionStringBuilder(databaseUrl);
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Database = uri.AbsolutePath.TrimStart('/'),
+            Username = Uri.UnescapeDataString(userInfo[0]),
+            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty
+        };
 
         // Private Railway networking does not use TLS between services.
-        if (builder.Host?.Contains("railway.internal", StringComparison.OrdinalIgnoreCase) == true)
+        if (builder.Host.Contains("railway.internal", StringComparison.OrdinalIgnoreCase))
             builder.SslMode = SslMode.Disable;
-        else if (builder.SslMode == SslMode.Prefer)
+        else
             builder.SslMode = SslMode.Require;
 
         return builder.ConnectionString;
