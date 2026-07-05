@@ -44,8 +44,12 @@ public static class EnvironmentValidator
             return;
         }
 
-        // Basic connection string validation
-        if (!connectionString.Contains("Database=") && !connectionString.Contains("Initial Catalog="))
+        // Basic connection string validation (Npgsql key=value or postgresql:// URI)
+        var isUri = connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)
+            || connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase);
+        if (!isUri
+            && !connectionString.Contains("Database=", StringComparison.OrdinalIgnoreCase)
+            && !connectionString.Contains("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
         {
             errors.Add($"Invalid connection string format: {key} (missing database name)");
         }

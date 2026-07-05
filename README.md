@@ -121,11 +121,25 @@ dotnet test tests/Pitbull.Tests.Integration --configuration Release
 
 ## Deployment
 
-Self-hosted via Docker Compose. See [docker-compose.prod.yml](docker-compose.prod.yml) and [.env.example](.env.example).
+### Railway (recommended for hosted demo)
+
+See **[deploy/RAILWAY-SETUP.md](deploy/RAILWAY-SETUP.md)** for full setup on a new Railway account.
+
+Quick start:
+
+```powershell
+.\scripts\railway-setup.ps1 -ApiUrl "https://your-api.up.railway.app" -WebUrl "https://your-web.up.railway.app"
+```
+
+Services: **Postgres** + **pitbull-api** (`src/Pitbull.Api`) + **pitbull-web** (`src/Pitbull.Web/pitbull-web`). Auto-deploys from `main`.
+
+### Self-hosted (Docker Compose)
+
+See [docker-compose.prod.yml](docker-compose.prod.yml) and [.env.example](.env.example).
 
 | Variable | Description |
 |----------|-------------|
-| `ConnectionStrings__PitbullDb` | PostgreSQL connection string |
+| `ConnectionStrings__PitbullDb` or `DATABASE_URL` | PostgreSQL connection string |
 | `Jwt__Key` | JWT signing key (min 32 chars) |
 | `Cors__AllowedOrigins__0` | Frontend URL |
 | `NEXT_PUBLIC_API_BASE_URL` | API URL (frontend build-time) |
