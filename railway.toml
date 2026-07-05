@@ -1,8 +1,2 @@
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "src/Pitbull.Api/Dockerfile"
-
-[deploy]
-healthcheckPath = "/health/live"
-healthcheckTimeout = 300
-restartPolicyType = "ON_FAILURE"
