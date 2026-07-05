@@ -32,8 +32,9 @@ COPY src/Infrastructure/Pitbull.Email/Pitbull.Email.csproj src/Infrastructure/Pi
 COPY src/Infrastructure/Pitbull.Storage/Pitbull.Storage.csproj src/Infrastructure/Pitbull.Storage/
 COPY src/Infrastructure/Pitbull.Messaging/Pitbull.Messaging.csproj src/Infrastructure/Pitbull.Messaging/
 
-# Copy test project file if it exists
-COPY tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj tests/Pitbull.Tests.Unit/ 2>/dev/null || true
+# Test projects are in Pitbull.sln — copy csproj only for restore graph
+COPY tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj tests/Pitbull.Tests.Unit/
+COPY tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj tests/Pitbull.Tests.Integration/
 
 # Restore dependencies (now all .csproj and .sln files are present)
 RUN dotnet restore Pitbull.sln
@@ -44,7 +45,6 @@ ARG COMMIT_HASH=unknown
 
 # Copy all source files
 COPY src/ src/
-COPY tests/ tests/ 2>/dev/null || true
 
 # Publish
 RUN dotnet publish src/Pitbull.Api/Pitbull.Api.csproj \
