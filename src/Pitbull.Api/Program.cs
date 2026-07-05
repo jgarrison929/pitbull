@@ -51,16 +51,9 @@ var pitbullDb = builder.Configuration.GetConnectionString("PitbullDb");
 if (!string.IsNullOrWhiteSpace(databaseUrl) &&
     (string.IsNullOrWhiteSpace(pitbullDb) || pitbullDb.Contains("localhost", StringComparison.OrdinalIgnoreCase)))
 {
-    var connStr = databaseUrl;
-    if (connStr.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) &&
-        !connStr.Contains("ssl", StringComparison.OrdinalIgnoreCase))
-    {
-        connStr += connStr.Contains('?') ? "&sslmode=require" : "?sslmode=require";
-    }
-
     builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
     {
-        ["ConnectionStrings:PitbullDb"] = connStr
+        ["ConnectionStrings:PitbullDb"] = RailwayDatabaseUrl.Normalize(databaseUrl)
     });
 }
 
