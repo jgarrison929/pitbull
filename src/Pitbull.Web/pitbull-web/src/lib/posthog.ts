@@ -48,7 +48,9 @@ export function captureApiError(
 export function initPostHog() {
   if (typeof window === "undefined") return;
 
-  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const key =
+    process.env.NEXT_PUBLIC_POSTHOG_KEY ||
+    process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
   if (!key) {
@@ -61,6 +63,7 @@ export function initPostHog() {
 
   posthog.init(key, {
     api_host: host || "https://us.i.posthog.com",
+    defaults: "2026-05-30",
     person_profiles: "identified_only",
     capture_pageview: false, // We handle this manually via the PageViewTracker
     capture_pageleave: true,
