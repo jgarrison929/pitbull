@@ -36,6 +36,9 @@ terminals/
 pitbull-pgdata/
 pitbull-redis/
 
+# Railway local env templates (generated secrets)
+deploy/railway.env.template
+
 # Agent local settings (machine-specific permissions)
 .claude/settings.local.json
 

@@ -1,5 +1,2 @@
-[deploy]
-startCommand = "./out/Pitbull.Api"
-
-[variables]
-RAILPACK_INSTALL_CMD = "dotnet restore Pitbull.sln"
+[build]
+builder = "DOCKERFILE"

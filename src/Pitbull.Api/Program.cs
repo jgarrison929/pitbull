@@ -45,6 +45,18 @@ using Serilog.Formatting.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Railway/Heroku Postgres exposes DATABASE_URL; map it when PitbullDb is unset or still localhost.
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var pitbullDb = builder.Configuration.GetConnectionString("PitbullDb");
+if (!string.IsNullOrWhiteSpace(databaseUrl) &&
+    (string.IsNullOrWhiteSpace(pitbullDb) || pitbullDb.Contains("localhost", StringComparison.OrdinalIgnoreCase)))
+{
+    builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["ConnectionStrings:PitbullDb"] = RailwayDatabaseUrl.Normalize(databaseUrl)
+    });
+}
+
 // QuestPDF community license
 QuestPDF.Settings.License = LicenseType.Community;
 
@@ -169,6 +181,7 @@ builder.Services.AddSingleton<Pitbull.TimeTracking.Services.IGeofenceService, Pi
 // TimeTracking scoped services (require DbContext)
 builder.Services.AddScoped<Pitbull.TimeTracking.Services.IPayPeriodService, Pitbull.TimeTracking.Services.PayPeriodService>();
 builder.Services.AddScoped<Pitbull.TimeTracking.Services.IEmployeeService, Pitbull.TimeTracking.Services.EmployeeService>();
+builder.Services.AddScoped<Pitbull.Core.Services.IProjectTeamAssignmentService, Pitbull.TimeTracking.Services.ProjectTeamAssignmentService>();
 
 // Dashboard service (Core module - migrated from MediatR)
 builder.Services.AddScoped<Pitbull.Core.Features.Dashboard.IDashboardService, Pitbull.Core.Features.Dashboard.DashboardService>();

@@ -1,13 +1,14 @@
 # =============================================================================
 # Pitbull Web - Multi-stage Next.js Docker build
-# Build context: src/Pitbull.Web/pitbull-web/ (set Root Directory in Railway)
+# Build context: repository root
+# Usage: docker build -f src/Pitbull.Web/pitbull-web/Dockerfile .
 # =============================================================================
 
 # --- Stage 1: Dependencies ---
 FROM node:22-alpine AS deps
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY src/Pitbull.Web/pitbull-web/package.json src/Pitbull.Web/pitbull-web/package-lock.json* ./
 RUN npm ci --production=false
 
 # --- Stage 2: Build ---
@@ -15,7 +16,7 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY src/Pitbull.Web/pitbull-web/ .
 
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_APP_VERSION=0.15.0
