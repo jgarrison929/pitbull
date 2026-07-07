@@ -3,8 +3,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using Npgsql;
 using Xunit.Abstractions;
 using Pitbull.Api.Controllers;
+using Pitbull.Api.Infrastructure;
 using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.Api;
@@ -78,6 +80,41 @@ public sealed class OwnerSignupIntegrationTests(PostgresFixture db, ITestOutputH
         var costCodesBody = await costCodesResp.Content.ReadAsStringAsync();
         output.WriteLine($"OWNER_SIGNUP costCodes status={(int)costCodesResp.StatusCode} body={costCodesBody}");
         costCodesResp.EnsureSuccessStatusCode();
+
+        var tenantId = Guid.Parse(jwt.Claims.First(c => c.Type == "tenant_id").Value);
+        var roleCount = await CountTenantRolesAsync(tenantId);
+        output.WriteLine($"OWNER_SIGNUP roleCount={roleCount}");
+        Assert.Equal(RoleSeeder.Roles.All.Length, roleCount);
+    }
+
+    [Fact]
+    public async Task OwnerRegister_WizardEquivalentPayload_Succeeds()
+    {
+        await db.ResetAsync();
+        var email = $"wizard-{Guid.NewGuid():N}@example.com";
+
+        using var client = _factory.CreateClient();
+        var registerResp = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(
+            Email: email,
+            Password: "SecurePass123",
+            FirstName: "Wizard",
+            LastName: "Owner",
+            TenantId: default,
+            CompanyName: "Wizard Construction LLC",
+            IndustryType: "general-contractor",
+            EmployeeRange: "11-50"));
+
+        var body = await registerResp.Content.ReadAsStringAsync();
+        output.WriteLine($"OWNER_WIZARD register status={(int)registerResp.StatusCode} body={body}");
+
+        registerResp.EnsureSuccessStatusCode();
+        var auth = await registerResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
+        Assert.NotNull(auth);
+        Assert.Contains("Admin", auth!.Roles);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
+        var setupResp = await client.GetAsync("/api/users/me");
+        setupResp.EnsureSuccessStatusCode();
     }
 
     [Fact]
@@ -141,5 +178,16 @@ public sealed class OwnerSignupIntegrationTests(PostgresFixture db, ITestOutputH
             CompanyName: "Should Fail"));
 
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    private async Task<int> CountTenantRolesAsync(Guid tenantId)
+    {
+        await using var conn = new NpgsqlConnection(db.AdminConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = new NpgsqlCommand(
+            """SELECT COUNT(*)::int FROM roles WHERE "TenantId" = @tenantId""",
+            conn);
+        cmd.Parameters.AddWithValue("tenantId", tenantId);
+        return (int)(await cmd.ExecuteScalarAsync() ?? 0);
     }
 }

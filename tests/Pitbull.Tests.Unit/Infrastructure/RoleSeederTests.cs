@@ -20,6 +20,8 @@ public class RoleSeederTests
         var roleStore = new Mock<IRoleStore<AppRole>>();
         var roleManager = new Mock<RoleManager<AppRole>>(
             roleStore.Object, null!, null!, null!, null!);
+        roleManager.Setup(r => r.RoleExistsAsync(It.IsAny<string>()))
+            .Returns<string>(name => Task.FromResult(db.Set<AppRole>().Any(r => r.Name == name)));
         roleManager.Setup(r => r.CreateAsync(It.IsAny<AppRole>()))
             .Callback<AppRole>(role =>
             {

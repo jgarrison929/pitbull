@@ -41,9 +41,10 @@ Registration is blocked only when **both** `Demo.Enabled` and `DisableRegistrati
 
 ## Test plan
 
-- Integration: `OwnerSignupIntegrationTests` (2 runs captured to scratch)
+- Integration: `OwnerSignupIntegrationTests` — register, wizard-equivalent payload, role count, login round-trip
+- Playwright: `owner-signup.spec.ts` — full wizard submit, `POST /api/auth/register`, cookie `pitbull_token`, `/admin/users` without login redirect
+- Vitest: `auth.test.ts` — `buildAuthCookie` omits `Secure` on `http://localhost`
 - Regression: existing `AuthFlowTests` unchanged
-- Frontend: static assert `/signup` link on login page; `npm run build`
 
 ## PR
 
