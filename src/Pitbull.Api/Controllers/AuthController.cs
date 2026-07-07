@@ -39,6 +39,7 @@ public class AuthController(
     IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator,
     Pitbull.Core.MultiTenancy.TenantContext tenantContext,
+    ITenantProvisioningService tenantProvisioning,
     IServiceScopeFactory scopeFactory,
     ILogger<AuthController> logger) : ControllerBase
 {
@@ -248,19 +249,10 @@ public class AuthController(
                 user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
                 await userManager.UpdateAsync(user);
 
-                await transaction.CommitAsync();
+                // Seed defaults before commit — registration fails if provisioning fails
+                await tenantProvisioning.ProvisionTenantAsync(tenantId, defaultCompany.Id);
 
-                // Seed default cost codes, permissions, and roles outside the registration transaction
-                try
-                {
-                    using var provisionScope = scopeFactory.CreateScope();
-                    var provisioning = provisionScope.ServiceProvider.GetRequiredService<ITenantProvisioningService>();
-                    await provisioning.ProvisionTenantAsync(tenantId, defaultCompany.Id);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(ex, "Tenant provisioning failed for {TenantId}; user can retry via onboarding", tenantId);
-                }
+                await transaction.CommitAsync();
 
                 var token = await GenerateJwtTokenAsync(user);
                 actionResult = Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));

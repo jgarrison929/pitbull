@@ -46,9 +46,9 @@ public sealed class RoleSeeder(
     {
         foreach (var roleName in Roles.All)
         {
-            // Check if role already exists for this tenant
+            var tenantRoleName = $"{tenantId}:{roleName}";
             var existingRole = await db.Set<AppRole>()
-                .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.Name == roleName, ct);
+                .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.Name == tenantRoleName, ct);
 
             if (existingRole is not null)
                 continue;

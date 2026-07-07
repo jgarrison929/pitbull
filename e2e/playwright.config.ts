@@ -51,5 +51,10 @@ export default defineConfig({
       testMatch: /role-workflows\.spec\.ts/,
       retries: 0,
     },
+    {
+      name: 'owner-signup',
+      testMatch: /owner-signup\.spec\.ts/,
+      retries: 0,
+    },
   ],
 });

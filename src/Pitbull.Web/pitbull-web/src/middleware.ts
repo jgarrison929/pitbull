@@ -32,9 +32,10 @@ function hasAdminRole(payload: Record<string, unknown>): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // In demo environment, funnel all registration through /demo
-  // so everyone gets the same demo experience with proper company access.
-  if (pathname === "/signup" || pathname === "/register") {
+  // Public demo only: funnel registration through /demo when explicitly disabled.
+  // Production and local dev leave /signup accessible for owner self-service.
+  const registrationDisabled = process.env.NEXT_PUBLIC_DISABLE_REGISTRATION === "true";
+  if (registrationDisabled && (pathname === "/signup" || pathname === "/register")) {
     return NextResponse.redirect(new URL("/demo", request.url));
   }
 
