@@ -11,17 +11,13 @@ namespace Pitbull.Tests.Unit.Infrastructure;
 
 public class RoleSeederTests
 {
-    [Fact]
-    public async Task EnsureRolesForTenantAsync_IsIdempotent_DoesNotDuplicateRoles()
+    private static (RoleSeeder Seeder, Mock<RoleManager<AppRole>> RoleManager, Pitbull.Core.Data.PitbullDbContext Db)
+        CreateSeeder()
     {
-        var tenantId = Guid.NewGuid();
-        using var db = TestDbContextFactory.Create();
-
+        var db = TestDbContextFactory.Create();
         var roleStore = new Mock<IRoleStore<AppRole>>();
         var roleManager = new Mock<RoleManager<AppRole>>(
             roleStore.Object, null!, null!, null!, null!);
-        roleManager.Setup(r => r.RoleExistsAsync(It.IsAny<string>()))
-            .Returns<string>(name => Task.FromResult(db.Set<AppRole>().Any(r => r.Name == name)));
         roleManager.Setup(r => r.CreateAsync(It.IsAny<AppRole>()))
             .Callback<AppRole>(role =>
             {
@@ -40,6 +36,15 @@ public class RoleSeederTests
             db,
             NullLogger<RoleSeeder>.Instance);
 
+        return (seeder, roleManager, db);
+    }
+
+    [Fact]
+    public async Task EnsureRolesForTenantAsync_IsIdempotent_DoesNotDuplicateRoles()
+    {
+        var tenantId = Guid.NewGuid();
+        var (seeder, roleManager, db) = CreateSeeder();
+
         await seeder.EnsureRolesForTenantAsync(tenantId);
         await seeder.EnsureRolesForTenantAsync(tenantId);
 
@@ -52,5 +57,46 @@ public class RoleSeederTests
         stored.Should().HaveCount(5);
         stored.Should().OnlyHaveUniqueItems();
         stored.Should().Contain($"{tenantId}:{RoleSeeder.Roles.Admin}");
+    }
+
+    [Fact]
+    public async Task EnsureRolesForTenantAsync_SkipsCreateWhenRoleAlreadyInDb()
+    {
+        var tenantId = Guid.NewGuid();
+        var (seeder, roleManager, db) = CreateSeeder();
+
+        foreach (var roleName in RoleSeeder.Roles.All)
+        {
+            db.Set<AppRole>().Add(new AppRole
+            {
+                Id = Guid.NewGuid(),
+                Name = $"{tenantId}:{roleName}",
+                NormalizedName = $"{tenantId}:{roleName}".ToUpperInvariant(),
+                TenantId = tenantId,
+                IsSystemRole = true,
+            });
+        }
+        await db.SaveChangesAsync();
+
+        await seeder.EnsureRolesForTenantAsync(tenantId);
+
+        roleManager.Verify(r => r.CreateAsync(It.IsAny<AppRole>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task EnsureRolesForTenantAsync_TreatsAlreadyTakenAsSuccess()
+    {
+        var tenantId = Guid.NewGuid();
+        var (seeder, roleManager, _) = CreateSeeder();
+
+        roleManager.Setup(r => r.CreateAsync(It.IsAny<AppRole>()))
+            .ReturnsAsync(IdentityResult.Failed(new IdentityError
+            {
+                Code = "DuplicateRoleName",
+                Description = "Role name 'x' is already taken."
+            }));
+
+        var act = () => seeder.EnsureRolesForTenantAsync(tenantId);
+        await act.Should().NotThrowAsync();
     }
 }

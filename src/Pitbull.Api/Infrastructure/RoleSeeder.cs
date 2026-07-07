@@ -47,7 +47,7 @@ public sealed class RoleSeeder(
         foreach (var roleName in Roles.All)
         {
             var tenantRoleName = $"{tenantId}:{roleName}";
-            if (await roleManager.RoleExistsAsync(tenantRoleName))
+            if (await TenantRoleExistsAsync(tenantId, tenantRoleName, ct))
                 continue;
 
             var role = new AppRole
@@ -65,7 +65,7 @@ public sealed class RoleSeeder(
             {
                 logger.LogInformation("Created role {RoleName} for tenant {TenantId}", roleName, tenantId);
             }
-            else if (result.Errors.All(e => e.Code == "DuplicateRoleName"))
+            else if (IsDuplicateRoleResult(result))
             {
                 logger.LogDebug("Role {RoleName} already exists for tenant {TenantId}", roleName, tenantId);
             }
@@ -76,6 +76,18 @@ public sealed class RoleSeeder(
             }
         }
     }
+
+    private async Task<bool> TenantRoleExistsAsync(Guid tenantId, string tenantRoleName, CancellationToken ct)
+    {
+        return await db.Set<AppRole>()
+            .IgnoreQueryFilters()
+            .AnyAsync(r => r.TenantId == tenantId && r.Name == tenantRoleName, ct);
+    }
+
+    private static bool IsDuplicateRoleResult(IdentityResult result) =>
+        result.Errors.All(e =>
+            e.Code == "DuplicateRoleName" ||
+            (e.Description?.Contains("already taken", StringComparison.OrdinalIgnoreCase) ?? false));
 
     /// <summary>
     /// Assigns a role to a user within their tenant context.

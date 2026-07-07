@@ -88,6 +88,34 @@ public sealed class OwnerSignupIntegrationTests(PostgresFixture db, ITestOutputH
     }
 
     [Fact]
+    public async Task OwnerRegister_CamelCaseWizardJsonBody_Succeeds()
+    {
+        await db.ResetAsync();
+        var email = $"camel-{Guid.NewGuid():N}@example.com";
+
+        using var client = _factory.CreateClient();
+        var wizardBody = new
+        {
+            firstName = "  Test  ",
+            lastName = "Owner",
+            email,
+            password = "SecurePass123",
+            companyName = "Acme 123 Construction LLC",
+            industryType = "general-contractor",
+            employeeRange = "11-50",
+        };
+
+        var registerResp = await client.PostAsJsonAsync("/api/auth/register", wizardBody);
+        var body = await registerResp.Content.ReadAsStringAsync();
+        output.WriteLine($"OWNER_CAMEL register status={(int)registerResp.StatusCode} body={body}");
+
+        Assert.Equal(HttpStatusCode.Created, registerResp.StatusCode);
+        var auth = await registerResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
+        Assert.NotNull(auth);
+        Assert.Contains("Admin", auth!.Roles);
+    }
+
+    [Fact]
     public async Task OwnerRegister_WizardEquivalentPayload_Succeeds()
     {
         await db.ResetAsync();
