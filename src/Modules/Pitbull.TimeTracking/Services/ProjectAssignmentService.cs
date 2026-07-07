@@ -42,11 +42,15 @@ public class ProjectAssignmentService : IProjectAssignmentService
         if (employee == null)
             return Result.Failure<ProjectAssignmentDto>("Employee not found or inactive", "EMPLOYEE_NOT_FOUND");
 
-        // Validate that project exists
-        var project = await _db.Set<Project>()
-            .FirstOrDefaultAsync(p => p.Id == projectId, cancellationToken);
+        // Prefer change-tracker (create flow may stage project before SaveChanges).
+        Project? project = _db.ChangeTracker.Entries<Project>()
+            .Select(e => e.Entity)
+            .FirstOrDefault(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
+        project ??= await _db.Set<Project>()
+            .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);
+
+        if (project is null)
             return Result.Failure<ProjectAssignmentDto>("Project not found", "PROJECT_NOT_FOUND");
 
         // Default start date to today if not specified
@@ -73,6 +77,7 @@ public class ProjectAssignmentService : IProjectAssignmentService
 
         var assignment = new ProjectAssignment
         {
+            CompanyId = project.CompanyId,
             EmployeeId = employeeId,
             ProjectId = projectId,
             Role = role,

@@ -48,9 +48,11 @@ import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useRecentlyViewed } from "@/hooks/use-recently-viewed";
 import { CostForecastCard } from "@/components/dashboard/cost-forecast-card";
 import {
+  coerceProjectStatus,
   projectStatusBadgeClass,
   projectStatusLabel,
 } from "@/lib/projects";
+import { ProjectStatus } from "@/lib/types";
 import type {
   Employee,
   ListTimeEntriesResult,
@@ -197,6 +199,7 @@ export default function ProjectDetailPage({
   const [assignmentNotes, setAssignmentNotes] = useState("");
   const [assigningSaving, setAssigningSaving] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [isActivating, setIsActivating] = useState(false);
 
   const { addRecentProject } = useRecentProjects();
   const { addRecentItem } = useRecentlyViewed();
@@ -263,6 +266,24 @@ export default function ProjectDetailPage({
       setAssigningSaving(false);
     }
   }
+
+  async function activateProject() {
+    setIsActivating(true);
+    try {
+      const updated = await api<Project>(`/api/projects/${id}/activate`, { method: "POST" });
+      setProject(updated);
+      toast.success("Project activated");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to activate project");
+    } finally {
+      setIsActivating(false);
+    }
+  }
+
+  const projectStatus = project ? coerceProjectStatus(project.status) : null;
+  const canActivate =
+    projectStatus === ProjectStatus.Bidding ||
+    projectStatus === ProjectStatus.PreConstruction;
 
   async function removeAssignment(assignmentId: string) {
     setRemovingId(assignmentId);
@@ -451,8 +472,19 @@ export default function ProjectDetailPage({
               </div>
               <p className="font-mono text-sm text-muted-foreground mt-1">{project.number}</p>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Budget: <span className="font-semibold text-foreground">{formatCurrency(project.contractAmount)}</span>
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-sm text-muted-foreground">
+                Budget: <span className="font-semibold text-foreground">{formatCurrency(project.contractAmount)}</span>
+              </div>
+              {canActivate && (
+                <Button
+                  onClick={activateProject}
+                  disabled={isActivating}
+                  className="bg-amber-500 hover:bg-amber-600 text-white"
+                >
+                  {isActivating ? "Activating..." : "Activate Project"}
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>

@@ -156,6 +156,9 @@ public class ProjectService : IProjectService
             CreatedAt = DateTime.UtcNow
         };
 
+        if (_companyContext.IsResolved)
+            project.CompanyId = _companyContext.CompanyId;
+
         _db.Set<Project>().Add(project);
 
         ProjectSettings projectSettings = new();

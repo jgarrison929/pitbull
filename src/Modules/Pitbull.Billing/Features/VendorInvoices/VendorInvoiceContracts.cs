@@ -14,6 +14,7 @@ public record VendorInvoiceDto(
     string StatusName,
     Guid? PurchaseOrderId,
     InvoiceMatchResultDto? LatestMatchResult,
+    Guid? AccrualJournalEntryId,
     DateTime CreatedAt,
     DateTime? UpdatedAt
 );

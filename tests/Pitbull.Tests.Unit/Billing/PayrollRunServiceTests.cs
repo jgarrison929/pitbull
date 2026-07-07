@@ -91,15 +91,21 @@ public class PayrollRunServiceTests : IDisposable
         return emp;
     }
 
-    private async Task SeedCompany(OvertimeSettings? overtimeSettings = null)
+    private async Task SeedCompany(
+        OvertimeSettings? overtimeSettings = null,
+        Action<ReportSettings>? configureReport = null)
     {
+        ReportSettings reportSettings = new();
+        configureReport?.Invoke(reportSettings);
+
         Company company = new()
         {
             Id = TestCompanyId,
             TenantId = TestTenantId,
             Code = "01",
             Name = "Test Company",
-            OvertimeSettings = overtimeSettings ?? new OvertimeSettings()
+            OvertimeSettings = overtimeSettings ?? new OvertimeSettings(),
+            ReportSettings = reportSettings
         };
         _db.Set<Company>().Add(company);
         await _db.SaveChangesAsync();
@@ -581,6 +587,34 @@ public class PayrollRunServiceTests : IDisposable
     }
 
     // ── Generate: Overtime Calculation ──
+
+    [Fact]
+    public async Task GeneratePayrollRun_UsesReportSettingsCaliforniaDailyThreshold()
+    {
+        await SeedCompany(
+            overtimeSettings: new OvertimeSettings { Enabled = true },
+            configureReport: r =>
+            {
+                r.OvertimeRules = "California";
+                r.OvertimeEnabled = true;
+                r.DailyOvertimeThreshold = 6m;
+                r.DailyDoubletimeThreshold = 10m;
+            });
+
+        PayPeriod period = await SeedLockedPayPeriod();
+        Employee emp = await SeedEmployee(40m);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 7m);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        PayrollRunLineDto line = result.Value!.Lines[0];
+        line.RegularHours.Should().Be(6m);
+        line.OvertimeHours.Should().Be(1m);
+        line.RegularPay.Should().Be(240m);
+        line.OvertimePay.Should().Be(60m);
+    }
 
     [Fact]
     public async Task GeneratePayrollRun_DerivesOvertimeFromTenHourDay_WithDailyOtThresholdEight()

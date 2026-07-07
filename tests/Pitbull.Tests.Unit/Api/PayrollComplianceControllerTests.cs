@@ -78,11 +78,11 @@ public class PayrollComplianceControllerTests : IDisposable
         payload.EmployeeCount.Should().Be(1);
         payload.Lines.Should().HaveCount(1);
         payload.Lines[0].RegularHours.Should().Be(8m);
-        payload.Lines[0].OvertimeHours.Should().Be(2m);
-        payload.Lines[0].DoubletimeHours.Should().Be(1m);
-        payload.Lines[0].GrossPay.Should().Be(520m);
-        payload.TotalGross.Should().Be(520m);
-        payload.TotalNet.Should().Be(520m);
+        payload.Lines[0].OvertimeHours.Should().Be(3m);
+        payload.Lines[0].DoubletimeHours.Should().Be(0m);
+        payload.Lines[0].GrossPay.Should().Be(500m);
+        payload.TotalGross.Should().Be(500m);
+        payload.TotalNet.Should().Be(500m);
     }
 
     [Fact]

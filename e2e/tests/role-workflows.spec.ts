@@ -1,25 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { PERSONAS, DEMO_PASSWORD, LIFECYCLE_NAMES } from '../fixtures/roles';
+import { PERSONAS, LIFECYCLE_NAMES } from '../fixtures/roles';
 import {
-  loginApi,
   authHeaders,
-  getFirstActiveProjectId,
-  getFirstProjectIdForPersona,
-  getActiveCompanyId,
-  getDefaultCompanyId,
-  getEntityStatus,
-  ensureBillingPrereqs,
-  ensurePayAppPrereqs,
   ensureTimeTrackingPrereqs,
-  ensurePmProjectAssignment,
-  ensureVendorPrereqs,
-  createProjectWithPhases,
-  activateProject,
   runPayrollE2e,
+  configurePayrollOvertimeForE2e,
+  seedApprovedOvertimeTimeEntryForE2e,
+  ensurePayPeriodsForCompany,
   createOwnerChangeOrder,
   type AuthSession,
+  type BillingPrereqs,
   type PayAppPrereqs,
 } from '../fixtures/api-helpers';
+import { bootstrapRoleWorkflowPrereqs } from '../fixtures/e2e-bootstrap';
 import {
   openAsPersona,
   closeContext,
@@ -32,51 +25,31 @@ const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:5081';
 
 test.describe.configure({ mode: 'serial' });
 
+/** Prereqs are established once in bootstrapRoleWorkflowPrereqs; failures throw before any test runs. */
 test.describe('Role-based workflow lifecycles (UI-first)', () => {
   let runTag: string;
   let projectId: string;
   let pmProjectId: string;
-  let fieldCompanyId: string | null;
-  let financeCompanyId: string | null;
-  let payAppPrereqs: PayAppPrereqs | null;
-  let billingPrereqs: { ownerContractId: string; ownerScheduleOfValuesId: string } | null;
+  let companyId: string;
+  let payAppPrereqs: PayAppPrereqs;
+  let billingPrereqs: BillingPrereqs;
   let pmSession: AuthSession;
   let fieldSession: AuthSession;
   let apSession: AuthSession;
   let payrollSession: AuthSession;
 
   test.beforeAll(async ({ request }) => {
-    runTag = process.env.E2E_RUN_TAG ?? Date.now().toString(36);
-    pmSession = await loginApi(request, PERSONAS.pm.email, DEMO_PASSWORD);
-    fieldSession = await loginApi(request, PERSONAS.fieldEng.email, DEMO_PASSWORD);
-    apSession = await loginApi(request, PERSONAS.apClerk.email, DEMO_PASSWORD);
-    payrollSession = await loginApi(request, PERSONAS.payrollManager.email, DEMO_PASSWORD);
-    const pm = pmSession;
-    const field = fieldSession;
-    fieldCompanyId = await getActiveCompanyId(request, field);
-    financeCompanyId = await getDefaultCompanyId(request, pm);
-    projectId = await getFirstProjectIdForPersona(request, field);
-    await ensureTimeTrackingPrereqs(
-      request,
-      pm,
-      PERSONAS.fieldEng.email,
-      projectId,
-      fieldCompanyId
-    );
-    payAppPrereqs = await ensurePayAppPrereqs(request, pm, projectId, financeCompanyId, runTag);
-    billingPrereqs = await ensureBillingPrereqs(request, pm, financeCompanyId, runTag);
-    pmProjectId =
-      payAppPrereqs?.projectId ??
-      (await getFirstActiveProjectId(request, pm));
-    if (pmProjectId) {
-      await ensurePmProjectAssignment(request, pm, pmProjectId, financeCompanyId, {
-        fieldEmail: PERSONAS.fieldEng.email,
-      });
-    }
-    await ensurePmProjectAssignment(request, pm, projectId, fieldCompanyId, {
-      fieldEmail: PERSONAS.fieldEng.email,
-    });
-    await ensureVendorPrereqs(request, apSession, financeCompanyId, runTag);
+    const ctx = await bootstrapRoleWorkflowPrereqs(request);
+    runTag = ctx.runTag;
+    companyId = ctx.companyId;
+    projectId = ctx.projectId;
+    pmProjectId = ctx.pmProjectId;
+    payAppPrereqs = ctx.payAppPrereqs;
+    billingPrereqs = ctx.billingPrereqs;
+    pmSession = ctx.pmSession;
+    fieldSession = ctx.fieldSession;
+    apSession = ctx.apSession;
+    payrollSession = ctx.payrollSession;
   });
 
   // ── 1. Bid → Project (Estimator) ──────────────────────────────────
@@ -152,27 +125,81 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
         });
       }
 
-      const { projectId: setupProjectId } = await createProjectWithPhases(request, pmSession, {
-        runTag,
-        companyId: financeCompanyId,
-        teamEmails: [PERSONAS.pm.email, PERSONAS.fieldEng.email],
-        phaseNames: ['Foundation', 'Framing'],
-      });
-      await activateProject(request, pmSession, setupProjectId, financeCompanyId);
-      const activeStatus = await getEntityStatus(
-        request,
-        pmSession,
-        `/api/projects/${setupProjectId}`,
-        financeCompanyId
-      );
-      expect(activeStatus).toMatch(/Active|1/);
-
-      await page.goto(`/projects/${setupProjectId}`);
+      const prjNum = `E2E-PRJ-${runTag.replace(/[^a-zA-Z0-9]/g, '').slice(-10)}`.slice(0, 16);
+      await page.goto('/projects/new');
       await page.waitForLoadState('domcontentloaded');
-      await expect(page.getByRole('heading', { name: /.+/ }).first()).toBeVisible({
+      await page.getByLabel(/^project number/i).fill(prjNum);
+      await page.getByLabel(/^project name/i).fill(`E2E Project ${runTag}`);
+      await page.getByLabel(/^contract amount/i).fill('275000');
+      await page.getByRole('button', { name: /commercial building/i }).click();
+      await page.getByRole('button', { name: /team assignment/i }).click();
+      await page.getByRole('button', { name: /add team member/i }).click();
+      const teamSection = page.locator('text=Team Assignment').locator('..').locator('..');
+      await teamSection.getByRole('combobox').first().click();
+      await page.getByRole('option').filter({ hasText: /demo|pm/i }).first().click();
+      await teamSection.getByRole('combobox').nth(1).click();
+      await page.getByRole('option', { name: 'Project Manager', exact: true }).click();
+      const projectCreateResp = page.waitForResponse(
+        (r) => r.url().includes('/api/projects') && r.request().method() === 'POST',
+        { timeout: 25_000 }
+      );
+      await page.getByRole('button', { name: /create project/i }).click();
+      const projectCreateResult = await projectCreateResp;
+      expect(
+        projectCreateResult.ok(),
+        `project create failed: ${projectCreateResult.status()} ${await projectCreateResult.text()}`
+      ).toBeTruthy();
+      await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+$/i, { timeout: 20_000 });
+      const setupProjectId = page.url().split('/').pop()!;
+      await page.waitForResponse(
+        (r) =>
+          r.url().includes(`/api/projects/${setupProjectId}`) &&
+          r.request().method() === 'GET' &&
+          r.ok(),
+        { timeout: 20_000 }
+      );
+      await expect(page.getByRole('button', { name: /activate project/i })).toBeVisible({
         timeout: 15_000,
       });
-      console.log(`[${LIFECYCLE_NAMES[2]}] PM cost code + Day-1 chain + project Active OK`);
+
+      const activateResp = page.waitForResponse(
+        (r) => r.url().includes('/activate') && r.request().method() === 'POST',
+        { timeout: 20_000 }
+      );
+      await page.getByRole('button', { name: /activate project/i }).click();
+      expect((await activateResp).ok()).toBeTruthy();
+      await expect(page.getByText(/^active$/i).first()).toBeVisible({ timeout: 15_000 });
+
+      const phasesResp = await request.get(
+        `${API_BASE}/api/projects/${setupProjectId}/phases`,
+        { headers: authHeaders(pmSession, companyId) }
+      );
+      if (phasesResp.ok()) {
+        const phasesBody = await phasesResp.json();
+        const list = Array.isArray(phasesBody) ? phasesBody : phasesBody.items ?? phasesBody.Items ?? [];
+        expect(list.length).toBeGreaterThan(0);
+        console.log(
+          `L2_EVIDENCE phases=${JSON.stringify(list.map((p: { name?: string; Name?: string }) => p.name ?? p.Name))}`
+        );
+      }
+
+      const assignResp = await request.get(
+        `${API_BASE}/api/project-assignments/by-project/${setupProjectId}?activeOnly=true`,
+        { headers: authHeaders(pmSession, companyId) }
+      );
+      expect(assignResp.ok()).toBeTruthy();
+      const assignBody = await assignResp.json();
+      const assignments = Array.isArray(assignBody) ? assignBody : assignBody.items ?? assignBody.Items ?? [];
+      expect(assignments.length).toBeGreaterThan(0);
+      const hasPmRole = assignments.some((a: { role?: string | number; Role?: string | number }) => {
+        const role = a.role ?? a.Role;
+        return role === 'Manager' || role === 2 || role === '2';
+      });
+      expect(hasPmRole).toBeTruthy();
+      console.log(
+        `L2_EVIDENCE assignments=${JSON.stringify(assignments.map((a: { employeeId?: string; EmployeeId?: string; role?: unknown; Role?: unknown }) => ({ employeeId: a.employeeId ?? a.EmployeeId, role: a.role ?? a.Role })))} projectId=${setupProjectId} status=Active`
+      );
+      console.log(`[${LIFECYCLE_NAMES[2]}] PM cost code + Day-1 chain + browser create/activate OK`);
     } finally {
       await closeContext(context);
     }
@@ -184,7 +211,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
     const pmCtx = await openAsPersona(
       browser,
       'pm',
-      fieldCompanyId ? { companyId: fieldCompanyId } : undefined
+      { companyId }
     );
 
     try {
@@ -206,7 +233,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
           pmSession,
           PERSONAS.fieldEng.email,
           visibleProjectId!,
-          fieldCompanyId
+          companyId
         );
         projectId = visibleProjectId!;
       }
@@ -246,7 +273,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       ).toBeTruthy();
 
       const { page: pmPage } = pmCtx;
-      if (fieldCompanyId) await setActiveCompany(pmPage, fieldCompanyId);
+      await setActiveCompany(pmPage, companyId);
       await pmPage.goto('/time-tracking/approval');
       await pmPage.waitForLoadState('domcontentloaded');
       const submittedDate = submitPayload?.entries?.[0]?.date;
@@ -274,32 +301,127 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
   });
 
   test('L3b Payroll: lock period, generate run, approve, export via API', async ({ request }) => {
-    const result = await runPayrollE2e(request, payrollSession, financeCompanyId);
+    const result = await runPayrollE2e(request, payrollSession, companyId, {
+      seedOvertime: true,
+      pmSession,
+      fieldSession,
+      fieldEmail: PERSONAS.fieldEng.email,
+    });
     expect(result.payrollRunId).toBeTruthy();
     expect(result.status).toMatch(/Exported|Approved|Processing/i);
+    expect(result.totalOvertimeHours).toBeGreaterThan(0);
+    expect(result.lines.some((l) => l.overtimeHours > 0)).toBeTruthy();
     console.log(
-      `[${LIFECYCLE_NAMES[3]}] payroll lock→generate→approve→export OK (run=${result.payrollRunId})`
+      `L3_EVIDENCE payrollRunId=${result.payrollRunId} lines=${JSON.stringify(result.lines)} ot=${result.totalOvertimeHours}`
     );
+  });
+
+  test('L3b Payroll UI: generate, approve, and export run in browser', async ({ browser, request }) => {
+    await configurePayrollOvertimeForE2e(request, payrollSession, companyId);
+    const payPeriodId = await ensurePayPeriodsForCompany(request, payrollSession, companyId);
+    await request.post(`${API_BASE}/api/pay-periods/${payPeriodId}/unlock`, {
+      headers: authHeaders(payrollSession, companyId),
+    });
+    await seedApprovedOvertimeTimeEntryForE2e(request, pmSession, fieldSession, {
+      companyId,
+      payPeriodId,
+      fieldEmail: PERSONAS.fieldEng.email,
+    });
+    const lockResp = await request.post(`${API_BASE}/api/pay-periods/${payPeriodId}/lock`, {
+      headers: authHeaders(payrollSession, companyId),
+    });
+    expect(lockResp.ok()).toBeTruthy();
+    const { context, page } = await openAsPersona(browser, 'payrollManager', {
+      companyId,
+    });
+
+    try {
+      await setActiveCompany(page, companyId);
+      await page.goto('/payroll/runs');
+      await page.waitForLoadState('domcontentloaded');
+      await page.locator('#pay-period-id').fill(payPeriodId);
+      const generateResp = page.waitForResponse(
+        (r) => r.url().includes('/api/payroll/runs/generate') && r.request().method() === 'POST',
+        { timeout: 25_000 }
+      );
+      await page.getByRole('button', { name: /^generate$/i }).click();
+      const generateResult = await generateResp;
+      let runId: string;
+      if (generateResult.ok()) {
+        const runBody = await generateResult.json();
+        runId = (runBody.id ?? runBody.Id) as string;
+      } else {
+        const genBody = await generateResult.text();
+        expect(genBody).toContain('DUPLICATE_PAYROLL_RUN');
+        const listResp = await request.get(
+          `${API_BASE}/api/payroll/runs?payPeriodId=${payPeriodId}&page=1&pageSize=5`,
+          { headers: authHeaders(payrollSession, companyId) }
+        );
+        expect(listResp.ok()).toBeTruthy();
+        const listBody = await listResp.json();
+        const items = listBody.items ?? listBody.Items ?? [];
+        runId = (items[0]?.id ?? items[0]?.Id) as string;
+      }
+      expect(runId).toBeTruthy();
+
+      await page.goto(`/payroll/runs/${runId}`);
+      await page.waitForLoadState('domcontentloaded');
+
+      const approveButton = page.getByRole('button', { name: /approve run/i });
+      if (await approveButton.isVisible()) {
+        const approveResp = page.waitForResponse(
+          (r) => r.url().includes('/approve') && r.request().method() === 'POST',
+          { timeout: 20_000 }
+        );
+        await approveButton.click();
+        expect((await approveResp).ok()).toBeTruthy();
+        await expect(page.getByText(/^approved$/i).first()).toBeVisible({ timeout: 15_000 });
+      }
+
+      const exportButton = page.getByRole('button', { name: /export run/i });
+      if (await exportButton.isVisible()) {
+        const exportResp = page.waitForResponse(
+          (r) => r.url().includes('/export') && r.request().method() === 'POST',
+          { timeout: 20_000 }
+        );
+        await exportButton.click();
+        expect((await exportResp).ok()).toBeTruthy();
+        await expect(page.getByText(/^exported$/i).first()).toBeVisible({ timeout: 15_000 });
+      }
+
+      const detailResp = await request.get(`${API_BASE}/api/payroll/runs/${runId}`, {
+        headers: authHeaders(payrollSession, companyId),
+      });
+      expect(detailResp.ok()).toBeTruthy();
+      const detail = await detailResp.json();
+      const lines = detail.lines ?? detail.Lines ?? [];
+      const totalOt = lines.reduce(
+        (sum: number, l: { overtimeHours?: number; OvertimeHours?: number }) =>
+          sum + Number(l.overtimeHours ?? l.OvertimeHours ?? 0),
+        0
+      );
+      expect(totalOt).toBeGreaterThan(0);
+      console.log(
+        `L3_EVIDENCE payrollRunId=${runId} lines=${JSON.stringify(lines)} ot=${totalOt} via=browser`
+      );
+    } finally {
+      await closeContext(context);
+    }
   });
 
   // ── 4. Owner billing (PM → AR) ────────────────────────────────────
   test('L4 Owner billing: PM creates app, AR certifies via UI', async ({ browser }) => {
-    test.skip(
-      !billingPrereqs,
-      'ensureBillingPrereqs could not discover or create owner contract + active SOV'
-    );
-
     const pmCtx = await openAsPersona(browser, 'pm', {
-      companyId: financeCompanyId ?? undefined,
+      companyId,
     });
     const arCtx = await openAsPersona(browser, 'arClerk', {
-      companyId: financeCompanyId ?? undefined,
+      companyId,
     });
     let appId = '';
 
     try {
       const { page: pmPage } = pmCtx;
-      if (financeCompanyId) await setActiveCompany(pmPage, financeCompanyId);
+      await setActiveCompany(pmPage, companyId);
       await pmPage.goto('/billing/applications');
       await pmPage.waitForLoadState('domcontentloaded');
       await pmPage.getByRole('button', { name: /new application/i }).click();
@@ -307,8 +429,8 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       const billingMonthStr = String(billingMonth).padStart(2, '0');
       const periodFrom = `2026-${billingMonthStr}-01`;
       const periodThrough = `2026-${billingMonthStr}-28`;
-      await pmPage.getByLabel(/owner contract id/i).fill(billingPrereqs!.ownerContractId);
-      await pmPage.getByLabel(/sov id/i).fill(billingPrereqs!.ownerScheduleOfValuesId);
+      await pmPage.getByLabel(/owner contract id/i).fill(billingPrereqs.ownerContractId);
+      await pmPage.getByLabel(/sov id/i).fill(billingPrereqs.ownerScheduleOfValuesId);
       await pmPage.getByLabel(/period from/i).fill(periodFrom);
       await pmPage.getByLabel(/period through/i).fill(periodThrough);
       await pmPage.getByLabel(/application date/i).fill(periodThrough);
@@ -331,7 +453,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await expect(pmPage.getByText('SubmittedToOwner').first()).toBeVisible({ timeout: 15_000 });
 
       const { page: arPage } = arCtx;
-      if (financeCompanyId) await setActiveCompany(arPage, financeCompanyId);
+      await setActiveCompany(arPage, companyId);
       await arPage.goto(`/billing/applications/${appId}`);
       await arPage.waitForLoadState('domcontentloaded');
       await arPage.getByRole('button', { name: /architect certified/i }).click();
@@ -342,6 +464,9 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
 
       await arPage.getByRole('button', { name: /^mark paid$/i }).click();
       await expect(arPage.getByText('Paid').first()).toBeVisible({ timeout: 15_000 });
+      console.log(
+        `L4_EVIDENCE billingApplicationId=${appId} status=Paid via=browser`
+      );
       console.log(`[${LIFECYCLE_NAMES[4]}] PM+AR UI billing → Paid OK`);
     } finally {
       await closeContext(pmCtx.context);
@@ -351,17 +476,12 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
 
   // ── 5. Sub pay app (PM → AP) ──────────────────────────────────────
   test('L5 Sub pay app: PM creates in UI, AP submits', async ({ browser }) => {
-    test.skip(
-      !payAppPrereqs,
-      'ensurePayAppPrereqs could not discover or create executed subcontract with billing headroom'
-    );
-
-    const pmCtx = await openAsPersona(browser, 'pm');
+    const pmCtx = await openAsPersona(browser, 'pm', { companyId });
     const apCtx = await openAsPersona(browser, 'apClerk');
     const monthOffset = parseInt(runTag.slice(-2), 36) % 6;
     const periodStart = `2026-0${4 + monthOffset}-01`;
     const periodEnd = `2026-0${4 + monthOffset}-28`;
-    const workAmount = String(Math.max(100, payAppPrereqs!.maxWorkAmount));
+    const workAmount = String(Math.max(100, payAppPrereqs.maxWorkAmount));
 
     try {
       const { page: pmPage } = pmCtx;
@@ -372,7 +492,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await expect(dialog).toBeVisible({ timeout: 10_000 });
       await dialog.getByRole('combobox').click();
       await pmPage
-        .getByRole('option', { name: new RegExp(payAppPrereqs!.subcontractNumber, 'i') })
+        .getByRole('option', { name: new RegExp(payAppPrereqs.subcontractNumber, 'i') })
         .click();
       await dialog.locator('input[type="date"]').nth(0).fill(periodStart);
       await dialog.locator('input[type="date"]').nth(1).fill(periodEnd);
@@ -413,22 +533,15 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
 
   // ── 6. Change order (PM) ──────────────────────────────────────────
   test('L6 Change order: PM creates and advances Pending → Approved in UI', async ({ browser }) => {
-    test.skip(
-      !payAppPrereqs,
-      'ensurePayAppPrereqs could not discover or create executed subcontract with billing headroom'
-    );
-
     const { context, page } = await openAsPersona(browser, 'pm', {
-      companyId: financeCompanyId ?? undefined,
+      companyId,
     });
     const coNum = `CO-${runTag.replace(/[^a-zA-Z0-9]/g, '').slice(-18)}`;
     const coTitle = `E2E footing ${runTag}`;
 
     try {
-      if (financeCompanyId) {
-        await setActiveCompany(page, financeCompanyId);
-      }
-      await page.goto(`/contracts/${payAppPrereqs!.subcontractId}/change-orders`);
+      await setActiveCompany(page, companyId);
+      await page.goto(`/contracts/${payAppPrereqs.subcontractId}/change-orders`);
       await page.waitForLoadState('domcontentloaded');
       await page.getByRole('button', { name: /new change order/i }).click();
       const createDialog = page.getByRole('dialog', { name: /create change order/i });
@@ -472,32 +585,26 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
     }
   });
 
-  test('L6b Owner change order: PM creates via API when endpoint exists', async ({ request }) => {
+  test('L6b Owner change order: PM creates via API', async ({ request }) => {
     const ownerCo = await createOwnerChangeOrder(request, pmSession, pmProjectId, {
       runTag,
-      companyId: financeCompanyId,
+      companyId,
     });
-    // Owner CO API is spec'd but not yet shipped; skip without failing the suite.
-    test.skip(!ownerCo, 'POST /api/owner-change-orders not implemented yet (AIA-BILLING-SPEC)');
-    expect(ownerCo!.id).toBeTruthy();
-    console.log(`[${LIFECYCLE_NAMES[6]}] owner CO API create OK (${ownerCo!.id})`);
+    expect(ownerCo.id).toBeTruthy();
+    console.log(
+      `L6_EVIDENCE ownerChangeOrderId=${ownerCo.id} projectId=${pmProjectId} via=api`
+    );
+    console.log(`[${LIFECYCLE_NAMES[6]}] owner CO API create OK (${ownerCo.id})`);
   });
 
   // ── 7. RFI (PM) ───────────────────────────────────────────────────
   test('L7 RFI: PM creates, answers, and marks Answered in UI', async ({ browser }) => {
-    test.skip(
-      !payAppPrereqs,
-      'ensurePayAppPrereqs could not resolve finance-scoped project/subcontract prerequisites'
-    );
-
     const { context, page } = await openAsPersona(browser, 'pm', {
-      companyId: financeCompanyId ?? undefined,
+      companyId,
     });
 
     try {
-      if (financeCompanyId) {
-        await setActiveCompany(page, financeCompanyId);
-      }
+      await setActiveCompany(page, companyId);
       await page.goto(`/rfis/new?projectId=${pmProjectId}`);
       await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('input[name="subject"]')).toBeVisible({ timeout: 15_000 });
@@ -526,20 +633,13 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
 
   // ── 8. Submittal (PM) ─────────────────────────────────────────────
   test('L8 Submittal: PM creates Draft and advances to Submitted in UI', async ({ browser }) => {
-    test.skip(
-      !payAppPrereqs,
-      'ensurePayAppPrereqs could not resolve finance-scoped project/subcontract prerequisites'
-    );
-
     const { context, page } = await openAsPersona(browser, 'pm', {
-      companyId: financeCompanyId ?? undefined,
+      companyId,
     });
     const title = `E2E Submittal ${runTag}`;
 
     try {
-      if (financeCompanyId) {
-        await setActiveCompany(page, financeCompanyId);
-      }
+      await setActiveCompany(page, companyId);
       await page.goto(`/projects/${pmProjectId}/submittals`);
       await page.waitForLoadState('domcontentloaded');
       await page.getByRole('button', { name: /new submittal/i }).click();
@@ -569,14 +669,12 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
   // ── 9. Vendor invoice (AP) ────────────────────────────────────────
   test('L9 Vendor invoice: AP creates and matches in UI', async ({ browser, request }) => {
     const { context, page } = await openAsPersona(browser, 'apClerk', {
-      companyId: financeCompanyId ?? undefined,
+      companyId,
     });
     const invNum = `VI-E2E-${runTag}`;
 
     try {
-      if (financeCompanyId) {
-        await setActiveCompany(page, financeCompanyId);
-      }
+      await setActiveCompany(page, companyId);
       await page.goto('/procurement/invoices/new');
       await page.waitForLoadState('domcontentloaded');
       await page.locator('#vendorId').click();
@@ -597,11 +695,38 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await row.getByRole('button', { name: /^match$/i }).click();
       await expect(row.getByText(/matched|match/i).first()).toBeVisible({ timeout: 15_000 });
 
+      const listResp = await request.get(
+        `${API_BASE}/api/vendor-invoices?search=${encodeURIComponent(invNum)}&pageSize=5`,
+        { headers: authHeaders(apSession, companyId) }
+      );
+      expect(listResp.ok()).toBeTruthy();
+      const listBody = await listResp.json();
+      const items = listBody.items ?? listBody.Items ?? [];
+      const invoice = items.find(
+        (i: { invoiceNumber?: string; InvoiceNumber?: string }) =>
+          (i.invoiceNumber ?? i.InvoiceNumber) === invNum
+      );
+      expect(invoice).toBeTruthy();
+      const invoiceId = (invoice.id ?? invoice.Id) as string;
+
+      await row.getByRole('button', { name: /^approve$/i }).click();
+      await expect(row.getByText(/approved/i).first()).toBeVisible({ timeout: 15_000 });
+
+      const detailResp = await request.get(`${API_BASE}/api/vendor-invoices/${invoiceId}`, {
+        headers: authHeaders(apSession, companyId),
+      });
+      expect(detailResp.ok()).toBeTruthy();
+      const detail = await detailResp.json();
+      const accrualJeId = detail.accrualJournalEntryId ?? detail.AccrualJournalEntryId ?? null;
+      console.log(
+        `L9_EVIDENCE vendorInvoiceId=${invoiceId} accrualJournalEntryId=${accrualJeId ?? 'none'} via=browser`
+      );
+
       const denied = await request.get(`${API_BASE}/api/vendor-invoices?page=1`, {
         headers: authHeaders(fieldSession),
       });
       expect(denied.status()).toBe(403);
-      console.log(`[${LIFECYCLE_NAMES[9]}] AP UI match OK, field-eng 403 OK`);
+      console.log(`[${LIFECYCLE_NAMES[9]}] AP UI match+approve OK, field-eng 403 OK`);
     } finally {
       await closeContext(context);
     }
@@ -610,18 +735,16 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
   // ── 10. Daily report (Field → PM) ─────────────────────────────────
   test('L10 Daily report: field creates, PM submit/approve/lock in UI', async ({ browser }) => {
     const fieldCtx = await openAsPersona(browser, 'fieldEng', {
-      companyId: fieldCompanyId ?? undefined,
+      companyId,
     });
     const pmCtx = await openAsPersona(browser, 'pm', {
-      companyId: fieldCompanyId ?? undefined,
+      companyId,
     });
     const title = `E2E Daily ${runTag}`;
 
     try {
       const { page: fieldPage } = fieldCtx;
-      if (fieldCompanyId) {
-        await setActiveCompany(fieldPage, fieldCompanyId);
-      }
+      await setActiveCompany(fieldPage, companyId);
       await fieldPage.goto(`/projects/${projectId}/daily-reports`);
       await fieldPage.waitForLoadState('domcontentloaded');
       await fieldPage.getByRole('button', { name: /new report/i }).click();
@@ -654,9 +777,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await expect(reportRow).toBeVisible({ timeout: 15_000 });
 
       const { page: pmPage } = pmCtx;
-      if (fieldCompanyId) {
-        await setActiveCompany(pmPage, fieldCompanyId);
-      }
+      await setActiveCompany(pmPage, companyId);
       await pmPage.goto(`/projects/${projectId}/daily-reports`);
       await pmPage.waitForResponse(
         (r) => r.url().includes(`/api/projects/${projectId}/daily-reports`) && r.ok(),

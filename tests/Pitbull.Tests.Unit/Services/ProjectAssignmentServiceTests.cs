@@ -37,6 +37,9 @@ public class ProjectAssignmentServiceTests
         result.Value.ProjectId.Should().Be(project.Id);
         result.Value.Role.Should().Be(AssignmentRole.Worker);
         result.Value.IsActive.Should().BeTrue();
+
+        var persisted = await db.Set<ProjectAssignment>().SingleAsync(a => a.Id == result.Value.Id);
+        persisted.CompanyId.Should().Be(project.CompanyId);
     }
 
     [Fact]

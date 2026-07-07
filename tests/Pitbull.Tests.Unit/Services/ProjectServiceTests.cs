@@ -6,16 +6,21 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Pitbull.Contracts.Domain;
+using Pitbull.Core.Domain;
 using Pitbull.Projects.Domain;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
+using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Core.Services;
 using Pitbull.Projects.Services;
 using Pitbull.RFIs.Domain;
 using Pitbull.Tests.Unit.Helpers;
+using Pitbull.TimeTracking.Domain;
+using Pitbull.TimeTracking.Services;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Pitbull.Tests.Unit.Services;
 
@@ -56,6 +61,16 @@ public class ProjectServiceTests
 
     private ProjectService CreateService(Pitbull.Core.Data.PitbullDbContext db) =>
         new(db, _companyContextMock.Object, _teamAssignmentServiceMock.Object, _createValidatorMock.Object, _updateValidatorMock.Object, _httpContextAccessorMock.Object, _loggerMock.Object);
+
+    private ProjectService CreateServiceWithRealTeamAssignment(Pitbull.Core.Data.PitbullDbContext db) =>
+        new(
+            db,
+            _companyContextMock.Object,
+            new ProjectTeamAssignmentService(db, NullLogger<ProjectTeamAssignmentService>.Instance),
+            _createValidatorMock.Object,
+            _updateValidatorMock.Object,
+            _httpContextAccessorMock.Object,
+            _loggerMock.Object);
 
     #region GetProjectAsync
 
@@ -325,6 +340,240 @@ public class ProjectServiceTests
         // Assert
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("VALIDATION_ERROR");
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithExplicitPhases_PersistsPhases()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var command = new CreateProjectCommand(
+            Name: "Phased Project",
+            Number: "PRJ-PHASE-001",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 100_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null,
+            Phases:
+            [
+                new CreateProjectPhaseInput("Foundation", "03000", 25_000m),
+                new CreateProjectPhaseInput("Framing", "06000", 35_000m)
+            ]);
+
+        var result = await service.CreateProjectAsync(command);
+
+        result.IsSuccess.Should().BeTrue();
+        var phases = await db.Set<Phase>()
+            .Where(p => p.ProjectId == result.Value!.Id)
+            .OrderBy(p => p.SortOrder)
+            .ToListAsync();
+        phases.Should().HaveCount(2);
+        phases[0].Name.Should().Be("Foundation");
+        phases[0].CostCode.Should().Be("03000");
+        phases[1].Name.Should().Be("Framing");
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithAutoCreatePhases_CreatesDefaultPhases()
+    {
+        using var db = TestDbContextFactory.Create();
+        _companyContextMock.Setup(c => c.IsResolved).Returns(true);
+        _companyContextMock.Setup(c => c.CompanyId).Returns(TestDbContextFactory.TestCompanyId);
+
+        db.Set<Company>().Add(new Company
+        {
+            Id = TestDbContextFactory.TestCompanyId,
+            TenantId = TestDbContextFactory.TestTenantId,
+            Code = "01",
+            Name = "Test Company",
+            ProjectSettings = new ProjectSettings { AutoCreatePhases = true }
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var command = new CreateProjectCommand(
+            Name: "Auto Phases",
+            Number: "PRJ-AUTO-001",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 50_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null);
+
+        var result = await service.CreateProjectAsync(command);
+
+        result.IsSuccess.Should().BeTrue();
+        var phases = await db.Set<Phase>().Where(p => p.ProjectId == result.Value!.Id).ToListAsync();
+        phases.Should().HaveCount(3);
+        phases.Select(p => p.Name).Should().Contain(["Preconstruction", "Construction", "Closeout"]);
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_WithTeamMembers_PersistsProjectAssignments()
+    {
+        using var db = TestDbContextFactory.Create();
+        _companyContextMock.Setup(c => c.IsResolved).Returns(true);
+        _companyContextMock.Setup(c => c.CompanyId).Returns(TestDbContextFactory.TestCompanyId);
+
+        var employeeId = Guid.NewGuid();
+        db.Set<Employee>().Add(new Employee
+        {
+            Id = employeeId,
+            TenantId = TestDbContextFactory.TestTenantId,
+            EmployeeNumber = "EMP-TEAM-1",
+            FirstName = "Alex",
+            LastName = "Manager",
+            Email = "alex.manager@example.com",
+            IsActive = true
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateServiceWithRealTeamAssignment(db);
+        var command = new CreateProjectCommand(
+            Name: "Team Project",
+            Number: "PRJ-TEAM-001",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: DateTime.UtcNow, EstimatedCompletionDate: null,
+            ContractAmount: 75_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null,
+            TeamMembers:
+            [
+                new CreateProjectTeamMemberInput(employeeId, "Project Manager", AssignmentRole.Manager)
+            ]);
+
+        var result = await service.CreateProjectAsync(command);
+
+        result.IsSuccess.Should().BeTrue($"create failed: {result.Error} ({result.ErrorCode})");
+        result.Value!.ProjectManagerId.Should().Be(employeeId);
+
+        var assignments = await db.Set<ProjectAssignment>()
+            .Where(a => a.ProjectId == result.Value.Id)
+            .ToListAsync();
+        assignments.Should().HaveCount(1);
+        assignments[0].EmployeeId.Should().Be(employeeId);
+        assignments[0].Role.Should().Be(AssignmentRole.Manager);
+        assignments[0].IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateProjectAsync_ActivateOnCreate_SetsActiveStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var command = new CreateProjectCommand(
+            Name: "Immediate Active",
+            Number: "PRJ-ACT-001",
+            Description: null,
+            Type: ProjectType.Commercial,
+            Address: null, City: null, State: null, ZipCode: null,
+            ClientName: null, ClientContact: null, ClientEmail: null, ClientPhone: null,
+            StartDate: null, EstimatedCompletionDate: null,
+            ContractAmount: 200_000m,
+            ProjectManagerId: null, SuperintendentId: null, SourceBidId: null,
+            ActivateOnCreate: true);
+
+        var result = await service.CreateProjectAsync(command);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Status.Should().Be(ProjectStatus.Active);
+        result.Value.StartDate.Should().NotBeNull();
+    }
+
+    #endregion
+
+    #region ActivateProjectAsync
+
+    [Fact]
+    public async Task ActivateProjectAsync_PreConstruction_Succeeds()
+    {
+        using var db = TestDbContextFactory.Create();
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "Activate Me",
+            Number = "PRJ-ACT-002",
+            Status = ProjectStatus.PreConstruction,
+            Type = ProjectType.Commercial,
+            ContractAmount = 150_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(project);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var result = await service.ActivateProjectAsync(project.Id);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Status.Should().Be(ProjectStatus.Active);
+        result.Value.StartDate.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ActivateProjectAsync_AlreadyActive_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "Already Active",
+            Number = "PRJ-ACT-003",
+            Status = ProjectStatus.Active,
+            Type = ProjectType.Commercial,
+            ContractAmount = 100_000m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(project);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var result = await service.ActivateProjectAsync(project.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task ActivateProjectAsync_RequiresBudget_WhenCompanySettingEnabled()
+    {
+        using var db = TestDbContextFactory.Create();
+        _companyContextMock.Setup(c => c.IsResolved).Returns(true);
+        _companyContextMock.Setup(c => c.CompanyId).Returns(TestDbContextFactory.TestCompanyId);
+
+        db.Set<Company>().Add(new Company
+        {
+            Id = TestDbContextFactory.TestCompanyId,
+            TenantId = TestDbContextFactory.TestTenantId,
+            Code = "01",
+            Name = "Test Company",
+            ProjectSettings = new ProjectSettings { RequireBudgetBeforeActivation = true }
+        });
+
+        var project = new Project
+        {
+            Id = Guid.NewGuid(),
+            Name = "No Budget",
+            Number = "PRJ-ACT-004",
+            Status = ProjectStatus.PreConstruction,
+            Type = ProjectType.Commercial,
+            ContractAmount = 0m,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Set<Project>().Add(project);
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var result = await service.ActivateProjectAsync(project.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("BUDGET_REQUIRED");
     }
 
     #endregion

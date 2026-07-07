@@ -8,6 +8,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.0.0] - 2026-07-07
+
+### Added
+
+- **Unified workflow approval engine (Phase 1)** — tenant admins configure approval chains for change orders (`UnderReview`) and owner billing applications (`PmReview`) via `POST /api/workflow-definitions`
+- **Cross-entity My Approvals dashboard** — `GET /api/workflow-approvals/pending` aggregates pending actions; approve/reject via dedicated endpoints with domain transition enforcement (no status bypass)
+- **Workflow orchestration layer** — `WorkflowDefinition`, `WorkflowApprovalStep`, and `WorkflowApprovalAction` entities with sequential step progression, pending-action blocking, and `WorkflowTransition` audit on completion
+- **Admin UI** — `/admin/workflow-definitions` to create chains; `/my-approvals` for approvers
+- **Integration + unit tests** — `WorkflowApprovalServiceTests`, `WorkflowApprovalTests` driving real API transitions end-to-end
+
+### Changed
+
+- Change order and billing application services hook into the approval layer when entering trigger statuses; direct approve/reject blocked while pending workflow actions exist
+- Version bumped to **2.0.0** across API, frontend, and docker defaults
+
+### Fixed
+
+- **Owner self-service signup** — login page links to `/signup`; production `DisableRegistration` defaults to false when demo is off; tenant provisioning runs inside an RLS-scoped transaction so new owners receive seeded cost codes and permissions
+- Workflow approval blocking now covers **all** outbound transitions while pending (including withdraw bypass)
+- Approve/reject completion is atomic — entity status is applied before persisting approval action on final approve; reject completes entity transition before marking action rejected
+- `EntityRelationship` approver resolution (`ProjectManager`, `Superintendent`) via project → employee → user lookup
+- Role-based approvers scoped to active company via `UserCompanyAccess`
+- Workflow definition validation ensures approved/rejected targets are valid per entity `*StatusTransitions` graphs
+
 ## [0.15.0] - 2026-05-01
 
 ### Added

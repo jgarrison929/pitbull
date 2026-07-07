@@ -64,6 +64,8 @@ public static class DailyReportRequestMapper
 
         if (TryGetString(request.Data, "Title", out var title))
             entity.Title = title;
+        else if (!string.IsNullOrWhiteSpace(request.Title))
+            entity.Title = request.Title.Trim();
 
         if (TryGetGuid(request.Data, "PreparedByUserId", out var preparedBy))
             entity.PreparedByUserId = preparedBy;

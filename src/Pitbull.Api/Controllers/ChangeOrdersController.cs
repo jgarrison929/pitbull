@@ -234,6 +234,8 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
             {
                 "NOT_FOUND" => this.NotFoundError(result.Error ?? "Change order not found"),
                 "DUPLICATE_CO_NUMBER" => this.BadRequestError(result.Error ?? "Duplicate change order number"),
+                "WORKFLOW_APPROVAL_REQUIRED" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
+                "INVALID_STATUS_TRANSITION" => BadRequest(new { error = result.Error, code = result.ErrorCode }),
                 _ => this.BadRequestError(result.Error ?? "Invalid request")
             };
         }
