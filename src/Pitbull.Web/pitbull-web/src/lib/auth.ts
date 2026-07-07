@@ -6,11 +6,17 @@ export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
 
+/** Cookie attributes for pitbull_token — Secure only on HTTPS so localhost dev works. */
+export function buildAuthCookie(token: string): string {
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:";
+  return `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${secure ? "; Secure" : ""}`;
+}
+
 export function setToken(token: string): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(TOKEN_KEY, token);
-  // Also set as cookie so middleware can read it
-  document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax; Secure`;
+  document.cookie = buildAuthCookie(token);
 }
 
 export function removeToken(): void {

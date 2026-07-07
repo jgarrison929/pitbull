@@ -19,13 +19,11 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [shake, setShake] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    setMounted(true);
     // Restore remembered email
     const savedEmail = localStorage.getItem("pitbull_remember_email");
     if (savedEmail) {
@@ -136,11 +134,7 @@ function LoginForm() {
 
       {/* Right Panel - Login Form */}
       <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-12">
-        <div
-          className={`w-full max-w-md transition-all duration-700 ease-out ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
+        <div className="w-full max-w-md">
           {/* Mobile Logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center gap-3">

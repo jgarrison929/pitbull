@@ -25,7 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Owner self-service signup** — login page links to `/signup`; middleware only redirects signup to `/demo` when `NEXT_PUBLIC_DISABLE_REGISTRATION=true`; production `DisableRegistration` defaults to false when demo is off; tenant provisioning runs inside registration transaction (rolls back on failure); `RoleSeeder` idempotent tenant role lookup; Playwright + integration tests cover API and UI path
+- **Owner self-service signup** — login page links to `/signup`; middleware only redirects signup to `/demo` when `NEXT_PUBLIC_DISABLE_REGISTRATION=true`; `pitbull_token` cookie omits `Secure` on HTTP localhost; registration provisions before commit with `RoleManager.RoleExistsAsync` idempotency; Playwright wizard E2E + integration role-count tests
 - Workflow approval blocking now covers **all** outbound transitions while pending (including withdraw bypass)
 - Approve/reject completion is atomic — entity status is applied before persisting approval action on final approve; reject completes entity transition before marking action rejected
 - `EntityRelationship` approver resolution (`ProjectManager`, `Superintendent`) via project → employee → user lookup

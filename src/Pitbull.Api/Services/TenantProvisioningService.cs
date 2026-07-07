@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 
@@ -17,7 +16,6 @@ public interface ITenantProvisioningService
 
 public class TenantProvisioningService(
     PitbullDbContext db,
-    RoleSeeder roleSeeder,
     ILogger<TenantProvisioningService> logger) : ITenantProvisioningService
 {
     /// <summary>
@@ -42,7 +40,6 @@ public class TenantProvisioningService(
             if (company is null)
                 throw new InvalidOperationException($"Company {companyId} not found or does not belong to tenant {tenantId}");
 
-            await roleSeeder.EnsureRolesForTenantAsync(tenantId, ct);
             await SeedDefaultCostCodesAsync(tenantId, ct);
             await SeedDefaultPermissionsAsync(tenantId, ct);
         }

@@ -47,17 +47,14 @@ public sealed class RoleSeeder(
         foreach (var roleName in Roles.All)
         {
             var tenantRoleName = $"{tenantId}:{roleName}";
-            var existingRole = await db.Set<AppRole>()
-                .FirstOrDefaultAsync(r => r.TenantId == tenantId && r.Name == tenantRoleName, ct);
-
-            if (existingRole is not null)
+            if (await roleManager.RoleExistsAsync(tenantRoleName))
                 continue;
 
             var role = new AppRole
             {
                 Id = Guid.NewGuid(),
-                Name = $"{tenantId}:{roleName}", // Unique name for Identity
-                NormalizedName = $"{tenantId}:{roleName}".ToUpperInvariant(),
+                Name = tenantRoleName,
+                NormalizedName = tenantRoleName.ToUpperInvariant(),
                 TenantId = tenantId,
                 Description = Roles.Descriptions.GetValueOrDefault(roleName),
                 IsSystemRole = true
@@ -67,6 +64,10 @@ public sealed class RoleSeeder(
             if (result.Succeeded)
             {
                 logger.LogInformation("Created role {RoleName} for tenant {TenantId}", roleName, tenantId);
+            }
+            else if (result.Errors.All(e => e.Code == "DuplicateRoleName"))
+            {
+                logger.LogDebug("Role {RoleName} already exists for tenant {TenantId}", roleName, tenantId);
             }
             else
             {
