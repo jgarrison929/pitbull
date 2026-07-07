@@ -401,6 +401,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
     const title = form.title.trim() || `Daily Report - ${form.reportDate}`;
 
     const dataPayload = {
+      Title: title,
       ReportDate: form.reportDate,
       ReportType: form.reportType,
       WeatherSummary: form.weatherSummary || null,

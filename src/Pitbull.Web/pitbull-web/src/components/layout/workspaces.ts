@@ -123,6 +123,7 @@ const operationsItems: NavItem[] = [
 // ---------------------------------------------------------------------------
 
 const peopleItems: NavItem[] = [
+  { label: "My Approvals", href: "/my-approvals", icon: "✅" },
   { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
   { label: "Employees", href: "/employees", icon: "👷", requiredPermission: "Employees.View" },
   { label: "Projects", href: "/projects", icon: "🏗️", requiredPermission: "Projects.View" },
@@ -140,9 +141,9 @@ const peopleItems: NavItem[] = [
 ];
 
 const peopleSeparators: Workspace["separators"] = [
-  { beforeIndex: 0, label: "Day-1 Setup" },
-  { beforeIndex: 6, label: "Payroll" },
-  { beforeIndex: 11, label: "Resources" },
+  { beforeIndex: 1, label: "Day-1 Setup" },
+  { beforeIndex: 7, label: "Payroll" },
+  { beforeIndex: 12, label: "Resources" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -164,6 +165,7 @@ const reportsItems: NavItem[] = [
 // ---------------------------------------------------------------------------
 
 const adminWorkspaceItems: NavItem[] = [
+  { label: "Workflow Definitions", href: "/admin/workflow-definitions", icon: "🔀", requiredPermission: "Admin.Settings" },
   { label: "Company Settings", href: "/admin/company", icon: "🏢", requiredPermission: "Admin.Settings" },
   { label: "Companies", href: "/admin/companies", icon: "🏛️", requiredPermission: "Admin.Companies" },
   { label: "Users", href: "/admin/users", icon: "👥", requiredPermission: "Admin.Users" },
@@ -256,6 +258,7 @@ export function getAllNavItems(projectId: string | null): NavItem[] {
     { label: "Notifications", href: "/settings/notifications", icon: "🔔" },
     { label: "Overtime Rules", href: "/settings/overtime", icon: "⏰" },
     { label: "Help Center", href: "/help", icon: "❓" },
+    { label: "My Approvals", href: "/my-approvals", icon: "✅" },
   ];
 }
 

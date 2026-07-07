@@ -1,7 +1,26 @@
 import { ProjectStatus, ProjectType } from "@/lib/types";
 
-export function projectStatusLabel(status: ProjectStatus): string {
-  switch (status) {
+/** API uses JsonStringEnumConverter; coerce string or numeric status for UI switches. */
+export function coerceProjectStatus(status: ProjectStatus | string | number): ProjectStatus {
+  if (typeof status === "number") return status as ProjectStatus;
+  if (typeof status === "string") {
+    const byName: Record<string, ProjectStatus> = {
+      Bidding: ProjectStatus.Bidding,
+      PreConstruction: ProjectStatus.PreConstruction,
+      Active: ProjectStatus.Active,
+      Completed: ProjectStatus.Completed,
+      Closed: ProjectStatus.Closed,
+      OnHold: ProjectStatus.OnHold,
+    };
+    if (status in byName) return byName[status]!;
+    const parsed = Number(status);
+    if (!Number.isNaN(parsed)) return parsed as ProjectStatus;
+  }
+  return status as unknown as ProjectStatus;
+}
+
+export function projectStatusLabel(status: ProjectStatus | string | number): string {
+  switch (coerceProjectStatus(status)) {
     case ProjectStatus.Bidding:
       return "Bidding";
     case ProjectStatus.PreConstruction:
@@ -19,8 +38,8 @@ export function projectStatusLabel(status: ProjectStatus): string {
   }
 }
 
-export function projectStatusBadgeClass(status: ProjectStatus): string {
-  switch (status) {
+export function projectStatusBadgeClass(status: ProjectStatus | string | number): string {
+  switch (coerceProjectStatus(status)) {
     case ProjectStatus.Active:
       return "bg-green-100 text-green-700 hover:bg-green-100";
     case ProjectStatus.OnHold:

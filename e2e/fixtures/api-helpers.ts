@@ -72,12 +72,26 @@ export async function getActiveCompanyId(
   return profile?.activeCompany?.id ?? profile?.ActiveCompany?.Id ?? null;
 }
 
+/** True when GET /api/projects/{id} succeeds under the given company header (RLS-scoped). */
+export async function isProjectVisibleUnderCompany(
+  request: APIRequestContext,
+  session: AuthSession,
+  projectId: string,
+  companyId: string
+): Promise<boolean> {
+  const resp = await request.get(`${API_BASE}/api/projects/${projectId}`, {
+    headers: authHeaders(session, companyId),
+  });
+  return resp.ok();
+}
+
 export async function getFirstActiveProjectId(
   request: APIRequestContext,
-  session: AuthSession
+  session: AuthSession,
+  companyId: string
 ): Promise<string> {
   const resp = await request.get(`${API_BASE}/api/projects?page=1&pageSize=25`, {
-    headers: authHeaders(session),
+    headers: authHeaders(session, companyId),
   });
   if (!resp.ok()) throw new Error(`Projects list failed: ${resp.status()} ${await resp.text()}`);
   const body = await resp.json();
@@ -87,16 +101,19 @@ export async function getFirstActiveProjectId(
     return s === 'Active' || s === '1';
   });
   const pick = active ?? items[0];
-  if (!pick?.id && !pick?.Id) throw new Error('No projects available for E2E');
+  if (!pick?.id && !pick?.Id) {
+    throw new Error(`No projects available for E2E under company ${companyId}`);
+  }
   return pick.id ?? pick.Id;
 }
 
 /** Prefer a project the given persona can see in UI lists (company/RLS scoped). */
 export async function getFirstProjectIdForPersona(
   request: APIRequestContext,
-  session: AuthSession
+  session: AuthSession,
+  companyId: string
 ): Promise<string> {
-  return getFirstActiveProjectId(request, session);
+  return getFirstActiveProjectId(request, session, companyId);
 }
 
 export async function getEntityStatus(
@@ -303,7 +320,7 @@ export async function ensureTimeTrackingPrereqs(
     },
   });
   if (!assignField.ok() && assignField.status() !== 409) {
-    console.warn(
+    throw new Error(
       `ensureTimeTrackingPrereqs: field assignment failed ${assignField.status()} ${await assignField.text()}`
     );
   }
@@ -324,7 +341,7 @@ export async function ensureTimeTrackingPrereqs(
       },
     });
     if (!assignPm.ok() && assignPm.status() !== 409) {
-      console.warn(
+      throw new Error(
         `ensureTimeTrackingPrereqs: PM assignment failed ${assignPm.status()} ${await assignPm.text()}`
       );
     }
@@ -336,12 +353,21 @@ export async function ensurePmProjectAssignment(
   request: APIRequestContext,
   pmSession: AuthSession,
   projectId: string,
-  companyId?: string | null,
+  companyId: string,
   options?: { fieldEmail?: string }
 ): Promise<void> {
+  if (!(await isProjectVisibleUnderCompany(request, pmSession, projectId, companyId))) {
+    throw new Error(
+      `ensurePmProjectAssignment: project ${projectId} not visible under company ${companyId}`
+    );
+  }
   const headers = authHeaders(pmSession, companyId);
   const empResp = await request.get(`${API_BASE}/api/employees?page=1&pageSize=200`, { headers });
-  if (!empResp.ok()) return;
+  if (!empResp.ok()) {
+    throw new Error(
+      `ensurePmProjectAssignment: employees list failed ${empResp.status()} ${await empResp.text()}`
+    );
+  }
   const empBody = await empResp.json();
   const items = empBody.items ?? empBody.Items ?? [];
 
@@ -349,22 +375,23 @@ export async function ensurePmProjectAssignment(
     (e: { email?: string }) => (e.email ?? '').toLowerCase() === pmSession.email.toLowerCase()
   );
   const pmEmployeeId = pmEmployee?.id ?? pmEmployee?.Id;
-  if (pmEmployeeId) {
-    const assignPm = await request.post(`${API_BASE}/api/project-assignments`, {
-      headers,
-      data: {
-        employeeId: pmEmployeeId,
-        projectId,
-        role: 'Manager',
-        startDate: '2025-01-01',
-        notes: 'E2E PM project access',
-      },
-    });
-    if (!assignPm.ok() && assignPm.status() !== 409) {
-      console.warn(
-        `ensurePmProjectAssignment: PM assignment failed ${assignPm.status()} ${await assignPm.text()}`
-      );
-    }
+  if (!pmEmployeeId) {
+    throw new Error(`ensurePmProjectAssignment: no employee record for PM ${pmSession.email}`);
+  }
+  const assignPm = await request.post(`${API_BASE}/api/project-assignments`, {
+    headers,
+    data: {
+      employeeId: pmEmployeeId,
+      projectId,
+      role: 'Manager',
+      startDate: '2025-01-01',
+      notes: 'E2E PM project access',
+    },
+  });
+  if (!assignPm.ok() && assignPm.status() !== 409) {
+    throw new Error(
+      `ensurePmProjectAssignment: PM assignment failed ${assignPm.status()} ${await assignPm.text()}`
+    );
   }
 
   if (options?.fieldEmail) {
@@ -372,22 +399,23 @@ export async function ensurePmProjectAssignment(
       (e: { email?: string }) => (e.email ?? '').toLowerCase() === options.fieldEmail!.toLowerCase()
     );
     const fieldEmployeeId = fieldEmployee?.id ?? fieldEmployee?.Id;
-    if (fieldEmployeeId) {
-      const assignField = await request.post(`${API_BASE}/api/project-assignments`, {
-        headers,
-        data: {
-          employeeId: fieldEmployeeId,
-          projectId,
-          role: 'Worker',
-          startDate: '2025-01-01',
-          notes: 'E2E field project access',
-        },
-      });
-      if (!assignField.ok() && assignField.status() !== 409) {
-        console.warn(
-          `ensurePmProjectAssignment: field assignment failed ${assignField.status()} ${await assignField.text()}`
-        );
-      }
+    if (!fieldEmployeeId) {
+      throw new Error(`ensurePmProjectAssignment: no employee for ${options.fieldEmail}`);
+    }
+    const assignField = await request.post(`${API_BASE}/api/project-assignments`, {
+      headers,
+      data: {
+        employeeId: fieldEmployeeId,
+        projectId,
+        role: 'Worker',
+        startDate: '2025-01-01',
+        notes: 'E2E field project access',
+      },
+    });
+    if (!assignField.ok() && assignField.status() !== 409) {
+      throw new Error(
+        `ensurePmProjectAssignment: field assignment failed ${assignField.status()} ${await assignField.text()}`
+      );
     }
   }
 }
@@ -428,6 +456,51 @@ export async function ensureVendorPrereqs(
   return (created.id ?? created.Id) as string;
 }
 
+/** Ensures GL accounts 5200/2000 exist for vendor-invoice accrual on approve (per company). */
+export async function ensureGlAccountsForAp(
+  request: APIRequestContext,
+  session: AuthSession,
+  companyId?: string | null
+): Promise<void> {
+  const headers = authHeaders(session, companyId);
+
+  async function ensureAccount(
+    number: string,
+    name: string,
+    accountType: number,
+    normalBalance: number
+  ): Promise<void> {
+    const listResp = await request.get(
+      `${API_BASE}/api/chart-of-accounts?search=${encodeURIComponent(number)}&pageSize=10`,
+      { headers }
+    );
+    if (listResp.ok()) {
+      const body = await listResp.json();
+      const items = body.items ?? body.Items ?? [];
+      if (
+        items.some(
+          (a: { accountNumber?: string; AccountNumber?: string }) =>
+            (a.accountNumber ?? a.AccountNumber) === number
+        )
+      ) {
+        return;
+      }
+    }
+    const createResp = await request.post(`${API_BASE}/api/chart-of-accounts`, {
+      headers,
+      data: { accountNumber: number, accountName: name, accountType, normalBalance, isActive: true },
+    });
+    if (!createResp.ok()) {
+      console.warn(
+        `ensureGlAccountsForAp: ${number} create failed ${createResp.status()} ${await createResp.text()}`
+      );
+    }
+  }
+
+  await ensureAccount('5200', 'Materials', 5, 1);
+  await ensureAccount('2000', 'Accounts Payable', 2, 2);
+}
+
 export async function discoverSubcontractId(
   request: APIRequestContext,
   session: AuthSession,
@@ -459,26 +532,8 @@ export async function createProjectWithPhases(
   const suffix = options.runTag.replace(/[^a-zA-Z0-9]/g, '').slice(-12) || Date.now().toString(36);
   const number = `E2E-PRJ-${suffix}`.slice(0, 16);
 
-  const createResp = await request.post(`${API_BASE}/api/projects`, {
-    headers,
-    data: {
-      name: `E2E Project ${options.runTag}`,
-      number,
-      type: 'Commercial',
-      contractAmount: options.contractAmount ?? 250000,
-      description: `E2E setup ${options.runTag}`,
-      startDate: new Date().toISOString().slice(0, 10),
-    },
-  });
-  if (!createResp.ok()) {
-    throw new Error(
-      `createProjectWithPhases failed: ${createResp.status()} ${await createResp.text()}`
-    );
-  }
-  const created = await createResp.json();
-  const projectId = (created.id ?? created.Id) as string;
-
   const empResp = await request.get(`${API_BASE}/api/employees?page=1&pageSize=200`, { headers });
+  const teamMembers: { employeeId: string; role: string; assignmentRole: number }[] = [];
   if (empResp.ok()) {
     const empBody = await empResp.json();
     const items = empBody.items ?? empBody.Items ?? [];
@@ -489,19 +544,42 @@ export async function createProjectWithPhases(
       );
       const employeeId = employee?.id ?? employee?.Id;
       if (!employeeId) continue;
-      const role = email.toLowerCase() === session.email.toLowerCase() ? 'Manager' : 'Worker';
-      await request.post(`${API_BASE}/api/project-assignments`, {
-        headers,
-        data: {
-          employeeId,
-          projectId,
-          role,
-          startDate: '2025-01-01',
-          notes: `E2E team ${options.runTag}`,
-        },
+      const isPm = email.toLowerCase() === session.email.toLowerCase();
+      teamMembers.push({
+        employeeId,
+        role: isPm ? 'Project Manager' : 'Worker',
+        assignmentRole: isPm ? 2 : 0,
       });
     }
   }
+
+  const phaseNames = options.phaseNames ?? ['Foundation', 'Framing'];
+  const phases = phaseNames.map((name, i) => ({
+    name,
+    costCode: `0${(i + 3) * 1000}`.slice(0, 5),
+    budgetAmount: 0,
+  }));
+
+  const createResp = await request.post(`${API_BASE}/api/projects`, {
+    headers,
+    data: {
+      name: `E2E Project ${options.runTag}`,
+      number,
+      type: 'Commercial',
+      contractAmount: options.contractAmount ?? 250000,
+      description: `E2E setup ${options.runTag}`,
+      startDate: new Date().toISOString().slice(0, 10),
+      phases,
+      teamMembers: teamMembers.length > 0 ? teamMembers : undefined,
+    },
+  });
+  if (!createResp.ok()) {
+    throw new Error(
+      `createProjectWithPhases failed: ${createResp.status()} ${await createResp.text()}`
+    );
+  }
+  const created = await createResp.json();
+  const projectId = (created.id ?? created.Id) as string;
 
   const phasesResp = await request.get(`${API_BASE}/api/projects/${projectId}/phases`, { headers });
   let phaseCount = 0;
@@ -565,13 +643,191 @@ export async function activateProject(
   }
 }
 
+export interface PayrollE2eLine {
+  employeeId: string;
+  regularHours: number;
+  overtimeHours: number;
+  doubletimeHours: number;
+}
+
 export interface PayrollE2eResult {
   payPeriodId: string;
   payrollRunId: string;
   status: string;
+  lines: PayrollE2eLine[];
+  totalOvertimeHours: number;
 }
 
-async function ensurePayPeriodsForCompany(
+export interface PayrollE2eOptions {
+  seedOvertime?: boolean;
+  pmSession?: AuthSession;
+  fieldSession?: AuthSession;
+  projectId?: string;
+  fieldEmail?: string;
+}
+
+function parsePayrollLines(runBody: Record<string, unknown>): PayrollE2eLine[] {
+  const rawLines = (runBody.lines ?? runBody.Lines ?? []) as Record<string, unknown>[];
+  return rawLines.map((line) => ({
+    employeeId: String(line.employeeId ?? line.EmployeeId ?? ''),
+    regularHours: Number(line.regularHours ?? line.RegularHours ?? 0),
+    overtimeHours: Number(line.overtimeHours ?? line.OvertimeHours ?? 0),
+    doubletimeHours: Number(line.doubletimeHours ?? line.DoubletimeHours ?? 0),
+  }));
+}
+
+/** Sets California OT thresholds (6h daily) on the active company for payroll derivation tests. */
+export async function configurePayrollOvertimeForE2e(
+  request: APIRequestContext,
+  session: AuthSession,
+  companyId?: string | null
+): Promise<void> {
+  const headers = authHeaders(session, companyId);
+  const getResp = await request.get(`${API_BASE}/api/companies/settings/reports`, { headers });
+  const base = getResp.ok() ? ((await getResp.json()) as Record<string, unknown>) : {};
+
+  const putResp = await request.put(`${API_BASE}/api/companies/settings/reports`, {
+    headers,
+    data: {
+      overtimeRules: 'California',
+      overtimeEnabled: true,
+      dailyOvertimeThreshold: 6,
+      dailyDoubletimeThreshold: 10,
+      weeklyOvertimeThreshold: 40,
+      saturdayRule: base.saturdayRule ?? base.SaturdayRule ?? 'overtime',
+      sundayRule: base.sundayRule ?? base.SundayRule ?? 'doubletime',
+      holidayRule: base.holidayRule ?? base.HolidayRule ?? 'overtime',
+      holidaysJson: base.holidaysJson ?? base.HolidaysJson ?? '[]',
+      reportBrandingName: base.reportBrandingName ?? base.ReportBrandingName ?? '',
+      reportLogoUrl: base.reportLogoUrl ?? base.ReportLogoUrl ?? '',
+      fiscalYearStartMonth: base.fiscalYearStartMonth ?? base.FiscalYearStartMonth ?? 1,
+    },
+  });
+  if (!putResp.ok()) {
+    throw new Error(
+      `configurePayrollOvertimeForE2e failed: ${putResp.status()} ${await putResp.text()}`
+    );
+  }
+}
+
+/** Creates a 10h approved time entry inside the pay period for OT derivation (California 6h threshold → 4h OT). */
+export async function seedApprovedOvertimeTimeEntryForE2e(
+  request: APIRequestContext,
+  pmSession: AuthSession,
+  fieldSession: AuthSession,
+  options: {
+    companyId?: string | null;
+    payPeriodId: string;
+    projectId?: string;
+    fieldEmail?: string;
+    regularHours?: number;
+  }
+): Promise<{ timeEntryId: string; entryDate: string }> {
+  const pmHeaders = authHeaders(pmSession, options.companyId);
+  const fieldHeaders = authHeaders(fieldSession, options.companyId);
+  const fieldEmail = options.fieldEmail ?? fieldSession.email;
+
+  const periodResp = await request.get(`${API_BASE}/api/pay-periods/${options.payPeriodId}`, {
+    headers: pmHeaders,
+  });
+  if (!periodResp.ok()) {
+    throw new Error(
+      `seedApprovedOvertimeTimeEntry pay period lookup failed: ${periodResp.status()} ${await periodResp.text()}`
+    );
+  }
+  const period = await periodResp.json();
+  const periodStart = String(period.startDate ?? period.StartDate);
+  const periodEnd = String(period.endDate ?? period.EndDate);
+  const salt = process.env.E2E_RUN_TAG ?? Date.now().toString(36);
+  const startMs = new Date(periodStart).getTime();
+  const endMs = new Date(periodEnd).getTime();
+  const daySpan = Math.max(1, Math.floor((endMs - startMs) / 86_400_000) + 1);
+  const dayOffset = [...salt].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % daySpan;
+  const entryDate = new Date(startMs + dayOffset * 86_400_000).toISOString().slice(0, 10);
+
+  let projectId = options.projectId;
+  if (!projectId) {
+    if (!options.companyId) {
+      throw new Error('seedApprovedOvertimeTimeEntry: companyId required when projectId omitted');
+    }
+    projectId = await getFirstActiveProjectId(request, pmSession, options.companyId);
+  }
+  await ensureTimeTrackingPrereqs(request, pmSession, fieldEmail, projectId, options.companyId);
+
+  const empResp = await request.get(`${API_BASE}/api/employees?page=1&pageSize=200`, { headers: pmHeaders });
+  if (!empResp.ok()) {
+    throw new Error(`seedApprovedOvertimeTimeEntry employees failed: ${empResp.status()}`);
+  }
+  const empBody = await empResp.json();
+  const employees = empBody.items ?? empBody.Items ?? [];
+  const fieldEmployee = employees.find(
+    (e: { email?: string }) => (e.email ?? '').toLowerCase() === fieldEmail.toLowerCase()
+  );
+  const employeeId = fieldEmployee?.id ?? fieldEmployee?.Id;
+  if (!employeeId) {
+    throw new Error(`seedApprovedOvertimeTimeEntry: no employee for ${fieldEmail}`);
+  }
+
+  const ccResp = await request.get(`${API_BASE}/api/cost-codes?page=1&pageSize=5`, { headers: pmHeaders });
+  if (!ccResp.ok()) {
+    throw new Error(`seedApprovedOvertimeTimeEntry cost codes failed: ${ccResp.status()}`);
+  }
+  const ccBody = await ccResp.json();
+  const costCodes = ccBody.items ?? ccBody.Items ?? [];
+  const costCodeId = costCodes[0]?.id ?? costCodes[0]?.Id;
+  if (!costCodeId) {
+    throw new Error('seedApprovedOvertimeTimeEntry: no cost codes available');
+  }
+
+  const batchResp = await request.post(`${API_BASE}/api/time-entries/batch`, {
+    headers: fieldHeaders,
+    data: {
+      entries: [
+        {
+          date: entryDate,
+          employeeId,
+          projectId,
+          costCodeId,
+          regularHours: options.regularHours ?? 10,
+          overtimeHours: 0,
+          doubletimeHours: 0,
+          description: 'E2E payroll OT seed',
+        },
+      ],
+      isDraft: false,
+      allowPartialSuccess: false,
+    },
+  });
+  if (!batchResp.ok()) {
+    const batchErr = await batchResp.text();
+    if (batchResp.status() === 400 && batchErr.includes('DUPLICATE_ENTRY')) {
+      return { timeEntryId: 'existing', entryDate };
+    }
+    throw new Error(`seedApprovedOvertimeTimeEntry batch failed: ${batchResp.status()} ${batchErr}`);
+  }
+  const batchBody = await batchResp.json();
+  const results = batchBody.results ?? batchBody.Results ?? [];
+  const timeEntryId = (results[0]?.timeEntryId ?? results[0]?.TimeEntryId) as string;
+  if (!timeEntryId) {
+    throw new Error(`seedApprovedOvertimeTimeEntry: no timeEntryId in batch response`);
+  }
+
+  const reviewResp = await request.post(`${API_BASE}/api/time-entries/review`, {
+    headers: pmHeaders,
+    data: {
+      decisions: [{ timeEntryId, decision: 'Approve', comment: 'E2E payroll OT seed' }],
+    },
+  });
+  if (!reviewResp.ok()) {
+    throw new Error(
+      `seedApprovedOvertimeTimeEntry review failed: ${reviewResp.status()} ${await reviewResp.text()}`
+    );
+  }
+
+  return { timeEntryId, entryDate };
+}
+
+export async function ensurePayPeriodsForCompany(
   request: APIRequestContext,
   session: AuthSession,
   companyId?: string | null
@@ -610,14 +866,46 @@ async function ensurePayPeriodsForCompany(
   return (period.id ?? period.Id) as string;
 }
 
+/** Ensures pay periods exist and locks the current period for browser payroll tests. */
+export async function prepareLockedPayPeriod(
+  request: APIRequestContext,
+  payrollSession: AuthSession,
+  companyId?: string | null
+): Promise<string> {
+  const headers = authHeaders(payrollSession, companyId);
+  const payPeriodId = await ensurePayPeriodsForCompany(request, payrollSession, companyId);
+  const lockResp = await request.post(`${API_BASE}/api/pay-periods/${payPeriodId}/lock`, { headers });
+  if (!lockResp.ok()) {
+    throw new Error(
+      `prepareLockedPayPeriod lock failed: ${lockResp.status()} ${await lockResp.text()}`
+    );
+  }
+  return payPeriodId;
+}
+
 /** Lock pay period → generate payroll run → approve → export (API path for L3b). */
 export async function runPayrollE2e(
   request: APIRequestContext,
   payrollSession: AuthSession,
-  companyId?: string | null
+  companyId?: string | null,
+  options?: PayrollE2eOptions
 ): Promise<PayrollE2eResult> {
   const headers = authHeaders(payrollSession, companyId);
   const payPeriodId = await ensurePayPeriodsForCompany(request, payrollSession, companyId);
+
+  if (options?.seedOvertime) {
+    await configurePayrollOvertimeForE2e(request, payrollSession, companyId);
+    if (!options.pmSession || !options.fieldSession) {
+      throw new Error('runPayrollE2e seedOvertime requires pmSession and fieldSession');
+    }
+    await request.post(`${API_BASE}/api/pay-periods/${payPeriodId}/unlock`, { headers });
+    await seedApprovedOvertimeTimeEntryForE2e(request, options.pmSession, options.fieldSession, {
+      companyId,
+      payPeriodId,
+      projectId: options.projectId,
+      fieldEmail: options.fieldEmail,
+    });
+  }
 
   const lockResp = await request.post(`${API_BASE}/api/pay-periods/${payPeriodId}/lock`, { headers });
   if (!lockResp.ok()) {
@@ -625,59 +913,94 @@ export async function runPayrollE2e(
   }
 
   const runDate = new Date().toISOString().slice(0, 10);
+  let run: Record<string, unknown>;
   const generateResp = await request.post(`${API_BASE}/api/payroll/runs/generate`, {
     headers,
     data: { runDate, payPeriodId },
   });
   if (!generateResp.ok()) {
-    throw new Error(
-      `runPayrollE2e generate failed: ${generateResp.status()} ${await generateResp.text()}`
-    );
+    const generateBody = await generateResp.text();
+    if (
+      generateResp.status() === 400 &&
+      generateBody.includes('DUPLICATE_PAYROLL_RUN')
+    ) {
+      const listResp = await request.get(
+        `${API_BASE}/api/payroll/runs?payPeriodId=${payPeriodId}&page=1&pageSize=5`,
+        { headers }
+      );
+      if (!listResp.ok()) {
+        throw new Error(
+          `runPayrollE2e list existing run failed: ${listResp.status()} ${await listResp.text()}`
+        );
+      }
+      const listBody = await listResp.json();
+      const items = (listBody.items ?? listBody.Items ?? []) as Record<string, unknown>[];
+      const existing = items[0];
+      if (!existing) {
+        throw new Error(`runPayrollE2e duplicate run but none listed for payPeriodId=${payPeriodId}`);
+      }
+      run = existing;
+    } else {
+      throw new Error(`runPayrollE2e generate failed: ${generateResp.status()} ${generateBody}`);
+    }
+  } else {
+    run = (await generateResp.json()) as Record<string, unknown>;
   }
-  const run = await generateResp.json();
   const payrollRunId = (run.id ?? run.Id) as string;
+  let status = (run.status ?? run.Status ?? run.statusName ?? run.StatusName ?? 'Processing').toString();
 
-  const approveResp = await request.post(`${API_BASE}/api/payroll/runs/${payrollRunId}/approve`, {
-    headers,
-  });
-  if (!approveResp.ok()) {
-    throw new Error(
-      `runPayrollE2e approve failed: ${approveResp.status()} ${await approveResp.text()}`
-    );
+  if (!/approved|exported/i.test(status)) {
+    const approveResp = await request.post(`${API_BASE}/api/payroll/runs/${payrollRunId}/approve`, {
+      headers,
+    });
+    if (!approveResp.ok()) {
+      throw new Error(
+        `runPayrollE2e approve failed: ${approveResp.status()} ${await approveResp.text()}`
+      );
+    }
+    const approved = (await approveResp.json()) as Record<string, unknown>;
+    status = String(approved.status ?? approved.Status ?? 'Approved');
   }
 
-  const exportResp = await request.post(`${API_BASE}/api/payroll/runs/${payrollRunId}/export`, {
-    headers,
-  });
-  if (!exportResp.ok()) {
-    throw new Error(
-      `runPayrollE2e export failed: ${exportResp.status()} ${await exportResp.text()}`
-    );
+  if (!/exported/i.test(status)) {
+    const exportResp = await request.post(`${API_BASE}/api/payroll/runs/${payrollRunId}/export`, {
+      headers,
+    });
+    if (!exportResp.ok()) {
+      throw new Error(
+        `runPayrollE2e export failed: ${exportResp.status()} ${await exportResp.text()}`
+      );
+    }
+    const exported = await exportResp.json();
+    status = (exported.status ?? exported.Status ?? 'Exported').toString();
   }
-  const exported = await exportResp.json();
-  const status = (exported.status ?? exported.Status ?? 'Exported').toString();
 
-  return { payPeriodId, payrollRunId, status };
+  const detailResp = await request.get(`${API_BASE}/api/payroll/runs/${payrollRunId}`, { headers });
+  const detailBody = detailResp.ok()
+    ? ((await detailResp.json()) as Record<string, unknown>)
+    : (run as Record<string, unknown>);
+  const lines = parsePayrollLines(detailBody);
+  const totalOvertimeHours = lines.reduce((sum, l) => sum + l.overtimeHours, 0);
+
+  return { payPeriodId, payrollRunId, status, lines, totalOvertimeHours };
 }
 
 export interface OwnerChangeOrderResult {
   id: string;
 }
 
-/**
- * Creates an owner-scoped change order when the API is available.
- * Returns null when endpoint is not yet implemented (404).
- */
+/** Creates an owner-scoped change order via POST /api/owner-change-orders (or project-scoped fallback). */
 export async function createOwnerChangeOrder(
   request: APIRequestContext,
   session: AuthSession,
   projectId: string,
   options: { runTag: string; companyId?: string | null; amount?: number }
-): Promise<OwnerChangeOrderResult | null> {
+): Promise<OwnerChangeOrderResult> {
   const headers = authHeaders(session, options.companyId);
   const suffix = options.runTag.replace(/[^a-zA-Z0-9]/g, '').slice(-10);
   const payload = {
     projectId,
+    number: `OCO-E2E-${suffix}`,
     changeOrderNumber: `OCO-E2E-${suffix}`,
     title: `E2E owner CO ${options.runTag}`,
     description: 'Owner-directed scope addition',
@@ -696,25 +1019,25 @@ export async function createOwnerChangeOrder(
       if (id) return { id: id as string };
     }
     if (resp.status() === 404) continue;
-    console.warn(`createOwnerChangeOrder ${path}: ${resp.status()} ${await resp.text()}`);
+    throw new Error(`createOwnerChangeOrder ${path}: ${resp.status()} ${await resp.text()}`);
   }
-  return null;
+  throw new Error('createOwnerChangeOrder: no endpoint succeeded');
 }
 
 /** Ensures billing UI prereqs exist; creates owner contract + SOV when seed lacks them. */
 export async function ensureBillingPrereqs(
   request: APIRequestContext,
   session: AuthSession,
-  companyId?: string | null,
+  companyId: string,
   runTag?: string
-): Promise<BillingPrereqs | null> {
+): Promise<BillingPrereqs> {
   const discovered = await discoverBillingPrereqs(request, session, companyId);
   if (discovered) return discovered;
 
   const headers = authHeaders(session, companyId);
   const tag = runTag ?? Date.now().toString(36);
   const suffix = tag.replace(/[^a-zA-Z0-9]/g, '').slice(-10);
-  const projectId = await getFirstActiveProjectId(request, session);
+  const projectId = await getFirstActiveProjectId(request, session, companyId);
 
   const ocResp = await request.post(`${API_BASE}/api/owner-contracts`, {
     headers,
@@ -726,8 +1049,9 @@ export async function ensureBillingPrereqs(
     },
   });
   if (!ocResp.ok()) {
-    console.warn(`ensureBillingPrereqs: owner contract ${ocResp.status()} ${await ocResp.text()}`);
-    return null;
+    throw new Error(
+      `ensureBillingPrereqs: owner contract ${ocResp.status()} ${await ocResp.text()}`
+    );
   }
   const ownerContract = await ocResp.json();
   const ownerContractId = (ownerContract.id ?? ownerContract.Id) as string;
@@ -736,7 +1060,9 @@ export async function ensureBillingPrereqs(
     headers,
     data: { projectId, name: `E2E SOV ${tag}` },
   });
-  if (!sovResp.ok()) return null;
+  if (!sovResp.ok()) {
+    throw new Error(`ensureBillingPrereqs: SOV create ${sovResp.status()} ${await sovResp.text()}`);
+  }
   const sov = await sovResp.json();
   const sovId = (sov.id ?? sov.Id) as string;
 
@@ -747,7 +1073,11 @@ export async function ensureBillingPrereqs(
   const activateResp = await request.post(`${API_BASE}/api/owner-contracts/sov/${sovId}/activate`, {
     headers,
   });
-  if (!activateResp.ok()) return null;
+  if (!activateResp.ok()) {
+    throw new Error(
+      `ensureBillingPrereqs: SOV activate ${activateResp.status()} ${await activateResp.text()}`
+    );
+  }
 
   return { ownerContractId, ownerScheduleOfValuesId: sovId };
 }
@@ -756,22 +1086,28 @@ export async function ensureBillingPrereqs(
 export async function ensurePayAppPrereqs(
   request: APIRequestContext,
   session: AuthSession,
-  preferredProjectId?: string,
-  companyId?: string | null,
+  preferredProjectId: string | undefined,
+  companyId: string,
   runTag?: string
-): Promise<PayAppPrereqs | null> {
+): Promise<PayAppPrereqs> {
   const discovered = await discoverPayAppPrereqs(
     request,
     session,
     preferredProjectId,
     companyId
   );
-  if (discovered) return discovered;
+  if (
+    discovered &&
+    (await isProjectVisibleUnderCompany(request, session, discovered.projectId, companyId))
+  ) {
+    return discovered;
+  }
 
   const headers = authHeaders(session, companyId);
   const tag = runTag ?? Date.now().toString(36);
   const suffix = tag.replace(/[^a-zA-Z0-9]/g, '').slice(-10);
-  const projectId = preferredProjectId ?? (await getFirstActiveProjectId(request, session));
+  const projectId =
+    preferredProjectId ?? (await getFirstActiveProjectId(request, session, companyId));
 
   const scResp = await request.post(`${API_BASE}/api/subcontracts`, {
     headers,
@@ -786,8 +1122,9 @@ export async function ensurePayAppPrereqs(
     },
   });
   if (!scResp.ok()) {
-    console.warn(`ensurePayAppPrereqs: subcontract create ${scResp.status()} ${await scResp.text()}`);
-    return null;
+    throw new Error(
+      `ensurePayAppPrereqs: subcontract create ${scResp.status()} ${await scResp.text()}`
+    );
   }
   const subcontract = await scResp.json();
   const subcontractId = (subcontract.id ?? subcontract.Id) as string;
@@ -809,8 +1146,9 @@ export async function ensurePayAppPrereqs(
     },
   });
   if (!signResp.ok()) {
-    console.warn(`ensurePayAppPrereqs: subcontract sign ${signResp.status()} ${await signResp.text()}`);
-    return null;
+    throw new Error(
+      `ensurePayAppPrereqs: subcontract sign ${signResp.status()} ${await signResp.text()}`
+    );
   }
 
   return {

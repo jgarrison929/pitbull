@@ -11,6 +11,13 @@ namespace Pitbull.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<string>(
+                name: "Title",
+                table: "pm_daily_reports",
+                type: "character varying(200)",
+                maxLength: 200,
+                nullable: true);
+
             migrationBuilder.AddColumn<Guid>(
                 name: "AccrualJournalEntryId",
                 table: "vendor_invoices",
@@ -94,6 +101,10 @@ namespace Pitbull.Api.Migrations
             migrationBuilder.DropColumn(
                 name: "AccrualJournalEntryId",
                 table: "vendor_invoices");
+
+            migrationBuilder.DropColumn(
+                name: "Title",
+                table: "pm_daily_reports");
         }
     }
 }

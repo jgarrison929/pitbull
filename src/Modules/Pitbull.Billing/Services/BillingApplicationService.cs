@@ -12,7 +12,8 @@ namespace Pitbull.Billing.Services;
 public class BillingApplicationService(
     PitbullDbContext db,
     ILogger<BillingApplicationService> logger,
-    IWorkflowTransitionService? workflowTransitions = null) : IBillingApplicationService
+    IWorkflowTransitionService? workflowTransitions = null,
+    IWorkflowApprovalService? workflowApprovals = null) : IBillingApplicationService
 {
     private readonly ILogger<BillingApplicationService> _logger = logger;
     public async Task<Result<ListBillingApplicationsResult>> ListAsync(ListBillingApplicationsQuery query, CancellationToken ct = default)
@@ -381,6 +382,16 @@ public class BillingApplicationService(
         if (app is null) return Result.Failure<BillingApplicationDto>("Billing application not found", "NOT_FOUND");
 
         var fromStatus = app.Status;
+
+        if (workflowApprovals is not null
+            && await workflowApprovals.BlocksTransitionAsync(
+                "BillingApplication", app.Id, fromStatus.ToString(), newStatus.ToString(), ct))
+        {
+            return Result.Failure<BillingApplicationDto>(
+                "Pending workflow approvals must be resolved before this status change",
+                "WORKFLOW_APPROVAL_REQUIRED");
+        }
+
         if (!BillingApplicationStatusTransitions.IsValid(fromStatus, newStatus))
             return Result.Failure<BillingApplicationDto>(
                 $"Cannot transition billing application from {fromStatus} to {newStatus}",
@@ -390,6 +401,20 @@ public class BillingApplicationService(
         await db.SaveChangesAsync(ct);
 
         await RecordTransitionAsync(app.Id, fromStatus, newStatus, null, ct);
+
+        if (fromStatus != newStatus
+            && newStatus == BillingApplicationStatus.PmReview
+            && workflowApprovals is not null)
+        {
+            await workflowApprovals.TryStartWorkflowAsync(
+                "BillingApplication",
+                app.Id,
+                newStatus.ToString(),
+                app.ProjectId,
+                app.CurrentPaymentDue,
+                ct);
+        }
+
         return Result.Success(MapToDto(app, app.LineItems.Select(MapLineToDto).ToList()));
     }
 

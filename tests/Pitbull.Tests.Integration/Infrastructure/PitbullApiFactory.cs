@@ -8,7 +8,9 @@ using Pitbull.Api.Controllers;
 
 namespace Pitbull.Tests.Integration.Infrastructure;
 
-public sealed class PitbullApiFactory(string connectionString) : WebApplicationFactory<Program>
+public sealed class PitbullApiFactory(
+    string connectionString,
+    IReadOnlyDictionary<string, string?>? configOverrides = null) : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -30,6 +32,9 @@ public sealed class PitbullApiFactory(string connectionString) : WebApplicationF
                 ["Serilog:MinimumLevel:Override:Microsoft.AspNetCore"] = "Warning",
                 ["Serilog:MinimumLevel:Default"] = "Warning"
             });
+
+            if (configOverrides is not null)
+                config.AddInMemoryCollection(configOverrides);
         });
     }
 

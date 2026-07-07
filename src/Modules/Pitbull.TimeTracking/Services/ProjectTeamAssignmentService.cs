@@ -21,7 +21,12 @@ public class ProjectTeamAssignmentService(PitbullDbContext db, ILogger<ProjectTe
         if (members.Count == 0)
             return Result.Success<(Guid? ProjectManagerId, Guid? SuperintendentId)>((null, null));
 
-        var project = await db.Set<Project>()
+        // Prefer change-tracker (create flow stages project before first SaveChanges).
+        Project? project = db.ChangeTracker.Entries<Project>()
+            .Select(e => e.Entity)
+            .FirstOrDefault(p => p.Id == projectId && !p.IsDeleted);
+
+        project ??= await db.Set<Project>()
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);
 
         if (project is null)
@@ -50,6 +55,7 @@ public class ProjectTeamAssignmentService(PitbullDbContext db, ILogger<ProjectTe
 
             db.Set<ProjectAssignment>().Add(new ProjectAssignment
             {
+                CompanyId = project.CompanyId,
                 EmployeeId = member.EmployeeId,
                 ProjectId = projectId,
                 Role = assignmentRole,
@@ -64,19 +70,8 @@ public class ProjectTeamAssignmentService(PitbullDbContext db, ILogger<ProjectTe
                 superintendentId = member.EmployeeId;
         }
 
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Assigned {Count} team members to project {ProjectId}", members.Count, projectId);
-            return Result.Success((projectManagerId, superintendentId));
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Failed to assign team members to project {ProjectId}", projectId);
-            return Result.Failure<(Guid? ProjectManagerId, Guid? SuperintendentId)>(
-                "Failed to create project assignments",
-                "DATABASE_ERROR");
-        }
+        logger.LogInformation("Staged {Count} team members for project {ProjectId}", members.Count, projectId);
+        return Result.Success((projectManagerId, superintendentId));
     }
 
     private static AssignmentRole MapTeamMemberRole(string? role, out bool isProjectManager, out bool isSuperintendent)

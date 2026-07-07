@@ -424,6 +424,7 @@ public class VendorInvoiceService(
             StatusName: invoice.Status.ToString(),
             PurchaseOrderId: invoice.PurchaseOrderId,
             LatestMatchResult: latestMatch is null ? null : MapMatchResultDto(latestMatch),
+            AccrualJournalEntryId: invoice.AccrualJournalEntryId,
             CreatedAt: invoice.CreatedAt,
             UpdatedAt: invoice.UpdatedAt);
     }

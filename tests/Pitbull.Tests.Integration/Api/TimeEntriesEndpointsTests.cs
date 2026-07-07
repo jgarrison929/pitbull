@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Pitbull.Api.Controllers;
 using Pitbull.Tests.Integration.Infrastructure;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
@@ -86,6 +87,8 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
         await db.ResetAsync();
 
         var (client, _, _) = await _factory.CreateAuthenticatedClientAsync();
+
+        await SetupPayPeriodsForTodayAsync(client);
 
         // First create an employee
         var employeeResp = await client.PostAsJsonAsync("/api/employees", new
@@ -394,4 +397,24 @@ public sealed class TimeEntriesEndpointsTests(PostgresFixture db) : IAsyncLifeti
 
     // Simple DTO for project response parsing
     private record ProjectDto(Guid Id, string Name, string Number);
+
+    private static async Task SetupPayPeriodsForTodayAsync(HttpClient client)
+    {
+        var configReq = new UpdatePayPeriodConfigurationRequest(
+            Type: PayPeriodType.Weekly,
+            WeekStartDay: DayOfWeek.Monday,
+            SemiMonthlyFirstDay: 1,
+            SemiMonthlySecondDay: 16,
+            AutoLockEnabled: false,
+            AutoLockDaysAfterEnd: 3,
+            PeriodsToGenerateAhead: 8,
+            BiWeeklyReferenceDate: null,
+            EnforcementEnabled: true);
+        (await client.PutAsJsonAsync("/api/pay-periods/configuration", configReq)).EnsureSuccessStatusCode();
+
+        var generateReq = new GeneratePayPeriodsRequest(
+            FromDate: DateOnly.FromDateTime(DateTime.UtcNow.AddMonths(-1)),
+            PeriodsToGenerate: 8);
+        (await client.PostAsJsonAsync("/api/pay-periods/generate", generateReq)).EnsureSuccessStatusCode();
+    }
 }

@@ -334,7 +334,7 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == companyId, cancellationToken);
 
-        return company?.OvertimeSettings ?? new OvertimeSettings();
+        return CompanyOvertimePolicy.Resolve(company);
     }
 
     private static bool IsValidPayrollStatusTransition(PayrollRunStatus from, PayrollRunStatus to)

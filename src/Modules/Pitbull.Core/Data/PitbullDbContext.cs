@@ -89,6 +89,9 @@ public class PitbullDbContext(
 
     // Workflow
     public DbSet<WorkflowTransition> WorkflowTransitions => Set<WorkflowTransition>();
+    public DbSet<WorkflowDefinition> WorkflowDefinitions => Set<WorkflowDefinition>();
+    public DbSet<WorkflowApprovalStep> WorkflowApprovalSteps => Set<WorkflowApprovalStep>();
+    public DbSet<WorkflowApprovalAction> WorkflowApprovalActions => Set<WorkflowApprovalAction>();
 
     // Dashboard
     public DbSet<DashboardPreference> DashboardPreferences => Set<DashboardPreference>();

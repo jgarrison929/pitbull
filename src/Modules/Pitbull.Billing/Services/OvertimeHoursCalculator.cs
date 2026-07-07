@@ -38,6 +38,60 @@ public static class OvertimeHoursCalculator
             overtimeHours += weeklyExcess;
         }
 
+        if (settings.CaliforniaOtRules)
+            (regularHours, overtimeHours, doubletimeHours) = ApplyCaliforniaSeventhDayRule(
+                entries, regularHours, overtimeHours, doubletimeHours, settings);
+
+        return (regularHours, overtimeHours, doubletimeHours);
+    }
+
+    /// <summary>
+    /// California 7th consecutive work day: first 8 hours OT, beyond 8 DT (no regular).
+    /// </summary>
+    private static (decimal Regular, decimal Overtime, decimal Doubletime) ApplyCaliforniaSeventhDayRule(
+        IReadOnlyList<TimeEntry> entries,
+        decimal regularHours,
+        decimal overtimeHours,
+        decimal doubletimeHours,
+        OvertimeSettings settings)
+    {
+        var daysWithHours = entries
+            .GroupBy(e => e.Date)
+            .Where(g => g.Sum(e => e.TotalHours) > 0)
+            .OrderBy(g => g.Key)
+            .Select(g => (Date: g.Key, Total: g.Sum(e => e.TotalHours)))
+            .ToList();
+
+        if (daysWithHours.Count < 7)
+            return (regularHours, overtimeHours, doubletimeHours);
+
+        int streak = 1;
+        for (int i = 1; i < daysWithHours.Count; i++)
+        {
+            if (daysWithHours[i].Date == daysWithHours[i - 1].Date.AddDays(1))
+                streak++;
+            else
+                streak = 1;
+
+            if (streak < 7)
+                continue;
+
+            decimal dayTotal = daysWithHours[i].Total;
+            (decimal dayRegular, decimal dayOvertime, decimal dayDoubletime) = ClassifyDailyHours(dayTotal, settings);
+
+            regularHours -= dayRegular;
+            overtimeHours -= dayOvertime;
+            doubletimeHours -= dayDoubletime;
+
+            decimal seventhOt = Math.Min(dayTotal, 8m);
+            decimal seventhDt = Math.Max(dayTotal - 8m, 0m);
+            overtimeHours += seventhOt;
+            doubletimeHours += seventhDt;
+        }
+
+        regularHours = Math.Max(regularHours, 0m);
+        overtimeHours = Math.Max(overtimeHours, 0m);
+        doubletimeHours = Math.Max(doubletimeHours, 0m);
         return (regularHours, overtimeHours, doubletimeHours);
     }
 

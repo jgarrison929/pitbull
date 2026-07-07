@@ -20,7 +20,10 @@ namespace Pitbull.Contracts.Services;
 /// <summary>
 /// Implementation of contracts service with direct database access.
 /// </summary>
-public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? workflowTransitions = null) : IContractsService
+public class ContractsService(
+    PitbullDbContext db,
+    IWorkflowTransitionService? workflowTransitions = null,
+    IWorkflowApprovalService? workflowApprovals = null) : IContractsService
 {
     // Subcontracts
     public async Task<Result<SubcontractDto>> GetSubcontractAsync(Guid id, CancellationToken cancellationToken = default)
@@ -303,6 +306,15 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
         var oldStatus = changeOrder.Status;
         var newStatus = command.Status;
 
+        if (workflowApprovals is not null
+            && await workflowApprovals.BlocksTransitionAsync(
+                "ChangeOrder", changeOrder.Id, oldStatus.ToString(), newStatus.ToString(), cancellationToken))
+        {
+            return Result.Failure<ChangeOrderDto>(
+                "Pending workflow approvals must be resolved before this status change",
+                "WORKFLOW_APPROVAL_REQUIRED");
+        }
+
         if (!ChangeOrderStatusTransitions.IsValid(oldStatus, newStatus))
             return Result.Failure<ChangeOrderDto>(
                 $"Cannot transition from {oldStatus} to {newStatus}",
@@ -385,6 +397,23 @@ public class ContractsService(PitbullDbContext db, IWorkflowTransitionService? w
                 "ChangeOrder", changeOrder.Id,
                 oldStatus.ToString(), newStatus.ToString(),
                 Guid.Empty, null, null, cancellationToken);
+        }
+
+        if (oldStatus != newStatus
+            && newStatus == ChangeOrderStatus.UnderReview
+            && workflowApprovals is not null)
+        {
+            var subcontract = await db.Set<Subcontract>()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == changeOrder.SubcontractId, cancellationToken);
+
+            await workflowApprovals.TryStartWorkflowAsync(
+                "ChangeOrder",
+                changeOrder.Id,
+                newStatus.ToString(),
+                subcontract?.ProjectId,
+                changeOrder.Amount,
+                cancellationToken);
         }
 
         return Result.Success(MapChangeOrderToDto(changeOrder));

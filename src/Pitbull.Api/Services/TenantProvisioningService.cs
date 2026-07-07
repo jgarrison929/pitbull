@@ -28,22 +28,30 @@ public class TenantProvisioningService(
     {
         logger.LogInformation("Provisioning tenant {TenantId} with company {CompanyId}", tenantId, companyId);
 
-        // Guard: verify the company exists, belongs to the correct tenant, and is not deleted
-        var company = await db.Set<Company>()
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(c => c.Id == companyId && c.TenantId == tenantId && !c.IsDeleted, ct);
+        // Provisioning runs outside the registration transaction on a fresh scoped DbContext.
+        // Keep RLS session vars on the same connection as subsequent queries (Npgsql pooling).
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, true)", ct);
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_company', {companyId.ToString()}, true)", ct);
 
-        if (company is null)
-            throw new InvalidOperationException($"Company {companyId} not found or does not belong to tenant {tenantId}");
+            var company = await db.Set<Company>()
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(c => c.Id == companyId && c.TenantId == tenantId && !c.IsDeleted, ct);
 
-        // 1. Ensure roles exist
-        await roleSeeder.EnsureRolesForTenantAsync(tenantId, ct);
+            if (company is null)
+                throw new InvalidOperationException($"Company {companyId} not found or does not belong to tenant {tenantId}");
 
-        // 2. Seed default cost codes (tenant-scoped, not company-scoped)
-        await SeedDefaultCostCodesAsync(tenantId, ct);
+            await roleSeeder.EnsureRolesForTenantAsync(tenantId, ct);
+            await SeedDefaultCostCodesAsync(tenantId, ct);
+            await SeedDefaultPermissionsAsync(tenantId, ct);
 
-        // 3. Seed default RBAC permissions
-        await SeedDefaultPermissionsAsync(tenantId, ct);
+            await tx.CommitAsync(ct);
+        });
 
         logger.LogInformation("Tenant {TenantId} provisioning complete", tenantId);
     }

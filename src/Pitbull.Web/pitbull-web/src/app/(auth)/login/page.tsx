@@ -240,6 +240,13 @@ function LoginForm() {
             </LoadingButton>
           </form>
 
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            Don&apos;t have an account?{" "}
+            <Link href="/signup" className="text-amber-600 dark:text-amber-400 hover:underline font-medium">
+              Create an account
+            </Link>
+          </p>
+
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />

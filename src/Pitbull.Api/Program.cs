@@ -217,6 +217,10 @@ builder.Services.AddScoped<Pitbull.Reports.Services.ICostPredictionService, Pitb
 builder.Services.AddScoped<Pitbull.Api.Features.CostPredictions.ICostToCompleteService, Pitbull.Api.Features.CostPredictions.CostToCompleteService>();
 builder.Services.AddScoped<Pitbull.Api.Features.Workflow.WorkflowTransitionService>();
 builder.Services.AddScoped<Pitbull.Core.Services.IWorkflowTransitionService>(sp => sp.GetRequiredService<Pitbull.Api.Features.Workflow.WorkflowTransitionService>());
+builder.Services.AddScoped<Pitbull.Core.Services.IWorkflowEntityCompleter, Pitbull.Api.Features.Workflow.ChangeOrderWorkflowCompleter>();
+builder.Services.AddScoped<Pitbull.Core.Services.IWorkflowEntityCompleter, Pitbull.Api.Features.Workflow.BillingApplicationWorkflowCompleter>();
+builder.Services.AddScoped<Pitbull.Api.Features.Workflow.WorkflowApprovalService>();
+builder.Services.AddScoped<Pitbull.Core.Services.IWorkflowApprovalService>(sp => sp.GetRequiredService<Pitbull.Api.Features.Workflow.WorkflowApprovalService>());
 builder.Services.AddScoped<Pitbull.Core.Services.IProjectAccessService, Pitbull.Core.Services.ProjectAccessService>();
 
 // Project Management module services

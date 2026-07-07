@@ -39,6 +39,7 @@ export default function PayrollRunDetailPage() {
   const [run, setRun] = useState<PayrollRunDto | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const fetchRun = useCallback(async () => {
     if (!runId) return;
@@ -68,6 +69,20 @@ export default function PayrollRunDetailPage() {
       toast.error(error instanceof Error ? error.message : "Failed to approve payroll run");
     } finally {
       setIsApproving(false);
+    }
+  }
+
+  async function exportRun() {
+    if (!runId) return;
+    setIsExporting(true);
+    try {
+      const exported = await api<PayrollRunDto>(`/api/payroll/runs/${runId}/export`, { method: "POST" });
+      setRun(exported);
+      toast.success("Payroll run exported");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to export payroll run");
+    } finally {
+      setIsExporting(false);
     }
   }
 
@@ -137,6 +152,13 @@ export default function PayrollRunDetailPage() {
                   <Button variant="outline" onClick={exportWh347Pdf}>Export PDF</Button>
                   <Button onClick={approveRun} disabled={isApproving} className="bg-amber-500 hover:bg-amber-600 text-white">
                     {isApproving ? "Approving..." : "Approve Run"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={exportRun}
+                    disabled={isExporting || run.statusName !== "Approved"}
+                  >
+                    {isExporting ? "Exporting..." : "Export Run"}
                   </Button>
                 </div>
               </div>

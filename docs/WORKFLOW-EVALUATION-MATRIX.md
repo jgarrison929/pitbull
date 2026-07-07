@@ -22,15 +22,17 @@
 | # | Lifecycle | Canonical ERP stages (baseline) | Pitbull stages (post-remediation) | Verdict | Reviewer | Remediation status |
 |---|-----------|--------------------------------|-------------------------------------|---------|----------|-------------------|
 | 1 | Bid → Project | Draft → Submitted → Won/Lost → Converted → Project setup | `BidStatus` + `ConvertToProjectAsync`; `BidStatusTransitions` on update | **PASS** | PM | Enforced bid transitions; conversion still Won-only |
-| 2 | Project setup | Create project → SOV → cost codes → budget → contracts → team | `ProjectStatus.PreConstruction`; nav order Cost Codes → Employees → Projects → Contracts → Time; tenant provisioning on register; checklist auto-sync + canonical order | **PASS** | PM | E2E: `createProjectWithPhases` + `activateProject` (API) + PM cost-code UI + Day-1 nav chain; project → Active verified |
-| 3 | Crew time → approval → payroll/export | Draft → Submitted → Approved/Rejected → Payroll run → Export | `TimeEntryService` creates **Draft**; submit/approve state machine; `PayrollRunService` approved-only | **PASS** | Payroll | E2E L3 mobile submit + PM approval UI; L3b `runPayrollE2e` (lock period → generate → approve → export) |
+| 2 | Project setup | Create project → SOV → cost codes → budget → contracts → team | `ProjectStatus.PreConstruction`; `POST /api/projects/{id}/activate`; phases + team on create; nav order Cost Codes → Employees → Projects → Contracts → Time | **PASS** | PM | E2E: PM cost-code UI + Day-1 nav + browser `/projects/new` create (phases template) + **Activate Project** UI → Active |
+| 3 | Crew time → approval → payroll/export | Draft → Submitted → Approved/Rejected → Payroll run → Export | `TimeEntryService` creates **Draft**; submit/approve state machine; `PayrollRunService` + `CompanyOvertimePolicy` | **PASS** | Payroll | E2E L3 mobile submit + PM approval UI; L3b seeds CA 6h OT settings + 10h approved entry → API/UI payroll generate asserts `overtimeHours > 0` → approve → **Export Run** |
 | 4 | Owner pay app (AR) | Draft → PM review → Submit → Owner cert → Payment due → Paid | `BillingApplicationStatus` full graph + `BillingApplicationStatusTransitions` | **PASS** | AR / CFO | E2E extended: PM+AR UI through ArchitectCertified → Mark Payment Due → Mark Paid (Paid badge) |
 | 5 | Subcontract pay app (AP) | Draft → Submitted → Reviewed → Approved → Paid (+ Reject → Draft) | `PaymentApplicationStatusTransitions` + dedicated POST actions; PUT blocked for status | **PASS** | AP | PUT bypass removed; contracts edit UI no longer skips stages |
-| 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed) | **PASS** | PM | Subcontract CO UI E2E; L6b `createOwnerChangeOrder` API helper (skips until `/api/owner-change-orders` ships) |
+| 6 | Change order | Pending → Under Review → Approved/Rejected/Withdrawn → Void | `ChangeOrderStatusTransitions` (Pending→Approved removed); owner CO via `OwnerChangeOrdersController` | **PASS** | PM | Subcontract CO UI E2E; L6b `POST /api/owner-change-orders` creates owner-scoped CO |
 | 7 | RFI | Open → Answered → Closed | `RfiStatusTransitions` + answer required on close | **PASS** | PM | Transition enforcement + `ClosedAt` set |
 | 8 | Submittal | Draft → Submitted → InReview → Approved/Revise/Rejected → Closed | `SubmittalRequestMapper` + `SubmittalStatusTransitions`; create rejects client status | **PASS** | PM | Create rejects `Status`/`Data.Status`; update uses explicit mapper (no `ApplyUpsert`) |
-| 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition` | **PASS** | AP | E2E: AP create + Match UI; `ensureVendorPrereqs` seeds vendor when demo omits; field-eng 403 RBAC negative |
+| 9 | Vendor invoice → pay | Pending → Matched → Approved → Paid | `VendorInvoiceService.IsValidInvoiceStatusTransition`; GL accrual JE on approve (5200/2000) | **PASS** | AP | E2E: AP create + Match UI; accrual posts when GL accounts exist; field-eng 403 RBAC negative |
 | 10 | Daily report | Draft → Submitted → Approved → Locked | `DailyReportStatusTransitions.CanTransition` + `DailyReportRequestMapper`; create/update reject status | **PASS** | PM | Create rejects status; POST submit/approve/lock; `WorkflowTransition` audit on transitions |
+
+**v2.0.0 workflow approval layer:** Phase 1 unified engine adds configurable chains + My Approvals for change orders (`UnderReview`) and owner `BillingApplication` (`PmReview`). Domain `*StatusTransitions` graphs remain authoritative; pending workflow actions block direct approve/reject bypass (`WORKFLOW_APPROVAL_REQUIRED`). All 10 lifecycles above remain **PASS**.
 
 ### Canonical billing model decision
 
@@ -93,7 +95,7 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\imp
 
 - Time approval: **PASS** (production path via `TimeEntryService`)
 - Overtime settings persist server-side via `ReportSettingsController` (**PASS** persistence)
-- Overtime not yet consumed by payroll engine (**PARTIAL** — documented non-goal for full tax engine)
+- Overtime consumed by payroll engine via `CompanyOvertimePolicy` + `OvertimeHoursCalculator` (**PASS**; full certified payroll / tax engine remains non-goal)
 
 ---
 
@@ -111,7 +113,8 @@ Detailed findings: `C:\Users\jgarr\AppData\Local\Temp\grok-goal-eaf1b63e9147\imp
 | Suite | Result | Log |
 |-------|--------|-----|
 | Workflow unit (`WorkflowTransitionGraphTests` + PM daily/submittal) | 31+ passed | `workflow-tests.log` |
-| Full integration | **266 passed**, 0 failed, 0 skipped | `integration-tests-full.log` |
+| Full integration | **274 passed**, 0 failed, 0 skipped | `implementer/integration-tests-full.log` |
+| Workflow gap evidence (L2/L3/L4/L6/L9) | 7 passed (unit + integration + Playwright) | `scripts/capture-workflow-evidence.ps1` → `implementer/*.log` |
 | Full unit | **3181 passed**, 0 failed, 2 skipped | `unit-tests-full.log` |
 | Daily reports integration | 4 passed (create→submit→approve→lock; PUT status rejected) | `integration-tests-full.log` |
 | Role browser E2E (11 lifecycles + L3b/L6b × 7 personas) | **18+ passed** (11 tests + setup), 2 consecutive runs locally | `implementer/role-e2e/playwright-green-runA.log`, `playwright-green-runB.log` |
@@ -149,16 +152,16 @@ Role browser E2E: `e2e/tests/role-workflows.spec.ts` + `e2e/fixtures/auth-multi.
 | # | Lifecycle | Persona(s) | Primary UI actions asserted | Observable outcome | Log tag |
 |---|-----------|------------|----------------------------|--------------------|---------|
 | L1 | Bid → Project | Estimator | Create bid → edit status → Submitted | Status shows Submitted | `[Bid → Project] estimator UI → Submitted OK` |
-| L2 | Project setup | PM | Add cost code → Day-1 nav → API project+team → activate | Cost code POST OK; nav chain; `createProjectWithPhases` + `activateProject`; status Active | `[Project setup] PM cost code + Day-1 chain + project Active OK` |
+| L2 | Project setup | PM | Add cost code → Day-1 nav → `/projects/new` (PM team member) → Activate Project | Cost code POST OK; nav chain; phases + `project-assignments` Manager row; Active badge | `[Project setup] phases persisted: …` / `team assignments: …` / browser create/activate OK` |
 | L3 | Crew time → approval | Field Eng → PM | Mobile batch submit → approval queue approve | Batch POST OK; PM sees approved/clear queue | `[Crew time → payroll] field mobile submit → PM approval OK` |
-| L3b | Payroll export | Payroll Mgr (API) | Lock pay period → generate run → approve → export | `runPayrollE2e` returns Exported/Approved status | `[Crew time → payroll] payroll lock→generate→approve→export OK` |
+| L3b | Payroll export | Payroll Mgr | API `runPayrollE2e` (OT seed) + UI `/payroll/runs` generate → approve → Export Run | Exported status; payroll lines show `overtimeHours > 0` from ReportSettings thresholds | `[Crew time → payroll] payroll lock→generate→approve→export OK (lines=… ot=…)` / `payroll UI generate→approve→export OK (lines=… ot=…)` |
 | L4 | Owner billing (AR) | PM → AR Clerk | Create app → review → submit → certify → payment due → paid | Badges through Paid | `[Owner pay app (AR)] PM+AR UI billing → Paid OK` |
 | L5 | Sub pay app (AP) | PM → AP Clerk | New pay app dialog → create → AP Submit | Submitted badge on detail page | `[Subcontract pay app (AP)] PM create → AP submit OK` |
 | L6 | Change order | PM | Create CO → Under Review → Approved | Row badges Under Review → Approved | `[Change order] PM UI → Approved OK` |
-| L6b | Owner change order | PM (API) | `createOwnerChangeOrder` when endpoint exists | CO id returned or skip (API not shipped) | `[Change order] owner CO API create OK` |
+| L6b | Owner change order | PM (API) | `POST /api/owner-change-orders` | CO id returned | `[Change order] owner CO API create OK` |
 | L7 | RFI | PM | Create → answer → Mark Answered | Answered status visible | `[RFI] PM UI → Answered OK` |
 | L8 | Submittal | PM | Create Draft → edit → Submitted | Row badge Submitted | `[Submittal] PM UI → Submitted OK` |
 | L9 | Vendor invoice | AP Clerk (+ Field 403) | Create invoice → Match; field GET vendor-invoices | Matched row; field-eng 403 (RBAC negative only) | `[Vendor invoice] AP UI match OK, field-eng 403 OK` |
 | L10 | Daily report | Field Eng → PM | Create report → Submit → Approve → Lock | Row badges Submitted → Approved → Locked | `[Daily report] field create → PM Locked OK` |
 
-**E2E prerequisites (API helpers, not primary workflow path):** `ensureTimeTrackingPrereqs`, `ensurePmProjectAssignment`, `ensureVendorPrereqs`, `ensureBillingPrereqs`, `ensurePayAppPrereqs`, `createProjectWithPhases`, `activateProject`, `runPayrollE2e`, `createOwnerChangeOrder`. Finance company context for L4–L9; field subsidiary company for L3/L10. CI: `role-e2e-smoke` job runs L4 via `scripts/run-role-e2e.sh --smoke`.
+**E2E prerequisites (API helpers, not primary workflow path):** `ensureTimeTrackingPrereqs`, `ensurePmProjectAssignment`, `ensureVendorPrereqs`, `ensureBillingPrereqs`, `ensurePayAppPrereqs`, `createProjectWithPhases`, `activateProject`, `prepareLockedPayPeriod`, `runPayrollE2e`, `createOwnerChangeOrder`. L5–L8 skip when `ensurePayAppPrereqs` cannot seed executed subcontract (demo finance company). Finance company context for L4–L9; field subsidiary company for L3/L10. CI: `role-e2e-smoke` job runs L4 via `scripts/run-role-e2e.sh --smoke`.
