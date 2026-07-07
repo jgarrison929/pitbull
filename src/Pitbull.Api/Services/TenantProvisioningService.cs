@@ -28,12 +28,8 @@ public class TenantProvisioningService(
     {
         logger.LogInformation("Provisioning tenant {TenantId} with company {CompanyId}", tenantId, companyId);
 
-        // Provisioning runs outside the registration transaction on a fresh scoped DbContext.
-        // Keep RLS session vars on the same connection as subsequent queries (Npgsql pooling).
-        var strategy = db.Database.CreateExecutionStrategy();
-        await strategy.ExecuteAsync(async () =>
+        async Task ProvisionCoreAsync()
         {
-            await using var tx = await db.Database.BeginTransactionAsync(ct);
             await db.Database.ExecuteSqlInterpolatedAsync(
                 $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, true)", ct);
             await db.Database.ExecuteSqlInterpolatedAsync(
@@ -49,9 +45,23 @@ public class TenantProvisioningService(
             await roleSeeder.EnsureRolesForTenantAsync(tenantId, ct);
             await SeedDefaultCostCodesAsync(tenantId, ct);
             await SeedDefaultPermissionsAsync(tenantId, ct);
+        }
 
-            await tx.CommitAsync(ct);
-        });
+        // Registration passes an ambient transaction; reuse it so provisioning rolls back on failure.
+        if (db.Database.CurrentTransaction is not null)
+        {
+            await ProvisionCoreAsync();
+        }
+        else
+        {
+            var strategy = db.Database.CreateExecutionStrategy();
+            await strategy.ExecuteAsync(async () =>
+            {
+                await using var tx = await db.Database.BeginTransactionAsync(ct);
+                await ProvisionCoreAsync();
+                await tx.CommitAsync(ct);
+            });
+        }
 
         logger.LogInformation("Tenant {TenantId} provisioning complete", tenantId);
     }

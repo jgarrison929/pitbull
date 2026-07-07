@@ -31,10 +31,13 @@ Registration is blocked only when **both** `Demo.Enabled` and `DisableRegistrati
 
 ## Implementation
 
-1. `TenantProvisioningService.ProvisionTenantAsync` — set `app.current_tenant` before queries (RLS)
-2. `login/page.tsx` — primary CTA link to `/signup`; keep demo as secondary
-3. `appsettings.json` — `DisableRegistration: false` when demo disabled (clarity)
-4. `OwnerSignupIntegrationTests` — register → Admin JWT → me → login → admin users
+1. `middleware.ts` — redirect `/signup` → `/demo` only when `NEXT_PUBLIC_DISABLE_REGISTRATION=true`
+2. `TenantProvisioningService.ProvisionTenantAsync` — RLS-scoped transaction; participates in registration transaction
+3. `RoleSeeder.EnsureRolesForTenantAsync` — lookup uses `{tenantId}:{roleName}` identity name
+4. `AuthController.Register` — provisioning before commit; registration fails if provisioning fails
+5. `login/page.tsx` — primary CTA link to `/signup`; keep demo as secondary
+6. `appsettings.json` — `DisableRegistration: false` when demo disabled (clarity)
+7. `OwnerSignupIntegrationTests` + `owner-signup.spec.ts` Playwright flow
 
 ## Test plan
 

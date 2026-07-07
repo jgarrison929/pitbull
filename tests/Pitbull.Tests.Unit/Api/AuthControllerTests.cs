@@ -139,6 +139,8 @@ public class AuthControllerTests
 
         var roleSeeder = CreateRoleSeeder(rmMock, umMock, db);
 
+        var tenantProvisioning = Mock.Of<Pitbull.Api.Services.ITenantProvisioningService>();
+
         var scopeFactoryMock = new Mock<IServiceScopeFactory>();
         var scopeMock = new Mock<IServiceScope>();
         var spMock = new Mock<IServiceProvider>();
@@ -157,6 +159,7 @@ public class AuthControllerTests
             regVal.Object,
             loginVal.Object,
             tc,
+            tenantProvisioning,
             scopeFactoryMock.Object,
             Mock.Of<ILogger<AuthController>>());
 
