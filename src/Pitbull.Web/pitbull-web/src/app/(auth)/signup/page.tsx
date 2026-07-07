@@ -31,6 +31,7 @@ import {
   Trash2,
 } from "lucide-react";
 import api from "@/lib/api";
+import { buildOwnerRegisterPayload } from "@/lib/owner-register-payload";
 
 const STEPS = [
   { id: 1, label: "Account", icon: UserPlus },
@@ -118,18 +119,20 @@ export default function SignupPage() {
   }
 
   async function handleSubmit() {
+    if (isLoading) return;
     setIsLoading(true);
     try {
-      // Register the account
-      await register({
-        firstName,
-        lastName,
-        email,
-        password,
-        companyName: companyName || undefined,
-        industryType: industryType || undefined,
-        employeeRange: employeeRange || undefined,
-      });
+      await register(
+        buildOwnerRegisterPayload({
+          firstName,
+          lastName,
+          email,
+          password,
+          companyName,
+          industryType,
+          employeeRange,
+        })
+      );
 
       // Send invitations (non-blocking — if they fail, the signup still succeeds)
       const validInvites = invites.filter((inv) => inv.email.trim() !== "");
