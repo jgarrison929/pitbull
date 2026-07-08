@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Pitbull.Api.Features.SeedData;
 using Pitbull.Api.Infrastructure;
 using Pitbull.Api.Services;
+
 using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
@@ -24,6 +25,7 @@ public sealed class DemoBootstrapper(
     RoleSeeder roleSeeder,
     IRoleService roleService,
     ISeedDataService seedDataService,
+    IWelcomeService welcomeService,
     IOptions<DemoOptions> options,
     ILogger<DemoBootstrapper> logger)
 {
@@ -120,6 +122,9 @@ public sealed class DemoBootstrapper(
         // HR + project assignments must survive domain seed rollbacks (e.g. duplicate cost-code keys).
         // Run inside an RLS-scoped transaction — inserts fail without app.current_tenant on the connection.
         await EnsureDemoHrAndAssignmentsAsync(tenant.Id, company.Id, demo, allCompanies, cancellationToken);
+
+        // Fresh demo users are under 7 days old and would otherwise get a blocking welcome tour in E2E/CI.
+        await EnsureDemoWelcomeToursCompleteAsync(cancellationToken);
 
         // Post-seed maintenance: keep time entry dates current so dashboard KPIs have data
         await RefreshTimeEntryDatesAsync(tenant.Id, cancellationToken);
@@ -406,6 +411,23 @@ public sealed class DemoBootstrapper(
 
         // The demo.UserEmail user was already handled above. If additional
         // hard-coded accounts are needed, add them via DemoOptions instead.
+    }
+
+    /// <summary>
+    /// Marks the welcome tour complete for all demo personas so UI E2E is not blocked by the overlay.
+    /// </summary>
+    private async Task EnsureDemoWelcomeToursCompleteAsync(CancellationToken ct)
+    {
+        var completed = 0;
+        foreach (var def in DemoUsers)
+        {
+            var user = await userManager.FindByEmailAsync(def.Email);
+            if (user is null) continue;
+            await welcomeService.CompleteTourAsync(user.Id, ct);
+            completed++;
+        }
+
+        logger.LogInformation("Marked welcome tour complete for {Count} demo users", completed);
     }
 
     /// <summary>

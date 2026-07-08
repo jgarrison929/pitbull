@@ -19,6 +19,7 @@ import {
   filterTableBySearch,
   expectStatusVisible,
   setActiveCompany,
+  dismissBlockingOverlays,
 } from '../fixtures/browser-helpers';
 
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:5081';
@@ -424,6 +425,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await setActiveCompany(pmPage, companyId);
       await pmPage.goto('/billing/applications');
       await pmPage.waitForLoadState('domcontentloaded');
+      await dismissBlockingOverlays(pmPage);
       await pmPage.getByRole('button', { name: /new application/i }).click();
       const billingMonth = 5 + (parseInt(runTag.slice(-2), 36) % 6);
       const billingMonthStr = String(billingMonth).padStart(2, '0');
@@ -456,7 +458,11 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await setActiveCompany(arPage, companyId);
       await arPage.goto(`/billing/applications/${appId}`);
       await arPage.waitForLoadState('domcontentloaded');
-      await arPage.getByRole('button', { name: /architect certified/i }).click();
+      await dismissBlockingOverlays(arPage);
+      await expect(arPage.getByText('SubmittedToOwner').first()).toBeVisible({ timeout: 20_000 });
+      const certifyBtn = arPage.getByRole('button', { name: /architect certified/i });
+      await expect(certifyBtn).toBeVisible({ timeout: 20_000 });
+      await certifyBtn.click();
       await expect(arPage.getByText('ArchitectCertified').first()).toBeVisible({ timeout: 15_000 });
 
       await arPage.getByRole('button', { name: /mark payment due/i }).click();

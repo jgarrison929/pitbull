@@ -133,6 +133,69 @@ export interface BillingPrereqs {
   ownerScheduleOfValuesId: string;
 }
 
+/** Demo seed employee numbers keyed by login email (fallback when paginated lists truncate). */
+const DEMO_EMPLOYEE_NUMBERS: Record<string, string> = {
+  'pm@demo.local': 'DEMO-PM',
+  'field-eng@demo.local': 'DEMO-FE',
+  'ar-clerk@demo.local': 'DEMO-ARC',
+  'ap-clerk@demo.local': 'DEMO-APC',
+  'mgr-payroll@demo.local': 'DEMO-MP',
+  'estimator@demo.local': 'DEMO-EST',
+};
+
+/** Resolve an employee id by email without relying on the first page of an unfiltered list. */
+async function resolveEmployeeIdByEmail(
+  request: APIRequestContext,
+  session: AuthSession,
+  email: string,
+  companyId?: string | null
+): Promise<string | null> {
+  const normalized = email.toLowerCase();
+  const headers = authHeaders(session, companyId);
+  const searchTerms = [email, DEMO_EMPLOYEE_NUMBERS[normalized]].filter(
+    (term): term is string => Boolean(term)
+  );
+
+  for (const term of searchTerms) {
+    const resp = await request.get(
+      `${API_BASE}/api/employees?search=${encodeURIComponent(term)}&page=1&pageSize=50`,
+      { headers }
+    );
+    if (!resp.ok()) continue;
+    const body = await resp.json();
+    const items = body.items ?? body.Items ?? [];
+    const byEmail = items.find(
+      (e: { email?: string; Email?: string }) =>
+        (e.email ?? e.Email ?? '').toLowerCase() === normalized
+    );
+    const byEmailId = byEmail?.id ?? byEmail?.Id;
+    if (byEmailId) return byEmailId;
+
+    const demoNumber = DEMO_EMPLOYEE_NUMBERS[normalized];
+    if (demoNumber) {
+      const byNumber = items.find(
+        (e: { employeeNumber?: string; EmployeeNumber?: string }) =>
+          (e.employeeNumber ?? e.EmployeeNumber ?? '').toUpperCase() === demoNumber
+      );
+      const byNumberId = byNumber?.id ?? byNumber?.Id;
+      if (byNumberId) return byNumberId;
+    }
+  }
+
+  if (normalized === session.email.toLowerCase()) {
+    const meResp = await request.get(`${API_BASE}/api/auth/me`, {
+      headers: authHeaders(session),
+    });
+    if (meResp.ok()) {
+      const me = await meResp.json();
+      const id = me.employeeId ?? me.EmployeeId;
+      if (id) return id;
+    }
+  }
+
+  return null;
+}
+
 export async function getDefaultCompanyId(
   request: APIRequestContext,
   session: AuthSession
@@ -299,15 +362,8 @@ export async function ensureTimeTrackingPrereqs(
     }
   }
 
-  const empResp = await request.get(`${API_BASE}/api/employees?page=1&pageSize=200`, { headers });
-  if (!empResp.ok()) return;
-  const empBody = await empResp.json();
-  const items = empBody.items ?? empBody.Items ?? [];
-  const fieldEmployee = items.find(
-    (e: { email?: string }) => (e.email ?? '').toLowerCase() === fieldEmail.toLowerCase()
-  );
-  if (!fieldEmployee?.id && !fieldEmployee?.Id) return;
-  const employeeId = fieldEmployee.id ?? fieldEmployee.Id;
+  const employeeId = await resolveEmployeeIdByEmail(request, pmSession, fieldEmail, companyId);
+  if (!employeeId) return;
 
   const assignField = await request.post(`${API_BASE}/api/project-assignments`, {
     headers,
@@ -325,10 +381,12 @@ export async function ensureTimeTrackingPrereqs(
     );
   }
 
-  const pmEmployee = items.find(
-    (e: { email?: string }) => (e.email ?? '').toLowerCase() === pmSession.email.toLowerCase()
+  const pmEmployeeId = await resolveEmployeeIdByEmail(
+    request,
+    pmSession,
+    pmSession.email,
+    companyId
   );
-  const pmEmployeeId = pmEmployee?.id ?? pmEmployee?.Id;
   if (pmEmployeeId) {
     const assignPm = await request.post(`${API_BASE}/api/project-assignments`, {
       headers,
@@ -362,19 +420,12 @@ export async function ensurePmProjectAssignment(
     );
   }
   const headers = authHeaders(pmSession, companyId);
-  const empResp = await request.get(`${API_BASE}/api/employees?page=1&pageSize=200`, { headers });
-  if (!empResp.ok()) {
-    throw new Error(
-      `ensurePmProjectAssignment: employees list failed ${empResp.status()} ${await empResp.text()}`
-    );
-  }
-  const empBody = await empResp.json();
-  const items = empBody.items ?? empBody.Items ?? [];
-
-  const pmEmployee = items.find(
-    (e: { email?: string }) => (e.email ?? '').toLowerCase() === pmSession.email.toLowerCase()
+  const pmEmployeeId = await resolveEmployeeIdByEmail(
+    request,
+    pmSession,
+    pmSession.email,
+    companyId
   );
-  const pmEmployeeId = pmEmployee?.id ?? pmEmployee?.Id;
   if (!pmEmployeeId) {
     throw new Error(`ensurePmProjectAssignment: no employee record for PM ${pmSession.email}`);
   }
@@ -395,10 +446,12 @@ export async function ensurePmProjectAssignment(
   }
 
   if (options?.fieldEmail) {
-    const fieldEmployee = items.find(
-      (e: { email?: string }) => (e.email ?? '').toLowerCase() === options.fieldEmail!.toLowerCase()
+    const fieldEmployeeId = await resolveEmployeeIdByEmail(
+      request,
+      pmSession,
+      options.fieldEmail,
+      companyId
     );
-    const fieldEmployeeId = fieldEmployee?.id ?? fieldEmployee?.Id;
     if (!fieldEmployeeId) {
       throw new Error(`ensurePmProjectAssignment: no employee for ${options.fieldEmail}`);
     }

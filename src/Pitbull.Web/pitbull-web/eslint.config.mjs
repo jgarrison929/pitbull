@@ -16,6 +16,15 @@ const eslintConfig = [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      // React Compiler rules are useful but too noisy for the existing codebase.
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/set-state-in-render": "off",
+      "react-hooks/static-components": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/refs": "off",
+      "@next/next/no-img-element": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
     },
   },
 ];

@@ -192,7 +192,7 @@ export default function ProgressPage({ params }: { params: Promise<{ id: string 
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dialogOpen, deleteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dialogOpen, deleteId]);  
 
   function openCreate() {
     setForm(emptyForm());
