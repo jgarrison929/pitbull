@@ -146,6 +146,50 @@ public sealed class OwnerSignupIntegrationTests(PostgresFixture db, ITestOutputH
     }
 
     [Fact]
+    public async Task OwnerRegister_OnboardingIncompleteUntilWizardStepsMarked()
+    {
+        await db.ResetAsync();
+        var email = $"onboard-{Guid.NewGuid():N}@example.com";
+
+        using var client = _factory.CreateClient();
+        var registerResp = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(
+            Email: email,
+            Password: "SecurePass123",
+            FirstName: "Onboard",
+            LastName: "Owner",
+            TenantId: default,
+            CompanyName: "Onboard Construction LLC"));
+
+        registerResp.EnsureSuccessStatusCode();
+        var auth = (await registerResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default))!;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
+
+        var statusResp = await client.GetAsync("/api/onboarding/status");
+        var statusBody = await statusResp.Content.ReadAsStringAsync();
+        output.WriteLine($"OWNER_ONBOARD status_before={(int)statusResp.StatusCode} body={statusBody}");
+        statusResp.EnsureSuccessStatusCode();
+
+        using var statusDoc = System.Text.Json.JsonDocument.Parse(statusBody);
+        Assert.False(statusDoc.RootElement.GetProperty("isSetupComplete").GetBoolean());
+
+        foreach (var item in new[] { "company_profile", "contractor_type", "modules_activated", "modules_configured" })
+        {
+            var putResp = await client.PutAsJsonAsync(
+                $"/api/onboarding/checklist/{item}",
+                new { completed = true });
+            putResp.EnsureSuccessStatusCode();
+        }
+
+        statusResp = await client.GetAsync("/api/onboarding/status");
+        statusBody = await statusResp.Content.ReadAsStringAsync();
+        output.WriteLine($"OWNER_ONBOARD status_after={(int)statusResp.StatusCode} body={statusBody}");
+        statusResp.EnsureSuccessStatusCode();
+
+        using var statusAfter = System.Text.Json.JsonDocument.Parse(statusBody);
+        Assert.True(statusAfter.RootElement.GetProperty("isSetupComplete").GetBoolean());
+    }
+
+    [Fact]
     public async Task OwnerRegister_LoginRoundTrip_AccessesAdminUsers()
     {
         await db.ResetAsync();

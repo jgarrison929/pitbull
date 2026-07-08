@@ -50,4 +50,13 @@ public class OnboardingChecklist : BaseEntity
     public const int TotalItems = 8;
 
     public bool IsFullyCompleted => CompletedCount == TotalItems;
+
+    /// <summary>
+    /// True when the 4-step company setup wizard has been completed.
+    /// </summary>
+    public bool IsCompanySetupComplete =>
+        CompanyProfileCompleted &&
+        ContractorTypeSelected &&
+        ModulesActivated &&
+        ModulesConfigured;
 }

@@ -224,6 +224,26 @@ export default function CompanySetupWizard() {
       }
 
       await Promise.all(saves);
+
+      await Promise.all([
+        api("/api/onboarding/checklist/company_profile", {
+          method: "PUT",
+          body: { completed: true },
+        }),
+        api("/api/onboarding/checklist/contractor_type", {
+          method: "PUT",
+          body: { completed: true },
+        }),
+        api("/api/onboarding/checklist/modules_activated", {
+          method: "PUT",
+          body: { completed: true },
+        }),
+        api("/api/onboarding/checklist/modules_configured", {
+          method: "PUT",
+          body: { completed: true },
+        }),
+      ]);
+
       toast.success("Company setup complete! All module settings saved.");
       router.push("/");
     } catch {

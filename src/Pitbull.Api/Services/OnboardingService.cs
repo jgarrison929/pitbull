@@ -96,14 +96,30 @@ public class OnboardingService(
 
         var hasCompany = company is not null;
 
-        // A company is "setup complete" if it has a non-default name (not "X's Company" pattern)
-        var isSetupComplete = hasCompany && company!.Name != $"{user.FirstName}'s Company";
+        OnboardingChecklist? checklist = null;
+        if (company is not null)
+        {
+            checklist = await db.Set<OnboardingChecklist>()
+                .FirstOrDefaultAsync(c => c.UserId == userId && c.CompanyId == company.Id, ct);
 
-        // Checklist query also uses global query filter (!IsDeleted)
-        var checklist = company is not null
-            ? await db.Set<OnboardingChecklist>()
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.CompanyId == company.Id, ct)
-            : null;
+            if (checklist is null)
+            {
+                checklist = new OnboardingChecklist
+                {
+                    TenantId = user.TenantId,
+                    UserId = userId,
+                    CompanyId = company.Id,
+                    CreatedBy = userId.ToString()
+                };
+                db.Set<OnboardingChecklist>().Add(checklist);
+                await db.SaveChangesAsync(ct);
+                logger.LogInformation(
+                    "Created onboarding checklist for user {UserId} in company {CompanyId}",
+                    userId, company.Id);
+            }
+        }
+
+        var isSetupComplete = checklist?.IsCompanySetupComplete ?? false;
 
         return new OnboardingStatusDto(
             HasCompany: hasCompany,
