@@ -458,7 +458,11 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await setActiveCompany(arPage, companyId);
       await arPage.goto(`/billing/applications/${appId}`);
       await arPage.waitForLoadState('domcontentloaded');
-      await arPage.getByRole('button', { name: /architect certified/i }).click();
+      await dismissBlockingOverlays(arPage);
+      await expect(arPage.getByText('SubmittedToOwner').first()).toBeVisible({ timeout: 20_000 });
+      const certifyBtn = arPage.getByRole('button', { name: /architect certified/i });
+      await expect(certifyBtn).toBeVisible({ timeout: 20_000 });
+      await certifyBtn.click();
       await expect(arPage.getByText('ArchitectCertified').first()).toBeVisible({ timeout: 15_000 });
 
       await arPage.getByRole('button', { name: /mark payment due/i }).click();
