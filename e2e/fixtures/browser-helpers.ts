@@ -21,12 +21,28 @@ export async function openAsPersona(
   return { context, page };
 }
 
+/** Dismiss onboarding welcome tour overlay when it blocks pointer events. */
+export async function dismissBlockingOverlays(page: Page): Promise<void> {
+  const skipTour = page.getByRole('button', { name: /^skip$/i });
+  if (await skipTour.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await skipTour.click();
+    await page.waitForTimeout(300);
+    return;
+  }
+  const closeTour = page.getByRole('button', { name: /close tour/i });
+  if (await closeTour.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await closeTour.click();
+    await page.waitForTimeout(300);
+  }
+}
+
 /** Align browser API calls with a subsidiary company (field workflows use home company). */
 export async function setActiveCompany(page: Page, companyId: string): Promise<void> {
   const base = process.env.DEMO_BASE_URL ?? 'http://localhost:3000';
   if (!page.url().startsWith(base)) {
     await page.goto(base);
     await page.waitForLoadState('domcontentloaded');
+    await dismissBlockingOverlays(page);
   }
   await page.evaluate((id) => {
     localStorage.setItem('pitbull_active_company_id', id);

@@ -19,6 +19,7 @@ import {
   filterTableBySearch,
   expectStatusVisible,
   setActiveCompany,
+  dismissBlockingOverlays,
 } from '../fixtures/browser-helpers';
 
 const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:5081';
@@ -424,6 +425,7 @@ test.describe('Role-based workflow lifecycles (UI-first)', () => {
       await setActiveCompany(pmPage, companyId);
       await pmPage.goto('/billing/applications');
       await pmPage.waitForLoadState('domcontentloaded');
+      await dismissBlockingOverlays(pmPage);
       await pmPage.getByRole('button', { name: /new application/i }).click();
       const billingMonth = 5 + (parseInt(runTag.slice(-2), 36) % 6);
       const billingMonthStr = String(billingMonth).padStart(2, '0');
