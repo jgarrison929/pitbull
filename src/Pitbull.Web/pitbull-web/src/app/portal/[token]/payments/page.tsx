@@ -137,7 +137,7 @@ export default function PaymentHistoryPage() {
   }, [token]);
 
   useEffect(() => {
-    fetchPayments(); // eslint-disable-line react-hooks/set-state-in-effect -- Standard data-fetch pattern
+    fetchPayments();  
   }, [fetchPayments]);
 
   if (state.status === "loading") {

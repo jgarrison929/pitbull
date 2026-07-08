@@ -136,7 +136,7 @@ export function useWorkspaceNav() {
     prevPathnameRef.current = pathname;
     const detected = detectWorkspaceFromPath(pathname);
     if (detected && detected !== activeWorkspace) {
-      setActiveWorkspaceState(detected); // eslint-disable-line react-hooks/set-state-in-effect -- Auto-detect workspace from route change
+      setActiveWorkspaceState(detected);  
       writeStorage(WORKSPACE_KEY, detected);
     }
   }, [pathname, isProjectContext, activeWorkspace]);
@@ -150,7 +150,7 @@ export function useWorkspaceNav() {
     );
     if (!match) return;
 
-    setRecentPagesState((prev) => { // eslint-disable-line react-hooks/set-state-in-effect -- Track page visits on navigation
+    setRecentPagesState((prev) => {  
       const filtered = prev.filter((r) => r.href !== match.href);
       const updated = [
         { href: match.href, label: match.label, icon: match.icon, visitedAt: Date.now() },

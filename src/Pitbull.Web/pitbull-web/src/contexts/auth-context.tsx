@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       });
     }, msUntilWarning);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // Read token from localStorage after hydration to avoid SSR mismatch.
   // Server and client both render isLoading=true initially, then useEffect
