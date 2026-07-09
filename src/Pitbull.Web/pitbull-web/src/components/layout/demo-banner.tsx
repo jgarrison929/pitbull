@@ -9,7 +9,7 @@ export function DemoBanner() {
 
   return (
     <div className="bg-amber-500 text-white text-center text-sm py-1.5 px-4 font-medium">
-      You are using the Pitbull demo environment. Data resets periodically.
+      Demo mode — explore freely. Admin pages are read-only; data resets periodically.
     </div>
   );
 }

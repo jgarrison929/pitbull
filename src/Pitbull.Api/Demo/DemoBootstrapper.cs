@@ -353,7 +353,8 @@ public sealed class DemoBootstrapper(
                 LastName = demo.UserLastName,
                 TenantId = tenantId,
                 Type = UserType.Internal,
-                Status = UserStatus.Active
+                Status = UserStatus.Active,
+                IsDemoUser = true
             };
 
             var result = await userManager.CreateAsync(user, demo.UserPassword);
@@ -387,6 +388,13 @@ public sealed class DemoBootstrapper(
                         logger.LogWarning("Failed to reset demo user password: {Errors}",
                             string.Join(", ", resetResult.Errors.Select(e => e.Description)));
                 }
+            }
+
+            if (!user.IsDemoUser)
+            {
+                user.IsDemoUser = true;
+                await userManager.UpdateAsync(user);
+                logger.LogInformation("Flagged primary demo user as IsDemoUser: {Email}", demo.UserEmail);
             }
         }
 
@@ -896,6 +904,13 @@ public sealed class DemoBootstrapper(
             else
             {
                 skipped++;
+                // Backfill: existing seeded personas must be flagged so middleware / JWT treat them as demo
+                if (!user.IsDemoUser)
+                {
+                    user.IsDemoUser = true;
+                    await userManager.UpdateAsync(user);
+                    logger.LogInformation("Flagged existing demo persona as IsDemoUser: {Email}", def.Email);
+                }
             }
 
             // Ensure role

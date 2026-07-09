@@ -388,8 +388,10 @@ public class AuthController(
         if (!passwordOk.Succeeded)
             return this.UnauthorizedError("Demo persona credentials are invalid. Contact the operator.");
 
+        // Ensure demo flag so JWT includes is_demo_user and admin APIs stay read-only
         user.LastLoginAt = DateTime.UtcNow;
-        await userManager.UpdateAsync(user);
+        if (!user.IsDemoUser)
+            user.IsDemoUser = true;
 
         var roles = await roleSeeder.GetUserRolesAsync(user);
         if (!roles.Any())
@@ -399,13 +401,15 @@ public class AuthController(
             roles = await roleSeeder.GetUserRolesAsync(user);
         }
 
-        var token = await GenerateJwtTokenAsync(user);
         var refreshToken = GenerateRefreshToken();
         user.RefreshToken = refreshToken;
         user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
         await userManager.UpdateAsync(user);
 
-        logger.LogInformation("Demo role login: role={Role} email={Email}", persona.Key, persona.Email);
+        var token = await GenerateJwtTokenAsync(user);
+
+        logger.LogInformation("Demo role login: role={Role} email={Email} isDemoUser={IsDemo}",
+            persona.Key, persona.Email, user.IsDemoUser);
 
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
     }
