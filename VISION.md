@@ -58,6 +58,10 @@ No "contact sales for a quote." No per-user pricing that punishes you for growin
 ### Roadmap (Historical / Aspirational)
 Early roadmaps (v0.2 etc.) from project history are superseded. Many items like Contracts, RFIs, Billing elements, PM, daily reports, client portal stub, AI extraction are partially or fully in current codebase (see CHANGELOG and Modules/ for status). Full vision items remain future work. Consult CHANGELOG, code, and docs/archive/ for historical priorities and plans.
 
+## Long-term technical goals
+
+- **Upgrade .NET to the latest release** ([#218](https://github.com/jgarrison929/pitbull/issues/218)) — Stay current with the newest stable .NET SDK and runtime (today: .NET 9). When a new major version ships, plan a tracked upgrade: bump `global.json` / CI / Docker images, update package dependencies, run the full test suite, and fix breaking API changes across `Pitbull.Api` and all module projects.
+
 ## The Stack (current implementation)
 
 - **Backend**: .NET 9, modular monolith, CQRS with direct service injection (no MediatR), PostgreSQL 17 with Row-Level Security (RLS)
