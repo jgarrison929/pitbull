@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Demo role login on `/login`** — one-click CEO / CFO / Project Manager / Estimator buttons call `POST /api/auth/demo-role-login` (password stays server-side); catalog via `GET /api/auth/demo-roles` when `Demo:Enabled`; demo personas skip company-setup gate so they land in the product
+
 ### Fixed
 
 - **Post-signup onboarding gate** — `isSetupComplete` derives from company setup checklist (4 wizard steps), not company name heuristic; new owners with a named company no longer bypass `/settings/company/setup`; wizard marks checklist on completion

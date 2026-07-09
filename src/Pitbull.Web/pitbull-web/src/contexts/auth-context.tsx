@@ -39,6 +39,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isDemoUser: boolean;
   login: (email: string, password: string) => Promise<void>;
+  /** One-click demo persona login (server maps role → seeded user; no password in browser). */
+  loginAsDemoRole: (role: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => void;
   // Role helpers
@@ -128,27 +130,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [scheduleExpiryWarning]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const response = await api<AuthResponse>("/api/auth/login", {
-      method: "POST",
-      body: { email, password },
-    });
+  const applyAuthResponse = useCallback(
+    (response: AuthResponse) => {
+      setToken(response.token);
+      if (response.refreshToken) setRefreshToken(response.refreshToken);
+      const u = buildUserFromToken(response.token);
+      setUser(u);
+      scheduleExpiryWarning(response.token);
 
-    setToken(response.token);
-    if (response.refreshToken) setRefreshToken(response.refreshToken);
-    const u = buildUserFromToken(response.token);
-    setUser(u);
-    scheduleExpiryWarning(response.token);
+      if (u && posthog.__loaded) {
+        posthog.identify(u.id, {
+          email: u.email,
+          name: u.name,
+          tenant_id: u.tenantId,
+        });
+      }
+    },
+    [scheduleExpiryWarning]
+  );
 
-    // Identify user in PostHog
-    if (u && posthog.__loaded) {
-      posthog.identify(u.id, {
-        email: u.email,
-        name: u.name,
-        tenant_id: u.tenantId,
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const response = await api<AuthResponse>("/api/auth/login", {
+        method: "POST",
+        body: { email, password },
       });
-    }
-  }, [scheduleExpiryWarning]);
+      applyAuthResponse(response);
+    },
+    [applyAuthResponse]
+  );
+
+  const loginAsDemoRole = useCallback(
+    async (role: string) => {
+      const response = await api<AuthResponse>("/api/auth/demo-role-login", {
+        method: "POST",
+        body: { role },
+      });
+      applyAuthResponse(response);
+    },
+    [applyAuthResponse]
+  );
 
   const register = useCallback(async (data: RegisterData) => {
     const response = await api<AuthResponse>("/api/auth/register", {
@@ -241,6 +262,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         isDemoUser,
         login,
+        loginAsDemoRole,
         register,
         logout,
         hasRole,

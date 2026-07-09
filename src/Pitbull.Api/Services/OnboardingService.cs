@@ -96,6 +96,16 @@ public class OnboardingService(
 
         var hasCompany = company is not null;
 
+        // Seeded demo personas / IsDemoUser should land in the product, not the owner wizard.
+        if (IsDemoBrowseUser(user))
+        {
+            return new OnboardingStatusDto(
+                HasCompany: hasCompany,
+                IsSetupComplete: true,
+                IsChecklistDismissed: true,
+                Checklist: null);
+        }
+
         OnboardingChecklist? checklist = null;
         if (company is not null)
         {
@@ -126,6 +136,19 @@ public class OnboardingService(
             IsSetupComplete: isSetupComplete,
             IsChecklistDismissed: checklist?.Dismissed ?? false,
             Checklist: checklist is not null ? MapToDto(checklist) : null);
+    }
+
+    /// <summary>
+    /// Shared demo tenant personas used for one-click role login and seeded staff.
+    /// </summary>
+    private static bool IsDemoBrowseUser(AppUser user)
+    {
+        if (user.IsDemoUser) return true;
+        var email = user.Email ?? user.UserName;
+        if (string.IsNullOrWhiteSpace(email)) return false;
+        if (email.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase)) return true;
+        if (email.Equals("demo@example.com", StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
     }
 
     private async Task SyncChecklistFromTenantDataAsync(OnboardingChecklist checklist, CancellationToken ct)

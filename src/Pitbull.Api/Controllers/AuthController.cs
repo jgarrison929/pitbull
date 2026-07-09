@@ -346,6 +346,111 @@ public class AuthController(
     }
 
     /// <summary>
+    /// One-click demo persona login. Maps a role key to a seeded demo user and
+    /// returns JWT tokens without exposing the shared demo password to the client.
+    /// Only available when <c>Demo:Enabled=true</c>.
+    /// </summary>
+    /// <remarks>
+    /// Sample request:
+    ///
+    ///     POST /api/auth/demo-role-login
+    ///     { "role": "ceo" }
+    ///
+    /// Supported roles: ceo, cfo, pm, estimator
+    /// </remarks>
+    [HttpPost("demo-role-login")]
+    [EnableRateLimiting("demo-register")]
+    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> DemoRoleLogin([FromBody] DemoRoleLoginRequest request)
+    {
+        if (!demoOptions.Value.Enabled)
+            return this.NotFoundError("Demo role login is not available");
+
+        if (string.IsNullOrWhiteSpace(demoOptions.Value.UserPassword))
+            return this.BadRequestError("Demo environment is not fully configured");
+
+        if (string.IsNullOrWhiteSpace(request.Role) ||
+            !DemoRolePersonas.TryGetValue(request.Role.Trim().ToLowerInvariant(), out var persona))
+        {
+            return this.BadRequestError(
+                $"Unknown demo role. Supported: {string.Join(", ", DemoRolePersonas.Keys)}");
+        }
+
+        var user = await userManager.FindByEmailAsync(persona.Email);
+        if (user is null)
+            return this.BadRequestError("Demo persona is not ready. Seed may still be running — try again shortly.");
+
+        var passwordOk = await signInManager.CheckPasswordSignInAsync(
+            user, demoOptions.Value.UserPassword, lockoutOnFailure: false);
+        if (!passwordOk.Succeeded)
+            return this.UnauthorizedError("Demo persona credentials are invalid. Contact the operator.");
+
+        user.LastLoginAt = DateTime.UtcNow;
+        await userManager.UpdateAsync(user);
+
+        var roles = await roleSeeder.GetUserRolesAsync(user);
+        if (!roles.Any())
+        {
+            await roleSeeder.EnsureRolesForTenantAsync(user.TenantId);
+            await roleSeeder.AssignRoleToUserAsync(user, persona.FallbackIdentityRole);
+            roles = await roleSeeder.GetUserRolesAsync(user);
+        }
+
+        var token = await GenerateJwtTokenAsync(user);
+        var refreshToken = GenerateRefreshToken();
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        await userManager.UpdateAsync(user);
+
+        logger.LogInformation("Demo role login: role={Role} email={Email}", persona.Key, persona.Email);
+
+        return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
+    }
+
+    /// <summary>
+    /// Lists one-click demo personas available on the login page when demo mode is on.
+    /// </summary>
+    [HttpGet("demo-roles")]
+    [EnableRateLimiting("api")]
+    [ProducesResponseType(typeof(IReadOnlyList<DemoRoleInfo>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult ListDemoRoles()
+    {
+        if (!demoOptions.Value.Enabled)
+            return this.NotFoundError("Demo role login is not available");
+
+        var roles = DemoRolePersonas.Values
+            .Select(p => new DemoRoleInfo(p.Key, p.Label, p.Description, p.Email))
+            .ToList();
+        return Ok(roles);
+    }
+
+    /// <summary>
+    /// Seeded demo personas for one-click login (email + shared Demo:UserPassword).
+    /// </summary>
+    private static readonly Dictionary<string, DemoRolePersona> DemoRolePersonas = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ceo"] = new("ceo", "CEO", "Full admin view — company portfolio, executive dashboards, settings",
+            "ceo@demo.local", RoleSeeder.Roles.Admin),
+        ["cfo"] = new("cfo", "CFO", "Financial leadership — WIP, billing, accounting, payroll visibility",
+            "cfo@demo.local", RoleSeeder.Roles.Admin),
+        ["pm"] = new("pm", "Project Manager", "Jobs in flight — schedules, RFIs, daily reports, time approval",
+            "pm@demo.local", RoleSeeder.Roles.Supervisor),
+        ["estimator"] = new("estimator", "Estimator", "Precon focus — bids, opportunities, cost codes",
+            "estimator@demo.local", RoleSeeder.Roles.User),
+    };
+
+    private sealed record DemoRolePersona(
+        string Key,
+        string Label,
+        string Description,
+        string Email,
+        string FallbackIdentityRole);
+
+    /// <summary>
     /// Refresh an expired access token using a refresh token
     /// </summary>
     /// <remarks>
@@ -1253,3 +1358,14 @@ public record DemoRegisterRequest(
     string Password,
     string? Role = "pm",
     string? CompanyCode = "01");
+
+/// <summary>
+/// One-click demo persona login (no password in the request).
+/// </summary>
+/// <param name="Role">Persona key: ceo, cfo, pm, or estimator</param>
+public record DemoRoleLoginRequest(string Role);
+
+/// <summary>
+/// Public catalog entry for a demo persona button on the login page.
+/// </summary>
+public record DemoRoleInfo(string Key, string Label, string Description, string Email);

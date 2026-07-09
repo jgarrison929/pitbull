@@ -93,4 +93,43 @@ public sealed class OnboardingServiceTests
 
         status.IsSetupComplete.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task GetOnboardingStatus_DemoLocalPersona_IsSetupCompleteWithoutWizard()
+    {
+        var tenantId = Guid.NewGuid();
+        var companyId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        using var db = TestDbContextFactory.Create(tenantId, companyId: companyId);
+        db.Set<Company>().Add(new Company
+        {
+            Id = companyId,
+            TenantId = tenantId,
+            Name = "Summit Builders Group",
+            Code = "01",
+            IsDefault = true,
+            CreatedAt = DateTime.UtcNow,
+        });
+        db.Users.Add(new AppUser
+        {
+            Id = userId,
+            TenantId = tenantId,
+            Email = "ceo@demo.local",
+            UserName = "ceo@demo.local",
+            FirstName = "Demo",
+            LastName = "CEO",
+            CreatedAt = DateTime.UtcNow,
+        });
+        await db.SaveChangesAsync();
+
+        var service = new OnboardingService(
+            db, new TenantContext { TenantId = tenantId }, NullLogger<OnboardingService>.Instance);
+
+        var status = await service.GetOnboardingStatusAsync(userId);
+
+        status.HasCompany.Should().BeTrue();
+        status.IsSetupComplete.Should().BeTrue();
+        status.IsChecklistDismissed.Should().BeTrue();
+    }
 }
