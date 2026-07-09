@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Demo role login on `/login`** — one-click CEO / CFO / Project Manager / Estimator buttons call `POST /api/auth/demo-role-login` (password stays server-side); catalog via `GET /api/auth/demo-roles` when `Demo:Enabled`; demo personas skip company-setup gate so they land in the product
 - **Always-visible app version** — `AppVersionBadge` in root layout (every page, including login); sidebar About link uses the same `getAppVersion()` helper
 
+### Security
+
+- **Demo admin is read-only** — `DemoRestrictionMiddleware` allows GET on admin/system APIs but blocks POST/PUT/PATCH/DELETE; secrets stay fully blocked; seeded personas are flagged `IsDemoUser` (including backfill) so JWT + email fallback enforce restrictions
+
 ### Changed
 
 - **.NET 10 LTS upgrade (#218)** — all projects target `net10.0`; SDK pin (`global.json` 10.0.100 rollForward), CI `DOTNET_VERSION` 10.0.x, Docker `sdk:10.0`/`aspnet:10.0`; Microsoft ASP.NET/EF packages 10.0.9 and Npgsql EF 10.0.2; OpenAPI document transformer updated for Microsoft.OpenApi 2.x; pin `Microsoft.OpenApi` 2.7.5 (GHSA-v5pm-xwqc-g5wc)

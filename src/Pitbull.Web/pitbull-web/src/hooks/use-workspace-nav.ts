@@ -196,11 +196,10 @@ export function useWorkspaceNav() {
     // If no user/permissions yet, show all (permissions will re-filter on load)
     if (!user?.permissions) return workspaces;
 
-    // Demo users see ALL workspaces except Admin — this is a demo,
-    // let them explore everything. DemoRestrictionMiddleware on the API
-    // side blocks destructive operations regardless.
+    // Demo users see all workspaces including Admin (browse-only).
+    // API DemoRestrictionMiddleware enforces read-only on admin endpoints.
     if (user.isDemoUser) {
-      return workspaces.filter((ws) => ws.id !== "admin");
+      return workspaces;
     }
 
     const perms = new Set(user.permissions);

@@ -1,25 +1,40 @@
 namespace Pitbull.Api.Middleware;
 
 /// <summary>
-/// Restricts demo users (IsDemoUser=true) from accessing admin endpoints,
-/// user management, and sensitive operations. Returns 403 for blocked routes.
-/// Only active when Demo:Enabled=true.
+/// Restricts demo users (<c>IsDemoUser</c> / seeded demo personas) from mutating
+/// admin and sensitive areas. Admin surfaces are <b>read-only</b> (GET/HEAD/OPTIONS).
+/// Secrets remain fully blocked. Global DELETE is blocked for all demo traffic.
 /// </summary>
 public sealed class DemoRestrictionMiddleware(RequestDelegate next)
 {
-    private static readonly string[] BlockedPrefixes =
+    /// <summary>
+    /// Admin / system areas: demo users may read (GET) but not write.
+    /// </summary>
+    private static readonly string[] ReadOnlyPrefixes =
     [
         "/api/admin",
         "/api/users",
         "/api/system",
-        "/api/secrets",
+        "/api/roles",
+        "/api/workflow-definitions",
+        "/api/seed",
+        "/api/tenants",
     ];
 
     /// <summary>
-    /// Additional blocked path segments — catches nested user endpoints
-    /// like /api/companies/{id}/users, /api/companies/{id}/access, etc.
+    /// Fully blocked even for GET (sensitive material not appropriate for public demos).
     /// </summary>
-    private static readonly string[] BlockedSegments =
+    private static readonly string[] FullyBlockedPrefixes =
+    [
+        "/api/secrets",
+        "/api/secret-vault",
+    ];
+
+    /// <summary>
+    /// Nested path segments under other resources that are admin-ish (user mgmt, etc.).
+    /// Mutating methods only — GET remains allowed for browsing.
+    /// </summary>
+    private static readonly string[] ReadOnlySegments =
     [
         "/users",
         "/access",
@@ -27,9 +42,6 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/permissions",
     ];
 
-    /// <summary>
-    /// Paths explicitly allowed even if they match blocked patterns (exact match).
-    /// </summary>
     private static readonly string[] AllowedPaths =
     [
         "/api/auth/demo-register",
@@ -39,77 +51,135 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/companies/accessible",
     ];
 
+    private static readonly HashSet<string> SafeMethods = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "GET", "HEAD", "OPTIONS"
+    };
+
     private const string CompanySwitchPrefix = "/api/companies/switch/";
 
     public async Task InvokeAsync(HttpContext context)
     {
-        var isDemoUser = context.User.FindFirst("is_demo_user")?.Value == "true";
-
-        if (isDemoUser)
+        if (!IsDemoPrincipal(context.User))
         {
-            var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
+            await next(context);
+            return;
+        }
 
-            // Allow explicit exceptions (exact match)
-            foreach (var allowed in AllowedPaths)
+        var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
+        var method = context.Request.Method;
+
+        foreach (var allowed in AllowedPaths)
+        {
+            if (path.Equals(allowed, StringComparison.OrdinalIgnoreCase))
             {
-                if (path.Equals(allowed, StringComparison.OrdinalIgnoreCase))
-                    goto pass;
-            }
-
-            // Allow /api/companies/switch/{guid} only when the suffix is a valid GUID.
-            // Deny immediately if the prefix matches but the GUID is invalid — prevents
-            // path traversal (../../admin) and non-GUID suffixes from falling through.
-            if (path.StartsWith(CompanySwitchPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                var suffix = path[CompanySwitchPrefix.Length..];
-                if (Guid.TryParse(suffix, out _))
-                    goto pass;
-
-                await WriteForbidden(context);
-                return;
-            }
-
-            // Block admin prefixes
-            foreach (var prefix in BlockedPrefixes)
-            {
-                if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    await WriteForbidden(context);
-                    return;
-                }
-            }
-
-            // Block nested user/access endpoints (e.g. /api/companies/{id}/users)
-            foreach (var segment in BlockedSegments)
-            {
-                // Check if the segment appears after the first path component
-                var idx = path.IndexOf(segment, StringComparison.OrdinalIgnoreCase);
-                if (idx > 5) // Must be after /api/x minimum
-                {
-                    await WriteForbidden(context);
-                    return;
-                }
-            }
-
-            // Block DELETE and PUT on seed data for demo users
-            var method = context.Request.Method;
-            if (method is "DELETE")
-            {
-                await WriteForbidden(context);
+                await next(context);
                 return;
             }
         }
 
-        pass:
+        // Company switch by GUID only
+        if (path.StartsWith(CompanySwitchPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var suffix = path[CompanySwitchPrefix.Length..];
+            if (Guid.TryParse(suffix, out _) && SafeMethods.Contains(method))
+            {
+                await next(context);
+                return;
+            }
+
+            // POST switch is a state change — allow switching company for browsing
+            if (Guid.TryParse(suffix, out _) && method.Equals("POST", StringComparison.OrdinalIgnoreCase))
+            {
+                await next(context);
+                return;
+            }
+
+            await WriteForbidden(context, "Demo users cannot use that company switch path.");
+            return;
+        }
+
+        // Secrets & vault: no access
+        foreach (var prefix in FullyBlockedPrefixes)
+        {
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                await WriteForbidden(context, "Demo users cannot access secrets or vault material.");
+                return;
+            }
+        }
+
+        // Never allow DELETE in the demo tenant
+        if (method.Equals("DELETE", StringComparison.OrdinalIgnoreCase))
+        {
+            await WriteForbidden(context, "Demo users cannot delete data.");
+            return;
+        }
+
+        // Admin / system: read-only
+        foreach (var prefix in ReadOnlyPrefixes)
+        {
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                if (SafeMethods.Contains(method))
+                {
+                    await next(context);
+                    return;
+                }
+
+                await WriteForbidden(context,
+                    "Demo admin access is read-only. Sign up for a full account to make changes.");
+                return;
+            }
+        }
+
+        // Nested user/role segments: block mutations only
+        foreach (var segment in ReadOnlySegments)
+        {
+            var idx = path.IndexOf(segment, StringComparison.OrdinalIgnoreCase);
+            if (idx > 5 && !SafeMethods.Contains(method))
+            {
+                await WriteForbidden(context,
+                    "Demo admin access is read-only. Sign up for a full account to make changes.");
+                return;
+            }
+        }
+
         await next(context);
     }
 
-    private static async Task WriteForbidden(HttpContext context)
+    /// <summary>
+    /// True when JWT marks the user as a demo user, or the email is a known seeded persona.
+    /// Email fallback covers tokens issued before IsDemoUser was backfilled.
+    /// </summary>
+    internal static bool IsDemoPrincipal(System.Security.Claims.ClaimsPrincipal user)
     {
-        context.Response.StatusCode = 403;
+        if (user.FindFirst("is_demo_user")?.Value == "true")
+            return true;
+
+        var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+            ?? user.FindFirst("email")?.Value
+            ?? user.Identity?.Name;
+
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+
+        if (email.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (email.Equals("demo@example.com", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    private static async Task WriteForbidden(HttpContext context, string message)
+    {
+        context.Response.StatusCode = StatusCodes.Status403Forbidden;
         await context.Response.WriteAsJsonAsync(new
         {
-            error = "Demo users cannot access admin features. Sign up for a full account at pitbullconstructionsolutions.com"
+            error = message,
+            code = "DEMO_READ_ONLY"
         });
     }
 }

@@ -378,10 +378,14 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
     return ws?.separators;
   }, [activeWorkspace, currentProjectId, visibleWorkspaces]);
 
-  // Filter items by permission (demo users see everything)
+  // Filter items by permission. Demo users see almost everything (browse), but not Secrets.
   const isDemoUser = user?.isDemoUser ?? false;
   const filteredItems = useMemo(() => {
-    if (isDemoUser) return workspaceItems; // Demo: show all nav items
+    if (isDemoUser) {
+      return workspaceItems.filter(
+        (item) => item.href !== "/admin/secrets" && !item.href.startsWith("/admin/secrets/")
+      );
+    }
     return workspaceItems.filter((item) => {
       if (item.requiredPermission) return can(item.requiredPermission);
       if (item.requiredAnyPermission) return canAny(item.requiredAnyPermission);

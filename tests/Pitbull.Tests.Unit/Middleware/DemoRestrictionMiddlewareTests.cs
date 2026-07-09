@@ -6,15 +6,15 @@ namespace Pitbull.Tests.Unit.Middleware;
 
 public class DemoRestrictionMiddlewareTests
 {
-    private static HttpContext CreateDemoContext(string path, string method = "GET")
+    private static HttpContext CreateDemoContext(string path, string method = "GET", string? email = null)
     {
         var context = new DefaultHttpContext();
         context.Request.Path = path;
         context.Request.Method = method;
-        context.User = new ClaimsPrincipal(new ClaimsIdentity(
-        [
-            new Claim("is_demo_user", "true"),
-        ], "TestAuth"));
+        var claims = new List<Claim> { new("is_demo_user", "true") };
+        if (!string.IsNullOrEmpty(email))
+            claims.Add(new Claim(ClaimTypes.Email, email));
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "TestAuth"));
         return context;
     }
 
@@ -26,6 +26,20 @@ public class DemoRestrictionMiddlewareTests
         context.User = new ClaimsPrincipal(new ClaimsIdentity(
         [
             new Claim("is_demo_user", "false"),
+            new Claim(ClaimTypes.Email, "owner@example.com"),
+        ], "TestAuth"));
+        return context;
+    }
+
+    private static HttpContext CreateEmailOnlyDemoContext(string path, string email, string method = "GET")
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Path = path;
+        context.Request.Method = method;
+        // No is_demo_user claim — email fallback for pre-backfill tokens
+        context.User = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimTypes.Email, email),
         ], "TestAuth"));
         return context;
     }
@@ -42,40 +56,69 @@ public class DemoRestrictionMiddlewareTests
         return (context.Response.StatusCode, nextCalled);
     }
 
-    // ─── Company switcher paths must be allowed ──────────────────────────────
-
     [Fact]
     public async Task DemoUser_CanAccess_CompaniesAccessible()
     {
         var context = CreateDemoContext("/api/companies/accessible");
-
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.True(nextCalled, "/api/companies/accessible should be allowed for demo users");
+        Assert.True(nextCalled);
         Assert.NotEqual(403, statusCode);
     }
 
     [Fact]
     public async Task DemoUser_CanAccess_CompaniesSwitch_WithGuid()
     {
-        var context = CreateDemoContext("/api/companies/switch/550e8400-e29b-41d4-a716-446655440000");
-
+        var context = CreateDemoContext("/api/companies/switch/550e8400-e29b-41d4-a716-446655440000", "POST");
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.True(nextCalled, "/api/companies/switch/{guid} should be allowed for demo users");
+        Assert.True(nextCalled);
         Assert.NotEqual(403, statusCode);
     }
 
-    // ─── Admin endpoints must still be blocked ───────────────────────────────
+    [Fact]
+    public async Task DemoUser_CanRead_AdminCompanies()
+    {
+        var context = CreateDemoContext("/api/admin/companies", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.True(nextCalled, "GET /api/admin/* should be read-only allowed");
+        Assert.NotEqual(403, statusCode);
+    }
 
     [Fact]
-    public async Task DemoUser_IsBlocked_FromAdminCompanies()
+    public async Task DemoUser_CannotWrite_AdminCompanies()
     {
-        var context = CreateDemoContext("/api/admin/companies");
-
+        var context = CreateDemoContext("/api/admin/companies", "POST");
         var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.False(nextCalled);
+        Assert.Equal(403, statusCode);
+    }
 
-        Assert.False(nextCalled, "/api/admin/companies should be blocked for demo users");
+    [Theory]
+    [InlineData("PUT")]
+    [InlineData("PATCH")]
+    [InlineData("DELETE")]
+    public async Task DemoUser_CannotMutate_AdminUsers(string method)
+    {
+        var context = CreateDemoContext("/api/admin/users/some-id", method);
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.False(nextCalled);
+        Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_CanRead_AdminUsers()
+    {
+        var context = CreateDemoContext("/api/admin/users", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.True(nextCalled);
+        Assert.NotEqual(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_IsFullyBlocked_FromSecrets()
+    {
+        var context = CreateDemoContext("/api/secrets", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.False(nextCalled);
         Assert.Equal(403, statusCode);
     }
 
@@ -83,36 +126,26 @@ public class DemoRestrictionMiddlewareTests
     public async Task DemoUser_IsBlocked_FromDeleteRequests()
     {
         var context = CreateDemoContext("/api/projects/some-id", "DELETE");
-
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.False(nextCalled, "DELETE requests should be blocked for demo users");
+        Assert.False(nextCalled);
         Assert.Equal(403, statusCode);
     }
 
-    // ─── Blocked segment paths must still be blocked ─────────────────────────
-
     [Fact]
-    public async Task DemoUser_IsBlocked_FromNestedUsersEndpoints()
+    public async Task DemoUser_IsBlocked_FromNestedUsers_Mutations()
     {
-        var context = CreateDemoContext("/api/companies/some-id/users");
-
+        var context = CreateDemoContext("/api/companies/some-id/users", "POST");
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.False(nextCalled, "/api/companies/{id}/users should be blocked for demo users");
+        Assert.False(nextCalled);
         Assert.Equal(403, statusCode);
     }
 
-    // ─── Company switch GUID validation ────────────────────────────────────────
-
     [Fact]
-    public async Task DemoUser_CanAccess_CompaniesSwitch_WithValidGuid()
+    public async Task DemoUser_CanRead_NestedUsers()
     {
-        var context = CreateDemoContext("/api/companies/switch/b2b8d0a1-70a3-4278-ae9e-7396b6d2d6ab");
-
+        var context = CreateDemoContext("/api/companies/some-id/users", "GET");
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.True(nextCalled, "/api/companies/switch/{valid-guid} should be allowed");
+        Assert.True(nextCalled);
         Assert.NotEqual(403, statusCode);
     }
 
@@ -120,10 +153,8 @@ public class DemoRestrictionMiddlewareTests
     public async Task DemoUser_IsBlocked_FromCompaniesSwitch_WithInvalidGuid()
     {
         var context = CreateDemoContext("/api/companies/switch/not-a-guid");
-
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.False(nextCalled, "/api/companies/switch/not-a-guid should be blocked");
+        Assert.False(nextCalled);
         Assert.Equal(403, statusCode);
     }
 
@@ -131,34 +162,58 @@ public class DemoRestrictionMiddlewareTests
     public async Task DemoUser_IsBlocked_FromCompaniesSwitch_PathTraversal()
     {
         var context = CreateDemoContext("/api/companies/switch/../../admin");
-
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.False(nextCalled, "Path traversal via /api/companies/switch/ should be blocked");
+        Assert.False(nextCalled);
         Assert.Equal(403, statusCode);
     }
-
-    [Fact]
-    public async Task DemoUser_IsBlocked_FromCompaniesSwitch_NoGuid()
-    {
-        var context = CreateDemoContext("/api/companies/switch/");
-
-        var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.False(nextCalled, "/api/companies/switch/ with no GUID should be blocked");
-        Assert.Equal(403, statusCode);
-    }
-
-    // ─── Non-demo users are unaffected ───────────────────────────────────────
 
     [Fact]
     public async Task NonDemoUser_CanAccess_AdminEndpoints()
     {
-        var context = CreateNonDemoContext("/api/admin/companies");
-
+        var context = CreateNonDemoContext("/api/admin/companies", "POST");
         var (statusCode, nextCalled) = await InvokeAsync(context);
-
-        Assert.True(nextCalled, "Non-demo users should not be restricted");
+        Assert.True(nextCalled);
         Assert.NotEqual(403, statusCode);
+    }
+
+    [Fact]
+    public async Task EmailOnly_DemoLocal_IsTreatedAsDemo_ForAdminWrite()
+    {
+        var context = CreateEmailOnlyDemoContext("/api/admin/users", "ceo@demo.local", "POST");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.False(nextCalled);
+        Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task EmailOnly_DemoLocal_CanReadAdmin()
+    {
+        var context = CreateEmailOnlyDemoContext("/api/admin/users", "ceo@demo.local", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.True(nextCalled);
+        Assert.NotEqual(403, statusCode);
+    }
+
+    [Theory]
+    [InlineData("ceo@demo.local")]
+    [InlineData("demo@example.com")]
+    [InlineData("pm@demo.local")]
+    public void IsDemoPrincipal_RecognizesSeededEmails(string email)
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimTypes.Email, email),
+        ], "TestAuth"));
+        Assert.True(DemoRestrictionMiddleware.IsDemoPrincipal(user));
+    }
+
+    [Fact]
+    public void IsDemoPrincipal_DoesNotFlagRegularUsers()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+        [
+            new Claim(ClaimTypes.Email, "owner@acme.com"),
+        ], "TestAuth"));
+        Assert.False(DemoRestrictionMiddleware.IsDemoPrincipal(user));
     }
 }
