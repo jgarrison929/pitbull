@@ -60,11 +60,11 @@ Early roadmaps (v0.2 etc.) from project history are superseded. Many items like 
 
 ## Long-term technical goals
 
-- **Upgrade .NET to the latest release** ([#218](https://github.com/jgarrison929/pitbull/issues/218)) — Stay current with the newest stable .NET SDK and runtime (today: .NET 9). When a new major version ships, plan a tracked upgrade: bump `global.json` / CI / Docker images, update package dependencies, run the full test suite, and fix breaking API changes across `Pitbull.Api` and all module projects.
+- **Upgrade .NET to the latest release** ([#218](https://github.com/jgarrison929/pitbull/issues/218)) — Stay current with the newest stable .NET SDK and runtime (today: .NET 10 LTS). When a new major version ships, plan a tracked upgrade: bump `global.json` / CI / Docker images, update package dependencies, run the full test suite, and fix breaking API changes across `Pitbull.Api` and all module projects.
 
 ## The Stack (current implementation)
 
-- **Backend**: .NET 9, modular monolith, CQRS with direct service injection (no MediatR), PostgreSQL 17 with Row-Level Security (RLS)
+- **Backend**: .NET 10, modular monolith, CQRS with direct service injection (no MediatR), PostgreSQL 17 with Row-Level Security (RLS)
 - **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui
 - **AI**: Anthropic Claude and OpenAI abstractions for chat, summaries, and some extraction (OCR/extraction features are partial)
 - **Messaging**: DotNetCore.CAP (PostgreSQL outbox + Redis)

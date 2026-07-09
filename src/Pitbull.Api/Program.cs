@@ -547,21 +547,24 @@ builder.Services.AddRequestTimeouts(options =>
 });
 builder.Services.AddOpenApi("v1", options =>
 {
+    // Microsoft.OpenApi 2.x (shipped with ASP.NET Core OpenAPI on .NET 10):
+    // types live in Microsoft.OpenApi (not Models), SecurityRequirements → Security,
+    // and scheme refs use OpenApiSecuritySchemeReference.
     options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
-        document.Info = new Microsoft.OpenApi.Models.OpenApiInfo
+        document.Info = new Microsoft.OpenApi.OpenApiInfo
         {
             Title = "Pitbull Construction Solutions \u2014 API Reference",
             Version = "v1",
             Description = "RESTful API for AI-native construction ERP. Multi-tenant, role-based access control, real-time event bus. " +
                           "Covers the full construction lifecycle: bids, projects, contracts, billing (AIA G702/G703), " +
                           "time tracking, payroll, RFIs, submittals, and AI-powered document intelligence.",
-            Contact = new Microsoft.OpenApi.Models.OpenApiContact
+            Contact = new Microsoft.OpenApi.OpenApiContact
             {
                 Name = "Pitbull Construction Solutions",
                 Url = new Uri("https://github.com/jgarrison929/pitbull")
             },
-            License = new Microsoft.OpenApi.Models.OpenApiLicense
+            License = new Microsoft.OpenApi.OpenApiLicense
             {
                 Name = "MIT",
                 Url = new Uri("https://opensource.org/licenses/MIT")
@@ -569,30 +572,22 @@ builder.Services.AddOpenApi("v1", options =>
         };
 
         // JWT Bearer auth definition
-        document.Components ??= new Microsoft.OpenApi.Models.OpenApiComponents();
-        document.Components.SecuritySchemes["Bearer"] = new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+        document.Components ??= new Microsoft.OpenApi.OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, Microsoft.OpenApi.IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes["Bearer"] = new Microsoft.OpenApi.OpenApiSecurityScheme
         {
             Description = "JWT Authorization header using the Bearer scheme. Enter your token below (do not include 'Bearer ' prefix).",
             Name = "Authorization",
-            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-            Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+            In = Microsoft.OpenApi.ParameterLocation.Header,
+            Type = Microsoft.OpenApi.SecuritySchemeType.Http,
             Scheme = "bearer",
             BearerFormat = "JWT"
         };
 
-        document.SecurityRequirements.Add(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+        document.Security ??= new List<Microsoft.OpenApi.OpenApiSecurityRequirement>();
+        document.Security.Add(new Microsoft.OpenApi.OpenApiSecurityRequirement
         {
-            {
-                new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-                {
-                    Reference = new Microsoft.OpenApi.Models.OpenApiReference
-                    {
-                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                },
-                Array.Empty<string>()
-            }
+            [new Microsoft.OpenApi.OpenApiSecuritySchemeReference("Bearer", document)] = []
         });
 
         return Task.CompletedTask;

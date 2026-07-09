@@ -10,6 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **.NET 10 LTS upgrade (#218)** — all projects target `net10.0`; SDK pin (`global.json` 10.0.100 rollForward), CI `DOTNET_VERSION` 10.0.x, Docker `sdk:10.0`/`aspnet:10.0`; Microsoft ASP.NET/EF packages 10.0.9 and Npgsql EF 10.0.2; OpenAPI document transformer updated for Microsoft.OpenApi 2.x; pin `Microsoft.OpenApi` 2.7.5 (GHSA-v5pm-xwqc-g5wc)
+
 ### Fixed
 
 - **Post-signup onboarding gate** — `isSetupComplete` derives from company setup checklist (4 wizard steps), not company name heuristic; new owners with a named company no longer bypass `/settings/company/setup`; wizard marks checklist on completion
