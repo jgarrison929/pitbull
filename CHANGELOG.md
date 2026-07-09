@@ -13,6 +13,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Demo role login on `/login`** — one-click CEO / CFO / Project Manager / Estimator buttons call `POST /api/auth/demo-role-login` (password stays server-side); catalog via `GET /api/auth/demo-roles` when `Demo:Enabled`; demo personas skip company-setup gate so they land in the product
+- **Always-visible app version** — `AppVersionBadge` in root layout (every page, including login); sidebar About link uses the same `getAppVersion()` helper
 
 ### Fixed
 

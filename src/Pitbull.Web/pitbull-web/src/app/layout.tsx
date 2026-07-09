@@ -10,6 +10,7 @@ import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
+import { AppVersionBadge } from "@/components/layout/app-version-badge";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -94,6 +95,7 @@ export default function RootLayout({
                     <ServiceWorkerRegister />
                     <PwaInstallPrompt />
                     {children}
+                    <AppVersionBadge />
                     <Toaster position="top-right" richColors />
                   </TooltipProvider>
                 </CompanyProvider>

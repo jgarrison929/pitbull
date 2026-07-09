@@ -41,6 +41,7 @@ import {
   Sparkles,
   ArrowLeft,
 } from "lucide-react";
+import { getAppVersionLabel } from "@/lib/app-version";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -689,16 +690,17 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
         )}
       </div>
 
-      {/* Version */}
+      {/* Version (also shown globally via AppVersionBadge; keep sidebar link for About) */}
       <div className={cn(
         "px-3 pb-2 text-center",
         effectiveCollapsed && "px-1"
       )}>
         <Link
           href="/settings/about"
-          className="text-[10px] text-sidebar-foreground/30 hover:text-sidebar-foreground/50 transition-colors"
+          className="text-[10px] font-mono text-sidebar-foreground/30 hover:text-sidebar-foreground/50 transition-colors"
+          title="About this version"
         >
-          {effectiveCollapsed ? `v${process.env.NEXT_PUBLIC_APP_VERSION}` : `Pitbull v${process.env.NEXT_PUBLIC_APP_VERSION}`}
+          {effectiveCollapsed ? getAppVersionLabel() : `Pitbull ${getAppVersionLabel()}`}
         </Link>
       </div>
     </aside>

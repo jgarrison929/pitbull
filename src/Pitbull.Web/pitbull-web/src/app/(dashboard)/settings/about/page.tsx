@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, GitCommit, Calendar, Package, FileText } from "lucide-react";
+import { getAppVersion } from "@/lib/app-version";
 
 interface ApiVersionInfo {
   version: string;
@@ -17,7 +18,7 @@ export default function AboutPage() {
   const [apiVersion, setApiVersion] = useState<ApiVersionInfo | null>(null);
   const [apiError, setApiError] = useState(false);
 
-  const frontendVersion = process.env.NEXT_PUBLIC_APP_VERSION || "unknown";
+  const frontendVersion = getAppVersion();
   const commitHash = process.env.NEXT_PUBLIC_COMMIT_HASH || "dev";
 
   useEffect(() => {
