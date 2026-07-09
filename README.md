@@ -1,7 +1,7 @@
 # Pitbull Construction Solutions
 
 [![CI](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml/badge.svg)](https://github.com/jgarrison929/pitbull/actions/workflows/ci.yml)
-[![.NET](https://img.shields.io/badge/.NET-9.0-512BD4)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-000000)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -20,7 +20,7 @@ A modular monolith for commercial general contractors: projects, bids, contracts
 
 | Layer | Tech |
 |-------|------|
-| API | .NET 9, ASP.NET Core, EF Core, PostgreSQL 17 |
+| API | .NET 10, ASP.NET Core, EF Core, PostgreSQL 17 |
 | Frontend | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui |
 | Auth | JWT + ASP.NET Identity, row-level security (RLS) |
 | Events | DotNetCore.CAP (PostgreSQL outbox + Redis) |
@@ -56,7 +56,7 @@ See [docs/archive/](docs/archive/) (historical solutions/ and compound lessons) 
 
 ## Quick Start
 
-**Prerequisites:** Docker, .NET 9 SDK, Node.js 22
+**Prerequisites:** Docker, .NET 10 SDK, Node.js 22
 
 ```bash
 # Start PostgreSQL + Redis
