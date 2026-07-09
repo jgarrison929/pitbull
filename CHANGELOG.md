@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Demo seed on Railway** — add missing `pm_daily_reports.Title` migration so `DemoBootstrapper` domain seed (projects/bids/etc.) can complete when `Demo__SeedOnStartup=true`
 - **Post-signup onboarding gate** — `isSetupComplete` derives from company setup checklist (4 wizard steps), not company name heuristic; new owners with a named company no longer bypass `/settings/company/setup`; wizard marks checklist on completion
 
 ## [2.0.0] - 2026-07-07
