@@ -77,13 +77,15 @@ public class AuthControllerTests
     private static IOptions<DemoOptions> CreateDemoOptions(
         bool enabled = false,
         bool disableRegistration = true,
-        string userEmail = "demo@example.com")
+        string userEmail = "demo@example.com",
+        string userPassword = "PitbullDemo2026!")
     {
         return Options.Create(new DemoOptions
         {
             Enabled = enabled,
             DisableRegistration = disableRegistration,
-            UserEmail = userEmail
+            UserEmail = userEmail,
+            UserPassword = userPassword
         });
     }
 
@@ -449,6 +451,117 @@ public class AuthControllerTests
 
         // Assert
         result.Should().BeOfType<UnauthorizedObjectResult>();
+    }
+
+    #endregion
+
+    #region Demo Role Login
+
+    [Theory]
+    [InlineData("ceo", "ceo@demo.local")]
+    [InlineData("cfo", "cfo@demo.local")]
+    [InlineData("pm", "pm@demo.local")]
+    [InlineData("estimator", "estimator@demo.local")]
+    public async Task DemoRoleLogin_WhenDemoEnabled_ReturnsTokenForPersona(string roleKey, string email)
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var signInManager = CreateMockSignInManager(userManager);
+        var roleManager = CreateMockRoleManager();
+
+        var user = CreateTestUser(email: email, firstName: "Demo", lastName: roleKey.ToUpperInvariant());
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var password = "PitbullDemo2026!";
+        userManager.Setup(u => u.FindByEmailAsync(email)).ReturnsAsync(user);
+        signInManager.Setup(s => s.CheckPasswordSignInAsync(user, password, false))
+            .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
+        userManager.Setup(u => u.UpdateAsync(user)).ReturnsAsync(IdentityResult.Success);
+        userManager.Setup(u => u.GetRolesAsync(user))
+            .ReturnsAsync(new List<string> { $"{TestTenantId}:Admin" });
+
+        var controller = CreateController(db, userManager,
+            signInManager: signInManager,
+            roleManager: roleManager,
+            demoOptions: CreateDemoOptions(enabled: true, userPassword: password));
+
+        var result = await controller.DemoRoleLogin(new DemoRoleLoginRequest(roleKey));
+
+        result.Should().BeOfType<OkObjectResult>();
+        var response = ((OkObjectResult)result).Value.Should().BeOfType<AuthResponse>().Subject;
+        response.Email.Should().Be(email);
+        response.Token.Should().NotBeNullOrEmpty();
+        response.RefreshToken.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task DemoRoleLogin_WhenDemoDisabled_ReturnsNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var controller = CreateController(db, userManager, demoOptions: CreateDemoOptions(enabled: false));
+
+        var result = await controller.DemoRoleLogin(new DemoRoleLoginRequest("ceo"));
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+    }
+
+    [Fact]
+    public async Task DemoRoleLogin_WithUnknownRole_ReturnsBadRequest()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var controller = CreateController(db, userManager, demoOptions: CreateDemoOptions(enabled: true));
+
+        var result = await controller.DemoRoleLogin(new DemoRoleLoginRequest("janitor"));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task DemoRoleLogin_WhenPersonaMissing_ReturnsBadRequest()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var signInManager = CreateMockSignInManager(userManager);
+
+        userManager.Setup(u => u.FindByEmailAsync("ceo@demo.local")).ReturnsAsync((AppUser?)null);
+
+        var controller = CreateController(db, userManager,
+            signInManager: signInManager,
+            demoOptions: CreateDemoOptions(enabled: true));
+
+        var result = await controller.DemoRoleLogin(new DemoRoleLoginRequest("ceo"));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public void ListDemoRoles_WhenDemoEnabled_ReturnsFourPersonas()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var controller = CreateController(db, userManager, demoOptions: CreateDemoOptions(enabled: true));
+
+        var result = controller.ListDemoRoles();
+
+        result.Should().BeOfType<OkObjectResult>();
+        var roles = ((OkObjectResult)result).Value.Should().BeAssignableTo<IReadOnlyList<DemoRoleInfo>>().Subject;
+        roles.Should().HaveCount(4);
+        roles.Select(r => r.Key).Should().BeEquivalentTo(["ceo", "cfo", "pm", "estimator"]);
+    }
+
+    [Fact]
+    public void ListDemoRoles_WhenDemoDisabled_ReturnsNotFound()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var controller = CreateController(db, userManager, demoOptions: CreateDemoOptions(enabled: false));
+
+        var result = controller.ListDemoRoles();
+
+        result.Should().BeOfType<NotFoundObjectResult>();
     }
 
     #endregion

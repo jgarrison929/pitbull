@@ -880,7 +880,8 @@ public sealed class DemoBootstrapper(
                     TenantId = tenantId,
                     Type = UserType.Internal,
                     Status = UserStatus.Active,
-                    CompanyId = companies[def.DefaultCompanyCode].Id
+                    CompanyId = companies[def.DefaultCompanyCode].Id,
+                    IsDemoUser = true
                 };
 
                 var result = await userManager.CreateAsync(user, password);

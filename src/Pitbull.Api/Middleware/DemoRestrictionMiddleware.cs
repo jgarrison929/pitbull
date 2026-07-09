@@ -33,6 +33,8 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
     private static readonly string[] AllowedPaths =
     [
         "/api/auth/demo-register",
+        "/api/auth/demo-role-login",
+        "/api/auth/demo-roles",
         "/api/auth/demo-users/export",
         "/api/companies/accessible",
     ];
