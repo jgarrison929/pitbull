@@ -9,7 +9,7 @@ This guide uses a hypothetical **Contracts** module (example only; adapt names).
 ---
 
 ## Prerequisites
-- .NET 9 SDK
+- .NET 10 SDK
 - Familiarity with docs/ARCHITECTURE.md and docs/ADDING-A-MODULE.md (patterns, Dockerfile updates, no RenameColumn in migrations, etc.)
 - Run `dotnet build` and `cd src/Pitbull.Web/pitbull-web && npm run build` before PRs
 
@@ -19,7 +19,7 @@ This guide uses a hypothetical **Contracts** module (example only; adapt names).
 
 ```bash
 cd src/Modules
-dotnet new classlib -n Pitbull.Contracts -f net9.0
+dotnet new classlib -n Pitbull.Contracts -f net10.0
 cd Pitbull.Contracts
 dotnet add reference ../Pitbull.Core/Pitbull.Core.csproj
 dotnet sln add ../../.. src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj   # adjust as needed

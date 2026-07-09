@@ -564,7 +564,7 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push/PR to `main` and `devel
 
 **Backend job:**
 1. Checkout
-2. Setup .NET 9.0
+2. Setup .NET 10.0
 3. `dotnet restore`
 4. `dotnet build --configuration Release`
 5. Run unit tests (`tests/Pitbull.Tests.Unit`)

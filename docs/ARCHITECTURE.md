@@ -1,12 +1,12 @@
 # Architecture Overview
 
-Pitbull is a **modular monolith** built on .NET 9 and Next.js 16. It uses CQRS for command/query separation, PostgreSQL Row-Level Security for multi-tenancy, and a vertical-slice module structure.
+Pitbull is a **modular monolith** built on .NET 10 and Next.js 16. It uses CQRS for command/query separation, PostgreSQL Row-Level Security for multi-tenancy, and a vertical-slice module structure.
 
 ## Technology Stack
 
 | Layer | Technology | Purpose |
 |-------|------------|---------|
-| API Host | ASP.NET Core 9 | REST API, middleware pipeline, DI composition |
+| API Host | ASP.NET Core 10 | REST API, middleware pipeline, DI composition |
 | Frontend | Next.js 16, React 19, Tailwind CSS 4 | App Router SPA with shadcn/ui components |
 | Database | PostgreSQL 17 | Multi-tenant with Row-Level Security |
 | Cache | Redis 7 | Session and data caching |
