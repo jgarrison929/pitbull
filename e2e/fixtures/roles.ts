@@ -1,6 +1,6 @@
 /**
- * Maps archive personas (docs/archive/roles-2026-02/) to demo seed accounts.
- * Password: PitbullDemo2026! (see docs/archive/2026-06-plans/DEMO-SEED-ROLES.md)
+ * Demo seed personas for Playwright role workflows.
+ * Password: PitbullDemo2026! (see DemoBootstrapper / docs/ROLE-EXPERIENCE.md)
  */
 export const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'PitbullDemo2026!';
 
@@ -20,7 +20,6 @@ export interface Persona {
   appRole: string;
   /** Granular RBAC template from PermissionConstants.RoleTemplates */
   rbacRole: string;
-  archiveDoc: string;
   lifecycles: number[];
 }
 
@@ -30,7 +29,6 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     email: 'ceo@demo.local',
     appRole: 'Manager',
     rbacRole: 'Executive',
-    archiveDoc: 'CONTROLLER-CFO.md',
     lifecycles: [1, 2],
   },
   pm: {
@@ -38,7 +36,6 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     email: 'pm@demo.local',
     appRole: 'Supervisor',
     rbacRole: 'ProjectManager',
-    archiveDoc: 'PROJECT-MANAGER.md',
     lifecycles: [2, 6, 7, 8, 10],
   },
   fieldEng: {
@@ -46,7 +43,6 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     email: 'field-eng@demo.local',
     appRole: 'User',
     rbacRole: 'Foreman',
-    archiveDoc: 'PROJECT-MANAGER.md',
     lifecycles: [3, 10],
   },
   estimator: {
@@ -54,7 +50,6 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     email: 'estimator@demo.local',
     appRole: 'User',
     rbacRole: 'Estimator',
-    archiveDoc: 'PROJECT-MANAGER.md',
     lifecycles: [1],
   },
   arClerk: {
@@ -62,7 +57,6 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     email: 'ar-clerk@demo.local',
     appRole: 'User',
     rbacRole: 'Controller',
-    archiveDoc: 'AR-CLERK.md',
     lifecycles: [4],
   },
   apClerk: {
@@ -70,7 +64,6 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     email: 'ap-clerk@demo.local',
     appRole: 'User',
     rbacRole: 'Controller',
-    archiveDoc: 'AP-CLERK.md',
     lifecycles: [5, 9],
   },
   payrollManager: {
@@ -78,7 +71,6 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     email: 'mgr-payroll@demo.local',
     appRole: 'Manager',
     rbacRole: 'PayrollSpecialist',
-    archiveDoc: 'PAYROLL-MANAGER.md',
     lifecycles: [3],
   },
 };

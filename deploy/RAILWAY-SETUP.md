@@ -105,7 +105,7 @@ Copy both URLs — you'll need them for CORS and the frontend build.
 | `Cors__AllowedOrigins__0` | `https://<your-web-domain>` |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 
-### pitbull-api (demo mode — recommended for portfolio)
+### pitbull-api (demo mode)
 
 | Variable | Value |
 |----------|-------|

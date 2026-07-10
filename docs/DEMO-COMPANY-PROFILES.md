@@ -58,5 +58,5 @@ Bump `SeedDataVersion` in `SeedDataService` when content changes. With `Demo__Se
 
 ## Related
 
-- Role accounts: `docs/archive/2026-06-plans/DEMO-SEED-ROLES.md`
-- Historical profiles: `docs/archive/2026-06-private-clean/plans/DEMO-COMPANY-PROFILES.md`
+- Role accounts and home UX: `docs/ROLE-EXPERIENCE.md`
+- Demo bootstrap: `src/Pitbull.Api/Demo/DemoBootstrapper.cs`

@@ -82,3 +82,7 @@ tests/**/TestResults/
 tests/Pitbull.Tests.*/TestResults/
 TestResults/
 *.trx
+
+# Local marketing / draft content
+tweet-series*.md
+

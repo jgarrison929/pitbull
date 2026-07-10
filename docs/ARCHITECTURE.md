@@ -79,7 +79,7 @@ Each module is a separate .NET project under `src/Modules/`.
 | **Portal** | External vendor/owner access (limited) |
 | **RFIs** | Legacy RFI support (largely merged into ProjectManagement) |
 
-**Notes:** Always verify exact state via source (`ls src/Modules`, controller list, CHANGELOG.md entries after May 2026). Many /plans and /specs remain aspirational/historical. Portal is stub/limited. Full dual-book accounting and some advanced features continue to evolve.
+**Notes:** Prefer this document, `CHANGELOG.md`, and `src/Modules` for current state. Portal remains limited. Dual-book accounting and some advanced financial workflows continue to expand.
 
 ### Infrastructure Layer
 

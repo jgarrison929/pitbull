@@ -181,7 +181,7 @@ dotnet test ...
 
 Add to Dockerfile COPY line before committing.
 
-Update any relevant historical notes in docs/archive/ if new patterns emerge.
+Update `docs/ARCHITECTURE.md` and `CHANGELOG.md` when patterns change.
 
 ---
 

@@ -2,7 +2,7 @@
 
 > **Rubric:** PASS = canonical ERP stages enforced server-side with audit logging and matching UI actions. FAIL = missing stages, ad-hoc jumps, or dead-end navigation. PARTIAL = core path works; compliance/GL/cash gaps remain.
 >
-> **Baseline sources:** `docs/archive/roles-2026-02/PROJECT-MANAGER.md`, `CONTROLLER-CFO.md`, `PAYROLL-MANAGER.md`, `AR-CLERK.md`, `AP-CLERK.md`
+> **Baseline:** domain services + `e2e/fixtures/ROLE-PERSONA-MAP.md` + role home docs in `docs/ROLE-EXPERIENCE.md`.
 
 ## Rubric (pass/fail gates)
 

@@ -1,6 +1,6 @@
 # Role Persona Map (E2E)
 
-Source: `docs/archive/roles-2026-02/` + `DemoBootstrapper.DemoUsers` + `PermissionConstants.RoleTemplates`.
+Source: `DemoBootstrapper.DemoUsers` + `PermissionConstants.RoleTemplates` + `docs/ROLE-EXPERIENCE.md`.
 
 | Persona | Email | AppRole | RBAC Role | Lifecycles |
 |---------|-------|---------|-----------|------------|
