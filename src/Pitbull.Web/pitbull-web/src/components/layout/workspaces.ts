@@ -280,10 +280,11 @@ export const roleDefaults: Record<string, RoleDefaults> = {
       { label: "AR Aging", href: "/billing/aging", icon: "💰" },
     ],
     mobileTabs: [
+      // Demo CEO: portfolio + cash + financials (high mobile traffic)
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
       { label: "Projects", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
+      { label: "Aging", href: "/billing/aging", icon: "💰", matchPaths: ["/billing/aging"] },
       { label: "Reports", href: "/reports/financial-overview", icon: "📊", matchPaths: ["/reports"] },
-      { label: "Bids", href: "/bids", icon: "📋", matchPaths: ["/bids"] },
     ],
   },
   cfo: {
@@ -292,13 +293,14 @@ export const roleDefaults: Record<string, RoleDefaults> = {
     quickActions: [
       { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
       { label: "AR Aging", href: "/billing/aging", icon: "📊" },
-      { label: "Journal Entry", href: "/accounting/journal-entries", icon: "📓" },
+      { label: "Owner Billing", href: "/billing/applications", icon: "💰" },
     ],
     mobileTabs: [
+      // Demo CFO: keep paths specific so WIP vs journal vs billing don't all light up
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
       { label: "WIP", href: "/accounting/wip", icon: "📈", matchPaths: ["/accounting/wip"] },
-      { label: "Aging", href: "/billing/aging", icon: "📊", matchPaths: ["/billing"] },
-      { label: "Journal", href: "/accounting/journal-entries", icon: "📓", matchPaths: ["/accounting"] },
+      { label: "Aging", href: "/billing/aging", icon: "📊", matchPaths: ["/billing/aging"] },
+      { label: "Billing", href: "/billing/applications", icon: "💰", matchPaths: ["/billing/applications", "/billing/contracts"] },
     ],
   },
   projectManager: {
@@ -343,9 +345,9 @@ export const roleDefaults: Record<string, RoleDefaults> = {
     ],
     mobileTabs: [
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Journal", href: "/accounting/journal-entries", icon: "📓", matchPaths: ["/accounting"] },
+      { label: "Journal", href: "/accounting/journal-entries", icon: "📓", matchPaths: ["/accounting/journal-entries"] },
       { label: "WIP", href: "/accounting/wip", icon: "📈", matchPaths: ["/accounting/wip"] },
-      { label: "Billing", href: "/billing/applications", icon: "💰", matchPaths: ["/billing"] },
+      { label: "Billing", href: "/billing/applications", icon: "💰", matchPaths: ["/billing/applications", "/billing/contracts"] },
     ],
   },
   clerk: {

@@ -15,9 +15,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Billing applications mobile cards** — AIA G702 list stacks as tappable cards under `sm` (payment due / completed / retainage readable without horizontal page scroll)
 - **Owner contracts mobile cards** — contract list same pattern for field/finance phone use
 - **AR/AP aging scroll containers** — intentional horizontal swipe + min-width tables so page chrome no longer blows out sideways
+- **Demo-role mobile paths** — CEO/CFO/PM/Estimator bottom-nav + FAB evaluated: role-aware FAB (`quickActions`), longest-match active tab, CFO WIP + journal list cards, CEO aging tab
 
 ### Changed
 
+- CEO mobile tabs prioritize **Aging** over Bids; CFO tabs use specific billing/WIP paths (no dual-highlight on `/accounting/*`)
 - Version bumped to **2.5.0** (second mobile iteration after 2.4.0 shell)
 
 ## [2.4.0] - 2026-07-10T14:41:00-07:00

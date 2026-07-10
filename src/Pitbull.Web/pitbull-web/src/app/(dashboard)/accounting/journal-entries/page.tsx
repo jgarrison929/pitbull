@@ -187,59 +187,113 @@ export default function JournalEntriesPage() {
           actionHref="/accounting/journal-entries/new"
         />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Entry #</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Debits</TableHead>
-                  <TableHead className="text-right">Credits</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="font-medium">{entry.entryNumber}</TableCell>
-                    <TableCell>{new Date(entry.entryDate + "T00:00:00").toLocaleDateString()}</TableCell>
-                    <TableCell className="max-w-[300px] truncate">{entry.description}</TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(entry.totalDebits)}</TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(entry.totalCredits)}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusColors[entry.status]}>{entry.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      {entry.status === "Draft" && (
-                        <>
-                          <LoadingButton
-                            size="sm"
-                            variant="outline"
-                            loading={postingId === entry.id}
-                            onClick={() => handlePost(entry)}
-                          >
-                            Post
-                          </LoadingButton>
-                          <Button size="sm" variant="destructive" onClick={() => handleDelete(entry)}>
-                            Delete
-                          </Button>
-                        </>
-                      )}
-                      {entry.status === "Posted" && (
-                        <Button size="sm" variant="outline" onClick={() => handleReverse(entry)}>
-                          Reverse
-                        </Button>
-                      )}
-                    </TableCell>
+        <>
+          <div className="space-y-3 sm:hidden">
+            {entries.map((entry) => (
+              <div key={entry.id} className="rounded-lg border bg-card p-4 space-y-3 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{entry.entryNumber}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(entry.entryDate + "T00:00:00").toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Badge variant={statusColors[entry.status]}>{entry.status}</Badge>
+                </div>
+                <p className="text-sm line-clamp-2">{entry.description}</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Debits</p>
+                    <p className="font-mono font-medium">{formatCurrency(entry.totalDebits)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Credits</p>
+                    <p className="font-mono font-medium">{formatCurrency(entry.totalCredits)}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {entry.status === "Draft" && (
+                    <>
+                      <LoadingButton
+                        size="sm"
+                        variant="outline"
+                        className="min-h-[44px]"
+                        loading={postingId === entry.id}
+                        onClick={() => handlePost(entry)}
+                      >
+                        Post
+                      </LoadingButton>
+                      <Button size="sm" variant="destructive" className="min-h-[44px]" onClick={() => handleDelete(entry)}>
+                        Delete
+                      </Button>
+                    </>
+                  )}
+                  {entry.status === "Posted" && (
+                    <Button size="sm" variant="outline" className="min-h-[44px]" onClick={() => handleReverse(entry)}>
+                      Reverse
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Card className="hidden sm:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Entry #</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Debits</TableHead>
+                    <TableHead className="text-right">Credits</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium">{entry.entryNumber}</TableCell>
+                      <TableCell>{new Date(entry.entryDate + "T00:00:00").toLocaleDateString()}</TableCell>
+                      <TableCell className="max-w-[300px] truncate">{entry.description}</TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(entry.totalDebits)}</TableCell>
+                      <TableCell className="text-right font-mono">{formatCurrency(entry.totalCredits)}</TableCell>
+                      <TableCell>
+                        <Badge variant={statusColors[entry.status]}>{entry.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        {entry.status === "Draft" && (
+                          <>
+                            <LoadingButton
+                              size="sm"
+                              variant="outline"
+                              loading={postingId === entry.id}
+                              onClick={() => handlePost(entry)}
+                            >
+                              Post
+                            </LoadingButton>
+                            <Button size="sm" variant="destructive" onClick={() => handleDelete(entry)}>
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                        {entry.status === "Posted" && (
+                          <Button size="sm" variant="outline" onClick={() => handleReverse(entry)}>
+                            Reverse
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">

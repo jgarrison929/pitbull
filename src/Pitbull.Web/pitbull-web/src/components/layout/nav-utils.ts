@@ -43,3 +43,35 @@ export function isMobileTabActive(pathname: string, tab: MobileTabMatch): boolea
   }
   return pathMatchesPrefix(pathname, tab.href);
 }
+
+/**
+ * Among role mobile tabs, pick the single best active tab (longest path match).
+ * Prevents CFO "Journal" (`/accounting`) and "WIP" (`/accounting/wip`) both lighting up.
+ */
+export function resolveActiveMobileTabHref(
+  pathname: string,
+  tabs: MobileTabMatch[]
+): string | null {
+  let best: { href: string; score: number } | null = null;
+
+  for (const tab of tabs) {
+    if (!isMobileTabActive(pathname, tab)) continue;
+
+    const prefixes =
+      tab.href === "/"
+        ? ["/"]
+        : tab.matchPaths?.length
+          ? tab.matchPaths
+          : [tab.href];
+
+    for (const p of prefixes) {
+      if (!pathMatchesPrefix(pathname, p)) continue;
+      const score = p === "/" ? 1 : p.length;
+      if (!best || score > best.score) {
+        best = { href: tab.href, score };
+      }
+    }
+  }
+
+  return best?.href ?? null;
+}

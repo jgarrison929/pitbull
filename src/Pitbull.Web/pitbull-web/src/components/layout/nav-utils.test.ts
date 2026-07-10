@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { findActiveHref, isMobileTabActive } from "./nav-utils";
+import {
+  findActiveHref,
+  isMobileTabActive,
+  resolveActiveMobileTabHref,
+} from "./nav-utils";
 import type { NavItem } from "./nav-items";
 
 describe("isMobileTabActive", () => {
@@ -53,5 +57,25 @@ describe("findActiveHref", () => {
 
   it("returns / only for dashboard root", () => {
     expect(findActiveHref("/", items)).toBe("/");
+  });
+});
+
+describe("resolveActiveMobileTabHref", () => {
+  const cfoTabs = [
+    { href: "/", matchPaths: ["/"] },
+    { href: "/accounting/wip", matchPaths: ["/accounting/wip"] },
+    { href: "/accounting/journal-entries", matchPaths: ["/accounting"] },
+    { href: "/billing/aging", matchPaths: ["/billing/aging"] },
+  ];
+
+  it("picks longest match so WIP wins over broad /accounting", () => {
+    expect(resolveActiveMobileTabHref("/accounting/wip", cfoTabs)).toBe("/accounting/wip");
+    expect(resolveActiveMobileTabHref("/accounting/wip/xyz", cfoTabs)).toBe(
+      "/accounting/wip"
+    );
+  });
+
+  it("picks home only on exact /", () => {
+    expect(resolveActiveMobileTabHref("/", cfoTabs)).toBe("/");
   });
 });

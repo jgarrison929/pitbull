@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/auth-context";
 import { getRoleDefaults, workspaces, getWorkspaceLandingHref } from "./workspaces";
-import { isMobileTabActive } from "./nav-utils";
+import { resolveActiveMobileTabHref } from "./nav-utils";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -22,6 +22,7 @@ export function MobileBottomNav() {
 
   const roleConfig = getRoleDefaults(user?.roles, user?.roleProfile);
   const mobileTabs = roleConfig.mobileTabs;
+  const activeHref = resolveActiveMobileTabHref(pathname, mobileTabs);
 
   return (
     <>
@@ -32,7 +33,7 @@ export function MobileBottomNav() {
       >
         <div className="flex h-14 items-center justify-around px-1">
           {mobileTabs.map((tab) => {
-            const active = isMobileTabActive(pathname, tab);
+            const active = activeHref === tab.href;
             return (
               <Link
                 key={tab.href}
