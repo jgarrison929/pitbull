@@ -117,6 +117,7 @@ builder.Services.Configure<DemoOptions>(builder.Configuration.GetSection(DemoOpt
 builder.Services.AddScoped<DemoBootstrapper>();
 builder.Services.AddScoped<Pitbull.Api.Features.SeedData.ISeedDataService, Pitbull.Api.Features.SeedData.SeedDataService>();
 builder.Services.AddScoped<Pitbull.Api.Features.CompanyProvisioning.ICompanyProvisioningService, Pitbull.Api.Features.CompanyProvisioning.CompanyProvisioningService>();
+builder.Services.AddSingleton<Pitbull.Api.Services.IChangelogService, Pitbull.Api.Services.ChangelogService>();
 
 // Configure forwarded headers for reverse proxy (Railway, Docker, etc.)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
