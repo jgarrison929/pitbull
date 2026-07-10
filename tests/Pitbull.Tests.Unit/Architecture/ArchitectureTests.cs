@@ -25,6 +25,7 @@ public class ArchitectureTests
             .And().AreNotAbstract()
             .And().DoNotHaveName("AuthController")
             .And().DoNotHaveName("VersionController")
+            .And().DoNotHaveName("ChangelogController") // public release notes, like VersionController
             .Should().HaveCustomAttribute(typeof(AuthorizeAttribute))
             .GetResult();
 

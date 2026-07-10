@@ -134,7 +134,7 @@ export const ROLE_KPI_DRILL_CONTRACTS: Record<RoleKpiKey, RoleKpiDrillContract> 
     headlinePredicate: "All ComplianceDocuments",
     href: "/reports/compliance",
     consumer: "reports/compliance/page.tsx",
-    expectedSemantics: { status: null },
+    expectedSemantics: { unfiltered: true },
   },
   complianceAttention: {
     key: "complianceAttention",
