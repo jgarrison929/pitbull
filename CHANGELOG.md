@@ -2,13 +2,15 @@
 
 All notable changes to Pitbull Construction Solutions are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
-**Note:** Learning/prototype project. Recent entries (0.15.0 May 2026+) reflect delivered features in code (95 controllers, 14 modules). Older sections document evolution and may reference superseded architecture or removed modules. Always verify vs src/ and `dotnet build`.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Release headers use ISO-8601 published timestamps. Product version: root `VERSION`.
 
 ---
 
 ## [Unreleased]
+
+### Changed
+
+- Professionalized public documentation (README, VISION, SECURITY, agent instructions); removed historical planning archive from the tree
 
 ## [2.2.1] - 2026-07-10T11:03:00-07:00
 

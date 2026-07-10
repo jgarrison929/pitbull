@@ -6,51 +6,38 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**A learning/prototype project:** a full-stack construction ERP built with AI-assisted development. Not production-ready.
+**Modular construction ERP** for commercial general contractors — projects, bids, contracts, time tracking, AIA billing, project management, financials, and AI-assisted operations in one multi-tenant platform.
 
-This is my first serious "vibe coded" application — built to learn modern .NET, multi-tenant SaaS patterns, and construction domain modeling. It's rough in places, but the architecture, test coverage, and module boundaries are real.
-
-**Clone and run locally** (Docker Compose) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md)
+[Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Vision](VISION.md) · [Security](SECURITY.md)
 
 ---
 
-## What I Built
+## Product
 
-A modular monolith for commercial general contractors: projects, bids, contracts, time tracking, billing (AIA G702/G703), RFIs, submittals, and AI-assisted project insights.
+Pitbull is a modular monolith that covers the GC back office: job setup, bidding, subcontract SOV and change orders, crew time, RFIs/submittals/daily reports, owner payment applications (G702/G703), AP/AR and GL, WIP, and role-native executive dashboards.
 
-| Layer | Tech |
-|-------|------|
-| API | .NET 10, ASP.NET Core, EF Core, PostgreSQL 17 |
+| Layer | Technology |
+|-------|------------|
+| API | .NET 10, ASP.NET Core, EF Core 10, PostgreSQL 17 |
 | Frontend | Next.js 16, React 19, Tailwind CSS 4, shadcn/ui |
-| Auth | JWT + ASP.NET Identity, row-level security (RLS) |
-| Events | DotNetCore.CAP (PostgreSQL outbox + Redis) |
-| Tests | ~253 test .cs files (unit + integration via Testcontainers) |
+| Auth | JWT + ASP.NET Identity, RBAC permissions, PostgreSQL RLS |
+| Messaging | DotNetCore.CAP (PostgreSQL outbox + Redis) |
+| Jobs | Hangfire |
+| Tests | Unit + integration (Testcontainers / PostgreSQL) |
 
-### Modules shipped
+### Modules
 
-- **Projects** — cost codes, phases, budgets
-- **Bids** — opportunity tracking, bid-to-project conversion
-- **Contracts** — subcontracts, change orders, SOV, payment applications
-- **TimeTracking** — crew entry, approval workflow, pay periods
-- **ProjectManagement** — schedule, RFIs, submittals, daily reports, tasks
-- **Billing** — vendors, GL, retention, lien waivers, AP/AR
-- **AI** — Claude-powered project health summaries
-- **Reports** — labor cost, profitability, CSV exports
+- **Projects** — cost codes, phases, budgets  
+- **Bids** — opportunity tracking, bid-to-project conversion  
+- **Contracts** — subcontracts, change orders, SOV, payment applications  
+- **TimeTracking** — crew entry, approvals, pay periods  
+- **ProjectManagement** — schedule, RFIs, submittals, daily reports, tasks, punch lists  
+- **Billing** — vendors, customers, GL, retention, lien waivers, AP/AR  
+- **Reports** — labor cost, profitability, financial statements, exports  
+- **AI** — provider abstraction (Anthropic / OpenAI) for summaries and document extraction  
+- **SystemAdmin** — users, roles, settings, secrets vault, health  
 
----
-
-## What I Learned
-
-Things I figured out (often the hard way) while building this:
-
-- **Multi-tenancy with PostgreSQL RLS** — tenant + company isolation at the database layer, not just in application code
-- **Modular monolith boundaries** — 14 modules sharing one DbContext without turning into spaghetti
-- **CQRS without MediatR** — direct service injection after MediatR went commercial; simpler and faster
-- **Construction domain modeling** — retainage, SOV, certified payroll concepts, change order workflows
-- **Testcontainers for integration tests** — real PostgreSQL in CI, not mocked DbContext
-- **AI-native development** — agent skills, compound learning docs, systematic code review loops
-
-See [docs/archive/](docs/archive/) (historical solutions/ and compound lessons) for specific bugs and patterns captured along the way during development.
+See [docs/ROLE-EXPERIENCE.md](docs/ROLE-EXPERIENCE.md) for persona-specific home experiences (CEO, CFO, PM, Estimator).
 
 ---
 
@@ -76,100 +63,86 @@ npm run dev
 
 API: `http://localhost:5081` · Frontend: `http://localhost:3000`
 
-Copy `.env.example` to `.env` for optional services (email, AI). See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup.
+Copy `.env.example` to `.env` for optional services (email, AI). Full setup: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### Dev admin bootstrap
 
-In Development, the API promotes the email in `appsettings.Development.json` → `DevAdmin:Email` to Admin on startup. Change it to your local user email after registering.
+In Development, the API promotes the email in `appsettings.Development.json` → `DevAdmin:Email` to Admin on startup. Set it to your local user after registering.
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 src/
-  Pitbull.Api/              # API host, controllers, middleware
+  Pitbull.Api/                 # API host, controllers, middleware
   Modules/
-    Pitbull.Core/           # DbContext, multi-tenancy, shared entities
-    Pitbull.Projects/       # Projects, cost codes, phases
-    Pitbull.Bids/           # Bid management
-    Pitbull.Contracts/      # Subcontracts, change orders, SOV
-    Pitbull.Billing/        # Payment apps, GL, AP/AR
-    Pitbull.TimeTracking/   # Time entries, payroll workflow
-    Pitbull.ProjectManagement/  # RFIs, submittals, daily reports
-    Pitbull.AI/             # AI provider abstraction
-  Pitbull.Web/pitbull-web/  # Next.js frontend
+    Pitbull.Core/              # DbContext, multi-tenancy, shared entities
+    Pitbull.Projects/
+    Pitbull.Bids/
+    Pitbull.Contracts/
+    Pitbull.Billing/
+    Pitbull.TimeTracking/
+    Pitbull.ProjectManagement/
+    Pitbull.AI/
+    …
+  Pitbull.Web/pitbull-web/     # Next.js frontend
 tests/
-  Pitbull.Tests.Unit/       # In-memory DB unit tests
-  Pitbull.Tests.Integration/  # Testcontainers + PostgreSQL
-docs/                       # Architecture, specs, role docs
+  Pitbull.Tests.Unit/
+  Pitbull.Tests.Integration/
+docs/                          # Architecture, role experience, security, specs
+deploy/                        # Railway / production setup
 ```
 
 ---
 
-## Running Tests
+## Tests
 
 ```bash
-# Unit tests
 dotnet test tests/Pitbull.Tests.Unit --configuration Release
-
-# Integration tests (requires Docker)
-dotnet test tests/Pitbull.Tests.Integration --configuration Release
+dotnet test tests/Pitbull.Tests.Integration --configuration Release   # requires Docker
 ```
 
 ---
 
 ## Deployment
 
-### Railway (recommended for hosted demo)
+### Railway
 
-See **[deploy/RAILWAY-SETUP.md](deploy/RAILWAY-SETUP.md)** for full setup on a new Railway account.
-
-Quick start:
+See **[deploy/RAILWAY-SETUP.md](deploy/RAILWAY-SETUP.md)**.
 
 ```powershell
 .\scripts\railway-setup.ps1 -ApiUrl "https://your-api.up.railway.app" -WebUrl "https://your-web.up.railway.app"
 ```
 
-Services: **Postgres** + **pitbull-api** (`src/Pitbull.Api`) + **pitbull-web** (`src/Pitbull.Web/pitbull-web`). Auto-deploys from `main`.
+Services: **Postgres** + **pitbull-api** + **pitbull-web**. Deploys from `main`.
 
-### Self-hosted (Docker Compose)
+### Self-hosted
 
 See [docker-compose.prod.yml](docker-compose.prod.yml) and [.env.example](.env.example).
 
 | Variable | Description |
 |----------|-------------|
-| `ConnectionStrings__PitbullDb` or `DATABASE_URL` | PostgreSQL connection string |
-| `Jwt__Key` | JWT signing key (min 32 chars) |
-| `Cors__AllowedOrigins__0` | Frontend URL |
+| `ConnectionStrings__PitbullDb` or `DATABASE_URL` | PostgreSQL |
+| `Jwt__Key` | JWT signing key (min 32 characters) |
+| `Cors__AllowedOrigins__0` | Frontend origin |
 | `NEXT_PUBLIC_API_BASE_URL` | API URL (frontend build-time) |
-| `ANTHROPIC_API_KEY` | Optional — enables AI features |
+| `ANTHROPIC_API_KEY` | Optional — AI features |
 
 ---
 
 ## Documentation
 
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Adding a Module](docs/ADDING-A-MODULE.md)
-- [Security Policy](SECURITY.md) — report vulnerabilities responsibly
-- [Contributing Guide](CONTRIBUTING.md)
-- Historical functional role perspectives (CFO, PM, HR etc.) — see docs/archive/ (roles docs archived as internal)
-
----
-
-## Honest Caveats
-
-This is a learning project, not production-ready software:
-
-- Significant portions of several modules are implemented (Projects, Bids, Contracts, TimeTracking, ProjectManagement, Billing elements, AI, Reports).
-- Some areas remain partial, stubbed, or more aspirational (see /plans and CHANGELOG for delivered vs. planned).
-- Built with heavy AI agent assistance alongside human architecture decisions.
-- Demo environments are decommissioned; run locally via Docker. This remains a learning/prototype project with no current paying customers or production deployments at scale.
-
-If you're reviewing this for a job or collaboration: look at the test suite, the RLS implementation, and the module boundary enforcement — that's where the real engineering lives.
+- [Architecture](docs/ARCHITECTURE.md)
+- [Role experience](docs/ROLE-EXPERIENCE.md)
+- [Adding a module](docs/ADDING-A-MODULE.md)
+- [Best practices](docs/BEST-PRACTICES.md)
+- [Security policy](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md) · product version in root `VERSION`
 
 ---
 
 ## License
 
-[MIT](LICENSE) — use it, fork it, learn from it.
+[MIT](LICENSE)

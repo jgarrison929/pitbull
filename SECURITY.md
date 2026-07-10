@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the `main` branch is supported. This is a learning/portfolio project, not a commercially supported product.
+Only the `main` branch is supported for security fixes.
 
 ## Reporting a Vulnerability
 
