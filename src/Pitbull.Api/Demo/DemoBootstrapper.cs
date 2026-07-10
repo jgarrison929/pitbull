@@ -687,12 +687,12 @@ public sealed class DemoBootstrapper(
     // Multi-company + ~45 role-based demo accounts
     // ────────────────────────────────────────────────────────────────────────
 
-    private const string ParentCode = "01";
-    private const string WaterInfraCode = "02";   // Summit Water Infrastructure — civil/water GC ($400M)
-    private const string HighwayCode = "03";       // Summit Highway Division — heavy highway GC/sub ($40M)
-    private const string ElectricalCode = "04";    // Summit Electric Co. — electrical sub ($30M)
+    private const string ParentCode = "01";       // Summit Builders Group — enterprise GC holding (Fortune-scale)
+    private const string MidMarketCode = "02";    // Summit Commercial Builders — mid-market GC ($50–80M)
+    private const string HighwayCode = "03";      // Summit Highway Division — small-market heavy highway
+    private const string HvacCode = "04";         // Summit Mechanical — union HVAC multi-division
 
-    private static readonly string[] AllCompanyCodes = [ParentCode, WaterInfraCode, HighwayCode, ElectricalCode];
+    private static readonly string[] AllCompanyCodes = [ParentCode, MidMarketCode, HighwayCode, HvacCode];
 
     /// <summary>
     /// A single demo user definition: identity, role, employee info, and company access.
@@ -752,7 +752,7 @@ public sealed class DemoBootstrapper(
         new("mgr-it@demo.local", "Demo", "User28",  "IT Manager",                       RoleSeeder.Roles.Manager,    "DEMO-MI",    EmployeeClassification.Salaried,    90.00m, ParentCode, [ParentCode]),
         new("mgr-safety@demo.local", "Demo", "User29",   "Safety Manager",                   RoleSeeder.Roles.Manager,    "DEMO-MS",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
         new("mgr-payroll@demo.local", "Demo", "User30",    "Payroll Manager",                  RoleSeeder.Roles.Manager,    "DEMO-MP",    EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode]),
-        new("mgr-purchasing@demo.local", "Demo", "User31",     "Purchasing Manager",               RoleSeeder.Roles.Manager,    "DEMO-MPU",   EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode, ElectricalCode]),
+        new("mgr-purchasing@demo.local", "Demo", "User31",     "Purchasing Manager",               RoleSeeder.Roles.Manager,    "DEMO-MPU",   EmployeeClassification.Salaried,    85.00m, ParentCode, [ParentCode, HvacCode]),
 
         // Staff Level (5) — User role, parent company only
         new("staff-accountant@demo.local", "Demo", "User32",     "Staff Accountant",                 RoleSeeder.Roles.User,       "DEMO-SA",    EmployeeClassification.Salaried,    55.00m, ParentCode, [ParentCode]),
@@ -761,22 +761,22 @@ public sealed class DemoBootstrapper(
         new("payroll-clerk@demo.local", "Demo", "User35",  "Payroll Clerk",                    RoleSeeder.Roles.User,       "DEMO-PRC",   EmployeeClassification.Hourly,      36.00m, ParentCode, [ParentCode]),
         new("hr-coordinator@demo.local", "Demo", "User36",     "HR Coordinator",                   RoleSeeder.Roles.User,       "DEMO-HRC",   EmployeeClassification.Hourly,      35.00m, ParentCode, [ParentCode]),
 
-        // Project/Field — Sr Leadership (4) — Manager role, Summit Water Infrastructure
-        new("sr-project-exec@demo.local", "Demo", "User37",  "Sr Project Executive",             RoleSeeder.Roles.Manager,    "DEMO-SPE",   EmployeeClassification.Salaried,   145.00m, WaterInfraCode, [WaterInfraCode]),
-        new("project-exec@demo.local", "Demo", "User38",    "Project Executive",                RoleSeeder.Roles.Manager,    "DEMO-PEX",   EmployeeClassification.Salaried,   130.00m, WaterInfraCode, [WaterInfraCode]),
-        new("chief-estimator@demo.local", "Demo", "User39","Chief Estimator",                  RoleSeeder.Roles.Manager,    "DEMO-CE",    EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, HighwayCode]),
-        new("chief-engineer@demo.local", "Demo", "User40",      "Chief Engineer",                   RoleSeeder.Roles.Manager,    "DEMO-CHE",   EmployeeClassification.Salaried,   125.00m, WaterInfraCode, [WaterInfraCode, ElectricalCode]),
+        // Project/Field — Sr Leadership (4) — Manager role, mid-market commercial GC (02)
+        new("sr-project-exec@demo.local", "Demo", "User37",  "Sr Project Executive",             RoleSeeder.Roles.Manager,    "DEMO-SPE",   EmployeeClassification.Salaried,   145.00m, MidMarketCode, [MidMarketCode]),
+        new("project-exec@demo.local", "Demo", "User38",    "Project Executive",                RoleSeeder.Roles.Manager,    "DEMO-PEX",   EmployeeClassification.Salaried,   130.00m, MidMarketCode, [MidMarketCode]),
+        new("chief-estimator@demo.local", "Demo", "User39","Chief Estimator",                  RoleSeeder.Roles.Manager,    "DEMO-CE",    EmployeeClassification.Salaried,   125.00m, MidMarketCode, [MidMarketCode, HighwayCode]),
+        new("chief-engineer@demo.local", "Demo", "User40",      "Chief Engineer",                   RoleSeeder.Roles.Manager,    "DEMO-CHE",   EmployeeClassification.Salaried,   125.00m, MidMarketCode, [MidMarketCode, HvacCode]),
 
-        // Project/Field — Project Management (7) — Supervisor role, Summit Water Infrastructure
-        new("sr-pm@demo.local", "Demo", "User41", "Sr Project Manager",               RoleSeeder.Roles.Supervisor, "DEMO-SPM",   EmployeeClassification.Salaried,    95.00m, WaterInfraCode, [WaterInfraCode]),
-        new("pm@demo.local", "Demo", "User42","Project Manager",                  RoleSeeder.Roles.Supervisor, "DEMO-PM",    EmployeeClassification.Salaried,    85.00m, WaterInfraCode, [WaterInfraCode]),
-        new("project-coord@demo.local", "Demo", "User43",     "Project Coordinator",              RoleSeeder.Roles.User,       "DEMO-PC",    EmployeeClassification.Salaried,    55.00m, WaterInfraCode, [WaterInfraCode]),
-        new("sr-project-eng@demo.local", "Demo", "User44", "Sr Project Engineer",              RoleSeeder.Roles.Supervisor, "DEMO-SPG",   EmployeeClassification.Salaried,    80.00m, WaterInfraCode, [WaterInfraCode]),
-        new("project-eng@demo.local", "Demo", "User45",   "Project Engineer",                 RoleSeeder.Roles.User,       "DEMO-PEG",   EmployeeClassification.Salaried,    65.00m, WaterInfraCode, [WaterInfraCode]),
-        new("field-eng@demo.local", "Demo", "User46",   "Field Engineer",                   RoleSeeder.Roles.User,       "DEMO-FE",    EmployeeClassification.Hourly,      48.00m, HighwayCode,    [WaterInfraCode, HighwayCode]),
-        new("commissioning@demo.local", "Demo", "User47", "Commissioning Officer",            RoleSeeder.Roles.Supervisor, "DEMO-COM",   EmployeeClassification.Salaried,    75.00m, ElectricalCode, [WaterInfraCode, ElectricalCode]),
+        // Project/Field — Project Management (7) — Supervisor role, mid-market GC + field on highway/HVAC
+        new("sr-pm@demo.local", "Demo", "User41", "Sr Project Manager",               RoleSeeder.Roles.Supervisor, "DEMO-SPM",   EmployeeClassification.Salaried,    95.00m, MidMarketCode, [MidMarketCode]),
+        new("pm@demo.local", "Demo", "User42","Project Manager",                  RoleSeeder.Roles.Supervisor, "DEMO-PM",    EmployeeClassification.Salaried,    85.00m, MidMarketCode, [MidMarketCode]),
+        new("project-coord@demo.local", "Demo", "User43",     "Project Coordinator",              RoleSeeder.Roles.User,       "DEMO-PC",    EmployeeClassification.Salaried,    55.00m, MidMarketCode, [MidMarketCode]),
+        new("sr-project-eng@demo.local", "Demo", "User44", "Sr Project Engineer",              RoleSeeder.Roles.Supervisor, "DEMO-SPG",   EmployeeClassification.Salaried,    80.00m, MidMarketCode, [MidMarketCode]),
+        new("project-eng@demo.local", "Demo", "User45",   "Project Engineer",                 RoleSeeder.Roles.User,       "DEMO-PEG",   EmployeeClassification.Salaried,    65.00m, MidMarketCode, [MidMarketCode]),
+        new("field-eng@demo.local", "Demo", "User46",   "Field Engineer",                   RoleSeeder.Roles.User,       "DEMO-FE",    EmployeeClassification.Hourly,      48.00m, HighwayCode,    [MidMarketCode, HighwayCode]),
+        new("commissioning@demo.local", "Demo", "User47", "Commissioning Officer",            RoleSeeder.Roles.Supervisor, "DEMO-COM",   EmployeeClassification.Salaried,    75.00m, HvacCode, [MidMarketCode, HvacCode]),
 
-        // Estimating (2) — User role, Summit Highway Division (bidding lots of small jobs)
+        // Estimating (2) — User role, small-market highway (high bid volume)
         new("sr-estimator@demo.local", "Demo", "User48", "Sr Estimator",                     RoleSeeder.Roles.User,       "DEMO-SES",   EmployeeClassification.Salaried,    80.00m, HighwayCode, [HighwayCode]),
         new("estimator@demo.local", "Demo", "User49",  "Estimator",                        RoleSeeder.Roles.User,       "DEMO-EST",   EmployeeClassification.Salaried,    60.00m, HighwayCode, [HighwayCode]),
     ];
@@ -789,27 +789,29 @@ public sealed class DemoBootstrapper(
         Guid tenantId, Company parentCompany, CancellationToken ct)
     {
         // Ensure the parent company has the right name for the demo org chart
-        if (parentCompany.Name != "Summit Builders Group")
+        if (parentCompany.Name != "Summit Builders Group"
+            || parentCompany.ShortName != "SBG"
+            || parentCompany.IndustryType != "enterprise-general-contractor")
         {
             parentCompany.Name = "Summit Builders Group";
             parentCompany.ShortName = "SBG";
-            parentCompany.IndustryType = "general-contractor";
+            parentCompany.IndustryType = "enterprise-general-contractor";
             parentCompany.State = "CA";
             parentCompany.City = "Sacramento";
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("Updated parent company name to Summit Builders Group");
+            logger.LogInformation("Updated parent company to Summit Builders Group (enterprise GC holding)");
         }
 
         var result = new Dictionary<string, Company> { [ParentCode] = parentCompany };
 
         var subsidiaries = new[]
         {
-            (Code: WaterInfraCode, Name: "Summit Water Infrastructure", ShortName: "SWI"),
-            (Code: HighwayCode,    Name: "Summit Highway Division",      ShortName: "SHD"),
-            (Code: ElectricalCode, Name: "Summit Electric Co.",      ShortName: "SEC"),
+            (Code: MidMarketCode, Name: "Summit Commercial Builders", ShortName: "SCB", Industry: "general-contractor"),
+            (Code: HighwayCode,   Name: "Summit Highway Division",    ShortName: "SHD", Industry: "heavy-highway"),
+            (Code: HvacCode,      Name: "Summit Mechanical",          ShortName: "SMH", Industry: "specialty-contractor"),
         };
 
-        foreach (var (code, name, shortName) in subsidiaries)
+        foreach (var (code, name, shortName, industry) in subsidiaries)
         {
             var company = await db.Set<Company>()
                 .IgnoreQueryFilters()
@@ -817,11 +819,12 @@ public sealed class DemoBootstrapper(
 
             if (company is not null)
             {
-                // Update name/shortname if the company was created with old values
-                if (company.Name != name || company.ShortName != shortName)
+                // Update name/shortname/industry if the company was created with old values
+                if (company.Name != name || company.ShortName != shortName || company.IndustryType != industry)
                 {
                     company.Name = name;
                     company.ShortName = shortName;
+                    company.IndustryType = industry;
                     await db.SaveChangesAsync(ct);
                     logger.LogInformation("Updated subsidiary {Code} name to {Name} ({ShortName})", code, name, shortName);
                 }
@@ -837,7 +840,7 @@ public sealed class DemoBootstrapper(
                 ShortName = shortName,
                 IsDefault = false,
                 IsActive = true,
-                IndustryType = code == ElectricalCode ? "specialty-contractor" : "general-contractor",
+                IndustryType = industry,
                 State = "CA",
                 City = "Sacramento",
                 SortOrder = int.Parse(code),

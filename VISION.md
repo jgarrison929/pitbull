@@ -48,12 +48,13 @@ No "contact sales for a quote." No per-user pricing that punishes you for growin
 
 ## The Platform
 
-### Current State (as of mid-2026)
+### Current State (as of mid-2026 / product v2.0.0)
 - Multi-tenant architecture with PostgreSQL Row-Level Security (RLS) and company scoping (14 modules)
-- Implemented: 95 controllers, projects/bids/contracts (SOV/COs/payment apps), time tracking, project management (RFIs/submittals/daily reports/Punch List), billing (vendors, AP/AR, GL, WIP, retention, lien waivers, financial statements), AI, reports, etc.
-- JWT + ASP.NET Identity auth, CAP messaging, significant test coverage (253 test files), CI green
-- Docker support; Railway auto from main (demos decommissioned)
-- See CHANGELOG.md for precise recent deliveries (0.15.0: financial reports, AP payments, Punch List, etc.) and "Honest Caveats" in README.md. Not a full replacement for commercial tools.
+- Implemented: ~98 controllers, projects/bids/contracts (SOV/COs/payment apps), time tracking, project management (RFIs/submittals/daily reports/Punch List), billing (vendors, AP/AR, GL, WIP, retention, lien waivers, financial statements), workflow approval engine (Phase 1), AI, reports, etc.
+- JWT + ASP.NET Identity auth, CAP messaging, significant test coverage, CI green
+- Docker + Railway from main; demo multi-company seeds (enterprise GC / mid-market / highway / HVAC) — see `docs/DEMO-COMPANY-PROFILES.md`
+- In-app changelog tied to app version (`GET /api/changelog`, version badge)
+- See CHANGELOG.md for precise deliveries and "Honest Caveats" in README.md. Not a full replacement for commercial tools.
 
 ### Roadmap (Historical / Aspirational)
 Early roadmaps (v0.2 etc.) from project history are superseded. Many items like Contracts, RFIs, Billing elements, PM, daily reports, client portal stub, AI extraction are partially or fully in current codebase (see CHANGELOG and Modules/ for status). Full vision items remain future work. Consult CHANGELOG, code, and docs/archive/ for historical priorities and plans.

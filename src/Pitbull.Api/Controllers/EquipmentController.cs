@@ -91,7 +91,7 @@ public class EquipmentController(IEquipmentService equipmentService) : Controlle
     ///     {
     ///         "code": "EX-001",
     ///         "name": "CAT 320 Excavator",
-    ///         "description": "2020 Caterpillar 320 GC Hydraulic Excavator",
+    ///         "description": "Demo 30-ton hydraulic excavator",
     ///         "type": "HeavyEquipment",
     ///         "hourlyRate": 150.00,
     ///         "billingRate": 185.00,

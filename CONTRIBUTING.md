@@ -73,6 +73,21 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 
 ---
 
+## Releases and versioning
+
+Product version is **2.0.0** (see root `VERSION`, `src/Pitbull.Web/pitbull-web/package.json`, and `src/Pitbull.Api/Pitbull.Api.csproj`). Docker build args default to the same value so Railway does not fall back to an old stamp.
+
+When cutting a release:
+
+1. Move items from `## [Unreleased]` in `CHANGELOG.md` into `## [X.Y.Z] - YYYY-MM-DD`
+2. Bump `VERSION`, `package.json` `version`, and API csproj `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` together
+3. Bump `ARG VERSION` / `ARG NEXT_PUBLIC_APP_VERSION` defaults in both Dockerfiles if they still hardcode the version
+4. Deploy; confirm `GET /api/version`, the bottom-left badge, and `GET /api/changelog?current=true` all agree
+
+In-app release notes are served from `CHANGELOG.md` via `GET /api/changelog` (no separate CMS).
+
+---
+
 ## Development Workflow
 
 ### Branching Strategy

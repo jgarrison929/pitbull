@@ -12,6 +12,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **In-app changelog** — `GET /api/changelog` parses root `CHANGELOG.md` (Keep a Changelog); version badge opens “What’s new” dialog for the current app version; About page shows current release notes + recent history
+- **Root `VERSION` file** — single documented product version (`2.0.0`); Docker API/web defaults updated so Railway builds stamp 2.0.0 instead of stale 0.15.0
+- **Differentiated demo company archetypes** — seed v12: 01 enterprise GC holding (Summit Builders Group), 02 mid-market commercial GC (Summit Commercial Builders), 03 small-market heavy highway (Summit Highway Division), 04 union multi-division HVAC (Summit Mechanical); see `docs/DEMO-COMPANY-PROFILES.md`
+- **Fictional-only demo parties** — seed customers/vendors/agencies/insurers use clearly fictional names (no real brands or real public agencies)
 - **Demo role login on `/login`** — one-click CEO / CFO / Project Manager / Estimator buttons call `POST /api/auth/demo-role-login` (password stays server-side); catalog via `GET /api/auth/demo-roles` when `Demo:Enabled`; demo personas skip company-setup gate so they land in the product
 - **Always-visible app version** — `AppVersionBadge` in root layout (every page, including login); sidebar About link uses the same `getAppVersion()` helper
 

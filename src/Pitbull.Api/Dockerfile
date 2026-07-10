@@ -39,12 +39,13 @@ COPY tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj tests/Pitb
 # Restore dependencies (now all .csproj and .sln files are present)
 RUN dotnet restore Pitbull.sln
 
-# Build args for version info
-ARG VERSION=0.15.0
+# Build args for version info (keep in sync with root VERSION / package.json / csproj)
+ARG VERSION=2.0.0
 ARG COMMIT_HASH=unknown
 
 # Copy all source files
 COPY src/ src/
+COPY CHANGELOG.md /changelog/CHANGELOG.md
 
 # Publish
 RUN dotnet publish src/Pitbull.Api/Pitbull.Api.csproj \
@@ -59,8 +60,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
 COPY --from=build /out .
+COPY --from=build /changelog/CHANGELOG.md ./CHANGELOG.md
 
-ARG VERSION=0.15.0
+ARG VERSION=2.0.0
 ARG COMMIT_HASH=unknown
 ARG BUILD_DATE=""
 ENV ASPNETCORE_ENVIRONMENT=Production

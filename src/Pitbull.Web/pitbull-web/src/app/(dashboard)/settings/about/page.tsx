@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, GitCommit, Calendar, Package, FileText } from "lucide-react";
 import { getAppVersion } from "@/lib/app-version";
+import { API_BASE_URL } from "@/lib/config";
+import { fetchChangelog, type ChangelogRelease } from "@/lib/changelog";
+import { ChangelogList, ChangelogReleaseView } from "@/components/changelog/changelog-notes";
 
 interface ApiVersionInfo {
   version: string;
@@ -17,16 +20,39 @@ interface ApiVersionInfo {
 export default function AboutPage() {
   const [apiVersion, setApiVersion] = useState<ApiVersionInfo | null>(null);
   const [apiError, setApiError] = useState(false);
+  const [currentRelease, setCurrentRelease] = useState<ChangelogRelease | null>(null);
+  const [history, setHistory] = useState<ChangelogRelease[]>([]);
+  const [changelogError, setChangelogError] = useState(false);
+  const [changelogLoading, setChangelogLoading] = useState(true);
 
   const frontendVersion = getAppVersion();
   const commitHash = process.env.NEXT_PUBLIC_COMMIT_HASH || "dev";
 
   useEffect(() => {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "";
-    fetch(`${apiBase}/api/version`)
+    fetch(`${API_BASE_URL}/api/version`)
       .then((res) => res.json())
       .then((data) => setApiVersion(data))
       .catch(() => setApiError(true));
+  }, []);
+
+  useEffect(() => {
+    setChangelogLoading(true);
+    Promise.all([
+      fetchChangelog({ current: true }),
+      fetchChangelog({ limit: 8 }),
+    ])
+      .then(([current, all]) => {
+        setCurrentRelease(current.releases[0] ?? null);
+        // History: skip Unreleased for the main "current" card, keep list for browsing
+        setHistory(
+          all.releases.filter(
+            (r) => r.version.toLowerCase() !== "unreleased"
+          )
+        );
+        setChangelogError(false);
+      })
+      .catch(() => setChangelogError(true))
+      .finally(() => setChangelogLoading(false));
   }, []);
 
   return (
@@ -34,7 +60,7 @@ export default function AboutPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">About</h1>
         <p className="text-muted-foreground">
-          Version information and system details
+          Version information and release notes
         </p>
       </div>
 
@@ -69,7 +95,7 @@ export default function AboutPage() {
               <GitCommit className="h-5 w-5" />
               Backend API
             </CardTitle>
-            <CardDescription>.NET 9 API server</CardDescription>
+            <CardDescription>.NET 10 API server</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {apiError ? (
@@ -89,7 +115,9 @@ export default function AboutPage() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Build Date</span>
                   <span className="text-sm">
-                    {new Date(apiVersion.buildDate).toLocaleDateString()}
+                    {apiVersion.buildDate
+                      ? new Date(apiVersion.buildDate).toLocaleDateString()
+                      : "—"}
                   </span>
                 </div>
               </>
@@ -102,11 +130,55 @@ export default function AboutPage() {
 
       <Separator />
 
+      {/* What's new — tied to app version */}
+      <Card id="changelog">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            What&apos;s new in v{frontendVersion}
+          </CardTitle>
+          <CardDescription>
+            From CHANGELOG.md (same notes as the version badge)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {changelogLoading && (
+            <p className="text-sm text-muted-foreground">Loading release notes…</p>
+          )}
+          {changelogError && (
+            <p className="text-sm text-muted-foreground">
+              Unable to load changelog from the API.
+            </p>
+          )}
+          {!changelogLoading && !changelogError && currentRelease && (
+            <ChangelogReleaseView release={currentRelease} />
+          )}
+          {!changelogLoading && !changelogError && !currentRelease && (
+            <p className="text-sm text-muted-foreground">
+              No release notes found for v{frontendVersion}. Recent history is below.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* History */}
+      {!changelogLoading && !changelogError && history.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent releases</CardTitle>
+            <CardDescription>Latest entries from the project changelog</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChangelogList releases={history} compact />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Links */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+            <Calendar className="h-5 w-5" />
             Resources
           </CardTitle>
         </CardHeader>
@@ -117,8 +189,8 @@ export default function AboutPage() {
               target="_blank"
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Calendar className="h-4 w-4" />
-              Changelog
+              <FileText className="h-4 w-4" />
+              Full changelog on GitHub
               <ExternalLink className="h-3 w-3" />
             </Link>
             <Link

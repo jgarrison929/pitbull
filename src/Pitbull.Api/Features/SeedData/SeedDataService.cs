@@ -32,7 +32,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     /// Bump this version whenever seed data content changes.
     /// On next startup, old seed data is cleared and re-seeded automatically.
     /// </summary>
-    private const int SeedDataVersion = 10;
+    private const int SeedDataVersion = 12;
 
     public async Task<Result<SeedDataResult>> SeedAsync(CancellationToken cancellationToken = default, bool useExternalTransaction = false)
     {
@@ -483,16 +483,16 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             .FirstOrDefaultAsync(ct);
 
         if (company02Id != Guid.Empty)
-            await SeedCompanyAsync(company02Id, GetPwiProjects(), GetPwiVendors(),
-                GetPwiCustomers(), GetPwiEmployees(), seedUserId, ct);
+            await SeedCompanyAsync(company02Id, GetMidMarketProjects(), GetMidMarketVendors(),
+                GetMidMarketCustomers(), GetMidMarketEmployees(), seedUserId, ct);
 
         if (company03Id != Guid.Empty)
-            await SeedCompanyAsync(company03Id, GetVhdProjects(), GetVhdVendors(),
-                GetVhdCustomers(), GetVhdEmployees(), seedUserId, ct);
+            await SeedCompanyAsync(company03Id, GetHighwayProjects(), GetHighwayVendors(),
+                GetHighwayCustomers(), GetHighwayEmployees(), seedUserId, ct);
 
         if (company04Id != Guid.Empty)
-            await SeedCompanyAsync(company04Id, GetCveProjects(), GetCveVendors(),
-                GetCveCustomers(), GetCveEmployees(), seedUserId, ct);
+            await SeedCompanyAsync(company04Id, GetHvacProjects(), GetHvacVendors(),
+                GetHvacCustomers(), GetHvacEmployees(), seedUserId, ct);
 
         // ── End multi-company ─────────────────────────────────────────
 
@@ -1117,17 +1117,17 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         var project4 = new Project
         {
-            Name = "Highway 50 Bridge Rehabilitation",
+            Name = "Demo State Route Bridge Rehabilitation",
             Number = "DEMO-PRJ-2025-004",
-            Description = "Seismic retrofit and deck replacement for the Highway 50 " +
-                          "overcrossing at Sunrise Boulevard. Caltrans project.",
+            Description = "Seismic retrofit and deck replacement for a demo state route " +
+                          "overcrossing. Demo State DOT project.",
             Status = ProjectStatus.Completed,
             Type = ProjectType.Infrastructure,
-            Address = "Highway 50 at Sunrise Blvd",
+            Address = "Demo State Route at Demo Boulevard",
             City = "Rancho Cordova",
             State = "CA",
             ZipCode = "95670",
-            ClientName = "California Department of Transportation",
+            ClientName = "Demo State Highway Agency",
             ClientContact = "Demo Contact 23",
             ClientEmail = "contact23@example.com",
             ClientPhone = "(555) 000-0518",
@@ -1195,7 +1195,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
 
         var project5 = new Project
         {
-            Name = "Lincoln High School Gymnasium Renovation",
+            Name = "Demo Valley High School Gymnasium Renovation",
             Number = "DEMO-PRJ-2026-005",
             Description = "Full renovation of existing gymnasium including new HVAC, " +
                           "bleachers, basketball court, locker rooms, and ADA upgrades.",
@@ -1205,7 +1205,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             City = "Stockton",
             State = "CA",
             ZipCode = "95207",
-            ClientName = "Lincoln Unified School District",
+            ClientName = "Demo Valley Unified School District",
             ClientContact = "Demo Contact 24",
             ClientEmail = "contact24@example.com",
             ClientPhone = "(555) 000-0674",
@@ -1291,21 +1291,21 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // Active bid in draft
             new Bid
             {
-                Name = "Downtown Sacramento Parking Structure",
+                Name = "Demo Downtown Parking Structure",
                 Number = "DEMO-BID-2026-003",
                 Status = BidStatus.Draft,
                 EstimatedValue = 18_000_000m,
                 DueDate = now.AddDays(21),
                 Owner = "Demo User",
                 Description = "6-level precast parking structure, 800 stalls. " +
-                              "City of Sacramento RFP.",
+                              "Demo Capital City RFP.",
                 Items = CreateParkingStructureBidItems()
             },
 
             // Submitted bid awaiting response
             new Bid
             {
-                Name = "Elk Grove Water Treatment Plant Expansion",
+                Name = "Demo Meadow City Water Treatment Plant Expansion",
                 Number = "DEMO-BID-2026-004",
                 Status = BidStatus.Submitted,
                 EstimatedValue = 35_500_000m,
@@ -1320,7 +1320,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // Lost bid
             new Bid
             {
-                Name = "Natomas Corporate Campus - Building A",
+                Name = "Demo Corporate Campus - Building A",
                 Number = "DEMO-BID-2025-005",
                 Status = BidStatus.Lost,
                 EstimatedValue = 28_000_000m,
@@ -1335,7 +1335,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // Another draft
             new Bid
             {
-                Name = "Roseville Fire Station #9",
+                Name = "Demo City Fire Station #9",
                 Number = "DEMO-BID-2026-006",
                 Status = BidStatus.Draft,
                 EstimatedValue = 6_800_000m,
@@ -1349,7 +1349,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // Submitted
             new Bid
             {
-                Name = "Delta College Science Building Renovation",
+                Name = "Demo Community College Science Building Renovation",
                 Number = "DEMO-BID-2026-007",
                 Status = BidStatus.Submitted,
                 EstimatedValue = 14_200_000m,
@@ -1364,7 +1364,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // NoBid
             new Bid
             {
-                Name = "Lodi Unified Elementary School",
+                Name = "Demo Unified Elementary School",
                 Number = "DEMO-BID-2026-008",
                 Status = BidStatus.NoBid,
                 EstimatedValue = 9_500_000m,
@@ -1377,7 +1377,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // Active draft - industrial
             new Bid
             {
-                Name = "Amazon Last-Mile Facility - Manteca",
+                Name = "Demo Last-Mile Logistics Facility",
                 Number = "DEMO-BID-2026-009",
                 Status = BidStatus.Draft,
                 EstimatedValue = 42_000_000m,
@@ -1391,14 +1391,14 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             // Won bid for the completed bridge project
             new Bid
             {
-                Name = "Highway 50 Bridge Rehabilitation",
+                Name = "Demo State Route Bridge Rehabilitation",
                 Number = "DEMO-BID-2024-010",
                 Status = BidStatus.Won,
                 EstimatedValue = 8_900_000m,
                 BidDate = now.AddMonths(-18),
                 DueDate = now.AddMonths(-17),
                 Owner = "Demo User",
-                Description = "Seismic retrofit and deck replacement. Caltrans project.",
+                Description = "Seismic retrofit and deck replacement. Demo State DOT project.",
                 Items = CreateBridgeBidItems()
             }
         ];
@@ -2255,8 +2255,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new() { Name = "Summit Health Partners LLC", Code = "CUST-001", ContactName = "Demo Contact 200", ContactEmail = "contact101@example.com", PaymentTerms = "Net 30", IsActive = true },
             new() { Name = "Summit Development Group", Code = "CUST-002", ContactName = "Demo Contact 201", ContactEmail = "contact102@example.com", PaymentTerms = "Net 30", IsActive = true },
             new() { Name = "Summit Logistics Inc.", Code = "CUST-003", ContactName = "Demo Contact 202", ContactEmail = "contact103@example.com", PaymentTerms = "Net 45", IsActive = true },
-            new() { Name = "California Department of Transportation", Code = "CUST-004", ContactName = "Demo Contact 203", ContactEmail = "contact104@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Lincoln Unified School District", Code = "CUST-005", ContactName = "Demo Contact 204", ContactEmail = "contact105@example.com", PaymentTerms = "Net 30", IsActive = true }
+            new() { Name = "Demo State Highway Agency", Code = "CUST-004", ContactName = "Demo Contact 203", ContactEmail = "contact104@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Valley Unified School District", Code = "CUST-005", ContactName = "Demo Contact 204", ContactEmail = "contact105@example.com", PaymentTerms = "Net 30", IsActive = true }
         ];
     }
 
@@ -2271,9 +2271,9 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new() { Name = "Advanced Fire Protection Inc.", Code = "VEND-005", ContactName = "Demo Contact 209", ContactEmail = "contact110@example.com", TradeClassification = "Fire Protection", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
             new() { Name = "Summit Sitework & Paving", Code = "VEND-006", ContactName = "Demo Contact 210", ContactEmail = "contact111@example.com", TradeClassification = "Sitework", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
             new() { Name = "Delta Steel Erectors", Code = "VEND-007", ContactName = "Demo Contact 211", ContactEmail = "contact112@example.com", TradeClassification = "Structural Steel", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "Golden State Bridge Works", Code = "VEND-008", ContactName = "Demo Contact 212", ContactEmail = "contact113@example.com", TradeClassification = "Concrete", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
-            new() { Name = "NorCal Ready Mix", Code = "VEND-009", ContactName = "Demo Contact 213", ContactEmail = "contact114@example.com", TradeClassification = "Concrete Supply", PaymentTerms = "Net 20", W9OnFile = true, IsActive = true },
-            new() { Name = "Capital Rentals & Equipment", Code = "VEND-010", ContactName = "Demo Contact 214", ContactEmail = "contact115@example.com", TradeClassification = "Equipment Rental", PaymentTerms = "Net 15", W9OnFile = true, IsActive = true }
+            new() { Name = "Demo Bridge Works LLC", Code = "VEND-008", ContactName = "Demo Contact 212", ContactEmail = "contact113@example.com", TradeClassification = "Concrete", PaymentTerms = "Net 30", W9OnFile = true, IsActive = true },
+            new() { Name = "Demo Ready Mix Supply LLC", Code = "VEND-009", ContactName = "Demo Contact 213", ContactEmail = "contact114@example.com", TradeClassification = "Concrete Supply", PaymentTerms = "Net 20", W9OnFile = true, IsActive = true },
+            new() { Name = "Demo Capital Rentals LLC", Code = "VEND-010", ContactName = "Demo Contact 214", ContactEmail = "contact115@example.com", TradeClassification = "Equipment Rental", PaymentTerms = "Net 15", W9OnFile = true, IsActive = true }
         ];
     }
 
@@ -2522,7 +2522,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     {
                         ChangeOrderNumber = "CO-001",
                         Title = "In-Rack Sprinkler Addition",
-                        Description = "Add in-rack sprinklers for high-pile storage area. Owner-directed for Amazon storage requirements.",
+                        Description = "Add in-rack sprinklers for high-pile storage area. Owner-directed for high-density storage requirements.",
                         Reason = "Owner requirement - increased storage height",
                         Amount = 125_000m,
                         Status = ChangeOrderStatus.Approved,
@@ -2619,7 +2619,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             {
                 ProjectId = bridgeProject.Id,
                 SubcontractNumber = "SC-2025-001",
-                SubcontractorName = "Golden State Bridge Works",
+                SubcontractorName = "Demo Bridge Works LLC",
                 SubcontractorContact = "Demo Contact",
                 SubcontractorEmail = "fdeluca@summitbridge.example",
                 SubcontractorPhone = "(555) 000-4100",
@@ -2630,7 +2630,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 CurrentValue = 5_480_000m,
                 BilledToDate = 5_480_000m,
                 PaidToDate = 5_480_000m, // All paid including retainage
-                RetainagePercent = 5m, // Caltrans standard
+                RetainagePercent = 5m, // Demo State DOT standard
                 RetainageHeld = 0m, // Released
                 ExecutionDate = now.AddMonths(-14),
                 StartDate = now.AddMonths(-13),
@@ -2647,7 +2647,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                     {
                         ChangeOrderNumber = "CO-001",
                         Title = "Additional Column Jacketing",
-                        Description = "Additional column jacketing due to unforeseen deterioration. Caltrans approved time extension.",
+                        Description = "Additional column jacketing due to unforeseen deterioration. Demo State DOT approved time extension.",
                         Reason = "Unforeseen condition",
                         Amount = 280_000m,
                         Status = ChangeOrderStatus.Approved,
@@ -2762,95 +2762,95 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             string Client, string Contact, string Email, string Phone,
             int StartMo, int EndMo, decimal Contract, decimal Budget)[]
         {
-            ("Sacramento Airport Terminal B Expansion", "DEMO-PRJ-2026-006",
+            ("Demo Regional Airport Terminal B Expansion", "DEMO-PRJ-2026-006",
                 "65,000 SF terminal expansion with 8 new gates, passenger bridge connections, and concession area.",
                 ProjectStatus.Active, ProjectType.Commercial,
-                "6900 Airport Blvd", "Sacramento", "CA", "95837",
-                "Sacramento County Airport System", "Demo Contact P01", "contactp01@example.com", "(555) 000-0601",
+                "100 Demo Airport Blvd", "Sacramento", "CA", "95837",
+                "Demo Regional Airport Authority", "Demo Contact P01", "contactp01@example.com", "(555) 000-0601",
                 -6, 18, 3_200_000m, 3_000_000m),
 
-            ("Folsom Town Center Mixed-Use", "DEMO-PRJ-2026-007",
+            ("Demo Town Center Mixed-Use", "DEMO-PRJ-2026-007",
                 "4-story mixed-use: ground-floor retail, 3 floors residential (72 units), parking structure.",
                 ProjectStatus.Active, ProjectType.Commercial,
-                "800 Sutter Street", "Folsom", "CA", "95630",
-                "Folsom Gateway Partners LLC", "Demo Contact P02", "contactp02@example.com", "(555) 000-0702",
+                "200 Demo Town Center Way", "Folsom", "CA", "95630",
+                "Demo Gateway Partners LLC", "Demo Contact P02", "contactp02@example.com", "(555) 000-0702",
                 -4, 14, 2_800_000m, 2_600_000m),
 
-            ("Elk Grove Fire Station #8", "DEMO-PRJ-2026-008",
+            ("Demo Meadow City Fire Station #8", "DEMO-PRJ-2026-008",
                 "New 3-bay fire station with living quarters, training tower, apparatus storage, and EV charging.",
                 ProjectStatus.Active, ProjectType.Commercial,
-                "9100 Bond Road", "Elk Grove", "CA", "95624",
-                "City of Elk Grove", "Demo Contact P03", "contactp03@example.com", "(555) 000-0803",
+                "300 Demo Civic Safety Rd", "Elk Grove", "CA", "95624",
+                "Demo Meadow City", "Demo Contact P03", "contactp03@example.com", "(555) 000-0803",
                 -2, 10, 1_800_000m, 1_650_000m),
 
-            ("Rancho Cordova Data Center", "DEMO-PRJ-2025-009",
+            ("Demo Data Center Campus", "DEMO-PRJ-2025-009",
                 "Tier III data center, 40,000 SF whitespace, 10MW critical power, redundant cooling.",
                 ProjectStatus.Completed, ProjectType.Industrial,
-                "11200 White Rock Road", "Rancho Cordova", "CA", "95742",
-                "Western Digital Realty Trust", "Demo Contact P04", "contactp04@example.com", "(555) 000-0904",
+                "400 Demo Server Farm Rd", "Rancho Cordova", "CA", "95742",
+                "Demo Data Campus Holdings LLC", "Demo Contact P04", "contactp04@example.com", "(555) 000-0904",
                 -18, -2, 4_500_000m, 4_200_000m),
 
-            ("West Sacramento Levee Improvements", "DEMO-PRJ-2025-010",
+            ("Demo Riverport Levee Improvements", "DEMO-PRJ-2025-010",
                 "2.5 miles of levee rehabilitation including slurry walls, seepage berms, and erosion protection.",
                 ProjectStatus.Completed, ProjectType.Infrastructure,
-                "River Road at Industrial Blvd", "West Sacramento", "CA", "95691",
-                "Central Valley Flood Protection Board", "Demo Contact P05", "contactp05@example.com", "(555) 000-1005",
+                "500 Demo Levee Road", "West Sacramento", "CA", "95691",
+                "Demo Flood Control Board", "Demo Contact P05", "contactp05@example.com", "(555) 000-1005",
                 -16, -3, 2_200_000m, 2_050_000m),
 
-            ("Natomas Corporate Campus Building B", "DEMO-PRJ-2026-011",
+            ("Demo Corporate Campus Building B", "DEMO-PRJ-2026-011",
                 "4-story Class A office, 120,000 SF, curtain wall, structured parking, LEED Gold target.",
                 ProjectStatus.Active, ProjectType.Commercial,
-                "2800 Natomas Park Drive", "Sacramento", "CA", "95834",
-                "Natomas Park Investors", "Demo Contact P20", "contactp20@example.com", "(555) 000-1101",
+                "600 Demo Corporate Park Dr", "Sacramento", "CA", "95834",
+                "Demo Park Investors LLC", "Demo Contact P20", "contactp20@example.com", "(555) 000-1101",
                 -7, 10, 3_500_000m, 3_300_000m),
 
-            ("Lodi Memorial Hospital Wing Addition", "DEMO-PRJ-2026-012",
+            ("Demo Memorial Hospital Wing Addition", "DEMO-PRJ-2026-012",
                 "35,000 SF 2-story addition: 24-bed patient wing, nurses stations, support spaces. Occupied hospital.",
                 ProjectStatus.Active, ProjectType.Commercial,
-                "975 S Fairmont Ave", "Lodi", "CA", "95240",
-                "Summit Health Lodi Memorial", "Demo Contact P21", "contactp21@example.com", "(555) 000-1202",
+                "700 Demo Hospital Way", "Lodi", "CA", "95240",
+                "Demo Memorial Health LLC", "Demo Contact P21", "contactp21@example.com", "(555) 000-1202",
                 -3, 12, 2_400_000m, 2_250_000m),
 
-            ("Tracy Logistics Park - Building 2", "DEMO-PRJ-2026-013",
+            ("Demo Logistics Park - Building 2", "DEMO-PRJ-2026-013",
                 "600,000 SF speculative warehouse, 40-ft clear height, ESFR sprinklers, 60 dock doors.",
                 ProjectStatus.Active, ProjectType.Industrial,
-                "4500 W Schulte Road", "Tracy", "CA", "95377",
+                "800 Demo Warehouse Rd", "Tracy", "CA", "95377",
                 "Summit Logistics Western", "Demo Contact P06", "contactp06@example.com", "(555) 000-1303",
                 -5, 6, 5_200_000m, 4_900_000m),
 
-            ("Roseville Galleria Renovation", "DEMO-PRJ-2026-014",
+            ("Demo Shopping Center Renovation", "DEMO-PRJ-2026-014",
                 "Interior renovation of 80,000 SF anchor tenant space. New MEP, storefront, finishes.",
                 ProjectStatus.PreConstruction, ProjectType.Renovation,
-                "1151 Galleria Blvd", "Roseville", "CA", "95678",
-                "Westfield Roseville LLC", "Demo Contact P07", "contactp07@example.com", "(555) 000-1404",
+                "900 Demo Retail Blvd", "Roseville", "CA", "95678",
+                "Demo Mall Holdings LLC", "Demo Contact P07", "contactp07@example.com", "(555) 000-1404",
                 2, 8, 1_200_000m, 1_100_000m),
 
-            ("Sacramento State Science Complex", "DEMO-PRJ-2026-015",
+            ("Demo State University Science Complex", "DEMO-PRJ-2026-015",
                 "New 4-story science building: chemistry/biology labs, lecture halls, greenhouse, vivarium.",
                 ProjectStatus.PreConstruction, ProjectType.Commercial,
-                "6000 J Street", "Sacramento", "CA", "95819",
-                "California State University Sacramento", "Demo Contact P08", "contactp08@example.com", "(555) 000-1505",
+                "1000 Demo University Ave", "Sacramento", "CA", "95819",
+                "Demo State University", "Demo Contact P08", "contactp08@example.com", "(555) 000-1505",
                 3, 24, 6_500_000m, 6_100_000m),
 
-            ("I-80 / Madison Ave Interchange Improvements", "DEMO-PRJ-2025-016",
+            ("Demo Interstate Interchange Improvements", "DEMO-PRJ-2025-016",
                 "Interchange reconstruction: new bridge, ramp widening, signal upgrades, sound walls.",
                 ProjectStatus.Completed, ProjectType.Infrastructure,
-                "I-80 at Madison Avenue", "Sacramento", "CA", "95841",
-                "California Department of Transportation", "Demo Contact P11", "contactp11@example.com", "(555) 000-0518",
+                "Demo Interstate at Demo Avenue", "Sacramento", "CA", "95841",
+                "Demo State Highway Agency", "Demo Contact P11", "contactp11@example.com", "(555) 000-0518",
                 -20, -4, 1_900_000m, 1_800_000m),
 
-            ("Davis Senior Living Community", "DEMO-PRJ-2026-017",
+            ("Demo Senior Living Community", "DEMO-PRJ-2026-017",
                 "128-unit senior living: independent, assisted, memory care. Common areas, dining, medical office.",
                 ProjectStatus.Active, ProjectType.Residential,
-                "3200 Covell Blvd", "Davis", "CA", "95616",
+                "1100 Demo Care Lane", "Davis", "CA", "95616",
                 "Summit Senior Communities", "Demo Contact P09", "contactp09@example.com", "(555) 000-1702",
                 -8, 12, 3_800_000m, 3_500_000m),
 
-            ("Woodland Water Treatment Plant Upgrade", "DEMO-PRJ-2026-018",
+            ("Demo Oak City Water Treatment Plant Upgrade", "DEMO-PRJ-2026-018",
                 "Treatment plant upgrade from 8 MGD to 14 MGD. New clarifiers, filter gallery, chemical feed.",
                 ProjectStatus.Active, ProjectType.Infrastructure,
-                "1500 E Gibson Road", "Woodland", "CA", "95776",
-                "City of Woodland", "Demo Contact P10", "contactp10@example.com", "(555) 000-1803",
+                "1200 Demo Treatment Plant Rd", "Woodland", "CA", "95776",
+                "Demo Oak City", "Demo Contact P10", "contactp10@example.com", "(555) 000-1803",
                 -9, 8, 2_100_000m, 1_950_000m),
         };
 
@@ -3097,18 +3097,18 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     {
         return
         [
-            new() { Name = "Sacramento County Airport System", Code = "CUST-006", ContactName = "Demo Contact 215", ContactEmail = "contact116@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Folsom Gateway Partners LLC", Code = "CUST-007", ContactName = "Demo Contact 216", ContactEmail = "contact117@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "City of Elk Grove", Code = "CUST-008", ContactName = "Demo Contact 217", ContactEmail = "contact118@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Western Digital Realty Trust", Code = "CUST-009", ContactName = "Demo Contact 218", ContactEmail = "contact119@example.com", PaymentTerms = "Net 45", IsActive = true },
-            new() { Name = "Summit Valley Flood Protection Board", Code = "CUST-010", ContactName = "Demo Contact 219", ContactEmail = "contact120@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Natomas Park Investors", Code = "CUST-011", ContactName = "Demo Contact 220", ContactEmail = "contact121@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "Summit Health Lodi Memorial", Code = "CUST-012", ContactName = "Demo Contact 221", ContactEmail = "contact122@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Regional Airport Authority", Code = "CUST-006", ContactName = "Demo Contact 215", ContactEmail = "contact116@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Gateway Partners LLC", Code = "CUST-007", ContactName = "Demo Contact 216", ContactEmail = "contact117@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Meadow City", Code = "CUST-008", ContactName = "Demo Contact 217", ContactEmail = "contact118@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Data Campus Holdings LLC", Code = "CUST-009", ContactName = "Demo Contact 218", ContactEmail = "contact119@example.com", PaymentTerms = "Net 45", IsActive = true },
+            new() { Name = "Demo Flood Control Board", Code = "CUST-010", ContactName = "Demo Contact 219", ContactEmail = "contact120@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Park Investors LLC", Code = "CUST-011", ContactName = "Demo Contact 220", ContactEmail = "contact121@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Memorial Health LLC", Code = "CUST-012", ContactName = "Demo Contact 221", ContactEmail = "contact122@example.com", PaymentTerms = "Net 30", IsActive = true },
             new() { Name = "Summit Logistics Western", Code = "CUST-013", ContactName = "Demo Contact 222", ContactEmail = "contact123@example.com", PaymentTerms = "Net 45", IsActive = true },
-            new() { Name = "Westfield Roseville LLC", Code = "CUST-014", ContactName = "Demo Contact 223", ContactEmail = "contact124@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "California State University Sacramento", Code = "CUST-015", ContactName = "Demo Contact 224", ContactEmail = "contact125@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Mall Holdings LLC", Code = "CUST-014", ContactName = "Demo Contact 223", ContactEmail = "contact124@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo State University", Code = "CUST-015", ContactName = "Demo Contact 224", ContactEmail = "contact125@example.com", PaymentTerms = "Net 30", IsActive = true },
             new() { Name = "Summit Senior Communities", Code = "CUST-016", ContactName = "Demo Contact 225", ContactEmail = "contact126@example.com", PaymentTerms = "Net 30", IsActive = true },
-            new() { Name = "City of Woodland", Code = "CUST-017", ContactName = "Demo Contact 226", ContactEmail = "contact127@example.com", PaymentTerms = "Net 30", IsActive = true },
+            new() { Name = "Demo Oak City", Code = "CUST-017", ContactName = "Demo Contact 226", ContactEmail = "contact127@example.com", PaymentTerms = "Net 30", IsActive = true },
         ];
     }
 
@@ -3119,7 +3119,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         {
             ("Summit Steel Fabricators", "VEND-011", "Structural Steel", "Demo Contact V11", "contactv11@example.com"),
             ("Summit Concrete Pumping", "VEND-012", "Concrete", "Demo Contact V12", "contactv12@example.com"),
-            ("Acme Roofing Systems", "VEND-013", "Roofing", "Demo Contact V13", "contactv13@example.com"),
+            ("Demo Roofing Systems LLC", "VEND-013", "Roofing", "Demo Contact V13", "contactv13@example.com"),
             ("Summit Glass & Glazing", "VEND-014", "Glazing", "Demo Contact V14", "contactv14@example.com"),
             ("Summit Elevator Co.", "VEND-015", "Elevator", "Demo Contact V15", "contactv15@example.com"),
             ("Summit Painting Contractors", "VEND-016", "Painting", "Demo Contact V16", "contactv16@example.com"),
@@ -4018,8 +4018,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 EstimatedCostImpact = hasCost ? rfiNumber * 12_500m : null,
                 EstimatedDelayDays = hasCost ? rfiNumber % 5 + 1 : null,
                 CreatedByName = "Demo User",
-                AssignedToName = "Smith & Associates Architects",
-                BallInCourtName = status == RfiStatus.Open ? "Smith & Associates Architects" : "Summit Commercial Construction",
+                AssignedToName = "Demo Design Associates LLC",
+                BallInCourtName = status == RfiStatus.Open ? "Demo Design Associates LLC" : "Summit Commercial Construction",
                 DueDate = now.AddDays(-daysAgo + 14), // 14-day response window
             };
 
@@ -4571,32 +4571,32 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     {
         return
         [
-            // Heavy Equipment
-            new() { Code = "EX-001", Name = "CAT 320 Excavator", Description = "30-ton hydraulic excavator with GPS grade control", Type = EquipmentType.HeavyEquipment, HourlyRate = 185.00m, BillingRate = 275.00m, IsActive = true, SerialNumber = "CAT320GC-48291" },
-            new() { Code = "EX-002", Name = "Bobcat E35 Mini Excavator", Description = "3.5-ton compact excavator for tight-access work", Type = EquipmentType.HeavyEquipment, HourlyRate = 65.00m, BillingRate = 95.00m, IsActive = true, SerialNumber = "BOB-E35-77104" },
-            new() { Code = "DZ-001", Name = "CAT D6 Dozer", Description = "Crawler dozer with 6-way blade and ripper", Type = EquipmentType.HeavyEquipment, HourlyRate = 195.00m, BillingRate = 295.00m, IsActive = true, SerialNumber = "CATD6T-92037" },
-            new() { Code = "LD-001", Name = "John Deere 644K Loader", Description = "Wheel loader with 4.2 cu yd bucket", Type = EquipmentType.HeavyEquipment, HourlyRate = 155.00m, BillingRate = 235.00m, IsActive = true, SerialNumber = "JD644K-60182" },
-            new() { Code = "CR-001", Name = "Liebherr LTM 1100 Crane", Description = "100-ton all-terrain mobile crane", Type = EquipmentType.HeavyEquipment, HourlyRate = 350.00m, BillingRate = 525.00m, IsActive = true, SerialNumber = "LTM1100-5.2-4419" },
-            new() { Code = "CP-001", Name = "CAT CS56B Compactor", Description = "Vibratory soil compactor, 12-ton", Type = EquipmentType.HeavyEquipment, HourlyRate = 95.00m, BillingRate = 145.00m, IsActive = true, SerialNumber = "CATCS56B-33108" },
+            // Heavy Equipment (generic model names — no real OEM brands)
+            new() { Code = "EX-001", Name = "Demo 30-ton Excavator", Description = "30-ton hydraulic excavator with GPS grade control", Type = EquipmentType.HeavyEquipment, HourlyRate = 185.00m, BillingRate = 275.00m, IsActive = true, SerialNumber = "DEMO-EX30-48291" },
+            new() { Code = "EX-002", Name = "Demo Mini Excavator 3.5t", Description = "3.5-ton compact excavator for tight-access work", Type = EquipmentType.HeavyEquipment, HourlyRate = 65.00m, BillingRate = 95.00m, IsActive = true, SerialNumber = "DEMO-EX35-77104" },
+            new() { Code = "DZ-001", Name = "Demo Crawler Dozer", Description = "Crawler dozer with 6-way blade and ripper", Type = EquipmentType.HeavyEquipment, HourlyRate = 195.00m, BillingRate = 295.00m, IsActive = true, SerialNumber = "DEMO-DZ-92037" },
+            new() { Code = "LD-001", Name = "Demo Wheel Loader", Description = "Wheel loader with 4.2 cu yd bucket", Type = EquipmentType.HeavyEquipment, HourlyRate = 155.00m, BillingRate = 235.00m, IsActive = true, SerialNumber = "DEMO-LD-60182" },
+            new() { Code = "CR-001", Name = "Demo 100-ton Mobile Crane", Description = "100-ton all-terrain mobile crane", Type = EquipmentType.HeavyEquipment, HourlyRate = 350.00m, BillingRate = 525.00m, IsActive = true, SerialNumber = "DEMO-CR100-4419" },
+            new() { Code = "CP-001", Name = "Demo Soil Compactor 12t", Description = "Vibratory soil compactor, 12-ton", Type = EquipmentType.HeavyEquipment, HourlyRate = 95.00m, BillingRate = 145.00m, IsActive = true, SerialNumber = "DEMO-CP12-33108" },
 
             // Light Equipment
-            new() { Code = "CP-002", Name = "Schwing S42SX Concrete Pump", Description = "42-meter truck-mounted concrete boom pump", Type = EquipmentType.LightEquipment, HourlyRate = 225.00m, BillingRate = 340.00m, IsActive = true, SerialNumber = "SWG-S42-18820" },
-            new() { Code = "GN-001", Name = "CAT XQ200 Generator", Description = "200 kW diesel generator for jobsite power", Type = EquipmentType.LightEquipment, HourlyRate = 55.00m, BillingRate = 85.00m, IsActive = true, SerialNumber = "CATXQ200-71543" },
-            new() { Code = "GN-002", Name = "CAT XQ60 Generator", Description = "60 kW portable diesel generator", Type = EquipmentType.LightEquipment, HourlyRate = 35.00m, BillingRate = 55.00m, IsActive = true, SerialNumber = "CATXQ60-88214" },
-            new() { Code = "WM-001", Name = "Lincoln Electric Ranger 330", Description = "Diesel welder/generator 330A", Type = EquipmentType.LightEquipment, HourlyRate = 45.00m, BillingRate = 70.00m, IsActive = true, SerialNumber = "LNC-R330-41009" },
-            new() { Code = "AL-001", Name = "JLG 600S Aerial Lift", Description = "60-ft telescopic boom lift, 4WD", Type = EquipmentType.LightEquipment, HourlyRate = 85.00m, BillingRate = 130.00m, IsActive = true, SerialNumber = "JLG600S-22847" },
+            new() { Code = "CP-002", Name = "Demo Concrete Boom Pump 42m", Description = "42-meter truck-mounted concrete boom pump", Type = EquipmentType.LightEquipment, HourlyRate = 225.00m, BillingRate = 340.00m, IsActive = true, SerialNumber = "DEMO-PUMP-18820" },
+            new() { Code = "GN-001", Name = "Demo Generator 200kW", Description = "200 kW diesel generator for jobsite power", Type = EquipmentType.LightEquipment, HourlyRate = 55.00m, BillingRate = 85.00m, IsActive = true, SerialNumber = "DEMO-GN200-71543" },
+            new() { Code = "GN-002", Name = "Demo Generator 60kW", Description = "60 kW portable diesel generator", Type = EquipmentType.LightEquipment, HourlyRate = 35.00m, BillingRate = 55.00m, IsActive = true, SerialNumber = "DEMO-GN60-88214" },
+            new() { Code = "WM-001", Name = "Demo Welder/Generator 330A", Description = "Diesel welder/generator 330A", Type = EquipmentType.LightEquipment, HourlyRate = 45.00m, BillingRate = 70.00m, IsActive = true, SerialNumber = "DEMO-WG330-41009" },
+            new() { Code = "AL-001", Name = "Demo Aerial Lift 60ft", Description = "60-ft telescopic boom lift, 4WD", Type = EquipmentType.LightEquipment, HourlyRate = 85.00m, BillingRate = 130.00m, IsActive = true, SerialNumber = "DEMO-AL60-22847" },
             new() { Code = "SC-001", Name = "Scaffolding Set — 10-Bay", Description = "Frame scaffold system, 10 bays, 60 ft max height", Type = EquipmentType.LightEquipment, HourlyRate = 25.00m, BillingRate = 40.00m, IsActive = true },
 
             // Vehicles
-            new() { Code = "VH-001", Name = "Ford F-350 Crew Cab #1", Description = "2024 F-350 XLT crew cab, long bed", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "1FT8W3BT4REA10001", LicensePlate = "8ABC123" },
-            new() { Code = "VH-002", Name = "Ford F-350 Crew Cab #2", Description = "2024 F-350 XLT crew cab, long bed", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "1FT8W3BT4REA10002", LicensePlate = "8ABC456" },
-            new() { Code = "VH-003", Name = "Ford F-350 Crew Cab #3", Description = "2023 F-350 Lariat crew cab", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "1FT8W3BT4PEA30003", LicensePlate = "8ABC789" },
-            new() { Code = "VH-004", Name = "Ford F-550 Flatbed", Description = "2023 F-550 regular cab with 12-ft flatbed", Type = EquipmentType.Vehicles, HourlyRate = 55.00m, BillingRate = 80.00m, IsActive = true, SerialNumber = "1FD0W5HT4PEA40004", LicensePlate = "8DEF001" },
-            new() { Code = "VH-005", Name = "Kenworth T880 Water Truck", Description = "4,000 gallon water truck for dust control", Type = EquipmentType.Vehicles, HourlyRate = 75.00m, BillingRate = 115.00m, IsActive = true, SerialNumber = "KWT880-WTR-55910", LicensePlate = "8DEF002" },
+            new() { Code = "VH-001", Name = "Demo Crew Truck #1", Description = "Crew cab long bed work truck", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "DEMO-VH-10001", LicensePlate = "DEMO001" },
+            new() { Code = "VH-002", Name = "Demo Crew Truck #2", Description = "Crew cab long bed work truck", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "DEMO-VH-10002", LicensePlate = "DEMO002" },
+            new() { Code = "VH-003", Name = "Demo Crew Truck #3", Description = "Crew cab work truck", Type = EquipmentType.Vehicles, HourlyRate = 45.00m, BillingRate = 65.00m, IsActive = true, SerialNumber = "DEMO-VH-10003", LicensePlate = "DEMO003" },
+            new() { Code = "VH-004", Name = "Demo Flatbed Truck", Description = "Regular cab with 12-ft flatbed", Type = EquipmentType.Vehicles, HourlyRate = 55.00m, BillingRate = 80.00m, IsActive = true, SerialNumber = "DEMO-VH-10004", LicensePlate = "DEMO004" },
+            new() { Code = "VH-005", Name = "Demo Water Truck 4000gal", Description = "4,000 gallon water truck for dust control", Type = EquipmentType.Vehicles, HourlyRate = 75.00m, BillingRate = 115.00m, IsActive = true, SerialNumber = "DEMO-VH-WTR-55910", LicensePlate = "DEMO005" },
 
             // Tools
-            new() { Code = "TL-001", Name = "Hilti TE 70-ATC Rotary Hammer", Description = "SDS-max combihammer for heavy drilling", Type = EquipmentType.Tools, HourlyRate = 15.00m, BillingRate = 25.00m, IsActive = true, SerialNumber = "HILTI-TE70-92001" },
-            new() { Code = "TL-002", Name = "Husqvarna K770 Concrete Saw", Description = "14-inch power cutter for concrete and masonry", Type = EquipmentType.Tools, HourlyRate = 20.00m, BillingRate = 35.00m, IsActive = true, SerialNumber = "HUSQ-K770-44218" },
+            new() { Code = "TL-001", Name = "Demo Rotary Hammer", Description = "SDS-max combihammer for heavy drilling", Type = EquipmentType.Tools, HourlyRate = 15.00m, BillingRate = 25.00m, IsActive = true, SerialNumber = "DEMO-TL-92001" },
+            new() { Code = "TL-002", Name = "Demo Concrete Saw 14in", Description = "14-inch power cutter for concrete and masonry", Type = EquipmentType.Tools, HourlyRate = 20.00m, BillingRate = 35.00m, IsActive = true, SerialNumber = "DEMO-TL-44218" },
         ];
     }
 
@@ -4682,21 +4682,21 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Owner payments + retention release overwhelm payroll/sub costs → healthy cash build
         var decTxns = new List<BankTransaction>
         {
-            T(operating.Id, new DateOnly(2025, 12, 1),  "ADP Payroll — 12/01 Run",                                -92_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2025, 12, 1),  "Demo Payroll — 12/01 Run",                                -92_000.00m, BankTransactionType.Transfer),
             T(operating.Id, new DateOnly(2025, 12, 3),  "Summit Dewatering Inc",                                 -45_000.00m, BankTransactionType.Check, "5421"),
             T(operating.Id, new DateOnly(2025, 12, 5),  "Owner Payment — Bay Bridge Transit Center App #8",      +308_032.00m, BankTransactionType.Deposit),
             T(operating.Id, new DateOnly(2025, 12, 6),  "Summit Electric Co",                                     -38_500.00m, BankTransactionType.Check, "5422"),
             T(operating.Id, new DateOnly(2025, 12, 8),  "Atlas Ready Mix — Materials",                            -12_450.00m, BankTransactionType.Other),
-            T(operating.Id, new DateOnly(2025, 12, 9),  "Sunbelt Rentals — Equipment",                             -8_200.00m, BankTransactionType.Other),
-            T(operating.Id, new DateOnly(2025, 12, 10), "HD Supply — Materials",                                   -4_850.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 9),  "Demo Equipment Rentals — Equipment",                             -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 10), "Demo Building Supply — Materials",                                   -4_850.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2025, 12, 12), "Owner Payment — Westside Mixed-Use Dev App #5",         +175_000.00m, BankTransactionType.Deposit),
             T(operating.Id, new DateOnly(2025, 12, 14), "Sierra Fire Protection Inc",                             -22_000.00m, BankTransactionType.Check, "5423"),
-            T(operating.Id, new DateOnly(2025, 12, 15), "ADP Payroll — 12/15 Run",                                -87_000.00m, BankTransactionType.Transfer),
-            T(operating.Id, new DateOnly(2025, 12, 16), "Hartford Commercial Insurance — Premium",                 -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 15), "Demo Payroll — 12/15 Run",                                -87_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2025, 12, 16), "Demo Mutual Insurance — Premium",                 -8_200.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2025, 12, 18), "Retention Release — Eastside Housing Project",           +27_510.00m, BankTransactionType.Deposit),
-            T(operating.Id, new DateOnly(2025, 12, 19), "PG&E Fleet Card — Fuel",                                  -3_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2025, 12, 19), "Demo Utility Fleet Card — Fuel",                                  -3_200.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2025, 12, 22), "Summit Dewatering Inc",                                 -18_000.00m, BankTransactionType.Check, "5424"),
-            T(operating.Id, new DateOnly(2025, 12, 29), "ADP Payroll — 12/29 Run",                                -91_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2025, 12, 29), "Demo Payroll — 12/29 Run",                                -91_000.00m, BankTransactionType.Transfer),
             T(operating.Id, new DateOnly(2025, 12, 31), "Interest Income",                                            +125.00m, BankTransactionType.Interest),
             T(operating.Id, new DateOnly(2025, 12, 31), "Monthly Service Fee",                                        -35.00m, BankTransactionType.Fee),
             T(operating.Id, new DateOnly(2025, 12, 31), "Wire Transfer Fee",                                          -25.00m, BankTransactionType.Fee),
@@ -4736,23 +4736,23 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Large Bay Bridge payment + Eastside close-out + Westside progress → strong month
         var janTxns = new List<BankTransaction>
         {
-            T(operating.Id, new DateOnly(2026, 1, 2),  "ADP Payroll — 01/02 Run",                               -88_500.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 1, 2),  "Demo Payroll — 01/02 Run",                               -88_500.00m, BankTransactionType.Transfer),
             T(operating.Id, new DateOnly(2026, 1, 5),  "Summit Electric Co",                                    -52_000.00m, BankTransactionType.Check, "5425"),
             T(operating.Id, new DateOnly(2026, 1, 6),  "Atlas Ready Mix — Materials",                           -15_200.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 1, 7),  "Owner Payment — Bay Bridge Transit Center App #9",     +412_500.00m, BankTransactionType.Deposit),
             T(operating.Id, new DateOnly(2026, 1, 8),  "Summit Dewatering Inc",                                -62_000.00m, BankTransactionType.Check, "5426"),
-            T(operating.Id, new DateOnly(2026, 1, 9),  "Sunbelt Rentals — Equipment",                           -9_500.00m,  BankTransactionType.Other),
-            T(operating.Id, new DateOnly(2026, 1, 10), "HD Supply — Materials",                                  -6_800.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 9),  "Demo Equipment Rentals — Equipment",                           -9_500.00m,  BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 10), "Demo Building Supply — Materials",                                  -6_800.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 1, 12), "Steel & Wire Co — Rebar/Mesh",                         -18_400.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 1, 13), "Owner Payment — Eastside Housing Dev App #3",           +89_500.00m, BankTransactionType.Deposit),
             T(operating.Id, new DateOnly(2026, 1, 14), "Sierra Fire Protection Inc",                            -28_500.00m, BankTransactionType.Check, "5427"),
-            T(operating.Id, new DateOnly(2026, 1, 15), "ADP Payroll — 01/15 Run",                               -94_000.00m, BankTransactionType.Transfer),
-            T(operating.Id, new DateOnly(2026, 1, 16), "Hartford Commercial Insurance — Premium",                -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 15), "Demo Payroll — 01/15 Run",                               -94_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 1, 16), "Demo Mutual Insurance — Premium",                -8_200.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 1, 17), "Bay Concrete Supply — Materials",                        -9_800.00m, BankTransactionType.Other),
-            T(operating.Id, new DateOnly(2026, 1, 19), "PG&E Fleet Card — Fuel",                                 -4_100.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 1, 19), "Demo Utility Fleet Card — Fuel",                                 -4_100.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 1, 20), "Owner Payment — Westside Mixed-Use Dev App #6",        +145_000.00m, BankTransactionType.Deposit),
             T(operating.Id, new DateOnly(2026, 1, 23), "Summit Dewatering Inc",                                -25_000.00m, BankTransactionType.Check, "5428"),
-            T(operating.Id, new DateOnly(2026, 1, 29), "ADP Payroll — 01/29 Run",                               -92_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 1, 29), "Demo Payroll — 01/29 Run",                               -92_000.00m, BankTransactionType.Transfer),
             T(operating.Id, new DateOnly(2026, 1, 31), "Interest Income",                                          +142.00m, BankTransactionType.Interest),
             T(operating.Id, new DateOnly(2026, 1, 31), "Monthly Service Fee",                                      -35.00m,  BankTransactionType.Fee),
             T(operating.Id, new DateOnly(2026, 1, 31), "Wire Transfer Fee",                                        -25.00m,  BankTransactionType.Fee),
@@ -4792,27 +4792,27 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // 15 cleared + 5 outstanding (late payroll run, end-of-month fees, temp labor)
         var febClearedTxns = new List<BankTransaction>
         {
-            T(operating.Id, new DateOnly(2026, 2, 1),  "ADP Payroll — 02/01 Run",                               -91_500.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 2, 1),  "Demo Payroll — 02/01 Run",                               -91_500.00m, BankTransactionType.Transfer),
             T(operating.Id, new DateOnly(2026, 2, 3),  "Summit Electric Co",                                    -48_000.00m, BankTransactionType.Check, "5429"),
             T(operating.Id, new DateOnly(2026, 2, 4),  "Summit Dewatering Inc",                                -38_500.00m, BankTransactionType.Check, "5430"),
             T(operating.Id, new DateOnly(2026, 2, 5),  "Atlas Ready Mix — Materials",                           -11_800.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 2, 5),  "Owner Payment — Bay Bridge Transit Center App #10",    +325_000.00m, BankTransactionType.Deposit),
-            T(operating.Id, new DateOnly(2026, 2, 6),  "Sunbelt Rentals — Equipment",                            -8_750.00m, BankTransactionType.Other),
-            T(operating.Id, new DateOnly(2026, 2, 9),  "HD Supply — Materials",                                  -5_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 6),  "Demo Equipment Rentals — Equipment",                            -8_750.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 9),  "Demo Building Supply — Materials",                                  -5_200.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 2, 10), "Steel & Wire Co — Rebar/Mesh",                         -14_200.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 2, 12), "Owner Payment — Westside Mixed-Use Dev App #7",        +112_000.00m, BankTransactionType.Deposit),
             T(operating.Id, new DateOnly(2026, 2, 13), "Sierra Fire Protection Inc",                            -31_000.00m, BankTransactionType.Check, "5431"),
-            T(operating.Id, new DateOnly(2026, 2, 14), "ADP Payroll — 02/14 Run",                               -93_000.00m, BankTransactionType.Transfer),
-            T(operating.Id, new DateOnly(2026, 2, 15), "Hartford Commercial Insurance — Premium",                -8_200.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 14), "Demo Payroll — 02/14 Run",                               -93_000.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 2, 15), "Demo Mutual Insurance — Premium",                -8_200.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 2, 18), "Bay Concrete Supply — Materials",                        -7_400.00m, BankTransactionType.Other),
             T(operating.Id, new DateOnly(2026, 2, 19), "Retention Release — Shoreline Office Park",             +52_200.00m, BankTransactionType.Deposit),
-            T(operating.Id, new DateOnly(2026, 2, 20), "PG&E Fleet Card — Fuel",                                 -3_800.00m, BankTransactionType.Other),
+            T(operating.Id, new DateOnly(2026, 2, 20), "Demo Utility Fleet Card — Fuel",                                 -3_800.00m, BankTransactionType.Other),
         };
         var febUnclearedTxns = new List<BankTransaction>
         {
             // Outstanding items: posted in our books, not yet cleared on bank statement
             T(operating.Id, new DateOnly(2026, 2, 25), "StaffOne Staffing — Temp Labor",                         -4_500.00m, BankTransactionType.Other),
-            T(operating.Id, new DateOnly(2026, 2, 28), "ADP Payroll — 02/28 Run",                               -89_500.00m, BankTransactionType.Transfer),
+            T(operating.Id, new DateOnly(2026, 2, 28), "Demo Payroll — 02/28 Run",                               -89_500.00m, BankTransactionType.Transfer),
             T(operating.Id, new DateOnly(2026, 2, 28), "Interest Income",                                          +118.00m, BankTransactionType.Interest),
             T(operating.Id, new DateOnly(2026, 2, 28), "Monthly Service Fee",                                       -35.00m, BankTransactionType.Fee),
             T(operating.Id, new DateOnly(2026, 2, 28), "Wire Transfer Fee",                                         -25.00m, BankTransactionType.Fee),
@@ -4864,8 +4864,8 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         foreach (var (date, xferIn, dirDep, taxPmt) in payrollCycles)
         {
             txns.Add(T(payroll.Id, date, "Transfer from Operating — Payroll Funding", xferIn, BankTransactionType.Transfer));
-            txns.Add(T(payroll.Id, date, "ADP Payroll — Direct Deposits",            dirDep, BankTransactionType.Transfer));
-            txns.Add(T(payroll.Id, date, "IRS EFTPS — Payroll Tax Deposit",          taxPmt, BankTransactionType.Other));
+            txns.Add(T(payroll.Id, date, "Demo Payroll — Direct Deposits",            dirDep, BankTransactionType.Transfer));
+            txns.Add(T(payroll.Id, date, "Demo Tax Authority — Payroll Tax Deposit",          taxPmt, BankTransactionType.Other));
         }
 
         // ── Equipment Reserve Account (2108) — monthly transfers + one purchase ──
@@ -4873,10 +4873,10 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             T(reserve.Id, new DateOnly(2025, 12, 1),  "Monthly Transfer — Equipment Reserve",  +10_000.00m, BankTransactionType.Transfer),
             T(reserve.Id, new DateOnly(2025, 12, 10), "Interest Income",                            +135.20m, BankTransactionType.Interest),
             T(reserve.Id, new DateOnly(2026, 1, 1),   "Monthly Transfer — Equipment Reserve",  +10_000.00m, BankTransactionType.Transfer),
-            T(reserve.Id, new DateOnly(2026, 1, 8),   "Caterpillar Financial — Skid Steer Pmt", -3_850.00m, BankTransactionType.Other),
+            T(reserve.Id, new DateOnly(2026, 1, 8),   "Demo Equipment Finance — Skid Steer Pmt", -3_850.00m, BankTransactionType.Other),
             T(reserve.Id, new DateOnly(2026, 1, 31),  "Interest Income",                            +148.75m, BankTransactionType.Interest),
             T(reserve.Id, new DateOnly(2026, 2, 1),   "Monthly Transfer — Equipment Reserve",  +10_000.00m, BankTransactionType.Transfer),
-            T(reserve.Id, new DateOnly(2026, 2, 15),  "John Deere Financial — Forklift Pmt",    -4_200.00m, BankTransactionType.Other),
+            T(reserve.Id, new DateOnly(2026, 2, 15),  "Demo Equipment Finance — Forklift Pmt",  -4_200.00m, BankTransactionType.Other),
             T(reserve.Id, new DateOnly(2026, 2, 28),  "Interest Income",                            +156.40m, BankTransactionType.Interest),
         ]);
 
@@ -4988,19 +4988,19 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         // Company-level documents (linked to actual company record)
         (string docType, string docNum, DateTime issued, DateTime expires, string notes)[] companyDocs =
         [
-            ("ContractorsLicense", "CA-1087452-A", now.AddYears(-2), now.AddYears(2),
-                "Class A - General Engineering Contractor, State of California"),
-            ("GeneralLiability", "GL-2025-PWI-4481", now.AddMonths(-6), now.AddMonths(6),
-                "General liability - $2M per occurrence / $4M aggregate, Zurich Insurance"),
-            ("WorkersComp", "WC-2025-PWI-7712", now.AddMonths(-6), now.AddMonths(6),
-                "Workers compensation - statutory limits, Travelers Insurance"),
-            ("AutoInsurance", "CA-2025-PWI-3390", now.AddMonths(-8), now.AddMonths(4),
+            ("ContractorsLicense", "DEMO-CA-1087452-A", now.AddYears(-2), now.AddYears(2),
+                "Class A - General Engineering Contractor (demo license number)"),
+            ("GeneralLiability", "GL-2025-DEMO-4481", now.AddMonths(-6), now.AddMonths(6),
+                "General liability - $2M per occurrence / $4M aggregate, Demo Mutual Insurance"),
+            ("WorkersComp", "WC-2025-DEMO-7712", now.AddMonths(-6), now.AddMonths(6),
+                "Workers compensation - statutory limits, Demo Workers Comp Mutual"),
+            ("AutoInsurance", "CA-2025-DEMO-3390", now.AddMonths(-8), now.AddMonths(4),
                 "Commercial auto - $1M CSL, 22 scheduled vehicles"),
-            ("BusinessLicense", "BL-FRESNO-2025-8841", now.AddMonths(-10), now.AddMonths(2),
-                "City of Fresno business license - General Contractor"),
-            ("W9", "W9-PWI-2025", now.AddMonths(-11), now.AddYears(2),
-                "W-9 on file - EIN 94-3281005"),
-            ("COI", "COI-PWI-2025-ALL", now.AddMonths(-6), now.AddMonths(6),
+            ("BusinessLicense", "BL-DEMO-CITY-2025-8841", now.AddMonths(-10), now.AddMonths(2),
+                "Demo Inland City business license - General Contractor"),
+            ("W9", "W9-DEMO-2025", now.AddMonths(-11), now.AddYears(2),
+                "W-9 on file - EIN 00-0000000 (demo)"),
+            ("COI", "COI-DEMO-2025-ALL", now.AddMonths(-6), now.AddMonths(6),
                 "Umbrella COI - $5M excess liability"),
         ];
 
@@ -5096,7 +5096,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
         [
             new()
             {
-                Name = "Fresno County", Code = "CA-FRESNO", State = "CA", County = "Fresno",
+                Name = "Demo Inland County", Code = "DEMO-INLAND", State = "CA", County = "Demo Inland",
                 CombinedRate = 8.35m, StateRate = 7.25m, CountyRate = 1.10m, CityRate = 0.00m,
                 IsActive = true, EffectiveDate = effective,
                 Rates =
@@ -5108,7 +5108,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             },
             new()
             {
-                Name = "Sacramento County", Code = "CA-SACRAMENTO", State = "CA", County = "Sacramento",
+                Name = "Demo Capital County", Code = "DEMO-CAPITAL", State = "CA", County = "Demo Capital",
                 CombinedRate = 8.75m, StateRate = 7.25m, CountyRate = 1.00m, CityRate = 0.50m,
                 IsActive = true, EffectiveDate = effective,
                 Rates =
@@ -5120,7 +5120,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             },
             new()
             {
-                Name = "Los Angeles County", Code = "CA-LA", State = "CA", County = "Los Angeles",
+                Name = "Demo Coastal County", Code = "DEMO-COASTAL", State = "CA", County = "Demo Coastal",
                 CombinedRate = 10.25m, StateRate = 7.25m, CountyRate = 2.25m, CityRate = 0.75m,
                 IsActive = true, EffectiveDate = effective,
                 Rates =
@@ -5132,7 +5132,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             },
             new()
             {
-                Name = "San Francisco County", Code = "CA-SF", State = "CA", County = "San Francisco", City = "San Francisco",
+                Name = "Demo Bay County", Code = "DEMO-BAY", State = "CA", County = "Demo Bay", City = "Demo Bay City",
                 CombinedRate = 8.625m, StateRate = 7.25m, CountyRate = 1.25m, CityRate = 0.125m,
                 IsActive = true, EffectiveDate = effective,
                 Rates =
@@ -5144,7 +5144,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             },
             new()
             {
-                Name = "Kern County", Code = "CA-KERN", State = "CA", County = "Kern",
+                Name = "Demo Desert County", Code = "DEMO-DESERT", State = "CA", County = "Demo Desert",
                 CombinedRate = 8.25m, StateRate = 7.25m, CountyRate = 1.00m, CityRate = 0.00m,
                 IsActive = true, EffectiveDate = effective,
                 Rates =
@@ -5860,206 +5860,272 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
     }
 
     // ===========================================================================================
-    // Company data definitions (Companies 02, 03, 04)
+    // Company data definitions (Companies 02, 03, 04) — differentiated archetypes
+    // 02 Mid-market commercial GC | 03 Small-market heavy highway | 04 Union HVAC multi-division
     // ===========================================================================================
 
-    // ── Company 02: Summit Water Infrastructure (SWI) ──────────────
+    // ── Company 02: Summit Commercial Builders (mid-market GC) ─────
 
-    private static CompanyProjectDef[] GetPwiProjects() =>
+    private static CompanyProjectDef[] GetMidMarketProjects() =>
     [
-        new("PWI-PRJ-001", "Regional Water Treatment Plant Expansion",
-            "Expand existing 12 MGD water treatment plant to 20 MGD. New clarifiers, filter gallery, chemical feed systems, and SCADA upgrades.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "8500 River Road", "West Sacramento", "CA", "95691",
-            "Sacramento Regional Water Authority", "Demo Contact P01", "contactp01@example.com", "(555) 000-6100",
-            -5, 14, 18_500_000m, 17_200_000m),
-
-        new("PWI-PRJ-002", "Stormwater Detention Basin - North Natomas",
-            "45-acre regional stormwater detention basin with outlet structure, riprap channels, and wetland mitigation.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "4200 Elkhorn Blvd", "Sacramento", "CA", "95835",
-            "City of Sacramento Utilities", "Demo Contact P02", "contactp02@example.com", "(555) 000-6201",
-            -3, 8, 8_200_000m, 7_600_000m),
-
-        new("PWI-PRJ-003", "48-Inch Trunk Sewer Replacement",
-            "2.8 miles of 48-inch RCP trunk sewer replacement via open-cut and microtunneling. Includes 12 manholes and bypass pumping.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "Freeport Blvd at Sutterville", "Sacramento", "CA", "95822",
-            "Sacramento Area Sewer District", "Demo Contact P03", "contactp03@example.com", "(555) 000-6302",
-            -7, 6, 14_800_000m, 13_900_000m),
-
-        new("PWI-PRJ-004", "Recycled Water Distribution System Phase III",
-            "12 miles of purple pipe distribution, 3 pump stations, and 2 storage tanks for recycled water delivery to commercial irrigators.",
-            ProjectStatus.Completed, ProjectType.Infrastructure,
-            "Industrial Blvd at Gerber Rd", "Sacramento", "CA", "95823",
-            "Regional San", "Demo Contact P04", "contactp04@example.com", "(555) 000-6403",
-            -18, -3, 11_200_000m, 10_500_000m),
-
-        new("PWI-PRJ-005", "Groundwater Well Field - South County",
-            "6 new production wells (1,500 GPM each), raw water transmission main, and well house structures with VFD pumping.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "Bond Road at Bradshaw", "Elk Grove", "CA", "95624",
-            "Sacramento County Water Agency", "Demo Contact P05", "contactp05@example.com", "(555) 000-6504",
-            -2, 10, 6_500_000m, 6_100_000m),
-    ];
-
-    private static CompanyVendorDef[] GetPwiVendors() =>
-    [
-        new("Summit Pipe & Supply Co.", "PWI-V-001", "Pipe Supply", "Demo Contact V01", "contactv01@example.com"),
-        new("Summit Excavation Services", "PWI-V-002", "Excavation", "Demo Contact V02", "contactv02@example.com"),
-        new("Summit Dewatering Systems", "PWI-V-003", "Dewatering", "Demo Contact V03", "contactv03@example.com"),
-        new("Summit Chemical Systems", "PWI-V-004", "Chemical Systems", "Demo Contact V04", "contactv04@example.com"),
-    ];
-
-    private static CompanyCustomerDef[] GetPwiCustomers() =>
-    [
-        new("Sacramento Regional Water Authority", "PWI-C-001", "Demo Contact P01", "contactp01@example.com", "Net 30"),
-        new("City of Sacramento Utilities", "PWI-C-002", "Demo Contact P02", "contactp02@example.com", "Net 30"),
-        new("Sacramento Area Sewer District", "PWI-C-003", "Demo Contact P03", "contactp03@example.com", "Net 45"),
-    ];
-
-    private static CompanyEmployeeDef[] GetPwiEmployees() =>
-    [
-        new("PWI-001", "Demo", "Employee P01", "demo.employee.p01@demo.example", "(555) 000-6001", "Project Manager", EmployeeClassification.Salaried, 78.00m),
-        new("PWI-002", "Demo", "Employee P02", "demo.employee.p02@demo.example", "(555) 000-6002", "Project Engineer", EmployeeClassification.Salaried, 56.00m),
-        new("PWI-003", "Demo", "Employee P03", "demo.employee.p03@demo.example", "(555) 000-6003", "Site Superintendent", EmployeeClassification.Supervisor, 58.00m),
-        new("PWI-004", "Demo", "Employee P04", "demo.employee.p04@demo.example", "(555) 000-6004", "Pipeline Foreman", EmployeeClassification.Supervisor, 52.00m),
-        new("PWI-005", "Demo", "Employee P05", "demo.employee.p05@demo.example", "(555) 000-6005", "Equipment Operator", EmployeeClassification.Hourly, 42.00m),
-        new("PWI-006", "Demo", "Employee P06", "demo.employee.p06@demo.example", "(555) 000-6006", "Journeyman Pipefitter", EmployeeClassification.Hourly, 46.00m),
-        new("PWI-007", "Demo", "Employee P07", "demo.employee.p07@demo.example", "(555) 000-6007", "Heavy Equipment Operator", EmployeeClassification.Hourly, 44.00m),
-    ];
-
-    // ── Company 03: Summit Highway Division (SHD) ───────────────────
-
-    private static CompanyProjectDef[] GetVhdProjects() =>
-    [
-        new("VHD-PRJ-001", "SR-99 Bridge Widening - Elk Grove",
-            "Widen existing 4-lane bridge to 6 lanes over Cosumnes River. New prestressed girders, widened abutments, and approach slabs.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "SR-99 at Cosumnes River", "Elk Grove", "CA", "95624",
-            "California Department of Transportation", "Demo Contact P12", "contactp12@example.com", "(555) 000-7100",
-            -6, 12, 22_000_000m, 20_500_000m),
-
-        new("VHD-PRJ-002", "I-5 / Pocket Road Interchange Improvement",
-            "Interchange reconstruction: new diamond interchange, ramp widening, signal upgrades, sound walls, and utility relocations.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "I-5 at Pocket Road", "Sacramento", "CA", "95831",
-            "California Department of Transportation", "Demo Contact P13", "contactp13@example.com", "(555) 000-7201",
-            -4, 16, 28_500_000m, 26_800_000m),
-
-        new("VHD-PRJ-003", "Watt Avenue Resurfacing & Complete Streets",
-            "4.2 miles of full-depth reclamation, new AC overlay, Class IV bike lanes, ADA curb ramps, and signal upgrades.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "Watt Ave - Arden to Elkhorn", "Sacramento", "CA", "95821",
-            "Sacramento County DOT", "Demo Contact P06", "contactp06@example.com", "(555) 000-7302",
-            -2, 7, 9_800_000m, 9_200_000m),
-
-        new("VHD-PRJ-004", "Highway 50 Sound Wall Project - Rancho Cordova",
-            "3.6 miles of precast concrete sound walls (16-ft height), retaining walls, and landscaping along Highway 50.",
-            ProjectStatus.Completed, ProjectType.Infrastructure,
-            "US-50 at Sunrise Blvd", "Rancho Cordova", "CA", "95742",
-            "California Department of Transportation", "Demo Contact P14", "contactp14@example.com", "(555) 000-7403",
-            -16, -2, 12_400_000m, 11_800_000m),
-
-        new("VHD-PRJ-005", "Hazel Avenue Grade Separation",
-            "Railroad grade separation at Hazel Ave/UPRR crossing. New bridge structure, road realignment, utility relocation, and traffic management.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "Hazel Ave at UPRR", "Rancho Cordova", "CA", "95670",
-            "City of Rancho Cordova", "Demo Contact P07", "contactp07@example.com", "(555) 000-7504",
-            -8, 10, 35_000_000m, 33_000_000m),
-    ];
-
-    private static CompanyVendorDef[] GetVhdVendors() =>
-    [
-        new("Summit Asphalt & Paving", "VHD-V-001", "Asphalt/Paving", "Demo Contact V01", "contactv01@example.com"),
-        new("Summit Steel Fabricators LLC", "VHD-V-002", "Steel Fabrication", "Demo Contact V02", "contactv02@example.com"),
-        new("Summit Guardrail & Barrier", "VHD-V-003", "Guardrail/Barrier", "Demo Contact V03", "contactv03@example.com"),
-        new("Summit Traffic Control", "VHD-V-004", "Traffic Control", "Demo Contact V04", "contactv04@example.com"),
-        new("Summit Earthmovers", "VHD-V-005", "Earthwork/Grading", "Demo Contact V05", "contactv05@example.com"),
-    ];
-
-    private static CompanyCustomerDef[] GetVhdCustomers() =>
-    [
-        new("California Department of Transportation", "VHD-C-001", "Demo Contact P15", "contactp15@example.com", "Net 30"),
-        new("Sacramento County DOT", "VHD-C-002", "Demo Contact P16", "contactp16@example.com", "Net 30"),
-        new("City of Rancho Cordova", "VHD-C-003", "Demo Contact P17", "contactp17@example.com", "Net 30"),
-    ];
-
-    private static CompanyEmployeeDef[] GetVhdEmployees() =>
-    [
-        new("VHD-001", "Demo", "Employee V01", "demo.employee.v01@demo.example", "(555) 000-7001", "Project Manager", EmployeeClassification.Salaried, 82.00m),
-        new("VHD-002", "Demo", "Employee V02", "demo.employee.v02@demo.example", "(555) 000-7002", "Project Engineer", EmployeeClassification.Salaried, 58.00m),
-        new("VHD-003", "Demo", "Employee V03", "demo.employee.v03@demo.example", "(555) 000-7003", "General Superintendent", EmployeeClassification.Supervisor, 65.00m),
-        new("VHD-004", "Demo", "Employee V04", "demo.employee.v04@demo.example", "(555) 000-7004", "Paving Foreman", EmployeeClassification.Supervisor, 54.00m),
-        new("VHD-005", "Demo", "Employee V05", "demo.employee.v05@demo.example", "(555) 000-7005", "Heavy Equipment Operator", EmployeeClassification.Hourly, 46.00m),
-        new("VHD-006", "Demo", "Employee V06", "demo.employee.v06@demo.example", "(555) 000-7006", "Ironworker", EmployeeClassification.Hourly, 48.00m),
-        new("VHD-007", "Demo", "Employee V07", "demo.employee.v07@demo.example", "(555) 000-7007", "Traffic Control Specialist", EmployeeClassification.Hourly, 38.00m),
-    ];
-
-    // ── Company 04: Summit Electric Co. (SEC) ───────────────────
-
-    private static CompanyProjectDef[] GetCveProjects() =>
-    [
-        new("CVE-PRJ-001", "Solar Farm Installation Phase II - Rancho Seco",
-            "85 MW ground-mount solar array: 180,000 panels, inverter stations, BESS integration, and gen-tie line to PG&E substation.",
-            ProjectStatus.Active, ProjectType.Industrial,
-            "14440 Twin Cities Road", "Herald", "CA", "95638",
-            "Summit Solar Development LLC", "Demo Contact C01", "contactc01@example.com", "(555) 000-8100",
-            -4, 10, 32_000_000m, 30_000_000m),
-
-        new("CVE-PRJ-002", "Hospital Emergency Power Upgrade - Mercy General",
-            "Replace 2MW emergency generator system, new ATS gear, paralleling switchgear, and critical branch rewire for OSHPD compliance.",
-            ProjectStatus.Active, ProjectType.Renovation,
-            "4001 J Street", "Sacramento", "CA", "95819",
-            "Summit Health Sacramento", "Demo Contact C02", "contactc02@example.com", "(555) 000-8201",
-            -3, 8, 6_800_000m, 6_300_000m),
-
-        new("CVE-PRJ-003", "PG&E Substation Upgrade - Folsom",
-            "230kV/69kV substation modernization: new transformers, breakers, relay protection, SCADA, and control building.",
-            ProjectStatus.Active, ProjectType.Infrastructure,
-            "2000 Lake Natoma Blvd", "Folsom", "CA", "95630",
-            "Pacific Gas & Electric", "Demo Contact C03", "contactc03@example.com", "(555) 000-8302",
-            -6, 8, 15_500_000m, 14_500_000m),
-
-        new("CVE-PRJ-004", "Data Center Power Distribution - Rancho Cordova",
-            "20MW critical power infrastructure: medium-voltage switchgear, PDUs, UPS systems, and redundant bus duct for Tier III facility.",
-            ProjectStatus.Completed, ProjectType.Industrial,
-            "11200 White Rock Road", "Rancho Cordova", "CA", "95742",
-            "Summit Data Centers", "Demo Contact C04", "contactc04@example.com", "(555) 000-8403",
-            -14, -1, 18_000_000m, 16_800_000m),
-
-        new("CVE-PRJ-005", "EV Charging Hub - Sacramento Railyards",
-            "48-stall DC fast-charging hub with 2MW utility service, battery storage, and canopy-mounted solar. 350kW chargers.",
+        new("SCB-PRJ-001", "Roseville Medical Office Building",
+            "4-story Class A medical office shell + TI. Mid-market GC package: structure, envelope, core MEP coordination.",
             ProjectStatus.Active, ProjectType.Commercial,
-            "300 Railyards Blvd", "Sacramento", "CA", "95811",
-            "Summit EV Charging", "Demo Contact C05", "contactc05@example.com", "(555) 000-8504",
-            -1, 6, 4_200_000m, 3_900_000m),
+            "100 Demo Medical Parkway", "Roseville", "CA", "95661",
+            "Demo Care Health Partners LLC", "Demo Contact M01", "contactm01@example.com", "(555) 000-6100",
+            -4, 10, 28_500_000m, 26_800_000m),
+
+        new("SCB-PRJ-002", "Demo Tech Campus Building A",
+            "Ground-up 120k SF office/lab shell. Design-assist with owner. Mid-market schedule and buyout.",
+            ProjectStatus.Active, ProjectType.Commercial,
+            "200 Demo Innovation Way", "Folsom", "CA", "95630",
+            "Demo Tech Properties LLC", "Demo Contact M02", "contactm02@example.com", "(555) 000-6201",
+            -2, 14, 42_000_000m, 39_500_000m),
+
+        new("SCB-PRJ-003", "Demo Retail Center Renovation - Phase 2",
+            "Interior renovation and facade refresh for multi-tenant retail center. Night work, occupied building.",
+            ProjectStatus.Active, ProjectType.Renovation,
+            "300 Demo Market Street", "Elk Grove", "CA", "95758",
+            "Demo Retail Holdings LLC", "Demo Contact M03", "contactm03@example.com", "(555) 000-6302",
+            -6, 4, 4_800_000m, 4_500_000m),
+
+        new("SCB-PRJ-004", "Demo Lakeside Community Center Expansion",
+            "Addition + remodel for city recreation facility. Public bid, prevailing wage.",
+            ProjectStatus.Completed, ProjectType.Commercial,
+            "400 Demo Civic Center Dr", "Davis", "CA", "95616",
+            "Demo Lakeside City", "Demo Contact M04", "contactm04@example.com", "(555) 000-6403",
+            -16, -2, 11_200_000m, 10_600_000m),
+
+        new("SCB-PRJ-005", "Demo Industrial Warehouse Shell",
+            "Tilt-up warehouse 85k SF with dock packages. Fast-track schedule.",
+            ProjectStatus.Active, ProjectType.Industrial,
+            "500 Demo Logistics Blvd", "Sacramento", "CA", "95834",
+            "Demo Logistics REIT LLC", "Demo Contact M05", "contactm05@example.com", "(555) 000-6504",
+            -1, 8, 16_500_000m, 15_400_000m),
+
+        new("SCB-PRJ-006", "Demo Multifamily Podium - Bid Won",
+            "Wood-frame over podium residential. Bid won; preconstruction / buyout in progress.",
+            ProjectStatus.Active, ProjectType.Residential,
+            "600 Demo Housing Ave", "Sacramento", "CA", "95811",
+            "Demo Housing Partners LLC", "Demo Contact M06", "contactm06@example.com", "(555) 000-6605",
+            0, 18, 38_000_000m, 36_200_000m),
     ];
 
-    private static CompanyVendorDef[] GetCveVendors() =>
+    private static CompanyVendorDef[] GetMidMarketVendors() =>
     [
-        new("Summit Electrical Wholesale", "CVE-V-001", "Electrical Supply", "Demo Contact V01", "contactv01@example.com"),
-        new("Summit Transformer Co.", "CVE-V-002", "Transformers", "Demo Contact V02", "contactv02@example.com"),
-        new("Summit Solar Solutions", "CVE-V-003", "Solar Installation", "Demo Contact V03", "contactv03@example.com"),
-        new("Summit Switchgear Controls", "CVE-V-004", "Switchgear", "Demo Contact V04", "contactv04@example.com"),
+        new("Demo Concrete Services LLC", "SCB-V-001", "Concrete", "Demo Contact V01", "contactv01@example.com"),
+        new("Demo Drywall Systems LLC", "SCB-V-002", "Drywall", "Demo Contact V02", "contactv02@example.com"),
+        new("Demo Glass & Glazing LLC", "SCB-V-003", "Glazing", "Demo Contact V03", "contactv03@example.com"),
+        new("Demo Fire Protection LLC", "SCB-V-004", "Fire Protection", "Demo Contact V04", "contactv04@example.com"),
+        new("Demo Electrical Contractors LLC", "SCB-V-005", "Electrical", "Demo Contact V05", "contactv05@example.com"),
     ];
 
-    private static CompanyCustomerDef[] GetCveCustomers() =>
+    private static CompanyCustomerDef[] GetMidMarketCustomers() =>
     [
-        new("Summit Solar Development LLC", "CVE-C-001", "Demo Contact C01", "contactc01@example.com", "Net 30"),
-        new("Summit Health Sacramento", "CVE-C-002", "Demo Contact C02", "contactc02@example.com", "Net 30"),
-        new("Pacific Gas & Electric", "CVE-C-003", "Demo Contact C03", "contactc03@example.com", "Net 45"),
+        new("Demo Care Health Partners LLC", "SCB-C-001", "Demo Contact M01", "contactm01@example.com", "Net 30"),
+        new("Demo Tech Properties LLC", "SCB-C-002", "Demo Contact M02", "contactm02@example.com", "Net 30"),
+        new("Demo Retail Holdings LLC", "SCB-C-003", "Demo Contact M03", "contactm03@example.com", "Net 45"),
+        new("Demo Lakeside City", "SCB-C-004", "Demo Contact M04", "contactm04@example.com", "Net 30"),
     ];
 
-    private static CompanyEmployeeDef[] GetCveEmployees() =>
+    private static CompanyEmployeeDef[] GetMidMarketEmployees() =>
     [
-        new("CVE-001", "Demo", "Employee C01", "demo.employee.c01@demo.example", "(555) 000-8001", "Project Manager", EmployeeClassification.Salaried, 80.00m),
-        new("CVE-002", "Demo", "Employee C02", "demo.employee.c02@demo.example", "(555) 000-8002", "Project Engineer", EmployeeClassification.Salaried, 55.00m),
-        new("CVE-003", "Demo", "Employee C03", "demo.employee.c03@demo.example", "(555) 000-8003", "Electrical Superintendent", EmployeeClassification.Supervisor, 62.00m),
-        new("CVE-004", "Demo", "Employee C04", "demo.employee.c04@demo.example", "(555) 000-8004", "Electrical Foreman", EmployeeClassification.Supervisor, 54.00m),
-        new("CVE-005", "Demo", "Employee C05", "demo.employee.c05@demo.example", "(555) 000-8005", "Journeyman Electrician", EmployeeClassification.Hourly, 48.00m),
-        new("CVE-006", "Demo", "Employee C06", "demo.employee.c06@demo.example", "(555) 000-8006", "Journeyman Electrician", EmployeeClassification.Hourly, 46.00m),
-        new("CVE-007", "Demo", "Employee C07", "demo.employee.c07@demo.example", "(555) 000-8007", "Electrician Apprentice", EmployeeClassification.Apprentice, 24.00m),
+        new("SCB-001", "Demo", "Employee M01", "demo.employee.m01@demo.example", "(555) 000-6001", "Project Manager", EmployeeClassification.Salaried, 78.00m),
+        new("SCB-002", "Demo", "Employee M02", "demo.employee.m02@demo.example", "(555) 000-6002", "Project Engineer", EmployeeClassification.Salaried, 56.00m),
+        new("SCB-003", "Demo", "Employee M03", "demo.employee.m03@demo.example", "(555) 000-6003", "Superintendent", EmployeeClassification.Supervisor, 62.00m),
+        new("SCB-004", "Demo", "Employee M04", "demo.employee.m04@demo.example", "(555) 000-6004", "Assistant Superintendent", EmployeeClassification.Supervisor, 52.00m),
+        new("SCB-005", "Demo", "Employee M05", "demo.employee.m05@demo.example", "(555) 000-6005", "Carpenter Foreman", EmployeeClassification.Supervisor, 48.00m),
+        new("SCB-006", "Demo", "Employee M06", "demo.employee.m06@demo.example", "(555) 000-6006", "Journeyman Carpenter", EmployeeClassification.Hourly, 42.00m),
+        new("SCB-007", "Demo", "Employee M07", "demo.employee.m07@demo.example", "(555) 000-6007", "Laborer", EmployeeClassification.Hourly, 32.00m),
+        new("SCB-008", "Demo", "Employee M08", "demo.employee.m08@demo.example", "(555) 000-6008", "Estimator", EmployeeClassification.Salaried, 58.00m),
+    ];
+
+    // ── Company 03: Summit Highway Division (small-market heavy highway) ─
+
+    private static CompanyProjectDef[] GetHighwayProjects() =>
+    [
+        new("SHD-PRJ-001", "State Route Demo Bridge Deck Overlay",
+            "Bridge deck rehab and overlay. Demo State DOT public work, certified payroll, thin margins.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Demo State Route at River Crossing", "Elk Grove", "CA", "95624",
+            "Demo State Highway Agency", "Demo Contact H01", "contacth01@example.com", "(555) 000-7100",
+            -5, 6, 4_200_000m, 3_950_000m),
+
+        new("SHD-PRJ-002", "County Road Resurfacing Package 12",
+            "Multiple small resurfacing segments (~18 lane-miles). High job count, crew-based production.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Various Demo County Roads", "Sacramento", "CA", "95814",
+            "Demo County Public Works", "Demo Contact H02", "contacth02@example.com", "(555) 000-7201",
+            -3, 5, 2_800_000m, 2_650_000m),
+
+        new("SHD-PRJ-003", "ADA Curb Ramp Program - District Demo",
+            "80+ curb ramps and sidewalk repairs. Unit-price public contract.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Demo District Corridors", "Sacramento", "CA", "95825",
+            "Demo Capital City", "Demo Contact H03", "contacth03@example.com", "(555) 000-7302",
+            -2, 8, 1_450_000m, 1_380_000m),
+
+        new("SHD-PRJ-004", "Interstate Demo Sound Wall Repair",
+            "Sound wall panel replacement and drainage fixes. Night freeway work.",
+            ProjectStatus.Completed, ProjectType.Infrastructure,
+            "Demo Interstate Frontage", "Sacramento", "CA", "95831",
+            "Demo State Highway Agency", "Demo Contact H04", "contacth04@example.com", "(555) 000-7403",
+            -14, -1, 3_100_000m, 2_980_000m),
+
+        new("SHD-PRJ-005", "Rural Bridge Scour Repair - Foothills",
+            "Scour countermeasures and abutment repair. Small-market heavy civil.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Demo Foothill Route Bridge", "Jackson", "CA", "95642",
+            "Demo State DOT District 7", "Demo Contact H05", "contacth05@example.com", "(555) 000-7504",
+            -1, 7, 2_200_000m, 2_050_000m),
+
+        new("SHD-PRJ-006", "Parking Lot Rebuild - Business Park",
+            "Private paving + striping. Quick-turn commercial work between public jobs.",
+            ProjectStatus.Active, ProjectType.Commercial,
+            "700 Demo Commerce Rd", "Sacramento", "CA", "95826",
+            "Demo Business Park Owners Assoc", "Demo Contact H06", "contacth06@example.com", "(555) 000-7605",
+            0, 2, 420_000m, 390_000m),
+
+        new("SHD-PRJ-007", "Storm Drain Slip-Line - Riverport",
+            "CIPP rehab of 2,400 LF storm main. Sub to larger civil GC.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Demo Industrial Blvd", "West Sacramento", "CA", "95691",
+            "Demo Riverport Utilities", "Demo Contact H07", "contacth07@example.com", "(555) 000-7706",
+            -4, 4, 1_850_000m, 1_720_000m),
+
+        new("SHD-PRJ-008", "Chip Seal Program - Valley County",
+            "Seasonal chip seal package across farm-to-market roads.",
+            ProjectStatus.Active, ProjectType.Infrastructure,
+            "Demo Valley County Roads", "Woodland", "CA", "95695",
+            "Demo Valley County Public Works", "Demo Contact H08", "contacth08@example.com", "(555) 000-7807",
+            -1, 3, 980_000m, 920_000m),
+    ];
+
+    private static CompanyVendorDef[] GetHighwayVendors() =>
+    [
+        new("Demo Asphalt Supply LLC", "SHD-V-001", "Asphalt/Paving", "Demo Contact V01", "contactv01@example.com"),
+        new("Demo Aggregate & Rock LLC", "SHD-V-002", "Aggregates", "Demo Contact V02", "contactv02@example.com"),
+        new("Demo Guardrail Co. LLC", "SHD-V-003", "Guardrail/Barrier", "Demo Contact V03", "contactv03@example.com"),
+        new("Demo Traffic Control LLC", "SHD-V-004", "Traffic Control", "Demo Contact V04", "contactv04@example.com"),
+        new("Demo Earthmovers LLC", "SHD-V-005", "Earthwork/Grading", "Demo Contact V05", "contactv05@example.com"),
+    ];
+
+    private static CompanyCustomerDef[] GetHighwayCustomers() =>
+    [
+        new("Demo State Highway Agency", "SHD-C-001", "Demo Contact H01", "contacth01@example.com", "Net 60"),
+        new("Demo County Public Works", "SHD-C-002", "Demo Contact H02", "contacth02@example.com", "Net 45"),
+        new("Demo Capital City", "SHD-C-003", "Demo Contact H03", "contacth03@example.com", "Net 30"),
+        new("Demo Valley County Public Works", "SHD-C-004", "Demo Contact H08", "contacth08@example.com", "Net 45"),
+    ];
+
+    private static CompanyEmployeeDef[] GetHighwayEmployees() =>
+    [
+        new("SHD-001", "Demo", "Employee H01", "demo.employee.h01@demo.example", "(555) 000-7001", "Project Manager", EmployeeClassification.Salaried, 75.00m),
+        new("SHD-002", "Demo", "Employee H02", "demo.employee.h02@demo.example", "(555) 000-7002", "Project Engineer", EmployeeClassification.Salaried, 55.00m),
+        new("SHD-003", "Demo", "Employee H03", "demo.employee.h03@demo.example", "(555) 000-7003", "General Superintendent", EmployeeClassification.Supervisor, 62.00m),
+        new("SHD-004", "Demo", "Employee H04", "demo.employee.h04@demo.example", "(555) 000-7004", "Paving Foreman", EmployeeClassification.Supervisor, 54.00m),
+        new("SHD-005", "Demo", "Employee H05", "demo.employee.h05@demo.example", "(555) 000-7005", "Heavy Equipment Operator", EmployeeClassification.Hourly, 46.00m),
+        new("SHD-006", "Demo", "Employee H06", "demo.employee.h06@demo.example", "(555) 000-7006", "Grade Checker", EmployeeClassification.Hourly, 40.00m),
+        new("SHD-007", "Demo", "Employee H07", "demo.employee.h07@demo.example", "(555) 000-7007", "Traffic Control Specialist", EmployeeClassification.Hourly, 38.00m),
+        new("SHD-008", "Demo", "Employee H08", "demo.employee.h08@demo.example", "(555) 000-7008", "Laborer", EmployeeClassification.Hourly, 34.00m),
+    ];
+
+    // ── Company 04: Summit Mechanical (union HVAC multi-division) ─
+    // Divisions simulated via project tags / employee titles: PM, Service, Pipe Shop,
+    // Sheet Metal Fab, Design/Assist, Pre-Con, Plumbing, Controls, Medical Gas, BIM, etc.
+
+    private static CompanyProjectDef[] GetHvacProjects() =>
+    [
+        new("SMH-PRJ-001", "[PM/Install] Hospital HVAC Retrofit - Demo Medical Wing B",
+            "Divisions: Project Management, HVAC, Controls, Medical Gas. Union install on occupied hospital wing. Healthcare AHJ coordination.",
+            ProjectStatus.Active, ProjectType.Renovation,
+            "100 Demo Hospital Way", "Sacramento", "CA", "95819",
+            "Demo Regional Medical Center", "Demo Contact A01", "contacta01@example.com", "(555) 000-8100",
+            -5, 9, 8_400_000m, 7_900_000m),
+
+        new("SMH-PRJ-002", "[Design/Assist] Data Center Cooling - Demo Campus",
+            "Divisions: Design/Assist, Engineering, HVAC, BIM/3D Coordination. CRAH units, chilled water, controls.",
+            ProjectStatus.Active, ProjectType.Industrial,
+            "200 Demo Server Farm Rd", "Rancho Cordova", "CA", "95742",
+            "Demo Data Centers LLC", "Demo Contact A02", "contacta02@example.com", "(555) 000-8201",
+            -3, 11, 12_500_000m, 11_800_000m),
+
+        new("SMH-PRJ-003", "[Pipe Shop] Prefab Process Piping - Biotech Campus",
+            "Divisions: Pipe Fabrication, Piping, Plumbing. Shop-fab modules for process and hydronics.",
+            ProjectStatus.Active, ProjectType.Industrial,
+            "300 Demo Research Park Dr", "Davis", "CA", "95618",
+            "Demo Bio Labs LLC", "Demo Contact A03", "contacta03@example.com", "(555) 000-8302",
+            -2, 7, 3_600_000m, 3_350_000m),
+
+        new("SMH-PRJ-004", "[Sheet Metal] High School HVAC Replacement",
+            "Divisions: Sheet Metal Fabrication, HVAC, Flashing & Architectural Work. Summer outage window.",
+            ProjectStatus.Active, ProjectType.Commercial,
+            "400 Demo Campus Loop", "Sacramento", "CA", "95822",
+            "Demo Metro Unified School District", "Demo Contact A04", "contacta04@example.com", "(555) 000-8403",
+            -1, 5, 2_900_000m, 2_720_000m),
+
+        new("SMH-PRJ-005", "[Service] Campus BAS & Damper Certification Program",
+            "Divisions: HVAC Service & Maintenance/Repair, Certified Fire Smoke Damper, Indoor Air Quality, HVAC Controls.",
+            ProjectStatus.Active, ProjectType.Commercial,
+            "Multi-site Demo Campus", "Sacramento", "CA", "95819",
+            "Demo State Facilities Management", "Demo Contact A05", "contacta05@example.com", "(555) 000-8504",
+            -8, 4, 1_200_000m, 1_100_000m),
+
+        new("SMH-PRJ-006", "[Pre-Con/Estimating] Mixed-Use MEP Budget Package",
+            "Divisions: Pre-Construction Services, Estimating & Budgeting, Design/Build, Facility Planning.",
+            ProjectStatus.Active, ProjectType.Commercial,
+            "600 Demo Housing Ave", "Sacramento", "CA", "95811",
+            "Demo Housing Partners LLC", "Demo Contact A06", "contacta06@example.com", "(555) 000-8605",
+            0, 6, 450_000m, 420_000m),
+
+        new("SMH-PRJ-007", "[Plumbing/Hydronics] Hotel Domestic & Boiler Plant",
+            "Divisions: Plumbing, Hydronics, Plumbing Service & Maintenance/Repair, Certified Backflow Preventer Testing.",
+            ProjectStatus.Completed, ProjectType.Commercial,
+            "700 Demo Hospitality Blvd", "Sacramento", "CA", "95814",
+            "Demo Hospitality Group LLC", "Demo Contact A07", "contacta07@example.com", "(555) 000-8706",
+            -14, -1, 4_100_000m, 3_950_000m),
+
+        new("SMH-PRJ-008", "[Mechanical] Lab Exhaust & IAQ Upgrade",
+            "Divisions: Mechanical, Indoor Air Quality, Engineering, Sheet Metal Work.",
+            ProjectStatus.Active, ProjectType.Renovation,
+            "800 Demo University Way", "Davis", "CA", "95616",
+            "Demo State University Facilities", "Demo Contact A08", "contacta08@example.com", "(555) 000-8807",
+            -4, 8, 5_500_000m, 5_200_000m),
+    ];
+
+    private static CompanyVendorDef[] GetHvacVendors() =>
+    [
+        new("Demo Climate Equipment Supply LLC", "SMH-V-001", "HVAC Equipment", "Demo Contact V01", "contactv01@example.com"),
+        new("Demo Mechanical Wholesale LLC", "SMH-V-002", "Pipe & Valves", "Demo Contact V02", "contactv02@example.com"),
+        new("Demo Sheet Metal Supply LLC", "SMH-V-003", "Sheet Metal", "Demo Contact V03", "contactv03@example.com"),
+        new("Demo Controls Distributors LLC", "SMH-V-004", "HVAC Controls", "Demo Contact V04", "contactv04@example.com"),
+        new("Demo Medical Gas Supply LLC", "SMH-V-005", "Medical Gas", "Demo Contact V05", "contactv05@example.com"),
+        new("Demo Insulation Pros LLC", "SMH-V-006", "Insulation", "Demo Contact V06", "contactv06@example.com"),
+    ];
+
+    private static CompanyCustomerDef[] GetHvacCustomers() =>
+    [
+        new("Demo Regional Medical Center", "SMH-C-001", "Demo Contact A01", "contacta01@example.com", "Net 30"),
+        new("Demo Data Centers LLC", "SMH-C-002", "Demo Contact A02", "contacta02@example.com", "Net 30"),
+        new("Demo Metro Unified School District", "SMH-C-003", "Demo Contact A04", "contacta04@example.com", "Net 45"),
+        new("Demo State Facilities Management", "SMH-C-004", "Demo Contact A05", "contacta05@example.com", "Net 30"),
+        new("Demo State University Facilities", "SMH-C-005", "Demo Contact A08", "contacta08@example.com", "Net 30"),
+    ];
+
+    private static CompanyEmployeeDef[] GetHvacEmployees() =>
+    [
+        new("SMH-001", "Demo", "Employee A01", "demo.employee.a01@demo.example", "(555) 000-8001", "Project Manager — Install", EmployeeClassification.Salaried, 82.00m),
+        new("SMH-002", "Demo", "Employee A02", "demo.employee.a02@demo.example", "(555) 000-8002", "Service Manager", EmployeeClassification.Salaried, 72.00m),
+        new("SMH-003", "Demo", "Employee A03", "demo.employee.a03@demo.example", "(555) 000-8003", "Pipe Shop Foreman (Union)", EmployeeClassification.Supervisor, 58.00m),
+        new("SMH-004", "Demo", "Employee A04", "demo.employee.a04@demo.example", "(555) 000-8004", "Sheet Metal Shop Foreman (Union)", EmployeeClassification.Supervisor, 56.00m),
+        new("SMH-005", "Demo", "Employee A05", "demo.employee.a05@demo.example", "(555) 000-8005", "Journeyman Pipefitter (UA)", EmployeeClassification.Hourly, 52.00m),
+        new("SMH-006", "Demo", "Employee A06", "demo.employee.a06@demo.example", "(555) 000-8006", "Journeyman Sheet Metal (SMART)", EmployeeClassification.Hourly, 50.00m),
+        new("SMH-007", "Demo", "Employee A07", "demo.employee.a07@demo.example", "(555) 000-8007", "Service Tech — HVAC/Controls", EmployeeClassification.Hourly, 48.00m),
+        new("SMH-008", "Demo", "Employee A08", "demo.employee.a08@demo.example", "(555) 000-8008", "Design/Assist Engineer", EmployeeClassification.Salaried, 68.00m),
+        new("SMH-009", "Demo", "Employee A09", "demo.employee.a09@demo.example", "(555) 000-8009", "Pre-Construction Estimator", EmployeeClassification.Salaried, 62.00m),
+        new("SMH-010", "Demo", "Employee A10", "demo.employee.a10@demo.example", "(555) 000-8010", "BIM/VDC Coordinator", EmployeeClassification.Salaried, 60.00m),
+        new("SMH-011", "Demo", "Employee A11", "demo.employee.a11@demo.example", "(555) 000-8011", "Medical Gas Installer (Union)", EmployeeClassification.Hourly, 54.00m),
+        new("SMH-012", "Demo", "Employee A12", "demo.employee.a12@demo.example", "(555) 000-8012", "Apprentice Sheet Metal", EmployeeClassification.Apprentice, 28.00m),
     ];
 
     // ── Phase 1: Progress → Schedule → Cost Foundation Seed Data ─────────────
