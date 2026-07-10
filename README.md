@@ -8,15 +8,15 @@
 
 **Modular construction ERP** for commercial general contractors — projects, bids, contracts, time tracking, AIA billing, project management, financials, and AI-assisted operations in one multi-tenant platform.
 
-### Live demo
+**Live demo:** [https://demo.pcserp.app](https://demo.pcserp.app)
 
-| | |
-|--|--|
-| **App** | [https://demo.pcserp.app](https://demo.pcserp.app) |
-| **Also** | [https://app.pcserp.app](https://app.pcserp.app) (same deployment) |
-| **API** | [https://api.pcserp.app](https://api.pcserp.app) |
+On the login page, use **Explore as a role** (CEO / CFO / Project Manager / Estimator) — no signup required. Seeded multi-company data; admin mutations are read-only for safety.
 
-On the login page, use **Explore as a role** (CEO / CFO / Project Manager / Estimator) — no signup required. Demo mode is seeded multi-company construction data; admin mutations are read-only for safety.
+| | URL |
+|--|-----|
+| Demo app | https://demo.pcserp.app |
+| Same deploy | https://app.pcserp.app |
+| API | https://api.pcserp.app |
 
 [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Vision](VISION.md) · [Security](SECURITY.md) · [Deploy / demo setup](deploy/RAILWAY-DEMO.md)
 
