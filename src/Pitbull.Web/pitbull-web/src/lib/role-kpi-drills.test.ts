@@ -72,6 +72,23 @@ describe("parseProjectsDrillParams", () => {
 });
 
 describe("parseAgingDrillParams", () => {
+  it("maps arApNet to bare /billing/aging so both sides + net stay visible", () => {
+    const href = roleKpiDrillHref("arApNet");
+    expect(href).toBe("/billing/aging");
+    expect(href).not.toContain("focus=");
+    const qs = href.includes("?") ? href.split("?")[1]! : "";
+    const p = parseAgingDrillParams(new URLSearchParams(qs));
+    expect(p.focus).toBe("both");
+    expect(p.overdueOnly).toBe(false);
+  });
+
+  it("maps arTotal to focus=ar (AR board only)", () => {
+    const href = roleKpiDrillHref("arTotal");
+    expect(href).toContain("focus=ar");
+    const p = parseAgingDrillParams(new URLSearchParams(href.split("?")[1] ?? ""));
+    expect(p.focus).toBe("ar");
+  });
+
   it("parses focus=ar and overdue=true from AR overdue drill URL", () => {
     const href = roleKpiDrillHref("arOverdue");
     const qs = href.split("?")[1] ?? "";

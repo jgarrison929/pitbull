@@ -37,6 +37,8 @@ export function roleKpiDrillHref(key: RoleKpiKey): string {
     case "unbilledBacklog":
       return "/projects?unbilled=true&status=active";
     case "arApNet":
+      // Full board: AR + AP tables and Net Position (do not share focus=ar with arTotal)
+      return "/billing/aging";
     case "arTotal":
       return "/billing/aging?focus=ar";
     case "arOverdue":
