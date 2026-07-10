@@ -75,7 +75,7 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 
 ## Releases and versioning
 
-Product version is **2.0.0** (see root `VERSION`, `src/Pitbull.Web/pitbull-web/package.json`, and `src/Pitbull.Api/Pitbull.Api.csproj`). Docker build args default to the same value so Railway does not fall back to an old stamp.
+Product version is **2.1.0** (see root `VERSION`, `src/Pitbull.Web/pitbull-web/package.json`, and `src/Pitbull.Api/Pitbull.Api.csproj`). Docker build args default to the same value so Railway does not fall back to an old stamp.
 
 When cutting a release:
 

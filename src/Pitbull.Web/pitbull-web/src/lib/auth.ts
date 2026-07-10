@@ -50,6 +50,10 @@ interface JwtPayload {
   companyId?: string;
   companyIds?: string[];
   isDemoUser?: boolean;
+  /** Job title from seed/profile (e.g. Chief Executive Officer) */
+  jobTitle?: string;
+  /** Persona key: executive | cfo | projectManager | field | estimator | … */
+  roleProfile?: string;
   exp: number;
   [key: string]: unknown;
 }
@@ -96,6 +100,8 @@ export function decodeToken(token: string): JwtPayload | null {
       companyId: raw.company_id ?? raw.companyId ?? undefined,
       companyIds,
       isDemoUser: raw.is_demo_user === "true",
+      jobTitle: raw.job_title ?? raw.jobTitle ?? undefined,
+      roleProfile: raw.role_profile ?? raw.roleProfile ?? undefined,
     } as JwtPayload;
   } catch {
     return null;

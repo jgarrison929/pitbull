@@ -26,6 +26,7 @@ import { PmDashboard } from "@/components/dashboard/role-views/pm-dashboard";
 import { ControllerDashboard } from "@/components/dashboard/role-views/controller-dashboard";
 import { FieldDashboard } from "@/components/dashboard/role-views/field-dashboard";
 import { ExecutiveDashboard } from "@/components/dashboard/role-views/executive-dashboard";
+import { EstimatorDashboard } from "@/components/dashboard/role-views/estimator-dashboard";
 import { WidgetGrid } from "@/components/dashboard/widget-grid";
 import { CustomizeDialog } from "@/components/dashboard/customize-dialog";
 import {
@@ -83,6 +84,7 @@ const LAYOUT_LABELS: Record<string, string> = {
   controller: "Controller",
   field: "Field",
   executive: "Executive",
+  estimator: "Estimator",
 };
 
 export default function DashboardPage() {
@@ -277,7 +279,7 @@ export default function DashboardPage() {
   }, [dashboardLayout]);
 
   // Check if layout uses a role-specific view (legacy rendering)
-  const usesRoleView = ["pm", "controller", "field", "executive"].includes(
+  const usesRoleView = ["pm", "controller", "field", "executive", "estimator"].includes(
     dashboardLayout
   );
 
@@ -352,6 +354,9 @@ export default function DashboardPage() {
               <DropdownMenuItem onClick={() => switchLayout("executive")}>
                 Executive
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchLayout("estimator")}>
+                Estimator
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -420,6 +425,9 @@ export default function DashboardPage() {
       )}
       {dashboardLayout === "executive" && (
         <ExecutiveDashboard data={data} isLoading={isLoading} />
+      )}
+      {dashboardLayout === "estimator" && (
+        <EstimatorDashboard data={data} isLoading={isLoading} />
       )}
 
       {/* Widget-based customizable dashboard */}

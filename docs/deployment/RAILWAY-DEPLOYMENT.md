@@ -1,6 +1,7 @@
-# Railway Deployment Setup (decommissioned)
+# Railway Deployment Setup (historical multi-env notes)
 
-> **Hosted environments are offline.** Run locally via Docker Compose — see [README.md](../../README.md#quick-start). This doc is kept for historical reference only.
+> **Live Railway setup:** use [`deploy/RAILWAY-SETUP.md`](../../deploy/RAILWAY-SETUP.md) and [`deploy/RAILWAY-DEMO.md`](../../deploy/RAILWAY-DEMO.md).  
+> This file documents an older multi-branch (dev/staging) layout and is **not** the source of truth for current `main` → Railway deploy.
 
 ## Task: Wire in Railway Dev and Staging Environments
 

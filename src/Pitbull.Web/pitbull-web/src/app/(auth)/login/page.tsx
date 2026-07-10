@@ -32,13 +32,13 @@ const FALLBACK_DEMO_ROLES: DemoRole[] = [
   {
     key: "ceo",
     label: "CEO",
-    description: "Full admin view — portfolio, executive dashboards, settings",
+    description: "Executive portfolio — financials, risks, pipeline, people",
     email: "ceo@demo.local",
   },
   {
     key: "cfo",
     label: "CFO",
-    description: "Financial leadership — WIP, billing, accounting",
+    description: "Financial leadership — WIP, AR/AP aging, accounting",
     email: "cfo@demo.local",
   },
   {
@@ -50,7 +50,7 @@ const FALLBACK_DEMO_ROLES: DemoRole[] = [
   {
     key: "estimator",
     label: "Estimator",
-    description: "Precon focus — bids, opportunities, cost codes",
+    description: "Precon focus — bids, pipeline value, cost codes",
     email: "estimator@demo.local",
   },
 ];

@@ -437,13 +437,13 @@ public class AuthController(
     /// </summary>
     private static readonly Dictionary<string, DemoRolePersona> DemoRolePersonas = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["ceo"] = new("ceo", "CEO", "Executive portfolio — dashboards, projects, company overview",
+        ["ceo"] = new("ceo", "CEO", "Executive portfolio — financials, risks, pipeline, people & safety",
             "ceo@demo.local", RoleSeeder.Roles.Manager),
-        ["cfo"] = new("cfo", "CFO", "Financial leadership — WIP, billing, accounting, payroll visibility",
+        ["cfo"] = new("cfo", "CFO", "Financial leadership — WIP, AR/AP aging, accounting, cash position",
             "cfo@demo.local", RoleSeeder.Roles.Manager),
         ["pm"] = new("pm", "Project Manager", "Jobs in flight — schedules, RFIs, daily reports, time approval",
             "pm@demo.local", RoleSeeder.Roles.Supervisor),
-        ["estimator"] = new("estimator", "Estimator", "Precon focus — bids, opportunities, cost codes",
+        ["estimator"] = new("estimator", "Estimator", "Precon focus — bids, pipeline value, cost codes",
             "estimator@demo.local", RoleSeeder.Roles.User),
     };
 
@@ -939,6 +939,7 @@ public class AuthController(
             .ToList();
 
         var permissions = await ResolveRbacPermissionClaimsAsync(user, roles);
+        var roleProfile = RoleProfileResolver.Detect(user.Title, roles);
 
         return Ok(new UserProfileResponse(
             Id: user.Id,
@@ -956,7 +957,9 @@ public class AuthController(
                 ? new CompanyBriefResponse(activeCompanyId.Id, activeCompanyId.Code, activeCompanyId.Name)
                 : null,
             AccessibleCompanies: accessibleCompanies,
-            Permissions: permissions
+            Permissions: permissions,
+            Title: user.Title,
+            RoleProfile: RoleProfileResolver.ToApiName(roleProfile)
         ));
     }
 
@@ -1209,6 +1212,8 @@ public class AuthController(
 
         var companyIds = companyAccess.Select(c => c.CompanyId).ToList();
 
+        var roleProfile = RoleProfileResolver.Detect(user.Title, roles);
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -1216,7 +1221,11 @@ public class AuthController(
             new("tenant_id", user.TenantId.ToString()),
             new("full_name", user.FullName),
             new("user_type", user.Type.ToString()),
+            new("role_profile", RoleProfileResolver.ToApiName(roleProfile)),
         };
+
+        if (!string.IsNullOrWhiteSpace(user.Title))
+            claims.Add(new Claim("job_title", user.Title));
 
         if (user.IsDemoUser)
             claims.Add(new Claim("is_demo_user", "true"));
@@ -1278,7 +1287,9 @@ public record UserProfileResponse(
     Guid? EmployeeId = null,
     CompanyBriefResponse? ActiveCompany = null,
     List<CompanyBriefResponse>? AccessibleCompanies = null,
-    string[]? Permissions = null);
+    string[]? Permissions = null,
+    string? Title = null,
+    string? RoleProfile = null);
 
 public record CompanyBriefResponse(
     Guid Id,
