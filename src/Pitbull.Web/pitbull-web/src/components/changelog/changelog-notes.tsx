@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import type { ChangelogRelease } from "@/lib/changelog";
-import { releaseHasNotes } from "@/lib/changelog";
+import { formatReleasePublished, releaseHasNotes } from "@/lib/changelog";
 import { cn } from "@/lib/utils";
 
 const SECTION_ORDER: { key: keyof ChangelogRelease; label: string }[] = [
@@ -43,8 +43,14 @@ export function ChangelogReleaseView({
             ? "Unreleased"
             : `v${release.version}`}
         </Badge>
-        {release.date && (
-          <span className="text-xs text-muted-foreground">{release.date}</span>
+        {formatReleasePublished(release.date) && (
+          <time
+            dateTime={release.date ?? undefined}
+            className="text-xs text-muted-foreground tabular-nums"
+            title={release.date ?? undefined}
+          >
+            {formatReleasePublished(release.date)}
+          </time>
         )}
       </div>
 

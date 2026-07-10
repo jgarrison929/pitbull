@@ -24,7 +24,7 @@ public class ChangelogParserTests
 
         - Bug one
 
-        ## [2.0.0] - 2026-07-07
+        ## [2.0.0] - 2026-07-07T10:06:02-07:00
 
         ### Added
 
@@ -61,13 +61,61 @@ public class ChangelogParserTests
         releases[0].Sections["Fixed"].Should().ContainSingle().Which.Should().Be("Bug one");
 
         releases[1].Version.Should().Be("2.0.0");
-        releases[1].Date.Should().Be("2026-07-07");
+        releases[1].Date.Should().Be("2026-07-07T10:06:02-07:00");
         releases[1].Sections["Added"].Should().ContainSingle()
             .Which.Should().Contain("Workflow approvals");
         releases[1].Sections["Security"].Should().ContainSingle();
 
         releases[2].Version.Should().Be("0.15.0");
         releases[2].Date.Should().Be("2026-05-01");
+    }
+
+    [Fact]
+    public void Parse_AcceptsDateOnlyAndIsoTimestamps()
+    {
+        var markdown = """
+            ## [2.2.1] - 2026-07-10T11:03:00-07:00
+
+            ### Added
+
+            - Timestamps
+
+            ## [2.2.0] - 2026-07-10 09:10:40 UTC
+
+            ### Fixed
+
+            - Deploy
+
+            ## [1.0.0] - 2026-01-15
+
+            ### Added
+
+            - Start
+            """;
+
+        var releases = ChangelogParser.Parse(markdown);
+        releases.Should().HaveCount(3);
+        releases[0].Date.Should().Be("2026-07-10T11:03:00-07:00");
+        releases[1].Date.Should().NotBeNullOrWhiteSpace();
+        releases[1].Date!.Should().StartWith("2026-07-10T");
+        releases[2].Date.Should().Be("2026-01-15");
+    }
+
+    [Theory]
+    [InlineData("2026-07-10", "2026-07-10")]
+    [InlineData("2026-07-10T11:03:00-07:00", "2026-07-10T11:03:00-07:00")]
+    public void NormalizePublishedAt_HandlesCommonForms(string input, string expected)
+    {
+        ChangelogParser.NormalizePublishedAt(input).Should().Be(expected);
+    }
+
+    [Fact]
+    public void NormalizePublishedAt_UtcSuffix_BecomesOffset()
+    {
+        var normalized = ChangelogParser.NormalizePublishedAt("2026-07-10 17:18:00 UTC");
+        normalized.Should().NotBeNull();
+        // Parsed as UTC; offset form may be +00:00
+        normalized!.Should().StartWith("2026-07-10T17:18:00");
     }
 
     [Fact]
@@ -93,7 +141,7 @@ public class ChangelogParserTests
         var dto = ChangelogMapping.ToDto(release);
 
         dto.Version.Should().Be("2.0.0");
-        dto.Date.Should().Be("2026-07-07");
+        dto.Date.Should().Be("2026-07-07T10:06:02-07:00");
         dto.Added.Should().NotBeEmpty();
         dto.Changed.Should().NotBeEmpty();
         dto.Fixed.Should().NotBeEmpty();

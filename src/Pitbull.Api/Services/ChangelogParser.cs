@@ -1,9 +1,12 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace Pitbull.Api.Services;
 
 /// <summary>
 /// Parses Keep a Changelog markdown into structured release notes.
+/// Version headers may include a date or full published timestamp, e.g.
+/// <c>## [2.2.1] - 2026-07-10T11:03:00-07:00</c> or <c>## [2.0.0] - 2026-07-07</c>.
 /// </summary>
 public static partial class ChangelogParser
 {
@@ -45,7 +48,7 @@ public static partial class ChangelogParser
                 Flush();
                 currentVersion = versionMatch.Groups["version"].Value.Trim();
                 currentDate = versionMatch.Groups["date"].Success && versionMatch.Groups["date"].Length > 0
-                    ? versionMatch.Groups["date"].Value.Trim()
+                    ? NormalizePublishedAt(versionMatch.Groups["date"].Value)
                     : null;
                 currentSection = null;
                 sections = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
@@ -120,6 +123,39 @@ public static partial class ChangelogParser
     public static string NormalizeVersion(string version) =>
         version.Trim().TrimStart('v', 'V');
 
+    /// <summary>
+    /// Normalizes a Keep a Changelog published stamp to either
+    /// <c>yyyy-MM-dd</c> (date-only) or ISO-8601 with offset (date+time).
+    /// Accepts space-separated times, trailing <c>UTC</c>, and standard ISO forms.
+    /// </summary>
+    public static string? NormalizePublishedAt(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        var s = raw.Trim();
+        // "2026-07-10 17:18:00 UTC" → parseable ISO-ish form
+        if (s.EndsWith(" UTC", StringComparison.OrdinalIgnoreCase))
+            s = s[..^3].TrimEnd() + "Z";
+        s = s.Replace(' ', 'T');
+
+        // Date-only: keep as calendar date (no fake midnight)
+        if (Regex.IsMatch(s, @"^\d{4}-\d{2}-\d{2}$"))
+            return s;
+
+        if (DateTimeOffset.TryParse(
+                s,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind | DateTimeStyles.AllowWhiteSpaces,
+                out var dto))
+        {
+            // Prefer offset form so the UI can show local date+time accurately
+            return dto.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+        }
+
+        return raw.Trim();
+    }
+
     public static ChangelogRelease? FindRelease(
         IReadOnlyList<ChangelogRelease> releases,
         string version)
@@ -129,9 +165,10 @@ public static partial class ChangelogParser
             string.Equals(NormalizeVersion(r.Version), target, StringComparison.OrdinalIgnoreCase));
     }
 
+    // ## [1.2.3] optional " - " then published stamp (date-only or date+time, any common form)
     [GeneratedRegex(
-        @"^##\s+\[(?<version>[^\]]+)\](?:\s*-\s*(?<date>\d{4}-\d{2}-\d{2}))?\s*$",
-        RegexOptions.Compiled)]
+        @"^##\s+\[(?<version>[^\]]+)\](?:\s*-\s*(?<date>\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2}|[ \t]*UTC)?)?))?\s*$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase)]
     private static partial Regex VersionHeaderRegex();
 
     [GeneratedRegex(@"^###\s+(?<name>.+?)\s*$", RegexOptions.Compiled)]

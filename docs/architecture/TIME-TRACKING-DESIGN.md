@@ -1,8 +1,8 @@
 # Time Tracking Module Design
 
-> **Status:** Draft - Planning for Alpha 0 (v0.50)  
-> **Target:** February 21, 2026 delivery  
-> **Priority:** High - Core Alpha 0 functionality
+> **Status:** Historical design (Alpha 0, Feb 2026) — **not current API contract**  
+> **Living truth:** `src/Modules/Pitbull.TimeTracking`, time-tracking UI under `src/Pitbull.Web`, `docs/ARCHITECTURE.md`  
+> See also: [`README.md`](./README.md) in this folder
 
 ## Overview
 

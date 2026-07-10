@@ -1,8 +1,8 @@
 # Cost Code Management Design
 
-> **Status:** Draft - Foundation for Time Tracking  
-> **Target:** Alpha 0 prerequisite  
-> **Priority:** High - Required for time tracking module
+> **Status:** Historical design (Alpha 0, Feb 2026) — **not current API contract**  
+> **Living truth:** Projects / cost-code entities in `src/Modules`, `docs/ARCHITECTURE.md`  
+> See also: [`README.md`](./README.md) in this folder
 
 ## Overview
 

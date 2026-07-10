@@ -1,3 +1,6 @@
+> **Status:** Historical requirements (early 2026) — verify against `src/Modules/Pitbull.AI` and `docs/ARCHITECTURE.md`  
+> See also: [`README.md`](./README.md) in this folder
+
 # AI-First Architecture Requirements for Pitbull
 
 ## Vision: AI-Native Construction Platform

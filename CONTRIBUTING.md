@@ -75,14 +75,16 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 
 ## Releases and versioning
 
-Product version is **2.1.0** (see root `VERSION`, `src/Pitbull.Web/pitbull-web/package.json`, and `src/Pitbull.Api/Pitbull.Api.csproj`). Docker build args default to the same value so Railway does not fall back to an old stamp.
+Product version lives in root **`VERSION`** (keep in sync with `package.json`, API csproj, and Docker `ARG` defaults). **Bump incrementally on every user-visible ship** (patch for fixes/docs/deploy unblocks, minor for features, major for breaking). Same calendar day can have multiple releases — versions and timestamps distinguish them.
 
 When cutting a release:
 
-1. Move items from `## [Unreleased]` in `CHANGELOG.md` into `## [X.Y.Z] - YYYY-MM-DD`
+1. Move items from `## [Unreleased]` in `CHANGELOG.md` into a new header with **date and time** of publish, e.g.  
+   `## [2.2.1] - 2026-07-10T11:03:00-07:00`  
+   (ISO-8601 with offset preferred; date-only `YYYY-MM-DD` still works for older entries)
 2. Bump `VERSION`, `package.json` `version`, and API csproj `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` together
-3. Bump `ARG VERSION` / `ARG NEXT_PUBLIC_APP_VERSION` defaults in both Dockerfiles if they still hardcode the version
-4. Deploy; confirm `GET /api/version`, the bottom-left badge, and `GET /api/changelog?current=true` all agree
+3. Bump `ARG VERSION` / `ARG NEXT_PUBLIC_APP_VERSION` defaults in both Dockerfiles and `docker-compose.prod.yml` if they hardcode the version
+4. Deploy; confirm `GET /api/version`, the bottom-left badge, and `GET /api/changelog?current=true` all agree; About → changelog shows **date + time** in the viewer’s locale
 
 In-app release notes are served from `CHANGELOG.md` via `GET /api/changelog` (no separate CMS).
 

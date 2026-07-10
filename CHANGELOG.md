@@ -10,7 +10,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.2.0] - 2026-07-10
+## [2.2.1] - 2026-07-10T11:03:00-07:00
+
+### Added
+
+- **Changelog published timestamps** — release headers support date **and** time (ISO-8601); About `/settings/about#changelog` shows local date + time for when each release was published
+- **`docs/architecture/README.md`** — explains living vs frozen design docs so agents stop treating Feb 2026 Alpha design notes as current architecture
+
+### Changed
+
+- Version policy: ship **incremental** semver on every user-visible deploy (`VERSION` + CHANGELOG header + Docker defaults together). Same-day minors/patches are distinguishable by version **and** timestamp
+- Version bumped to **2.2.1**
+
+### Fixed
+
+- **Railway web deploy after v2.2 KPI drills** — time-tracking page used undefined `viewParam` (Next.js typecheck failed); use `drill.viewEntries`
+- Architecture unit test: public `ChangelogController` excluded from required `[Authorize]` (same pattern as `VersionController`)
+
+## [2.2.0] - 2026-07-10T09:10:40-07:00
 
 ### Added
 
@@ -35,7 +52,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Active projects drill** — `excludeCompleted=true` matches portfolio count (`Status != Completed`)
 - **Drill contract table** — `role-kpi-drill-contracts.ts` + parity tests tie each KPI href to its server predicate
 
-## [2.1.0] - 2026-07-10
+## [2.1.0] - 2026-07-10T08:54:03-07:00
 
 ### Added
 
@@ -69,7 +86,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Post-signup onboarding gate** — `isSetupComplete` derives from company setup checklist (4 wizard steps), not company name heuristic; new owners with a named company no longer bypass `/settings/company/setup`; wizard marks checklist on completion
 - **Dashboard reset** — `ResetToDefaultAsync` re-detects persona layout instead of forcing generic Overview
 
-## [2.0.0] - 2026-07-07
+## [2.0.0] - 2026-07-07T10:06:02-07:00
 
 ### Added
 
@@ -93,7 +110,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Role-based approvers scoped to active company via `UserCompanyAccess`
 - Workflow definition validation ensures approved/rejected targets are valid per entity `*StatusTransitions` graphs
 
-## [0.15.0] - 2026-05-01
+## [0.15.0] - 2026-05-01T11:46:04-07:00
 
 ### Added
 
