@@ -56,7 +56,9 @@ Pitbull is a **modular monolith** built on .NET 10 and Next.js 16. It uses CQRS 
 
 Each module is a separate .NET project under `src/Modules/`. 
 
-**Current implementation (verified mid-2026 / v2.0+):** 14 modules, ~99 controllers, EF Core **10**, Hangfire jobs, CAP messaging. Direct `I*Service` injection in controllers. `AddPitbullModule<T>` + `AddPitbullModuleServices<T>` for registration. **No MediatR in controllers.** Role-native home UX: `RoleProfileResolver` + `GET /api/dashboard/role-summary` (see `docs/ROLE-EXPERIENCE.md`). Live Railway docs: `deploy/RAILWAY-SETUP.md`.
+**Current implementation (verified mid-2026 / v2.2+):** 14 modules, ~99 controllers, EF Core **10**, Hangfire jobs, CAP messaging. Direct `I*Service` injection in controllers. `AddPitbullModule<T>` + `AddPitbullModuleServices<T>` for registration. **No MediatR in controllers.** Role-native home UX: `RoleProfileResolver` + `GET /api/dashboard/role-summary` + KPI drill-through contracts (`roleKpiDrillHref` / `ROLE_KPI_DRILL_CONTRACTS` — see `docs/ROLE-EXPERIENCE.md`). In-app release notes: `GET /api/changelog` from root `CHANGELOG.md` (version headers carry **published date+time**). Live Railway docs: `deploy/RAILWAY-SETUP.md`.
+
+> **Note:** Files under `docs/architecture/` are **frozen Alpha design notes** (Feb 2026). They are not the living architecture. See [`docs/architecture/README.md`](architecture/README.md). Prefer this file + module source for current truth.
 
 ### Implemented Modules (current)
 

@@ -70,3 +70,35 @@ export function releaseHasNotes(r: ChangelogRelease): boolean {
     0
   );
 }
+
+/**
+ * Formats a changelog published stamp for display.
+ * Date-only → locale date; ISO datetime → locale date + time (+ short timezone).
+ */
+export function formatReleasePublished(date: string | null | undefined): string | null {
+  if (!date || !date.trim()) return null;
+  const raw = date.trim();
+
+  // Keep a Changelog date-only (no time component to invent)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const d = new Date(`${raw}T12:00:00`);
+    if (Number.isNaN(d.getTime())) return raw;
+    return d.toLocaleDateString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return raw;
+
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  });
+}
