@@ -30,6 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Aging page applies `focus` / `overdue`** — AR/AP KPI drills no longer land on unfiltered dual boards; 31+ overdue lines filtered when `overdue=true`
 - **Hours This Week drill** — uses `view=entries&period=thisWeek` so list stays on entries with this-week date range (no silent redirect to crew entry)
+- **AR − AP Net drill** — lands on full aging board (both AR and AP + net), not `focus=ar` alone
 
 ## [2.1.0] - 2026-07-10
 
