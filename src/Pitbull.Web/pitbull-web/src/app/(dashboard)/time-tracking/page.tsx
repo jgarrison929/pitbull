@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react"; // useMemo: period drill
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
 import { Suspense } from "react";
+import { parseTimeTrackingDrillParams } from "@/lib/role-kpi-drills";
 
 const ALL_VALUE = "__all__";
 
@@ -59,14 +60,17 @@ function TimeTrackingContent() {
   const searchParams = useSearchParams();
   const { activeCompany } = useCompany();
 
-  // Default behavior: redirect to crew entry unless ?view=entries
-  const viewParam = searchParams.get("view");
+  const drill = useMemo(
+    () => parseTimeTrackingDrillParams(searchParams),
+    [searchParams]
+  );
 
+  // Default: crew entry — unless view=entries or period drill (Hours This Week KPI)
   useEffect(() => {
-    if (viewParam !== "entries") {
+    if (!drill.viewEntries) {
       router.replace("/time-tracking/crew-entry");
     }
-  }, [viewParam, router]);
+  }, [drill.viewEntries, router]);
 
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -80,8 +84,8 @@ function TimeTrackingContent() {
   const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
   const [phaseFilter, setPhaseFilter] = useState<string>(ALL_VALUE);
   const [equipmentFilter, setEquipmentFilter] = useState<string>(ALL_VALUE);
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate] = useState<string>(() => drill.startDate ?? "");
+  const [endDate, setEndDate] = useState<string>(() => drill.endDate ?? "");
 
   // Sorting
   const [sortField, setSortField] = useState<SortField>("date");
@@ -132,10 +136,10 @@ function TimeTrackingContent() {
   }, [activeCompany?.id]);
 
   useEffect(() => {
-    if (viewParam === "entries") {
+    if (drill.viewEntries) {
       fetchEntries();
     }
-  }, [fetchEntries, activeCompany?.id, viewParam]);
+  }, [fetchEntries, activeCompany?.id, drill.viewEntries]);
 
   // Client-side filtering for phase and equipment (not supported by API params)
   const filteredEntries = useMemo(() => {

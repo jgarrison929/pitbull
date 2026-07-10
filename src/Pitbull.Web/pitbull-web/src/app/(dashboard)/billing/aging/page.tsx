@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,10 @@ import {
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Download, TrendingDown, TrendingUp, Scale } from "lucide-react";
+import {
+  agingLineHasOverdue31Plus,
+  parseAgingDrillParams,
+} from "@/lib/role-kpi-drills";
 
 // ── Types ──
 
@@ -111,6 +116,14 @@ function downloadCsv(filename: string, headers: string[], rows: string[][]) {
 // ── Component ──
 
 export default function AgingReportsPage() {
+  const searchParams = useSearchParams();
+  const { focus, overdueOnly } = useMemo(
+    () => parseAgingDrillParams(searchParams),
+    [searchParams]
+  );
+  const showAp = focus === "ap" || focus === "both";
+  const showAr = focus === "ar" || focus === "both";
+
   const [summary, setSummary] = useState<AgingSummaryResult | null>(null);
   const [vendorAging, setVendorAging] = useState<VendorAgingResult | null>(null);
   const [customerAging, setCustomerAging] = useState<CustomerAgingResult | null>(null);
@@ -140,10 +153,22 @@ export default function AgingReportsPage() {
     fetchData();
   }, [fetchData]);
 
+  const filteredVendors = useMemo(() => {
+    const list = vendorAging?.vendors ?? [];
+    if (!overdueOnly) return list;
+    return list.filter(agingLineHasOverdue31Plus);
+  }, [vendorAging, overdueOnly]);
+
+  const filteredProjects = useMemo(() => {
+    const list = customerAging?.projects ?? [];
+    if (!overdueOnly) return list;
+    return list.filter(agingLineHasOverdue31Plus);
+  }, [customerAging, overdueOnly]);
+
   const exportVendorCsv = () => {
     if (!vendorAging) return;
     const headers = ["Vendor", "Code", "Invoices", "Current", "1-30", "31-60", "61-90", "90+", "Total"];
-    const rows = vendorAging.vendors.map((v) => [
+    const rows = filteredVendors.map((v) => [
       `"${v.vendorName}"`, v.vendorCode, String(v.invoiceCount),
       v.current.toFixed(2), v.days1To30.toFixed(2), v.days31To60.toFixed(2),
       v.days61To90.toFixed(2), v.days90Plus.toFixed(2), v.total.toFixed(2),
@@ -154,13 +179,20 @@ export default function AgingReportsPage() {
   const exportCustomerCsv = () => {
     if (!customerAging) return;
     const headers = ["Project", "Number", "Applications", "Current", "1-30", "31-60", "61-90", "90+", "Total"];
-    const rows = customerAging.projects.map((p) => [
+    const rows = filteredProjects.map((p) => [
       `"${p.projectName}"`, p.projectNumber, String(p.applicationCount),
       p.current.toFixed(2), p.days1To30.toFixed(2), p.days31To60.toFixed(2),
       p.days61To90.toFixed(2), p.days90Plus.toFixed(2), p.total.toFixed(2),
     ]);
     downloadCsv(`customer-aging-${customerAging.asOfDate}.csv`, headers, rows);
   };
+
+  const focusLabel =
+    focus === "ar"
+      ? "Accounts receivable"
+      : focus === "ap"
+        ? "Accounts payable"
+        : "AP/AR";
 
   return (
     <div className="space-y-6">
@@ -169,7 +201,9 @@ export default function AgingReportsPage() {
         <div>
           <h1 className="text-2xl font-bold">Aging Reports</h1>
           <p className="text-muted-foreground">
-            AP/AR aging analysis{summary ? ` as of ${summary.asOfDate}` : ""}.
+            {focusLabel} aging analysis
+            {overdueOnly ? " — 31+ day overdue balances only" : ""}
+            {summary ? ` as of ${summary.asOfDate}` : ""}.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -201,74 +235,89 @@ export default function AgingReportsPage() {
           ))}
         </div>
       ) : summary ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm text-muted-foreground">
-                Accounts Payable
-              </CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {formatCurrency(summary.accountsPayable.total)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatCurrency(summary.accountsPayable.days90Plus)} over 90 days
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm text-muted-foreground">
-                Accounts Receivable
-              </CardTitle>
-              <TrendingUp className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {formatCurrency(summary.accountsReceivable.total)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {formatCurrency(summary.accountsReceivable.days90Plus)} over 90 days
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm text-muted-foreground">
-                Net Position
-              </CardTitle>
-              <Scale className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <p
-                className={`text-2xl font-bold ${
-                  summary.netPosition >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
-                }`}
-              >
-                {formatCurrency(summary.netPosition)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                AR minus AP
-              </p>
-            </CardContent>
-          </Card>
+        <div className={`grid grid-cols-1 gap-4 ${focus === "both" ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+          {showAp && (
+            <Card id="aging-ap" className={focus === "ap" ? "ring-2 ring-amber-500/40" : undefined}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm text-muted-foreground">
+                  Accounts Payable
+                </CardTitle>
+                <TrendingDown className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(summary.accountsPayable.total)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatCurrency(summary.accountsPayable.days90Plus)} over 90 days
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {showAr && (
+            <Card id="aging-ar" className={focus === "ar" ? "ring-2 ring-amber-500/40" : undefined}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm text-muted-foreground">
+                  Accounts Receivable
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-bold">
+                  {formatCurrency(summary.accountsReceivable.total)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formatCurrency(
+                    summary.accountsReceivable.days31To60 +
+                      summary.accountsReceivable.days61To90 +
+                      summary.accountsReceivable.days90Plus
+                  )}{" "}
+                  overdue 31+ days
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          {focus === "both" && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm text-muted-foreground">
+                  Net Position
+                </CardTitle>
+                <Scale className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <p
+                  className={`text-2xl font-bold ${
+                    summary.netPosition >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {formatCurrency(summary.netPosition)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  AR minus AP
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       ) : null}
 
       {/* Vendor Aging (AP) */}
-      <div className="space-y-3">
+      {showAp && (
+      <div className="space-y-3" id="aging-ap-detail">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Vendor Aging (Accounts Payable)</h2>
-          <Button variant="outline" size="sm" onClick={exportVendorCsv} disabled={!vendorAging?.vendors.length}>
+          <h2 className="text-lg font-semibold">
+            Vendor Aging (Accounts Payable)
+            {overdueOnly ? " — 31+ only" : ""}
+          </h2>
+          <Button variant="outline" size="sm" onClick={exportVendorCsv} disabled={!filteredVendors.length}>
             <Download className="h-4 w-4 mr-1" />
             Export CSV
           </Button>
         </div>
         {isLoading ? (
           <AgingTableSkeleton />
-        ) : vendorAging && vendorAging.vendors.length > 0 ? (
+        ) : vendorAging && filteredVendors.length > 0 ? (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -284,7 +333,7 @@ export default function AgingReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vendorAging.vendors.map((v) => (
+                  {filteredVendors.map((v) => (
                     <TableRow key={v.vendorId}>
                       <TableCell>
                         <div className="font-medium">{v.vendorName}</div>
@@ -306,7 +355,7 @@ export default function AgingReportsPage() {
                       <TableCell className="text-right font-bold">{formatCurrency(v.total)}</TableCell>
                     </TableRow>
                   ))}
-                  {/* Summary row */}
+                  {!overdueOnly && (
                   <TableRow className="border-t-2 bg-muted/50 font-semibold">
                     <TableCell>Total</TableCell>
                     <TableCell className="text-right">{formatCurrency(vendorAging.summary.current)}</TableCell>
@@ -322,6 +371,7 @@ export default function AgingReportsPage() {
                     </TableCell>
                     <TableCell className="text-right font-bold">{formatCurrency(vendorAging.summary.total)}</TableCell>
                   </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -329,24 +379,31 @@ export default function AgingReportsPage() {
         ) : (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No outstanding vendor invoices.
+              {overdueOnly
+                ? "No vendors with 31+ day overdue balances."
+                : "No outstanding vendor invoices."}
             </CardContent>
           </Card>
         )}
       </div>
+      )}
 
       {/* Customer Aging (AR) */}
-      <div className="space-y-3">
+      {showAr && (
+      <div className="space-y-3" id="aging-ar-detail">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Customer Aging (Accounts Receivable)</h2>
-          <Button variant="outline" size="sm" onClick={exportCustomerCsv} disabled={!customerAging?.projects.length}>
+          <h2 className="text-lg font-semibold">
+            Customer Aging (Accounts Receivable)
+            {overdueOnly ? " — 31+ only" : ""}
+          </h2>
+          <Button variant="outline" size="sm" onClick={exportCustomerCsv} disabled={!filteredProjects.length}>
             <Download className="h-4 w-4 mr-1" />
             Export CSV
           </Button>
         </div>
         {isLoading ? (
           <AgingTableSkeleton />
-        ) : customerAging && customerAging.projects.length > 0 ? (
+        ) : customerAging && filteredProjects.length > 0 ? (
           <Card>
             <CardContent className="p-0">
               <Table>
@@ -362,7 +419,7 @@ export default function AgingReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {customerAging.projects.map((p) => (
+                  {filteredProjects.map((p) => (
                     <TableRow key={p.projectId}>
                       <TableCell>
                         <div className="font-medium">{p.projectName}</div>
@@ -384,7 +441,7 @@ export default function AgingReportsPage() {
                       <TableCell className="text-right font-bold">{formatCurrency(p.total)}</TableCell>
                     </TableRow>
                   ))}
-                  {/* Summary row */}
+                  {!overdueOnly && (
                   <TableRow className="border-t-2 bg-muted/50 font-semibold">
                     <TableCell>Total</TableCell>
                     <TableCell className="text-right">{formatCurrency(customerAging.summary.current)}</TableCell>
@@ -400,6 +457,7 @@ export default function AgingReportsPage() {
                     </TableCell>
                     <TableCell className="text-right font-bold">{formatCurrency(customerAging.summary.total)}</TableCell>
                   </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -407,11 +465,14 @@ export default function AgingReportsPage() {
         ) : (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No outstanding billing applications.
+              {overdueOnly
+                ? "No projects with 31+ day AR overdue balances."
+                : "No outstanding billing applications."}
             </CardContent>
           </Card>
         )}
       </div>
+      )}
     </div>
   );
 }
