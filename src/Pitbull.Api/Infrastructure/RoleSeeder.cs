@@ -117,6 +117,45 @@ public sealed class RoleSeeder(
     }
 
     /// <summary>
+    /// Removes a logical role from a user within their tenant context.
+    /// </summary>
+    public async Task RemoveRoleFromUserAsync(AppUser user, string roleName, CancellationToken ct = default)
+    {
+        var tenantRoleName = $"{user.TenantId}:{roleName}";
+
+        if (!await userManager.IsInRoleAsync(user, tenantRoleName))
+            return;
+
+        var result = await userManager.RemoveFromRoleAsync(user, tenantRoleName);
+        if (result.Succeeded)
+        {
+            logger.LogInformation("Removed role {RoleName} from user {UserId} ({Email})",
+                roleName, user.Id, user.Email);
+        }
+        else
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            logger.LogWarning("Failed to remove role {RoleName} from user {UserId}: {Errors}",
+                roleName, user.Id, errors);
+        }
+    }
+
+    /// <summary>
+    /// Ensures the user has exactly <paramref name="roleName"/> as their tenant identity role
+    /// (removes other tenant-scoped identity roles, then assigns the target).
+    /// </summary>
+    public async Task EnsureExclusiveRoleAsync(AppUser user, string roleName, CancellationToken ct = default)
+    {
+        await EnsureRolesForTenantAsync(user.TenantId, ct);
+
+        var current = await GetUserRolesAsync(user);
+        foreach (var existing in current.Where(r => !r.Equals(roleName, StringComparison.OrdinalIgnoreCase)))
+            await RemoveRoleFromUserAsync(user, existing, ct);
+
+        await AssignRoleToUserAsync(user, roleName, ct);
+    }
+
+    /// <summary>
     /// Gets the logical role names (without tenant prefix) for a user.
     /// </summary>
     public async Task<IList<string>> GetUserRolesAsync(AppUser user)

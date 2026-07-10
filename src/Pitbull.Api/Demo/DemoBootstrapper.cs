@@ -710,22 +710,23 @@ public sealed class DemoBootstrapper(
         string[] CompanyCodes);
 
     // ── C-Suite ──────────────────────────────────────────────────────────
-    // All get Admin role + access to every company.
+    // Executive/ops leadership: Manager (not Identity Admin). System Admin stays on the
+    // primary Demo__UserEmail account only. All get access to every company.
 
     private static readonly DemoUserDef[] DemoUsers =
     [
-        // C-Suite (11)
-        new("ceo@demo.local", "Demo", "User01",   "Chief Executive Officer",          RoleSeeder.Roles.Admin,      "DEMO-CEO",   EmployeeClassification.Salaried,   250.00m, ParentCode, AllCompanyCodes),
-        new("coo@demo.local", "Demo", "User02",       "Chief Operating Officer",          RoleSeeder.Roles.Admin,      "DEMO-COO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
-        new("cfo@demo.local", "Demo", "User03",  "Chief Financial Officer",          RoleSeeder.Roles.Admin,      "DEMO-CFO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
-        new("cao@demo.local", "Demo", "User04",   "Chief Administrative Officer",     RoleSeeder.Roles.Admin,      "DEMO-CAO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("cio@demo.local", "Demo", "User05",     "Chief Information Officer",        RoleSeeder.Roles.Admin,      "DEMO-CIO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("cto@demo.local", "Demo", "User06",     "Chief Technology Officer",         RoleSeeder.Roles.Admin,      "DEMO-CTO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("ciso@demo.local", "Demo", "User07",     "Chief Information Security Officer", RoleSeeder.Roles.Admin,    "DEMO-CISO",  EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
-        new("cro@demo.local", "Demo", "User08",   "Chief Revenue Officer",            RoleSeeder.Roles.Admin,      "DEMO-CRO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
-        new("cpo@demo.local", "Demo", "User09",     "Chief People Officer",             RoleSeeder.Roles.Admin,      "DEMO-CPO",   EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
-        new("safety-chief@demo.local", "Demo", "User10",     "Chief Safety Officer",             RoleSeeder.Roles.Admin,      "DEMO-CSO",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
-        new("cos@demo.local", "Demo", "User11",      "Chief of Staff",                   RoleSeeder.Roles.Admin,      "DEMO-COS",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
+        // C-Suite (11) — Manager, not Admin (User01 CEO must not be Identity Admin)
+        new("ceo@demo.local", "Demo", "User01",   "Chief Executive Officer",          RoleSeeder.Roles.Manager,    "DEMO-CEO",   EmployeeClassification.Salaried,   250.00m, ParentCode, AllCompanyCodes),
+        new("coo@demo.local", "Demo", "User02",       "Chief Operating Officer",          RoleSeeder.Roles.Manager,    "DEMO-COO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
+        new("cfo@demo.local", "Demo", "User03",  "Chief Financial Officer",          RoleSeeder.Roles.Manager,    "DEMO-CFO",   EmployeeClassification.Salaried,   225.00m, ParentCode, AllCompanyCodes),
+        new("cao@demo.local", "Demo", "User04",   "Chief Administrative Officer",     RoleSeeder.Roles.Manager,    "DEMO-CAO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cio@demo.local", "Demo", "User05",     "Chief Information Officer",        RoleSeeder.Roles.Manager,    "DEMO-CIO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cto@demo.local", "Demo", "User06",     "Chief Technology Officer",         RoleSeeder.Roles.Manager,    "DEMO-CTO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("ciso@demo.local", "Demo", "User07",     "Chief Information Security Officer", RoleSeeder.Roles.Manager,  "DEMO-CISO",  EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
+        new("cro@demo.local", "Demo", "User08",   "Chief Revenue Officer",            RoleSeeder.Roles.Manager,    "DEMO-CRO",   EmployeeClassification.Salaried,   200.00m, ParentCode, AllCompanyCodes),
+        new("cpo@demo.local", "Demo", "User09",     "Chief People Officer",             RoleSeeder.Roles.Manager,    "DEMO-CPO",   EmployeeClassification.Salaried,   190.00m, ParentCode, AllCompanyCodes),
+        new("safety-chief@demo.local", "Demo", "User10",     "Chief Safety Officer",             RoleSeeder.Roles.Manager,    "DEMO-CSO",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
+        new("cos@demo.local", "Demo", "User11",      "Chief of Staff",                   RoleSeeder.Roles.Manager,    "DEMO-COS",   EmployeeClassification.Salaried,   175.00m, ParentCode, AllCompanyCodes),
 
         // VP Level (8) — Manager role, access to all companies
         new("vp-legal@demo.local", "Demo", "User12",   "VP of Legal",                      RoleSeeder.Roles.Manager,    "DEMO-VPL",   EmployeeClassification.Salaried,   165.00m, ParentCode, AllCompanyCodes),
@@ -913,8 +914,8 @@ public sealed class DemoBootstrapper(
                 }
             }
 
-            // Ensure role
-            await roleSeeder.AssignRoleToUserAsync(user, def.Role, ct);
+            // Ensure exclusive identity role (e.g. demote User01 CEO off Admin → Manager)
+            await roleSeeder.EnsureExclusiveRoleAsync(user, def.Role, ct);
 
             // Ensure company access (first company is default)
             for (var i = 0; i < def.CompanyCodes.Length; i++)
