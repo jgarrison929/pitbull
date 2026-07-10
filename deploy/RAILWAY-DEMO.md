@@ -1,116 +1,99 @@
-# Railway Demo Deployment (decommissioned)
+# Public demo (Railway + pcserp.app)
 
-> **Hosted environments are offline.** Run locally via Docker Compose — see [README.md](../README.md#quick-start). This doc is kept for historical reference only.
+Live hosted demo of Pitbull on Railway, multi-tenant seed data, Explore-as-role login.
 
-This document described how to stand up a **public demo** of Pitbull on **Railway** with:
+## URLs
 
-- a real Postgres database
-- **one shared demo tenant**
-- **seeded data** (projects + bids)
-- Docker-based deploys (portable)
+| Role | URL | Railway service |
+|------|-----|-----------------|
+| **Web (canonical demo)** | https://demo.pcserp.app | `pitbull-web` |
+| Web (alias) | https://app.pcserp.app | `pitbull-web` (same service) |
+| API | https://api.pcserp.app | `pitbull` |
 
-> This repo already contains Dockerfiles for API + Web.
+Visitors open **demo.pcserp.app** → login → **Explore as a role**.
 
----
+## Railway project
 
-## Services (Railway)
+- Project: `dependable-heart` (production)
+- Services: Postgres, `pitbull` (API), `pitbull-web` (Next.js)
+- Auto-deploy from GitHub `main`
 
-Create a Railway project, then add these services:
+### Custom domains
 
-1) **Postgres** (Railway Postgres plugin)
-- Database name: `pitbull`
+```powershell
+# Already configured on production (verify with):
+railway domain list -s pitbull-web
+railway domain list -s pitbull
 
-2) **Redis** (Railway Redis plugin) *(optional today; recommended if/when caching/jobs land)*
-
-3) **API** (Dockerfile: `src/Pitbull.Api/Dockerfile`)
-- Exposes: `PORT` (defaults to 8080)
-- Health: `/health/ready`
-
-4) **Web** (Dockerfile: `src/Pitbull.Web/pitbull-web/Dockerfile`)
-- Exposes: `PORT` (3000)
-
----
-
-## Domains
-
-Suggested:
-
-- Web: `demo.example.com` → Railway **Web** service
-- API: `api-demo.example.com` → Railway **API** service
-
-CORS must include the web origin.
-
----
-
-## Environment variables
-
-### API service
-
-Required:
-
-- `ConnectionStrings__PitbullDb` = Railway Postgres connection string
-- `Jwt__Key` = 32+ char random string
-- `Jwt__Issuer` = `pitbull-api`
-- `Jwt__Audience` = `pitbull-client`
-- `Cors__AllowedOrigins__0` = `https://demo.example.com`
-
-Recommended demo safety:
-
-- `Demo__Enabled=true`
-- `Demo__SeedOnStartup=true`
-- `Demo__DisableRegistration=true`
-- `Demo__TenantSlug=demo`
-- `Demo__TenantName=Pitbull Demo`
-- `Demo__UserEmail=demo@example.com`
-- `Demo__UserPassword=<set a strong password and rotate periodically>`
-
-Optional (only needed if seeding outside Demo bootstrap):
-
-- `SeedData__AllowInNonDevelopment=true`
-
-### Web service
-
-- `NEXT_PUBLIC_API_BASE_URL=https://api-demo.example.com`
-
-> Note: `NEXT_PUBLIC_*` values are baked into the client bundle at build time.
-> Changing this requires a rebuild/redeploy of the Web service.
-
----
-
-## Seeding behavior
-
-When `Demo__Enabled=true` and `Demo__SeedOnStartup=true`, the API will:
-
-1) Ensure the demo tenant exists (`Demo__TenantSlug`)
-2) Ensure the demo user exists (`Demo__UserEmail`)
-3) Set the Postgres RLS tenant session variable
-4) Seed projects + bids (idempotent per tenant)
-
-If the data already exists, seeding is skipped.
-
----
-
-## Minimal "public demo" safety notes
-
-The public demo should not accept arbitrary sign-ups.
-
-- `Demo__DisableRegistration=true` causes `POST /api/auth/register` to return 404.
-- Login still works via `POST /api/auth/login`.
-- API endpoints are rate-limited (`auth`: 5/min, `api`: 60/min).
-
----
-
-## Local smoke test (Docker)
-
-```bash
-# from repo root
-cp .env.example .env
-# edit .env (set JWT_KEY, DEMO__* vars, etc)
-
-docker compose -f docker-compose.prod.yml up --build
+# Add demo hostname to the same web service if missing:
+railway domain demo.pcserp.app -s pitbull-web
 ```
 
-Then:
+### DNS (Cloudflare zone `pcserp.app`)
 
-- Web: <http://localhost:3000>
-- API: <http://localhost:8080/swagger>
+Railway requires **DNS-only** (gray cloud) CNAMEs. Sync from Railway’s required records:
+
+```powershell
+$env:CLOUDFLARE_API_TOKEN = "<Zone.DNS Edit token for pcserp.app>"
+.\scripts\cloudflare-railway-dns.ps1          # includes app + demo + api
+.\scripts\cloudflare-railway-dns.ps1 -DryRun  # preview
+```
+
+Manual records (values change per Railway; always prefer `railway domain status`):
+
+```text
+# Example shape — copy requiredValue from:
+#   railway domain status demo.pcserp.app -s pitbull-web --json
+
+CNAME  demo   →  <railway-edge>.up.railway.app     (Proxied: Off)
+TXT    _railway-verify.demo  →  railway-verify=...  (until verified)
+CNAME  app    →  <railway-edge>.up.railway.app
+CNAME  api    →  <railway-edge>.up.railway.app
+```
+
+SSL on Railway becomes active after CNAME (+ verification TXT when requested) propagate.
+
+## Environment (demo mode)
+
+### API (`pitbull`)
+
+| Variable | Value |
+|----------|--------|
+| `Demo__Enabled` | `true` |
+| `Demo__SeedOnStartup` | `true` |
+| `Demo__DisableRegistration` | `true` |
+| `Demo__TenantSlug` | `demo` |
+| `Demo__TenantName` | `Pitbull Demo` |
+| `Cors__AllowedOrigins__0` | `https://app.pcserp.app` |
+| `Cors__AllowedOrigins__1` | `https://demo.pcserp.app` |
+| `Jwt__Key` | 32+ char secret |
+| `DATABASE_URL` | Railway Postgres |
+
+### Web (`pitbull-web`)
+
+| Variable | Value |
+|----------|--------|
+| `NEXT_PUBLIC_API_BASE_URL` | `https://api.pcserp.app` |
+
+`NEXT_PUBLIC_*` is **build-time** — redeploy web after changing the API URL.
+
+## Safety
+
+- Registration disabled (`Demo__DisableRegistration`)
+- Demo users restricted (admin GET-only; no destructive admin APIs)
+- Explore-as-role: `POST /api/auth/demo-role-login` when `Demo:Enabled`
+- Rate limits on auth and API
+
+## Verify
+
+```powershell
+curl -sI https://demo.pcserp.app
+curl -sI https://api.pcserp.app/health/live
+railway domain status demo.pcserp.app -s pitbull-web
+```
+
+Open https://demo.pcserp.app → **Explore as a role**.
+
+## README
+
+The repo root [README](../README.md) links the live demo at the top so reviewers do not have to dig for a URL.
