@@ -26,6 +26,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Bids `pipeline=open`, change-orders `status=open`, billing apps `scope=progress`, employees `isActive` honor URL drills
 - Version bumped to **2.2.0**
 
+### Fixed
+
+- **Aging page applies `focus` / `overdue`** — AR/AP KPI drills no longer land on unfiltered dual boards; 31+ overdue lines filtered when `overdue=true`
+- **Hours This Week drill** — uses `view=entries&period=thisWeek` so list stays on entries with this-week date range (no silent redirect to crew entry)
+
 ## [2.1.0] - 2026-07-10
 
 ### Added
