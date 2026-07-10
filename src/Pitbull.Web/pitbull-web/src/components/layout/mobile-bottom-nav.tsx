@@ -32,7 +32,7 @@ export function MobileBottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const { user } = useAuth();
 
-  const roleConfig = getRoleDefaults(user?.roles);
+  const roleConfig = getRoleDefaults(user?.roles, user?.roleProfile);
   const mobileTabs = roleConfig.mobileTabs;
 
   return (

@@ -1,44 +1,52 @@
-# Pitbull Construction Solutions - Documentation
+# Pitbull Construction Solutions — Documentation
 
-## 📁 Document Organization
+## Document organization
 
-### `/architecture/`
-Permanent architectural decisions, design patterns, and system requirements.
+| Path | Purpose |
+|------|---------|
+| `ARCHITECTURE.md` | Living system architecture (keep current) |
+| `ROLE-EXPERIENCE.md` | Demo personas → home dashboards → metrics |
+| `ROADMAP-2.1.md` | v2.1.0 release intent |
+| `DEMO-COMPANY-PROFILES.md` | Summit multi-company demo archetypes |
+| `BEST-PRACTICES.md` | Coding patterns (**services-first**, not MediatR controllers) |
+| `ADDING-A-MODULE.md` | How to add a module |
+| `WORKFLOW-EVALUATION-MATRIX.md` | Lifecycle / E2E evidence |
+| `architecture/` | Deeper design notes (verify vs code) |
+| `deployment/` | Historical Railway multi-env notes — **live setup is `deploy/`** |
+| `security/` | Access control, RLS, IR |
+| `specs/` | Active product specs |
+| `archive/` | **Not product truth** — historical plans/reviews |
 
-### `/deployment/`  
-Deployment guides, environment configuration, and infrastructure setup.
+## Document lifecycle
 
-### `/security/`
-Security implementations, audit findings, and compliance documentation.
+- **Permanent docs** (ARCHITECTURE, ROLE-EXPERIENCE, security policies) → update when code ships  
+- **Specs** → archive or mark shipped when done  
+- **Archive** → context only; never treat as current roadmap  
 
-### `/archive/`
-Historical reviews (e.g. 2026-02), early roadmaps, and superseded analysis. These are retained for context but **do not reflect current implemented state**. Always verify against `src/`, CHANGELOG.md, and running tests.
+## Current codebase snapshot (v2.0.0+ / mid-2026)
 
-## 🔄 Document Lifecycle
+| Fact | Value |
+|------|--------|
+| Product version | See root `VERSION` (**2.1.0** — role-native demo UX) |
+| Stack | .NET 10, EF Core 10, Next.js 16, React 19, PostgreSQL 17, Redis 7 |
+| Modules | 14 under `src/Modules/` |
+| Controllers | ~99 under `src/Pitbull.Api/Controllers` |
+| Pattern | Controllers → `I*Service` (no MediatR in controllers) |
+| Jobs | Hangfire |
+| Messaging | DotNetCore.CAP (PostgreSQL outbox + Redis) |
+| Deploy | Railway from `main` — **`deploy/RAILWAY-SETUP.md`**, `deploy/RAILWAY-DEMO.md` |
+| Demo | `Demo:Enabled` → Explore as role on `/login` (CEO/CFO/PM/Estimator) |
 
-**Active planning docs** (historically in /plans, /specs) → moved to archive/ when superseded; convert ongoing work to GitHub Issues.
-**Permanent docs** (ARCHITECTURE.md, etc.) → Keep updated with actual code state  
-**Historical analysis/reviews** → Archive to /archive  
-**Outdated roadmaps/visions with hype or pre-implementation claims** → Archive
+**Settled facts (do not relitigate):**
 
-## 📋 Current Codebase Snapshot (as of 2026-05 / 0.15.0 per CHANGELOG)
+- Modular monolith + CAP (not MassTransit)  
+- No MediatR in controllers  
+- Decimal(18,2) for money; UTC DateTimes  
+- Tenant + company isolation via RLS  
+- `docs/archive/**` is historical  
 
-- Modules: 14 (Core + 13 domain)
-- Controllers: ~97
-- EF Migrations: 155
-- Test files: ~255-265
-- Frontend: Next.js 16 + React 19
-- Pattern: Direct service injection in controllers (no MediatR); MediatR retained only for some internal module registrations
-- All queries filter `!IsDeleted`; tenant via RLS + set_config
-
-**Key settled facts (do not relitigate):**
-- Modular monolith + CAP event bus (not MassTransit)
-- No MediatR in controllers
-- Decimal (18,2) for money
-- UTC DateTimes
-
-Verify claims in any doc against live source (`dotnet build`, `ls src/Modules`, controller list, recent CHANGELOG entries).
+Always verify claims against `src/`, `CHANGELOG.md`, and tests.
 
 ---
 
-*Outdated docs were moved during June 2026 audit for first-principles accuracy.*
+*Refreshed for v2.1.0 role-experience work.*

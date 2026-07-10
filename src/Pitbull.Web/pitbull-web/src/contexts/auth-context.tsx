@@ -20,6 +20,8 @@ function buildUserFromToken(token: string): User | null {
     permissions: payload.permissions,
     tenantId: payload.tenantId,
     isDemoUser: payload.isDemoUser,
+    jobTitle: payload.jobTitle,
+    roleProfile: payload.roleProfile,
   };
 }
 
@@ -31,6 +33,8 @@ interface User {
   permissions: string[];
   tenantId: string;
   isDemoUser?: boolean;
+  jobTitle?: string;
+  roleProfile?: string;
 }
 
 interface AuthContextType {

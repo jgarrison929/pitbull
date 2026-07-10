@@ -187,6 +187,7 @@ builder.Services.AddScoped<Pitbull.Core.Services.IProjectTeamAssignmentService, 
 // Dashboard service (Core module - migrated from MediatR)
 builder.Services.AddScoped<Pitbull.Core.Features.Dashboard.IDashboardService, Pitbull.Core.Features.Dashboard.DashboardService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IDashboardAnalyticsService, Pitbull.Api.Services.DashboardAnalyticsService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IRoleDashboardSummaryService, Pitbull.Api.Services.RoleDashboardSummaryService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IBriefingService, Pitbull.Api.Services.BriefingService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IDashboardPreferencesService, Pitbull.Api.Services.DashboardPreferencesService>();
 builder.Services.AddScoped<Pitbull.Api.Services.IPdfReportService, Pitbull.Api.Services.PdfReportService>();

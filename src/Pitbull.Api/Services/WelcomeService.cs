@@ -92,72 +92,10 @@ public class WelcomeService(
 
     /// <summary>
     /// Determines the tour profile from the user's title and roles.
-    /// Title keywords take priority over roles because they're more specific —
-    /// a "CFO" with Admin role needs finance steps, not generic executive steps.
-    /// Also used by DashboardPreferencesService to auto-detect dashboard layout.
+    /// Delegates to <see cref="RoleProfileResolver"/> (single source of truth).
     /// </summary>
-    public static TourProfile DetectTourProfile(string? title, ISet<string> roles)
-    {
-        var t = title?.Trim() ?? "";
-
-        // Title-based detection (first match wins, most specific first)
-        // Full-title forms are needed because acronyms (CIO, CTO) aren't substrings of "Chief Information Officer" etc.
-        if (MatchesAny(t, "CIO", "CTO", "CISO", "Information Officer", "Technology Officer", "Information Security",
-            "IT Manager", "IT Director", "VP of IT", "Director of IT"))
-            return TourProfile.ItAdmin;
-
-        if (MatchesAny(t, "HR", "Human Resources", "People Officer", "People Manager", "HR Coordinator", "HR Director"))
-            return TourProfile.Hr;
-
-        if (MatchesAny(t, "Estimator", "Estimating", "Chief Estimator", "Takeoff"))
-            return TourProfile.Estimator;
-
-        if (MatchesAny(t, "CFO", "Controller", "Accounting", "Financial Officer", "Financial", "VP of Accounting", "VP Controller"))
-            return TourProfile.Cfo;
-
-        if (MatchesAny(t, "AP Clerk", "AR Clerk", "Payroll Clerk", "Accounts Payable", "Accounts Receivable", "Staff Accountant"))
-            return TourProfile.Clerk;
-
-        if (MatchesAny(t, "Field Engineer", "Field Superintendent", "Foreman", "Commissioning"))
-            return TourProfile.Field;
-
-        if (MatchesAny(t, "Project Manager", "Sr Project Manager", "Project Engineer", "Sr Project Engineer", "Project Coordinator", "PM"))
-            return TourProfile.ProjectManager;
-
-        if (MatchesAny(t, "CEO", "COO", "President", "Executive", "Chief", "VP", "Director", "Officer"))
-            return TourProfile.Executive;
-
-        // Role-based fallback
-        if (roles.Contains("Admin"))
-            return TourProfile.Executive;
-
-        if (roles.Contains("Supervisor") || roles.Contains("Manager"))
-            return TourProfile.ProjectManager;
-
-        return TourProfile.General;
-    }
-
-    private static bool MatchesAny(string title, params string[] keywords) =>
-        keywords.Any(k => k.Length <= 4
-            ? MatchesWholeWord(title, k)
-            : title.Contains(k, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// Matches a short keyword only at word boundaries to avoid false positives
-    /// (e.g. "CTO" inside "Director", "HR" inside "Chrome").
-    /// </summary>
-    private static bool MatchesWholeWord(string title, string word)
-    {
-        var idx = title.IndexOf(word, StringComparison.OrdinalIgnoreCase);
-        while (idx >= 0)
-        {
-            var before = idx == 0 || !char.IsLetterOrDigit(title[idx - 1]);
-            var after = idx + word.Length >= title.Length || !char.IsLetterOrDigit(title[idx + word.Length]);
-            if (before && after) return true;
-            idx = title.IndexOf(word, idx + 1, StringComparison.OrdinalIgnoreCase);
-        }
-        return false;
-    }
+    public static TourProfile DetectTourProfile(string? title, ISet<string> roles) =>
+        RoleProfileResolver.Detect(title, roles);
 
     private static WelcomeTourStep[] GetStepsForProfile(TourProfile profile) => profile switch
     {

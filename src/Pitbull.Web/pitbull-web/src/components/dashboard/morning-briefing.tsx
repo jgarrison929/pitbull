@@ -24,6 +24,7 @@ import {
   Briefcase,
   BarChart3,
   GitPullRequestDraft,
+  ClipboardList,
 } from "lucide-react";
 import api from "@/lib/api";
 import { useCompany } from "@/contexts/company-context";
@@ -58,6 +59,15 @@ interface BriefingExecutiveSection {
   totalContractValue: number;
   projectsOverBudget: number;
   openChangeOrders: number;
+  bidPipelineValue?: number;
+  openBidCount?: number;
+  arOverdue?: number;
+}
+
+interface BriefingEstimatorSection {
+  openBidCount: number;
+  bidsDueThisWeek: number;
+  pipelineValue: number;
 }
 
 interface MorningBriefingDto {
@@ -69,6 +79,7 @@ interface MorningBriefingDto {
   controller: BriefingControllerSection | null;
   foreman: BriefingForemanSection | null;
   executive: BriefingExecutiveSection | null;
+  estimator?: BriefingEstimatorSection | null;
 }
 
 function getDismissKey(): string {
@@ -313,7 +324,7 @@ export function MorningBriefing() {
       )}
 
       {data.executive && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <MetricCard
             icon={DollarSign}
             label="Total contract value"
@@ -322,7 +333,7 @@ export function MorningBriefing() {
           />
           <MetricCard
             icon={AlertTriangle}
-            label="Over budget"
+            label="Over budget (labor proxy)"
             value={data.executive.projectsOverBudget}
             accent={data.executive.projectsOverBudget > 0 ? "red" : undefined}
           />
@@ -331,6 +342,46 @@ export function MorningBriefing() {
             label="Open change orders"
             value={data.executive.openChangeOrders}
             accent={data.executive.openChangeOrders > 0 ? "amber" : undefined}
+          />
+          <MetricCard
+            icon={ClipboardList}
+            label="Bid pipeline"
+            value={formatCurrency(data.executive.bidPipelineValue ?? 0)}
+            accent="blue"
+          />
+          <MetricCard
+            icon={FolderOpen}
+            label="Open bids"
+            value={data.executive.openBidCount ?? 0}
+          />
+          <MetricCard
+            icon={TrendingDown}
+            label="AR overdue 31+"
+            value={formatCurrency(data.executive.arOverdue ?? 0)}
+            accent={(data.executive.arOverdue ?? 0) > 0 ? "red" : undefined}
+          />
+        </div>
+      )}
+
+      {data.estimator && (
+        <div className="grid grid-cols-3 gap-3">
+          <MetricCard
+            icon={ClipboardList}
+            label="Open bids"
+            value={data.estimator.openBidCount}
+            accent="blue"
+          />
+          <MetricCard
+            icon={Calendar}
+            label="Due this week"
+            value={data.estimator.bidsDueThisWeek}
+            accent={data.estimator.bidsDueThisWeek > 0 ? "amber" : undefined}
+          />
+          <MetricCard
+            icon={DollarSign}
+            label="Pipeline value"
+            value={formatCurrency(data.estimator.pipelineValue)}
+            accent="green"
           />
         </div>
       )}

@@ -72,9 +72,24 @@ Pitbull.Projects/
 
 This means you never have to hunt across `Services/`, `Repositories/`, `DTOs/`, and `Validators/` folders. Everything for a feature lives together.
 
-### CQRS with MediatR
+### Services-first controllers (current)
 
-Commands (writes) and queries (reads) are separated using MediatR:
+**Canonical pattern:** inject `I*Service` into controllers and call methods directly. Do **not** add MediatR `IMediator` to new controllers.
+
+```csharp
+public class ProjectsController(IProjectService projects) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IActionResult> List(CancellationToken ct)
+        => Ok(await projects.ListAsync(ct));
+}
+```
+
+### CQRS remnants / historical MediatR
+
+Some modules retain `ICommand`/`IQuery` types or internal handler registration for FluentValidation. Treat the following MediatR examples as **historical**. Prefer services for new code.
+
+Commands (writes) and queries (reads) were previously separated using MediatR:
 
 - **Commands** implement `ICommand<TResponse>` and change state
 - **Queries** implement `IQuery<TResponse>` and only read data

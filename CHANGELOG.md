@@ -10,10 +10,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-10
+
 ### Added
 
+- **Role-native home experience** — shared `RoleProfileResolver` (title-first) for morning briefing, dashboard layout defaults, and JWT `role_profile` / `job_title` claims; CEO no longer receives a PM briefing when Identity role is only `Manager`
+- **`GET /api/dashboard/role-summary`** — truthful portfolio metrics (G702 billed-to-date, unbilled backlog, AR/AP aging, safety YTD, compliance, bid pipeline, workforce hires/terms)
+- **Executive & Controller dashboards** — wired to role-summary (real AR/AP; honest labels; labor-vs-contract marked as proxy)
+- **Estimator dashboard layout** — bid-centric home + estimator morning briefing section (pipeline / due this week)
+- **Expanded executive briefing** — contract value, labor over-budget count, open COs, bid pipeline, AR overdue 31+
+- **Docs hygiene** — root `AGENTS.md`, `docs/ROLE-EXPERIENCE.md`, `docs/ROADMAP-2.1.md`; refreshed ARCHITECTURE / docs README / BEST-PRACTICES services-first note
 - **In-app changelog** — `GET /api/changelog` parses root `CHANGELOG.md` (Keep a Changelog); version badge opens “What’s new” dialog for the current app version; About page shows current release notes + recent history
-- **Root `VERSION` file** — single documented product version (`2.0.0`); Docker API/web defaults updated so Railway builds stamp 2.0.0 instead of stale 0.15.0
+- **Root `VERSION` file** — single documented product version; Docker API/web defaults stamp product version
 - **Differentiated demo company archetypes** — seed v12: 01 enterprise GC holding (Summit Builders Group), 02 mid-market commercial GC (Summit Commercial Builders), 03 small-market heavy highway (Summit Highway Division), 04 union multi-division HVAC (Summit Mechanical); see `docs/DEMO-COMPANY-PROFILES.md`
 - **Fictional-only demo parties** — seed customers/vendors/agencies/insurers use clearly fictional names (no real brands or real public agencies)
 - **Demo role login on `/login`** — one-click CEO / CFO / Project Manager / Estimator buttons call `POST /api/auth/demo-role-login` (password stays server-side); catalog via `GET /api/auth/demo-roles` when `Demo:Enabled`; demo personas skip company-setup gate so they land in the product
@@ -26,12 +34,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - **.NET 10 LTS upgrade (#218)** — all projects target `net10.0`; SDK pin (`global.json` 10.0.100 rollForward), CI `DOTNET_VERSION` 10.0.x, Docker `sdk:10.0`/`aspnet:10.0`; Microsoft ASP.NET/EF packages 10.0.9 and Npgsql EF 10.0.2; OpenAPI document transformer updated for Microsoft.OpenApi 2.x; pin `Microsoft.OpenApi` 2.7.5 (GHSA-v5pm-xwqc-g5wc)
+- Version bumped to **2.1.0** across API, frontend, Docker defaults, and `VERSION`
+- Nav/workspace defaults keyed by JWT `role_profile` (not only Identity role display names)
 
 ### Fixed
 
 - **Demo User01 (CEO) is not Identity Admin** — c-suite personas seed as Manager; bootstrap re-syncs exclusive roles so existing `ceo@demo.local` loses Admin on next deploy
 - **Demo seed on Railway** — add missing `pm_daily_reports.Title` migration so `DemoBootstrapper` domain seed (projects/bids/etc.) can complete when `Demo__SeedOnStartup=true`
 - **Post-signup onboarding gate** — `isSetupComplete` derives from company setup checklist (4 wizard steps), not company name heuristic; new owners with a named company no longer bypass `/settings/company/setup`; wizard marks checklist on completion
+- **Dashboard reset** — `ResetToDefaultAsync` re-detects persona layout instead of forcing generic Overview
 
 ## [2.0.0] - 2026-07-07
 

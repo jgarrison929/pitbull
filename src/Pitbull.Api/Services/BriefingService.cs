@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Pitbull.Bids.Domain;
 using Pitbull.Billing.Features.Aging;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.Data;
@@ -22,7 +23,13 @@ public sealed record MorningBriefingDto(
     BriefingPmSection? Pm,
     BriefingControllerSection? Controller,
     BriefingForemanSection? Foreman,
-    BriefingExecutiveSection? Executive);
+    BriefingExecutiveSection? Executive,
+    BriefingEstimatorSection? Estimator = null);
+
+public sealed record BriefingEstimatorSection(
+    int OpenBidCount,
+    int BidsDueThisWeek,
+    decimal PipelineValue);
 
 public sealed record BriefingCoreSection(
     int ActiveProjectCount,
@@ -49,7 +56,10 @@ public sealed record BriefingForemanSection(
 public sealed record BriefingExecutiveSection(
     decimal TotalContractValue,
     int ProjectsOverBudget,
-    int OpenChangeOrders);
+    int OpenChangeOrders,
+    decimal BidPipelineValue = 0m,
+    int OpenBidCount = 0,
+    decimal ArOverdue = 0m);
 
 // ── Interface ──
 
@@ -73,7 +83,16 @@ public sealed class BriefingService(
         CancellationToken ct = default)
     {
         var now = DateTime.UtcNow;
-        var primaryRole = ResolvePrimaryRole(roles);
+
+        // Title is the primary persona signal (JWT Identity roles are Manager/Supervisor/User).
+        var title = await db.Users.AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.Title)
+            .FirstOrDefaultAsync(ct);
+
+        var profile = RoleProfileResolver.Detect(title, roles);
+        var primaryRole = RoleProfileResolver.ToBriefingRole(profile);
+
         var timezone = await ResolveTimezoneAsync(ct);
         var greeting = BuildGreeting(userName, now, timezone);
 
@@ -85,6 +104,7 @@ public sealed class BriefingService(
         BriefingControllerSection? controller = null;
         BriefingForemanSection? foreman = null;
         BriefingExecutiveSection? executive = null;
+        BriefingEstimatorSection? estimator = null;
 
         switch (primaryRole)
         {
@@ -96,6 +116,9 @@ public sealed class BriefingService(
                 break;
             case "Foreman":
                 foreman = await BuildForemanSectionAsync(ct);
+                break;
+            case "Estimator":
+                estimator = await BuildEstimatorSectionAsync(ct);
                 break;
             default: // PM is the fallback
                 pm = await BuildPmSectionAsync(ct);
@@ -110,7 +133,8 @@ public sealed class BriefingService(
             Pm: pm,
             Controller: controller,
             Foreman: foreman,
-            Executive: executive);
+            Executive: executive,
+            Estimator: estimator);
     }
 
     private async Task<BriefingCoreSection> BuildCoreSectionAsync(Guid userId, CancellationToken ct)
@@ -246,20 +270,63 @@ public sealed class BriefingService(
                 .CountAsync(co => co.Status == ChangeOrderStatus.Pending
                     || co.Status == ChangeOrderStatus.UnderReview, ct), 0);
 
-        return new BriefingExecutiveSection(totalContractValue ?? 0m, overBudget, openChangeOrders);
+        var openBidCount = await SafeAsync("ExecOpenBids",
+            () => db.Set<Bid>().AsNoTracking()
+                .CountAsync(b => b.Status == BidStatus.Draft || b.Status == BidStatus.Submitted, ct), 0);
+
+        var pipelineValue = await SafeAsync("ExecPipeline",
+            () => db.Set<Bid>().AsNoTracking()
+                .Where(b => b.Status == BidStatus.Draft || b.Status == BidStatus.Submitted)
+                .SumAsync(b => (decimal?)b.EstimatedValue, ct), 0m) ?? 0m;
+
+        decimal arOverdue = 0m;
+        var agingResult = await SafeAsync("ExecAging",
+            async () =>
+            {
+                var result = await agingReportService.GetAgingSummaryAsync(ct: ct);
+                return result.IsSuccess ? result.Value : null;
+            },
+            (AgingSummaryResult?)null);
+        if (agingResult != null)
+        {
+            arOverdue = agingResult.AccountsReceivable.Days31To60
+                + agingResult.AccountsReceivable.Days61To90
+                + agingResult.AccountsReceivable.Days90Plus;
+        }
+
+        return new BriefingExecutiveSection(
+            totalContractValue ?? 0m,
+            overBudget,
+            openChangeOrders,
+            pipelineValue,
+            openBidCount,
+            arOverdue);
     }
 
-    private static string ResolvePrimaryRole(IReadOnlyList<string> roles)
+    private async Task<BriefingEstimatorSection> BuildEstimatorSectionAsync(CancellationToken ct)
     {
-        // Priority: Executive > Controller > PM > Foreman (fallback = PM)
-        if (roles.Any(r => r.Equals("Executive", StringComparison.OrdinalIgnoreCase)
-            || r.Equals("Admin", StringComparison.OrdinalIgnoreCase))) return "Executive";
-        if (roles.Any(r => r.Equals("Controller", StringComparison.OrdinalIgnoreCase)
-            || r.Equals("CFO", StringComparison.OrdinalIgnoreCase))) return "Controller";
-        if (roles.Any(r => r.Equals("Foreman", StringComparison.OrdinalIgnoreCase)
-            || r.Equals("Superintendent", StringComparison.OrdinalIgnoreCase)
-            || r.Equals("FieldSupervisor", StringComparison.OrdinalIgnoreCase))) return "Foreman";
-        return "PM";
+        var today = DateTime.UtcNow.Date;
+        var weekEnd = today.AddDays(7);
+
+        // Pipeline = active precon (draft + submitted), not terminal outcomes.
+        var openBidCount = await SafeAsync("OpenBids",
+            () => db.Set<Bid>().AsNoTracking()
+                .CountAsync(b => b.Status == BidStatus.Draft || b.Status == BidStatus.Submitted, ct), 0);
+
+        var pipelineValue = await SafeAsync("PipelineValue",
+            () => db.Set<Bid>().AsNoTracking()
+                .Where(b => b.Status == BidStatus.Draft || b.Status == BidStatus.Submitted)
+                .SumAsync(b => (decimal?)b.EstimatedValue, ct), 0m);
+
+        var dueThisWeek = await SafeAsync("BidsDueThisWeek",
+            () => db.Set<Bid>().AsNoTracking()
+                .CountAsync(b =>
+                    (b.Status == BidStatus.Draft || b.Status == BidStatus.Submitted)
+                    && b.DueDate.HasValue
+                    && b.DueDate.Value.Date >= today
+                    && b.DueDate.Value.Date <= weekEnd, ct), 0);
+
+        return new BriefingEstimatorSection(openBidCount, dueThisWeek, pipelineValue ?? 0m);
     }
 
     /// <summary>

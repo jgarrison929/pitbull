@@ -1,8 +1,8 @@
 # Pitbull API Endpoint Reference
 
-**Snapshot / incomplete.** As of early 2026. Current ~97 controllers + many endpoints added (Punch List, financial reports, AP payments, etc. per CHANGELOG 0.15). 
+> **Historical / incomplete snapshot.** Prefer **Swagger/Scalar** on a running API or inspect `src/Pitbull.Api/Controllers/` (~99 controllers as of v2.0+). Do not treat this file as an exhaustive catalog.
 
-**Ground truth:** Inspect controllers in `src/Pitbull.Api/Controllers/` or run the app + Swagger at /swagger (dev). Always verify against source.
+**Ground truth:** live OpenAPI + source controllers + `CHANGELOG.md`.
 
 ## Authentication
 

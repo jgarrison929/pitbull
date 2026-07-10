@@ -77,7 +77,10 @@ function detectWorkspaceFromPath(pathname: string): WorkspaceId | null {
 export function useWorkspaceNav() {
   const pathname = usePathname();
   const { user } = useAuth();
-  const defaults = useMemo(() => getRoleDefaults(user?.roles), [user?.roles]);
+  const defaults = useMemo(
+    () => getRoleDefaults(user?.roles, user?.roleProfile),
+    [user?.roles, user?.roleProfile]
+  );
 
   // Initialize on first use — seed favorites from role defaults
   const [initialized] = useState(() => {

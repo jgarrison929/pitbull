@@ -35,7 +35,7 @@ public record SetWidgetConfigurationRequest(List<WidgetDto> Widgets);
 
 public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUser> userManager) : IDashboardPreferencesService
 {
-    private static readonly string[] ValidLayouts = ["default", "pm", "controller", "field", "executive"];
+    private static readonly string[] ValidLayouts = ["default", "pm", "controller", "field", "executive", "estimator"];
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -81,6 +81,13 @@ public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUse
             new("w3", "upcoming-deadlines", 3, 0, 2, 2, true),
             new("w4", "recent-activity", 3, 2, 2, 2, true),
             new("w5", "time-entry-summary", 5, 0, 4, 2, true)
+        ]),
+        ["estimator"] = new DashboardTemplateDto("estimator", "estimator",
+        [
+            new("w1", "kpi-cards", 0, 0, 4, 1, true),
+            new("w2", "upcoming-deadlines", 1, 0, 2, 2, true),
+            new("w3", "recent-activity", 1, 2, 2, 2, true),
+            new("w4", "project-status", 3, 0, 4, 2, true)
         ])
     };
 
@@ -166,7 +173,9 @@ public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUse
             await db.SaveChangesAsync(ct);
         }
 
-        return new DashboardPreferenceDto("default", Templates["default"].Widgets);
+        // Re-detect persona layout (do not force generic "default")
+        var layout = await DetectLayoutForUserAsync(userId);
+        return new DashboardPreferenceDto(layout, Templates.GetValueOrDefault(layout)?.Widgets ?? Templates["default"].Widgets);
     }
 
     public DashboardTemplateDto GetTemplate(string role)
@@ -181,23 +190,9 @@ public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUse
             return "default";
 
         var roles = await userManager.GetRolesAsync(user);
-        var logicalRoles = roles
-            .Where(r => r.StartsWith($"{user.TenantId}:"))
-            .Select(r => r[($"{user.TenantId}:".Length)..])
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var profile = WelcomeService.DetectTourProfile(user.Title, logicalRoles);
-        return ProfileToLayout(profile);
+        var profile = RoleProfileResolver.Detect(user.Title, roles);
+        return RoleProfileResolver.ToDashboardLayout(profile);
     }
-
-    private static string ProfileToLayout(TourProfile profile) => profile switch
-    {
-        TourProfile.Executive => "executive",
-        TourProfile.Cfo => "controller",
-        TourProfile.ProjectManager => "pm",
-        TourProfile.Field => "field",
-        _ => "default",
-    };
 
     private static string? SerializeWidgets(List<WidgetDto>? widgets)
     {

@@ -39,7 +39,7 @@ Pitbull is a **modular monolith** built on .NET 10 and Next.js 16. It uses CQRS 
 │  └───────────────────┬────────────────────────────────┘  │
 │                      │                                    │
 │  ┌───────────────────▼────────────────────────────────┐  │
-│  │           PitbullDbContext (EF Core 9)              │  │
+│  │           PitbullDbContext (EF Core 10)             │  │
 │  │  • Audit fields (CreatedAt/By, UpdatedAt/By)       │  │
 │  │  • Tenant filtering via RLS + app.current_tenant   │  │
 │  │  • Compound isolation: TenantId + CompanyId        │  │
@@ -56,7 +56,7 @@ Pitbull is a **modular monolith** built on .NET 10 and Next.js 16. It uses CQRS 
 
 Each module is a separate .NET project under `src/Modules/`. 
 
-**Current implementation (verified June 2026):** 14 modules, ~97 controllers, 155 migrations, ~255 test files. Direct `I*Service` injection in controllers. `AddPitbullModule<T>` + `AddPitbullModuleServices<T>` for registration. Some internal MediatR retained for handlers/validators only.
+**Current implementation (verified mid-2026 / v2.0+):** 14 modules, ~99 controllers, EF Core **10**, Hangfire jobs, CAP messaging. Direct `I*Service` injection in controllers. `AddPitbullModule<T>` + `AddPitbullModuleServices<T>` for registration. **No MediatR in controllers.** Role-native home UX: `RoleProfileResolver` + `GET /api/dashboard/role-summary` (see `docs/ROLE-EXPERIENCE.md`). Live Railway docs: `deploy/RAILWAY-SETUP.md`.
 
 ### Implemented Modules (current)
 

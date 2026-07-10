@@ -14,6 +14,7 @@ public class DashboardControllerTests
 {
     private readonly Mock<IDashboardService> _serviceMock;
     private readonly Mock<IDashboardAnalyticsService> _analyticsMock;
+    private readonly Mock<IRoleDashboardSummaryService> _roleSummaryMock;
     private readonly DashboardController _controller;
 
     private static readonly Guid TestUserId = Guid.NewGuid();
@@ -22,7 +23,11 @@ public class DashboardControllerTests
     {
         _serviceMock = new Mock<IDashboardService>();
         _analyticsMock = new Mock<IDashboardAnalyticsService>();
-        _controller = new DashboardController(_serviceMock.Object, _analyticsMock.Object);
+        _roleSummaryMock = new Mock<IRoleDashboardSummaryService>();
+        _controller = new DashboardController(
+            _serviceMock.Object,
+            _analyticsMock.Object,
+            _roleSummaryMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
@@ -181,6 +186,50 @@ public class DashboardControllerTests
         await _controller.GetStats();
 
         _serviceMock.Verify(s => s.GetStatsAsync(default), Times.Once);
+    }
+
+    #endregion
+
+    #region GetRoleSummary
+
+    [Fact]
+    public async Task GetRoleSummary_Success_Returns200WithDto()
+    {
+        var dto = new RoleDashboardSummaryDto(
+            ActiveProjectCount: 3,
+            PortfolioContractValue: 1_000_000m,
+            BilledToDate: 200_000m,
+            BilledToDateLabel: "Owner billed to date (G702 completed & stored)",
+            UnbilledContractValue: 800_000m,
+            UnbilledContractValueLabel: "Unbilled contract value (portfolio − billed)",
+            ArTotal: 50_000m,
+            ArOverdue: 5_000m,
+            ApTotal: 20_000m,
+            ApDueNearTerm: 10_000m,
+            ArApNetPosition: 30_000m,
+            ArApNetPositionLabel: "AR − AP net position (aging)",
+            OpenChangeOrderCount: 2,
+            OpenChangeOrderAmount: 15_000m,
+            OpenRfiCount: 4,
+            SafetyIncidentsYtd: 1,
+            Compliance: new ComplianceSnapshotDto(10, 8, 1, 1),
+            ActiveEmployeeCount: 40,
+            TerminationsYtd: 2,
+            HiresYtd: 5,
+            OpenBidCount: 6,
+            BidPipelineValue: 900_000m,
+            ActiveCustomerCount: 12);
+
+        _roleSummaryMock
+            .Setup(s => s.GetSummaryAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(dto);
+
+        var result = await _controller.GetRoleSummary(CancellationToken.None);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ok.StatusCode.Should().Be(200);
+        ok.Value.Should().Be(dto);
+        _roleSummaryMock.Verify(s => s.GetSummaryAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

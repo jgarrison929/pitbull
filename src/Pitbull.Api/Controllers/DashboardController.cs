@@ -19,7 +19,8 @@ namespace Pitbull.Api.Controllers;
 [Tags("Dashboard")]
 public class DashboardController(
     IDashboardService dashboardService,
-    IDashboardAnalyticsService dashboardAnalyticsService) : ControllerBase
+    IDashboardAnalyticsService dashboardAnalyticsService,
+    IRoleDashboardSummaryService roleDashboardSummaryService) : ControllerBase
 {
     /// <summary>
     /// Get dashboard statistics for the current tenant
@@ -175,6 +176,20 @@ public class DashboardController(
     public async Task<IActionResult> GetAnalytics(CancellationToken cancellationToken)
     {
         var result = await dashboardAnalyticsService.GetAnalyticsAsync(cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Truthful portfolio metrics for executive / controller home dashboards
+    /// (aging, billed vs backlog, safety, compliance, pipeline).
+    /// </summary>
+    [HttpGet("role-summary")]
+    [Cacheable(DurationSeconds = 60)]
+    [ProducesResponseType(typeof(RoleDashboardSummaryDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetRoleSummary(CancellationToken cancellationToken)
+    {
+        var result = await roleDashboardSummaryService.GetSummaryAsync(cancellationToken);
         return Ok(result);
     }
 }
