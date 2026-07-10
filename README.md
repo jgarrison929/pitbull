@@ -10,7 +10,7 @@
 
 **Live demo:** [https://demo.pcserp.app](https://demo.pcserp.app)
 
-On the login page, use **Explore as a role** (CEO / CFO / Project Manager / Estimator) — no signup required. Seeded multi-company data; admin mutations are read-only for safety.
+On the login page, use **Explore as a role** (CEO / CFO / Project Manager / Superintendent / Estimator) — no signup required. Seeded multi-company data; admin mutations are read-only for safety.
 
 | | URL |
 |--|-----|

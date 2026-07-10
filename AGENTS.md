@@ -12,13 +12,14 @@ Construction ERP (modular monolith). Prefer **truth over polish**: label metric 
 
 ## Demo personas (Explore as a role)
 
-When `Demo:Enabled=true`: CEO / CFO / PM / Estimator via `POST /api/auth/demo-role-login`.
+When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator via `POST /api/auth/demo-role-login`.
 
 | Key | Email | Title drives home UX |
 |-----|--------|----------------------|
 | ceo | ceo@demo.local | Chief Executive Officer → **executive** layout + Executive briefing |
 | cfo | cfo@demo.local | Chief Financial Officer → **controller** layout |
 | pm | pm@demo.local | Project Manager → **pm** layout |
+| superintendent | superintendent@demo.local | Field Superintendent → **field** layout (alias key: `foreman`) |
 | estimator | estimator@demo.local | Estimator → **estimator** layout |
 
 **Persona resolution** is title-first via `RoleProfileResolver` (briefing, dashboard prefs, welcome tour). JWT includes `job_title` + `role_profile`. Identity role alone is **not** enough (Manager ≠ Executive).

@@ -26,6 +26,12 @@ const DEMO_PERSONAS = [
     mustReach: ["/", "/projects", "/rfis", "/time-tracking"],
   },
   {
+    key: "superintendent",
+    profile: "field",
+    homeLayout: "field",
+    mustReach: ["/", "/time-tracking/crew-entry", "/daily-reports/mobile", "/projects"],
+  },
+  {
     key: "estimator",
     profile: "estimator",
     homeLayout: "estimator",
@@ -84,5 +90,11 @@ describe("demo role mobile bottom-nav matrix", () => {
     expect(
       resolveActiveMobileTabHref("/projects/abc-id/daily-reports", tabs)
     ).toBe("/projects");
+  });
+
+  it("superintendent field profile FAB prioritizes crew entry", () => {
+    const qa = getRoleDefaults(undefined, "field").quickActions;
+    expect(qa.some((a) => a.href.includes("crew-entry"))).toBe(true);
+    expect(qa.some((a) => a.href.includes("daily-reports"))).toBe(true);
   });
 });

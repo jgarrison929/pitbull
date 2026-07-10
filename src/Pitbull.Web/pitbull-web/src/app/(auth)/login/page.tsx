@@ -17,6 +17,7 @@ import {
   HardHat,
   Landmark,
   Loader2,
+  UsersRound,
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
 
@@ -48,6 +49,12 @@ const FALLBACK_DEMO_ROLES: DemoRole[] = [
     email: "pm@demo.local",
   },
   {
+    key: "superintendent",
+    label: "Superintendent",
+    description: "Field leadership — crew time, daily reports, punch lists",
+    email: "superintendent@demo.local",
+  },
+  {
     key: "estimator",
     label: "Estimator",
     description: "Precon focus — bids, pipeline value, cost codes",
@@ -59,6 +66,8 @@ const ROLE_ICONS: Record<string, ReactNode> = {
   ceo: <Briefcase className="h-5 w-5" />,
   cfo: <Landmark className="h-5 w-5" />,
   pm: <HardHat className="h-5 w-5" />,
+  superintendent: <UsersRound className="h-5 w-5" />,
+  foreman: <UsersRound className="h-5 w-5" />,
   estimator: <Calculator className="h-5 w-5" />,
 };
 

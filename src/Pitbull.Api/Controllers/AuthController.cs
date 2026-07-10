@@ -356,7 +356,7 @@ public class AuthController(
     ///     POST /api/auth/demo-role-login
     ///     { "role": "ceo" }
     ///
-    /// Supported roles: ceo, cfo, pm, estimator
+    /// Supported roles: ceo, cfo, pm, estimator, superintendent (alias: foreman)
     /// </remarks>
     [HttpPost("demo-role-login")]
     [EnableRateLimiting("demo-register")]
@@ -426,7 +426,10 @@ public class AuthController(
         if (!demoOptions.Value.Enabled)
             return this.NotFoundError("Demo role login is not available");
 
+        // Distinct by email so "foreman" alias does not duplicate the superintendent button
         var roles = DemoRolePersonas.Values
+            .GroupBy(p => p.Email, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
             .Select(p => new DemoRoleInfo(p.Key, p.Label, p.Description, p.Email))
             .ToList();
         return Ok(roles);
@@ -445,6 +448,14 @@ public class AuthController(
             "pm@demo.local", RoleSeeder.Roles.Supervisor),
         ["estimator"] = new("estimator", "Estimator", "Precon focus — bids, pipeline value, cost codes",
             "estimator@demo.local", RoleSeeder.Roles.User),
+        // Field leadership — title resolves to role_profile=field (crew time, daily reports)
+        ["superintendent"] = new("superintendent", "Superintendent",
+            "Field leadership — crew time, daily reports, equipment, punch lists",
+            "superintendent@demo.local", RoleSeeder.Roles.Supervisor),
+        // Alias for the same seeded persona (login key only)
+        ["foreman"] = new("foreman", "Foreman",
+            "Field leadership — crew time, daily reports, equipment, punch lists",
+            "superintendent@demo.local", RoleSeeder.Roles.Supervisor),
     };
 
     private sealed record DemoRolePersona(

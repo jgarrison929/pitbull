@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Explore-as-role: Superintendent** — one-click field persona (`superintendent@demo.local`, title Field Superintendent → `role_profile=field`); login alias `foreman`; DEMO-SUP crew supervisor + project assignments; mobile tabs Crew / Report / Jobs
+
 ## [2.5.0] - 2026-07-10T14:42:00-07:00
 
 ### Added

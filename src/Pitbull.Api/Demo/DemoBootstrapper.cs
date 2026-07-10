@@ -479,35 +479,41 @@ public sealed class DemoBootstrapper(
     }
 
     /// <summary>
-    /// Ensures that demo user emails have corresponding Employee records so
-    /// /api/employees/my-crew can resolve the supervisor by email.
+    /// Ensures DEMO-SUP employee exists for crew-entry (my-crew by supervisor email).
+    /// Email is the Explore-as-role superintendent persona, not Demo:UserEmail.
     /// Must run inside the RLS transaction after seed data exists.
     /// </summary>
     private async Task EnsureDemoEmployeeRecordsAsync(DemoOptions demo, CancellationToken ct)
     {
-        var demoEmail = demo.UserEmail;
-        if (string.IsNullOrWhiteSpace(demoEmail))
-            return;
+        // Canonical field persona for Explore-as-role + crew time
+        const string supEmail = "superintendent@demo.local";
+        const string supEmployeeNumber = "DEMO-SUP";
 
         // Look up by EmployeeNumber (the unique key) instead of email to avoid
         // mismatches when the demo email config changes. Use IgnoreQueryFilters
         // to bypass RLS/tenant filters during bootstrap.
         // Scope by TenantId to prevent cross-tenant lookups in multi-tenant deployments.
         var currentTenantId = tenantContext.TenantId;
-        const string supEmployeeNumber = "DEMO-SUP";
         var superintendent = await db.Set<Employee>()
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(e => e.TenantId == currentTenantId && e.EmployeeNumber == supEmployeeNumber && !e.IsDeleted, ct);
 
         if (superintendent is not null)
         {
-            // Update email if demo config changed
-            if (superintendent.Email != demoEmail)
+            var dirty = false;
+            if (!string.Equals(superintendent.Email, supEmail, StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogInformation("Updating DEMO-SUP email from {OldEmail} to {NewEmail}", superintendent.Email, demoEmail);
-                superintendent.Email = demoEmail;
-                await db.SaveChangesAsync(ct);
+                logger.LogInformation("Updating DEMO-SUP email from {OldEmail} to {NewEmail}", superintendent.Email, supEmail);
+                superintendent.Email = supEmail;
+                dirty = true;
             }
+            if (!string.Equals(superintendent.Title, "Field Superintendent", StringComparison.OrdinalIgnoreCase))
+            {
+                superintendent.Title = "Field Superintendent";
+                dirty = true;
+            }
+            if (dirty)
+                await db.SaveChangesAsync(ct);
             logger.LogInformation("Employee record already exists for {EmployeeNumber} (ID: {Id})", supEmployeeNumber, superintendent.Id);
         }
         else
@@ -515,21 +521,21 @@ public sealed class DemoBootstrapper(
             superintendent = new Employee
             {
                 EmployeeNumber = "DEMO-SUP",
-                FirstName = demo.UserFirstName,
-                LastName = demo.UserLastName,
-                Email = demoEmail,
+                FirstName = "Demo",
+                LastName = "User50",
+                Email = supEmail,
                 Phone = "(555) 000-0001",
-                Title = "Superintendent",
+                Title = "Field Superintendent",
                 Classification = EmployeeClassification.Supervisor,
                 BaseHourlyRate = 65.00m,
                 HireDate = new DateOnly(2015, 1, 15),
                 IsActive = true,
-                Notes = $"Demo superintendent linked to {demoEmail}"
+                Notes = $"Demo superintendent linked to {supEmail}"
             };
 
             db.Set<Employee>().Add(superintendent);
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("Created Employee {EmployeeNumber} ({Email})", superintendent.EmployeeNumber, demoEmail);
+            logger.LogInformation("Created Employee {EmployeeNumber} ({Email})", superintendent.EmployeeNumber, supEmail);
         }
 
         // Always ensure crew members point to this superintendent
@@ -586,7 +592,7 @@ public sealed class DemoBootstrapper(
 
         logger.LogInformation(
             "Demo employee {Email}: {CrewCount} crew linked ({Repaired} repaired), {ProjectCount} project assignments ({NewAssigned} new)",
-            demoEmail, crewMembers.Count, crewRepaired, projects.Count, projectsAssigned);
+            supEmail, crewMembers.Count, crewRepaired, projects.Count, projectsAssigned);
     }
 
     /// <summary>
@@ -779,6 +785,12 @@ public sealed class DemoBootstrapper(
         // Estimating (2) — User role, small-market highway (high bid volume)
         new("sr-estimator@demo.local", "Demo", "User48", "Sr Estimator",                     RoleSeeder.Roles.User,       "DEMO-SES",   EmployeeClassification.Salaried,    80.00m, HighwayCode, [HighwayCode]),
         new("estimator@demo.local", "Demo", "User49",  "Estimator",                        RoleSeeder.Roles.User,       "DEMO-EST",   EmployeeClassification.Salaried,    60.00m, HighwayCode, [HighwayCode]),
+
+        // Field leadership — Explore-as-role "Superintendent" (also login alias foreman)
+        // Title must include Superintendent/Foreman so RoleProfileResolver → field layout
+        new("superintendent@demo.local", "Demo", "User50", "Field Superintendent",
+            RoleSeeder.Roles.Supervisor, "DEMO-SUP", EmployeeClassification.Supervisor, 65.00m,
+            MidMarketCode, [MidMarketCode, HighwayCode, HvacCode]),
     ];
 
     /// <summary>
@@ -957,6 +969,17 @@ public sealed class DemoBootstrapper(
             {
                 skipped++;
 
+                // Keep email/title in sync with DemoUsers (e.g. DEMO-SUP → superintendent@demo.local)
+                if (!string.Equals(existing.Email, def.Email, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(existing.Title, def.Title, StringComparison.OrdinalIgnoreCase))
+                {
+                    existing.Email = def.Email;
+                    existing.Title = def.Title;
+                    existing.FirstName = def.FirstName;
+                    existing.LastName = def.LastName;
+                    await db.SaveChangesAsync(ct);
+                }
+
                 // Ensure the AppUser.EmployeeId FK is set
                 var user = await userManager.FindByEmailAsync(def.Email);
                 if (user is not null && user.EmployeeId != existing.Id)
@@ -1018,6 +1041,11 @@ public sealed class DemoBootstrapper(
         ["DEMO-SPM", "DEMO-PM", "DEMO-PC", "DEMO-SPG", "DEMO-PEG", "DEMO-FE"];
 
     /// <summary>
+    /// Field superintendents / foremen assigned as Supervisors on active projects.
+    /// </summary>
+    private static readonly string[] FieldSupervisorEmployeeNumbers = ["DEMO-SUP"];
+
+    /// <summary>
     /// Employee numbers for executive/C-suite users who get Manager (viewer) assignments.
     /// </summary>
     private static readonly string[] ExecutiveEmployeeNumbers =
@@ -1064,11 +1092,12 @@ public sealed class DemoBootstrapper(
         }
 
         var pmAssigned = await AssignEmployeesToProjectsAsync(PmEmployeeNumbers, activeProjects, AssignmentRole.Manager, "Demo PM assignment", ct);
+        var fieldAssigned = await AssignEmployeesToProjectsAsync(FieldSupervisorEmployeeNumbers, activeProjects, AssignmentRole.Supervisor, "Demo field superintendent", ct);
         var execAssigned = await AssignEmployeesToProjectsAsync(ExecutiveEmployeeNumbers, activeProjects, AssignmentRole.Manager, "Demo executive viewer", ct);
 
         logger.LogInformation(
-            "Demo project assignments: {PmCount} PM assignments, {ExecCount} executive assignments created across {ProjectCount} projects",
-            pmAssigned, execAssigned, activeProjects.Count);
+            "Demo project assignments: {PmCount} PM, {FieldCount} field supervisor, {ExecCount} executive across {ProjectCount} projects",
+            pmAssigned, fieldAssigned, execAssigned, activeProjects.Count);
     }
 
     private async Task<int> AssignEmployeesToProjectsAsync(

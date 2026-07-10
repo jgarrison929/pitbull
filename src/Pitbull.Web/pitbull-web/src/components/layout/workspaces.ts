@@ -442,32 +442,33 @@ export const roleDefaults: Record<string, RoleDefaults> = {
   },
   field: {
     defaultWorkspace: "my-work",
-    favorites: ["/time-tracking", "/daily-reports/mobile", "/equipment"],
+    favorites: ["/time-tracking/crew-entry", "/daily-reports/mobile", "/equipment", "/projects"],
     quickActions: [
       { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
       { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
-      { label: "Punch List", href: "/projects", icon: "📋" },
+      { label: "Equipment", href: "/equipment", icon: "🚜" },
     ],
     mobileTabs: [
+      // Superintendent / foreman phone path: time first, then report & jobs
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Time", href: "/time-tracking", icon: "⏱️", matchPaths: ["/time-tracking"] },
+      { label: "Crew", href: "/time-tracking/crew-entry", icon: "⏱️", matchPaths: ["/time-tracking"] },
       { label: "Report", href: "/daily-reports/mobile", icon: "📝", matchPaths: ["/daily-reports"] },
-      { label: "Punch", href: "/projects", icon: "📋", matchPaths: ["/projects"] },
+      { label: "Jobs", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
     ],
   },
   Foreman: {
     defaultWorkspace: "my-work",
-    favorites: ["/time-tracking", "/daily-reports/mobile", "/equipment"],
+    favorites: ["/time-tracking/crew-entry", "/daily-reports/mobile", "/equipment", "/projects"],
     quickActions: [
       { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
       { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
-      { label: "Punch List", href: "/projects", icon: "📋" },
+      { label: "Equipment", href: "/equipment", icon: "🚜" },
     ],
     mobileTabs: [
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Time", href: "/time-tracking", icon: "⏱️", matchPaths: ["/time-tracking"] },
+      { label: "Crew", href: "/time-tracking/crew-entry", icon: "⏱️", matchPaths: ["/time-tracking"] },
       { label: "Report", href: "/daily-reports/mobile", icon: "📝", matchPaths: ["/daily-reports"] },
-      { label: "Punch", href: "/projects", icon: "📋", matchPaths: ["/projects"] },
+      { label: "Jobs", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
     ],
   },
   estimator: {
