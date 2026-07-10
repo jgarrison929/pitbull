@@ -93,9 +93,13 @@ const RFI_STATUS_NAME_MAP: Record<string, string> = {
   closed: "2",
 };
 
+/** Matches role-kpi drill parseRfiDrillParams: notClosed | single enum | all */
 function resolveRfiStatusParam(param: string | null): string {
   if (!param) return "all";
-  const mapped = RFI_STATUS_NAME_MAP[param.toLowerCase()];
+  const lower = param.toLowerCase();
+  // Headline OpenRfiCount = Status != Closed (Open + Answered)
+  if (lower === "notclosed" || lower === "openoranswered") return "notClosed";
+  const mapped = RFI_STATUS_NAME_MAP[lower];
   if (mapped) return mapped;
   if (["0", "1", "2"].includes(param)) return param;
   return "all";
@@ -196,9 +200,11 @@ export default function RfisPage() {
         }
       }
 
-      // Status filter
+      // Status filter — notClosed = Open(0) + Answered(1), matches executive KPI
       if (statusFilter !== "all") {
-        if (rfi.status !== parseInt(statusFilter)) {
+        if (statusFilter === "notClosed") {
+          if (rfi.status === 2) return false; // exclude Closed only
+        } else if (rfi.status !== parseInt(statusFilter)) {
           return false;
         }
       }
@@ -365,6 +371,7 @@ export default function RfisPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="notClosed">Open + Answered</SelectItem>
                       <SelectItem value="0">Open</SelectItem>
                       <SelectItem value="1">Answered</SelectItem>
                       <SelectItem value="2">Closed</SelectItem>

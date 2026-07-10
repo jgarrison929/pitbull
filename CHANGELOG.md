@@ -31,6 +31,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Aging page applies `focus` / `overdue`** — AR/AP KPI drills no longer land on unfiltered dual boards; 31+ overdue lines filtered when `overdue=true`
 - **Hours This Week drill** — uses `view=entries&period=thisWeek` so list stays on entries with this-week date range (no silent redirect to crew entry)
 - **AR − AP Net drill** — lands on full aging board (both AR and AP + net), not `focus=ar` alone
+- **RFI drill parity** — Open RFIs KPI uses `status=notClosed` (Open+Answered) to match `Status != Closed` headline count
+- **Active projects drill** — `excludeCompleted=true` matches portfolio count (`Status != Completed`)
+- **Drill contract table** — `role-kpi-drill-contracts.ts` + parity tests tie each KPI href to its server predicate
 
 ## [2.1.0] - 2026-07-10
 

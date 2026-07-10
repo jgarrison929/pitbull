@@ -1,83 +1,15 @@
 /**
  * Pure URL builders for role-dashboard KPI drill-through.
- * Each destination encodes metric-specific filters so lists answer “why”.
+ * Hrefs are defined in role-kpi-drill-contracts (headline predicate parity).
  */
 
-export type RoleKpiKey =
-  | "activeProjects"
-  | "billedToDate"
-  | "unbilledBacklog"
-  | "arApNet"
-  | "arTotal"
-  | "arOverdue"
-  | "apTotal"
-  | "apNearTerm"
-  | "workforce"
-  | "safetyYtd"
-  | "compliance"
-  | "complianceAttention"
-  | "bidPipeline"
-  | "openRfis"
-  | "openChangeOrders"
-  | "budgetAlert"
-  | "budgetAlertStrict"
-  | "pendingTimeApprovals"
-  | "hoursThisWeek"
-  | "estimatorProjects"
-  | "viewRfis";
+import { contractHref, type RoleKpiKey } from "./role-kpi-drill-contracts";
 
-/** Build drill path for a named KPI. Pure — unit-tested without UI. */
+export type { RoleKpiKey };
+
+/** Build drill path for a named KPI from the contract table. */
 export function roleKpiDrillHref(key: RoleKpiKey): string {
-  switch (key) {
-    case "activeProjects":
-      return "/projects?status=active";
-    case "billedToDate":
-      // Progress apps that contribute to G702 billed-to-date (exclude pure drafts)
-      return "/billing/applications?scope=progress";
-    case "unbilledBacklog":
-      return "/projects?unbilled=true&status=active";
-    case "arApNet":
-      // Full board: AR + AP tables and Net Position (do not share focus=ar with arTotal)
-      return "/billing/aging";
-    case "arTotal":
-      return "/billing/aging?focus=ar";
-    case "arOverdue":
-      return "/billing/aging?focus=ar&overdue=true";
-    case "apTotal":
-    case "apNearTerm":
-      return "/billing/aging?focus=ap";
-    case "workforce":
-      return "/employees?isActive=true";
-    case "safetyYtd":
-      return "/reports/safety?period=ytd";
-    case "compliance":
-      return "/reports/compliance";
-    case "complianceAttention":
-      return "/reports/compliance?status=attention";
-    case "bidPipeline":
-      return "/bids?pipeline=open";
-    case "openRfis":
-      return "/rfis?status=open";
-    case "openChangeOrders":
-      return "/change-orders?status=open";
-    case "budgetAlert":
-      return "/projects?budgetAlert=true&budgetAlertPercent=75";
-    case "budgetAlertStrict":
-      return "/projects?budgetAlert=true&budgetAlertPercent=90";
-    case "pendingTimeApprovals":
-      return "/time-tracking/approval?status=pending";
-    case "hoursThisWeek":
-      // Must set view=entries so /time-tracking does not redirect to crew-entry
-      return "/time-tracking?view=entries&period=thisWeek";
-    case "estimatorProjects":
-      return "/projects?status=active";
-    case "viewRfis":
-      return "/rfis?status=open";
-    default: {
-      const _exhaustive: never = key;
-      return _exhaustive;
-    }
-  }
+  return contractHref(key);
 }
 
 function getParam(
@@ -95,15 +27,21 @@ export function parseProjectsDrillParams(
   unbilled: boolean;
   budgetAlert: boolean;
   budgetAlertPercent: number;
+  excludeCompleted: boolean;
 } {
   const pctRaw = getParam(params, "budgetAlertPercent");
   const pct = pctRaw ? Number(pctRaw) : 75;
+  const status = getParam(params, "status");
+  const excludeCompleted =
+    getParam(params, "excludeCompleted") === "true" ||
+    (status?.toLowerCase() === "notcompleted");
 
   return {
-    status: getParam(params, "status"),
+    status,
     unbilled: getParam(params, "unbilled") === "true",
     budgetAlert: getParam(params, "budgetAlert") === "true",
     budgetAlertPercent: Number.isFinite(pct) && pct > 0 ? pct : 75,
+    excludeCompleted,
   };
 }
 
@@ -161,7 +99,6 @@ export function parseTimeTrackingDrillParams(
   const view = getParam(params, "view");
   const period = (getParam(params, "period") ?? "").toLowerCase();
   const periodThisWeek = period === "thisweek";
-  // Stay on entries list when explicitly requested or when a period drill is present
   const viewEntries = view === "entries" || periodThisWeek;
   let startDate = getParam(params, "startDate");
   let endDate = getParam(params, "endDate");
@@ -171,4 +108,32 @@ export function parseTimeTrackingDrillParams(
     endDate = range.endDate;
   }
   return { viewEntries, periodThisWeek, startDate, endDate };
+}
+
+/** RFI status drill: single enum, notClosed (= Open+Answered), or all. */
+export type RfiStatusMode = "all" | "single" | "notClosed";
+
+export function parseRfiDrillParams(
+  params: URLSearchParams | Record<string, string | null | undefined>
+): { mode: RfiStatusMode; statusCode: string | null } {
+  const raw = getParam(params, "status");
+  if (!raw) return { mode: "all", statusCode: null };
+  const lower = raw.toLowerCase();
+  if (lower === "notclosed" || lower === "openoranswered") {
+    return { mode: "notClosed", statusCode: null };
+  }
+  const map: Record<string, string> = {
+    open: "0",
+    answered: "1",
+    closed: "2",
+  };
+  if (map[lower]) return { mode: "single", statusCode: map[lower] };
+  if (["0", "1", "2"].includes(raw)) return { mode: "single", statusCode: raw };
+  return { mode: "all", statusCode: null };
+}
+
+/** Matches RoleDashboardSummary OpenRfiCount: Status != Closed. */
+export function rfiMatchesNotClosed(status: number): boolean {
+  // 0 Open, 1 Answered, 2 Closed
+  return status !== 2;
 }

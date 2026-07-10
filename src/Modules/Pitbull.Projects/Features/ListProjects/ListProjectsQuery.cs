@@ -13,5 +13,7 @@ public record ListProjectsQuery(
     /// <summary>Only projects where labor spend ≥ BudgetAlertPercent of contract (proxy).</summary>
     bool BudgetAlert = false,
     /// <summary>Threshold for BudgetAlert (default 75).</summary>
-    int BudgetAlertPercent = 75
+    int BudgetAlertPercent = 75,
+    /// <summary>Exclude Completed projects (matches RoleDashboardSummary ActiveProjectCount).</summary>
+    bool ExcludeCompleted = false
 ) : PaginationQuery, IQuery<PagedResult<ProjectDto>>;
