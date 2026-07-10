@@ -51,24 +51,48 @@ function Get-RailwayDomainStatus {
     return $json | ConvertFrom-Json
 }
 
-function Get-CloudflareHeaders {
+function Get-CloudflareToken {
     $token = $env:CLOUDFLARE_API_TOKEN
     if ([string]::IsNullOrWhiteSpace($token)) {
         $token = $env:CF_API_TOKEN
+    }
+    # Local research token file (not in repo) — preferred over pasting into chat
+    $tokenFileCandidates = @(
+        $env:CLOUDFLARE_API_TOKEN_FILE,
+        "C:\research\cloudflare.txt",
+        (Join-Path $env:USERPROFILE "research\cloudflare.txt")
+    )
+    if ([string]::IsNullOrWhiteSpace($token)) {
+        foreach ($path in $tokenFileCandidates) {
+            if ([string]::IsNullOrWhiteSpace($path)) { continue }
+            if (Test-Path -LiteralPath $path) {
+                $token = (Get-Content -LiteralPath $path -Raw -ErrorAction Stop).Trim()
+                if (-not [string]::IsNullOrWhiteSpace($token)) {
+                    Write-Host "Using Cloudflare token from $path" -ForegroundColor DarkGray
+                    break
+                }
+            }
+        }
     }
     if ([string]::IsNullOrWhiteSpace($token)) {
         throw @"
 CLOUDFLARE_API_TOKEN is not set.
 
+Options (pick one):
+  1. `$env:CLOUDFLARE_API_TOKEN = '<token>'`
+  2. Put the token in C:\research\cloudflare.txt (one line, no quotes)
+  3. `$env:CLOUDFLARE_API_TOKEN_FILE = 'C:\path\to\token.txt'`
+
 Create a token at https://dash.cloudflare.com/profile/api-tokens
   Template: Edit zone DNS
   Zone Resources: Include -> Specific zone -> pcserp.app
-
-Then run:
-  `$env:CLOUDFLARE_API_TOKEN = '<token>'
-  .\scripts\cloudflare-railway-dns.ps1
 "@
     }
+    return $token
+}
+
+function Get-CloudflareHeaders {
+    $token = Get-CloudflareToken
     return @{
         Authorization = "Bearer $token"
         "Content-Type"  = "application/json"
