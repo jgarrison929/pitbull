@@ -76,6 +76,42 @@ public sealed class JobCostServiceTests
     }
 
     [Fact]
+    public async Task DeleteBudget_SoftDeletes()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateBudgetAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        var deleteResult = await service.DeleteBudgetAsync(ProjectId, created.Id);
+        deleteResult.IsSuccess.Should().BeTrue();
+
+        var list = await service.ListBudgetsAsync(ProjectId, new PmListQuery());
+        list.IsSuccess.Should().BeTrue();
+        list.Value!.TotalCount.Should().Be(0);
+
+        var raw = await db.Set<PmJobCostBudget>().IgnoreQueryFilters().FirstOrDefaultAsync(b => b.Id == created.Id);
+        raw.Should().NotBeNull();
+        raw!.IsDeleted.Should().BeTrue();
+        raw.DeletedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task DeleteBudget_NotFound_ReturnsError()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var result = await service.DeleteBudgetAsync(ProjectId, Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
     public async Task ListBudgets_ReturnsPaginatedResults()
     {
         using var db = TestDbContextFactory.Create();

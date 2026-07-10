@@ -115,7 +115,7 @@ public record CreateContractCommand;   // empty marker only; used for assembly +
    PitbullDbContext.RegisterModuleAssembly(typeof(CreateContractCommand).Assembly);
    ```
 
-2. MediatR/validators (if you have any handlers):
+2. FluentValidation validators (if the module still registers handlers/validators):
    ```csharp
    builder.Services.AddPitbullModule<CreateContractCommand>();
    ```

@@ -6,7 +6,7 @@
 |------|---------|
 | `ARCHITECTURE.md` | Living system architecture |
 | `ROLE-EXPERIENCE.md` | Personas → home dashboards → metrics |
-| `ROADMAP-2.1.md` | v2.1 release notes / intent |
+| `ROADMAP-2.1.md` | **Shipped** v2.1 workstream archive (not an active roadmap) |
 | `DEMO-COMPANY-PROFILES.md` | Multi-company demo archetypes |
 | `BEST-PRACTICES.md` | Coding patterns (services-first controllers) |
 | `ADDING-A-MODULE.md` | How to add a module |

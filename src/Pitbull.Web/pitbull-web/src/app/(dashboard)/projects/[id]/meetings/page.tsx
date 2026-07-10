@@ -363,7 +363,7 @@ function MeetingsContent({ params }: { params: Promise<{ id: string }> }) {
     } catch (error) {
       const message =
         error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete endpoint is not available yet for meetings"
+          ? "Could not delete this meeting"
           : error instanceof Error
             ? error.message
             : "Unknown error";

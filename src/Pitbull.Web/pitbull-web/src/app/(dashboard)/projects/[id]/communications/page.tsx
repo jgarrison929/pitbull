@@ -304,7 +304,7 @@ export default function CommunicationsPage({ params }: { params: Promise<{ id: s
     } catch (error) {
       const message =
         error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete endpoint is not available yet for communications"
+          ? "Could not delete this communication"
           : error instanceof Error
             ? error.message
             : "Unknown error";

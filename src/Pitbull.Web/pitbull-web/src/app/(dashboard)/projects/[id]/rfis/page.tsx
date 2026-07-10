@@ -329,36 +329,15 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
         method: "DELETE",
       });
       toast.success("RFI deleted");
-    } catch (error) {
-      if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
-        const fallback: UpdateRfiCommand = {
-          subject: pendingDelete.subject,
-          question: pendingDelete.question,
-          answer: pendingDelete.answer ?? null,
-          status: 2,
-          priority: pendingDelete.priority,
-          dueDate: pendingDelete.dueDate ?? null,
-          assignedToName: pendingDelete.assignedToName ?? null,
-          ballInCourtName: pendingDelete.ballInCourtName ?? null,
-        };
-
-        await api<Rfi>(`/api/projects/${projectId}/rfis/${pendingDelete.id}`, {
-          method: "PUT",
-          body: fallback,
-        });
-
-        toast.success("RFI marked closed (delete endpoint unavailable)");
-      } else {
-        throw error;
-      }
-    }
-
-    try {
-      await load();
-    } finally {
-      setSaving(false);
       setDeleteOpen(false);
       setPendingDelete(null);
+      await load();
+    } catch (error) {
+      toast.error("Failed to delete RFI", {
+        description: error instanceof Error ? error.message : "Unknown error",
+      });
+    } finally {
+      setSaving(false);
     }
   }
 

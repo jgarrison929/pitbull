@@ -467,7 +467,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
       await load();
     } catch (error) {
       if (error instanceof ApiError && (error.status === 404 || error.status === 405)) {
-        toast.error("Delete is not available for this submittal");
+        toast.error("Could not delete this submittal");
       } else {
         toast.error("Failed to delete submittal", {
           description: error instanceof Error ? error.message : "Unknown error",

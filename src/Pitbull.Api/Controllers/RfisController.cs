@@ -254,6 +254,45 @@ public class RfisController(IRfiService rfiService) : ControllerBase
     }
 
     /// <summary>
+    /// Soft-delete an RFI within a project
+    /// </summary>
+    /// <param name="projectId">The project ID containing the RFI</param>
+    /// <param name="id">The RFI ID to delete</param>
+    /// <returns>No content when deletion succeeds</returns>
+    /// <response code="204">RFI deleted successfully</response>
+    /// <response code="401">Not authenticated</response>
+    /// <response code="404">RFI not found in this project</response>
+    /// <response code="429">Rate limit exceeded</response>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid id)
+    {
+        var existing = await rfiService.GetRfiAsync(id);
+        if (!existing.IsSuccess)
+        {
+            if (existing.ErrorCode == "NOT_FOUND")
+                return NotFound(new { error = existing.Error });
+            if (existing.ErrorCode == "FORBIDDEN")
+                return StatusCode(StatusCodes.Status403Forbidden, new { error = existing.Error, code = existing.ErrorCode });
+            return BadRequest(new { error = existing.Error });
+        }
+
+        if (existing.Value!.ProjectId != projectId)
+            return NotFound(new { error = "RFI not found in this project" });
+
+        var result = await rfiService.DeleteRfiAsync(id);
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error })
+                : BadRequest(new { error = result.Error });
+
+        return NoContent();
+    }
+
+    /// <summary>
     /// Get cost impact analysis for an RFI
     /// </summary>
     /// <remarks>

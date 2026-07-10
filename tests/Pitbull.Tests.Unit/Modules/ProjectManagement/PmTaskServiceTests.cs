@@ -106,6 +106,43 @@ public sealed class PmTaskServiceTests
     }
 
     [Fact]
+    public async Task DeleteTask_SoftDeletes()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateTaskAsync(ProjectId,
+            new PmUpsertRequest(Title: "To Delete"))).Value!;
+
+        var deleteResult = await service.DeleteTaskAsync(ProjectId, created.Id);
+        deleteResult.IsSuccess.Should().BeTrue();
+
+        var getResult = await service.GetTaskAsync(ProjectId, created.Id);
+        getResult.IsSuccess.Should().BeFalse();
+        getResult.ErrorCode.Should().Be("NOT_FOUND");
+
+        var raw = await db.Set<PmTask>().IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == created.Id);
+        raw.Should().NotBeNull();
+        raw!.IsDeleted.Should().BeTrue();
+        raw.DeletedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task DeleteTask_NotFound_ReturnsError()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var result = await service.DeleteTaskAsync(ProjectId, Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
     public async Task UpdateTask_WithStatus_ParsesEnum()
     {
         using var db = TestDbContextFactory.Create();

@@ -297,6 +297,20 @@ public class ProjectJobCostController(IJobCostService jobCostService) : ProjectM
         => HandleResult(await jobCostService.UpdateBudgetAsync(projectId, budgetId, request));
 
     /// <summary>
+    /// Soft-deletes a job cost budget line item.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="budgetId">Budget identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Budget deleted successfully.</response>
+    /// <response code="404">Budget not found.</response>
+    [HttpDelete("budgets/{budgetId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteBudget(Guid projectId, Guid budgetId)
+        => HandleAction(await jobCostService.DeleteBudgetAsync(projectId, budgetId));
+
+    /// <summary>
     /// Lists budget line items for the project.
     /// </summary>
     /// <param name="projectId">Project identifier.</param>
@@ -516,6 +530,22 @@ public class SubmittalsController(ISubmittalService submittalService, Pitbull.Ap
         => HandleResult(await submittalService.UpdateSubmittalAsync(projectId, submittalId, request));
 
     /// <summary>
+    /// Soft-deletes a submittal that is not approved or closed.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="submittalId">Submittal identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Submittal deleted successfully.</response>
+    /// <response code="400">Submittal cannot be deleted in its current status.</response>
+    /// <response code="404">Submittal not found.</response>
+    [HttpDelete("{submittalId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid submittalId)
+        => HandleAction(await submittalService.DeleteSubmittalAsync(projectId, submittalId));
+
+    /// <summary>
     /// Adds a workflow event to a submittal.
     /// </summary>
     /// <param name="projectId">Project identifier.</param>
@@ -669,6 +699,20 @@ public class PlansAndSpecsController(IPlansSpecsService plansSpecsService) : Pro
         => HandleResult(await plansSpecsService.GetPlanSetAsync(projectId, planSetId));
 
     /// <summary>
+    /// Soft-deletes a plan set for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="planSetId">Plan set identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Plan set deleted successfully.</response>
+    /// <response code="404">Plan set not found.</response>
+    [HttpDelete("plan-sets/{planSetId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePlanSet(Guid projectId, Guid planSetId)
+        => HandleAction(await plansSpecsService.DeletePlanSetAsync(projectId, planSetId));
+
+    /// <summary>
     /// Adds a plan sheet to the specified plan set.
     /// </summary>
     /// <param name="projectId">Project identifier.</param>
@@ -733,6 +777,20 @@ public class PlansAndSpecsController(IPlansSpecsService plansSpecsService) : Pro
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CreateSpecSection(Guid projectId, [FromBody] PmUpsertRequest request)
         => HandleResult(await plansSpecsService.CreateSpecSectionAsync(projectId, request));
+
+    /// <summary>
+    /// Soft-deletes a specification section for the specified project.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="specSectionId">Specification section identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Specification section deleted successfully.</response>
+    /// <response code="404">Specification section not found.</response>
+    [HttpDelete("spec-sections/{specSectionId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteSpecSection(Guid projectId, Guid specSectionId)
+        => HandleAction(await plansSpecsService.DeleteSpecSectionAsync(projectId, specSectionId));
 
     /// <summary>
     /// Adds a revision to a specification section.
@@ -858,6 +916,20 @@ public class ProjectCommunicationsController(ICommunicationService communication
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(Guid projectId, Guid communicationId, [FromBody] PmUpsertRequest request)
         => HandleResult(await communicationService.UpdateCommunicationAsync(projectId, communicationId, request));
+
+    /// <summary>
+    /// Soft-deletes a communication record.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="communicationId">Communication identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Communication deleted successfully.</response>
+    /// <response code="404">Communication not found.</response>
+    [HttpDelete("{communicationId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid communicationId)
+        => HandleAction(await communicationService.DeleteCommunicationAsync(projectId, communicationId));
 
     /// <summary>
     /// Adds an attachment to a communication record.
@@ -1003,6 +1075,22 @@ public class ProjectDailyReportsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Lock(Guid projectId, Guid dailyReportId)
         => HandleResult(await dailyReportService.LockDailyReportAsync(projectId, dailyReportId));
+
+    /// <summary>
+    /// Soft-deletes a draft daily report.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="dailyReportId">Daily report identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Daily report deleted successfully.</response>
+    /// <response code="400">Report cannot be deleted in its current status.</response>
+    /// <response code="404">Daily report not found.</response>
+    [HttpDelete("{dailyReportId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid dailyReportId)
+        => HandleAction(await dailyReportService.DeleteDailyReportAsync(projectId, dailyReportId));
 
     /// <summary>
     /// Adds a photo record to a daily report.
@@ -1495,6 +1583,22 @@ public class ProjectProjectionsController(IProjectionService projectionService) 
         => HandleResult(await projectionService.UpdateMonthlyProjectionAsync(projectId, projectionId, request));
 
     /// <summary>
+    /// Soft-deletes a draft monthly projection.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="projectionId">Projection identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Projection deleted successfully.</response>
+    /// <response code="400">Projection cannot be deleted in its current status.</response>
+    /// <response code="404">Projection not found.</response>
+    [HttpDelete("monthly-projections/{projectionId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid projectionId)
+        => HandleAction(await projectionService.DeleteMonthlyProjectionAsync(projectId, projectionId));
+
+    /// <summary>
     /// Submits a monthly projection for review.
     /// </summary>
     /// <param name="projectId">Project identifier.</param>
@@ -1649,6 +1753,22 @@ public class ProjectMeetingsController(IMeetingService meetingService) : Project
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateMeeting(Guid projectId, Guid meetingId, [FromBody] PmUpsertRequest request)
         => HandleResult(await meetingService.UpdateMeetingAsync(projectId, meetingId, request));
+
+    /// <summary>
+    /// Soft-deletes a meeting that is not completed.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="meetingId">Meeting identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Meeting deleted successfully.</response>
+    /// <response code="400">Meeting cannot be deleted in its current status.</response>
+    /// <response code="404">Meeting not found.</response>
+    [HttpDelete("meetings/{meetingId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteMeeting(Guid projectId, Guid meetingId)
+        => HandleAction(await meetingService.DeleteMeetingAsync(projectId, meetingId));
 
     /// <summary>
     /// Adds an agenda item to a meeting.
@@ -1919,6 +2039,20 @@ public class ProjectTasksController(ITaskService taskService) : ProjectManagemen
         => HandleResult(await taskService.UpdateTaskAsync(projectId, taskId, request));
 
     /// <summary>
+    /// Soft-deletes a project task.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="taskId">Task identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Task deleted successfully.</response>
+    /// <response code="404">Task not found.</response>
+    [HttpDelete("{taskId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid taskId)
+        => HandleAction(await taskService.DeleteTaskAsync(projectId, taskId));
+
+    /// <summary>
     /// Adds a comment to a project task.
     /// </summary>
     /// <param name="projectId">Project identifier.</param>
@@ -2010,6 +2144,22 @@ public class ProjectNarrativesController(INarrativeService narrativeService) : P
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(Guid projectId, Guid narrativeId, [FromBody] PmUpsertRequest request)
         => HandleResult(await narrativeService.UpdateNarrativeAsync(projectId, narrativeId, request));
+
+    /// <summary>
+    /// Soft-deletes a narrative that is not approved or published.
+    /// </summary>
+    /// <param name="projectId">Project identifier.</param>
+    /// <param name="narrativeId">Narrative identifier.</param>
+    /// <returns>No content when deletion succeeds.</returns>
+    /// <response code="204">Narrative deleted successfully.</response>
+    /// <response code="400">Narrative cannot be deleted in its current status.</response>
+    /// <response code="404">Narrative not found.</response>
+    [HttpDelete("{narrativeId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(Guid projectId, Guid narrativeId)
+        => HandleAction(await narrativeService.DeleteNarrativeAsync(projectId, narrativeId));
 
     /// <summary>
     /// Submits a narrative for review.
