@@ -21,6 +21,7 @@ import {
 import Link from "next/link";
 import api from "@/lib/api";
 import { useCompany } from "@/contexts/company-context";
+import { roleKpiDrillHref } from "@/lib/role-kpi-drills";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -114,7 +115,7 @@ export function ExecutiveDashboard({
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href="/projects?status=active" className="group">
+        <Link href={roleKpiDrillHref("activeProjects")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
@@ -132,7 +133,7 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href="/billing/applications" className="group">
+        <Link href={roleKpiDrillHref("billedToDate")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Billed to Date</CardTitle>
@@ -155,7 +156,7 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href="/projects" className="group">
+        <Link href={roleKpiDrillHref("unbilledBacklog")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Unbilled Backlog</CardTitle>
@@ -178,7 +179,7 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href="/billing/aging" className="group">
+        <Link href={roleKpiDrillHref("arApNet")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">AR − AP Net</CardTitle>
@@ -208,7 +209,7 @@ export function ExecutiveDashboard({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href="/employees" className="group">
+        <Link href={roleKpiDrillHref("workforce")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Workforce</CardTitle>
@@ -232,7 +233,7 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href="/daily-reports/mobile" className="group">
+        <Link href={roleKpiDrillHref("safetyYtd")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Safety (YTD)</CardTitle>
@@ -255,7 +256,7 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href="/admin/compliance" className="group">
+        <Link href={roleKpiDrillHref("complianceAttention")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Compliance</CardTitle>
@@ -280,7 +281,7 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href="/bids" className="group">
+        <Link href={roleKpiDrillHref("bidPipeline")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Bid Pipeline</CardTitle>
@@ -319,7 +320,7 @@ export function ExecutiveDashboard({
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href="/projects">
+          <Link href={roleKpiDrillHref("activeProjects")}>
             <FolderOpen className="h-5 w-5 text-amber-600" />
             <span className="text-sm font-medium">Projects</span>
           </Link>
@@ -390,7 +391,10 @@ export function ExecutiveDashboard({
                 <Skeleton className="h-20 w-full" />
               ) : (
                 <>
-                  <div className="flex items-center gap-3 rounded-md border p-3">
+                  <Link
+                    href={roleKpiDrillHref("budgetAlert")}
+                    className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
+                  >
                     <AlertTriangle
                       className={`h-5 w-5 ${alertCount > 0 ? "text-amber-500" : "text-emerald-500"}`}
                     />
@@ -403,9 +407,9 @@ export function ExecutiveDashboard({
                         Review cost projections
                       </p>
                     </div>
-                  </div>
+                  </Link>
                   <Link
-                    href="/rfis"
+                    href={roleKpiDrillHref("openRfis")}
                     className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
                   >
                     <FileWarning
@@ -425,7 +429,7 @@ export function ExecutiveDashboard({
                     </div>
                   </Link>
                   <Link
-                    href="/change-orders"
+                    href={roleKpiDrillHref("openChangeOrders")}
                     className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
                   >
                     <AlertTriangle
@@ -446,7 +450,7 @@ export function ExecutiveDashboard({
                     </div>
                   </Link>
                   <Link
-                    href="/billing/aging"
+                    href={roleKpiDrillHref("arOverdue")}
                     className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
                   >
                     <DollarSign

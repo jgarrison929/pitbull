@@ -32,6 +32,7 @@ import { ProjectStatus, type PagedResult, type Project } from "@/lib/types";
 import { projectStatusBadgeClass, projectStatusLabel } from "@/lib/projects";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
+import { parseProjectsDrillParams } from "@/lib/role-kpi-drills";
 
 const ALL_VALUE = "__all__";
 const DEFAULT_PAGE_SIZE = 25;
@@ -74,9 +75,10 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(() =>
     resolveStatusParam(searchParams.get("status"))
   );
-  const [budgetAlertFilter] = useState<boolean>(
-    () => searchParams.get("budgetAlert") === "true"
-  );
+  const drill = parseProjectsDrillParams(searchParams);
+  const [budgetAlertFilter] = useState<boolean>(() => drill.budgetAlert);
+  const [unbilledFilter] = useState<boolean>(() => drill.unbilled);
+  const [budgetAlertPercent] = useState<number>(() => drill.budgetAlertPercent);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -97,7 +99,11 @@ export default function ProjectsPage() {
       params.set("pageSize", String(DEFAULT_PAGE_SIZE));
       if (search.trim()) params.set("search", search.trim());
       if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
-      if (budgetAlertFilter) params.set("budgetAlert", "true");
+      if (budgetAlertFilter) {
+        params.set("budgetAlert", "true");
+        params.set("budgetAlertPercent", String(budgetAlertPercent));
+      }
+      if (unbilledFilter) params.set("unbilled", "true");
       const result = await api<PagedResult<Project>>(
         `/api/projects?${params.toString()}`
       );
@@ -110,7 +116,7 @@ export default function ProjectsPage() {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- activeCompany?.id triggers refetch on company switch
-  }, [page, search, statusFilter, budgetAlertFilter, activeCompany?.id]);
+  }, [page, search, statusFilter, budgetAlertFilter, budgetAlertPercent, unbilledFilter, activeCompany?.id]);
 
   useEffect(() => {
     const timer = setTimeout(fetchProjects, 250);
@@ -123,8 +129,18 @@ export default function ProjectsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground">
-            Manage your construction projects
+            {unbilledFilter
+              ? "Active projects with remaining unbilled contract value (portfolio − G702 billed)"
+              : budgetAlertFilter
+                ? `Projects where labor spend ≥ ${budgetAlertPercent}% of contract (labor proxy)`
+                : "Manage your construction projects"}
           </p>
+          {(unbilledFilter || budgetAlertFilter) && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
+              Drill filter active — {totalCount} project{totalCount !== 1 ? "s" : ""} match
+              {unbilledFilter ? " unbilled backlog" : " budget alert"} criteria.
+            </p>
+          )}
         </div>
         <Button
           asChild
@@ -243,6 +259,31 @@ export default function ProjectsPage() {
                           {formatCurrency(project.contractAmount)}
                         </p>
                       </div>
+                      {unbilledFilter && (
+                        <>
+                          <div>
+                            <span className="text-muted-foreground text-xs">Billed</span>
+                            <p className="font-medium font-mono">
+                              {formatCurrency(project.billedToDate ?? 0)}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground text-xs">Unbilled</span>
+                            <p className="font-medium font-mono text-amber-700">
+                              {formatCurrency(project.unbilledAmount ?? 0)}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {budgetAlertFilter && project.laborPercentOfContract != null && (
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground text-xs">Labor % of contract</span>
+                          <p className="font-medium">
+                            {project.laborPercentOfContract.toFixed(0)}% (
+                            {formatCurrency(project.laborSpent ?? 0)})
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       Created{" "}
@@ -264,6 +305,15 @@ export default function ProjectsPage() {
                       <TableHead>Status</TableHead>
                       <TableHead>Client</TableHead>
                       <TableHead className="text-right">Contract</TableHead>
+                      {unbilledFilter && (
+                        <>
+                          <TableHead className="text-right">Billed</TableHead>
+                          <TableHead className="text-right">Unbilled</TableHead>
+                        </>
+                      )}
+                      {budgetAlertFilter && (
+                        <TableHead className="text-right">Labor %</TableHead>
+                      )}
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -293,6 +343,23 @@ export default function ProjectsPage() {
                         <TableCell className="text-right font-mono">
                           {formatCurrency(project.contractAmount)}
                         </TableCell>
+                        {unbilledFilter && (
+                          <>
+                            <TableCell className="text-right font-mono">
+                              {formatCurrency(project.billedToDate ?? 0)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-amber-700">
+                              {formatCurrency(project.unbilledAmount ?? 0)}
+                            </TableCell>
+                          </>
+                        )}
+                        {budgetAlertFilter && (
+                          <TableCell className="text-right font-mono">
+                            {project.laborPercentOfContract != null
+                              ? `${project.laborPercentOfContract.toFixed(0)}%`
+                              : "—"}
+                          </TableCell>
+                        )}
                         <TableCell className="text-muted-foreground">
                           {project.createdAt
                             ? new Date(project.createdAt).toLocaleDateString()

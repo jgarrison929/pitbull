@@ -59,6 +59,11 @@ export interface Project {
   superintendentId?: string | null;
   sourceBidId?: string | null;
   createdAt: string;
+  /** Enriched when unbilled / budgetAlert filters are applied */
+  billedToDate?: number | null;
+  unbilledAmount?: number | null;
+  laborSpent?: number | null;
+  laborPercentOfContract?: number | null;
 }
 
 export interface Bid {

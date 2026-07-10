@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import api from "@/lib/api";
 import { useCompany } from "@/contexts/company-context";
+import { roleKpiDrillHref } from "@/lib/role-kpi-drills";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -87,7 +88,7 @@ export function ControllerDashboard({
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href="/billing/aging" className="group">
+        <Link href={roleKpiDrillHref("arTotal")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Accounts Receivable</CardTitle>
@@ -115,7 +116,7 @@ export function ControllerDashboard({
           </Card>
         </Link>
 
-        <Link href="/procurement/invoices" className="group">
+        <Link href={roleKpiDrillHref("apTotal")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Accounts Payable</CardTitle>
@@ -138,7 +139,7 @@ export function ControllerDashboard({
           </Card>
         </Link>
 
-        <Link href="/billing/aging" className="group">
+        <Link href={roleKpiDrillHref("arApNet")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">AR − AP Net</CardTitle>
@@ -165,7 +166,7 @@ export function ControllerDashboard({
           </Card>
         </Link>
 
-        <Link href="/projects?budgetAlert=true" className="group">
+        <Link href={roleKpiDrillHref("budgetAlertStrict")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Budget Alerts</CardTitle>
@@ -202,18 +203,20 @@ export function ControllerDashboard({
               <Skeleton className="h-16 w-full" />
             ) : (
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <Link href={roleKpiDrillHref("billedToDate")} className="hover:opacity-80">
                   <p className="text-xs text-muted-foreground">Billed to date</p>
                   <p className="text-xl font-bold">
                     {formatCurrency(summary?.billedToDate ?? 0)}
                   </p>
-                </div>
-                <div>
+                  <p className="text-[10px] text-muted-foreground">View progress apps →</p>
+                </Link>
+                <Link href={roleKpiDrillHref("unbilledBacklog")} className="hover:opacity-80">
                   <p className="text-xs text-muted-foreground">Unbilled contract</p>
                   <p className="text-xl font-bold">
                     {formatCurrency(summary?.unbilledContractValue ?? 0)}
                   </p>
-                </div>
+                  <p className="text-[10px] text-muted-foreground">Projects with backlog →</p>
+                </Link>
                 <div className="col-span-2">
                   <p className="text-xs text-muted-foreground">
                     Portfolio contract value{" "}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -164,10 +165,16 @@ function getPriceScore(value: number, minValue: number, maxValue: number): numbe
 
 export default function BidsPage() {
   const { activeCompany } = useCompany();
+  const searchParams = useSearchParams();
+  // pipeline=open → Draft + Submitted (precon pipeline)
+  const pipelineOpen = searchParams.get("pipeline") === "open";
   const [bids, setBids] = useState<Bid[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    if (pipelineOpen) return ALL_VALUE;
+    return searchParams.get("status") ?? ALL_VALUE;
+  });
   const [selectedBidIds, setSelectedBidIds] = useState<string[]>([]);
   const [updatingStatusById, setUpdatingStatusById] = useState<Record<string, boolean>>({});
   const [scoreConfig, setScoreConfig] = useState<BidScoreConfig>({
@@ -189,7 +196,13 @@ export default function BidsPage() {
         if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
 
         const result = await api<PagedResult<Bid>>(`/api/bids?${params.toString()}`);
-        setBids(result.items);
+        let items = result.items;
+        if (pipelineOpen) {
+          items = items.filter(
+            (b) => b.status === BidStatus.Draft || b.status === BidStatus.Submitted
+          );
+        }
+        setBids(items);
       } catch {
         toast.error("Failed to load bids");
       } finally {
@@ -199,7 +212,7 @@ export default function BidsPage() {
 
     const timer = setTimeout(fetchBids, 250);
     return () => clearTimeout(timer);
-  }, [activeCompany?.id, search, statusFilter]);
+  }, [activeCompany?.id, search, statusFilter, pipelineOpen]);
 
   useEffect(() => {
     setSelectedBidIds((prev) => prev.filter((id) => bids.some((bid) => bid.id === id)));

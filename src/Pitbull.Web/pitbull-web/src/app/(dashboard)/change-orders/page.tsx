@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,14 +42,29 @@ function formatDate(dateString: string | null | undefined): string {
 
 export default function ChangeOrdersPage() {
   const { activeCompany } = useCompany();
+  const searchParams = useSearchParams();
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [subcontracts, setSubcontracts] = useState<Subcontract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Filters
+  // Filters — status=open means Pending + UnderReview (open approvals)
+  const statusParam = searchParams.get("status");
+  const openOnly = statusParam?.toLowerCase() === "open";
   const [subcontractFilter, setSubcontractFilter] = useState<string>(ALL_VALUE);
-  const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
+  const [statusFilter, setStatusFilter] = useState<string>(() => {
+    if (!statusParam || statusParam.toLowerCase() === "open") return ALL_VALUE;
+    // Map name → enum number for API
+    const map: Record<string, string> = {
+      pending: String(ChangeOrderStatus.Pending),
+      underreview: String(ChangeOrderStatus.UnderReview),
+      approved: String(ChangeOrderStatus.Approved),
+      rejected: String(ChangeOrderStatus.Rejected),
+      withdrawn: String(ChangeOrderStatus.Withdrawn),
+      void: String(ChangeOrderStatus.Void),
+    };
+    return map[statusParam.toLowerCase()] ?? statusParam;
+  });
   const [search, setSearch] = useState("");
 
   // Create dialog
@@ -75,14 +91,22 @@ export default function ChangeOrdersPage() {
       const result = await api<PagedResult<ChangeOrder>>(
         `/api/changeorders?${params.toString()}`
       );
-      setChangeOrders(result.items);
-      setTotalCount(result.totalCount);
+      let items = result.items;
+      if (openOnly) {
+        items = items.filter(
+          (co) =>
+            co.status === ChangeOrderStatus.Pending ||
+            co.status === ChangeOrderStatus.UnderReview
+        );
+      }
+      setChangeOrders(items);
+      setTotalCount(openOnly ? items.length : result.totalCount);
     } catch {
       toast.error("Failed to load change orders");
     } finally {
       setIsLoading(false);
     }
-  }, [subcontractFilter, statusFilter, search]);
+  }, [subcontractFilter, statusFilter, search, openOnly]);
 
   useEffect(() => {
     fetchSubcontracts();

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FolderOpen, MessageCircle, Inbox, Clock3, Plus, BarChart3 } from "lucide-react";
 import Link from "next/link";
+import { roleKpiDrillHref } from "@/lib/role-kpi-drills";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -35,7 +36,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href="/projects?status=active" className="group">
+        <Link href={roleKpiDrillHref("activeProjects")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
@@ -46,7 +47,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
             </CardContent>
           </Card>
         </Link>
-        <Link href="/rfis?status=open" className="group">
+        <Link href={roleKpiDrillHref("openRfis")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Open RFIs</CardTitle>
@@ -62,7 +63,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
             </CardContent>
           </Card>
         </Link>
-        <Link href="/time-tracking/approval?status=pending" className="group">
+        <Link href={roleKpiDrillHref("pendingTimeApprovals")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
@@ -78,7 +79,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
             </CardContent>
           </Card>
         </Link>
-        <Link href="/time-tracking" className="group">
+        <Link href={roleKpiDrillHref("hoursThisWeek")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Hours This Week</CardTitle>
@@ -108,7 +109,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
           <Link href="/reports"><BarChart3 className="h-5 w-5 text-purple-600" /><span className="text-sm font-medium">Run Reports</span></Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href="/projects"><MessageCircle className="h-5 w-5 text-green-600" /><span className="text-sm font-medium">View RFIs</span></Link>
+          <Link href={roleKpiDrillHref("viewRfis")}><MessageCircle className="h-5 w-5 text-green-600" /><span className="text-sm font-medium">View RFIs</span></Link>
         </Button>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
