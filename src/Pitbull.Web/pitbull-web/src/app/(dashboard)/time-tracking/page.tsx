@@ -310,7 +310,7 @@ function TimeTrackingContent() {
   }
 
   // If not viewing entries, show nothing (redirect is happening)
-  if (viewParam !== "entries") {
+  if (!drill.viewEntries) {
     return null;
   }
 
