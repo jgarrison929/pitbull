@@ -1,6 +1,6 @@
 # Roadmap — v2.1.0 Role-native experience
 
-**Status:** Shipped as **2.1.0** (2026-07-10).
+**Status:** **Historical / shipped** as **2.1.0** (2026-07-10). Not an active backlog. For current product truth see `CHANGELOG.md`, `docs/ROLE-EXPERIENCE.md`, and `docs/ARCHITECTURE.md`.
 
 ## Goals
 

@@ -173,7 +173,7 @@ function JobCostContent({ params }: { params: Promise<{ id: string }> }) {
       toast.success("Budget deleted"); setDeleteOpen(false); setPendingDelete(null); await load();
     } catch (error) {
       const message = error instanceof ApiError && (error.status === 404 || error.status === 405)
-        ? "Delete endpoint is not available yet for job cost budgets"
+        ? "Could not delete this budget"
         : error instanceof Error ? error.message : "Unknown error";
       toast.error("Failed to delete budget", { description: message });
     } finally { setIsDeleting(false); }

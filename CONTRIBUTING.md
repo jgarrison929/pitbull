@@ -80,7 +80,7 @@ Product version lives in root **`VERSION`** (keep in sync with `package.json`, A
 When cutting a release:
 
 1. Move items from `## [Unreleased]` in `CHANGELOG.md` into a new header with **date and time** of publish, e.g.  
-   `## [2.2.1] - 2026-07-10T11:03:00-07:00`  
+   `## [2.3.0] - 2026-07-10T12:58:16-07:00`  
    (ISO-8601 with offset preferred; date-only `YYYY-MM-DD` still works for older entries)
 2. Bump `VERSION`, `package.json` `version`, and API csproj `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` together
 3. Bump `ARG VERSION` / `ARG NEXT_PUBLIC_APP_VERSION` defaults in both Dockerfiles and `docker-compose.prod.yml` if they hardcode the version

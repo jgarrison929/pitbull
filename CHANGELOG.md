@@ -8,12 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### Fixed
+## [2.3.0] - 2026-07-10T12:58:16-07:00
 
-- **Integration migrate** — `20260709140618_AddPmDailyReportTitle` is idempotent (`ADD COLUMN IF NOT EXISTS`) so fresh DBs no longer 42701 after June’s `pm_daily_reports.Title` add
+### Added
+
+- **PM soft-delete (complete the loop)** — project tasks, daily reports (draft only), job-cost budgets, submittals (not approved/closed), meetings (not completed), narratives (not approved/published), communications, monthly cost projections (draft only), **plan sets / spec sections**, and **RFIs** (`DELETE /api/projects/{id}/rfis/{id}` → `IRfiService.DeleteRfiAsync`) now soft-delete via service + `DELETE` API; UI no longer hits dead ends
+- **Field dashboard active equipment** — role field home shows real active fleet count from `GET /api/equipment?isActive=true` (removed “Coming soon” placeholder)
 
 ### Changed
 
+- Docs hygiene: living architecture notes at v2.3+; demo environment doc points at live `demo.pcserp.app` + `deploy/`; ROADMAP-2.1 marked historical; BEST-PRACTICES domain-events section no longer steers toward MediatR-in-controllers
+- Version bumped to **2.3.0**
+
+### Fixed
+
+- **Integration migrate** — `20260709140618_AddPmDailyReportTitle` is idempotent (`ADD COLUMN IF NOT EXISTS`) so fresh DBs no longer 42701 after June’s `pm_daily_reports.Title` add
 - Professionalized public documentation (README, VISION, SECURITY, agent instructions); removed historical planning archive from the tree
 
 ## [2.2.1] - 2026-07-10T11:03:00-07:00

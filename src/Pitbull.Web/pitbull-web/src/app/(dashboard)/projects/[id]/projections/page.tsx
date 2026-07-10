@@ -347,7 +347,7 @@ export default function CostProjectionsPage({ params }: { params: Promise<{ id: 
     } catch (error) {
       const message =
         error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete is not available yet for cost projections"
+          ? "Could not delete this projection"
           : error instanceof Error
             ? error.message
             : "Unknown error";

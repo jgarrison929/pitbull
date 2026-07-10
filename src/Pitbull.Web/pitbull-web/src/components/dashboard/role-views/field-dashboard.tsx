@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FolderOpen, Clock3, Truck, FileText } from "lucide-react";
 import Link from "next/link";
+import api from "@/lib/api";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -27,6 +29,29 @@ function trendPercent(current: number, previous: number): number {
 
 export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics | null; isLoading: boolean }) {
   const hoursDelta = data ? trendPercent(data.hoursThisWeek, data.hoursLastWeek) : 0;
+  const [equipmentCount, setEquipmentCount] = useState<number | null>(null);
+  const [equipmentLoading, setEquipmentLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadEquipment() {
+      try {
+        const result = await api<{ items: { isActive?: boolean }[]; totalCount: number }>(
+          "/api/equipment?isActive=true&pageSize=1"
+        );
+        if (!cancelled) setEquipmentCount(result.totalCount);
+      } catch {
+        if (!cancelled) setEquipmentCount(null);
+      } finally {
+        if (!cancelled) setEquipmentLoading(false);
+      }
+    }
+    void loadEquipment();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
@@ -59,15 +84,23 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
             </CardContent>
           </Card>
         </Link>
-        <Link href="/equipment" className="group">
+        <Link href="/equipment?isActive=true" className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Equipment Assigned</CardTitle>
+              <CardTitle className="text-sm font-medium">Active Equipment</CardTitle>
               <Truck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-muted-foreground">--</div>
-              <Badge variant="outline" className="mt-1 text-xs">Coming soon</Badge>
+              {equipmentLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-3xl font-bold">{equipmentCount ?? "—"}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {equipmentCount === null ? "Could not load" : "fleet units in service"}
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </Link>

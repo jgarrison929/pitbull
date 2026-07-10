@@ -749,6 +749,8 @@ public class JobCostService : PmServiceBase, IJobCostService
 
     public Task<Result<PagedResult<PmEntityDto>>> ListBudgetsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmJobCostBudget>(projectId), query, cancellationToken);
+    public Task<Result> DeleteBudgetAsync(Guid projectId, Guid budgetId, CancellationToken cancellationToken = default)
+        => DeleteAsync<PmJobCostBudget>(projectId, budgetId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListActualsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmJobCostActual>(projectId), query, cancellationToken);
     public async Task<Result<PmActionResultDto>> RebuildActualsAsync(Guid projectId, CancellationToken cancellationToken = default)
@@ -851,6 +853,22 @@ public class SubmittalService : PmServiceBase, ISubmittalService
         return Result.Success(ToDto(submittal));
     }
 
+    public async Task<Result> DeleteSubmittalAsync(Guid projectId, Guid submittalId, CancellationToken cancellationToken = default)
+    {
+        var submittal = await ProjectScoped<PmSubmittal>(projectId).FirstOrDefaultAsync(s => s.Id == submittalId, cancellationToken);
+        if (submittal == null)
+            return Result.Failure("Not found", "NOT_FOUND");
+
+        if (submittal.Status is SubmittalStatus.Approved or SubmittalStatus.ApprovedAsNoted or SubmittalStatus.Closed)
+            return Result.Failure("Cannot delete an approved or closed submittal", "INVALID_STATUS");
+
+        submittal.IsDeleted = true;
+        submittal.DeletedAt = DateTime.UtcNow;
+        submittal.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     public async Task<Result<PmEntityDto>> AddWorkflowEventAsync(Guid projectId, Guid submittalId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
         var submittal = await ProjectScoped<PmSubmittal>(projectId).FirstOrDefaultAsync(s => s.Id == submittalId, cancellationToken);
@@ -880,6 +898,8 @@ public class PlansSpecsService : PmServiceBase, IPlansSpecsService
         => GetAsync<PmPlanSet>(projectId, planSetId, cancellationToken);
     public Task<Result<PmEntityDto>> CreatePlanSetAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmPlanSet>(projectId, request, cancellationToken);
+    public Task<Result> DeletePlanSetAsync(Guid projectId, Guid planSetId, CancellationToken cancellationToken = default)
+        => DeleteAsync<PmPlanSet>(projectId, planSetId, cancellationToken);
     public Task<Result<PmEntityDto>> AddPlanSheetAsync(Guid projectId, Guid planSetId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmPlanSheet>(projectId, request with { ReferenceId = planSetId }, cancellationToken);
     public Task<Result<PmEntityDto>> AddPlanSheetRevisionAsync(Guid projectId, Guid sheetId, PmUpsertRequest request, CancellationToken cancellationToken = default)
@@ -888,6 +908,8 @@ public class PlansSpecsService : PmServiceBase, IPlansSpecsService
         => ListAsync(ProjectScoped<PmSpecSection>(projectId), query, cancellationToken);
     public Task<Result<PmEntityDto>> CreateSpecSectionAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmSpecSection>(projectId, request, cancellationToken);
+    public Task<Result> DeleteSpecSectionAsync(Guid projectId, Guid sectionId, CancellationToken cancellationToken = default)
+        => DeleteAsync<PmSpecSection>(projectId, sectionId, cancellationToken);
     public Task<Result<PmEntityDto>> AddSpecRevisionAsync(Guid projectId, Guid sectionId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmSpecSectionRevision>(projectId, request with { ReferenceId = sectionId }, cancellationToken);
     public Task<Result<PmEntityDto>> CreateDistributionAsync(Guid projectId, PmUpsertRequest request, CancellationToken cancellationToken = default)
@@ -955,6 +977,8 @@ public class CommunicationService : PmServiceBase, ICommunicationService
         => ListAsync(ProjectScoped<PmCommunication>(projectId), query, cancellationToken);
     public Task<Result<PmEntityDto>> UpdateCommunicationAsync(Guid projectId, Guid communicationId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => UpdateAsync<PmCommunication>(projectId, communicationId, request, cancellationToken);
+    public Task<Result> DeleteCommunicationAsync(Guid projectId, Guid communicationId, CancellationToken cancellationToken = default)
+        => DeleteAsync<PmCommunication>(projectId, communicationId, cancellationToken);
     public Task<Result<PmEntityDto>> AddAttachmentAsync(Guid projectId, Guid communicationId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmCommunicationAttachment>(projectId, request with { ReferenceId = communicationId }, cancellationToken);
 }
@@ -1034,6 +1058,22 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         report.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(report));
+    }
+
+    public async Task<Result> DeleteDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
+    {
+        var report = await ProjectScoped<PmDailyReport>(projectId).FirstOrDefaultAsync(r => r.Id == dailyReportId, cancellationToken);
+        if (report == null)
+            return Result.Failure("Not found", "NOT_FOUND");
+
+        if (report.Status is DailyReportStatus.Submitted or DailyReportStatus.Approved or DailyReportStatus.Locked)
+            return Result.Failure("Cannot delete a submitted, approved, or locked daily report", "INVALID_STATUS");
+
+        report.IsDeleted = true;
+        report.DeletedAt = DateTime.UtcNow;
+        report.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
     }
 
     public async Task<Result<PmActionResultDto>> SubmitDailyReportAsync(Guid projectId, Guid dailyReportId, CancellationToken cancellationToken = default)
@@ -1386,6 +1426,22 @@ public class ProjectionService : PmServiceBase, IProjectionService
         return Result.Success(ToDto(projection));
     }
 
+    public async Task<Result> DeleteMonthlyProjectionAsync(Guid projectId, Guid projectionId, CancellationToken cancellationToken = default)
+    {
+        var projection = await ProjectScoped<PmMonthlyProjection>(projectId).FirstOrDefaultAsync(p => p.Id == projectionId, cancellationToken);
+        if (projection == null)
+            return Result.Failure("Not found", "NOT_FOUND");
+
+        if (projection.ProjectionStatus is not ProjectionStatus.Draft)
+            return Result.Failure("Only draft projections can be deleted", "INVALID_STATUS");
+
+        projection.IsDeleted = true;
+        projection.DeletedAt = DateTime.UtcNow;
+        projection.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
     public async Task<Result<PmActionResultDto>> SubmitMonthlyProjectionAsync(Guid projectId, Guid projectionId, CancellationToken cancellationToken = default)
     {
         var projection = await ProjectScoped<PmMonthlyProjection>(projectId).FirstOrDefaultAsync(p => p.Id == projectionId, cancellationToken);
@@ -1430,6 +1486,21 @@ public class MeetingService : PmServiceBase, IMeetingService
         => GetAsync<PmMeeting>(projectId, meetingId, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListMeetingsAsync(Guid projectId, PmListQuery query, CancellationToken cancellationToken = default)
         => ListAsync(ProjectScoped<PmMeeting>(projectId), query, cancellationToken);
+    public async Task<Result> DeleteMeetingAsync(Guid projectId, Guid meetingId, CancellationToken cancellationToken = default)
+    {
+        var meeting = await ProjectScoped<PmMeeting>(projectId).FirstOrDefaultAsync(m => m.Id == meetingId, cancellationToken);
+        if (meeting == null)
+            return Result.Failure("Not found", "NOT_FOUND");
+
+        if (meeting.Status == MeetingStatus.Completed)
+            return Result.Failure("Cannot delete a completed meeting", "INVALID_STATUS");
+
+        meeting.IsDeleted = true;
+        meeting.DeletedAt = DateTime.UtcNow;
+        meeting.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
 
     public async Task<Result<PmEntityDto>> UpdateMeetingAsync(Guid projectId, Guid meetingId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
@@ -1566,6 +1637,8 @@ public class TaskService : PmServiceBase, ITaskService
         => ListAsync(ProjectScoped<PmTask>(projectId), query, cancellationToken);
     public Task<Result<PmEntityDto>> UpdateTaskAsync(Guid projectId, Guid taskId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => UpdateAsync<PmTask>(projectId, taskId, request, cancellationToken);
+    public Task<Result> DeleteTaskAsync(Guid projectId, Guid taskId, CancellationToken cancellationToken = default)
+        => DeleteAsync<PmTask>(projectId, taskId, cancellationToken);
     public Task<Result<PmEntityDto>> AddTaskCommentAsync(Guid projectId, Guid taskId, PmUpsertRequest request, CancellationToken cancellationToken = default)
         => CreateAsync<PmTaskComment>(projectId, request with { ReferenceId = taskId }, cancellationToken);
     public Task<Result<PagedResult<PmEntityDto>>> ListMyTasksAsync(PmListQuery query, Guid assignedUserId, CancellationToken cancellationToken = default)
@@ -1603,6 +1676,22 @@ public class NarrativeService : PmServiceBase, INarrativeService
         narrative.UpdatedAt = DateTime.UtcNow;
         await Db.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(narrative));
+    }
+
+    public async Task<Result> DeleteNarrativeAsync(Guid projectId, Guid narrativeId, CancellationToken cancellationToken = default)
+    {
+        var narrative = await ProjectScoped<PmProjectNarrative>(projectId).FirstOrDefaultAsync(n => n.Id == narrativeId, cancellationToken);
+        if (narrative == null)
+            return Result.Failure("Not found", "NOT_FOUND");
+
+        if (narrative.Status is NarrativeStatus.Published or NarrativeStatus.Approved)
+            return Result.Failure("Cannot delete an approved or published narrative", "INVALID_STATUS");
+
+        narrative.IsDeleted = true;
+        narrative.DeletedAt = DateTime.UtcNow;
+        narrative.UpdatedAt = DateTime.UtcNow;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success();
     }
 
     public async Task<Result<PmActionResultDto>> SubmitNarrativeAsync(Guid projectId, Guid narrativeId, CancellationToken cancellationToken = default)

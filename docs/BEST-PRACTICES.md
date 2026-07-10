@@ -318,22 +318,13 @@ public abstract class BaseEntity
 
 ### Domain Events
 
-`BaseEntity` supports domain events via MediatR notifications:
+`BaseEntity` can collect domain events:
 
 ```csharp
 public void AddDomainEvent(IDomainEvent domainEvent) => _domainEvents.Add(domainEvent);
 ```
 
-Events implement `IDomainEvent` (which extends `MediatR.INotification`):
-
-```csharp
-public abstract record DomainEventBase : IDomainEvent
-{
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
-}
-```
-
-**Current status:** Domain events are now fully implemented. The `DispatchDomainEvents()` method collects and dispatches events via MediatR after SaveChanges. Events are dispatched asynchronously using fire-and-forget pattern to avoid blocking the main transaction.
+**Current status:** Prefer explicit service-layer side effects and CAP integration events for cross-module work. Do **not** wire new controller code through MediatR. If you add in-process domain event dispatch, keep it inside the Core DbContext/module infrastructure — not in controllers.
 
 ### Controller Conventions
 

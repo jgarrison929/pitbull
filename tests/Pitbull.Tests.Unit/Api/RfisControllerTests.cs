@@ -534,6 +534,71 @@ public class RfisControllerTests
 
     #endregion
 
+    #region Delete
+
+    [Fact]
+    public async Task Delete_Success_Returns204AndCallsService()
+    {
+        var dto = CreateTestDto(TestRfiId, TestProjectId);
+        _serviceMock
+            .Setup(s => s.GetRfiAsync(TestRfiId, default))
+            .ReturnsAsync(Result.Success(dto));
+        _serviceMock
+            .Setup(s => s.DeleteRfiAsync(TestRfiId, default))
+            .ReturnsAsync(Result.Success());
+
+        var result = await _controller.Delete(TestProjectId, TestRfiId);
+
+        result.Should().BeOfType<NoContentResult>();
+        _serviceMock.Verify(s => s.DeleteRfiAsync(TestRfiId, default), Times.Once);
+    }
+
+    [Fact]
+    public async Task Delete_NotFound_Returns404()
+    {
+        _serviceMock
+            .Setup(s => s.GetRfiAsync(TestRfiId, default))
+            .ReturnsAsync(Result.Failure<RfiDto>("RFI not found", "NOT_FOUND"));
+
+        var result = await _controller.Delete(TestProjectId, TestRfiId);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+        _serviceMock.Verify(s => s.DeleteRfiAsync(It.IsAny<Guid>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task Delete_WrongProject_Returns404WithoutDeleting()
+    {
+        var otherProject = Guid.NewGuid();
+        var dto = CreateTestDto(TestRfiId, otherProject);
+        _serviceMock
+            .Setup(s => s.GetRfiAsync(TestRfiId, default))
+            .ReturnsAsync(Result.Success(dto));
+
+        var result = await _controller.Delete(TestProjectId, TestRfiId);
+
+        result.Should().BeOfType<NotFoundObjectResult>();
+        _serviceMock.Verify(s => s.DeleteRfiAsync(It.IsAny<Guid>(), default), Times.Never);
+    }
+
+    [Fact]
+    public async Task Delete_ServiceFailureAfterLookup_ReturnsMappedError()
+    {
+        var dto = CreateTestDto(TestRfiId, TestProjectId);
+        _serviceMock
+            .Setup(s => s.GetRfiAsync(TestRfiId, default))
+            .ReturnsAsync(Result.Success(dto));
+        _serviceMock
+            .Setup(s => s.DeleteRfiAsync(TestRfiId, default))
+            .ReturnsAsync(Result.Failure("Failed to delete RFI", "DATABASE_ERROR"));
+
+        var result = await _controller.Delete(TestProjectId, TestRfiId);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    #endregion
+
     #region GetCostImpact
 
     [Fact]

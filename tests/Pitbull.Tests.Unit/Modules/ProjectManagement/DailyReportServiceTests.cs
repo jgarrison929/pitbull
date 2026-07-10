@@ -178,6 +178,64 @@ public sealed class DailyReportServiceTests
     }
 
     [Fact]
+    public async Task DeleteDailyReport_Draft_SoftDeletes()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest())).Value!;
+
+        var deleteResult = await service.DeleteDailyReportAsync(ProjectId, created.Id);
+        deleteResult.IsSuccess.Should().BeTrue();
+
+        var getResult = await service.GetDailyReportAsync(ProjectId, created.Id);
+        getResult.IsSuccess.Should().BeFalse();
+        getResult.ErrorCode.Should().Be("NOT_FOUND");
+
+        var raw = await db.Set<PmDailyReport>().IgnoreQueryFilters().FirstOrDefaultAsync(r => r.Id == created.Id);
+        raw.Should().NotBeNull();
+        raw!.IsDeleted.Should().BeTrue();
+        raw.DeletedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task DeleteDailyReport_Submitted_ReturnsInvalidStatus()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        var created = (await service.CreateDailyReportAsync(ProjectId, new PmUpsertRequest(
+            Data: new Dictionary<string, object?>
+            {
+                ["WeatherSummary"] = "Clear",
+                ["WorkNarrative"] = "Work done"
+            }))).Value!;
+
+        var submit = await service.SubmitDailyReportAsync(ProjectId, created.Id);
+        submit.IsSuccess.Should().BeTrue();
+
+        var deleteResult = await service.DeleteDailyReportAsync(ProjectId, created.Id);
+        deleteResult.IsSuccess.Should().BeFalse();
+        deleteResult.ErrorCode.Should().Be("INVALID_STATUS");
+    }
+
+    [Fact]
+    public async Task DeleteDailyReport_NotFound_ReturnsError()
+    {
+        using var db = TestDbContextFactory.Create();
+
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+
+        var result = await service.DeleteDailyReportAsync(ProjectId, Guid.NewGuid());
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
     public async Task UpdateDailyReport_WithStatusProperty_ReturnsInvalidStatusTransition()
     {
         using var db = TestDbContextFactory.Create();

@@ -579,7 +579,7 @@ export default function DailyReportsPage({ params }: { params: Promise<{ id: str
     } catch (error) {
       const message =
         error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete endpoint is not available yet for daily reports"
+          ? "Could not delete this daily report"
           : error instanceof Error
             ? error.message
             : "Unknown error";

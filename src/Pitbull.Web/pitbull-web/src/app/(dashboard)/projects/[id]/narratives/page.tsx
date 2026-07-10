@@ -292,7 +292,7 @@ export default function NarrativesPage({ params }: { params: Promise<{ id: strin
     } catch (error) {
       const message =
         error instanceof ApiError && (error.status === 404 || error.status === 405)
-          ? "Delete endpoint is not available yet for narratives"
+          ? "Could not delete this narrative"
           : error instanceof Error
             ? error.message
             : "Unknown error";
