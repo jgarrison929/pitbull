@@ -81,15 +81,21 @@ Alternatively, set `ConnectionStrings__PitbullDb` directly with the Npgsql conne
 
 ## 4. Generate public domains
 
-For each service → **Settings → Networking** → **Generate Domain**:
+For each service → **Settings → Networking** → **Generate Domain** (Railway `*.up.railway.app`), then add custom domains for the public demo:
 
-| Service | Example domain |
-|---------|----------------|
-| `pitbull-api` | `pitbull-api-production.up.railway.app` |
-| `pitbull-web` | `pitbull-web-production.up.railway.app` |
+| Service | Railway default (example) | Custom (production) |
+|---------|---------------------------|---------------------|
+| `pitbull` (API) | `*.up.railway.app` | `api.pcserp.app` |
+| `pitbull-web` | `*.up.railway.app` | `demo.pcserp.app` + `app.pcserp.app` |
 
-Copy both URLs — you'll need them for CORS and the frontend build.
+```powershell
+railway domain demo.pcserp.app -s pitbull-web
+railway domain app.pcserp.app -s pitbull-web
+railway domain api.pcserp.app -s pitbull
+.\scripts\cloudflare-railway-dns.ps1   # needs CLOUDFLARE_API_TOKEN
+```
 
+See [RAILWAY-DEMO.md](./RAILWAY-DEMO.md) for the live demo layout.
 ---
 
 ## 5. Environment variables
@@ -102,7 +108,8 @@ Copy both URLs — you'll need them for CORS and the frontend build.
 | `Jwt__Key` | 32+ char random string (run `scripts/railway-setup.ps1` to generate) |
 | `Jwt__Issuer` | `pitbull-api` |
 | `Jwt__Audience` | `pitbull-client` |
-| `Cors__AllowedOrigins__0` | `https://<your-web-domain>` |
+| `Cors__AllowedOrigins__0` | `https://demo.pcserp.app` (or your web origin) |
+| `Cors__AllowedOrigins__1` | `https://app.pcserp.app` (optional second origin) |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 
 ### pitbull-api (demo mode)
