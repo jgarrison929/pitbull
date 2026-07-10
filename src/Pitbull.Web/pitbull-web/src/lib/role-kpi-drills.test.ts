@@ -22,8 +22,9 @@ describe("roleKpiDrillHref", () => {
     );
   });
 
-  it("maps open RFIs and COs to status=open", () => {
-    expect(roleKpiDrillHref("openRfis")).toBe("/rfis?status=open");
+  it("maps open RFIs to notClosed (Open+Answered) and COs to status=open", () => {
+    expect(roleKpiDrillHref("openRfis")).toBe("/rfis?status=notClosed");
+    expect(roleKpiDrillHref("viewRfis")).toBe("/rfis?status=notClosed");
     expect(roleKpiDrillHref("openChangeOrders")).toBe(
       "/change-orders?status=open"
     );
@@ -47,7 +48,7 @@ describe("roleKpiDrillHref", () => {
   });
 
   it("maps view RFIs action to RFIs not projects", () => {
-    expect(roleKpiDrillHref("viewRfis")).toBe("/rfis?status=open");
+    expect(roleKpiDrillHref("viewRfis")).toContain("/rfis");
     expect(roleKpiDrillHref("viewRfis")).not.toContain("/projects");
   });
 });
@@ -56,13 +57,13 @@ describe("parseProjectsDrillParams", () => {
   it("parses unbilled and budget alert flags from URLSearchParams", () => {
     const p = parseProjectsDrillParams(
       new URLSearchParams(
-        "unbilled=true&status=active&budgetAlert=true&budgetAlertPercent=90"
+        "unbilled=true&excludeCompleted=true&budgetAlert=true&budgetAlertPercent=90"
       )
     );
     expect(p.unbilled).toBe(true);
+    expect(p.excludeCompleted).toBe(true);
     expect(p.budgetAlert).toBe(true);
     expect(p.budgetAlertPercent).toBe(90);
-    expect(p.status).toBe("active");
   });
 
   it("defaults budget threshold to 75", () => {

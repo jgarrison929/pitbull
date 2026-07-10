@@ -79,6 +79,7 @@ export default function ProjectsPage() {
   const [budgetAlertFilter] = useState<boolean>(() => drill.budgetAlert);
   const [unbilledFilter] = useState<boolean>(() => drill.unbilled);
   const [budgetAlertPercent] = useState<number>(() => drill.budgetAlertPercent);
+  const [excludeCompletedFilter] = useState<boolean>(() => drill.excludeCompleted);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -104,6 +105,7 @@ export default function ProjectsPage() {
         params.set("budgetAlertPercent", String(budgetAlertPercent));
       }
       if (unbilledFilter) params.set("unbilled", "true");
+      if (excludeCompletedFilter) params.set("excludeCompleted", "true");
       const result = await api<PagedResult<Project>>(
         `/api/projects?${params.toString()}`
       );
@@ -116,7 +118,7 @@ export default function ProjectsPage() {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- activeCompany?.id triggers refetch on company switch
-  }, [page, search, statusFilter, budgetAlertFilter, budgetAlertPercent, unbilledFilter, activeCompany?.id]);
+  }, [page, search, statusFilter, budgetAlertFilter, budgetAlertPercent, unbilledFilter, excludeCompletedFilter, activeCompany?.id]);
 
   useEffect(() => {
     const timer = setTimeout(fetchProjects, 250);
@@ -130,15 +132,22 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground">
             {unbilledFilter
-              ? "Active projects with remaining unbilled contract value (portfolio − G702 billed)"
+              ? "Projects with remaining unbilled contract value (portfolio − G702 billed)"
               : budgetAlertFilter
                 ? `Projects where labor spend ≥ ${budgetAlertPercent}% of contract (labor proxy)`
+                : excludeCompletedFilter
+                  ? "Non-completed projects (matches executive Active Projects KPI)"
                 : "Manage your construction projects"}
           </p>
-          {(unbilledFilter || budgetAlertFilter) && (
+          {(unbilledFilter || budgetAlertFilter || excludeCompletedFilter) && (
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">
               Drill filter active — {totalCount} project{totalCount !== 1 ? "s" : ""} match
-              {unbilledFilter ? " unbilled backlog" : " budget alert"} criteria.
+              {unbilledFilter
+                ? " unbilled backlog"
+                : budgetAlertFilter
+                  ? " budget alert"
+                  : " exclude-completed"}{" "}
+              criteria.
             </p>
           )}
         </div>

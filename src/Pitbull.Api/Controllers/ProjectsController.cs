@@ -170,13 +170,14 @@ public class ProjectsController(
         [FromQuery] bool unbilled = false,
         [FromQuery] bool budgetAlert = false,
         [FromQuery] int budgetAlertPercent = 75,
+        [FromQuery] bool excludeCompleted = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
         // Cache only unfiltered default queries (dropdown-style "get all")
         var isDefaultQuery = status is null && type is null
             && string.IsNullOrEmpty(search)
-            && !unbilled && !budgetAlert
+            && !unbilled && !budgetAlert && !excludeCompleted
             && page == 1 && pageSize == 10;
 
         if (isDefaultQuery)
@@ -196,7 +197,7 @@ public class ProjectsController(
             return Ok(cached.Value);
         }
 
-        var query = new ListProjectsQuery(status, type, search, unbilled, budgetAlert, budgetAlertPercent)
+        var query = new ListProjectsQuery(status, type, search, unbilled, budgetAlert, budgetAlertPercent, excludeCompleted)
         {
             Page = page,
             PageSize = pageSize

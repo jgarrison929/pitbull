@@ -104,6 +104,12 @@ public class ProjectService : IProjectService
             dbQuery = dbQuery.Where(p => p.Type == listQuery.Type.Value);
         }
 
+        // Matches RoleDashboardSummary ActiveProjectCount: Status != Completed
+        if (listQuery.ExcludeCompleted)
+        {
+            dbQuery = dbQuery.Where(p => p.Status != ProjectStatus.Completed);
+        }
+
         var needsEnrichment = listQuery.UnbilledOnly || listQuery.BudgetAlert;
 
         if (!needsEnrichment)
