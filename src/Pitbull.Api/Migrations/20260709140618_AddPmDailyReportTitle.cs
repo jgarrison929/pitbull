@@ -10,22 +10,22 @@ namespace Pitbull.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Title was added to PmDailyReport in code without a prior migration; production
-            // seed fails with: column "Title" of relation "pm_daily_reports" does not exist.
-            migrationBuilder.AddColumn<string>(
-                name: "Title",
-                table: "pm_daily_reports",
-                type: "character varying(200)",
-                maxLength: 200,
-                nullable: true);
+            // Title was also added in 20260626223208_AddOwnerChangeOrderAndVendorInvoiceAccrual.
+            // This migration was added later for DBs that never received that column.
+            // Use IF NOT EXISTS so a full history apply on a fresh database does not 42701.
+            migrationBuilder.Sql(
+                """
+                ALTER TABLE pm_daily_reports
+                ADD COLUMN IF NOT EXISTS "Title" character varying(200) NULL;
+                """);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Title",
-                table: "pm_daily_reports");
+            // Do not drop Title here — the earlier migration owns the column for DBs
+            // that applied the full chain. Dropping would remove a still-required column
+            // when only this migration is rolled back.
         }
     }
 }

@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Integration migrate** — `20260709140618_AddPmDailyReportTitle` is idempotent (`ADD COLUMN IF NOT EXISTS`) so fresh DBs no longer 42701 after June’s `pm_daily_reports.Title` add
+
 ### Changed
 
 - Professionalized public documentation (README, VISION, SECURITY, agent instructions); removed historical planning archive from the tree
