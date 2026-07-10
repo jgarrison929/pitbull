@@ -4,7 +4,7 @@ Source: `docs/archive/roles-2026-02/` + `DemoBootstrapper.DemoUsers` + `Permissi
 
 | Persona | Email | AppRole | RBAC Role | Lifecycles |
 |---------|-------|---------|-----------|------------|
-| CEO / Controller | ceo@demo.local | Admin | Admin | 1, 2 |
+| CEO / Controller | ceo@demo.local | Manager | Executive | 1, 2 |
 | Project Manager | pm@demo.local | Supervisor | ProjectManager | 2, 6, 7, 8, 10 |
 | Field Engineer (Foreman) | field-eng@demo.local | User | Foreman | 3, 10 |
 | Estimator | estimator@demo.local | User | Estimator | 1 |

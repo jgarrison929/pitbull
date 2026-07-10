@@ -28,8 +28,8 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
   ceo: {
     key: 'ceo',
     email: 'ceo@demo.local',
-    appRole: 'Admin',
-    rbacRole: 'Admin',
+    appRole: 'Manager',
+    rbacRole: 'Executive',
     archiveDoc: 'CONTROLLER-CFO.md',
     lifecycles: [1, 2],
   },

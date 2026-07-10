@@ -437,10 +437,10 @@ public class AuthController(
     /// </summary>
     private static readonly Dictionary<string, DemoRolePersona> DemoRolePersonas = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["ceo"] = new("ceo", "CEO", "Full admin view — company portfolio, executive dashboards, settings",
-            "ceo@demo.local", RoleSeeder.Roles.Admin),
+        ["ceo"] = new("ceo", "CEO", "Executive portfolio — dashboards, projects, company overview",
+            "ceo@demo.local", RoleSeeder.Roles.Manager),
         ["cfo"] = new("cfo", "CFO", "Financial leadership — WIP, billing, accounting, payroll visibility",
-            "cfo@demo.local", RoleSeeder.Roles.Admin),
+            "cfo@demo.local", RoleSeeder.Roles.Manager),
         ["pm"] = new("pm", "Project Manager", "Jobs in flight — schedules, RFIs, daily reports, time approval",
             "pm@demo.local", RoleSeeder.Roles.Supervisor),
         ["estimator"] = new("estimator", "Estimator", "Precon focus — bids, opportunities, cost codes",
