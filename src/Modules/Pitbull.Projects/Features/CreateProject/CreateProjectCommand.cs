@@ -57,5 +57,12 @@ public record ProjectDto(
     Guid? ProjectManagerId,
     Guid? SuperintendentId,
     Guid? SourceBidId,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    /// <summary>Latest non-draft/void G702 completed &amp; stored (when enriched).</summary>
+    decimal? BilledToDate = null,
+    /// <summary>ContractAmount − BilledToDate (when enriched).</summary>
+    decimal? UnbilledAmount = null,
+    /// <summary>Approved labor (+ equip) spend vs contract (when enriched for budget alerts).</summary>
+    decimal? LaborSpent = null,
+    decimal? LaborPercentOfContract = null
 );

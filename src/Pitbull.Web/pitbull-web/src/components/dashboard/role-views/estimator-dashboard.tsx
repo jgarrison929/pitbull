@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ClipboardList, FolderOpen, Tags, PlusCircle, BarChart3 } from "lucide-react";
 import Link from "next/link";
+import { roleKpiDrillHref } from "@/lib/role-kpi-drills";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -33,7 +34,7 @@ export function EstimatorDashboard({
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Link href="/bids" className="group">
+        <Link href={roleKpiDrillHref("bidPipeline")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Bid Pipeline</CardTitle>
@@ -46,7 +47,7 @@ export function EstimatorDashboard({
             </CardContent>
           </Card>
         </Link>
-        <Link href="/projects" className="group">
+        <Link href={roleKpiDrillHref("estimatorProjects")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
@@ -87,9 +88,9 @@ export function EstimatorDashboard({
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href="/bids">
+          <Link href={roleKpiDrillHref("bidPipeline")}>
             <ClipboardList className="h-5 w-5 text-blue-600" />
-            <span className="text-sm font-medium">All Bids</span>
+            <span className="text-sm font-medium">Open Pipeline</span>
           </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">

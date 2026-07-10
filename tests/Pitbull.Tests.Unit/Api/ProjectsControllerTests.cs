@@ -174,7 +174,15 @@ public class ProjectsControllerTests
             .Setup(s => s.GetProjectsAsync(It.IsAny<ListProjectsQuery>(), default))
             .ReturnsAsync(Result.Success(pagedResult));
 
-        await _controller.List(ProjectStatus.Active, ProjectType.Commercial, "bridge", 2, 25);
+        await _controller.List(
+            ProjectStatus.Active,
+            ProjectType.Commercial,
+            "bridge",
+            unbilled: false,
+            budgetAlert: false,
+            budgetAlertPercent: 75,
+            page: 2,
+            pageSize: 25);
 
         _projectServiceMock.Verify(s => s.GetProjectsAsync(
             It.Is<ListProjectsQuery>(q =>

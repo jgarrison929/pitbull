@@ -71,12 +71,16 @@ export default function BillingApplicationsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const contractIdParam = searchParams.get("contractId");
+  const scopeProgress = searchParams.get("scope") === "progress";
 
   const [apps, setApps] = useState<BillingApplicationDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [statusFilter, setStatusFilter] = useState(ALL_VALUE);
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const s = searchParams.get("status");
+    return s && s.length > 0 ? s : ALL_VALUE;
+  });
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -98,14 +102,21 @@ export default function BillingApplicationsPage() {
       if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
 
       const data = await api<ApplicationsResult>(`/api/billing-applications?${params}`);
-      setApps(data.items);
-      setTotalPages(data.totalPages);
+      let items = data.items;
+      if (scopeProgress) {
+        // Exclude pure drafts/voids — matches role-summary billed-to-date contributors
+        items = items.filter(
+          (a) => a.status !== "Draft" && a.status !== "Void"
+        );
+      }
+      setApps(items);
+      setTotalPages(scopeProgress ? 1 : data.totalPages);
     } catch {
       toast.error("Failed to load billing applications");
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter, contractIdParam]);
+  }, [page, statusFilter, contractIdParam, scopeProgress]);
 
   useEffect(() => { fetchApps(); }, [fetchApps]);
 

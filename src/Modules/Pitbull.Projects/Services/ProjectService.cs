@@ -104,19 +104,128 @@ public class ProjectService : IProjectService
             dbQuery = dbQuery.Where(p => p.Type == listQuery.Type.Value);
         }
 
-        // Get total count for pagination
-        var totalCount = await dbQuery.CountAsync(cancellationToken);
+        var needsEnrichment = listQuery.UnbilledOnly || listQuery.BudgetAlert;
 
-        // Apply pagination and get results
-        var projects = await dbQuery
+        if (!needsEnrichment)
+        {
+            var totalCount = await dbQuery.CountAsync(cancellationToken);
+            var projects = await dbQuery
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((listQuery.Page - 1) * listQuery.PageSize)
+                .Take(listQuery.PageSize)
+                .ToArrayAsync(cancellationToken);
+
+            var dtos = projects.Select(p => MapToDto(p)).ToArray();
+            return Result.Success(new PagedResult<ProjectDto>(dtos, totalCount, listQuery.Page, listQuery.PageSize));
+        }
+
+        // Unbilled / budget-alert need billing + labor enrichment before pagination.
+        var all = await dbQuery
             .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var projectIds = all.Select(p => p.Id).ToList();
+        var billedByProject = await GetBilledToDateByProjectAsync(projectIds, cancellationToken);
+        Dictionary<Guid, decimal>? laborByProject = null;
+        if (listQuery.BudgetAlert)
+            laborByProject = await GetLaborSpentByProjectAsync(projectIds, cancellationToken);
+
+        var threshold = listQuery.BudgetAlertPercent <= 0 ? 75 : listQuery.BudgetAlertPercent;
+        var enriched = new List<(Project Project, decimal Billed, decimal Unbilled, decimal Labor, decimal LaborPct)>();
+
+        foreach (var p in all)
+        {
+            billedByProject.TryGetValue(p.Id, out var billed);
+            var unbilled = Math.Max(0m, p.ContractAmount - billed);
+            var labor = 0m;
+            laborByProject?.TryGetValue(p.Id, out labor);
+            var laborPct = p.ContractAmount <= 0 ? 0m : (labor / p.ContractAmount) * 100m;
+
+            if (listQuery.UnbilledOnly)
+            {
+                if (p.Status == ProjectStatus.Completed || p.Status == ProjectStatus.Closed)
+                    continue;
+                if (unbilled < 0.01m)
+                    continue;
+            }
+
+            if (listQuery.BudgetAlert && laborPct < threshold)
+                continue;
+
+            enriched.Add((p, billed, unbilled, labor, laborPct));
+        }
+
+        // Sort unbilled by remaining $ desc; budget alert by labor % desc
+        if (listQuery.UnbilledOnly)
+            enriched = enriched.OrderByDescending(x => x.Unbilled).ToList();
+        else if (listQuery.BudgetAlert)
+            enriched = enriched.OrderByDescending(x => x.LaborPct).ToList();
+
+        var total = enriched.Count;
+        var pageItems = enriched
             .Skip((listQuery.Page - 1) * listQuery.PageSize)
             .Take(listQuery.PageSize)
-            .ToArrayAsync(cancellationToken);
+            .Select(x => MapToDto(x.Project, x.Billed, x.Unbilled, x.Labor, x.LaborPct))
+            .ToArray();
 
-        var dtos = projects.Select(MapToDto).ToArray();
-        var result = new PagedResult<ProjectDto>(dtos, totalCount, listQuery.Page, listQuery.PageSize);
-        return Result.Success(result);
+        return Result.Success(new PagedResult<ProjectDto>(pageItems, total, listQuery.Page, listQuery.PageSize));
+    }
+
+    private async Task<Dictionary<Guid, decimal>> GetBilledToDateByProjectAsync(
+        IReadOnlyList<Guid> projectIds, CancellationToken ct)
+    {
+        if (projectIds.Count == 0)
+            return new Dictionary<Guid, decimal>();
+
+        var apps = await _db.Set<BillingApplication>().AsNoTracking()
+            .Where(a => projectIds.Contains(a.ProjectId)
+                        && a.Status != BillingApplicationStatus.Void
+                        && a.Status != BillingApplicationStatus.Draft)
+            .Select(a => new { a.ProjectId, a.ApplicationNumber, a.TotalCompletedAndStoredToDate })
+            .ToListAsync(ct);
+
+        return apps
+            .GroupBy(a => a.ProjectId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.ApplicationNumber).First().TotalCompletedAndStoredToDate);
+    }
+
+    private async Task<Dictionary<Guid, decimal>> GetLaborSpentByProjectAsync(
+        IReadOnlyList<Guid> projectIds, CancellationToken ct)
+    {
+        if (projectIds.Count == 0)
+            return new Dictionary<Guid, decimal>();
+
+        // Mirror dashboard analytics labor proxy (approved time × rates).
+        try
+        {
+            var rows = await _db.Database.SqlQueryRaw<ProjectLaborSpendRow>(
+                    """
+                    SELECT te."ProjectId" AS "ProjectId",
+                           COALESCE(SUM(
+                               (te."RegularHours" * COALESCE(e."BaseHourlyRate", 0)) +
+                               (te."OvertimeHours" * COALESCE(e."BaseHourlyRate", 0) * 1.5) +
+                               (te."DoubletimeHours" * COALESCE(e."BaseHourlyRate", 0) * 2.0)
+                           ), 0) AS "Spent"
+                    FROM time_entries te
+                    LEFT JOIN employees e ON te."EmployeeId" = e."Id"
+                    WHERE te."IsDeleted" = false
+                      AND te."Status" = 1
+                    GROUP BY te."ProjectId"
+                    """)
+                .ToListAsync(ct);
+
+            return rows
+                .Where(r => projectIds.Contains(r.ProjectId))
+                .ToDictionary(r => r.ProjectId, r => r.Spent);
+        }
+        catch (Exception ex)
+        {
+            // In-memory tests / non-relational providers: skip labor filter data
+            _logger.LogDebug(ex, "Labor spend aggregation unavailable for project list filter");
+            return new Dictionary<Guid, decimal>();
+        }
     }
 
     public async Task<Result<ProjectDto>> CreateProjectAsync(CreateProjectCommand request, CancellationToken cancellationToken = default)
@@ -626,7 +735,12 @@ public class ProjectService : IProjectService
     /// <summary>
     /// Maps Project entity to ProjectDto (extracted from CreateProjectHandler)
     /// </summary>
-    private static ProjectDto MapToDto(Project project)
+    private static ProjectDto MapToDto(
+        Project project,
+        decimal? billedToDate = null,
+        decimal? unbilledAmount = null,
+        decimal? laborSpent = null,
+        decimal? laborPercentOfContract = null)
     {
         return new ProjectDto(
             project.Id,
@@ -650,10 +764,16 @@ public class ProjectService : IProjectService
             project.ProjectManagerId,
             project.SuperintendentId,
             project.SourceBidId,
-            project.CreatedAt
+            project.CreatedAt,
+            billedToDate,
+            unbilledAmount,
+            laborSpent,
+            laborPercentOfContract
         );
     }
 }
+
+internal record ProjectLaborSpendRow(Guid ProjectId, decimal Spent);
 
 // Helper DTOs for raw SQL queries (moved from handler, shared with service)
 internal record TimeEntryStatsRow(

@@ -10,6 +10,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-07-10
+
+### Added
+
+- **Role KPI drill-through (answer why)** — pure `roleKpiDrillHref` maps every executive/controller/PM/estimator KPI card to a filtered destination (not bare generic lists)
+- **Unbilled backlog list** — `GET /api/projects?unbilled=true` returns active projects with remaining G702 unbilled value (billed/unbilled columns on projects page)
+- **Budget alert filter** — `budgetAlert=true&budgetAlertPercent=75|90` filters projects by labor-to-contract proxy and sorts by severity
+- **Safety YTD report** — `GET /api/dashboard/safety-incidents` + `/reports/safety` for executive Safety KPI drill
+- **Compliance report (non-admin)** — `/reports/compliance?status=attention` for expiring/expired docs without Identity Admin gate
+
+### Changed
+
+- Executive/controller/PM/estimator dashboard card links use metric-true query contracts
+- Bids `pipeline=open`, change-orders `status=open`, billing apps `scope=progress`, employees `isActive` honor URL drills
+- Version bumped to **2.2.0**
+
 ## [2.1.0] - 2026-07-10
 
 ### Added

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -118,10 +119,16 @@ export default function EmployeesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Filters
+  // Filters — honor ?isActive= from workforce KPI drill
+  const urlParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [classificationFilter, setClassificationFilter] = useState<string>(ALL_VALUE);
-  const [activeFilter, setActiveFilter] = useState<string>("true");
+  const [activeFilter, setActiveFilter] = useState<string>(() => {
+    const v = urlParams.get("isActive");
+    if (v === "true" || v === "false") return v;
+    if (v === "all") return ALL_VALUE;
+    return "true";
+  });
 
   // Sorting + pagination
   const [sortField, setSortField] = useState<SortField>("employee");

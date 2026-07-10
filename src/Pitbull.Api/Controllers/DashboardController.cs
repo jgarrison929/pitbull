@@ -192,4 +192,17 @@ public class DashboardController(
         var result = await roleDashboardSummaryService.GetSummaryAsync(cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Safety incidents YTD (daily-report incidents) for executive drill-through.
+    /// </summary>
+    [HttpGet("safety-incidents")]
+    [Cacheable(DurationSeconds = 60)]
+    [ProducesResponseType(typeof(IReadOnlyList<SafetyIncidentListItemDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> GetSafetyIncidentsYtd(CancellationToken cancellationToken)
+    {
+        var result = await roleDashboardSummaryService.GetSafetyIncidentsYtdAsync(cancellationToken);
+        return Ok(result);
+    }
 }

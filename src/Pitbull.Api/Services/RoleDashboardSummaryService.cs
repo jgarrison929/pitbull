@@ -20,6 +20,7 @@ namespace Pitbull.Api.Services;
 public interface IRoleDashboardSummaryService
 {
     Task<RoleDashboardSummaryDto> GetSummaryAsync(CancellationToken ct = default);
+    Task<IReadOnlyList<SafetyIncidentListItemDto>> GetSafetyIncidentsYtdAsync(CancellationToken ct = default);
 }
 
 public sealed class RoleDashboardSummaryService(
@@ -161,6 +162,73 @@ public sealed class RoleDashboardSummaryService(
             .CountAsync(i => i.CreatedAt >= yearStartUtc, ct);
     }
 
+    public async Task<IReadOnlyList<SafetyIncidentListItemDto>> GetSafetyIncidentsYtdAsync(CancellationToken ct = default)
+    {
+        var yearStartUtc = new DateTime(DateTime.UtcNow.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var incidents = await db.Set<PmDailyReportSafetyIncident>().AsNoTracking()
+            .Where(i => i.CreatedAt >= yearStartUtc)
+            .OrderByDescending(i => i.CreatedAt)
+            .Take(200)
+            .Select(i => new
+            {
+                i.Id,
+                i.DailyReportId,
+                i.IncidentType,
+                i.Severity,
+                i.Description,
+                i.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        if (incidents.Count == 0)
+            return Array.Empty<SafetyIncidentListItemDto>();
+
+        var reportIds = incidents.Select(i => i.DailyReportId).Distinct().ToList();
+        var reports = await db.Set<PmDailyReport>().AsNoTracking()
+            .Where(r => reportIds.Contains(r.Id))
+            .Select(r => new { r.Id, r.ProjectId, r.ReportDate })
+            .ToListAsync(ct);
+        var reportMap = reports.ToDictionary(r => r.Id);
+
+        var projectIds = reports.Select(r => r.ProjectId).Distinct().ToList();
+        var projects = await db.Set<Project>().AsNoTracking()
+            .Where(p => projectIds.Contains(p.Id))
+            .Select(p => new { p.Id, p.Name, p.Number })
+            .ToListAsync(ct);
+        var projectMap = projects.ToDictionary(p => p.Id);
+
+        return incidents.Select(i =>
+        {
+            reportMap.TryGetValue(i.DailyReportId, out var report);
+            string projectName = "";
+            string projectNumber = "";
+            Guid? projectId = null;
+            DateOnly? reportDate = null;
+            if (report != null)
+            {
+                projectId = report.ProjectId;
+                reportDate = DateOnly.FromDateTime(report.ReportDate);
+                if (projectMap.TryGetValue(report.ProjectId, out var proj))
+                {
+                    projectName = proj.Name;
+                    projectNumber = proj.Number;
+                }
+            }
+
+            return new SafetyIncidentListItemDto(
+                i.Id,
+                projectId,
+                projectName,
+                projectNumber,
+                reportDate,
+                i.IncidentType.ToString(),
+                i.Severity.ToString(),
+                i.Description,
+                i.CreatedAt);
+        }).ToList();
+    }
+
     private async Task<AgingSummaryResult?> LoadAgingAsync(CancellationToken ct)
     {
         try
@@ -219,3 +287,14 @@ public sealed record RoleDashboardSummaryDto(
     int OpenBidCount,
     decimal BidPipelineValue,
     int ActiveCustomerCount);
+
+public sealed record SafetyIncidentListItemDto(
+    Guid Id,
+    Guid? ProjectId,
+    string ProjectName,
+    string ProjectNumber,
+    DateOnly? ReportDate,
+    string IncidentType,
+    string Severity,
+    string Description,
+    DateTime CreatedAtUtc);
