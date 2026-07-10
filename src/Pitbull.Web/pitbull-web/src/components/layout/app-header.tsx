@@ -117,14 +117,14 @@ export function AppHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-white dark:bg-neutral-900 px-4 lg:px-6">
+      <header className="sticky top-0 z-30 flex h-14 min-w-0 items-center gap-2 sm:gap-4 border-b bg-white dark:bg-neutral-900 px-3 sm:px-4 lg:px-6">
         {/* Mobile menu */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
-              className="lg:hidden h-10 w-10 min-h-[44px] min-w-[44px] text-lg"
+              className="lg:hidden shrink-0 h-10 w-10 min-h-[44px] min-w-[44px] text-lg"
               aria-label="Open navigation menu"
             >
               &#x2630;
@@ -138,28 +138,60 @@ export function AppHeader() {
           </SheetContent>
         </Sheet>
 
-        {/* Breadcrumbs */}
-        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          {breadcrumbs.map((crumb, i) => {
-            const isLast = i === breadcrumbs.length - 1;
-            return (
-              <span key={i} className="flex items-center gap-1.5">
-                {i > 0 && <span className="text-neutral-300">/</span>}
-                {isLast || !crumb.href ? (
-                  <span className={isLast ? "text-foreground font-medium" : ""}>
-                    {crumb.label}
-                  </span>
-                ) : (
-                  <Link
-                    href={crumb.href}
-                    className="hover:text-foreground transition-colors"
-                  >
-                    {crumb.label}
-                  </Link>
-                )}
-              </span>
-            );
-          })}
+        {/* Breadcrumbs — collapse middle segments on narrow screens */}
+        <nav className="min-w-0 flex-1 overflow-hidden" aria-label="Breadcrumb">
+          <ol className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            {breadcrumbs.map((crumb, i) => {
+              const isLast = i === breadcrumbs.length - 1;
+              const isFirst = i === 0;
+              const collapseMiddle = breadcrumbs.length > 2 && !isFirst && !isLast;
+              return (
+                <li
+                  key={`${crumb.href ?? crumb.label}-${i}`}
+                  className={cn(
+                    "flex min-w-0 items-center gap-1.5",
+                    collapseMiddle && "hidden sm:flex"
+                  )}
+                >
+                  {i > 0 && (
+                    <span
+                      className={cn(
+                        "text-neutral-300 shrink-0",
+                        isLast && breadcrumbs.length > 2 && "sm:inline"
+                      )}
+                      aria-hidden
+                    >
+                      {isLast && breadcrumbs.length > 2 ? (
+                        <>
+                          <span className="sm:hidden">… /</span>
+                          <span className="hidden sm:inline">/</span>
+                        </>
+                      ) : (
+                        "/"
+                      )}
+                    </span>
+                  )}
+                  {isLast || !crumb.href ? (
+                    <span
+                      className={cn(
+                        "truncate max-w-[40vw] sm:max-w-none",
+                        isLast && "text-foreground font-medium"
+                      )}
+                    >
+                      {crumb.label}
+                    </span>
+                  ) : (
+                    <Link
+                      href={crumb.href}
+                      className="truncate max-w-[28vw] sm:max-w-none hover:text-foreground transition-colors"
+                    >
+                      {crumb.label}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
         </nav>
 
         {/* Active Company Switcher (visible on desktop) */}

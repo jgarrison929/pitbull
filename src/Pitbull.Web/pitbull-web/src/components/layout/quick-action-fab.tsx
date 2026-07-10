@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { MOBILE_FAB_POSITION } from "./mobile-shell";
 
 const quickActions = [
   { label: "Add Bid", href: "/bids/new", icon: "📋" },
@@ -14,7 +15,7 @@ export function QuickActionFAB() {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="fixed bottom-20 right-6 z-50 md:hidden">
+    <div className={MOBILE_FAB_POSITION}>
       {/* Backdrop */}
       {isOpen && (
         <div
@@ -38,7 +39,7 @@ export function QuickActionFAB() {
             key={action.href}
             href={action.href}
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 rounded-full bg-neutral-800 px-4 py-3 text-white shadow-lg hover:bg-neutral-700 transition-colors whitespace-nowrap"
+            className="flex min-h-[44px] items-center gap-3 rounded-full bg-neutral-800 px-4 py-3 text-white shadow-lg hover:bg-neutral-700 transition-colors whitespace-nowrap"
           >
             <span className="text-lg">{action.icon}</span>
             <span className="text-sm font-medium">{action.label}</span>
@@ -50,7 +51,7 @@ export function QuickActionFAB() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg transition-all duration-200 hover:bg-amber-600 active:scale-95",
+          "flex h-14 w-14 min-h-[56px] min-w-[56px] items-center justify-center rounded-full bg-amber-500 text-white shadow-lg transition-all duration-200 hover:bg-amber-600 active:scale-95",
           isOpen && "rotate-45 bg-neutral-700 hover:bg-neutral-600"
         )}
         aria-label={isOpen ? "Close quick actions" : "Open quick actions"}

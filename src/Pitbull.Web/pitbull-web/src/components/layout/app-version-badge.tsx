@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChangelogReleaseView } from "@/components/changelog/changelog-notes";
+import { MOBILE_VERSION_BADGE_OFFSET } from "./mobile-shell";
 
 type AppVersionBadgeProps = {
   /** Extra classes (e.g. when embedded in the sidebar instead of fixed). */
@@ -63,7 +64,10 @@ export function AppVersionBadge({ className, fixed = true }: AppVersionBadgeProp
     "text-muted-foreground/70 hover:text-muted-foreground transition-colors",
     "cursor-pointer",
     fixed &&
-      "fixed bottom-2 left-2 z-[60] rounded-md bg-background/80 backdrop-blur-sm border border-border/60 px-1.5 py-0.5 shadow-sm pointer-events-auto max-lg:bottom-[4.25rem]",
+      cn(
+        "fixed bottom-2 left-2 z-[60] rounded-md bg-background/80 backdrop-blur-sm border border-border/60 px-1.5 py-0.5 shadow-sm pointer-events-auto",
+        MOBILE_VERSION_BADGE_OFFSET
+      ),
     className
   );
 

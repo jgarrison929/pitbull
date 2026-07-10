@@ -8,6 +8,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-07-10T14:42:00-07:00
+
+### Added
+
+- **Billing applications mobile cards** — AIA G702 list stacks as tappable cards under `sm` (payment due / completed / retainage readable without horizontal page scroll)
+- **Owner contracts mobile cards** — contract list same pattern for field/finance phone use
+- **AR/AP aging scroll containers** — intentional horizontal swipe + min-width tables so page chrome no longer blows out sideways
+
+### Changed
+
+- Version bumped to **2.5.0** (second mobile iteration after 2.4.0 shell)
+
+## [2.4.0] - 2026-07-10T14:41:00-07:00
+
+### Added
+
+- **Mobile shell tokens** — shared `mobile-shell` clearance for main content, FAB, and version badge (safe-area aware)
+- **Exported `isMobileTabActive`** — pure path matching for role bottom-nav tabs (prefix-safe; no `/projects` vs `/project-management` collision)
+
+### Fixed
+
+- **Dashboard bottom chrome** — main content clears fixed bottom nav + safe-area; content column `min-w-0` / `overflow-x-hidden` stops page-level horizontal scroll
+- **Quick Action FAB** — aligns with `lg` bottom nav breakpoint and sits above the nav band
+- **Header breadcrumbs** — collapse middle crumbs + truncate on narrow viewports
+- **Crew entry weekly grids** — contained horizontal scroll + swipe hint; submit row not covered by nav
+- Version bumped to **2.4.0**
+
 ## [2.3.0] - 2026-07-10T12:58:16-07:00
 
 ### Added

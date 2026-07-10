@@ -13,19 +13,7 @@ import {
 } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/auth-context";
 import { getRoleDefaults, workspaces, getWorkspaceLandingHref } from "./workspaces";
-
-function isTabActive(
-  pathname: string,
-  tab: { href: string; matchPaths?: string[] }
-): boolean {
-  if (tab.href === "/") {
-    return pathname === "/";
-  }
-  return (
-    tab.matchPaths?.some((p) => pathname.startsWith(p)) ??
-    pathname.startsWith(tab.href)
-  );
-}
+import { isMobileTabActive } from "./nav-utils";
 
 export function MobileBottomNav() {
   const pathname = usePathname();
@@ -38,13 +26,13 @@ export function MobileBottomNav() {
   return (
     <>
       <nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t bg-background pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 border-t bg-background pb-[env(safe-area-inset-bottom,0px)] lg:hidden"
         role="navigation"
         aria-label="Mobile navigation"
       >
-        <div className="flex items-center justify-around">
+        <div className="flex h-14 items-center justify-around px-1">
           {mobileTabs.map((tab) => {
-            const active = isTabActive(pathname, tab);
+            const active = isMobileTabActive(pathname, tab);
             return (
               <Link
                 key={tab.href}

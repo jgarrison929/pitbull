@@ -148,9 +148,9 @@ export default function OwnerContractsPage() {
         </Card>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Filter status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48 min-h-[44px]"><SelectValue placeholder="Filter status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>All Statuses</SelectItem>
             <SelectItem value="Active">Active</SelectItem>
@@ -158,7 +158,7 @@ export default function OwnerContractsPage() {
             <SelectItem value="Void">Void</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => setCreateDialogOpen(true)}>New Contract</Button>
+        <Button className="min-h-[44px] w-full sm:w-auto" onClick={() => setCreateDialogOpen(true)}>New Contract</Button>
       </div>
 
       {isLoading ? (
@@ -166,34 +166,66 @@ export default function OwnerContractsPage() {
       ) : contracts.length === 0 ? (
         <EmptyState title="No owner contracts" description="Create an owner contract to begin AIA billing." />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Contract #</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Contract Sum</TableHead>
-                  <TableHead>Retainage</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contracts.map((c) => (
-                  <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/billing/contracts/${c.id}`)}>
-                    <TableCell className="font-medium">{c.contractNumber}</TableCell>
-                    <TableCell>{c.projectName}</TableCell>
-                    <TableCell>{c.ownerName || "—"}</TableCell>
-                    <TableCell>{formatCurrency(c.contractSumToDate)}</TableCell>
-                    <TableCell>{c.defaultRetainagePercent}%</TableCell>
-                    <TableCell><Badge variant={statusColors[c.status]}>{c.status}</Badge></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <>
+          <div className="space-y-3 sm:hidden">
+            {contracts.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="w-full rounded-lg border bg-card p-4 text-left shadow-sm active:bg-muted/50 touch-manipulation min-h-[44px]"
+                onClick={() => router.push(`/billing/contracts/${c.id}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-medium truncate">{c.contractNumber}</span>
+                  <Badge variant={statusColors[c.status]}>{c.status}</Badge>
+                </div>
+                <p className="mt-1 text-sm font-medium truncate">{c.projectName}</p>
+                <p className="text-xs text-muted-foreground truncate">{c.ownerName || "No owner listed"}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contract sum</p>
+                    <p className="font-semibold">{formatCurrency(c.contractSumToDate)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Retainage</p>
+                    <p>{c.defaultRetainagePercent}%</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <Card className="hidden sm:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Contract #</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Owner</TableHead>
+                      <TableHead>Contract Sum</TableHead>
+                      <TableHead>Retainage</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contracts.map((c) => (
+                      <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/billing/contracts/${c.id}`)}>
+                        <TableCell className="font-medium">{c.contractNumber}</TableCell>
+                        <TableCell>{c.projectName}</TableCell>
+                        <TableCell>{c.ownerName || "—"}</TableCell>
+                        <TableCell>{formatCurrency(c.contractSumToDate)}</TableCell>
+                        <TableCell>{c.defaultRetainagePercent}%</TableCell>
+                        <TableCell><Badge variant={statusColors[c.status]}>{c.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {totalPages > 1 && (

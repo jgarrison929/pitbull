@@ -320,7 +320,11 @@ export default function AgingReportsPage() {
         ) : vendorAging && filteredVendors.length > 0 ? (
           <Card>
             <CardContent className="p-0">
-              <Table>
+              <p className="px-4 pt-3 text-xs text-muted-foreground sm:hidden">
+                Swipe sideways for aging buckets.
+              </p>
+              <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+              <Table className="min-w-[640px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Vendor</TableHead>
@@ -374,6 +378,7 @@ export default function AgingReportsPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -406,7 +411,11 @@ export default function AgingReportsPage() {
         ) : customerAging && filteredProjects.length > 0 ? (
           <Card>
             <CardContent className="p-0">
-              <Table>
+              <p className="px-4 pt-3 text-xs text-muted-foreground sm:hidden">
+                Swipe sideways for aging buckets.
+              </p>
+              <div className="overflow-x-auto overscroll-x-contain touch-pan-x">
+              <Table className="min-w-[640px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Project</TableHead>
@@ -460,6 +469,7 @@ export default function AgingReportsPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         ) : (
