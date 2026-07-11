@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { posthog } from "@/lib/posthog";
 import { reportError } from "@/lib/error-reporter";
 
 export default function Error({
@@ -15,25 +14,17 @@ export default function Error({
   useEffect(() => {
     console.error("[App Error]", error);
 
-    // Report to backend DB
+    // Diagnostics API + PostHog Error Tracking (single path)
     reportError({
       source: "frontend",
       level: "error",
       message: error.message,
       stackTrace: error.stack,
-      metadata: JSON.stringify({ digest: error.digest }),
-    });
-
-    // Report to PostHog Error Tracking
-    if (posthog.__loaded) {
-      posthog.capture("$exception", {
-        $exception_message: error.message,
-        $exception_type: error.name,
-        $exception_stack_trace_raw: error.stack,
-        $exception_source: "error_boundary",
+      metadata: JSON.stringify({
         digest: error.digest,
-      });
-    }
+        handler: "error_boundary",
+      }),
+    });
   }, [error]);
 
   return (

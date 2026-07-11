@@ -30,6 +30,18 @@ export interface OfflineTimeEntry {
   createdAt: string;
 }
 
+export interface OfflineDailyReportPhoto {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  dataUrl?: string;
+  latitude?: number;
+  longitude?: number;
+  caption?: string;
+  skippedForSize?: boolean;
+}
+
 export interface OfflineDailyReport {
   id: string;
   projectId: string;
@@ -44,9 +56,15 @@ export interface OfflineDailyReport {
   workNarrative?: string;
   delaysNarrative?: string;
   safetyNarrative?: string;
+  /** Structured field chips: pour, form, finish, … */
+  fieldActivities?: string[];
+  truckConditions?: string[];
+  truckNotes?: string;
   crewEntries?: { trade: string; count: number }[];
   equipment?: { name: string; status: string }[];
   visitors?: { name: string; company: string; purpose: string }[];
+  /** Embedded offline photos (small data URLs) for upload on sync */
+  photos?: OfflineDailyReportPhoto[];
   status: string;
   createdAt: string;
 }
@@ -134,13 +152,17 @@ function txGetAll<T>(storeName: string): Promise<T[]> {
 
 /** Capture current auth token + company ID from localStorage for SW replay. */
 export function captureAuthContext(): SyncAuthContext {
-  const token = typeof window !== "undefined"
-    ? localStorage.getItem("pitbull_token") ?? ""
-    : "";
-  const companyId = typeof window !== "undefined"
-    ? localStorage.getItem("pitbull_active_company_id") ?? ""
-    : "";
-  return { token, companyId };
+  try {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") {
+      return { token: "", companyId: "" };
+    }
+    return {
+      token: localStorage.getItem("pitbull_token") ?? "",
+      companyId: localStorage.getItem("pitbull_active_company_id") ?? "",
+    };
+  } catch {
+    return { token: "", companyId: "" };
+  }
 }
 
 // --- Draft entries ---

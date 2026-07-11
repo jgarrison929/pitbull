@@ -112,14 +112,23 @@ export function initPostHog() {
     capture_pageview: false, // We handle this manually via the PageViewTracker
     capture_pageleave: true,
     autocapture: true,
+    // Error Tracking — uncaught + our captureException dual-write from reportError
+    capture_exceptions: true,
     session_recording: {
       maskAllInputs: true,
       maskTextSelector: "[data-mask]",
     },
     // Respect Do Not Track
     respect_dnt: true,
-    loaded: () => {
+    loaded: (ph) => {
       registerViewportContext();
+      try {
+        const start = (ph as { startExceptionAutocapture?: () => void })
+          .startExceptionAutocapture;
+        if (typeof start === "function") start.call(ph);
+      } catch {
+        // optional if method unavailable
+      }
     },
   });
 
@@ -132,3 +141,21 @@ export function initPostHog() {
 }
 
 export { posthog };
+
+import type {
+  CaptureExceptionContext,
+  PostHogExceptionClient,
+} from "./posthog-exception";
+import { capturePostHogException } from "./posthog-exception";
+
+/** Default app path: capture using the live posthog-js client. */
+export function captureAppException(
+  errorLike: unknown,
+  context: CaptureExceptionContext
+): void {
+  capturePostHogException(
+    errorLike,
+    context,
+    posthog as unknown as PostHogExceptionClient
+  );
+}

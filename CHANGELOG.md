@@ -8,14 +8,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-07-11T16:20:00-07:00
+
 ### Added
 
-- **Explore-as-role: Superintendent** — one-click field persona (`superintendent@demo.local`, title Field Superintendent → `role_profile=field`); login alias `foreman`; DEMO-SUP crew supervisor + project assignments; mobile tabs Crew / Report / Jobs
-- **PostHog mobile context** — `viewport_class` / `is_narrow_viewport` / `mobile_chrome_expected` on pageviews + super-props; `demo_role_login` + identify `role_profile` for mobile-first demo traffic analysis
+- **Field / pour capture on mobile daily report** — short path Project → Field → Photos → Review; work chips (Pour / Form / Rebar / Finish / Dirt); truck/material chips (too wet, too dry, rejected, held); crew counts; optional weather; voice notes
+- **Offline photos with report queue** — up to 5 images ≤~1.2MB embedded as data URLs; sync uploads them after the report posts; oversized photos honestly skipped
+- **Plans drawing files** — plans-specs loads project documents (Plans/PDF/image), View iframe / Open full-screen for field use
+
+### Changed
+
+- Mobile report titled “Field report”; weather demoted to optional fold-in; Review can skip photo step
+- Version **2.8.0** (vision-gap field truth after 2.7.x plumbing)
+
+## [2.7.2] - 2026-07-11T15:55:00-07:00
 
 ### Fixed
 
-- **Mobile login bounce (PostHog)** — ~16/19 mobile users only hit `/login`; Explore-as-role buttons no longer stay disabled while demo catalog loads, stay visible on network flake, 2-col phone grid above the fold, email form collapsed by default on small screens
+- **PostHog Error Tracking** — `capture_exceptions` enabled; `reportError` dual-writes via `captureException` (not only ad-hoc `$exception`); 5xx fetch path uses same helper; boundaries use single path
+
+### Changed
+
+- **Site walk truth** — renamed to “Today on this job”; shows **crew assigned to this project**, near-term work, and **subs ranked by trade language from the look-ahead** (pour/form before electrical); health badges labeled as proxies (`OK*` / `Watch*` / `Risk*`)
+
+## [2.7.1] - 2026-07-11T15:05:00-07:00
+
+### Changed
+
+- **Cost types match job-cost language** — `CostType` now includes **Sub Labor / Sub Material / Sub Third Party** (+ existing Labor, Material, Equipment, Overhead). Legacy `Subcontract` kept for old rows; API `CostTypeName` uses super-facing labels via `CostTypeLabels`
+- **Web cost-codes UI** aligned: filter/create options, badges, summary cards (Sub* + Overhead); shared `lib/cost-type.ts` wire values stable with API
+- **Seed / CSI template** remapped so sub codes use splits instead of one generic Subcontract bucket; Overhead present in CSI seed
+
+## [2.7.0] - 2026-07-11T14:15:00-07:00
+
+### Added
+
+- **Mobile3 Phase 1 — Daily report offline + voice** — `/daily-reports/mobile` queues submits via `enqueueDailyReportForSync` when offline or network fails (visible queued badge + OfflineIndicator); SpeechRecognition voice control maps transcripts into work/delays/safety narratives via pure helpers
+- **Mobile3 Phase 2 — Plans & Specs field view** — searchable plan/spec filter (`filterPlanSets` / `filterSpecSections`), tap-to-view surface, deep links (`?planId` / `sheet` / `section` / `view`) from daily report
+- **Mobile3 Phase 3 — Site walk** — `/projects/[id]/site-walk` composes plans entry, 7-day schedule look-ahead cards, sub status, open RFIs; schedule page gains mobile look-ahead cards; portfolio `/sub-status` at-a-glance
+
+### Changed
+
+- Version bumped to **2.7.0** (mobile3 Phases 1–3 MVP field experience)
+
+## [2.6.0] - 2026-07-11T13:23:44-07:00
+
+### Added
+
+- **Searchable entity lookups (mobile-first)** — shared `EntityLookupField` + pure `filterAndRankEntities` / `selectEntity` helpers with recent-match ranking for project, cost code, phase, and equipment
+- **Crew time entry** — project picker is searchable with recent projects (no free-form id typing); mobile crew cards use lookups for cost code / phase / equipment and apply-to-all
+- **Mobile daily report** — project step uses searchable + recent project lookup; narratives/weather remain free text by design
+- **New RFI** — project field uses the same find-and-match lookup pattern (secondary high-traffic form path)
+
+### Changed
+
+- Version bumped to **2.6.0** (mobile data-entry + role shell continuity after 2.5.0)
 
 ## [2.5.0] - 2026-07-10T14:42:00-07:00
 

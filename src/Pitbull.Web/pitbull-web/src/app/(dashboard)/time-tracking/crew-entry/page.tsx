@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { useCrewEntryForm } from "@/hooks/use-crew-entry-form";
 import { useWeeklyDetailedForm } from "@/hooks/use-weekly-detailed-form";
 import { useWeeklySimpleForm } from "@/hooks/use-weekly-simple-form";
 import { useTimecardSettings } from "@/hooks/use-timecard-settings";
+import { useRecentSelections } from "@/hooks/use-recent-selections";
 import { CrewEntryHeader } from "@/components/time-tracking/crew-entry/crew-entry-header";
 import { CrewEntryGrid } from "@/components/time-tracking/crew-entry/crew-entry-grid";
 import { CrewEntryWeeklyGrid } from "@/components/time-tracking/crew-entry/crew-entry-weekly-grid";
@@ -21,10 +22,12 @@ import { CopyYesterdayDialog } from "@/components/time-tracking/crew-entry/copy-
 import { CopyLastWeekDialog } from "@/components/time-tracking/crew-entry/copy-last-week-dialog";
 import { PayPeriodIndicator } from "@/components/time-tracking/pay-period-indicator";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
+import { EntityLookupField } from "@/components/ui/entity-lookup-field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { AlertCircle, ArrowLeft, Users, CalendarDays, Calendar, List, Save, Send } from "lucide-react";
 import { getTodayISO } from "@/lib/time-tracking";
+import { getValidRecentIds } from "@/lib/entity-lookup";
 import { toast } from "sonner";
 import api from "@/lib/api";
 import type { Phase } from "@/lib/types";
@@ -93,12 +96,20 @@ export default function CrewEntryPage() {
   const {
     crew,
     projects,
+    costCodes,
     equipmentList,
     isLoading: dataLoading,
     error: dataError,
     loadCrew,
     supervisorId,
   } = useCrewEntryData();
+
+  const { recentItems: recentProjects, addRecent: addRecentProject } =
+    useRecentSelections("project");
+  const { recentItems: recentCostCodes, addRecent: addRecentCostCode } =
+    useRecentSelections("costCode");
+  const { recentItems: recentEquipment, addRecent: addRecentEquipment } =
+    useRecentSelections("equipment");
 
   // ──────────────────────────────────────────
   // Daily mode form
@@ -298,7 +309,37 @@ export default function CrewEntryPage() {
     } else {
       dailyForm.updateProject(projectId);
     }
+    const match = projects.find((p) => p.projectId === projectId);
+    if (match) {
+      addRecentProject(projectId, `${match.projectNumber} - ${match.projectName}`);
+    }
   };
+
+  const projectLookupItems = useMemo(
+    () =>
+      projects.map((p) => ({
+        id: p.projectId,
+        label: p.projectNumber,
+        sublabel: p.projectName,
+        searchText: `${p.projectNumber} ${p.projectName}`,
+      })),
+    [projects]
+  );
+
+  const recentProjectIds = useMemo(
+    () => getValidRecentIds(recentProjects, projects.map((p) => p.projectId)),
+    [recentProjects, projects]
+  );
+
+  const recentCostCodeIds = useMemo(
+    () => getValidRecentIds(recentCostCodes, costCodes.map((c) => c.id)),
+    [recentCostCodes, costCodes]
+  );
+
+  const recentEquipmentIds = useMemo(
+    () => getValidRecentIds(recentEquipment, equipmentList.map((e) => e.id)),
+    [recentEquipment, equipmentList]
+  );
 
   // Get active form stats
   const totalHours = isWeeklyDetailed
@@ -634,28 +675,19 @@ export default function CrewEntryPage() {
               </div>
             )}
 
-            {/* Project selector (shared) */}
-            <div className="space-y-2">
-              <label htmlFor="project" className="text-sm font-medium">
-                Project
-              </label>
-              <select
-                id="project"
-                value={activeProjectId}
-                onChange={(e) => handleUpdateProject(e.target.value)}
-                className="flex min-h-[48px] sm:min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-2 text-base sm:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 touch-manipulation"
-              >
-                <option value="">Select a project...</option>
-                {projects.map((project) => (
-                  <option key={project.projectId} value={project.projectId}>
-                    {project.projectNumber} - {project.projectName}
-                  </option>
-                ))}
-              </select>
-              {errors.projectId && (
-                <p className="text-sm text-destructive">{errors.projectId}</p>
-              )}
-            </div>
+            {/* Project selector — searchable lookup + recent (shared) */}
+            <EntityLookupField
+              id="project"
+              label="Project"
+              required
+              value={activeProjectId}
+              onSelect={handleUpdateProject}
+              items={projectLookupItems}
+              recentIds={recentProjectIds}
+              placeholder="Search projects by number or name..."
+              allowClear={false}
+              error={errors.projectId}
+            />
           </div>
         </CardContent>
       </Card>
@@ -680,6 +712,11 @@ export default function CrewEntryPage() {
               entries={dailyForm.formData.entries}
               equipmentList={equipmentList}
               phases={phases}
+              costCodes={costCodes}
+              recentCostCodeIds={recentCostCodeIds}
+              recentEquipmentIds={recentEquipmentIds}
+              onRecentCostCode={(id, label) => addRecentCostCode(id, label)}
+              onRecentEquipment={(id, label) => addRecentEquipment(id, label)}
               onUpdateEntry={dailyForm.updateEntry}
             />
           </div>

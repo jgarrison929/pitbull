@@ -285,21 +285,25 @@ export interface TimeEntry {
   updatedAt?: string | null;
 }
 
+export {
+  CostType,
+  COST_TYPE_LABELS,
+  COST_TYPE_OPTIONS,
+  costTypeLabel,
+  isSubRelatedCostType,
+} from "./cost-type";
+export type { CostType as CostTypeEnum } from "./cost-type";
+import type { CostType } from "./cost-type";
+
 export interface CostCode {
   id: string;
   code: string;
   description: string;
   division?: string | null;
   costType: CostType;
+  /** Super-facing label from API when present */
+  costTypeName?: string;
   isActive: boolean;
-}
-
-export enum CostType {
-  Labor = 1,
-  Material = 2,
-  Equipment = 3,
-  Subcontract = 4,
-  Other = 5,
 }
 
 export interface ListCostCodesResult {

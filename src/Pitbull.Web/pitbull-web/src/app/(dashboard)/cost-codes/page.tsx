@@ -48,26 +48,27 @@ import {
   ArrowDown,
   ArrowUpDown,
   Database,
+  Building2,
 } from "lucide-react";
 import api from "@/lib/api";
 import {
-  CostType,
   type CostCode,
   type ListCostCodesResult,
   type CreateCostCodeCommand,
   type UpdateCostCodeCommand,
 } from "@/lib/types";
+import {
+  CostType,
+  COST_TYPE_LABELS,
+  COST_TYPE_OPTIONS,
+  costTypeLabel,
+  isSubRelatedCostType,
+} from "@/lib/cost-type";
 import { toast } from "sonner";
 
 const ALL_VALUE = "__all__";
 
-const costTypeLabels: Record<CostType, string> = {
-  [CostType.Labor]: "Labor",
-  [CostType.Material]: "Material",
-  [CostType.Equipment]: "Equipment",
-  [CostType.Subcontract]: "Subcontract",
-  [CostType.Other]: "Other",
-};
+const costTypeLabels = COST_TYPE_LABELS;
 
 const costTypeBadgeClass: Record<CostType, string> = {
   [CostType.Labor]: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
@@ -75,6 +76,10 @@ const costTypeBadgeClass: Record<CostType, string> = {
   [CostType.Equipment]: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200",
   [CostType.Subcontract]: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200",
   [CostType.Other]: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  [CostType.Overhead]: "bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-200",
+  [CostType.SubLabor]: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-200",
+  [CostType.SubMaterial]: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/30 dark:text-fuchsia-200",
+  [CostType.SubThirdParty]: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200",
 };
 
 const costTypeIcons: Record<CostType, React.ComponentType<{ className?: string }>> = {
@@ -83,6 +88,10 @@ const costTypeIcons: Record<CostType, React.ComponentType<{ className?: string }
   [CostType.Equipment]: Truck,
   [CostType.Subcontract]: Wrench,
   [CostType.Other]: HelpCircle,
+  [CostType.Overhead]: Building2,
+  [CostType.SubLabor]: Users,
+  [CostType.SubMaterial]: Package,
+  [CostType.SubThirdParty]: Wrench,
 };
 
 interface CostCodeFormData {
@@ -198,7 +207,7 @@ export default function CostCodesPage() {
         case "division":
           return dir * (a.division || "").localeCompare(b.division || "");
         case "type":
-          return dir * (costTypeLabels[a.costType] || "").localeCompare(costTypeLabels[b.costType] || "");
+          return dir * costTypeLabel(a.costType).localeCompare(costTypeLabel(b.costType));
         case "status": {
           const aVal = a.isActive ? 1 : 0;
           const bVal = b.isActive ? 1 : 0;
@@ -342,11 +351,14 @@ export default function CostCodesPage() {
 
   const showSeedButton = !isLoading && totalCount < 5;
 
-  // Summary stats
+  // Summary stats (sub splits roll into "Sub" card for at-a-glance)
   const laborCount = costCodes.filter((c) => c.costType === CostType.Labor).length;
   const materialCount = costCodes.filter((c) => c.costType === CostType.Material).length;
   const equipmentCount = costCodes.filter((c) => c.costType === CostType.Equipment).length;
-  const subcontractCount = costCodes.filter((c) => c.costType === CostType.Subcontract).length;
+  const subcontractCount = costCodes.filter((c) =>
+    isSubRelatedCostType(c.costType)
+  ).length;
+  const overheadCount = costCodes.filter((c) => c.costType === CostType.Overhead).length;
   const activeCount = costCodes.filter((c) => c.isActive).length;
 
   return (
@@ -357,7 +369,8 @@ export default function CostCodesPage() {
           <div>
             <h1 className="text-2xl font-bold">Cost Codes</h1>
             <p className="text-muted-foreground">
-              Standard construction cost codes for job cost accounting
+              Job cost classes: Labor, Material, Equipment, Sub Labor / Material / Third
+              Party, Overhead — not GL chart of accounts
             </p>
           </div>
           <div className="flex gap-2">
@@ -381,8 +394,8 @@ export default function CostCodesPage() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
+        {/* Summary Cards — type classes, not CSI divisions */}
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Codes</CardTitle>
@@ -420,13 +433,23 @@ export default function CostCodesPage() {
               <div className="text-2xl font-bold">{equipmentCount}</div>
             </CardContent>
           </Card>
-          <Card className="col-span-2 md:col-span-1">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Subcontract</CardTitle>
+              <CardTitle className="text-sm font-medium">Sub*</CardTitle>
               <Wrench className="h-4 w-4 text-purple-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{subcontractCount}</div>
+              <p className="text-xs text-muted-foreground">Labor / mat / 3rd party</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Overhead</CardTitle>
+              <Building2 className="h-4 w-4 text-slate-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{overheadCount}</div>
             </CardContent>
           </Card>
         </div>
@@ -456,11 +479,11 @@ export default function CostCodesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={ALL_VALUE}>All types</SelectItem>
-                    <SelectItem value="1">Labor</SelectItem>
-                    <SelectItem value="2">Material</SelectItem>
-                    <SelectItem value="3">Equipment</SelectItem>
-                    <SelectItem value="4">Subcontract</SelectItem>
-                    <SelectItem value="5">Other</SelectItem>
+                    {COST_TYPE_OPTIONS.map((t) => (
+                      <SelectItem key={t} value={String(t)}>
+                        {costTypeLabel(t)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -531,7 +554,10 @@ export default function CostCodesPage() {
                 </TableHeader>
                 <TableBody>
                   {sortedCostCodes.map((code) => {
-                    const TypeIcon = costTypeIcons[code.costType] || HelpCircle;
+                    const TypeIcon = costTypeIcons[code.costType] ?? HelpCircle;
+                    const badgeClass =
+                      costTypeBadgeClass[code.costType] ??
+                      costTypeBadgeClass[CostType.Other];
                     return (
                       <TableRow key={code.id}>
                         <TableCell className="font-mono font-medium">
@@ -544,10 +570,10 @@ export default function CostCodesPage() {
                         <TableCell>
                           <Badge
                             variant="secondary"
-                            className={costTypeBadgeClass[code.costType]}
+                            className={badgeClass}
                           >
                             <TypeIcon className="mr-1 h-3 w-3" />
-                            {costTypeLabels[code.costType]}
+                            {code.costTypeName || costTypeLabel(code.costType)}
                           </Badge>
                         </TableCell>
                         <TableCell>
@@ -610,7 +636,10 @@ export default function CostCodesPage() {
           ) : (
             <div className="space-y-3">
               {sortedCostCodes.map((code) => {
-                const TypeIcon = costTypeIcons[code.costType] || HelpCircle;
+                const TypeIcon = costTypeIcons[code.costType] ?? HelpCircle;
+                const badgeClass =
+                  costTypeBadgeClass[code.costType] ??
+                  costTypeBadgeClass[CostType.Other];
                 return (
                   <Card key={code.id}>
                     <CardContent className="pt-4">
@@ -637,10 +666,10 @@ export default function CostCodesPage() {
                           )}
                           <Badge
                             variant="secondary"
-                            className={costTypeBadgeClass[code.costType]}
+                            className={badgeClass}
                           >
                             <TypeIcon className="mr-1 h-3 w-3" />
-                            {costTypeLabels[code.costType]}
+                            {code.costTypeName || costTypeLabel(code.costType)}
                           </Badge>
                         </div>
                         <div className="flex gap-1 shrink-0">
@@ -751,11 +780,11 @@ export default function CostCodesPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">Labor</SelectItem>
-                      <SelectItem value="2">Material</SelectItem>
-                      <SelectItem value="3">Equipment</SelectItem>
-                      <SelectItem value="4">Subcontract</SelectItem>
-                      <SelectItem value="5">Other</SelectItem>
+                      {COST_TYPE_OPTIONS.map((t) => (
+                        <SelectItem key={t} value={String(t)}>
+                          {costTypeLabel(t)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

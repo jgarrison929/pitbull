@@ -30,14 +30,48 @@ public class CostCode : BaseEntity
 }
 
 /// <summary>
-/// Standard cost types for construction accounting
+/// Job-cost cost class (not GL account type).
+/// How supers/controllers classify a cost: self-perform L/M/E, sub L/M/3rd party, overhead.
+/// Integer values are stable for persisted CostCodes.CostType columns — never renumber.
 /// </summary>
 public enum CostType
 {
     Labor = 1,
     Material = 2,
     Equipment = 3,
+    /// <summary>Legacy umbrella for sub costs. Prefer SubLabor / SubMaterial / SubThirdParty for new codes.</summary>
     Subcontract = 4,
     Other = 5,
-    Overhead = 6
+    Overhead = 6,
+    SubLabor = 7,
+    SubMaterial = 8,
+    /// <summary>Sub third-party / specialty (e.g. testing, haul-off, hired sub equipment).</summary>
+    SubThirdParty = 9,
+}
+
+/// <summary>
+/// Super-facing labels for cost types. API CostTypeName uses these so clients never invent strings.
+/// </summary>
+public static class CostTypeLabels
+{
+    public static string DisplayName(CostType type) => type switch
+    {
+        CostType.Labor => "Labor",
+        CostType.Material => "Material",
+        CostType.Equipment => "Equipment",
+        CostType.Subcontract => "Sub (general)",
+        CostType.Other => "Other",
+        CostType.Overhead => "Overhead",
+        CostType.SubLabor => "Sub Labor",
+        CostType.SubMaterial => "Sub Material",
+        CostType.SubThirdParty => "Sub Third Party",
+        _ => type.ToString(),
+    };
+
+    /// <summary>True for any sub-related class (legacy Subcontract + split types).</summary>
+    public static bool IsSubRelated(CostType type) =>
+        type is CostType.Subcontract
+            or CostType.SubLabor
+            or CostType.SubMaterial
+            or CostType.SubThirdParty;
 }

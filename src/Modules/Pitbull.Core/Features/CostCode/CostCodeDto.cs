@@ -24,7 +24,7 @@ public static class CostCodeMapper
             Description: costCode.Description,
             Division: costCode.Division,
             CostType: costCode.CostType,
-            CostTypeName: costCode.CostType.ToString(),
+            CostTypeName: CostTypeLabels.DisplayName(costCode.CostType),
             IsActive: costCode.IsActive,
             CreatedAt: costCode.CreatedAt,
             UpdatedAt: costCode.UpdatedAt
