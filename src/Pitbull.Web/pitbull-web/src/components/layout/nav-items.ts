@@ -98,17 +98,18 @@ export const financialItems: NavItem[] = moduleGroups.flatMap((g) => g.items);
 export function getProjectManagementItems(projectId: string | null): NavItem[] {
   const base = projectId ? `/projects/${projectId}` : null;
   return [
+    { label: "Site Walk", href: base ? `${base}/site-walk` : "#", icon: "🚶", disabled: !base, requiredPermission: "Projects.View" },
     { label: "Daily Reports", href: base ? `${base}/daily-reports` : "#", icon: "📝", disabled: !base, requiredPermission: "PM.DailyReports" },
-    { label: "Tasks", href: base ? `${base}/tasks` : "#", icon: "✅", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base, requiredPermission: "PM.Schedule" },
+    { label: "Plans & Specs", href: base ? `${base}/plans-specs` : "#", icon: "📐", disabled: !base, requiredPermission: "Documents.View" },
     { label: "RFIs", href: base ? `${base}/rfis` : "#", icon: "❓", disabled: !base, requiredPermission: "PM.RFIs" },
     { label: "Submittals", href: base ? `${base}/submittals` : "#", icon: "📬", disabled: !base, requiredPermission: "PM.Submittals" },
+    { label: "Tasks", href: base ? `${base}/tasks` : "#", icon: "✅", disabled: !base, requiredPermission: "Projects.View" },
+    { label: "Punch List", href: base ? `${base}/punch-list` : "#", icon: "📋", disabled: !base, requiredPermission: "PM.PunchList" },
     { label: "Job Cost", href: base ? `${base}/job-cost` : "#", icon: "💰", disabled: !base, requiredPermission: "Projects.View" },
     { label: "Progress", href: base ? `${base}/progress` : "#", icon: "📈", disabled: !base, requiredPermission: "Projects.View" },
     { label: "Cost Projections", href: base ? `${base}/projections` : "#", icon: "🔮", disabled: !base, requiredPermission: "Projects.View" },
-    { label: "Schedule", href: base ? `${base}/schedule` : "#", icon: "📅", disabled: !base, requiredPermission: "PM.Schedule" },
-    { label: "Punch List", href: base ? `${base}/punch-list` : "#", icon: "📋", disabled: !base, requiredPermission: "PM.PunchList" },
     { label: "Documents", href: base ? `${base}/documents` : "#", icon: "📁", disabled: !base, requiredPermission: "Documents.View" },
-    { label: "Plans & Specs", href: base ? `${base}/plans-specs` : "#", icon: "📐", disabled: !base, requiredPermission: "Documents.View" },
     { label: "Communications", href: base ? `${base}/communications` : "#", icon: "💬", disabled: !base, requiredPermission: "Projects.View" },
     { label: "Meetings", href: base ? `${base}/meetings` : "#", icon: "🤝", disabled: !base, requiredPermission: "PM.Meetings" },
     { label: "Narratives", href: base ? `${base}/narratives` : "#", icon: "📖", disabled: !base, requiredPermission: "Projects.View" },

@@ -84,7 +84,11 @@ When cutting a release:
    (ISO-8601 with offset preferred; date-only `YYYY-MM-DD` still works for older entries)
 2. Bump `VERSION`, `package.json` `version`, and API csproj `Version` / `AssemblyVersion` / `FileVersion` / `InformationalVersion` together
 3. Bump `ARG VERSION` / `ARG NEXT_PUBLIC_APP_VERSION` defaults in both Dockerfiles and `docker-compose.prod.yml` if they hardcode the version
-4. Deploy; confirm `GET /api/version`, the bottom-left badge, and `GET /api/changelog?current=true` all agree; About → changelog shows **date + time** in the viewer’s locale
+4. Bump web `package-lock.json` root `version` and `app-version.ts` fallback to match
+5. Run local preflight before open/push PR (cuts CI thrash):  
+   `./scripts/preflight.ps1`  
+   Optional: `-FullWeb` (lint + next build), `-DotNet` (unit tests)
+6. Deploy; confirm `GET /api/version`, the bottom-left badge, and `GET /api/changelog?current=true` all agree; About → changelog shows **date + time** in the viewer’s locale
 
 In-app release notes are served from `CHANGELOG.md` via `GET /api/changelog` (no separate CMS).
 

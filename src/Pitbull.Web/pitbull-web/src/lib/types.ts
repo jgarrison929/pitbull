@@ -1,5 +1,5 @@
-// NOTE: API serializes enums as numbers (System.Text.Json default).
-// Keep these as numeric enums to match the backend.
+// Numeric TS enums for comparisons; runtime JSON uses string names via
+// JsonStringEnumConverter — always coerce with coerceProjectStatus() before ===.
 export enum ProjectStatus {
   Bidding = 0,
   PreConstruction = 1,

@@ -17,6 +17,15 @@ DB_CONNECTION_STRING="Host=prod-db;Database=pitbull;Username=app;Password=***" .
 
 ## 📋 Scripts
 
+### `preflight.ps1`
+**Purpose:** Local pre-ship gates before PR / merge (version stamps, vitest, eslint). Cuts CI thrash from version drift and frontend lint.
+
+```powershell
+./scripts/preflight.ps1              # version + vitest + changed-file eslint
+./scripts/preflight.ps1 -FullWeb     # + full lint + next build
+./scripts/preflight.ps1 -DotNet      # + unit tests
+```
+
 ### `check-deployment-status.sh`
 **Purpose:** Health check across all deployment environments (dev, staging, demo, production)
 
