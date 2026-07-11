@@ -462,6 +462,8 @@ public class AuthControllerTests
     [InlineData("cfo", "cfo@demo.local")]
     [InlineData("pm", "pm@demo.local")]
     [InlineData("estimator", "estimator@demo.local")]
+    [InlineData("superintendent", "superintendent@demo.local")]
+    [InlineData("foreman", "superintendent@demo.local")]
     public async Task DemoRoleLogin_WhenDemoEnabled_ReturnsTokenForPersona(string roleKey, string email)
     {
         using var db = TestDbContextFactory.Create();
@@ -538,7 +540,7 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public void ListDemoRoles_WhenDemoEnabled_ReturnsFourPersonas()
+    public void ListDemoRoles_WhenDemoEnabled_ReturnsFivePersonas()
     {
         using var db = TestDbContextFactory.Create();
         var userManager = CreateMockUserManager();
@@ -548,8 +550,11 @@ public class AuthControllerTests
 
         result.Should().BeOfType<OkObjectResult>();
         var roles = ((OkObjectResult)result).Value.Should().BeAssignableTo<IReadOnlyList<DemoRoleInfo>>().Subject;
-        roles.Should().HaveCount(4);
-        roles.Select(r => r.Key).Should().BeEquivalentTo(["ceo", "cfo", "pm", "estimator"]);
+        // UI catalog is unique by email (foreman is login alias only, not a second button)
+        roles.Should().HaveCount(5);
+        roles.Select(r => r.Key).Should().BeEquivalentTo(
+            ["ceo", "cfo", "pm", "estimator", "superintendent"]);
+        roles.Should().Contain(r => r.Key == "superintendent" && r.Email == "superintendent@demo.local");
     }
 
     [Fact]

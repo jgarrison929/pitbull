@@ -8,6 +8,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Explore-as-role: Superintendent** — one-click field persona (`superintendent@demo.local`, title Field Superintendent → `role_profile=field`); login alias `foreman`; DEMO-SUP crew supervisor + project assignments; mobile tabs Crew / Report / Jobs
+- **PostHog mobile context** — `viewport_class` / `is_narrow_viewport` / `mobile_chrome_expected` on pageviews + super-props; `demo_role_login` + identify `role_profile` for mobile-first demo traffic analysis
+
+### Fixed
+
+- **Mobile login bounce (PostHog)** — ~16/19 mobile users only hit `/login`; Explore-as-role buttons no longer stay disabled while demo catalog loads, stay visible on network flake, 2-col phone grid above the fold, email form collapsed by default on small screens
+
+## [2.5.0] - 2026-07-10T14:42:00-07:00
+
+### Added
+
+- **Billing applications mobile cards** — AIA G702 list stacks as tappable cards under `sm` (payment due / completed / retainage readable without horizontal page scroll)
+- **Owner contracts mobile cards** — contract list same pattern for field/finance phone use
+- **AR/AP aging scroll containers** — intentional horizontal swipe + min-width tables so page chrome no longer blows out sideways
+- **Demo-role mobile paths** — CEO/CFO/PM/Estimator bottom-nav + FAB evaluated: role-aware FAB (`quickActions`), longest-match active tab, CFO WIP + journal list cards, CEO aging tab
+
+### Changed
+
+- CEO mobile tabs prioritize **Aging** over Bids; CFO tabs use specific billing/WIP paths (no dual-highlight on `/accounting/*`)
+- Version bumped to **2.5.0** (second mobile iteration after 2.4.0 shell)
+
+## [2.4.0] - 2026-07-10T14:41:00-07:00
+
+### Added
+
+- **Mobile shell tokens** — shared `mobile-shell` clearance for main content, FAB, and version badge (safe-area aware)
+- **Exported `isMobileTabActive`** — pure path matching for role bottom-nav tabs (prefix-safe; no `/projects` vs `/project-management` collision)
+
+### Fixed
+
+- **Dashboard bottom chrome** — main content clears fixed bottom nav + safe-area; content column `min-w-0` / `overflow-x-hidden` stops page-level horizontal scroll
+- **Quick Action FAB** — aligns with `lg` bottom nav breakpoint and sits above the nav band
+- **Header breadcrumbs** — collapse middle crumbs + truncate on narrow viewports
+- **Crew entry weekly grids** — contained horizontal scroll + swipe hint; submit row not covered by nav
+- Version bumped to **2.4.0**
+
 ## [2.3.0] - 2026-07-10T12:58:16-07:00
 
 ### Added

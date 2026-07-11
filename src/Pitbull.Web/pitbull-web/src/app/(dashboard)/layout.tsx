@@ -15,6 +15,10 @@ import { FeedbackWidget } from "@/components/layout/feedback-widget";
 import { WelcomeTour } from "@/components/onboarding/welcome-tour";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { DemoBanner } from "@/components/layout/demo-banner";
+import {
+  DASHBOARD_CONTENT_COLUMN,
+  MOBILE_MAIN_BOTTOM_CLEARANCE,
+} from "@/components/layout/mobile-shell";
 
 export default function DashboardLayout({
   children,
@@ -45,11 +49,13 @@ export default function DashboardLayout({
   return (
     <KeyboardShortcutsProvider>
       <DemoBanner />
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen max-w-[100vw] overflow-x-hidden">
         <AppSidebar />
-        <div className="flex-1 flex flex-col">
+        <div className={DASHBOARD_CONTENT_COLUMN}>
           <AppHeader />
-          <main className="flex-1 p-4 lg:p-6 bg-muted/30 pb-16 lg:pb-0">
+          <main
+            className={`flex-1 min-w-0 p-4 lg:p-6 bg-muted/30 ${MOBILE_MAIN_BOTTOM_CLEARANCE}`}
+          >
             <ErrorBoundary section="Dashboard">
               {children}
             </ErrorBoundary>

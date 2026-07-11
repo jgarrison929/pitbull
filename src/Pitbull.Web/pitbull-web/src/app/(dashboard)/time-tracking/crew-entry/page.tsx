@@ -686,34 +686,43 @@ export default function CrewEntryPage() {
         </>
       )}
 
-      {/* WEEKLY DETAILED MODE - day-by-day grid */}
+      {/* WEEKLY DETAILED MODE - day-by-day grid (scroll container, not page overflow) */}
       {isWeeklyDetailed && (
-        <div className="overflow-x-auto">
-          <CrewEntryWeeklyGrid
-            entries={weeklyDetailedForm.formData.entries}
-            weekEndingDate={weeklyDetailedForm.formData.weekEndingDate}
-            equipmentList={equipmentList}
-            phases={phases}
-            onUpdateDayHours={weeklyDetailedForm.updateDayHours}
-            onUpdateEntryField={weeklyDetailedForm.updateEntryField}
-            getDayColumnTotal={weeklyDetailedForm.getDayColumnTotal}
-            getGrandTotal={weeklyDetailedForm.getGrandTotal}
-          />
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground md:hidden">
+            Swipe sideways to enter hours for each day.
+          </p>
+          <div className="-mx-1 overflow-x-auto overscroll-x-contain rounded-md border bg-background p-1 touch-pan-x">
+            <div className="min-w-[640px]">
+              <CrewEntryWeeklyGrid
+                entries={weeklyDetailedForm.formData.entries}
+                weekEndingDate={weeklyDetailedForm.formData.weekEndingDate}
+                equipmentList={equipmentList}
+                phases={phases}
+                onUpdateDayHours={weeklyDetailedForm.updateDayHours}
+                onUpdateEntryField={weeklyDetailedForm.updateEntryField}
+                getDayColumnTotal={weeklyDetailedForm.getDayColumnTotal}
+                getGrandTotal={weeklyDetailedForm.getGrandTotal}
+              />
+            </div>
+          </div>
         </div>
       )}
 
       {/* WEEKLY SIMPLE MODE - Reg/OT/DT totals */}
       {isWeeklySimple && (
-        <CrewEntryWeeklySimpleGrid
-          entries={weeklySimpleForm.formData.entries}
-          equipmentList={equipmentList}
-          phases={phases}
-          onUpdateEntry={weeklySimpleForm.updateEntry}
-        />
+        <div className="-mx-1 overflow-x-auto overscroll-x-contain rounded-md border bg-background p-1 touch-pan-x md:overflow-visible md:border-0 md:p-0">
+          <CrewEntryWeeklySimpleGrid
+            entries={weeklySimpleForm.formData.entries}
+            equipmentList={equipmentList}
+            phases={phases}
+            onUpdateEntry={weeklySimpleForm.updateEntry}
+          />
+        </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row justify-end gap-3">
+      {/* Action Buttons — extra bottom margin so fixed nav never covers Submit */}
+      <div className="flex flex-col sm:flex-row justify-end gap-3 pb-4">
         <Button variant="outline" asChild className="min-h-[48px] touch-manipulation">
           <Link href="/time-tracking">Cancel</Link>
         </Button>

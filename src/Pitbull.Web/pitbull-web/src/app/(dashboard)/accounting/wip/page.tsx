@@ -152,9 +152,9 @@ export default function WipReportsPage() {
           <h1 className="text-2xl font-bold tracking-tight">WIP Schedule</h1>
           <p className="text-muted-foreground">Work-in-progress snapshots by accounting period</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={exportPdf}>Export PDF</Button>
-          <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={() => setDialogOpen(true)}>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" className="min-h-[44px]" onClick={exportPdf}>Export PDF</Button>
+          <Button className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]" onClick={() => setDialogOpen(true)}>
             Generate WIP Report
           </Button>
         </div>
@@ -171,8 +171,39 @@ export default function WipReportsPage() {
           onAction={() => setDialogOpen(true)}
         />
       ) : (
-        <Card>
+        <>
+        {/* CFO / mobile: stacked reports */}
+        <div className="space-y-3 sm:hidden">
+          {reports.map((report) => (
+            <Link
+              key={report.id}
+              href={`/accounting/wip/${report.id}`}
+              className="block rounded-lg border bg-card p-4 shadow-sm active:bg-muted/50 touch-manipulation"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="font-semibold">
+                    {new Date(report.reportDate + "T00:00:00").toLocaleDateString()}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    FY {report.fiscalYear} · Period {report.periodNumber}
+                  </p>
+                </div>
+                <Badge variant={report.status === "Final" ? "default" : "secondary"}>
+                  {report.statusName}
+                </Badge>
+              </div>
+              <div className="mt-3 flex justify-between text-sm text-muted-foreground">
+                <span>{report.lineCount} project{report.lineCount === 1 ? "" : "s"}</span>
+                <span>Created {new Date(report.createdAt).toLocaleDateString()}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+
+        <Card className="hidden sm:block">
           <CardContent className="p-0">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -203,8 +234,10 @@ export default function WipReportsPage() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
+        </>
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

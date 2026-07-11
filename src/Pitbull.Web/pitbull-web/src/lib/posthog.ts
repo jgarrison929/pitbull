@@ -1,7 +1,47 @@
 import posthog from "posthog-js";
+import {
+  classifyViewportWidth,
+  isNarrowViewport,
+} from "./viewport-class";
 
 // Tracks whether we've flagged this page-load session as having API errors
 let sessionErrorFlagged = false;
+
+export {
+  classifyViewportWidth,
+  isNarrowViewport,
+  MOBILE_VIEWPORT_MAX_PX,
+  type ViewportClass,
+} from "./viewport-class";
+
+/**
+ * Super-properties for mobile-first demo traffic analysis in PostHog.
+ * Call after init and on resize.
+ */
+export function registerViewportContext(): void {
+  if (typeof window === "undefined" || !posthog.__loaded) return;
+
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const viewportClass = classifyViewportWidth(width);
+  const narrow = isNarrowViewport(width);
+
+  posthog.register({
+    viewport_class: viewportClass,
+    is_narrow_viewport: narrow,
+    // Matches bottom-nav visibility (lg:hidden → visible below 1024)
+    mobile_chrome_expected: narrow,
+    viewport_width: width,
+    viewport_height: height,
+    touch_capable: navigator.maxTouchPoints > 0,
+  });
+
+  posthog.register_for_session({
+    viewport_class: viewportClass,
+    is_narrow_viewport: narrow,
+    mobile_chrome_expected: narrow,
+  });
+}
 
 /**
  * Capture a failed API call in PostHog.
@@ -28,6 +68,8 @@ export function captureApiError(
     sessionErrorFlagged = true;
   }
 
+  const width = typeof window !== "undefined" ? window.innerWidth : undefined;
+
   posthog.capture("api_error", {
     status,
     method,
@@ -38,6 +80,8 @@ export function captureApiError(
     trace_id: (errorData as Record<string, string>)?.traceId ?? undefined,
     correlation_id: (errorData as Record<string, string>)?.correlationId ?? undefined,
     severity: status >= 500 ? "error" : "warning",
+    viewport_class: width != null ? classifyViewportWidth(width) : undefined,
+    is_narrow_viewport: width != null ? isNarrowViewport(width) : undefined,
   });
 }
 
@@ -74,9 +118,16 @@ export function initPostHog() {
     },
     // Respect Do Not Track
     respect_dnt: true,
-    // Don't track localhost in dev unless explicitly testing
-    // To enable PostHog debug mode in development:
-    // loaded: (ph) => { if (process.env.NODE_ENV === "development") ph.debug(); },
+    loaded: () => {
+      registerViewportContext();
+    },
+  });
+
+  // Keep viewport class current as users rotate phones / resize
+  let resizeTimer: ReturnType<typeof setTimeout> | undefined;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => registerViewportContext(), 250);
   });
 }
 

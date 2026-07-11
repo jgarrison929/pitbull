@@ -17,6 +17,7 @@ import {
   HardHat,
   Landmark,
   Loader2,
+  UsersRound,
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
 
@@ -48,6 +49,12 @@ const FALLBACK_DEMO_ROLES: DemoRole[] = [
     email: "pm@demo.local",
   },
   {
+    key: "superintendent",
+    label: "Superintendent",
+    description: "Field leadership — crew time, daily reports, punch lists",
+    email: "superintendent@demo.local",
+  },
+  {
     key: "estimator",
     label: "Estimator",
     description: "Precon focus — bids, pipeline value, cost codes",
@@ -59,6 +66,8 @@ const ROLE_ICONS: Record<string, ReactNode> = {
   ceo: <Briefcase className="h-5 w-5" />,
   cfo: <Landmark className="h-5 w-5" />,
   pm: <HardHat className="h-5 w-5" />,
+  superintendent: <UsersRound className="h-5 w-5" />,
+  foreman: <UsersRound className="h-5 w-5" />,
   estimator: <Calculator className="h-5 w-5" />,
 };
 
@@ -75,9 +84,12 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [shake, setShake] = useState(false);
+  /** Server catalog when available; null until probe finishes or on network error (use fallback). */
   const [demoRoles, setDemoRoles] = useState<DemoRole[] | null>(null);
-  const [demoRolesLoading, setDemoRolesLoading] = useState(true);
+  /** 'unknown' = still probing or network blip — still show Explore; 'no' = API 404 demo off. */
+  const [demoAvailability, setDemoAvailability] = useState<"unknown" | "yes" | "no">("unknown");
   const [activeRoleKey, setActiveRoleKey] = useState<string | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const { login, loginAsDemoRole } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,15 +108,29 @@ function LoginForm() {
       try {
         const res = await fetch(`${API_BASE_URL}/api/auth/demo-roles`);
         if (!res.ok) {
-          if (!cancelled) setDemoRoles(null);
+          // 404 = demo disabled; other errors keep fallback visible (mobile networks flake)
+          if (!cancelled) {
+            setDemoRoles(null);
+            setDemoAvailability(res.status === 404 ? "no" : "unknown");
+          }
           return;
         }
         const data = (await res.json()) as DemoRole[];
-        if (!cancelled) setDemoRoles(Array.isArray(data) && data.length > 0 ? data : null);
+        if (!cancelled) {
+          if (Array.isArray(data) && data.length > 0) {
+            setDemoRoles(data);
+            setDemoAvailability("yes");
+          } else {
+            setDemoRoles(null);
+            setDemoAvailability("no");
+          }
+        }
       } catch {
-        if (!cancelled) setDemoRoles(null);
-      } finally {
-        if (!cancelled) setDemoRolesLoading(false);
+        // Offline / CORS / cold start — keep Explore buttons using FALLBACK
+        if (!cancelled) {
+          setDemoRoles(null);
+          setDemoAvailability("unknown");
+        }
       }
     })();
     return () => {
@@ -162,9 +188,11 @@ function LoginForm() {
     }
   }
 
-  // Show role grid while probing demo catalog, then only if the API returned personas.
-  const showDemoRoles = demoRolesLoading || (demoRoles !== null && demoRoles.length > 0);
+  // PostHog (14d): ~16/19 mobile users only hit /login — never hide Explore on network flake.
+  // Only hide when API explicitly says demo is off (404).
+  const showDemoRoles = demoAvailability !== "no";
   const roleButtons = demoRoles ?? FALLBACK_DEMO_ROLES;
+  const roleBusy = activeRoleKey !== null || isLoading;
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -208,12 +236,12 @@ function LoginForm() {
               through every seat.
             </h1>
             <p className="text-amber-100 text-lg max-w-md leading-relaxed">
-              Jump in as a CEO, CFO, Project Manager, or Estimator — realistic projects, bids, and
+              Jump in as a CEO, CFO, PM, Superintendent, or Estimator — realistic projects, bids, and
               billing data, no setup required.
             </p>
             <div className="flex items-center gap-6 pt-4">
               <div className="text-center">
-                <div className="text-3xl font-bold">4</div>
+                <div className="text-3xl font-bold">5</div>
                 <div className="text-amber-200 text-xs uppercase tracking-wider">Roles</div>
               </div>
               <div className="h-10 w-px bg-white/30" />
@@ -235,10 +263,10 @@ function LoginForm() {
         </div>
       </div>
 
-      {/* Right Panel */}
-      <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-12 py-10">
+      {/* Right Panel — mobile: top-align so Explore roles are above the fold */}
+      <div className="flex-1 flex items-start sm:items-center justify-center px-4 sm:px-6 lg:px-12 py-6 sm:py-10">
         <div className="w-full max-w-md">
-          <div className="lg:hidden text-center mb-8">
+          <div className="lg:hidden text-center mb-5">
             <div className="inline-flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-white font-bold text-lg shadow-md">
                 P
@@ -252,11 +280,13 @@ function LoginForm() {
             </div>
           </div>
 
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold tracking-tight">Welcome</h1>
-            <p className="text-muted-foreground mt-1">
+          <div className="mb-4 sm:mb-6">
+            <h1 className="text-2xl font-bold tracking-tight">
+              {showDemoRoles ? "Try the demo" : "Welcome"}
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
               {showDemoRoles
-                ? "Pick a demo role to explore, or sign in with your account"
+                ? "Tap a role — no account needed. Best on your phone."
                 : "Sign in to your account to continue"}
             </p>
           </div>
@@ -278,30 +308,27 @@ function LoginForm() {
             </div>
           )}
 
-          {/* Demo role one-click login */}
+          {/* Demo role one-click login — always enabled (PostHog: buttons were disabled while catalog loaded) */}
           {showDemoRoles && (
-            <div className="mb-8">
+            <div className="mb-5 sm:mb-8">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-foreground">Explore as a role</p>
-                {demoRolesLoading && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Checking demo…
-                  </span>
+                <p className="text-sm font-semibold text-foreground">Explore as a role</p>
+                {demoAvailability === "unknown" && (
+                  <span className="text-[10px] text-muted-foreground">Live demo</span>
                 )}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(demoRolesLoading ? FALLBACK_DEMO_ROLES : roleButtons).map((role) => {
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                {roleButtons.map((role) => {
                   const busy = activeRoleKey === role.key;
-                  const disabled = demoRolesLoading || activeRoleKey !== null || isLoading;
                   return (
                     <button
                       key={role.key}
                       type="button"
-                      disabled={disabled}
+                      disabled={roleBusy}
                       onClick={() => handleDemoRole(role.key, role.label)}
-                      className="group text-left rounded-xl border-2 border-border bg-card p-4 shadow-sm transition-all hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                      className="group text-left rounded-xl border-2 border-amber-500/40 bg-card p-3 sm:p-4 shadow-sm transition-all hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 disabled:opacity-60 disabled:cursor-not-allowed min-h-[72px] touch-manipulation"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 group-hover:bg-amber-500 group-hover:text-white transition-colors">
                           {busy ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
@@ -311,7 +338,7 @@ function LoginForm() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-semibold text-sm tracking-tight">{role.label}</div>
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2">
+                          <p className="text-[11px] sm:text-xs text-muted-foreground mt-0.5 leading-snug line-clamp-2 hidden xs:block sm:block">
                             {role.description}
                           </p>
                         </div>
@@ -321,23 +348,35 @@ function LoginForm() {
                 })}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                Shared demo tenant with sample construction data. Changes may be reset.
+                Shared demo data · tap a role to go straight in
               </p>
             </div>
           )}
 
           {showDemoRoles && (
-            <div className="relative my-6">
+            <div className="relative my-4 sm:my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">or sign in with email</span>
+                <button
+                  type="button"
+                  className="bg-background px-2 text-muted-foreground hover:text-foreground sm:pointer-events-none"
+                  onClick={() => setShowEmailForm((v) => !v)}
+                >
+                  {showEmailForm ? "hide email sign-in" : "or sign in with email"}
+                </button>
               </div>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Email form: collapsed by default on mobile when demo is available (PostHog bounce fix) */}
+          <form
+            onSubmit={handleSubmit}
+            className={`space-y-5 ${
+              showDemoRoles && !showEmailForm ? "hidden sm:block" : ""
+            }`}
+          >
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
               <Input
@@ -346,9 +385,9 @@ function LoginForm() {
                 placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                required
+                required={!(showDemoRoles && !showEmailForm)}
                 autoComplete="email"
-                className="h-11"
+                className="h-11 min-h-[44px]"
                 disabled={activeRoleKey !== null}
               />
             </div>

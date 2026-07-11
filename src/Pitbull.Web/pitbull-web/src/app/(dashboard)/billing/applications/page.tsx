@@ -150,9 +150,9 @@ export default function BillingApplicationsPage() {
         <p className="text-muted-foreground">AIA G702 Applications and Certificates for Payment.</p>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-48"><SelectValue placeholder="Filter status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-48 min-h-[44px]"><SelectValue placeholder="Filter status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>All Statuses</SelectItem>
             <SelectItem value="Draft">Draft</SelectItem>
@@ -163,7 +163,7 @@ export default function BillingApplicationsPage() {
             <SelectItem value="Void">Void</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => setCreateDialogOpen(true)}>New Application</Button>
+        <Button className="min-h-[44px] w-full sm:w-auto" onClick={() => setCreateDialogOpen(true)}>New Application</Button>
       </div>
 
       {isLoading ? (
@@ -171,36 +171,79 @@ export default function BillingApplicationsPage() {
       ) : apps.length === 0 ? (
         <EmptyState title="No billing applications" description="Create a billing application from an active owner contract." />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>App #</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Contract Sum</TableHead>
-                  <TableHead>Completed</TableHead>
-                  <TableHead>Retainage</TableHead>
-                  <TableHead>Payment Due</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {apps.map((a) => (
-                  <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/billing/applications/${a.id}`)}>
-                    <TableCell className="font-bold">#{a.applicationNumber}</TableCell>
-                    <TableCell>{a.periodFrom} — {a.periodThrough}</TableCell>
-                    <TableCell>{formatCurrency(a.contractSumToDate)}</TableCell>
-                    <TableCell>{formatCurrency(a.totalCompletedAndStoredToDate)}</TableCell>
-                    <TableCell>{formatCurrency(a.totalRetainage)}</TableCell>
-                    <TableCell className="font-semibold">{formatCurrency(a.currentPaymentDue)}</TableCell>
-                    <TableCell><Badge variant={statusColors[a.status]}>{a.status}</Badge></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <>
+          {/* Mobile stacked cards */}
+          <div className="space-y-3 sm:hidden">
+            {apps.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className="w-full rounded-lg border bg-card p-4 text-left shadow-sm active:bg-muted/50 touch-manipulation min-h-[44px]"
+                onClick={() => router.push(`/billing/applications/${a.id}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="font-bold">#{a.applicationNumber}</span>
+                  <Badge variant={statusColors[a.status]}>{a.status}</Badge>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {a.periodFrom} — {a.periodThrough}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payment due</p>
+                    <p className="font-semibold">{formatCurrency(a.currentPaymentDue)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Completed</p>
+                    <p>{formatCurrency(a.totalCompletedAndStoredToDate)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contract sum</p>
+                    <p>{formatCurrency(a.contractSumToDate)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">Retainage</p>
+                    <p>{formatCurrency(a.totalRetainage)}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <Card className="hidden sm:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>App #</TableHead>
+                      <TableHead>Period</TableHead>
+                      <TableHead>Contract Sum</TableHead>
+                      <TableHead>Completed</TableHead>
+                      <TableHead>Retainage</TableHead>
+                      <TableHead>Payment Due</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {apps.map((a) => (
+                      <TableRow key={a.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.push(`/billing/applications/${a.id}`)}>
+                        <TableCell className="font-bold">#{a.applicationNumber}</TableCell>
+                        <TableCell>{a.periodFrom} — {a.periodThrough}</TableCell>
+                        <TableCell>{formatCurrency(a.contractSumToDate)}</TableCell>
+                        <TableCell>{formatCurrency(a.totalCompletedAndStoredToDate)}</TableCell>
+                        <TableCell>{formatCurrency(a.totalRetainage)}</TableCell>
+                        <TableCell className="font-semibold">{formatCurrency(a.currentPaymentDue)}</TableCell>
+                        <TableCell><Badge variant={statusColors[a.status]}>{a.status}</Badge></TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {totalPages > 1 && (

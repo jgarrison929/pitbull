@@ -1,21 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/auth-context";
+import { getRoleDefaults } from "./workspaces";
+import { MOBILE_FAB_POSITION } from "./mobile-shell";
 
-const quickActions = [
+const FALLBACK_ACTIONS = [
   { label: "Add Bid", href: "/bids/new", icon: "📋" },
   { label: "Add RFI", href: "/rfis/new", icon: "❓" },
   { label: "Add Time Entry", href: "/time-tracking/new", icon: "⏱️" },
 ];
 
+/**
+ * Role-aware quick actions for phones. Demo personas (CEO/CFO/PM/Estimator)
+ * get their workspace quickActions — not a one-size FAB that opens the wrong workflows.
+ */
 export function QuickActionFAB() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
+
+  const quickActions = useMemo(() => {
+    const fromRole = getRoleDefaults(user?.roles, user?.roleProfile).quickActions;
+    return fromRole.length > 0 ? fromRole.slice(0, 4) : FALLBACK_ACTIONS;
+  }, [user?.roles, user?.roleProfile]);
 
   return (
-    <div className="fixed bottom-20 right-6 z-50 md:hidden">
-      {/* Backdrop */}
+    <div className={MOBILE_FAB_POSITION}>
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/20"
@@ -24,7 +36,6 @@ export function QuickActionFAB() {
         />
       )}
 
-      {/* Quick action menu */}
       <div
         className={cn(
           "absolute bottom-16 right-0 flex flex-col gap-2 transition-all duration-200",
@@ -35,10 +46,10 @@ export function QuickActionFAB() {
       >
         {quickActions.map((action) => (
           <Link
-            key={action.href}
+            key={`${action.href}-${action.label}`}
             href={action.href}
             onClick={() => setIsOpen(false)}
-            className="flex items-center gap-3 rounded-full bg-neutral-800 px-4 py-3 text-white shadow-lg hover:bg-neutral-700 transition-colors whitespace-nowrap"
+            className="flex min-h-[44px] items-center gap-3 rounded-full bg-neutral-800 px-4 py-3 text-white shadow-lg hover:bg-neutral-700 transition-colors whitespace-nowrap"
           >
             <span className="text-lg">{action.icon}</span>
             <span className="text-sm font-medium">{action.label}</span>
@@ -46,11 +57,10 @@ export function QuickActionFAB() {
         ))}
       </div>
 
-      {/* FAB button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex h-14 w-14 items-center justify-center rounded-full bg-amber-500 text-white shadow-lg transition-all duration-200 hover:bg-amber-600 active:scale-95",
+          "flex h-14 w-14 min-h-[56px] min-w-[56px] items-center justify-center rounded-full bg-amber-500 text-white shadow-lg transition-all duration-200 hover:bg-amber-600 active:scale-95",
           isOpen && "rotate-45 bg-neutral-700 hover:bg-neutral-600"
         )}
         aria-label={isOpen ? "Close quick actions" : "Open quick actions"}
