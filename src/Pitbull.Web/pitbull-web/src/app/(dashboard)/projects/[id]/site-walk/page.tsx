@@ -249,10 +249,14 @@ function SiteWalkContent({ params }: { params: Promise<{ id: string }> }) {
           className="min-h-[52px] bg-amber-500 hover:bg-amber-600 text-white text-base"
           asChild
         >
-          <Link href="/daily-reports/mobile">Log report</Link>
+          <Link href={`/daily-reports/mobile?projectId=${projectId}`}>
+            Log report
+          </Link>
         </Button>
         <Button variant="outline" className="min-h-[52px] text-base" asChild>
-          <Link href="/time-tracking/crew-entry">Crew time</Link>
+          <Link href={`/time-tracking/crew-entry?projectId=${projectId}`}>
+            Crew time
+          </Link>
         </Button>
         <Button variant="outline" className="min-h-[52px]" asChild>
           <Link href={buildPlansSpecsHref(projectId, { view: "plans" })}>

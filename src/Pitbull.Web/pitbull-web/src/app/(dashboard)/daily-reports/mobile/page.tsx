@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import api, { uploadFiles } from "@/lib/api";
 import type { Project, PagedResult } from "@/lib/types";
 import type { PmEntityDto, PmUpsertRequest } from "@/lib/pm-types";
 import {
   isFieldReportEligibleStatus,
+  resolveDefaultFieldReportProjectId,
   toProjectLookupItems,
 } from "@/lib/projects";
 import { toast } from "sonner";
@@ -30,6 +32,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { useRecentSelections } from "@/hooks/use-recent-selections";
+import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useOnlineStatus } from "@/lib/use-online-status";
 import { getValidRecentIds } from "@/lib/entity-lookup";
 import {
@@ -80,15 +83,19 @@ interface PhotoWithLocation extends FileItem {
 }
 
 export default function MobileDailyReportPage() {
+  const searchParams = useSearchParams();
+  const urlProjectId = searchParams.get("projectId");
   const [step, setStep] = useState<MobileReportStep>("Project");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const { recentItems: recentProjects, addRecent: addRecentProject } =
     useRecentSelections("project");
+  const { recentProjects: recentViewedProjects } = useRecentProjects();
   const { isOnline, pendingCount, refreshPendingCount } = useOnlineStatus();
   const [queuedNotice, setQueuedNotice] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
+  const defaultProjectAppliedRef = useRef(false);
   const recognitionRef = useRef<{
     stop: () => void;
     start: () => void;
@@ -156,6 +163,41 @@ export default function MobileDailyReportPage() {
     }
     void loadProjects();
   }, []);
+
+  // Default project from URL (in-job links) or recent job context once catalog loads.
+  useEffect(() => {
+    if (defaultProjectAppliedRef.current || loading || projectId) return;
+    const eligibleIds = projects
+      .filter((p) => isFieldReportEligibleStatus(p.status))
+      .map((p) => p.id);
+    if (eligibleIds.length === 0) return;
+
+    const resolved = resolveDefaultFieldReportProjectId(eligibleIds, [
+      urlProjectId,
+      ...recentViewedProjects.map((p) => p.id),
+      ...recentProjects.map((p) => p.id),
+    ]);
+    if (!resolved) return;
+
+    defaultProjectAppliedRef.current = true;
+    setProjectId(resolved);
+    const match = projects.find((p) => p.id === resolved);
+    if (match) {
+      addRecentProject(resolved, `${match.number} - ${match.name}`);
+    }
+    // Explicit project deep-link: skip past pick list — super already on that job.
+    if (urlProjectId && resolved === urlProjectId.trim()) {
+      setStep("Field");
+    }
+  }, [
+    loading,
+    projectId,
+    projects,
+    urlProjectId,
+    recentViewedProjects,
+    recentProjects,
+    addRecentProject,
+  ]);
 
   const applyVoiceToForm = useCallback(
     (transcript: string) => {
@@ -563,6 +605,11 @@ export default function MobileDailyReportPage() {
                   placeholder="Search job number or name..."
                   allowClear={false}
                   emptyCatalogMessage="No open jobs available. Check Projects or your company."
+                  helpText={
+                    projectId
+                      ? "Pre-filled from the job you were on — change if needed."
+                      : undefined
+                  }
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">

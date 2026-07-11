@@ -12,6 +12,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/auth-context";
+import { buildFieldReportHref } from "@/lib/projects";
 import { getRoleDefaults, workspaces, getWorkspaceLandingHref } from "./workspaces";
 import { resolveActiveMobileTabHref } from "./nav-utils";
 
@@ -23,6 +24,16 @@ export function MobileBottomNav() {
   const roleConfig = getRoleDefaults(user?.roles, user?.roleProfile);
   const mobileTabs = roleConfig.mobileTabs;
   const activeHref = resolveActiveMobileTabHref(pathname, mobileTabs);
+  // When already inside a project route, pass job into Field Report pick list.
+  const projectMatch = pathname.match(/^\/projects\/([a-f0-9-]+)/i);
+  const currentProjectId = projectMatch?.[1] ?? null;
+
+  function tabHref(href: string): string {
+    if (href === "/daily-reports/mobile" && currentProjectId) {
+      return buildFieldReportHref(currentProjectId);
+    }
+    return href;
+  }
 
   return (
     <>
@@ -33,11 +44,12 @@ export function MobileBottomNav() {
       >
         <div className="flex h-14 items-center justify-around px-1">
           {mobileTabs.map((tab) => {
+            const href = tabHref(tab.href);
             const active = activeHref === tab.href;
             return (
               <Link
                 key={tab.href}
-                href={tab.href}
+                href={href}
                 className={cn(
                   "flex min-h-[44px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-2 text-xs transition-colors",
                   active

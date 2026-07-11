@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { ProjectStatus } from "@/lib/types";
 import {
+  buildFieldReportHref,
   coerceProjectStatus,
   isFieldReportEligibleStatus,
+  resolveDefaultFieldReportProjectId,
   toProjectLookupItems,
 } from "./projects";
 
@@ -97,5 +99,48 @@ describe("toProjectLookupItems", () => {
     ];
     expect(toProjectLookupItems(onlyStringActive)).toHaveLength(1);
     expect(toProjectLookupItems(onlyStringActive)[0]?.label).toBe("J-1");
+  });
+});
+
+describe("resolveDefaultFieldReportProjectId", () => {
+  const eligible = ["job-a", "job-b", "job-c"];
+
+  it("prefers explicit URL project when eligible", () => {
+    expect(
+      resolveDefaultFieldReportProjectId(eligible, [
+        "job-b",
+        "job-a",
+        "job-c",
+      ])
+    ).toBe("job-b");
+  });
+
+  it("falls through to next candidate when URL job is not eligible", () => {
+    expect(
+      resolveDefaultFieldReportProjectId(eligible, [
+        "completed-x",
+        "job-c",
+        "job-a",
+      ])
+    ).toBe("job-c");
+  });
+
+  it("returns null when nothing matches the catalog", () => {
+    expect(
+      resolveDefaultFieldReportProjectId(eligible, ["gone", null, ""])
+    ).toBeNull();
+  });
+});
+
+describe("buildFieldReportHref", () => {
+  it("appends projectId when already in a job", () => {
+    expect(buildFieldReportHref("abc-123")).toBe(
+      "/daily-reports/mobile?projectId=abc-123"
+    );
+  });
+
+  it("omits query when no project", () => {
+    expect(buildFieldReportHref()).toBe("/daily-reports/mobile");
+    expect(buildFieldReportHref("")).toBe("/daily-reports/mobile");
   });
 });

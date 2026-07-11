@@ -64,6 +64,29 @@ export function toProjectLookupItems(
   });
 }
 
+/**
+ * Prefer an explicit URL project, then recent context, when still field-eligible.
+ * First matching candidate wins; used to default Field Report without re-picking.
+ */
+export function resolveDefaultFieldReportProjectId(
+  eligibleIds: Iterable<string>,
+  candidates: Array<string | null | undefined>
+): string | null {
+  const set = new Set(eligibleIds);
+  for (const id of candidates) {
+    const trimmed = typeof id === "string" ? id.trim() : "";
+    if (trimmed && set.has(trimmed)) return trimmed;
+  }
+  return null;
+}
+
+/** Field report entry URL; pass projectId when already in a job. */
+export function buildFieldReportHref(projectId?: string | null): string {
+  const id = typeof projectId === "string" ? projectId.trim() : "";
+  if (!id) return "/daily-reports/mobile";
+  return `/daily-reports/mobile?projectId=${encodeURIComponent(id)}`;
+}
+
 export function projectStatusLabel(status: ProjectStatus | string | number): string {
   switch (coerceProjectStatus(status)) {
     case ProjectStatus.Bidding:
