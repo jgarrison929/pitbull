@@ -70,9 +70,10 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         Assert.NotNull(overlay);
         Assert.True(overlay.HasGraph);
         Assert.Contains("prox", overlay.TruthNote ?? "", StringComparison.OrdinalIgnoreCase);
-        // No zone-linked RFIs yet → honest insufficient, never default green
-        Assert.All(overlay.Nodes ?? [], n =>
-            Assert.Equal("InsufficientData", n.Band));
+        // Seed fixture links RFIs to some zones → at least one non-Insufficient band
+        Assert.Contains(overlay.Nodes ?? [], n => n.Band != "InsufficientData");
+        // Unlinked zones stay Insufficient — never invent all-green
+        Assert.Contains(overlay.Nodes ?? [], n => n.Band == "InsufficientData");
     }
 
     private sealed record GraphDto(

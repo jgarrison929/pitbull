@@ -81,7 +81,7 @@ public sealed class SpatialServiceTests
     }
 
     [Fact]
-    public async Task Overlay_without_zone_links_is_insufficient_not_green()
+    public async Task Overlay_seed_fixture_paints_linked_rfi_zones_not_all_insufficient()
     {
         using var db = TestDbContextFactory.Create();
         await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
@@ -93,8 +93,35 @@ public sealed class SpatialServiceTests
         overlay.IsSuccess.Should().BeTrue();
         overlay.Value!.HasGraph.Should().BeTrue();
         overlay.Value.TruthNote.Should().Contain("proxies");
-        overlay.Value.Nodes.Should().OnlyContain(n =>
-            n.Band == nameof(SpatialOverlayCalculator.OverlayBand.InsufficientData));
+
+        var graph = (await service.GetGraphAsync(ProjectId)).Value!;
+        var east = graph.Nodes.First(n => n.Code == "L1-EAST");
+        var mech = graph.Nodes.First(n => n.Code == "L2-MECH");
+        var eastOv = overlay.Value.Nodes.First(n => n.SpatialNodeId == east.Id);
+        var mechOv = overlay.Value.Nodes.First(n => n.SpatialNodeId == mech.Id);
+
+        // 3 open seed RFIs on L1-EAST → Risk; L2-MECH unlinked → Insufficient (not green)
+        eastOv.Band.Should().Be(nameof(SpatialOverlayCalculator.OverlayBand.Risk));
+        mechOv.Band.Should().Be(nameof(SpatialOverlayCalculator.OverlayBand.InsufficientData));
+        overlay.Value.Nodes.Should().Contain(n =>
+            n.Band != nameof(SpatialOverlayCalculator.OverlayBand.InsufficientData));
+    }
+
+    [Fact]
+    public async Task Overlay_seed_progress_mode_paints_linked_zone()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        await service.EnsureSeededGraphAsync(ProjectId);
+
+        var overlay = await service.GetOverlayAsync(ProjectId, SpatialOverlayCalculator.ModeProgress);
+        var graph = (await service.GetGraphAsync(ProjectId)).Value!;
+        var west = graph.Nodes.First(n => n.Code == "L1-WEST");
+        var westOv = overlay.Value!.Nodes.First(n => n.SpatialNodeId == west.Id);
+
+        westOv.Band.Should().Be(nameof(SpatialOverlayCalculator.OverlayBand.OnTrack));
+        westOv.Label.Should().Contain("%");
     }
 
     [Fact]

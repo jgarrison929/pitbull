@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.5] - 2026-07-12T00:10:00-07:00
+
+### Added
+
+- **Twin overlay fuel from real links** — `SpatialNodeId` on RFI / progress entry / activity progress; `PrimarySpatialNodeId` on schedule activities; overlay modes aggregate open RFIs, progress %, and schedule delay by zone
+- **Demo seed fixture bands** — ensure-seeded attaches known RFIs/progress/schedule to named zones so overlays paint Risk/Watch/OnTrack; unlinked zones stay InsufficientData (not invent green)
+- Version **2.8.5**
+
 ## [2.8.4] - 2026-07-11T23:55:00-07:00
 
 ### Added

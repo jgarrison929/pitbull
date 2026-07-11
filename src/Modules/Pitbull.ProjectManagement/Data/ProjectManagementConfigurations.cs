@@ -55,6 +55,7 @@ public class PmScheduleActivityConfiguration : IEntityTypeConfiguration<PmSchedu
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
         builder.HasIndex(x => new { x.ScheduleId, x.ActivityCode }).IsUnique();
         builder.HasIndex(x => new { x.ScheduleId, x.ParentActivityId, x.SortOrder });
+        builder.HasIndex(x => x.PrimarySpatialNodeId);
         builder.HasOne<PmSchedule>()
             .WithMany()
             .HasForeignKey(x => x.ScheduleId)
@@ -821,6 +822,7 @@ public class PmProgressEntryConfiguration : IEntityTypeConfiguration<PmProgressE
         builder.Property(x => x.EntryType).HasConversion<string>().HasMaxLength(50);
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
         builder.HasIndex(x => new { x.ProjectId, x.ProgressDate, x.EntryType });
+        builder.HasIndex(x => x.SpatialNodeId);
         builder.HasOne<Project>()
             .WithMany()
             .HasForeignKey(x => x.ProjectId)
@@ -839,6 +841,7 @@ public class PmActivityProgressConfiguration : IEntityTypeConfiguration<PmActivi
         builder.ConfigureBase("pm_activity_progress");
         builder.Property(x => x.PercentComplete).HasPrecision(5, 2);
         builder.HasIndex(x => new { x.ProgressEntryId, x.ScheduleActivityId }).IsUnique();
+        builder.HasIndex(x => x.SpatialNodeId);
         builder.HasOne<PmProgressEntry>()
             .WithMany()
             .HasForeignKey(x => x.ProgressEntryId)
