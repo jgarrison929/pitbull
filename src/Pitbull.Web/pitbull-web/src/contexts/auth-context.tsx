@@ -143,11 +143,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       scheduleExpiryWarning(response.token);
 
       if (u && posthog.__loaded) {
+        const width = typeof window !== "undefined" ? window.innerWidth : undefined;
         posthog.identify(u.id, {
           email: u.email,
           name: u.name,
           tenant_id: u.tenantId,
+          is_demo_user: u.isDemoUser ?? false,
+          job_title: u.jobTitle,
+          role_profile: u.roleProfile,
+          identity_roles: u.roles,
         });
+        posthog.register({
+          role_profile: u.roleProfile,
+          is_demo_user: u.isDemoUser ?? false,
+          job_title: u.jobTitle,
+        });
+        if (width != null) {
+          posthog.register({
+            viewport_width: width,
+            is_narrow_viewport: width <= 1023,
+            viewport_class:
+              width <= 640 ? "phone" : width <= 1023 ? "tablet" : "desktop",
+          });
+        }
       }
     },
     [scheduleExpiryWarning]
@@ -160,6 +178,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: { email, password },
       });
       applyAuthResponse(response);
+      if (posthog.__loaded) {
+        posthog.capture("user_login", {
+          method: "password",
+          is_narrow_viewport:
+            typeof window !== "undefined" ? window.innerWidth <= 1023 : undefined,
+        });
+      }
     },
     [applyAuthResponse]
   );
@@ -171,6 +196,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: { role },
       });
       applyAuthResponse(response);
+      if (posthog.__loaded) {
+        const width = typeof window !== "undefined" ? window.innerWidth : undefined;
+        posthog.capture("demo_role_login", {
+          demo_role: role,
+          viewport_width: width,
+          is_narrow_viewport: width != null ? width <= 1023 : undefined,
+          viewport_class:
+            width == null
+              ? undefined
+              : width <= 640
+                ? "phone"
+                : width <= 1023
+                  ? "tablet"
+                  : "desktop",
+        });
+        posthog.register({ demo_role: role });
+      }
     },
     [applyAuthResponse]
   );

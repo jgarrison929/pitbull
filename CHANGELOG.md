@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Explore-as-role: Superintendent** — one-click field persona (`superintendent@demo.local`, title Field Superintendent → `role_profile=field`); login alias `foreman`; DEMO-SUP crew supervisor + project assignments; mobile tabs Crew / Report / Jobs
+- **PostHog mobile context** — `viewport_class` / `is_narrow_viewport` / `mobile_chrome_expected` on pageviews + super-props; `demo_role_login` + identify `role_profile` for mobile-first demo traffic analysis
 
 ## [2.5.0] - 2026-07-10T14:42:00-07:00
 

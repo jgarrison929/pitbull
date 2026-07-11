@@ -21,8 +21,15 @@ function PostHogPageViewTracker() {
       url += "?" + search;
     }
 
+    const width = window.innerWidth;
     posthog.capture("$pageview", {
       $current_url: url,
+      path: pathname,
+      viewport_width: width,
+      viewport_class:
+        width <= 640 ? "phone" : width <= 1023 ? "tablet" : "desktop",
+      is_narrow_viewport: width <= 1023,
+      mobile_chrome_expected: width <= 1023,
     });
   }, [pathname, searchParams]);
 
