@@ -235,6 +235,9 @@ async function syncDailyReport(item: SyncQueueItem) {
           WorkNarrative: report.workNarrative || null,
           DelaysNarrative: report.delaysNarrative || null,
           SafetyNarrative: report.safetyNarrative || null,
+          FieldActivities: report.fieldActivities || null,
+          TruckConditions: report.truckConditions || null,
+          TruckNotes: report.truckNotes || null,
           CrewEntries: report.crewEntries || null,
           Equipment: report.equipment || null,
           Visitors: report.visitors || null,
@@ -249,6 +252,50 @@ async function syncDailyReport(item: SyncQueueItem) {
 
   if (!response.ok) {
     throw new Error(`Sync failed: ${response.status}`);
+  }
+
+  const created = (await response.json().catch(() => null)) as {
+    id?: string;
+  } | null;
+
+  // Best-effort: upload embedded offline photos (small data URLs only)
+  const embedded = (report.photos ?? []).filter((p) => p.dataUrl);
+  if (created?.id && embedded.length > 0) {
+    try {
+      const { dataUrlToBlob } = await import("./offline-photo");
+      const form = new FormData();
+      for (const photo of embedded) {
+        if (!photo.dataUrl) continue;
+        const blob = dataUrlToBlob(photo.dataUrl);
+        form.append(
+          embedded.length === 1 ? "file" : "files",
+          blob,
+          photo.name || "photo.jpg"
+        );
+      }
+      form.append("relatedEntityType", "DailyReport");
+      form.append("relatedEntityId", created.id);
+      const uploadHeaders: Record<string, string> = {
+        "X-Idempotency-Key": `${item.idempotencyKey}-photos`,
+      };
+      if (item.auth?.token) {
+        uploadHeaders.Authorization = `Bearer ${item.auth.token}`;
+      }
+      if (item.auth?.companyId) {
+        uploadHeaders["X-Company-Id"] = item.auth.companyId;
+      }
+      const endpoint =
+        embedded.length === 1
+          ? `${API_BASE_URL}/api/files/upload`
+          : `${API_BASE_URL}/api/files/upload-multiple`;
+      await fetch(endpoint, {
+        method: "POST",
+        headers: uploadHeaders,
+        body: form,
+      });
+    } catch {
+      // Report already saved; photo upload failure is non-fatal for queue drain
+    }
   }
 
   await removeSyncItem(item.id);

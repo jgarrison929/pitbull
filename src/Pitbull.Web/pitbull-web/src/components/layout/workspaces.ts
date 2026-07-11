@@ -65,6 +65,7 @@ export function getProjectWorkspaceItems(projectId: string | null): NavItem[] {
     { label: "Change Orders", href: `${base}/change-orders`, icon: "📝", requiredPermission: "Contracts.View" },
     { label: "Documents", href: `${base}/documents`, icon: "📁", requiredPermission: "Documents.View" },
     { label: "Plans & Specs", href: `${base}/plans-specs`, icon: "📐", requiredPermission: "Documents.View" },
+    { label: "Site Walk", href: `${base}/site-walk`, icon: "🚶", requiredPermission: "Projects.View" },
     { label: "Punch List", href: `${base}/punch-list`, icon: "📋", requiredPermission: "PM.PunchList" },
     { label: "Progress", href: `${base}/progress`, icon: "📈", requiredPermission: "Projects.View" },
     { label: "Cost Projections", href: `${base}/projections`, icon: "🔮", requiredPermission: "Projects.View" },
@@ -446,6 +447,7 @@ export const roleDefaults: Record<string, RoleDefaults> = {
     quickActions: [
       { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
       { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
+      { label: "Sub Status", href: "/sub-status", icon: "🔧" },
       { label: "Equipment", href: "/equipment", icon: "🚜" },
     ],
     mobileTabs: [
@@ -462,6 +464,7 @@ export const roleDefaults: Record<string, RoleDefaults> = {
     quickActions: [
       { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
       { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
+      { label: "Sub Status", href: "/sub-status", icon: "🔧" },
       { label: "Equipment", href: "/equipment", icon: "🚜" },
     ],
     mobileTabs: [

@@ -221,31 +221,32 @@ public static class CsiCostCodeData
         Add("01300", "Administrative Requirements", d01, CostType.Other);
         Add("01400", "Quality Requirements", d01, CostType.Other);
         Add("01500", "Temporary Facilities & Controls", d01, CostType.Other);
+        Add("01600", "General Conditions / Overhead", d01, CostType.Overhead);
 
         // Division 02 — Site Construction
         const string d02 = "02 - Site Construction";
-        Add("02100", "Site Remediation", d02, CostType.Subcontract);
+        Add("02100", "Site Remediation", d02, CostType.SubThirdParty);
         Add("02200", "Site Preparation", d02, CostType.Labor);
         Add("02300", "Earthwork", d02, CostType.Equipment);
-        Add("02500", "Utility Services", d02, CostType.Subcontract);
-        Add("02700", "Sewerage & Drainage", d02, CostType.Subcontract);
+        Add("02500", "Utility Services", d02, CostType.SubLabor);
+        Add("02700", "Sewerage & Drainage", d02, CostType.SubLabor);
 
         // Division 03 — Concrete
         const string d03 = "03 - Concrete";
-        Add("03100", "Concrete Forms & Accessories", d03, CostType.Material);
+        Add("03100", "Concrete Forms & Accessories", d03, CostType.SubMaterial);
         Add("03200", "Concrete Reinforcement", d03, CostType.Material);
         Add("03300", "Cast-in-Place Concrete", d03, CostType.Labor);
-        Add("03400", "Precast Concrete", d03, CostType.Subcontract);
+        Add("03400", "Precast Concrete", d03, CostType.SubLabor);
 
         // Division 04 — Masonry
         const string d04 = "04 - Masonry";
-        Add("04200", "Unit Masonry", d04, CostType.Subcontract);
-        Add("04400", "Stone Assemblies", d04, CostType.Subcontract);
+        Add("04200", "Unit Masonry", d04, CostType.SubLabor);
+        Add("04400", "Stone Assemblies", d04, CostType.SubLabor);
         Add("04500", "Refractories", d04, CostType.Material);
 
         // Division 05 — Metals
         const string d05 = "05 - Metals";
-        Add("05100", "Structural Metal Framing", d05, CostType.Subcontract);
+        Add("05100", "Structural Metal Framing", d05, CostType.SubLabor);
         Add("05200", "Metal Joists", d05, CostType.Material);
         Add("05300", "Metal Deck", d05, CostType.Material);
         Add("05500", "Metal Fabrications", d05, CostType.Subcontract);
@@ -254,31 +255,31 @@ public static class CsiCostCodeData
         const string d06 = "06 - Wood & Plastics";
         Add("06100", "Rough Carpentry", d06, CostType.Labor);
         Add("06200", "Finish Carpentry", d06, CostType.Labor);
-        Add("06400", "Architectural Woodwork", d06, CostType.Subcontract);
+        Add("06400", "Architectural Woodwork", d06, CostType.SubLabor);
 
         // Division 07 — Thermal & Moisture Protection
         const string d07 = "07 - Thermal & Moisture Protection";
-        Add("07100", "Damproofing & Waterproofing", d07, CostType.Subcontract);
+        Add("07100", "Damproofing & Waterproofing", d07, CostType.SubLabor);
         Add("07200", "Thermal Insulation", d07, CostType.Material);
-        Add("07300", "Shingles, Roof Tiles & Coverings", d07, CostType.Subcontract);
-        Add("07400", "Roofing & Siding Panels", d07, CostType.Subcontract);
+        Add("07300", "Shingles, Roof Tiles & Coverings", d07, CostType.SubLabor);
+        Add("07400", "Roofing & Siding Panels", d07, CostType.SubLabor);
         Add("07900", "Joint Sealants", d07, CostType.Material);
 
         // Division 08 — Doors & Windows
         const string d08 = "08 - Doors & Windows";
         Add("08100", "Metal Doors & Frames", d08, CostType.Material);
         Add("08200", "Wood & Plastic Doors", d08, CostType.Material);
-        Add("08400", "Entrances & Storefronts", d08, CostType.Subcontract);
+        Add("08400", "Entrances & Storefronts", d08, CostType.SubLabor);
         Add("08500", "Windows", d08, CostType.Material);
         Add("08700", "Hardware", d08, CostType.Material);
 
         // Division 09 — Finishes
         const string d09 = "09 - Finishes";
-        Add("09200", "Plaster & Gypsum Board", d09, CostType.Subcontract);
-        Add("09300", "Tile", d09, CostType.Subcontract);
-        Add("09500", "Ceilings", d09, CostType.Subcontract);
-        Add("09600", "Flooring", d09, CostType.Subcontract);
-        Add("09900", "Paints & Coatings", d09, CostType.Subcontract);
+        Add("09200", "Plaster & Gypsum Board", d09, CostType.SubLabor);
+        Add("09300", "Tile", d09, CostType.SubLabor);
+        Add("09500", "Ceilings", d09, CostType.SubLabor);
+        Add("09600", "Flooring", d09, CostType.SubLabor);
+        Add("09900", "Paints & Coatings", d09, CostType.SubLabor);
 
         // Division 10 — Specialties
         const string d10 = "10 - Specialties";
@@ -295,37 +296,37 @@ public static class CsiCostCodeData
 
         // Division 12 — Furnishings
         const string d12 = "12 - Furnishings";
-        Add("12300", "Manufactured Casework", d12, CostType.Subcontract);
+        Add("12300", "Manufactured Casework", d12, CostType.SubLabor);
         Add("12500", "Furniture", d12, CostType.Material);
         Add("12600", "Multiple Seating", d12, CostType.Material);
 
         // Division 13 — Special Construction
         const string d13 = "13 - Special Construction";
-        Add("13100", "Lightning Protection", d13, CostType.Subcontract);
-        Add("13200", "Pre-Engineered Structures", d13, CostType.Subcontract);
-        Add("13800", "Building Automation & Control", d13, CostType.Subcontract);
+        Add("13100", "Lightning Protection", d13, CostType.SubLabor);
+        Add("13200", "Pre-Engineered Structures", d13, CostType.SubLabor);
+        Add("13800", "Building Automation & Control", d13, CostType.SubLabor);
 
         // Division 14 — Conveying Systems
         const string d14 = "14 - Conveying Systems";
-        Add("14100", "Dumbwaiters", d14, CostType.Subcontract);
-        Add("14200", "Elevators", d14, CostType.Subcontract);
-        Add("14300", "Escalators & Moving Walks", d14, CostType.Subcontract);
+        Add("14100", "Dumbwaiters", d14, CostType.SubLabor);
+        Add("14200", "Elevators", d14, CostType.SubLabor);
+        Add("14300", "Escalators & Moving Walks", d14, CostType.SubLabor);
 
         // Division 15 — Mechanical
         const string d15 = "15 - Mechanical";
-        Add("15100", "Building Services Piping", d15, CostType.Subcontract);
-        Add("15300", "Fire Protection", d15, CostType.Subcontract);
-        Add("15400", "Plumbing", d15, CostType.Subcontract);
-        Add("15500", "HVAC", d15, CostType.Subcontract);
-        Add("15800", "HVAC Air Distribution", d15, CostType.Subcontract);
+        Add("15100", "Building Services Piping", d15, CostType.SubLabor);
+        Add("15300", "Fire Protection", d15, CostType.SubLabor);
+        Add("15400", "Plumbing", d15, CostType.SubLabor);
+        Add("15500", "HVAC", d15, CostType.SubLabor);
+        Add("15800", "HVAC Air Distribution", d15, CostType.SubLabor);
 
         // Division 16 — Electrical
         const string d16 = "16 - Electrical";
-        Add("16100", "Wiring Methods", d16, CostType.Subcontract);
-        Add("16200", "Electrical Power", d16, CostType.Subcontract);
-        Add("16400", "Low-Voltage Distribution", d16, CostType.Subcontract);
-        Add("16500", "Lighting", d16, CostType.Subcontract);
-        Add("16700", "Communications", d16, CostType.Subcontract);
+        Add("16100", "Wiring Methods", d16, CostType.SubLabor);
+        Add("16200", "Electrical Power", d16, CostType.SubLabor);
+        Add("16400", "Low-Voltage Distribution", d16, CostType.SubLabor);
+        Add("16500", "Lighting", d16, CostType.SubLabor);
+        Add("16700", "Communications", d16, CostType.SubLabor);
 
         return codes;
     }

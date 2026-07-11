@@ -49,7 +49,9 @@ import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { GanttChart, type GanttActivity, type GanttDependency } from "@/components/schedule/gantt-chart";
-import { Pencil, Trash2 } from "lucide-react";
+import { filterLookAheadTasks, type ScheduleLookAheadTask } from "@/lib/site-walk";
+import Link from "next/link";
+import { Pencil, Trash2, CalendarDays } from "lucide-react";
 
 interface DataMap {
   [key: string]: unknown;
@@ -301,6 +303,20 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
     return { total, active, baselined, draft };
   }, [schedules]);
 
+  const lookAheadCards = useMemo((): ScheduleLookAheadTask[] => {
+    const tasks: ScheduleLookAheadTask[] = ganttActivities.map((a) => ({
+      id: a.id,
+      name: a.name,
+      status: a.status,
+      plannedStart: a.plannedStart,
+      plannedFinish: a.plannedFinish,
+      percentComplete: a.percentComplete,
+      isCritical: a.isCritical,
+      wbsCode: a.wbsCode || undefined,
+    }));
+    return filterLookAheadTasks(tasks, new Date(), 7);
+  }, [ganttActivities]);
+
   function openCreate() {
     setEditing(false);
     setForm({
@@ -398,6 +414,15 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
     }
   }
 
+  // Auto-load look-ahead activities when schedules available (must run before any early return)
+  useEffect(() => {
+    if (!isProjectIdValid) return;
+    if (schedules.length === 0) return;
+    if (ganttScheduleId) return;
+    const active = schedules.find((s) => s.status === "Active");
+    setGanttScheduleId(active?.id ?? schedules[0]!.id);
+  }, [isProjectIdValid, schedules, ganttScheduleId]);
+
   if (!isProjectIdValid) {
     return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
   }
@@ -411,10 +436,61 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
             Project schedules, timelines, and calendar management.
           </p>
         </div>
-        <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreate}>
-          + New Schedule
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" className="min-h-[44px]" asChild>
+            <Link href={`/projects/${projectId}/site-walk`}>Site walk</Link>
+          </Button>
+          <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreate}>
+            + New Schedule
+          </Button>
+        </div>
       </div>
+
+      {/* Mobile look-ahead cards — primary site-walk surface */}
+      <Card className="lg:hidden border-amber-200" data-testid="schedule-look-ahead">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-amber-500" />
+            Look-ahead (7 days)
+          </CardTitle>
+          <CardDescription>
+            Near-term tasks for walking the job — critical path first.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {ganttLoading ? (
+            <CardListSkeleton rows={3} />
+          ) : lookAheadCards.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No near-term activities. Activate a schedule with activities to see the look-ahead.
+            </p>
+          ) : (
+            lookAheadCards.slice(0, 15).map((task) => (
+              <div
+                key={task.id}
+                className="rounded-lg border p-3 space-y-1"
+                data-testid="schedule-look-ahead-card"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-sm">{task.name}</p>
+                  {task.isCritical && (
+                    <Badge variant="destructive" className="text-[10px] shrink-0">
+                      Critical
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>{task.status}</span>
+                  <span>{task.percentComplete}%</span>
+                  {task.plannedFinish && (
+                    <span>Finish {task.plannedFinish.slice(0, 10)}</span>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       {/* Summary cards */}
       <div className="grid gap-4 grid-cols-2 md:grid-cols-4">

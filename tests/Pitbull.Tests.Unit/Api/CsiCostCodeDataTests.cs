@@ -70,8 +70,13 @@ public class CsiCostCodeDataTests
         costTypes.Should().Contain(CostType.Labor);
         costTypes.Should().Contain(CostType.Material);
         costTypes.Should().Contain(CostType.Equipment);
-        costTypes.Should().Contain(CostType.Subcontract);
         costTypes.Should().Contain(CostType.Other);
+        // Job-cost sub splits + legacy umbrella + overhead
+        costTypes.Should().Contain(CostType.SubLabor);
+        costTypes.Should().Contain(CostType.SubMaterial);
+        costTypes.Should().Contain(CostType.SubThirdParty);
+        costTypes.Should().Contain(CostType.Subcontract);
+        costTypes.Should().Contain(CostType.Overhead);
     }
 
     [Fact]

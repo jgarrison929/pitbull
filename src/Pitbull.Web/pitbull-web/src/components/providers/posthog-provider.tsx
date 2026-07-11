@@ -2,7 +2,12 @@
 
 import { Suspense, useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { posthog, initPostHog, captureApiError } from "@/lib/posthog";
+import {
+  posthog,
+  initPostHog,
+  captureApiError,
+  captureAppException,
+} from "@/lib/posthog";
 import { API_BASE_URL } from "@/lib/config";
 
 /**
@@ -86,19 +91,19 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
             .then((errorData) => {
               captureApiError(response.status, method, endpoint, errorData);
 
-              // Also emit $exception for 5xx so server errors appear in PostHog Error Tracking
-              if (response.status >= 500 && posthog.__loaded) {
+              // 5xx → Error Tracking (captureException) so field demos surface server failures
+              if (response.status >= 500) {
                 const errorMsg =
                   (errorData as Record<string, string>)?.error ||
                   (errorData as Record<string, string>)?.message ||
                   `HTTP ${response.status}`;
-                posthog.capture("$exception", {
-                  $exception_message: errorMsg,
-                  $exception_type: "ApiError",
-                  $exception_source: "fetch_interceptor",
-                  status_code: response.status,
-                  method,
-                  endpoint,
+                const err = new Error(errorMsg);
+                err.name = "ApiError";
+                captureAppException(err, {
+                  source: "fetch_interceptor",
+                  httpStatusCode: response.status,
+                  requestMethod: method,
+                  requestPath: endpoint,
                 });
               }
             });

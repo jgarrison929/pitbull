@@ -1,7 +1,9 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import api from "@/lib/api";
+import { useSearchParams } from "next/navigation";
+import api, { getDownloadUrl } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
@@ -48,7 +50,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, FileStack, BookOpen } from "lucide-react";
+import {
+  filterPlanSets,
+  filterSpecSections,
+  selectPlanOrSpecFromDeepLink,
+  type PlanSetSearchItem,
+  type SpecSectionSearchItem,
+} from "@/lib/plans-specs-lookup";
+import { Plus, Pencil, Trash2, FileStack, BookOpen, Eye, Search } from "lucide-react";
 
 interface DataMap {
   [key: string]: unknown;
@@ -165,15 +174,34 @@ function formatDate(date: string | null): string {
 function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const isProjectIdValid = isValidGuid(projectId);
+  const searchParams = useSearchParams();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [planSets, setPlanSets] = useState<PmEntityDto[]>([]);
   const [specSections, setSpecSections] = useState<PmEntityDto[]>([]);
+  const [planFiles, setPlanFiles] = useState<
+    Array<{
+      id: string;
+      fileName: string;
+      contentType: string;
+      category?: string;
+    }>
+  >([]);
+  const [viewingFileId, setViewingFileId] = useState<string | null>(null);
+  /** Authenticated blob URL for in-page View (API downloads require Bearer). */
+  const [viewingBlobUrl, setViewingBlobUrl] = useState<string | null>(null);
+  const [viewingBlobLoading, setViewingBlobLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [search, setSearch] = useState("");
+  const [viewingPlan, setViewingPlan] = useState<PlanSetSearchItem | null>(null);
+  const [viewingSpec, setViewingSpec] = useState<SpecSectionSearchItem | null>(null);
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get("view") === "specs" ? "specs" : "plans"
+  );
+  const deepLinkApplied = useRef(false);
 
   // Plan Set dialog
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
@@ -205,12 +233,34 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [planRes, specRes] = await Promise.all([
+      const [planRes, specRes, filesRes] = await Promise.all([
         api<PmPagedResult>(`/api/projects/${projectId}/plan-sets?page=1&pageSize=500`),
         api<PmPagedResult>(`/api/projects/${projectId}/spec-sections?page=1&pageSize=500`),
+        // Real documents uploaded to the project (Plans category preferred)
+        api<
+          Array<{
+            id: string;
+            fileName: string;
+            contentType: string;
+            category?: string;
+          }>
+        >(`/api/files?entityType=Project&entityId=${projectId}`).catch(() => []),
       ]);
       setPlanSets(planRes.items ?? []);
       setSpecSections(specRes.items ?? []);
+      const files = Array.isArray(filesRes) ? filesRes : [];
+      const planLike = files.filter((f) => {
+        const cat = (f.category ?? "").toLowerCase();
+        const name = (f.fileName ?? "").toLowerCase();
+        const type = (f.contentType ?? "").toLowerCase();
+        return (
+          cat === "plans" ||
+          cat === "specs" ||
+          type.includes("pdf") ||
+          /\.(pdf|dwg|png|jpe?g)$/i.test(name)
+        );
+      });
+      setPlanFiles(planLike.length > 0 ? planLike : files.slice(0, 20));
     } catch (error) {
       toast.error("Failed to load plans & specs", {
         description: error instanceof Error ? error.message : "Unknown error",
@@ -230,8 +280,70 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
 
   useListPageShortcuts({ searchInputRef });
 
-  const planRows = useMemo(() => {
-    const mapped = planSets.map<PlanSetRow>((ps) => {
+  // Load authenticated blob when user taps View (iframe cannot send Authorization)
+  useEffect(() => {
+    let revoked: string | null = null;
+    let cancelled = false;
+    async function loadBlob() {
+      if (!viewingFileId) {
+        setViewingBlobUrl(null);
+        return;
+      }
+      setViewingBlobLoading(true);
+      try {
+        const token = getToken();
+        const url = getDownloadUrl(viewingFileId);
+        const res = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`Download failed (${res.status})`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        const blobUrl = URL.createObjectURL(blob);
+        revoked = blobUrl;
+        setViewingBlobUrl(blobUrl);
+      } catch {
+        if (!cancelled) {
+          setViewingBlobUrl(null);
+          toast.error("Could not open drawing — try Open or re-upload");
+        }
+      } finally {
+        if (!cancelled) setViewingBlobLoading(false);
+      }
+    }
+    void loadBlob();
+    return () => {
+      cancelled = true;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [viewingFileId]);
+
+  function openAuthenticatedDownload(fileId: string, fileName: string) {
+    const token = getToken();
+    const url = getDownloadUrl(fileId);
+    if (!token) {
+      window.open(url, "_blank");
+      return;
+    }
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => {
+        if (!r.ok) throw new Error("download failed");
+        return r.blob();
+      })
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        a.target = "_blank";
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      })
+      .catch(() => toast.error("Download failed"));
+  }
+
+  const planSearchItems = useMemo((): PlanSetSearchItem[] => {
+    return planSets.map((ps) => {
       const data = asDataMap(ps.data);
       return {
         id: ps.id,
@@ -240,43 +352,93 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
         revision: asString(data.Revision ?? data.revision),
         issueDate: asString(data.IssueDate ?? data.issueDate),
         status: ps.status || "Draft",
-        createdAt: ps.createdAt,
+        description: asString(data.Description ?? data.description),
+        documentUrl: asString(data.DocumentUrl ?? data.documentUrl) || undefined,
+        sheetNumber: asString(data.SheetNumber ?? data.sheetNumber) || undefined,
       };
     });
+  }, [planSets]);
 
-    const q = search.trim().toLowerCase();
-    if (!q) return mapped;
-    return mapped.filter(
-      (row) =>
-        row.name.toLowerCase().includes(q) ||
-        row.discipline.toLowerCase().includes(q) ||
-        row.revision.toLowerCase().includes(q)
-    );
-  }, [planSets, search]);
-
-  const specRows = useMemo(() => {
-    const mapped = specSections.map<SpecSectionRow>((ss) => {
+  const specSearchItems = useMemo((): SpecSectionSearchItem[] => {
+    return specSections.map((ss) => {
       const data = asDataMap(ss.data);
       return {
         id: ss.id,
         sectionCode: asString(data.SectionCode ?? data.sectionCode) || "-",
         title: ss.title || "Untitled section",
         divisionCode: asString(data.DivisionCode ?? data.divisionCode),
-        csiEdition: asString(data.CsiEdition ?? data.csiEdition),
         status: ss.status || "Draft",
-        createdAt: ss.createdAt,
+        description: asString(data.Description ?? data.description),
       };
     });
+  }, [specSections]);
 
-    const q = search.trim().toLowerCase();
-    if (!q) return mapped;
-    return mapped.filter(
-      (row) =>
-        row.title.toLowerCase().includes(q) ||
-        row.sectionCode.toLowerCase().includes(q) ||
-        row.divisionCode.toLowerCase().includes(q)
+  const filteredPlans = useMemo(
+    () => filterPlanSets(planSearchItems, search),
+    [planSearchItems, search]
+  );
+
+  const filteredSpecs = useMemo(
+    () => filterSpecSections(specSearchItems, search),
+    [specSearchItems, search]
+  );
+
+  const planRows = useMemo(() => {
+    return filteredPlans.map<PlanSetRow>((p) => {
+      const source = planSets.find((ps) => ps.id === p.id);
+      return {
+        id: p.id,
+        name: p.name,
+        discipline: p.discipline,
+        revision: p.revision,
+        issueDate: p.issueDate || "",
+        status: p.status,
+        createdAt: source?.createdAt || "",
+      };
+    });
+  }, [filteredPlans, planSets]);
+
+  const specRows = useMemo(() => {
+    return filteredSpecs.map<SpecSectionRow>((s) => {
+      const source = specSections.find((ss) => ss.id === s.id);
+      const data = asDataMap(source?.data);
+      return {
+        id: s.id,
+        sectionCode: s.sectionCode,
+        title: s.title,
+        divisionCode: s.divisionCode,
+        csiEdition: asString(data.CsiEdition ?? data.csiEdition),
+        status: s.status,
+        createdAt: source?.createdAt || "",
+      };
+    });
+  }, [filteredSpecs, specSections]);
+
+  // Deep link from daily report / site walk: ?planId= &sheet= &section= &view=
+  useEffect(() => {
+    if (loading || deepLinkApplied.current) return;
+    const planId = searchParams.get("planId") || undefined;
+    const sheet = searchParams.get("sheet") || undefined;
+    const section = searchParams.get("section") || undefined;
+    if (!planId && !sheet && !section) return;
+    if (planSearchItems.length === 0 && specSearchItems.length === 0) return;
+
+    const { plan, spec } = selectPlanOrSpecFromDeepLink(
+      planSearchItems,
+      specSearchItems,
+      { planId, sheet, section }
     );
-  }, [specSections, search]);
+    if (plan) {
+      setViewingPlan(plan);
+      setActiveTab("plans");
+      deepLinkApplied.current = true;
+    }
+    if (spec) {
+      setViewingSpec(spec);
+      setActiveTab("specs");
+      deepLinkApplied.current = true;
+    }
+  }, [loading, planSearchItems, specSearchItems, searchParams]);
 
   // Summary stats
   const planIssuedCount = planRows.filter((r) => r.status === "Issued").length;
@@ -446,10 +608,181 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Plans &amp; Specs</h1>
           <p className="text-muted-foreground">
-            Plan sets, sheets, spec sections, and document distributions.
+            Plan sets, sheets, spec sections — mobile-ready view + search.
           </p>
         </div>
       </div>
+
+      {/* Field view surface: open plan/spec detail (not CRUD-only) */}
+      {(viewingPlan || viewingSpec) && (
+        <Card className="border-amber-300 bg-amber-50/40 dark:bg-amber-900/10" data-testid="plans-specs-viewer">
+          <CardHeader className="pb-2">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Eye className="h-5 w-5 text-amber-600" />
+                  {viewingPlan ? "Plan view" : "Spec view"}
+                </CardTitle>
+                <CardDescription>
+                  Deep-linked field reference — pinch-zoom browser zoom works on description/text.
+                </CardDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setViewingPlan(null);
+                  setViewingSpec(null);
+                }}
+              >
+                Close
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {viewingPlan && (
+              <div className="space-y-2 rounded-lg border bg-background p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-xl font-semibold">{viewingPlan.name}</h2>
+                  <Badge variant={statusBadgeVariant(viewingPlan.status)}>
+                    {viewingPlan.status}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {DISCIPLINE_LABELS[viewingPlan.discipline] ?? viewingPlan.discipline}
+                  {viewingPlan.revision
+                    ? ` · ${REVISION_LABELS[viewingPlan.revision] ?? viewingPlan.revision}`
+                    : ""}
+                  {viewingPlan.sheetNumber ? ` · Sheet ${viewingPlan.sheetNumber}` : ""}
+                </p>
+                {viewingPlan.issueDate && (
+                  <p className="text-sm">Issued: {formatDate(viewingPlan.issueDate)}</p>
+                )}
+                {viewingPlan.description && (
+                  <p className="text-sm whitespace-pre-wrap border-t pt-3">
+                    {viewingPlan.description}
+                  </p>
+                )}
+                {viewingPlan.documentUrl ? (
+                  <a
+                    href={viewingPlan.documentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-[48px] items-center text-amber-700 underline"
+                  >
+                    Open document
+                  </a>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    No file URL on this plan set — open a project drawing below if uploaded.
+                  </p>
+                )}
+              </div>
+            )}
+            {viewingSpec && (
+              <div className="space-y-2 rounded-lg border bg-background p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-sm">{viewingSpec.sectionCode}</span>
+                  <h2 className="text-xl font-semibold">{viewingSpec.title}</h2>
+                  <Badge variant={statusBadgeVariant(viewingSpec.status)}>
+                    {viewingSpec.status}
+                  </Badge>
+                </div>
+                {viewingSpec.divisionCode && (
+                  <p className="text-sm text-muted-foreground">
+                    Division {viewingSpec.divisionCode}
+                  </p>
+                )}
+                {viewingSpec.description && (
+                  <p className="text-sm whitespace-pre-wrap border-t pt-3">
+                    {viewingSpec.description}
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Real plan PDFs / drawings from project documents */}
+      {planFiles.length > 0 && (
+        <Card data-testid="plans-document-viewer">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <FileStack className="h-4 w-4 text-amber-500" />
+              Drawing files
+            </CardTitle>
+            <CardDescription>
+              Open uploaded PDFs/images full-screen (browser zoom works on mobile).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {planFiles.map((f) => {
+              const isPdf =
+                (f.contentType ?? "").includes("pdf") ||
+                f.fileName.toLowerCase().endsWith(".pdf");
+              const isImage = (f.contentType ?? "").startsWith("image/");
+              const open = viewingFileId === f.id;
+              return (
+                <div key={f.id} className="rounded-lg border overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 p-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{f.fileName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {f.category || f.contentType || "file"}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {(isPdf || isImage) && (
+                        <Button
+                          type="button"
+                          variant={open ? "default" : "outline"}
+                          className="min-h-[44px]"
+                          onClick={() =>
+                            setViewingFileId(open ? null : f.id)
+                          }
+                        >
+                          {open ? "Hide" : "View"}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-[44px]"
+                        onClick={() =>
+                          openAuthenticatedDownload(f.id, f.fileName)
+                        }
+                      >
+                        Open
+                      </Button>
+                    </div>
+                  </div>
+                  {open && viewingBlobLoading && (
+                    <p className="p-3 text-sm text-muted-foreground border-t">
+                      Loading drawing…
+                    </p>
+                  )}
+                  {open && !viewingBlobLoading && viewingBlobUrl && isPdf && (
+                    <iframe
+                      title={f.fileName}
+                      src={viewingBlobUrl}
+                      className="w-full h-[70vh] border-t bg-muted"
+                    />
+                  )}
+                  {open && !viewingBlobLoading && viewingBlobUrl && isImage && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={viewingBlobUrl}
+                      alt={f.fileName}
+                      className="w-full max-h-[70vh] object-contain border-t bg-muted"
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -491,19 +824,23 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
         </Card>
       </div>
 
-      <Tabs defaultValue="plans" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <TabsList>
             <TabsTrigger value="plans">Plan Sets</TabsTrigger>
             <TabsTrigger value="specs">Spec Sections</TabsTrigger>
           </TabsList>
-          <Input
-            ref={searchInputRef}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search... (Ctrl+K)"
-            className="sm:max-w-xs"
-          />
+          <div className="relative sm:max-w-xs w-full">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              ref={searchInputRef}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search sheet, title, section…"
+              className="pl-9 min-h-[48px] sm:min-h-9 text-base sm:text-sm"
+              data-testid="plans-specs-search"
+            />
+          </div>
         </div>
 
         {/* Plan Sets Tab */}
@@ -540,15 +877,25 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                     ) : (
                       planRows.map((row) => (
                         <div key={row.id} className="rounded-lg border p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{row.name}</span>
-                            <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
-                          </div>
-                          <div className="flex gap-4 text-sm text-muted-foreground">
-                            <span>{DISCIPLINE_LABELS[row.discipline] ?? row.discipline}</span>
-                            {row.revision && <span>{REVISION_LABELS[row.revision] ?? row.revision}</span>}
-                            {row.issueDate && <span>{formatDate(row.issueDate)}</span>}
-                          </div>
+                          <button
+                            type="button"
+                            className="w-full text-left touch-manipulation space-y-2"
+                            onClick={() => {
+                              const item = planSearchItems.find((p) => p.id === row.id);
+                              if (item) setViewingPlan(item);
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{row.name}</span>
+                              <Badge variant={statusBadgeVariant(row.status)}>{row.status}</Badge>
+                            </div>
+                            <div className="flex gap-4 text-sm text-muted-foreground">
+                              <span>{DISCIPLINE_LABELS[row.discipline] ?? row.discipline}</span>
+                              {row.revision && <span>{REVISION_LABELS[row.revision] ?? row.revision}</span>}
+                              {row.issueDate && <span>{formatDate(row.issueDate)}</span>}
+                            </div>
+                            <span className="text-xs text-amber-700">Tap to view</span>
+                          </button>
                           <div className="flex gap-2 pt-1">
                             <Button
                               variant="outline"

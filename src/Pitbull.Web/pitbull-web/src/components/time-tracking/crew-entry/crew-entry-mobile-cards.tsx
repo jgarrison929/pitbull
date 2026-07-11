@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EntityLookupField } from "@/components/ui/entity-lookup-field";
 import {
   AlertCircle,
   CheckCircle2,
@@ -13,12 +14,18 @@ import {
   Plus,
 } from "lucide-react";
 import type { CrewMemberEntryData } from "@/types/crew-entry.types";
-import type { Equipment, Phase } from "@/lib/types";
+import type { CostCode, Equipment, Phase } from "@/lib/types";
+import type { EntityOption } from "@/lib/entity-lookup";
 
 interface CrewEntryMobileCardsProps {
   entries: CrewMemberEntryData[];
   equipmentList?: Equipment[];
   phases?: Phase[];
+  costCodes?: CostCode[];
+  recentCostCodeIds?: string[];
+  recentEquipmentIds?: string[];
+  onRecentCostCode?: (id: string, label: string) => void;
+  onRecentEquipment?: (id: string, label: string) => void;
   onUpdateEntry: (
     employeeId: string,
     field: keyof CrewMemberEntryData,
@@ -88,14 +95,53 @@ export function CrewEntryMobileCards({
   entries,
   equipmentList = [],
   phases = [],
+  costCodes = [],
+  recentCostCodeIds = [],
+  recentEquipmentIds = [],
+  onRecentCostCode,
+  onRecentEquipment,
   onUpdateEntry,
 }: CrewEntryMobileCardsProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showApplyAll, setShowApplyAll] = useState(false);
   const [applyPhaseId, setApplyPhaseId] = useState<string>("");
   const [applyEquipmentId, setApplyEquipmentId] = useState<string>("");
+  const [applyCostCodeId, setApplyCostCodeId] = useState<string>("");
   const touchStartX = useRef<number>(0);
   const touchStartId = useRef<string>("");
+
+  const phaseItems: EntityOption[] = useMemo(
+    () =>
+      phases.map((p) => ({
+        id: p.id,
+        label: p.name,
+        sublabel: p.costCode,
+        searchText: `${p.name} ${p.costCode ?? ""}`,
+      })),
+    [phases]
+  );
+
+  const equipmentItems: EntityOption[] = useMemo(
+    () =>
+      equipmentList.map((eq) => ({
+        id: eq.id,
+        label: eq.code,
+        sublabel: eq.name,
+        searchText: `${eq.code} ${eq.name}`,
+      })),
+    [equipmentList]
+  );
+
+  const costCodeItems: EntityOption[] = useMemo(
+    () =>
+      costCodes.map((c) => ({
+        id: c.id,
+        label: c.code,
+        sublabel: c.description,
+        searchText: `${c.code} ${c.description}`,
+      })),
+    [costCodes]
+  );
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -120,6 +166,17 @@ export function CrewEntryMobileCards({
     entries.forEach((e) => {
       onUpdateEntry(e.employeeId, "equipmentId", applyEquipmentId);
     });
+    setShowApplyAll(false);
+  }
+
+  function applyCostCodeToAll() {
+    entries.forEach((e) => {
+      onUpdateEntry(e.employeeId, "costCodeId", applyCostCodeId);
+    });
+    if (applyCostCodeId) {
+      const cc = costCodes.find((c) => c.id === applyCostCodeId);
+      if (cc) onRecentCostCode?.(applyCostCodeId, `${cc.code} - ${cc.description}`);
+    }
     setShowApplyAll(false);
   }
 
@@ -158,8 +215,8 @@ export function CrewEntryMobileCards({
 
   return (
     <div className="space-y-3">
-      {/* Apply to All (mobile) - collapsible */}
-      {(phases.length > 0 || equipmentList.length > 0) && (
+      {/* Apply to All (mobile) - collapsible searchable lookups */}
+      {(phases.length > 0 || equipmentList.length > 0 || costCodes.length > 0) && (
         <div>
           <Button
             variant="outline"
@@ -173,54 +230,67 @@ export function CrewEntryMobileCards({
           {showApplyAll && (
             <Card className="mt-2 animate-in fade-in-50 slide-in-from-top-1 duration-200">
               <CardContent className="pt-4 space-y-3">
-                {phases.length > 0 && (
-                  <div className="flex gap-2">
-                    <select
-                      value={applyPhaseId}
-                      onChange={(e) => setApplyPhaseId(e.target.value)}
-                      className="flex-1 h-12 rounded-md border border-input bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring"
+                {costCodes.length > 0 && (
+                  <div className="space-y-2">
+                    <EntityLookupField
+                      label="Cost code for all"
+                      value={applyCostCodeId}
+                      onSelect={setApplyCostCodeId}
+                      items={costCodeItems}
+                      recentIds={recentCostCodeIds}
+                      placeholder="Search cost codes..."
+                      emptyOptionLabel="No cost code"
+                    />
+                    <Button
+                      onClick={applyCostCodeToAll}
+                      disabled={!applyCostCodeId}
+                      className="w-full min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white touch-manipulation"
                     >
-                      <option value="">Select phase...</option>
-                      {phases.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                      Apply cost code to all
+                    </Button>
+                  </div>
+                )}
+                {phases.length > 0 && (
+                  <div className="space-y-2">
+                    <EntityLookupField
+                      label="Phase for all"
+                      value={applyPhaseId}
+                      onSelect={setApplyPhaseId}
+                      items={phaseItems}
+                      placeholder="Search phases..."
+                      emptyOptionLabel="No phase"
+                    />
                     <Button
                       onClick={applyPhaseToAll}
                       disabled={!applyPhaseId}
-                      className="min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white touch-manipulation"
+                      className="w-full min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white touch-manipulation"
                     >
-                      Apply
+                      Apply phase to all
                     </Button>
                   </div>
                 )}
                 {equipmentList.length > 0 && (
-                  <div className="flex gap-2">
-                    <select
+                  <div className="space-y-2">
+                    <EntityLookupField
+                      label="Equipment for all"
                       value={applyEquipmentId}
-                      onChange={(e) => setApplyEquipmentId(e.target.value)}
-                      className="flex-1 h-12 rounded-md border border-input bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-                    >
-                      <option value="">Select equipment...</option>
-                      {equipmentList.map((eq) => (
-                        <option key={eq.id} value={eq.id}>
-                          {eq.code} - {eq.name}
-                        </option>
-                      ))}
-                    </select>
+                      onSelect={setApplyEquipmentId}
+                      items={equipmentItems}
+                      recentIds={recentEquipmentIds}
+                      placeholder="Search equipment..."
+                      emptyOptionLabel="No equipment"
+                    />
                     <Button
                       onClick={applyEquipmentToAll}
                       disabled={!applyEquipmentId}
-                      className="min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white touch-manipulation"
+                      className="w-full min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white touch-manipulation"
                     >
-                      Apply
+                      Apply equipment to all
                     </Button>
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground text-center">
-                  This will set the selected phase/equipment on all {entries.length} crew members
+                  Sets cost code / phase / equipment on all {entries.length} crew members
                 </p>
               </CardContent>
             </Card>
@@ -300,49 +370,53 @@ export function CrewEntryMobileCards({
                   </div>
                 )}
 
-                {/* Phase & Equipment */}
-                <div className="grid gap-3 grid-cols-1 min-[480px]:grid-cols-2">
+                {/* Cost code, phase, equipment — searchable entity lookups */}
+                <div className="grid gap-3 grid-cols-1">
+                  {costCodes.length > 0 && (
+                    <EntityLookupField
+                      label="Cost code"
+                      value={entry.costCodeId}
+                      onSelect={(id) => {
+                        onUpdateEntry(entry.employeeId, "costCodeId", id);
+                        const cc = costCodes.find((c) => c.id === id);
+                        if (cc) onRecentCostCode?.(id, `${cc.code} - ${cc.description}`);
+                      }}
+                      items={costCodeItems}
+                      recentIds={recentCostCodeIds}
+                      placeholder="Search cost codes..."
+                      emptyOptionLabel="Auto / none"
+                    />
+                  )}
                   {phases.length > 0 && (
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">Phase</label>
-                      <select
-                        value={entry.phaseId}
-                        onChange={(e) =>
-                          onUpdateEntry(entry.employeeId, "phaseId", e.target.value)
-                        }
-                        className="w-full min-h-[48px] rounded-md border border-input bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation"
-                      >
-                        <option value="">No phase</option>
-                        {phases.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} ({p.costCode})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <EntityLookupField
+                      label="Phase"
+                      value={entry.phaseId}
+                      onSelect={(id) =>
+                        onUpdateEntry(entry.employeeId, "phaseId", id)
+                      }
+                      items={phaseItems}
+                      placeholder="Search phases..."
+                      emptyOptionLabel="No phase"
+                    />
                   )}
                   {equipmentList.length > 0 && (
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium">Equipment</label>
-                      <select
-                        value={entry.equipmentId}
-                        onChange={(e) => {
-                          const newEquipmentId = e.target.value;
-                          onUpdateEntry(entry.employeeId, "equipmentId", newEquipmentId);
-                          if (!newEquipmentId) {
-                            onUpdateEntry(entry.employeeId, "equipmentHours", "0");
-                          }
-                        }}
-                        className="w-full min-h-[48px] rounded-md border border-input bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring touch-manipulation"
-                      >
-                        <option value="">No equipment</option>
-                        {equipmentList.map((eq) => (
-                          <option key={eq.id} value={eq.id}>
-                            {eq.code} - {eq.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <EntityLookupField
+                      label="Equipment"
+                      value={entry.equipmentId}
+                      onSelect={(id) => {
+                        onUpdateEntry(entry.employeeId, "equipmentId", id);
+                        if (!id) {
+                          onUpdateEntry(entry.employeeId, "equipmentHours", "0");
+                        } else {
+                          const eq = equipmentList.find((e) => e.id === id);
+                          if (eq) onRecentEquipment?.(id, `${eq.code} - ${eq.name}`);
+                        }
+                      }}
+                      items={equipmentItems}
+                      recentIds={recentEquipmentIds}
+                      placeholder="Search equipment..."
+                      emptyOptionLabel="No equipment"
+                    />
                   )}
                 </div>
 

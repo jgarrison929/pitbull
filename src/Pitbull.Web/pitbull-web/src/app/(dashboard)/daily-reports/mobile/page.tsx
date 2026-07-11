@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import api, { uploadFiles } from "@/lib/api";
 import type { Project, PagedResult } from "@/lib/types";
 import { ProjectStatus } from "@/lib/types";
@@ -19,10 +20,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntityLookupField } from "@/components/ui/entity-lookup-field";
 import { FileDropZone, type FileItem } from "@/components/ui/file-drop-zone";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
+import { useRecentSelections } from "@/hooks/use-recent-selections";
+import { useOnlineStatus } from "@/lib/use-online-status";
+import { getValidRecentIds } from "@/lib/entity-lookup";
+import {
+  buildDailyReportApiData,
+  buildOfflineDailyReportPayload,
+} from "@/lib/daily-report-offline";
+import { enqueueDailyReportForSync } from "@/lib/offline-store";
+import { requestBackgroundSync } from "@/components/service-worker-register";
+import { applyVoiceTranscriptToNarratives } from "@/lib/voice-transcript";
+import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
+import { buildSiteWalkHref } from "@/lib/site-walk";
+import { buildOfflinePhotos, countEmbeddedPhotos } from "@/lib/offline-photo";
+import {
+  DEFAULT_CREW_TRADES,
+  FIELD_ACTIVITIES,
+  TRUCK_CONDITIONS,
+  MOBILE_REPORT_STEPS,
+  type FieldActivityId,
+  type FieldCrewCount,
+  type MobileReportStep,
+  type TruckConditionId,
+  isFieldStepReady,
+  nextReportStep,
+  prevReportStep,
+  toggleFieldActivity,
+  toggleTruckCondition,
+} from "@/lib/pour-field";
 import {
   ArrowLeft,
   ArrowRight,
@@ -30,12 +61,14 @@ import {
   Check,
   CloudSun,
   FileText,
+  HardHat,
   MapPin,
+  Mic,
+  MicOff,
   Send,
+  Truck,
 } from "lucide-react";
-
-const STEPS = ["Project", "Weather", "Work", "Photos", "Review"] as const;
-type Step = (typeof STEPS)[number];
+import { cn } from "@/lib/utils";
 
 interface PhotoWithLocation extends FileItem {
   latitude?: number;
@@ -44,12 +77,20 @@ interface PhotoWithLocation extends FileItem {
 }
 
 export default function MobileDailyReportPage() {
-  const [step, setStep] = useState<Step>("Project");
+  const [step, setStep] = useState<MobileReportStep>("Project");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const { recentItems: recentProjects, addRecent: addRecentProject } =
+    useRecentSelections("project");
+  const { isOnline, pendingCount, refreshPendingCount } = useOnlineStatus();
+  const [queuedNotice, setQueuedNotice] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<{
+    stop: () => void;
+    start: () => void;
+  } | null>(null);
 
-  // Form state
   const [projectId, setProjectId] = useState("");
   const [reportDate, setReportDate] = useState(
     new Date().toISOString().slice(0, 10)
@@ -65,9 +106,36 @@ export default function MobileDailyReportPage() {
   const [safetyNarrative, setSafetyNarrative] = useState("");
   const [photos, setPhotos] = useState<PhotoWithLocation[]>([]);
   const [geoAvailable, setGeoAvailable] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
+
+  // Field / pour capture
+  const [activities, setActivities] = useState<FieldActivityId[]>([]);
+  const [truckConditions, setTruckConditions] = useState<TruckConditionId[]>(
+    []
+  );
+  const [truckNotes, setTruckNotes] = useState("");
+  const [crewCounts, setCrewCounts] = useState<FieldCrewCount[]>(() =>
+    DEFAULT_CREW_TRADES.map((trade) => ({ trade, count: 0 }))
+  );
 
   useEffect(() => {
     setGeoAvailable("geolocation" in navigator);
+    const SR =
+      typeof window !== "undefined"
+        ? (
+            window as unknown as {
+              SpeechRecognition?: new () => unknown;
+              webkitSpeechRecognition?: new () => unknown;
+            }
+          ).SpeechRecognition ||
+          (
+            window as unknown as {
+              webkitSpeechRecognition?: new () => unknown;
+            }
+          ).webkitSpeechRecognition
+        : undefined;
+    setVoiceSupported(!!SR);
   }, []);
 
   useEffect(() => {
@@ -86,38 +154,130 @@ export default function MobileDailyReportPage() {
     void loadProjects();
   }, []);
 
-  const stepIndex = STEPS.indexOf(step);
+  const applyVoiceToForm = useCallback(
+    (transcript: string) => {
+      const next = applyVoiceTranscriptToNarratives(
+        { workNarrative, delaysNarrative, safetyNarrative },
+        transcript
+      );
+      setWorkNarrative(next.workNarrative);
+      setDelaysNarrative(next.delaysNarrative);
+      setSafetyNarrative(next.safetyNarrative);
+    },
+    [workNarrative, delaysNarrative, safetyNarrative]
+  );
+
+  function toggleVoice() {
+    if (listening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setListening(false);
+      return;
+    }
+    const Win = window as unknown as {
+      SpeechRecognition?: new () => {
+        continuous: boolean;
+        interimResults: boolean;
+        lang: string;
+        start: () => void;
+        stop: () => void;
+        onresult: ((ev: {
+          results: {
+            [i: number]: { [j: number]: { transcript: string } };
+            length: number;
+          };
+        }) => void) | null;
+        onerror: (() => void) | null;
+        onend: (() => void) | null;
+      };
+      webkitSpeechRecognition?: new () => {
+        continuous: boolean;
+        interimResults: boolean;
+        lang: string;
+        start: () => void;
+        stop: () => void;
+        onresult: ((ev: {
+          results: {
+            [i: number]: { [j: number]: { transcript: string } };
+            length: number;
+          };
+        }) => void) | null;
+        onerror: (() => void) | null;
+        onend: (() => void) | null;
+      };
+    };
+    const SR = Win.SpeechRecognition || Win.webkitSpeechRecognition;
+    if (!SR) {
+      toast.error("Voice input not supported in this browser");
+      return;
+    }
+    const recognition = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+    recognition.onresult = (ev) => {
+      let text = "";
+      for (let i = 0; i < ev.results.length; i++) {
+        const row = ev.results[i];
+        if (row?.[0]?.transcript) text += row[0].transcript;
+      }
+      if (text.trim()) {
+        applyVoiceToForm(text);
+        toast.success("Voice added");
+      }
+    };
+    recognition.onerror = () => {
+      setListening(false);
+      toast.error("Voice capture failed — type instead");
+    };
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    try {
+      recognition.start();
+      setListening(true);
+    } catch {
+      toast.error("Could not start microphone");
+      setListening(false);
+    }
+  }
+
+  const stepIndex = MOBILE_REPORT_STEPS.indexOf(step);
+
+  const fieldSnapshot = useMemo(
+    () => ({
+      activities,
+      truckConditions,
+      truckNotes,
+      crewCounts,
+      workNarrative,
+    }),
+    [activities, truckConditions, truckNotes, crewCounts, workNarrative]
+  );
 
   const canProceed = useCallback(() => {
     switch (step) {
       case "Project":
         return !!projectId;
-      case "Weather":
-        return true;
-      case "Work":
-        return !!workNarrative.trim();
+      case "Field":
+        return isFieldStepReady(fieldSnapshot);
       case "Photos":
         return true;
       case "Review":
-        return true;
+        return !!projectId && isFieldStepReady(fieldSnapshot);
       default:
         return false;
     }
-  }, [step, projectId, workNarrative]);
+  }, [step, projectId, fieldSnapshot]);
 
   function goNext() {
-    if (stepIndex < STEPS.length - 1) {
-      setStep(STEPS[stepIndex + 1]);
-    }
+    const n = nextReportStep(step);
+    if (n) setStep(n);
   }
 
   function goBack() {
-    if (stepIndex > 0) {
-      setStep(STEPS[stepIndex - 1]);
-    }
+    const p = prevReportStep(step);
+    if (p) setStep(p);
   }
 
-  // Attach GPS coordinates to photos when they're added
   function handlePhotosChange(newFiles: FileItem[]) {
     const existingIds = new Set(photos.map((p) => p.id));
     const added = newFiles.filter((f) => !existingIds.has(f.id));
@@ -136,7 +296,6 @@ export default function MobileDailyReportPage() {
           setPhotos([...kept, ...withLocation]);
         },
         () => {
-          // Geolocation failed — add without location
           const withoutLocation: PhotoWithLocation[] = added.map((f) => ({
             ...f,
           }));
@@ -148,13 +307,80 @@ export default function MobileDailyReportPage() {
         { enableHighAccuracy: true, timeout: 5000 }
       );
     } else {
-      // Removal or no geo — sync directly
       setPhotos(
-        newFiles.map(
-          (f) => photos.find((p) => p.id === f.id) ?? { ...f }
-        )
+        newFiles.map((f) => photos.find((p) => p.id === f.id) ?? { ...f })
       );
     }
+  }
+
+  function formSnapshot(asDraft: boolean) {
+    return {
+      projectId,
+      reportDate,
+      reportType,
+      weatherSummary,
+      temperatureLow,
+      temperatureHigh,
+      precipitation,
+      wind,
+      workNarrative,
+      delaysNarrative,
+      safetyNarrative,
+      fieldActivities: activities,
+      truckConditions,
+      truckNotes,
+      crewCounts,
+      asDraft,
+    };
+  }
+
+  function resetForm() {
+    setStep("Project");
+    setReportDate(new Date().toISOString().slice(0, 10));
+    setWeatherSummary("");
+    setTemperatureLow("");
+    setTemperatureHigh("");
+    setPrecipitation("");
+    setWind("");
+    setWorkNarrative("");
+    setDelaysNarrative("");
+    setSafetyNarrative("");
+    setPhotos([]);
+    setActivities([]);
+    setTruckConditions([]);
+    setTruckNotes("");
+    setCrewCounts(DEFAULT_CREW_TRADES.map((trade) => ({ trade, count: 0 })));
+    setQueuedNotice(null);
+  }
+
+  async function queueOffline(asDraft: boolean) {
+    const offlinePhotos = await buildOfflinePhotos(photos);
+    const embedded = countEmbeddedPhotos(offlinePhotos);
+    const skipped = offlinePhotos.filter((p) => p.skippedForSize).length;
+
+    const offlinePayload = buildOfflineDailyReportPayload({
+      ...formSnapshot(asDraft),
+      photos: offlinePhotos,
+    });
+    await enqueueDailyReportForSync(offlinePayload);
+    requestBackgroundSync();
+    await refreshPendingCount();
+
+    let photoNote = "";
+    if (embedded > 0) photoNote = ` · ${embedded} photo(s) embedded`;
+    if (skipped > 0)
+      photoNote += ` · ${skipped} too large (retake smaller or upload online)`;
+
+    setQueuedNotice(
+      `${offlinePayload.title} queued offline${photoNote} — syncs when connected`
+    );
+    toast.success(asDraft ? "Draft queued offline" : "Report queued offline", {
+      description:
+        embedded > 0
+          ? "Report + photos saved on device"
+          : "Report saved; large photos need online upload",
+    });
+    resetForm();
   }
 
   async function submitReport(asDraft: boolean) {
@@ -162,33 +388,30 @@ export default function MobileDailyReportPage() {
       toast.error("Please select a project");
       return;
     }
+    if (!isFieldStepReady(fieldSnapshot)) {
+      toast.error("Add work activity, crew, truck note, or narrative first");
+      return;
+    }
 
     const title = `Daily Report - ${reportDate}`;
     const payload: PmUpsertRequest = {
       title,
       status: asDraft ? "Draft" : "Submitted",
-      data: {
-        ReportDate: reportDate,
-        ReportType: reportType,
-        WeatherSummary: weatherSummary || null,
-        TemperatureLow: temperatureLow ? Number(temperatureLow) : null,
-        TemperatureHigh: temperatureHigh ? Number(temperatureHigh) : null,
-        Precipitation: precipitation || null,
-        Wind: wind || null,
-        WorkNarrative: workNarrative || null,
-        DelaysNarrative: delaysNarrative || null,
-        SafetyNarrative: safetyNarrative || null,
-      },
+      data: buildDailyReportApiData(formSnapshot(asDraft)),
     };
 
     setSaving(true);
     try {
+      if (!isOnline) {
+        await queueOffline(asDraft);
+        return;
+      }
+
       const created = await api<PmEntityDto>(
         `/api/projects/${projectId}/daily-reports`,
         { method: "POST", body: payload }
       );
 
-      // Upload photos
       const realFiles = photos
         .map((p) => p.file)
         .filter((f): f is File => f !== undefined);
@@ -207,29 +430,19 @@ export default function MobileDailyReportPage() {
         }
       }
 
-      toast.success(
-        asDraft ? "Draft saved" : "Report submitted",
-        {
-          description: `${title} — ${photos.length} photo(s)`,
-        }
-      );
-
-      // Reset form
-      setStep("Project");
-      setReportDate(new Date().toISOString().slice(0, 10));
-      setWeatherSummary("");
-      setTemperatureLow("");
-      setTemperatureHigh("");
-      setPrecipitation("");
-      setWind("");
-      setWorkNarrative("");
-      setDelaysNarrative("");
-      setSafetyNarrative("");
-      setPhotos([]);
-    } catch (error) {
-      toast.error("Failed to save report", {
-        description: error instanceof Error ? error.message : "Unknown error",
+      toast.success(asDraft ? "Draft saved" : "Report submitted", {
+        description: `${title} — ${photos.length} photo(s)`,
       });
+      resetForm();
+    } catch (error) {
+      try {
+        await queueOffline(asDraft);
+      } catch {
+        toast.error("Failed to save report", {
+          description:
+            error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -237,11 +450,52 @@ export default function MobileDailyReportPage() {
 
   const selectedProject = projects.find((p) => p.id === projectId);
 
+  const activeProjects = useMemo(
+    () =>
+      projects.filter(
+        (p) =>
+          p.status === ProjectStatus.Active ||
+          p.status === ProjectStatus.PreConstruction
+      ),
+    [projects]
+  );
+
+  const projectLookupItems = useMemo(
+    () =>
+      activeProjects.map((p) => ({
+        id: p.id,
+        label: p.number,
+        sublabel: p.name,
+        searchText: `${p.number} ${p.name}`,
+      })),
+    [activeProjects]
+  );
+
+  const recentProjectIds = useMemo(
+    () => getValidRecentIds(recentProjects, activeProjects.map((p) => p.id)),
+    [recentProjects, activeProjects]
+  );
+
+  function handleProjectSelect(id: string) {
+    setProjectId(id);
+    const match = activeProjects.find((p) => p.id === id);
+    if (match) {
+      addRecentProject(id, `${match.number} - ${match.name}`);
+    }
+  }
+
+  function setCrewCount(trade: string, count: number) {
+    setCrewCounts((prev) =>
+      prev.map((r) =>
+        r.trade === trade ? { ...r, count: Math.max(0, count) } : r
+      )
+    );
+  }
+
   if (loading) {
     return (
       <div className="space-y-4 p-4">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-12 w-full" />
         <Skeleton className="h-12 w-full" />
         <Skeleton className="h-12 w-full" />
       </div>
@@ -251,56 +505,71 @@ export default function MobileDailyReportPage() {
   return (
     <ErrorBoundary label="mobile daily report">
       <div className="min-h-screen pb-32">
-        {/* Header */}
         <div className="sticky top-0 z-10 bg-background border-b px-4 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold">Daily Report</h1>
-            <Badge variant="outline" className="text-xs">
-              {stepIndex + 1} / {STEPS.length}
-            </Badge>
+            <h1 className="text-lg font-bold">Field report</h1>
+            <div className="flex items-center gap-2">
+              {!isOnline && (
+                <Badge variant="secondary" className="text-xs">
+                  Offline
+                </Badge>
+              )}
+              {pendingCount > 0 && (
+                <Badge className="text-xs bg-amber-500 text-white">
+                  {pendingCount} queued
+                </Badge>
+              )}
+              <Badge variant="outline" className="text-xs">
+                {stepIndex + 1} / {MOBILE_REPORT_STEPS.length}
+              </Badge>
+            </div>
           </div>
-          {/* Step indicators */}
           <div className="flex gap-1 mt-2">
-            {STEPS.map((s, i) => (
+            {MOBILE_REPORT_STEPS.map((s, i) => (
               <div
                 key={s}
-                className={`h-1 flex-1 rounded-full transition-colors ${
+                className={cn(
+                  "h-1 flex-1 rounded-full transition-colors",
                   i <= stepIndex ? "bg-amber-500" : "bg-muted"
-                }`}
+                )}
               />
             ))}
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            {step === "Project" && "Which job?"}
+            {step === "Field" && "What happened on site today?"}
+            {step === "Photos" && "Optional photos"}
+            {step === "Review" && "Check and send"}
+          </p>
         </div>
 
-        {/* Step Content */}
         <div className="p-4 space-y-4">
+          <OfflineIndicator />
+          {queuedNotice && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm">
+              {queuedNotice}
+            </div>
+          )}
+
           {step === "Project" && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
                   <FileText className="h-5 w-5 text-amber-500" />
-                  Select Project
+                  Job
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Project</Label>
-                  <Select value={projectId} onValueChange={setProjectId}>
-                    <SelectTrigger className="min-h-[48px] text-base">
-                      <SelectValue placeholder="Choose a project..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {projects
-                        .filter((p) => p.status === ProjectStatus.Active || p.status === ProjectStatus.PreConstruction)
-                        .map((p) => (
-                          <SelectItem key={p.id} value={p.id} className="py-3">
-                            <span className="font-mono text-sm">{p.number}</span>{" "}
-                            <span>{p.name}</span>
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <EntityLookupField
+                  label="Project"
+                  required
+                  value={projectId}
+                  onSelect={handleProjectSelect}
+                  items={projectLookupItems}
+                  recentIds={recentProjectIds}
+                  placeholder="Search job number or name..."
+                  allowClear={false}
+                />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <Label>Date</Label>
@@ -318,127 +587,277 @@ export default function MobileDailyReportPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Foreman" className="py-3">
-                          Foreman
-                        </SelectItem>
-                        <SelectItem value="ProjectManager" className="py-3">
+                        <SelectItem value="Foreman">Foreman</SelectItem>
+                        <SelectItem value="ProjectManager">
                           Project Manager
                         </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
+                {projectId && (
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" className="min-h-[48px]" asChild>
+                      <Link href={buildSiteWalkHref(projectId)}>
+                        Today on this job
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" className="min-h-[44px]" asChild>
+                      <Link
+                        href={buildPlansSpecsHref(projectId, { view: "plans" })}
+                      >
+                        Open plans
+                      </Link>
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {step === "Weather" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CloudSun className="h-5 w-5 text-amber-500" />
-                  Weather & Conditions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Summary</Label>
-                  <Input
-                    value={weatherSummary}
-                    onChange={(e) => setWeatherSummary(e.target.value)}
-                    placeholder="e.g. Clear and sunny"
-                    className="min-h-[48px] text-base"
+          {step === "Field" && (
+            <>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <HardHat className="h-5 w-5 text-amber-500" />
+                    What work?
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-2">
+                    {FIELD_ACTIVITIES.map((a) => {
+                      const on = activities.includes(a.id);
+                      return (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() =>
+                            setActivities((prev) =>
+                              toggleFieldActivity(prev, a.id)
+                            )
+                          }
+                          className={cn(
+                            "min-h-[56px] rounded-lg border px-2 py-2 text-center touch-manipulation",
+                            on
+                              ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-semibold"
+                              : "border-input bg-background"
+                          )}
+                          data-testid={`activity-${a.id}`}
+                        >
+                          <span className="block text-sm">{a.label}</span>
+                          <span className="block text-[10px] text-muted-foreground">
+                            {a.hint}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Truck className="h-4 w-4 text-amber-500" />
+                    Trucks / material
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    {TRUCK_CONDITIONS.map((t) => {
+                      const on = truckConditions.includes(t.id);
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() =>
+                            setTruckConditions((prev) =>
+                              toggleTruckCondition(prev, t.id)
+                            )
+                          }
+                          className={cn(
+                            "min-h-[44px] rounded-full border px-4 text-sm touch-manipulation",
+                            on
+                              ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-medium"
+                              : "border-input"
+                          )}
+                          data-testid={`truck-${t.id}`}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Textarea
+                    value={truckNotes}
+                    onChange={(e) => setTruckNotes(e.target.value)}
+                    placeholder="e.g. Load 3 too wet — drove around. Vault walls need better slump."
+                    rows={2}
+                    className="text-base min-h-[48px]"
                   />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Low Temp</Label>
-                    <Input
-                      type="number"
-                      value={temperatureLow}
-                      onChange={(e) => setTemperatureLow(e.target.value)}
-                      placeholder="°F"
-                      className="min-h-[48px] text-base"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>High Temp</Label>
-                    <Input
-                      type="number"
-                      value={temperatureHigh}
-                      onChange={(e) => setTemperatureHigh(e.target.value)}
-                      placeholder="°F"
-                      className="min-h-[48px] text-base"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label>Precipitation</Label>
-                    <Input
-                      value={precipitation}
-                      onChange={(e) => setPrecipitation(e.target.value)}
-                      placeholder="None, Light rain..."
-                      className="min-h-[48px] text-base"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Wind</Label>
-                    <Input
-                      value={wind}
-                      onChange={(e) => setWind(e.target.value)}
-                      placeholder="Calm, 10 mph NW..."
-                      className="min-h-[48px] text-base"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
 
-          {step === "Work" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-amber-500" />
-                  Work & Safety
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>
-                    Work Narrative <span className="text-destructive">*</span>
-                  </Label>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Crew counts</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {crewCounts.map((row) => (
+                    <div
+                      key={row.trade}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span className="text-sm font-medium w-20">
+                        {row.trade}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 w-11"
+                          onClick={() =>
+                            setCrewCount(row.trade, row.count - 1)
+                          }
+                        >
+                          −
+                        </Button>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          value={row.count || ""}
+                          onChange={(e) =>
+                            setCrewCount(
+                              row.trade,
+                              parseInt(e.target.value || "0", 10)
+                            )
+                          }
+                          className="w-14 h-11 text-center text-lg font-bold"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="h-11 w-11"
+                          onClick={() =>
+                            setCrewCount(row.trade, row.count + 1)
+                          }
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Notes / voice</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {voiceSupported && (
+                    <Button
+                      type="button"
+                      variant={listening ? "default" : "outline"}
+                      onClick={toggleVoice}
+                      className="w-full min-h-[48px] gap-2"
+                      data-testid="voice-input-button"
+                    >
+                      {listening ? (
+                        <>
+                          <MicOff className="h-4 w-4" /> Stop
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="h-4 w-4" /> Voice note
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Textarea
                     value={workNarrative}
                     onChange={(e) => setWorkNarrative(e.target.value)}
-                    placeholder="Describe work performed today..."
-                    rows={4}
+                    placeholder="Anything else — location, pour sequence, issues…"
+                    rows={3}
                     className="text-base"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label>Delays</Label>
                   <Textarea
                     value={delaysNarrative}
                     onChange={(e) => setDelaysNarrative(e.target.value)}
-                    placeholder="Any delays encountered..."
-                    rows={3}
+                    placeholder="Delays (optional)"
+                    rows={2}
                     className="text-base"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label>Safety</Label>
                   <Textarea
                     value={safetyNarrative}
                     onChange={(e) => setSafetyNarrative(e.target.value)}
-                    placeholder="Safety observations, toolbox talks..."
-                    rows={3}
+                    placeholder="Safety (optional)"
+                    rows={2}
                     className="text-base"
                   />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between text-left"
+                    onClick={() => setShowWeather((v) => !v)}
+                  >
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <CloudSun className="h-4 w-4 text-amber-500" />
+                      Weather (optional)
+                    </CardTitle>
+                    <span className="text-xs text-muted-foreground">
+                      {showWeather ? "Hide" : "Show"}
+                    </span>
+                  </button>
+                </CardHeader>
+                {showWeather && (
+                  <CardContent className="space-y-3">
+                    <Input
+                      value={weatherSummary}
+                      onChange={(e) => setWeatherSummary(e.target.value)}
+                      placeholder="Clear, rain, wind…"
+                      className="min-h-[48px] text-base"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="number"
+                        value={temperatureLow}
+                        onChange={(e) => setTemperatureLow(e.target.value)}
+                        placeholder="Low °F"
+                        className="min-h-[48px]"
+                      />
+                      <Input
+                        type="number"
+                        value={temperatureHigh}
+                        onChange={(e) => setTemperatureHigh(e.target.value)}
+                        placeholder="High °F"
+                        className="min-h-[48px]"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        value={precipitation}
+                        onChange={(e) => setPrecipitation(e.target.value)}
+                        placeholder="Precip"
+                        className="min-h-[48px]"
+                      />
+                      <Input
+                        value={wind}
+                        onChange={(e) => setWind(e.target.value)}
+                        placeholder="Wind"
+                        className="min-h-[48px]"
+                      />
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            </>
           )}
 
           {step === "Photos" && (
@@ -446,16 +865,19 @@ export default function MobileDailyReportPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Camera className="h-5 w-5 text-amber-500" />
-                  Progress Photos
+                  Photos
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3">
                 {geoAvailable && (
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <MapPin className="h-3 w-3" />
-                    GPS location will be attached to photos
-                  </div>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> GPS attached when available
+                  </p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Offline: up to 5 photos under ~1.2MB each are stored with the
+                  report. Larger files need online upload.
+                </p>
                 <FileDropZone
                   files={photos}
                   onFilesChange={handlePhotosChange}
@@ -470,106 +892,87 @@ export default function MobileDailyReportPage() {
           )}
 
           {step === "Review" && (
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Check className="h-5 w-5 text-amber-500" />
-                    Review & Submit
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Project</p>
-                      <p className="font-medium">
-                        {selectedProject?.name ?? "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Date</p>
-                      <p className="font-medium">{reportDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Type</p>
-                      <p className="font-medium">
-                        {reportType === "ProjectManager"
-                          ? "Project Manager"
-                          : "Foreman"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Photos</p>
-                      <p className="font-medium">{photos.length}</p>
-                    </div>
-                  </div>
-
-                  {weatherSummary && (
-                    <div className="text-sm">
-                      <p className="text-muted-foreground">Weather</p>
-                      <p>
-                        {weatherSummary}
-                        {(temperatureLow || temperatureHigh) &&
-                          ` — ${temperatureLow || "?"}°F to ${temperatureHigh || "?"}°F`}
-                      </p>
-                    </div>
-                  )}
-
-                  {workNarrative && (
-                    <div className="text-sm">
-                      <p className="text-muted-foreground">Work Performed</p>
-                      <p className="whitespace-pre-wrap">{workNarrative}</p>
-                    </div>
-                  )}
-
-                  {delaysNarrative && (
-                    <div className="text-sm">
-                      <p className="text-muted-foreground">Delays</p>
-                      <p className="whitespace-pre-wrap">{delaysNarrative}</p>
-                    </div>
-                  )}
-
-                  {safetyNarrative && (
-                    <div className="text-sm">
-                      <p className="text-muted-foreground">Safety</p>
-                      <p className="whitespace-pre-wrap">{safetyNarrative}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {photos.length > 0 && (
-                <div className="grid grid-cols-3 gap-2">
-                  {photos.map((photo) => (
-                    <div
-                      key={photo.id}
-                      className="relative aspect-square rounded-lg overflow-hidden border"
-                    >
-                      {photo.preview ? (
-                        <img
-                          src={photo.preview}
-                          alt={photo.name}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full bg-muted">
-                          <Camera className="h-6 w-6 text-muted-foreground" />
-                        </div>
-                      )}
-                      {photo.latitude && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1 py-0.5">
-                          <MapPin className="h-2.5 w-2.5 text-white inline" />
-                        </div>
-                      )}
-                    </div>
-                  ))}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Check className="h-5 w-5 text-amber-500" />
+                  Review
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Project</p>
+                  <p className="font-medium">
+                    {selectedProject
+                      ? `${selectedProject.number} — ${selectedProject.name}`
+                      : "—"}
+                  </p>
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className="text-muted-foreground">Date</p>
+                  <p className="font-medium">{reportDate}</p>
+                </div>
+                {activities.length > 0 && (
+                  <div>
+                    <p className="text-muted-foreground">Work</p>
+                    <p className="font-medium">
+                      {activities
+                        .map(
+                          (id) =>
+                            FIELD_ACTIVITIES.find((a) => a.id === id)?.label
+                        )
+                        .join(", ")}
+                    </p>
+                  </div>
+                )}
+                {truckConditions.length > 0 && (
+                  <div>
+                    <p className="text-muted-foreground">Trucks / material</p>
+                    <p className="font-medium">
+                      {truckConditions
+                        .map(
+                          (id) =>
+                            TRUCK_CONDITIONS.find((t) => t.id === id)?.label
+                        )
+                        .join(", ")}
+                    </p>
+                    {truckNotes && (
+                      <p className="mt-1 whitespace-pre-wrap">{truckNotes}</p>
+                    )}
+                  </div>
+                )}
+                {crewCounts.some((c) => c.count > 0) && (
+                  <div>
+                    <p className="text-muted-foreground">Crew</p>
+                    <p className="font-medium">
+                      {crewCounts
+                        .filter((c) => c.count > 0)
+                        .map((c) => `${c.trade}×${c.count}`)
+                        .join("; ")}
+                    </p>
+                  </div>
+                )}
+                {workNarrative && (
+                  <div>
+                    <p className="text-muted-foreground">Notes</p>
+                    <p className="whitespace-pre-wrap">{workNarrative}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-muted-foreground">Photos</p>
+                  <p className="font-medium">{photos.length}</p>
+                </div>
+                {!isOnline && (
+                  <p className="text-amber-800 dark:text-amber-200 text-xs">
+                    You are offline — submit will queue on this device.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
 
-        {/* Bottom action bar */}
+        {/* Bottom bar */}
         <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 bg-background border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-20">
           <div className="flex gap-3">
             {stepIndex > 0 && (
@@ -593,17 +996,36 @@ export default function MobileDailyReportPage() {
                   loadingText="Saving..."
                   className="flex-1 min-h-[48px]"
                 >
-                  Save Draft
+                  Draft
                 </LoadingButton>
                 <LoadingButton
                   onClick={() => submitReport(false)}
                   loading={saving}
-                  loadingText="Submitting..."
+                  loadingText="Sending..."
                   className="flex-1 min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white"
                 >
                   <Send className="h-4 w-4 mr-1" />
                   Submit
                 </LoadingButton>
+              </div>
+            ) : step === "Field" ? (
+              <div className="flex-1 flex gap-2">
+                <Button
+                  onClick={goNext}
+                  disabled={!canProceed()}
+                  className="flex-1 min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white"
+                >
+                  Photos
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setStep("Review")}
+                  disabled={!canProceed()}
+                  className="min-h-[48px] px-3"
+                >
+                  Review
+                </Button>
               </div>
             ) : (
               <Button

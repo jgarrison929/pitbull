@@ -767,9 +767,11 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
             new CostCode { Code = "LAB", Description = "Labor", CostType = CostType.Labor, IsActive = true, IsCompanyStandard = true },
             new CostCode { Code = "EQP", Description = "Equipment", CostType = CostType.Equipment, IsActive = true, IsCompanyStandard = true },
             new CostCode { Code = "MAT", Description = "Material", CostType = CostType.Material, IsActive = true, IsCompanyStandard = true },
-            new CostCode { Code = "SUB-LAB", Description = "Subcontract Labor", CostType = CostType.Subcontract, IsActive = true, IsCompanyStandard = true },
-            new CostCode { Code = "SUB-MAT", Description = "Subcontract Material", CostType = CostType.Subcontract, IsActive = true, IsCompanyStandard = true },
-            new CostCode { Code = "SUB-EQP", Description = "Subcontract Equipment", CostType = CostType.Subcontract, IsActive = true, IsCompanyStandard = true },
+            // Sub splits match field/job-cost language (not one generic "Subcontract")
+            new CostCode { Code = "SUB-LAB", Description = "Sub Labor", CostType = CostType.SubLabor, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-MAT", Description = "Sub Material", CostType = CostType.SubMaterial, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-3P", Description = "Sub Third Party", CostType = CostType.SubThirdParty, IsActive = true, IsCompanyStandard = true },
+            new CostCode { Code = "SUB-EQP", Description = "Sub Equipment (hired)", CostType = CostType.SubThirdParty, IsActive = true, IsCompanyStandard = true },
             new CostCode { Code = "OVH", Description = "Overhead", CostType = CostType.Overhead, IsActive = true, IsCompanyStandard = true },
 
             // === Detailed CSI Division Cost Codes ===

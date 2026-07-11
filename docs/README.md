@@ -8,6 +8,8 @@
 | `ROLE-EXPERIENCE.md` | Personas → home dashboards → metrics |
 | `ROADMAP-2.1.md` | **Shipped** v2.1 workstream archive (not an active roadmap) |
 | `DEMO-COMPANY-PROFILES.md` | Multi-company demo archetypes |
+| `mobile3.md` | Field mobile capture plan (fuel for twin) |
+| `pitbull-digital-twin-spec.md` | Digital twin / spatial viewer — **v2 implementable design** |
 | `BEST-PRACTICES.md` | Coding patterns (services-first controllers) |
 | `ADDING-A-MODULE.md` | How to add a module |
 | `WORKFLOW-EVALUATION-MATRIX.md` | Lifecycle / E2E evidence |

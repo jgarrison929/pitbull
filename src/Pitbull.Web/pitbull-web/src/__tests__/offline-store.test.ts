@@ -124,6 +124,32 @@ describe("enqueueDailyReportForSync", () => {
     expect(stored.equipment).toHaveLength(1);
     expect(stored.visitors).toHaveLength(1);
   });
+
+  it("queues mobile daily-report builder payload with projectId and title", async () => {
+    const { buildOfflineDailyReportPayload } = await import(
+      "@/lib/daily-report-offline"
+    );
+    const payload = buildOfflineDailyReportPayload(
+      {
+        projectId: "proj-queue-1",
+        reportDate: "2026-07-11",
+        reportType: "Foreman",
+        workNarrative: "Voice logged pour",
+        weatherSummary: "Clear",
+      },
+      "dr-test-queue-1"
+    );
+    await enqueueDailyReportForSync(payload);
+    const items = await getPendingSyncItems();
+    const match = items.find((i) => i.id === "dr-test-queue-1");
+    expect(match).toBeDefined();
+    expect(match!.type).toBe("daily-report");
+    expect(match!.status).toBe("pending");
+    const entry = match!.entry as OfflineDailyReport;
+    expect(entry.projectId).toBe("proj-queue-1");
+    expect(entry.title).toContain("Daily Report");
+    expect(entry.workNarrative).toBe("Voice logged pour");
+  });
 });
 
 describe("getPendingSyncItems", () => {

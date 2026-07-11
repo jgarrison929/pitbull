@@ -65,7 +65,7 @@ Each module is a separate .NET project under `src/Modules/`.
 | Module | Responsibility |
 |--------|---------------|
 | **Core** | Shared kernel, multi-tenancy (RLS + company scoping), base entities, `PitbullDbContext`, audit, Result<T> |
-| **Projects** | Projects, cost codes (CSI MasterFormat), phases, budgets |
+| **Projects** | Projects, cost codes (job-cost classes: Labor/Material/Equipment/Sub*/Overhead + optional CSI division), phases, budgets |
 | **Bids** | Bid tracking, items, conversion to project |
 | **Contracts** | Subcontracts, SOV, change orders |
 | **TimeTracking** | TimeEntry, crew timecards, pay periods, payroll workflow, employees |

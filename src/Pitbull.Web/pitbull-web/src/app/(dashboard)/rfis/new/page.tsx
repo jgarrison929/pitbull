@@ -18,13 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EntityLookupField } from "@/components/ui/entity-lookup-field";
 import api from "@/lib/api";
 import type { Rfi, CreateRfiCommand, RfiPriority, Project, PagedResult } from "@/lib/types";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { getValidRecentIds } from "@/lib/entity-lookup";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useFormAutosave } from "@/hooks/use-form-autosave";
+import { useRecentSelections } from "@/hooks/use-recent-selections";
 import {
   FileText,
   DollarSign,
@@ -69,6 +71,8 @@ export default function NewRfiPage() {
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState(initialProjectId);
   const [priority, setPriority] = useState<RfiPriority>(1);
+  const { recentItems: recentProjects, addRecent: addRecentProject } =
+    useRecentSelections("project");
 
   // Controlled form fields
   const [subject, setSubject] = useState("");
@@ -350,44 +354,46 @@ export default function NewRfiPage() {
             defaultOpen={true}
           >
             <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="project">
-                    Project
-                    <span className="text-destructive ml-1" aria-hidden="true">*</span>
-                  </Label>
-                </div>
-                <Select
-                  value={selectedProjectId}
-                  onValueChange={(value) => {
-                    setSelectedProjectId(value);
-                    if (touched.project) updateFieldError("project", value);
-                  }}
-                >
-                  <SelectTrigger
-                    className={cn(touched.project && errors.project && "border-destructive")}
-                    aria-invalid={!!(touched.project && errors.project)}
-                    onBlur={() => handleBlur("project")}
-                  >
-                    <SelectValue placeholder="Select a project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.number} - {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {touched.project && errors.project && (
-                  <p className="text-sm text-destructive" role="alert">{errors.project}</p>
+              <EntityLookupField
+                id="project"
+                label="Project"
+                required
+                value={selectedProjectId}
+                onSelect={(value) => {
+                  setSelectedProjectId(value);
+                  setIsDirty(true);
+                  setTouched((prev) => ({ ...prev, project: true }));
+                  const projectError = validateField("project", value);
+                  setErrors((prev) => {
+                    const next = { ...prev };
+                    if (projectError) next.project = projectError;
+                    else delete next.project;
+                    return next;
+                  });
+                  const match = projects.find((p) => p.id === value);
+                  if (match) {
+                    addRecentProject(value, `${match.number} - ${match.name}`);
+                  }
+                }}
+                items={projects.map((project) => ({
+                  id: project.id,
+                  label: project.number,
+                  sublabel: project.name,
+                  searchText: `${project.number} ${project.name}`,
+                }))}
+                recentIds={getValidRecentIds(
+                  recentProjects,
+                  projects.map((p) => p.id)
                 )}
-                {selectedProject && !errors.project && (
-                  <p className="text-xs text-muted-foreground">
-                    RFI will be added to: {selectedProject.name}
-                  </p>
-                )}
-              </div>
+                placeholder="Search projects by number or name..."
+                allowClear={false}
+                error={touched.project ? errors.project : undefined}
+                helpText={
+                  selectedProject && !errors.project
+                    ? `RFI will be added to: ${selectedProject.name}`
+                    : undefined
+                }
+              />
 
               <FormField
                 label="Subject"
