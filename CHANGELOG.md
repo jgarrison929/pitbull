@@ -8,7 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.9.0] - 2026-07-11T23:50:00-07:00
+## [2.8.4] - 2026-07-11T23:55:00-07:00
 
 ### Added
 
@@ -18,7 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **Field home Daily Report** — quick action pointed at `/projects` instead of the mobile field report flow (`/daily-reports/mobile`); restores the path PostHog already shows field users actually use
-- Version **2.9.0**
+- Version **2.8.4**
 
 ## [2.8.3] - 2026-07-11T23:15:00-07:00
 
