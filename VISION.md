@@ -57,6 +57,8 @@ Authoritative sources:
 
 Continue deepening construction accounting fidelity (WIP, certified payroll, dual-book nuances), expanding workflow coverage beyond change orders and billing applications, and tightening executive metrics so every KPI answers *why* with drill-through lists.
 
+**Differentiating horizon:** Jobsite Twin — field capture and ERP truth rendered as a spatial world model so humans and agents share one map of the work (zones-first, truthful overlays, cited agent briefs). Product design: `docs/pitbull-digital-twin-spec.md`. Capture engine: `docs/mobile3.md`.
+
 ---
 
 *Pitbull Construction Solutions — one platform for the GC back office.*
