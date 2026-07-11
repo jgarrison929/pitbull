@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -75,6 +74,18 @@ function formatCurrency(v: number) {
   }).format(v);
 }
 
+/** Compact currency for narrow portfolio rows ($1.2M / $450K). */
+function formatCurrencyCompact(v: number) {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) {
+    return `$${(v / 1_000_000).toFixed(1)}M`;
+  }
+  if (abs >= 10_000) {
+    return `$${(v / 1_000).toFixed(0)}K`;
+  }
+  return formatCurrency(v);
+}
+
 export function ExecutiveDashboard({
   data,
   isLoading,
@@ -114,18 +125,23 @@ export function ExecutiveDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href={roleKpiDrillHref("activeProjects")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <Link
+          href={roleKpiDrillHref("activeProjects")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                Active Projects
+              </CardTitle>
+              <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
-                <div className="text-2xl font-bold">
+                <div className="text-xl font-bold tabular-nums sm:text-2xl">
                   {summary?.activeProjectCount ?? data?.activeProjects ?? 0}
                 </div>
               )}
@@ -133,21 +149,26 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href={roleKpiDrillHref("billedToDate")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Billed to Date</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <Link
+          href={roleKpiDrillHref("billedToDate")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                Billed to Date
+              </CardTitle>
+              <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold tabular-nums sm:text-2xl">
                     {formatCurrency(summary?.billedToDate ?? 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
                     {summary?.billedToDateLabel ?? "Owner billed (G702)"}
                   </p>
                 </>
@@ -156,21 +177,26 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href={roleKpiDrillHref("unbilledBacklog")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Unbilled Backlog</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <Link
+          href={roleKpiDrillHref("unbilledBacklog")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                Unbilled Backlog
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold tabular-nums sm:text-2xl">
                     {formatCurrency(summary?.unbilledContractValue ?? 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
                     Portfolio {formatCurrency(summary?.portfolioContractValue ?? 0)} − billed
                   </p>
                 </>
@@ -179,25 +205,30 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href={roleKpiDrillHref("arApNet")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">AR − AP Net</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+        <Link
+          href={roleKpiDrillHref("arApNet")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                AR − AP Net
+              </CardTitle>
+              <BarChart3 className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
                   <div
-                    className={`text-2xl font-bold ${
+                    className={`text-xl font-bold tabular-nums sm:text-2xl ${
                       (summary?.arApNetPosition ?? 0) < 0 ? "text-red-600" : ""
                     }`}
                   >
                     {formatCurrency(summary?.arApNetPosition ?? 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
                     AR {formatCurrency(summary?.arTotal ?? 0)} · AP{" "}
                     {formatCurrency(summary?.apTotal ?? 0)}
                   </p>
@@ -347,32 +378,41 @@ export function ExecutiveDashboard({
               data?.projectBudgetHealth.slice(0, 8).map((p) => (
                 <div
                   key={p.name}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="rounded-md border p-3 space-y-2 overflow-hidden"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">{p.name}</p>
-                    <div className="h-1.5 w-full rounded-full bg-muted mt-1.5 overflow-hidden">
-                      <div
-                        className={`h-full ${
-                          p.percentUsed >= 90
-                            ? "bg-red-500"
-                            : p.percentUsed >= 75
-                              ? "bg-amber-500"
-                              : "bg-emerald-500"
-                        }`}
-                        style={{ width: `${Math.min(p.percentUsed, 100)}%` }}
-                      />
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <p className="font-medium text-sm leading-snug min-w-0 break-words">
+                      {p.name}
+                    </p>
+                    <div className="text-right shrink-0 tabular-nums">
+                      <p className="text-sm font-semibold whitespace-nowrap">
+                        <span className="sm:hidden">
+                          {formatCurrencyCompact(p.budget)}
+                        </span>
+                        <span className="hidden sm:inline">
+                          {formatCurrency(p.budget)}
+                        </span>
+                      </p>
+                      <p className="text-xs text-muted-foreground whitespace-nowrap">
+                        {p.percentUsed.toFixed(0)}% labor
+                      </p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Labor cost vs contract (proxy — not full job cost)
-                    </p>
                   </div>
-                  <div className="text-right ml-4 shrink-0">
-                    <p className="text-sm font-medium">{formatCurrency(p.budget)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.percentUsed.toFixed(0)}% labor
-                    </p>
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full ${
+                        p.percentUsed >= 90
+                          ? "bg-red-500"
+                          : p.percentUsed >= 75
+                            ? "bg-amber-500"
+                            : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${Math.min(p.percentUsed, 100)}%` }}
+                    />
                   </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Labor cost vs contract (proxy — not full job cost)
+                  </p>
                 </div>
               ))}
             {!isLoading && (data?.projectBudgetHealth.length ?? 0) === 0 && (

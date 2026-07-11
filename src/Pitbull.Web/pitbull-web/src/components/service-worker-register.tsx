@@ -6,33 +6,52 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
 
+    let registration: ServiceWorkerRegistration | null = null;
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && registration) {
+        void registration.update();
+      }
+    };
+
     navigator.serviceWorker
       .register("/sw.js")
-      .then((registration) => {
+      .then((reg) => {
+        registration = reg;
         // Listen for new service worker versions
-        registration.addEventListener("updatefound", () => {
-          const newWorker = registration.installing;
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
           if (!newWorker) return;
 
           newWorker.addEventListener("statechange", () => {
-            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-              // New SW waiting — activate it immediately
+            if (
+              newWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              // New SW waiting — activate it; VersionUpdateGuard reloads on controllerchange
               newWorker.postMessage({ type: "SKIP_WAITING" });
             }
           });
         });
+
+        // Mobile often keeps a long-lived tab; re-check SW when user returns.
+        document.addEventListener("visibilitychange", onVisible);
       })
       .catch(() => {
         // Service worker registration failed — app still works without it
       });
 
     // Listen for messages from the service worker
-    navigator.serviceWorker.addEventListener("message", (event) => {
+    const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "SYNC_COMPLETE") {
-        // Dispatch custom event so useOnlineStatus can refresh
         window.dispatchEvent(new CustomEvent("sw-sync-complete"));
       }
-    });
+    };
+    navigator.serviceWorker.addEventListener("message", onMessage);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      navigator.serviceWorker.removeEventListener("message", onMessage);
+    };
   }, []);
 
   return null;

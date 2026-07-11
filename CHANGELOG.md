@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.2] - 2026-07-11T22:20:00-07:00
+
+### Fixed
+
+- **Mobile home briefing cards** — morning briefing metrics were cramped (3-across), hard to read, and not tappable; now 2-up with larger type, drill-through links, and chevrons; executive/field KPI cards get the same touch-friendly treatment
+- **Project Portfolio overflow** — labor $ / % no longer run off-screen on narrow phones (compact $K/$M + wrapping layout)
+- **Welcome tour tap-stealing** — on-page tour chip no longer uses full-width fixed layer that blocked dashboard taps
+
+### Added
+
+- **Hard refresh on version change** — when API product version advances past the shell the client has loaded, unregister SW caches and reload once (plus SW `controllerchange` reload); stops field phones stuck on stale PWA shells
+- Version **2.8.2**
+
 ## [2.8.1] - 2026-07-11T21:40:00-07:00
 
 ### Fixed
