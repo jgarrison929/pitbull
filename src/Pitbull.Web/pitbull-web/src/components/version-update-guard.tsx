@@ -18,6 +18,10 @@ export function VersionUpdateGuard() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    // Playwright / automation: hard reloads destroy evaluate() mid-flow (L4 E2E).
+    // Real users never set navigator.webdriver.
+    if (navigator.webdriver) return;
+
     let cancelled = false;
 
     // New SW activated → hard reload so the new shell is used.

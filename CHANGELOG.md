@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.3] - 2026-07-11T23:15:00-07:00
+
+### Fixed
+
+- **Signup dark mode** — Create Account used hardcoded light shell (`bg-white` / `slate-*`) so dark login → signup looked broken; now theme tokens + amber brand, matching login; verify-email aligned; pre-paint theme script avoids flash
+- Version **2.8.3**
+
 ## [2.8.2] - 2026-07-11T22:20:00-07:00
 
 ### Fixed

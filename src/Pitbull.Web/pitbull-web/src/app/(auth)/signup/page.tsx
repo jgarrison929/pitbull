@@ -165,12 +165,23 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div className="min-h-screen flex bg-background items-center justify-center p-4">
       <div className="w-full max-w-lg">
-        {/* Logo */}
+        {/* Logo — theme tokens so dark mode matches login (no forced light shell) */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-900">Pitbull</h1>
-          <p className="text-slate-500 mt-1">Construction Solutions</p>
+          <div className="inline-flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500 text-white font-bold text-lg shadow-md">
+              P
+            </div>
+            <div className="text-left">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                Pitbull
+              </h1>
+              <p className="text-muted-foreground text-xs tracking-widest uppercase">
+                Construction Solutions
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Step Indicator */}
@@ -180,19 +191,19 @@ export default function SignupPage() {
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
                   step >= s.id
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-200 text-slate-500"
+                    ? "bg-amber-500 text-white"
+                    : "bg-muted text-muted-foreground"
                 }`}
               >
                 {step > s.id ? <Check className="w-4 h-4" /> : s.id}
               </div>
-              <span className="ml-2 text-sm text-slate-600 hidden sm:inline">
+              <span className="ml-2 text-sm text-muted-foreground hidden sm:inline">
                 {s.label}
               </span>
               {s.id < STEPS.length && (
                 <div
                   className={`w-12 h-0.5 mx-2 ${
-                    step > s.id ? "bg-blue-600" : "bg-slate-200"
+                    step > s.id ? "bg-amber-500" : "bg-muted"
                   }`}
                 />
               )}
@@ -201,11 +212,11 @@ export default function SignupPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div className="bg-card rounded-xl shadow-sm border border-border p-6">
           {/* Step 1: Account */}
           {step === 1 && (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-foreground">
                 Create your account
               </h2>
               <div className="grid grid-cols-2 gap-4">
@@ -251,7 +262,7 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -272,8 +283,8 @@ export default function SignupPage() {
                         key={key}
                         className={`flex items-center gap-1 ${
                           passwordChecks[key as keyof typeof passwordChecks]
-                            ? "text-green-600"
-                            : "text-slate-400"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : "text-muted-foreground"
                         }`}
                       >
                         {passwordChecks[key as keyof typeof passwordChecks] ? (
@@ -297,7 +308,7 @@ export default function SignupPage() {
                   placeholder="Re-enter password"
                 />
                 {confirmPassword && password !== confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1">
+                  <p className="text-xs text-destructive mt-1">
                     Passwords don&apos;t match
                   </p>
                 )}
@@ -308,12 +319,12 @@ export default function SignupPage() {
                   checked={agreedToTerms}
                   onCheckedChange={(v) => setAgreedToTerms(v === true)}
                 />
-                <Label htmlFor="terms" className="text-sm text-slate-600">
+                <Label htmlFor="terms" className="text-sm text-muted-foreground">
                   I agree to the Terms of Service and Privacy Policy
                 </Label>
               </div>
               <Button
-                className="w-full"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                 disabled={!isStep1Valid}
                 onClick={() => setStep(2)}
               >
@@ -325,10 +336,10 @@ export default function SignupPage() {
           {/* Step 2: Company */}
           {step === 2 && (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-foreground">
                 Set up your company
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Tell us about your construction company.
               </p>
               <div>
@@ -375,7 +386,7 @@ export default function SignupPage() {
                   <ArrowLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
                 <Button
-                  className="flex-1"
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
                   disabled={!isStep2Valid}
                   onClick={() => setStep(3)}
                 >
@@ -388,10 +399,10 @@ export default function SignupPage() {
           {/* Step 3: Invite Team */}
           {step === 3 && (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-foreground">
                 Invite your team
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Optional: Invite team members to join your workspace. You can
                 always do this later.
               </p>
@@ -429,7 +440,7 @@ export default function SignupPage() {
                         size="icon"
                         onClick={() => removeInvite(index)}
                       >
-                        <Trash2 className="w-4 h-4 text-slate-400" />
+                        <Trash2 className="w-4 h-4 text-muted-foreground" />
                       </Button>
                     )}
                   </div>
@@ -445,7 +456,7 @@ export default function SignupPage() {
                   <ArrowLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
                 <LoadingButton
-                  className="flex-1"
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 text-white"
                   loading={isLoading}
                   onClick={handleSubmit}
                 >
@@ -454,7 +465,7 @@ export default function SignupPage() {
               </div>
               <button
                 onClick={handleSubmit}
-                className="w-full text-sm text-slate-500 hover:text-slate-700 text-center"
+                className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
                 disabled={isLoading}
               >
                 Skip invitations for now
@@ -464,9 +475,12 @@ export default function SignupPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-sm text-slate-500 mt-6">
+        <p className="text-center text-sm text-muted-foreground mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="text-blue-600 hover:underline">
+          <Link
+            href="/login"
+            className="text-amber-600 dark:text-amber-400 hover:underline font-medium"
+          >
             Sign in
           </Link>
         </p>
