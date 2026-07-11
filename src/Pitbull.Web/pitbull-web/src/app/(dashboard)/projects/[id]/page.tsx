@@ -12,13 +12,7 @@ import {
   UserPlus,
   X,
   FileText,
-  FolderOpen,
-  BarChart3,
-  CheckSquare,
   MessageSquare,
-  Briefcase,
-  ClipboardCheck,
-  TrendingUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,7 +59,6 @@ import type {
   TimeEntry,
 } from "@/lib/types";
 import type { PmPagedResult } from "@/lib/pm-types";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface ProjectStats {
@@ -518,38 +511,7 @@ export default function ProjectDetailPage({
         </CardContent>
       </Card>
 
-      {/* Sub-Navigation Tabs */}
-      <div className="flex gap-1 border-b overflow-x-auto">
-        {[
-          { label: "Overview", href: `/projects/${id}`, icon: BarChart3, active: true },
-          { label: "RFIs", href: `/projects/${id}/rfis`, icon: FileQuestion },
-          { label: "Submittals", href: `/projects/${id}/submittals`, icon: ClipboardList },
-          { label: "Documents", href: `/projects/${id}/documents`, icon: FolderOpen },
-          { label: "Schedule", href: `/projects/${id}/schedule`, icon: Calendar },
-          { label: "Daily Reports", href: `/projects/${id}/daily-reports`, icon: FileText },
-          { label: "Tasks", href: `/projects/${id}/tasks`, icon: CheckSquare },
-          { label: "Job Cost", href: `/projects/${id}/job-cost`, icon: Briefcase },
-          { label: "Punch List", href: `/projects/${id}/punch-list`, icon: ClipboardCheck },
-          { label: "Progress", href: `/projects/${id}/progress`, icon: TrendingUp },
-          { label: "Earned Value", href: `/projects/${id}/earned-value`, icon: BarChart3 },
-        ].map((tab) => (
-          <Link
-            key={tab.label}
-            href={tab.href}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors",
-              tab.active
-                ? "border-amber-500 text-amber-600"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/30"
-            )}
-          >
-            <tab.icon className="h-3.5 w-3.5" />
-            {tab.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Cost Forecast */}
+      {/* Cost Forecast — project modules via layout ProjectSubNav (field hub + More sheet) */}
       <CostForecastCard projectId={id} />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -712,25 +674,35 @@ export default function ProjectDetailPage({
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-3">
-            <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white">
+            <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]">
+              <Link href={`/projects/${id}/site-walk`}>
+                Site walk
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="min-h-[44px]">
+              <Link href={`/daily-reports/mobile?projectId=${id}`}>
+                Field report
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="min-h-[44px]">
               <Link href={`/time-tracking/new?projectId=${id}`}>
                 <Clock className="mr-2 h-4 w-4" />
                 Add Time Entry
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="min-h-[44px]">
               <Link href={`/projects/${id}/rfis`}>
                 <FileQuestion className="mr-2 h-4 w-4" />
                 Create RFI
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="min-h-[44px]">
               <Link href={`/projects/${id}/schedule`}>
                 <Calendar className="mr-2 h-4 w-4" />
                 View Schedule
               </Link>
             </Button>
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="min-h-[44px]">
               <Link href={`/projects/${id}/submittals`}>
                 <ClipboardList className="mr-2 h-4 w-4" />
                 Open Submittals

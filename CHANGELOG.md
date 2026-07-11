@@ -15,6 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Field report project smart lookup** — pick list was empty because status filter compared numeric enums to API string values (`"Active"`). Coerces status correctly; shows Active / PreConstruction / OnHold jobs; clearer empty-catalog message
 - **Field report defaults current job** — when opened with `?projectId=` (site walk, project-context mobile tab) or from recent job context, pre-fills the project; deep-links skip straight to Field capture
 
+### Changed
+
+- **Project mobile nav** — replaced horizontal scroll tabs with a field hub (Site walk, Field report, Plans, Schedule) + searchable “More on this job” sheet; Site walk promoted in sidebar/workspace order
+
 ## [2.8.0] - 2026-07-11T16:20:00-07:00
 
 ### Added

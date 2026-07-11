@@ -54,19 +54,20 @@ export function getProjectWorkspaceItems(projectId: string | null): NavItem[] {
 
   if (!base) return globalItems;
 
+  // Field-first order: Site Walk + reports before back-office modules.
   const projectItems: NavItem[] = [
     { label: "Overview", href: `${base}`, icon: "📄", requiredPermission: "Projects.View" },
-    { label: "Job Cost", href: `${base}/job-cost`, icon: "💰", requiredPermission: "Projects.View" },
+    { label: "Site Walk", href: `${base}/site-walk`, icon: "🚶", requiredPermission: "Projects.View" },
+    { label: "Schedule", href: `${base}/schedule`, icon: "📅", requiredPermission: "PM.Schedule" },
+    { label: "Plans & Specs", href: `${base}/plans-specs`, icon: "📐", requiredPermission: "Documents.View" },
     { label: "Daily Reports", href: `${base}/daily-reports`, icon: "📝", requiredPermission: "PM.DailyReports" },
-    { label: "Tasks", href: `${base}/tasks`, icon: "✅", requiredPermission: "Projects.View" },
     { label: "RFIs", href: `${base}/rfis`, icon: "❓", requiredPermission: "PM.RFIs" },
     { label: "Submittals", href: `${base}/submittals`, icon: "📬", requiredPermission: "PM.Submittals" },
-    { label: "Schedule", href: `${base}/schedule`, icon: "📅", requiredPermission: "PM.Schedule" },
+    { label: "Tasks", href: `${base}/tasks`, icon: "✅", requiredPermission: "Projects.View" },
+    { label: "Punch List", href: `${base}/punch-list`, icon: "📋", requiredPermission: "PM.PunchList" },
+    { label: "Job Cost", href: `${base}/job-cost`, icon: "💰", requiredPermission: "Projects.View" },
     { label: "Change Orders", href: `${base}/change-orders`, icon: "📝", requiredPermission: "Contracts.View" },
     { label: "Documents", href: `${base}/documents`, icon: "📁", requiredPermission: "Documents.View" },
-    { label: "Plans & Specs", href: `${base}/plans-specs`, icon: "📐", requiredPermission: "Documents.View" },
-    { label: "Site Walk", href: `${base}/site-walk`, icon: "🚶", requiredPermission: "Projects.View" },
-    { label: "Punch List", href: `${base}/punch-list`, icon: "📋", requiredPermission: "PM.PunchList" },
     { label: "Progress", href: `${base}/progress`, icon: "📈", requiredPermission: "Projects.View" },
     { label: "Cost Projections", href: `${base}/projections`, icon: "🔮", requiredPermission: "Projects.View" },
     { label: "Communications", href: `${base}/communications`, icon: "💬", requiredPermission: "Projects.View" },
