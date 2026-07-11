@@ -414,17 +414,18 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
     }
   }
 
-  if (!isProjectIdValid) {
-    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
-  }
-
-  // Auto-load look-ahead activities when schedules available
+  // Auto-load look-ahead activities when schedules available (must run before any early return)
   useEffect(() => {
+    if (!isProjectIdValid) return;
     if (schedules.length === 0) return;
     if (ganttScheduleId) return;
     const active = schedules.find((s) => s.status === "Active");
     setGanttScheduleId(active?.id ?? schedules[0]!.id);
-  }, [schedules, ganttScheduleId]);
+  }, [isProjectIdValid, schedules, ganttScheduleId]);
+
+  if (!isProjectIdValid) {
+    return <div className="p-6 text-sm text-destructive">Invalid project ID.</div>;
+  }
 
   return (
     <div className="space-y-6">

@@ -108,7 +108,7 @@ export function EntityLookupField({
         )}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-invalid={!!error}
+        data-invalid={error ? "true" : undefined}
       >
         <span className={cn("truncate", !value && "text-muted-foreground")}>
           {value && selected ? (

@@ -59,7 +59,6 @@ import {
 } from "@/lib/types";
 import {
   CostType,
-  COST_TYPE_LABELS,
   COST_TYPE_OPTIONS,
   costTypeLabel,
   isSubRelatedCostType,
@@ -67,8 +66,6 @@ import {
 import { toast } from "sonner";
 
 const ALL_VALUE = "__all__";
-
-const costTypeLabels = COST_TYPE_LABELS;
 
 const costTypeBadgeClass: Record<CostType, string> = {
   [CostType.Labor]: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200",
