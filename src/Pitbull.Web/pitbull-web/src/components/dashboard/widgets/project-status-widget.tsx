@@ -18,6 +18,13 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+function formatCurrencyCompact(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (abs >= 10_000) return `$${(value / 1_000).toFixed(0)}K`;
+  return formatCurrency(value);
+}
+
 function budgetBarColor(percentUsed: number): { bar: string; text: string } {
   if (percentUsed >= 90) return { bar: "bg-red-500", text: "text-red-600" };
   if (percentUsed >= 75) return { bar: "bg-amber-500", text: "text-amber-600" };
@@ -43,11 +50,19 @@ export function ProjectStatusWidget({
           ))}
         {!isLoading &&
           data?.map((project) => (
-            <div key={project.name} className="space-y-1">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium truncate pr-4">{project.name}</span>
-                <span className="text-muted-foreground">
-                  {formatCurrency(project.spent)} / {formatCurrency(project.budget)}
+            <div key={project.name} className="space-y-1.5 min-w-0 overflow-hidden">
+              <div className="flex items-start justify-between gap-2 text-sm min-w-0">
+                <span className="font-medium min-w-0 break-words leading-snug">
+                  {project.name}
+                </span>
+                <span className="text-muted-foreground shrink-0 tabular-nums whitespace-nowrap text-xs sm:text-sm">
+                  <span className="sm:hidden">
+                    {formatCurrencyCompact(project.spent)} /{" "}
+                    {formatCurrencyCompact(project.budget)}
+                  </span>
+                  <span className="hidden sm:inline">
+                    {formatCurrency(project.spent)} / {formatCurrency(project.budget)}
+                  </span>
                 </span>
               </div>
               <div className="h-2 w-full rounded-full bg-muted overflow-hidden">

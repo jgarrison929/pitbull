@@ -74,6 +74,18 @@ function formatCurrency(v: number) {
   }).format(v);
 }
 
+/** Compact currency for narrow portfolio rows ($1.2M / $450K). */
+function formatCurrencyCompact(v: number) {
+  const abs = Math.abs(v);
+  if (abs >= 1_000_000) {
+    return `$${(v / 1_000_000).toFixed(1)}M`;
+  }
+  if (abs >= 10_000) {
+    return `$${(v / 1_000).toFixed(0)}K`;
+  }
+  return formatCurrency(v);
+}
+
 export function ExecutiveDashboard({
   data,
   isLoading,
@@ -366,32 +378,41 @@ export function ExecutiveDashboard({
               data?.projectBudgetHealth.slice(0, 8).map((p) => (
                 <div
                   key={p.name}
-                  className="flex items-center justify-between rounded-md border p-3"
+                  className="rounded-md border p-3 space-y-2 overflow-hidden"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">{p.name}</p>
-                    <div className="h-1.5 w-full rounded-full bg-muted mt-1.5 overflow-hidden">
-                      <div
-                        className={`h-full ${
-                          p.percentUsed >= 90
-                            ? "bg-red-500"
-                            : p.percentUsed >= 75
-                              ? "bg-amber-500"
-                              : "bg-emerald-500"
-                        }`}
-                        style={{ width: `${Math.min(p.percentUsed, 100)}%` }}
-                      />
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <p className="font-medium text-sm leading-snug min-w-0 break-words">
+                      {p.name}
+                    </p>
+                    <div className="text-right shrink-0 tabular-nums">
+                      <p className="text-sm font-semibold whitespace-nowrap">
+                        <span className="sm:hidden">
+                          {formatCurrencyCompact(p.budget)}
+                        </span>
+                        <span className="hidden sm:inline">
+                          {formatCurrency(p.budget)}
+                        </span>
+                      </p>
+                      <p className="text-xs text-muted-foreground whitespace-nowrap">
+                        {p.percentUsed.toFixed(0)}% labor
+                      </p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Labor cost vs contract (proxy — not full job cost)
-                    </p>
                   </div>
-                  <div className="text-right ml-4 shrink-0">
-                    <p className="text-sm font-medium">{formatCurrency(p.budget)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {p.percentUsed.toFixed(0)}% labor
-                    </p>
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full ${
+                        p.percentUsed >= 90
+                          ? "bg-red-500"
+                          : p.percentUsed >= 75
+                            ? "bg-amber-500"
+                            : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${Math.min(p.percentUsed, 100)}%` }}
+                    />
                   </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Labor cost vs contract (proxy — not full job cost)
+                  </p>
                 </div>
               ))}
             {!isLoading && (data?.projectBudgetHealth.length ?? 0) === 0 && (

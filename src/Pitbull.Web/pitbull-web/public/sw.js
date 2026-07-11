@@ -1,7 +1,9 @@
 // Pitbull Construction Solutions — Service Worker
 // Caches app shell + API responses for offline time entry
 
-const CACHE_VERSION = "v2";
+// Bump when shipping shell changes so activate() drops stale precache (also
+// keyed indirectly by VersionUpdateGuard hard-reload on product version).
+const CACHE_VERSION = "v2.8.2";
 const STATIC_CACHE = `pitbull-static-${CACHE_VERSION}`;
 const API_CACHE = `pitbull-api-${CACHE_VERSION}`;
 

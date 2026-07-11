@@ -133,11 +133,12 @@ export function WelcomeTour() {
   const isLast = currentIndex === tour.steps.length - 1;
   const isFirst = currentIndex === 0;
 
-  // Compact bottom-right panel when user is on the target page
+  // Compact bottom panel when user is on the target page.
+  // Do NOT use w-full (it spans the viewport and steals taps from the page chrome).
   if (isOnTargetPage) {
     return (
-      <div className="fixed bottom-20 right-4 z-50 w-full max-w-sm sm:bottom-6 sm:right-6">
-        <div className="bg-background rounded-2xl shadow-2xl border border-border overflow-hidden">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom,0px))] z-50 flex justify-end px-3 sm:bottom-6 sm:px-6">
+        <div className="pointer-events-auto w-full max-w-sm bg-background rounded-2xl shadow-2xl border border-border overflow-hidden">
           {/* Compact header */}
           <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3 text-white">
             <div className="flex items-center justify-between">
