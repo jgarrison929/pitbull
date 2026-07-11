@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - **Project mobile nav** — replaced horizontal scroll tabs with a field hub (Site walk, Field report, Plans, Schedule) + searchable “More on this job” sheet; Site walk promoted in sidebar/workspace order
+- Version **2.8.1** (patch: field report pick list + project mobile hub; stamps VERSION / package.json / csproj / Docker / compose)
 
 ## [2.8.0] - 2026-07-11T16:20:00-07:00
 
