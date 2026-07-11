@@ -240,6 +240,7 @@ builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ITaskService, Pitb
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.INarrativeService, Pitbull.ProjectManagement.Services.NarrativeService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IDocumentService, Pitbull.ProjectManagement.Services.DocumentService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IPunchListService, Pitbull.ProjectManagement.Services.PunchListService>();
+builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ISpatialService, Pitbull.ProjectManagement.Services.SpatialService>();
 // Phase 1: Progress → Schedule → Cost Foundation
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ICostCodeActivityMappingService, Pitbull.ProjectManagement.Services.CostCodeActivityMappingService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IFieldProgressService, Pitbull.ProjectManagement.Services.FieldProgressService>();

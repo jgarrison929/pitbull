@@ -469,6 +469,8 @@ public class PmDailyReport : BaseEntity, ICompanyScoped
     public string? DelaysNarrative { get; set; }
     public string? SafetyNarrative { get; set; }
     public Guid PreparedByUserId { get; set; }
+    /// <summary>Optional zone/spatial node for field report context (twin fuel).</summary>
+    public Guid? SpatialNodeId { get; set; }
 }
 
 public class PmDailyReportCrew : BaseEntity, ICompanyScoped
@@ -975,4 +977,47 @@ public class PmCostCodeEarnedValueSnapshot : BaseEntity, ICompanyScoped
     public decimal ETC { get; set; }
     /// <summary>TCPI: To-Complete Performance Index = (BAC - BCWP) / (BAC - ACWP)</summary>
     public decimal TCPI { get; set; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Digital Twin — zones-first spatial graph (see docs/pitbull-digital-twin-spec.md)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public enum SpatialGraphStatus { Draft = 0, Published = 1, Archived = 2 }
+public enum SpatialNodeType { Site = 0, Building = 1, Storey = 2, Zone = 3, Element = 4 }
+public enum SpatialLengthUnit { Meters = 0 }
+
+/// <summary>Versioned spatial graph for a project (one Published graph at a time).</summary>
+public class SpatialGraph : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid ProjectId { get; set; }
+    public string Name { get; set; } = "Primary";
+    public int Version { get; set; } = 1;
+    public SpatialGraphStatus Status { get; set; } = SpatialGraphStatus.Published;
+    public SpatialLengthUnit LengthUnit { get; set; } = SpatialLengthUnit.Meters;
+    public decimal? OriginLatitude { get; set; }
+    public decimal? OriginLongitude { get; set; }
+    public DateTime? PublishedAt { get; set; }
+    public string? PublishedBy { get; set; }
+}
+
+/// <summary>Tree node: Site → Building → Storey → Zone (→ optional Element).</summary>
+public class SpatialNode : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid GraphId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid? ParentNodeId { get; set; }
+    public SpatialNodeType NodeType { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    public int? LevelIndex { get; set; }
+    public string? ExternalKey { get; set; }
+    public decimal? CentroidX { get; set; }
+    public decimal? CentroidY { get; set; }
+    public decimal? CentroidZ { get; set; }
+    public bool IsActive { get; set; } = true;
+    public string? RetiredReason { get; set; }
 }

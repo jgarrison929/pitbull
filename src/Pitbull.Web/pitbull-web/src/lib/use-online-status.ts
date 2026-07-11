@@ -241,6 +241,9 @@ async function syncDailyReport(item: SyncQueueItem) {
           CrewEntries: report.crewEntries || null,
           Equipment: report.equipment || null,
           Visitors: report.visitors || null,
+          ...(report.spatialNodeId
+            ? { SpatialNodeId: report.spatialNodeId }
+            : {}),
         },
       }),
     }

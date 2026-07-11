@@ -2837,3 +2837,39 @@ public class EarnedValueController(IEarnedValueService earnedValueService) : Pro
     public async Task<IActionResult> Snapshots(Guid projectId, [FromQuery] PmListQuery query)
         => HandleResult(await earnedValueService.GetCostCodeSnapshotsAsync(projectId, query));
 }
+
+/// <summary>Zones-first digital twin spatial graph + overlays.</summary>
+[ApiController]
+[Authorize]
+[EnableRateLimiting("api")]
+[Produces("application/json")]
+[Route("api/projects/{projectId:guid}/spatial")]
+public class ProjectSpatialController(ISpatialService spatialService) : ProjectManagementControllerBase
+{
+    /// <summary>Gets the published spatial graph or an honest no-graph payload.</summary>
+    [HttpGet("graph")]
+    [ProducesResponseType(typeof(SpatialGraphResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetGraph(Guid projectId)
+        => HandleResult(await spatialService.GetGraphAsync(projectId));
+
+    /// <summary>Seeds a default Site→Building→Storey→Zones tree when none exists (demo / bootstrap).</summary>
+    [HttpPost("graph/ensure-seeded")]
+    [ProducesResponseType(typeof(SpatialGraphResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> EnsureSeeded(Guid projectId)
+        => HandleResult(await spatialService.EnsureSeededGraphAsync(projectId));
+
+    /// <summary>Zone overlay colors for a documented mode (progress|schedule|rfi).</summary>
+    [HttpGet("overlays")]
+    [ProducesResponseType(typeof(SpatialOverlayResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetOverlays(
+        Guid projectId,
+        [FromQuery] string mode = "rfi",
+        [FromQuery] DateTime? asOf = null)
+        => HandleResult(await spatialService.GetOverlayAsync(projectId, mode, asOf));
+
+    /// <summary>Flat zone list for mobile pickers.</summary>
+    [HttpGet("zones")]
+    [ProducesResponseType(typeof(IReadOnlyList<SpatialZoneOptionDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListZones(Guid projectId)
+        => HandleResult(await spatialService.ListZonesAsync(projectId));
+}

@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-07-11T23:50:00-07:00
+
+### Added
+
+- **Jobsite Digital Twin (zones-first)** — project spatial graph (Site → Building → Storey → Zone) with authenticated APIs (`/api/projects/{id}/spatial/*`), honest empty/insufficient overlay bands (never invent default-green health), demo seed tree, and project workspace **Digital Twin** page with overlay modes (RFI / progress / schedule proxies)
+- **Field report zone context** — optional zone picker on mobile field report (and twin deep-link `?zoneId=`) feeds `SpatialNodeId` on daily reports; skip-safe offline
+
+### Fixed
+
+- **Field home Daily Report** — quick action pointed at `/projects` instead of the mobile field report flow (`/daily-reports/mobile`); restores the path PostHog already shows field users actually use
+- Version **2.9.0**
+
 ## [2.8.3] - 2026-07-11T23:15:00-07:00
 
 ### Fixed

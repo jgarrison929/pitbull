@@ -29,6 +29,8 @@ export interface MobileDailyReportFormSnapshot {
   truckNotes?: string;
   crewCounts?: FieldCrewCount[];
   photos?: OfflineDailyReportPhoto[];
+  /** Optional zones-first twin fuel — omit/skip when unset. */
+  spatialNodeId?: string | null;
   asDraft?: boolean;
 }
 
@@ -55,6 +57,10 @@ export function buildOfflineDailyReportPayload(
   });
 
   const title = `Daily Report - ${form.reportDate}`;
+  const spatialNodeId =
+    typeof form.spatialNodeId === "string" && form.spatialNodeId.trim()
+      ? form.spatialNodeId.trim()
+      : undefined;
   return {
     id:
       id ??
@@ -78,6 +84,7 @@ export function buildOfflineDailyReportPayload(
     truckNotes: truckNotes || undefined,
     crewEntries: crewEntries.length ? crewEntries : undefined,
     photos: form.photos?.length ? form.photos : undefined,
+    spatialNodeId,
     status: form.asDraft ? "Draft" : "Submitted",
     createdAt: new Date().toISOString(),
   };
@@ -97,6 +104,11 @@ export function buildDailyReportApiData(form: MobileDailyReportFormSnapshot): Re
     workNarrative: form.workNarrative ?? "",
   });
 
+  const spatialNodeId =
+    typeof form.spatialNodeId === "string" && form.spatialNodeId.trim()
+      ? form.spatialNodeId.trim()
+      : undefined;
+
   return {
     ReportDate: form.reportDate,
     ReportType: form.reportType,
@@ -112,5 +124,6 @@ export function buildDailyReportApiData(form: MobileDailyReportFormSnapshot): Re
     TruckConditions: truckConditions.length ? truckConditions : null,
     TruckNotes: truckNotes || null,
     CrewEntries: crewEntries.length ? crewEntries : null,
+    ...(spatialNodeId ? { SpatialNodeId: spatialNodeId } : {}),
   };
 }

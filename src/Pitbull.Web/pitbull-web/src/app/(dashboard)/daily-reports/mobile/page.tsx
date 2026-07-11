@@ -46,6 +46,12 @@ import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
 import { buildOfflinePhotos, countEmbeddedPhotos } from "@/lib/offline-photo";
 import {
+  formatZoneLabel,
+  normalizeZoneOptions,
+  pickSpatialContext,
+  type SpatialZoneOption,
+} from "@/lib/spatial-context";
+import {
   DEFAULT_CREW_TRADES,
   FIELD_ACTIVITIES,
   TRUCK_CONDITIONS,
@@ -85,6 +91,7 @@ interface PhotoWithLocation extends FileItem {
 export default function MobileDailyReportPage() {
   const searchParams = useSearchParams();
   const urlProjectId = searchParams.get("projectId");
+  const urlZoneId = searchParams.get("zoneId");
   const [step, setStep] = useState<MobileReportStep>("Project");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -128,6 +135,9 @@ export default function MobileDailyReportPage() {
   const [crewCounts, setCrewCounts] = useState<FieldCrewCount[]>(() =>
     DEFAULT_CREW_TRADES.map((trade) => ({ trade, count: 0 }))
   );
+  // Optional zones-first twin fuel — never required for submit/offline
+  const [zones, setZones] = useState<SpatialZoneOption[]>([]);
+  const [spatialNodeId, setSpatialNodeId] = useState("");
 
   useEffect(() => {
     setGeoAvailable("geolocation" in navigator);
@@ -163,6 +173,40 @@ export default function MobileDailyReportPage() {
     }
     void loadProjects();
   }, []);
+
+  // Load zone options when job changes (skip-safe if graph missing / offline)
+  useEffect(() => {
+    if (!projectId) {
+      setZones([]);
+      setSpatialNodeId("");
+      return;
+    }
+    let cancelled = false;
+    async function loadZones() {
+      if (!isOnline) {
+        setZones([]);
+        return;
+      }
+      try {
+        const raw = await api<unknown>(
+          `/api/projects/${projectId}/spatial/zones`
+        );
+        if (cancelled) return;
+        const options = normalizeZoneOptions(raw);
+        setZones(options);
+        // Deep-link from twin "field report in this zone"
+        if (urlZoneId && options.some((z) => z.id === urlZoneId)) {
+          setSpatialNodeId(urlZoneId);
+        }
+      } catch {
+        if (!cancelled) setZones([]);
+      }
+    }
+    void loadZones();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, isOnline, urlZoneId]);
 
   // Default project from URL (in-job links) or recent job context once catalog loads.
   useEffect(() => {
@@ -359,6 +403,7 @@ export default function MobileDailyReportPage() {
   }
 
   function formSnapshot(asDraft: boolean) {
+    const spatialDecision = pickSpatialContext(zones, spatialNodeId);
     return {
       projectId,
       reportDate,
@@ -375,6 +420,10 @@ export default function MobileDailyReportPage() {
       truckConditions,
       truckNotes,
       crewCounts,
+      spatialNodeId:
+        spatialDecision.kind === "apply"
+          ? spatialDecision.spatialNodeId
+          : undefined,
       asDraft,
     };
   }
@@ -395,6 +444,7 @@ export default function MobileDailyReportPage() {
     setTruckConditions([]);
     setTruckNotes("");
     setCrewCounts(DEFAULT_CREW_TRADES.map((trade) => ({ trade, count: 0 })));
+    setSpatialNodeId("");
     setQueuedNotice(null);
   }
 
@@ -636,6 +686,40 @@ export default function MobileDailyReportPage() {
                     </Select>
                   </div>
                 </div>
+                {projectId && zones.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-amber-500" />
+                      Zone (optional)
+                    </Label>
+                    <Select
+                      value={spatialNodeId || "__none__"}
+                      onValueChange={(v) =>
+                        setSpatialNodeId(v === "__none__" ? "" : v)
+                      }
+                    >
+                      <SelectTrigger
+                        className="min-h-[48px] text-base"
+                        data-testid="field-zone-select"
+                      >
+                        <SelectValue placeholder="No zone (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">
+                          {formatZoneLabel(null)}
+                        </SelectItem>
+                        {zones.map((z) => (
+                          <SelectItem key={z.id} value={z.id}>
+                            {formatZoneLabel(z)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Optional twin fuel — skip anytime, including offline.
+                    </p>
+                  </div>
+                )}
                 {projectId && (
                   <div className="flex flex-col gap-2">
                     <Button variant="outline" className="min-h-[48px]" asChild>

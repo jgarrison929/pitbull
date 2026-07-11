@@ -218,3 +218,11 @@ public interface IPunchListService
     Task<Result<PagedResult<PmEntityDto>>> ListPhotosAsync(Guid projectId, Guid itemId, PmListQuery query, CancellationToken cancellationToken = default);
     Task<Result<PmActionResultDto>> GetPunchListSummaryAsync(Guid projectId, CancellationToken cancellationToken = default);
 }
+
+public interface ISpatialService
+{
+    Task<Result<SpatialGraphResponse>> GetGraphAsync(Guid projectId, CancellationToken cancellationToken = default);
+    Task<Result<SpatialGraphResponse>> EnsureSeededGraphAsync(Guid projectId, CancellationToken cancellationToken = default);
+    Task<Result<SpatialOverlayResponse>> GetOverlayAsync(Guid projectId, string mode, DateTime? asOf = null, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<SpatialZoneOptionDto>>> ListZonesAsync(Guid projectId, CancellationToken cancellationToken = default);
+}

@@ -684,6 +684,7 @@ public class PmDailyReportConfiguration : IEntityTypeConfiguration<PmDailyReport
             .WithMany()
             .HasForeignKey(x => x.PreparedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(x => x.SpatialNodeId);
     }
 }
 
@@ -1451,6 +1452,57 @@ public class PmCostCodeEarnedValueSnapshotConfiguration : IEntityTypeConfigurati
         builder.HasOne<CostCode>()
             .WithMany()
             .HasForeignKey(x => x.CostCodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class SpatialGraphConfiguration : IEntityTypeConfiguration<SpatialGraph>
+{
+    public void Configure(EntityTypeBuilder<SpatialGraph> builder)
+    {
+        builder.ConfigureBase("pm_spatial_graphs");
+        builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.LengthUnit).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.OriginLatitude).HasPrecision(10, 7);
+        builder.Property(x => x.OriginLongitude).HasPrecision(10, 7);
+        builder.Property(x => x.PublishedBy).HasMaxLength(200);
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.ProjectId, x.Status });
+        builder.HasIndex(x => new { x.ProjectId, x.Version });
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
+public class SpatialNodeConfiguration : IEntityTypeConfiguration<SpatialNode>
+{
+    public void Configure(EntityTypeBuilder<SpatialNode> builder)
+    {
+        builder.ConfigureBase("pm_spatial_nodes");
+        builder.Property(x => x.Code).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.NodeType).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.ExternalKey).HasMaxLength(100);
+        builder.Property(x => x.RetiredReason).HasMaxLength(500);
+        builder.Property(x => x.CentroidX).HasPrecision(12, 3);
+        builder.Property(x => x.CentroidY).HasPrecision(12, 3);
+        builder.Property(x => x.CentroidZ).HasPrecision(12, 3);
+        builder.HasIndex(x => new { x.GraphId, x.Code }).IsUnique();
+        builder.HasIndex(x => new { x.ProjectId, x.NodeType, x.IsActive });
+        builder.HasIndex(x => x.ParentNodeId);
+        builder.HasOne<SpatialGraph>()
+            .WithMany()
+            .HasForeignKey(x => x.GraphId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<SpatialNode>()
+            .WithMany()
+            .HasForeignKey(x => x.ParentNodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

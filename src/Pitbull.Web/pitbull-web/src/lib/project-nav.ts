@@ -40,7 +40,8 @@ export interface ProjectNavItem {
     | "meetings"
     | "comms"
     | "narratives"
-    | "daily";
+    | "daily"
+    | "twin";
 }
 
 export const PROJECT_NAV_GROUP_LABELS: Record<ProjectNavGroupId, string> = {
@@ -105,6 +106,14 @@ export function getProjectNavItems(projectId: string): ProjectNavItem[] {
       href: base,
       group: "overview",
       icon: "overview",
+    },
+    {
+      id: "twin",
+      label: "Digital Twin",
+      shortLabel: "Twin",
+      href: `${base}/twin`,
+      group: "overview",
+      icon: "twin",
     },
     {
       id: "daily-reports",

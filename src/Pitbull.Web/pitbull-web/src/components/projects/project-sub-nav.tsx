@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Boxes,
   Briefcase,
   Calendar,
   CheckSquare,
@@ -57,6 +58,7 @@ const ICON_MAP = {
   comms: MessageSquare,
   narratives: FileText,
   daily: FileText,
+  twin: Boxes,
 } as const;
 
 function NavIcon({
