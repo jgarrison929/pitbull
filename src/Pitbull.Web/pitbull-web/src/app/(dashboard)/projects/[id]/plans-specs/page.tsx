@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import api, { getDownloadUrl } from "@/lib/api";
+import { getToken } from "@/lib/auth";
 import { isValidGuid } from "@/lib/utils";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
@@ -188,6 +189,9 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
     }>
   >([]);
   const [viewingFileId, setViewingFileId] = useState<string | null>(null);
+  /** Authenticated blob URL for in-page View (API downloads require Bearer). */
+  const [viewingBlobUrl, setViewingBlobUrl] = useState<string | null>(null);
+  const [viewingBlobLoading, setViewingBlobLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -275,6 +279,68 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
   }, [isProjectIdValid, load]);
 
   useListPageShortcuts({ searchInputRef });
+
+  // Load authenticated blob when user taps View (iframe cannot send Authorization)
+  useEffect(() => {
+    let revoked: string | null = null;
+    let cancelled = false;
+    async function loadBlob() {
+      if (!viewingFileId) {
+        setViewingBlobUrl(null);
+        return;
+      }
+      setViewingBlobLoading(true);
+      try {
+        const token = getToken();
+        const url = getDownloadUrl(viewingFileId);
+        const res = await fetch(url, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) throw new Error(`Download failed (${res.status})`);
+        const blob = await res.blob();
+        if (cancelled) return;
+        const blobUrl = URL.createObjectURL(blob);
+        revoked = blobUrl;
+        setViewingBlobUrl(blobUrl);
+      } catch {
+        if (!cancelled) {
+          setViewingBlobUrl(null);
+          toast.error("Could not open drawing — try Open or re-upload");
+        }
+      } finally {
+        if (!cancelled) setViewingBlobLoading(false);
+      }
+    }
+    void loadBlob();
+    return () => {
+      cancelled = true;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [viewingFileId]);
+
+  function openAuthenticatedDownload(fileId: string, fileName: string) {
+    const token = getToken();
+    const url = getDownloadUrl(fileId);
+    if (!token) {
+      window.open(url, "_blank");
+      return;
+    }
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => {
+        if (!r.ok) throw new Error("download failed");
+        return r.blob();
+      })
+      .then((blob) => {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = fileName;
+        a.target = "_blank";
+        a.click();
+        URL.revokeObjectURL(blobUrl);
+      })
+      .catch(() => toast.error("Download failed"));
+  }
 
   const planSearchItems = useMemo((): PlanSetSearchItem[] => {
     return planSets.map((ps) => {
@@ -652,7 +718,6 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
           </CardHeader>
           <CardContent className="space-y-2">
             {planFiles.map((f) => {
-              const href = getDownloadUrl(f.id);
               const isPdf =
                 (f.contentType ?? "").includes("pdf") ||
                 f.fileName.toLowerCase().endsWith(".pdf");
@@ -680,24 +745,34 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                           {open ? "Hide" : "View"}
                         </Button>
                       )}
-                      <Button variant="outline" className="min-h-[44px]" asChild>
-                        <a href={href} target="_blank" rel="noopener noreferrer">
-                          Open
-                        </a>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-[44px]"
+                        onClick={() =>
+                          openAuthenticatedDownload(f.id, f.fileName)
+                        }
+                      >
+                        Open
                       </Button>
                     </div>
                   </div>
-                  {open && isPdf && (
+                  {open && viewingBlobLoading && (
+                    <p className="p-3 text-sm text-muted-foreground border-t">
+                      Loading drawing…
+                    </p>
+                  )}
+                  {open && !viewingBlobLoading && viewingBlobUrl && isPdf && (
                     <iframe
                       title={f.fileName}
-                      src={href}
+                      src={viewingBlobUrl}
                       className="w-full h-[70vh] border-t bg-muted"
                     />
                   )}
-                  {open && isImage && (
+                  {open && !viewingBlobLoading && viewingBlobUrl && isImage && (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={href}
+                      src={viewingBlobUrl}
                       alt={f.fileName}
                       className="w-full max-h-[70vh] object-contain border-t bg-muted"
                     />
