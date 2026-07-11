@@ -4,8 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import api, { uploadFiles } from "@/lib/api";
 import type { Project, PagedResult } from "@/lib/types";
-import { ProjectStatus } from "@/lib/types";
 import type { PmEntityDto, PmUpsertRequest } from "@/lib/pm-types";
+import {
+  isFieldReportEligibleStatus,
+  toProjectLookupItems,
+} from "@/lib/projects";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -450,25 +453,15 @@ export default function MobileDailyReportPage() {
 
   const selectedProject = projects.find((p) => p.id === projectId);
 
+  // API serializes ProjectStatus as strings ("Active"); never compare to numeric enum raw.
   const activeProjects = useMemo(
-    () =>
-      projects.filter(
-        (p) =>
-          p.status === ProjectStatus.Active ||
-          p.status === ProjectStatus.PreConstruction
-      ),
+    () => projects.filter((p) => isFieldReportEligibleStatus(p.status)),
     [projects]
   );
 
   const projectLookupItems = useMemo(
-    () =>
-      activeProjects.map((p) => ({
-        id: p.id,
-        label: p.number,
-        sublabel: p.name,
-        searchText: `${p.number} ${p.name}`,
-      })),
-    [activeProjects]
+    () => toProjectLookupItems(projects, { eligibleOnly: true }),
+    [projects]
   );
 
   const recentProjectIds = useMemo(
@@ -569,6 +562,7 @@ export default function MobileDailyReportPage() {
                   recentIds={recentProjectIds}
                   placeholder="Search job number or name..."
                   allowClear={false}
+                  emptyCatalogMessage="No open jobs available. Check Projects or your company."
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">

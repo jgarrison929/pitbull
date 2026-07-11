@@ -19,6 +19,51 @@ export function coerceProjectStatus(status: ProjectStatus | string | number): Pr
   return status as unknown as ProjectStatus;
 }
 
+/**
+ * Jobs supers can pick for field / daily reports.
+ * Accepts string or numeric status (API uses JsonStringEnumConverter).
+ * Includes Active, PreConstruction, and OnHold — excludes Bidding/Completed/Closed.
+ */
+export function isFieldReportEligibleStatus(
+  status: ProjectStatus | string | number
+): boolean {
+  const s = coerceProjectStatus(status);
+  return (
+    s === ProjectStatus.Active ||
+    s === ProjectStatus.PreConstruction ||
+    s === ProjectStatus.OnHold
+  );
+}
+
+/** Map project rows to EntityLookupField options (number primary, name secondary). */
+export function toProjectLookupItems(
+  projects: Array<{
+    id: string;
+    number?: string | null;
+    name?: string | null;
+    status: ProjectStatus | string | number;
+  }>,
+  options?: { eligibleOnly?: boolean }
+): Array<{ id: string; label: string; sublabel?: string; searchText: string }> {
+  const eligibleOnly = options?.eligibleOnly ?? true;
+  const list = eligibleOnly
+    ? projects.filter((p) => isFieldReportEligibleStatus(p.status))
+    : projects;
+
+  return list.map((p) => {
+    const number = (p.number ?? "").trim();
+    const name = (p.name ?? "").trim();
+    const label = number || name || "Untitled project";
+    const sublabel = number && name ? name : undefined;
+    return {
+      id: p.id,
+      label,
+      sublabel,
+      searchText: `${number} ${name}`.trim(),
+    };
+  });
+}
+
 export function projectStatusLabel(status: ProjectStatus | string | number): string {
   switch (coerceProjectStatus(status)) {
     case ProjectStatus.Bidding:

@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.1] - 2026-07-11T21:40:00-07:00
+
+### Fixed
+
+- **Field report project smart lookup** — pick list was empty because status filter compared numeric enums to API string values (`"Active"`). Coerces status correctly; shows Active / PreConstruction / OnHold jobs; clearer empty-catalog message
+
 ## [2.8.0] - 2026-07-11T16:20:00-07:00
 
 ### Added

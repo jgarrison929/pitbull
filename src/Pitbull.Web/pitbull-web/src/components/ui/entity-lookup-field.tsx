@@ -29,6 +29,8 @@ export interface EntityLookupFieldProps {
   /** Allow clearing selection (empty id). Default true when not required. */
   allowClear?: boolean;
   emptyOptionLabel?: string;
+  /** Shown when `items` is empty (catalog not loaded / nothing eligible). */
+  emptyCatalogMessage?: string;
   className?: string;
   /** min-height of trigger; mobile defaults to 48px. */
   triggerClassName?: string;
@@ -51,6 +53,7 @@ export function EntityLookupField({
   helpText,
   allowClear,
   emptyOptionLabel = "None",
+  emptyCatalogMessage = "No options available",
   className,
   triggerClassName,
   id,
@@ -203,9 +206,15 @@ export function EntityLookupField({
                   All matches
                 </p>
               )}
-              {(query ? ranked : rest).length === 0 ? (
+              {items.length === 0 ? (
                 <p className="px-3 py-6 text-sm text-muted-foreground text-center">
-                  No matches for “{query}”
+                  {emptyCatalogMessage}
+                </p>
+              ) : (query ? ranked : rest).length === 0 ? (
+                <p className="px-3 py-6 text-sm text-muted-foreground text-center">
+                  {query
+                    ? `No matches for “${query}”`
+                    : "No options to show"}
                 </p>
               ) : (
                 (query ? ranked : rest).map((item) => (
