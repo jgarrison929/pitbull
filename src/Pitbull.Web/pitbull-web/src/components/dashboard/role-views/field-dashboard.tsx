@@ -54,50 +54,76 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <Link href="/projects?status=active" className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+        <Link
+          href="/projects?excludeCompleted=true"
+          className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
               <CardTitle className="text-sm font-medium">My Projects Today</CardTitle>
-              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+              <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              {isLoading ? <Skeleton className="h-8 w-16" /> : <div className="text-3xl font-bold">{data?.activeProjects ?? 0}</div>}
+            <CardContent className="p-4 pt-0">
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <div className="text-3xl font-bold tabular-nums">
+                  {data?.activeProjects ?? 0}
+                </div>
+              )}
             </CardContent>
           </Card>
         </Link>
-        <Link href="/time-tracking" className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <Link
+          href="/time-tracking?view=entries&period=thisWeek"
+          className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
               <CardTitle className="text-sm font-medium">Hours This Week</CardTitle>
-              <Clock3 className="h-4 w-4 text-muted-foreground" />
+              <Clock3 className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              {isLoading ? <Skeleton className="h-8 w-20" /> : (
+            <CardContent className="p-4 pt-0">
+              {isLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
                 <>
-                  <div className="text-3xl font-bold">{(data?.hoursThisWeek ?? 0).toFixed(1)}</div>
-                  <p className={`text-xs ${hoursDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    {hoursDelta >= 0 ? "+" : ""}{hoursDelta.toFixed(1)}% vs last week
+                  <div className="text-3xl font-bold tabular-nums">
+                    {(data?.hoursThisWeek ?? 0).toFixed(1)}
+                  </div>
+                  <p
+                    className={`text-xs ${hoursDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                  >
+                    {hoursDelta >= 0 ? "+" : ""}
+                    {hoursDelta.toFixed(1)}% vs last week
                   </p>
                 </>
               )}
             </CardContent>
           </Card>
         </Link>
-        <Link href="/equipment?isActive=true" className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <Link
+          href="/equipment?isActive=true"
+          className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-4 pb-2">
               <CardTitle className="text-sm font-medium">Active Equipment</CardTitle>
-              <Truck className="h-4 w-4 text-muted-foreground" />
+              <Truck className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 pt-0">
               {equipmentLoading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
                 <>
-                  <div className="text-3xl font-bold">{equipmentCount ?? "—"}</div>
+                  <div className="text-3xl font-bold tabular-nums">
+                    {equipmentCount ?? "—"}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    {equipmentCount === null ? "Could not load" : "fleet units in service"}
+                    {equipmentCount === null
+                      ? "Could not load"
+                      : "fleet units in service"}
                   </p>
                 </>
               )}

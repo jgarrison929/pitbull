@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -114,18 +113,23 @@ export function ExecutiveDashboard({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href={roleKpiDrillHref("activeProjects")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-              <FolderOpen className="h-4 w-4 text-muted-foreground" />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <Link
+          href={roleKpiDrillHref("activeProjects")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                Active Projects
+              </CardTitle>
+              <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-16" />
               ) : (
-                <div className="text-2xl font-bold">
+                <div className="text-xl font-bold tabular-nums sm:text-2xl">
                   {summary?.activeProjectCount ?? data?.activeProjects ?? 0}
                 </div>
               )}
@@ -133,21 +137,26 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href={roleKpiDrillHref("billedToDate")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Billed to Date</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <Link
+          href={roleKpiDrillHref("billedToDate")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                Billed to Date
+              </CardTitle>
+              <DollarSign className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold tabular-nums sm:text-2xl">
                     {formatCurrency(summary?.billedToDate ?? 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
                     {summary?.billedToDateLabel ?? "Owner billed (G702)"}
                   </p>
                 </>
@@ -156,21 +165,26 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href={roleKpiDrillHref("unbilledBacklog")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Unbilled Backlog</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <Link
+          href={roleKpiDrillHref("unbilledBacklog")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                Unbilled Backlog
+              </CardTitle>
+              <TrendingUp className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold tabular-nums sm:text-2xl">
                     {formatCurrency(summary?.unbilledContractValue ?? 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
                     Portfolio {formatCurrency(summary?.portfolioContractValue ?? 0)} − billed
                   </p>
                 </>
@@ -179,25 +193,30 @@ export function ExecutiveDashboard({
           </Card>
         </Link>
 
-        <Link href={roleKpiDrillHref("arApNet")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">AR − AP Net</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+        <Link
+          href={roleKpiDrillHref("arApNet")}
+          className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+        >
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+                AR − AP Net
+              </CardTitle>
+              <BarChart3 className="h-4 w-4 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               {loading ? (
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
                   <div
-                    className={`text-2xl font-bold ${
+                    className={`text-xl font-bold tabular-nums sm:text-2xl ${
                       (summary?.arApNetPosition ?? 0) < 0 ? "text-red-600" : ""
                     }`}
                   >
                     {formatCurrency(summary?.arApNetPosition ?? 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground mt-1 leading-snug">
                     AR {formatCurrency(summary?.arTotal ?? 0)} · AP{" "}
                     {formatCurrency(summary?.apTotal ?? 0)}
                   </p>
