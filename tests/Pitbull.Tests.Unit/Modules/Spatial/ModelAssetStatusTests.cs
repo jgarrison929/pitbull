@@ -59,4 +59,13 @@ public class ModelAssetStatusTests
         Assert.False(dto.IsReady);
         Assert.Equal("Processing", dto.ConversionStatus);
     }
+
+    [Fact]
+    public void Active_pointer_requires_ready_semantics()
+    {
+        // Documented rule for SetActiveModelAssetAsync: only Succeeded → IsReady true.
+        Assert.True(ModelAssetStatus.IsReady(nameof(ModelConversionStatus.Succeeded)));
+        Assert.False(ModelAssetStatus.IsReady(nameof(ModelConversionStatus.Pending)));
+        Assert.False(ModelAssetStatus.IsReady(nameof(ModelConversionStatus.Processing)));
+    }
 }
