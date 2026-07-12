@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.9] - 2026-07-12T14:54:26-07:00
+
+### Added
+
+- **Plans mobile layout vitest** - composite coverage for field mode, touch targets, admin hide classes, revision labels, and site-walk deep links (`plans-specs-mobile-layout.test.ts`).
+
+### Notes
+
+- Version **2.13.9** — last patch of minor 13 before 2.14.0.
+
 ## [2.13.8] - 2026-07-12T14:53:36-07:00
 
 ### Added
