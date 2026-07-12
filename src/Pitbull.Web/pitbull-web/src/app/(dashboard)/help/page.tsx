@@ -24,6 +24,7 @@ import {
 import {
   fieldWorkflowCards,
   FIELD_WORKFLOWS_SECTION_TITLE,
+  mobileFaqItems,
   type FieldWorkflowCard,
 } from "@/lib/help-field-workflows";
 
@@ -154,15 +155,12 @@ const faqItems = [
       "Admins can manage users under Admin > Users. Assign roles like Admin, Manager, or Field to control what each user can see and do. Managers can approve time; field users can only enter time.",
   },
   {
-    question: "Can I use Pitbull on mobile devices?",
-    answer:
-      "Yes. The interface is fully responsive. Time tracking includes a dedicated mobile entry view optimized for phones, accessible from Time Tracking > Mobile Entry.",
-  },
-  {
     question: "How do I export data for payroll?",
     answer:
       "Go to Admin > Data Import, switch to the Export tab, and select Time Entries with Vista format. Choose a date range to generate a Vista-compatible CSV file for payroll processing.",
   },
+  // 2.12.8 accurate mobile FAQ (field paths, offline, twin/plans) — see mobileFaqItems
+  ...mobileFaqItems,
 ];
 
 export default function HelpPage() {

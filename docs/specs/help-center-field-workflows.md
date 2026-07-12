@@ -1,6 +1,6 @@
 # Spec: Help Center — field & mobile workflows
 
-**Status:** Partial (2.12.7 shipped)  
+**Status:** Complete (2.12.7�2.12.8)  
 **Version band:** 2.12.7 → 2.12.8 (within Arc A)  
 **Related:** [`help/page.tsx`](../../src/Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx), `ROLE-EXPERIENCE.md`
 
@@ -47,9 +47,9 @@ UI-only.
 **Deliverable:** Replace misleading mobile FAQ; add offline + twin/plans pointers.
 
 **Acceptance:**
-- [ ] Grep: no standalone claim that the whole app is “fully responsive” as the mobile story  
-- [ ] FAQ answers mention: `/daily-reports/mobile`, bottom nav (Report / Crew / …), offline queue, PWA install  
-- [ ] Optional cards: Digital Twin (`/projects/[id]/twin`), Plans (`/projects/[id]/plans-specs`) if not in 2.12.7  
+- [x] Grep: no standalone claim that the whole app is “fully responsive” as the mobile story  
+- [x] FAQ answers mention: `/daily-reports/mobile`, bottom nav (Report / Crew / …), offline queue, PWA install  
+- [x] Optional cards: Digital Twin (`/projects/[id]/twin`), Plans (`/projects/[id]/plans-specs`) if not in 2.12.7  
 
 **Known bad string (fix/replace):** FAQ body starting with `Yes. The interface is fully responsive. Time tracking includes a dedicated mobile entry view...`
 
@@ -69,4 +69,4 @@ UI-only.
 ## Band DoD
 
 - [x] Field section live  
-- [ ] Mobile FAQ truthful  
+- [x] Mobile FAQ truthful  
