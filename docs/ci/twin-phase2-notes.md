@@ -48,3 +48,8 @@ npm test -- --run twin-photo-pins twin-overlay-poll twin-zone-drill-analytics he
 ## Next
 
 Model upload band: 2.16.3 → 2.17.2
+
+## Model sample (2.16.6)
+
+**Skipped** shipping a sample glTF/IFC blob in this band (license/size). Runtime pointer and conversion remain admin-driven; zones-first path is authoritative for demos.
+
