@@ -50,6 +50,7 @@ import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { GanttChart, type GanttActivity, type GanttDependency } from "@/components/schedule/gantt-chart";
 import { filterLookAheadTasks, type ScheduleLookAheadTask } from "@/lib/site-walk";
+import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import Link from "next/link";
 import { Pencil, Trash2, CalendarDays } from "lucide-react";
 
@@ -466,9 +467,13 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
             </p>
           ) : (
             lookAheadCards.slice(0, 15).map((task) => (
-              <div
+              <Link
                 key={task.id}
-                className="rounded-lg border p-3 space-y-1"
+                href={buildProgressDraftHref(projectId, {
+                  activityId: task.id,
+                  activityName: task.name,
+                })}
+                className="block rounded-lg border p-3 space-y-1 touch-manipulation hover:border-amber-400"
                 data-testid="schedule-look-ahead-card"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -485,8 +490,9 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
                   {task.plannedFinish && (
                     <span>Finish {task.plannedFinish.slice(0, 10)}</span>
                   )}
+                  <span className="text-amber-700">Tap for progress draft</span>
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </CardContent>

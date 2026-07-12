@@ -7,10 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Version>2.14.3</Version>
-    <AssemblyVersion>2.14.3.0</AssemblyVersion>
-    <FileVersion>2.14.3.0</FileVersion>
-    <InformationalVersion>2.14.3</InformationalVersion>
+    <Version>2.14.4</Version>
+    <AssemblyVersion>2.14.4.0</AssemblyVersion>
+    <FileVersion>2.14.4.0</FileVersion>
+    <InformationalVersion>2.14.4</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
