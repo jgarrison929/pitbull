@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applySpatialContextToReportData,
+  applyTwinFuelToReportData,
   formatZoneLabel,
   isSpatialContextOptionalForSubmit,
   normalizeZoneOptions,
@@ -90,5 +91,31 @@ describe("formatZoneLabel / normalizeZoneOptions", () => {
     expect(zones).toEqual([
       { id: "a", code: "Z1", name: "Zone 1", pathLabel: "A / Z1" },
     ]);
+  });
+});
+
+describe("applyTwinFuelToReportData + plan pick", () => {
+  it("attaches both zone and plan when applied", () => {
+    const data = applyTwinFuelToReportData(
+      { WorkNarrative: "poured" },
+      { kind: "apply", spatialNodeId: "zone-east", zone: ZONES[0]! },
+      {
+        kind: "apply",
+        planSheetId: "sheet-1",
+        sheet: { id: "sheet-1", drawingNumber: "A-201", title: "Level 1" },
+      }
+    );
+    expect(data.SpatialNodeId).toBe("zone-east");
+    expect(data.PlanSheetId).toBe("sheet-1");
+  });
+
+  it("skips both offline-safe", () => {
+    const data = applyTwinFuelToReportData(
+      { WorkNarrative: "x", SpatialNodeId: "stale", PlanSheetId: "stale" },
+      { kind: "skip" },
+      { kind: "skip" }
+    );
+    expect(data.SpatialNodeId).toBeUndefined();
+    expect(data.PlanSheetId).toBeUndefined();
   });
 });

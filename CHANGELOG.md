@@ -8,6 +8,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-07-12T02:20:00-07:00
+
+### Added
+
+- **Jobsite Digital Twin MVP (major)** — zones-first spatial graph, truthful overlays (RFI/progress/schedule with linked fuel), zone detail panel, storey/as-of filters, plan?zone links, schematic board, Spatial.View/Manage permissions, optional mobile zone+plan fuel, feature flag. Ships the MVP definition of done from `docs/pitbull-digital-twin-spec.md` §3 without inventing green health or portfolio % complete.
+- Version **3.0.0**
+
+### Changed
+
+- Product minor?major for twin as a first-class workspace surface (path from 2.8.4–2.9.2 patches).
+
+## [2.9.2] - 2026-07-12T02:05:00-07:00
+
+### Added
+
+- **Digital Twin feature flag** — `NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` (default on); hides project nav Twin entry when off
+- **Twin ? site walk** cross-link from zone panel
+- Version **2.9.2**
+
+## [2.9.1] - 2026-07-12T01:55:00-07:00
+
+### Added
+
+- **Schematic twin board** — 2.5D zone card grid colored by overlay bands with explicit Insufficient/Watch/Risk/OnTrack legend (no invented green)
+- Version **2.9.1**
+
+## [2.9.0] - 2026-07-12T01:40:00-07:00
+
+### Added
+
+- **Mobile twin fuel round-trip** — pure helpers for optional zone + plan sheet on field reports; offline/online payloads carry SpatialNodeId/PlanSheetId when applied; last-zone remember per project
+- Version **2.9.0**
+
+## [2.8.9] - 2026-07-12T01:20:00-07:00
+
+### Added
+
+- **Spatial permissions** — `Spatial.View` / `Spatial.Manage` policies on twin APIs; seeded for Admin, Project Manager (view+manage), Foreman/Executive (view)
+- Version **2.8.9**
+
+## [2.8.8] - 2026-07-12T01:00:00-07:00
+
+### Added
+
+- **Plan sheet ? zone links** — `SpatialPlanLink` join table; zone detail returns plan sheets with deep links into Plans & Specs
+- Version **2.8.8**
+
+## [2.8.7] - 2026-07-12T00:45:00-07:00
+
+### Added
+
+- **Twin storey + as-of filters** — overlay API accepts `storeyNodeId`, `from`, `to`, `asOf`; pure `SpatialGraphFilter` scopes zones under a storey; twin UI storey select + as-of date
+- Version **2.8.7**
+
+## [2.8.6] - 2026-07-12T00:30:00-07:00
+
+### Added
+
+- **Zone detail API + twin panel** — `GET /api/projects/{id}/spatial/zones/{nodeId}` returns linked RFIs, daily reports, progress, and schedule activities (or honest empty copy); Digital Twin side panel loads links on zone select
+- Version **2.8.6**
+
 ## [2.8.5] - 2026-07-12T00:10:00-07:00
 
 ### Added

@@ -4,6 +4,7 @@
  */
 
 import { buildFieldReportHref } from "@/lib/projects";
+import { isDigitalTwinEnabled } from "@/lib/feature-flags";
 
 export type ProjectNavGroupId =
   | "field"
@@ -63,7 +64,7 @@ export const PROJECT_NAV_GROUP_ORDER: ProjectNavGroupId[] = [
 
 export function getProjectNavItems(projectId: string): ProjectNavItem[] {
   const base = `/projects/${projectId}`;
-  return [
+  const items: ProjectNavItem[] = [
     {
       id: "site-walk",
       label: "Site walk",
@@ -106,14 +107,6 @@ export function getProjectNavItems(projectId: string): ProjectNavItem[] {
       href: base,
       group: "overview",
       icon: "overview",
-    },
-    {
-      id: "twin",
-      label: "Digital Twin",
-      shortLabel: "Twin",
-      href: `${base}/twin`,
-      group: "overview",
-      icon: "twin",
     },
     {
       id: "daily-reports",
@@ -214,6 +207,23 @@ export function getProjectNavItems(projectId: string): ProjectNavItem[] {
       icon: "narratives",
     },
   ];
+
+  if (isDigitalTwinEnabled()) {
+    items.splice(
+      items.findIndex((i) => i.id === "overview") + 1,
+      0,
+      {
+        id: "twin",
+        label: "Digital Twin",
+        shortLabel: "Twin",
+        href: `${base}/twin`,
+        group: "overview",
+        icon: "twin",
+      }
+    );
+  }
+
+  return items;
 }
 
 /** Primary tiles for mobile hub (order preserved from catalog). */

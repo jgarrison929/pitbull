@@ -23,8 +23,11 @@ import type {
   SpatialNodeDto,
   SpatialOverlayNodeDto,
   SpatialOverlayResponse,
+  SpatialZoneDetailResponse,
 } from "@/lib/spatial-types";
 import { buildFieldReportHref } from "@/lib/projects";
+import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
+import { buildSiteWalkHref } from "@/lib/site-walk";
 import {
   ArrowLeft,
   Boxes,
@@ -82,17 +85,29 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
   const [graph, setGraph] = useState<SpatialGraphResponse | null>(null);
   const [overlay, setOverlay] = useState<SpatialOverlayResponse | null>(null);
   const [mode, setMode] = useState<OverlayMode>("rfi");
+  const [storeyFilter, setStoreyFilter] = useState<string>("__all__");
+  const [asOfDate, setAsOfDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [zoneDetail, setZoneDetail] = useState<SpatialZoneDetailResponse | null>(
+    null
+  );
+  const [zoneDetailLoading, setZoneDetailLoading] = useState(false);
   const [projectName, setProjectName] = useState("");
 
   const load = useCallback(async () => {
     if (!valid) return;
     setLoading(true);
     try {
+      const overlayQs = new URLSearchParams({ mode });
+      if (asOfDate) overlayQs.set("asOf", asOfDate);
+      if (storeyFilter && storeyFilter !== "__all__")
+        overlayQs.set("storeyNodeId", storeyFilter);
       const [g, o, project] = await Promise.all([
         api<SpatialGraphResponse>(`/api/projects/${projectId}/spatial/graph`),
         api<SpatialOverlayResponse>(
-          `/api/projects/${projectId}/spatial/overlays?mode=${mode}`
+          `/api/projects/${projectId}/spatial/overlays?${overlayQs.toString()}`
         ),
         api<{ name?: string; number?: string }>(`/api/projects/${projectId}`).catch(
           () => null
@@ -114,11 +129,35 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, valid, mode]);
+  }, [projectId, valid, mode, storeyFilter, asOfDate]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!valid || !selectedId) {
+      setZoneDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setZoneDetailLoading(true);
+    void (async () => {
+      try {
+        const d = await api<SpatialZoneDetailResponse>(
+          `/api/projects/${projectId}/spatial/zones/${selectedId}`
+        );
+        if (!cancelled) setZoneDetail(d);
+      } catch {
+        if (!cancelled) setZoneDetail(null);
+      } finally {
+        if (!cancelled) setZoneDetailLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, selectedId, valid]);
 
   async function ensureSeeded() {
     setSeeding(true);
@@ -136,6 +175,14 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
       setSeeding(false);
     }
   }
+
+  const storeys = useMemo(
+    () =>
+      (graph?.nodes ?? []).filter(
+        (n) => n.nodeType === "Storey" || n.nodeType === "storey"
+      ),
+    [graph]
+  );
 
   const tree = useMemo(
     () => (graph?.nodes ? buildTree(graph.nodes) : []),
@@ -183,7 +230,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             <p className="text-sm text-muted-foreground truncate">{projectName}</p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Select
             value={mode}
             onValueChange={(v) => setMode(v as OverlayMode)}
@@ -197,6 +244,27 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
               <SelectItem value="schedule">Schedule risk*</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={storeyFilter} onValueChange={setStoreyFilter}>
+            <SelectTrigger className="min-h-[44px] w-[150px]" data-testid="twin-storey-filter">
+              <SelectValue placeholder="Storey" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All storeys</SelectItem>
+              {storeys.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input
+            type="date"
+            value={asOfDate}
+            onChange={(e) => setAsOfDate(e.target.value)}
+            className="min-h-[44px] rounded-md border bg-background px-2 text-sm"
+            data-testid="twin-asof-date"
+            aria-label="As-of date"
+          />
           <Button
             variant="outline"
             className="min-h-[44px]"
@@ -259,7 +327,72 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
 
       {!loading && graph?.hasGraph && (
         <div className="grid gap-4 lg:grid-cols-5">
-          <Card className="lg:col-span-3">
+          <div className="lg:col-span-3 space-y-4">
+            <Card data-testid="twin-schematic-board">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-amber-500" />
+                  Schematic zones (2.5D)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Floor-plan style cards — color is overlay band only (gray =
+                  insufficient, not green).
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {tree
+                    .filter((n) => n.nodeType === "Zone" || n.nodeType === "zone")
+                    .map((node) => {
+                      const ov = overlayById.get(node.id);
+                      const band = ov?.band ?? "InsufficientData";
+                      const active = selectedId === node.id;
+                      return (
+                        <button
+                          key={node.id}
+                          type="button"
+                          onClick={() => setSelectedId(node.id)}
+                          className={cn(
+                            "min-h-[72px] rounded-lg border-2 p-2 text-left touch-manipulation transition-shadow",
+                            bandClass(band),
+                            active && "ring-2 ring-amber-500 shadow-md"
+                          )}
+                          data-testid={`twin-schematic-${node.code}`}
+                        >
+                          <span className="text-xs font-semibold block truncate">
+                            {node.name}
+                          </span>
+                          <span className="text-[10px] opacity-80">{node.code}</span>
+                          <span className="block text-[10px] mt-1 font-medium">
+                            {ov?.label ?? "No data*"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3 text-[10px] text-muted-foreground">
+                  <span className={cn("px-1.5 py-0.5 rounded border", bandClass("OnTrack"))}>
+                    OnTrack
+                  </span>
+                  <span className={cn("px-1.5 py-0.5 rounded border", bandClass("Watch"))}>
+                    Watch*
+                  </span>
+                  <span className={cn("px-1.5 py-0.5 rounded border", bandClass("Risk"))}>
+                    Risk*
+                  </span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.5 rounded border",
+                      bandClass("InsufficientData")
+                    )}
+                  >
+                    Insufficient*
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
                 Zones tree
@@ -271,7 +404,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 max-h-[28rem] overflow-y-auto">
+            <CardContent className="space-y-1 max-h-[20rem] overflow-y-auto">
               {tree.map((node) => {
                 const ov = overlayById.get(node.id);
                 const active = selectedId === node.id;
@@ -315,6 +448,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
               })}
             </CardContent>
           </Card>
+          </div>
 
           <Card className="lg:col-span-2">
             <CardHeader className="pb-2">
@@ -365,20 +499,130 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                       No overlay row for this node.
                     </p>
                   )}
-                  {selected.nodeType === "Zone" && (
-                    <Button variant="outline" className="w-full min-h-[44px]" asChild>
-                      <Link
-                        href={`${buildFieldReportHref(projectId)}&zoneId=${encodeURIComponent(selected.id)}`}
-                      >
-                        Field report in this zone
+                  {zoneDetailLoading && (
+                    <Skeleton className="h-20 w-full" data-testid="twin-zone-detail-loading" />
+                  )}
+                  {!zoneDetailLoading && zoneDetail && (
+                    <div
+                      className="space-y-3 border-t pt-3"
+                      data-testid="twin-zone-linked-artifacts"
+                    >
+                      <p className="text-xs text-muted-foreground">
+                        {zoneDetail.message}
+                      </p>
+                      <LinkedList
+                        title="Open RFIs"
+                        items={zoneDetail.openRfis}
+                        empty="No RFIs linked to this zone"
+                      />
+                      <LinkedList
+                        title="Daily reports"
+                        items={zoneDetail.dailyReports}
+                        empty="No daily reports linked"
+                      />
+                      <LinkedList
+                        title="Progress"
+                        items={zoneDetail.progressEntries}
+                        empty="No progress entries linked"
+                      />
+                      <LinkedList
+                        title="Schedule"
+                        items={zoneDetail.scheduleActivities}
+                        empty="No schedule activities linked"
+                      />
+                      <LinkedList
+                        title="Plan sheets"
+                        items={zoneDetail.planSheets ?? []}
+                        empty="No plan sheets linked"
+                        hrefForItem={(item) => {
+                          const sheet = item.title.split("—")[0]?.trim();
+                          return buildPlansSpecsHref(projectId, {
+                            sheet: sheet || undefined,
+                            view: "plans",
+                          });
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    {selected.nodeType === "Zone" && (
+                      <Button variant="outline" className="w-full min-h-[44px]" asChild>
+                        <Link
+                          href={`${buildFieldReportHref(projectId)}&zoneId=${encodeURIComponent(selected.id)}`}
+                        >
+                          Field report in this zone
+                        </Link>
+                      </Button>
+                    )}
+                    <Button variant="ghost" className="w-full min-h-[44px]" asChild>
+                      <Link href={buildSiteWalkHref(projectId)}>
+                        Open site walk
                       </Link>
                     </Button>
-                  )}
+                  </div>
                 </>
               )}
             </CardContent>
           </Card>
         </div>
+      )}
+    </div>
+  );
+}
+
+function LinkedList({
+  title,
+  items,
+  empty,
+  hrefForItem,
+}: {
+  title: string;
+  items: Array<{ id: string; title: string; status?: string | null; detail?: string | null }>;
+  empty: string;
+  hrefForItem?: (item: { id: string; title: string }) => string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+        {title}
+      </p>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">{empty}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {items.map((item) => {
+            const href = hrefForItem?.(item);
+            const body = (
+              <>
+                <span className="font-medium">{item.title}</span>
+                {item.status && (
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    · {item.status}
+                  </span>
+                )}
+                {item.detail && (
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {item.detail}
+                  </p>
+                )}
+              </>
+            );
+            return (
+              <li
+                key={item.id}
+                className="rounded-md border px-2 py-1.5 text-sm"
+              >
+                {href ? (
+                  <Link href={href} className="hover:text-amber-600 block">
+                    {body}
+                  </Link>
+                ) : (
+                  body
+                )}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

@@ -67,6 +67,8 @@ export interface OfflineDailyReport {
   photos?: OfflineDailyReportPhoto[];
   /** Optional zone / spatial node (twin fuel) — omit when skipped */
   spatialNodeId?: string;
+  /** Optional plan sheet for twin plan fuel */
+  planSheetId?: string;
   status: string;
   createdAt: string;
 }

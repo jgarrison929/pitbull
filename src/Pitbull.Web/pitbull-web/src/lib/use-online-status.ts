@@ -244,6 +244,7 @@ async function syncDailyReport(item: SyncQueueItem) {
           ...(report.spatialNodeId
             ? { SpatialNodeId: report.spatialNodeId }
             : {}),
+          ...(report.planSheetId ? { PlanSheetId: report.planSheetId } : {}),
         },
       }),
     }

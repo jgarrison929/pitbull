@@ -120,6 +120,9 @@ public class SpatialService : PmServiceBase, ISpatialService
         Guid projectId,
         string mode,
         DateTime? asOf = null,
+        Guid? storeyNodeId = null,
+        DateTime? from = null,
+        DateTime? to = null,
         CancellationToken cancellationToken = default)
     {
         var graphResult = await GetGraphAsync(projectId, cancellationToken);
@@ -139,44 +142,46 @@ public class SpatialService : PmServiceBase, ISpatialService
                 Nodes: Array.Empty<SpatialOverlayNodeDto>()));
         }
 
-        var zoneIds = graphResult.Value.Nodes
-            .Where(n => n.NodeType == nameof(SpatialNodeType.Zone))
-            .Select(n => n.Id)
-            .ToHashSet();
+        var nodeRefs = graphResult.Value.Nodes
+            .Select(n => new SpatialGraphFilter.NodeRef(n.Id, n.ParentNodeId, n.NodeType, n.Code))
+            .ToList();
+        var zoneIds = SpatialGraphFilter.ZoneIdsUnderStorey(nodeRefs, storeyNodeId);
 
-        var rfiCounts = await LoadOpenRfiCountsByZoneAsync(projectId, zoneIds, cancellationToken);
-        var progressByZone = await LoadProgressPercentByZoneAsync(projectId, zoneIds, asOfUtc, cancellationToken);
+        var rfiCounts = await LoadOpenRfiCountsByZoneAsync(projectId, zoneIds, from, to, cancellationToken);
+        var progressByZone = await LoadProgressPercentByZoneAsync(projectId, zoneIds, asOfUtc, from, to, cancellationToken);
         var scheduleByZone = await LoadScheduleSignalsByZoneAsync(projectId, zoneIds, asOfUtc, cancellationToken);
 
-        var inputs = graphResult.Value.Nodes.Select(n =>
-        {
-            int? openRfis = null;
-            decimal? progress = null;
-            bool? critical = null;
-            int? daysBehind = null;
-
-            if (n.NodeType == nameof(SpatialNodeType.Zone))
+        // Only emit overlay rows for in-scope zones (+ ancestors for tree context as Insufficient)
+        var inputs = graphResult.Value.Nodes
+            .Where(n => n.NodeType != nameof(SpatialNodeType.Zone) || zoneIds.Contains(n.Id))
+            .Select(n =>
             {
-                // Only populate when we have real zone-linked rows; missing stays null → InsufficientData
-                if (rfiCounts.TryGetValue(n.Id, out var c))
-                    openRfis = c;
-                if (progressByZone.TryGetValue(n.Id, out var p))
-                    progress = p;
-                if (scheduleByZone.TryGetValue(n.Id, out var s))
-                {
-                    critical = s.IsCritical;
-                    daysBehind = s.DaysBehind;
-                }
-            }
+                int? openRfis = null;
+                decimal? progress = null;
+                bool? critical = null;
+                int? daysBehind = null;
 
-            return new SpatialOverlayCalculator.OverlayInput(
-                n.Id,
-                n.NodeType,
-                OpenRfiCount: openRfis,
-                ProgressPercent: progress,
-                IsScheduleCritical: critical,
-                DaysBehind: daysBehind);
-        });
+                if (n.NodeType == nameof(SpatialNodeType.Zone) && zoneIds.Contains(n.Id))
+                {
+                    if (rfiCounts.TryGetValue(n.Id, out var c))
+                        openRfis = c;
+                    if (progressByZone.TryGetValue(n.Id, out var p))
+                        progress = p;
+                    if (scheduleByZone.TryGetValue(n.Id, out var s))
+                    {
+                        critical = s.IsCritical;
+                        daysBehind = s.DaysBehind;
+                    }
+                }
+
+                return new SpatialOverlayCalculator.OverlayInput(
+                    n.Id,
+                    n.NodeType,
+                    OpenRfiCount: openRfis,
+                    ProgressPercent: progress,
+                    IsScheduleCritical: critical,
+                    DaysBehind: daysBehind);
+            });
 
         var computed = SpatialOverlayCalculator.ComputeMany(mode, inputs);
         var dtos = computed.Select(c => new SpatialOverlayNodeDto(
@@ -188,12 +193,16 @@ public class SpatialService : PmServiceBase, ISpatialService
             c.Formula,
             c.InsufficientReason)).ToList();
 
+        var filterNote = storeyNodeId is null && from is null && to is null
+            ? ""
+            : " Filtered by storey and/or date window when provided.";
+
         return Result.Success(new SpatialOverlayResponse(
             HasGraph: true,
             Message: null,
             Mode: mode,
             AsOf: asOfDate,
-            TruthNote: "Bands marked with * are proxies or insufficient-data labels — never invent default-green health. Colors only appear when RFIs/progress/schedule rows carry SpatialNodeId (or PrimarySpatialNodeId).",
+            TruthNote: "Bands marked with * are proxies or insufficient-data labels — never invent default-green health. Colors only appear when RFIs/progress/schedule rows carry SpatialNodeId (or PrimarySpatialNodeId)." + filterNote,
             Nodes: dtos));
     }
 
@@ -220,6 +229,127 @@ public class SpatialService : PmServiceBase, ISpatialService
             .ToList();
 
         return Result.Success(zones);
+    }
+
+    public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(
+        Guid projectId,
+        Guid spatialNodeId,
+        CancellationToken cancellationToken = default)
+    {
+        var graphResult = await GetGraphAsync(projectId, cancellationToken);
+        if (!graphResult.IsSuccess)
+            return Result.Failure<SpatialZoneDetailResponse>(graphResult.Error ?? "Failed.", graphResult.ErrorCode);
+        if (!graphResult.Value!.HasGraph)
+            return Result.Failure<SpatialZoneDetailResponse>("No spatial graph for this project.", "NOT_FOUND");
+
+        var byId = graphResult.Value.Nodes.ToDictionary(n => n.Id);
+        if (!byId.TryGetValue(spatialNodeId, out var node))
+            return Result.Failure<SpatialZoneDetailResponse>("Spatial node not found on this project graph.", "NOT_FOUND");
+
+        var path = BuildPath(node, byId);
+
+        var rfis = await Db.Set<Rfi>()
+            .Where(r => r.ProjectId == projectId && !r.IsDeleted && r.SpatialNodeId == spatialNodeId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(25)
+            .Select(r => new SpatialLinkedItemDto(
+                r.Id,
+                "rfi",
+                $"RFI #{r.Number}: {r.Subject}",
+                r.Status.ToString(),
+                r.CreatedAt,
+                r.Priority.ToString()))
+            .ToListAsync(cancellationToken);
+
+        var reports = await Db.Set<PmDailyReport>()
+            .Where(d => d.ProjectId == projectId && !d.IsDeleted && d.SpatialNodeId == spatialNodeId)
+            .OrderByDescending(d => d.ReportDate)
+            .Take(25)
+            .Select(d => new SpatialLinkedItemDto(
+                d.Id,
+                "daily_report",
+                d.Title ?? $"Daily report {d.ReportDate:yyyy-MM-dd}",
+                d.Status.ToString(),
+                d.ReportDate,
+                d.WorkNarrative))
+            .ToListAsync(cancellationToken);
+
+        var progress = await (
+            from pe in Db.Set<PmProgressEntry>()
+            join ap in Db.Set<PmActivityProgress>() on pe.Id equals ap.ProgressEntryId into aps
+            from ap in aps.DefaultIfEmpty()
+            where pe.ProjectId == projectId
+                  && !pe.IsDeleted
+                  && (pe.SpatialNodeId == spatialNodeId
+                      || (ap != null && !ap.IsDeleted && ap.SpatialNodeId == spatialNodeId))
+            orderby pe.ProgressDate descending
+            select new { pe, ap }
+        ).Take(25).ToListAsync(cancellationToken);
+
+        var progressDtos = progress
+            .GroupBy(x => x.pe.Id)
+            .Select(g =>
+            {
+                var pe = g.First().pe;
+                var pct = g.Where(x => x.ap != null).Select(x => (decimal?)x.ap!.PercentComplete).FirstOrDefault();
+                return new SpatialLinkedItemDto(
+                    pe.Id,
+                    "progress",
+                    $"Progress {pe.ProgressDate:yyyy-MM-dd}",
+                    pe.Status.ToString(),
+                    pe.ProgressDate,
+                    pct is null ? null : $"{pct:0}% complete*");
+            })
+            .ToList();
+
+        var activities = await Db.Set<PmScheduleActivity>()
+            .Where(a => a.ProjectId == projectId && !a.IsDeleted && a.PrimarySpatialNodeId == spatialNodeId)
+            .OrderBy(a => a.SortOrder)
+            .Take(25)
+            .Select(a => new SpatialLinkedItemDto(
+                a.Id,
+                "schedule_activity",
+                a.Name,
+                a.Status.ToString(),
+                a.PlannedFinish,
+                a.IsCritical ? "Critical path*" : null))
+            .ToListAsync(cancellationToken);
+
+        var planLinks = await (
+            from link in Db.Set<SpatialPlanLink>()
+            join sheet in Db.Set<PmPlanSheet>() on link.PlanSheetId equals sheet.Id
+            where link.ProjectId == projectId
+                  && !link.IsDeleted
+                  && !sheet.IsDeleted
+                  && link.SpatialNodeId == spatialNodeId
+            orderby sheet.DrawingNumber
+            select new SpatialLinkedItemDto(
+                sheet.Id,
+                "plan_sheet",
+                $"{sheet.DrawingNumber} — {sheet.Title}",
+                sheet.CurrentRevision,
+                null,
+                sheet.Discipline))
+            .Take(25)
+            .ToListAsync(cancellationToken);
+
+        var anyLinks = rfis.Count + reports.Count + progressDtos.Count + activities.Count + planLinks.Count > 0;
+        var message = anyLinks
+            ? "Linked artifacts for this zone (SpatialNodeId / PrimarySpatialNodeId / plan links)."
+            : "No linked RFIs, daily reports, progress, schedule, or plan sheets for this zone yet — not empty green health.";
+
+        return Result.Success(new SpatialZoneDetailResponse(
+            spatialNodeId,
+            node.Code,
+            node.Name,
+            node.NodeType,
+            path,
+            message,
+            rfis,
+            reports,
+            progressDtos,
+            activities,
+            planLinks));
     }
 
     /// <summary>
@@ -366,23 +496,56 @@ public class SpatialService : PmServiceBase, ISpatialService
             CreatedBy = "system-seed"
         });
 
+        // Optional plan sheet link for L1-EAST when a sheet exists on the project
+        var sheetId = await Db.Set<PmPlanSheet>()
+            .Where(s => s.ProjectId == projectId && !s.IsDeleted)
+            .Select(s => s.Id)
+            .FirstOrDefaultAsync(ct);
+        if (sheetId != Guid.Empty)
+        {
+            var hasLink = await Db.Set<SpatialPlanLink>()
+                .AnyAsync(l => l.SpatialNodeId == eastId && l.PlanSheetId == sheetId && !l.IsDeleted, ct);
+            if (!hasLink)
+            {
+                Db.Set<SpatialPlanLink>().Add(new SpatialPlanLink
+                {
+                    CompanyId = companyId,
+                    ProjectId = projectId,
+                    SpatialNodeId = eastId,
+                    PlanSheetId = sheetId,
+                    Notes = "Twin seed plan link",
+                    CreatedBy = "system-seed"
+                });
+            }
+        }
+
         await Db.SaveChangesAsync(ct);
     }
 
     async Task<Dictionary<Guid, int>> LoadOpenRfiCountsByZoneAsync(
         Guid projectId,
         HashSet<Guid> zoneIds,
+        DateTime? fromUtc,
+        DateTime? toUtc,
         CancellationToken ct)
     {
         if (zoneIds.Count == 0) return new Dictionary<Guid, int>();
 
-        // Open + Answered count as open work; Closed does not
-        var rows = await Db.Set<Rfi>()
+        var q = Db.Set<Rfi>()
             .Where(r => r.ProjectId == projectId
                         && !r.IsDeleted
                         && r.SpatialNodeId != null
                         && r.Status != RfiStatus.Closed
-                        && zoneIds.Contains(r.SpatialNodeId.Value))
+                        && zoneIds.Contains(r.SpatialNodeId.Value));
+        if (fromUtc is DateTime f)
+            q = q.Where(r => r.CreatedAt >= f.ToUniversalTime().Date);
+        if (toUtc is DateTime t)
+        {
+            var end = t.ToUniversalTime().Date.AddDays(1);
+            q = q.Where(r => r.CreatedAt < end);
+        }
+
+        var rows = await q
             .GroupBy(r => r.SpatialNodeId!.Value)
             .Select(g => new { ZoneId = g.Key, Count = g.Count() })
             .ToListAsync(ct);
@@ -394,12 +557,16 @@ public class SpatialService : PmServiceBase, ISpatialService
         Guid projectId,
         HashSet<Guid> zoneIds,
         DateTime asOfUtc,
+        DateTime? fromUtc,
+        DateTime? toUtc,
         CancellationToken ct)
     {
         if (zoneIds.Count == 0) return new Dictionary<Guid, decimal>();
 
-        // Prefer entry-level SpatialNodeId; fall back to activity-progress SpatialNodeId
         var asOfDate = asOfUtc.Date;
+        var fromDate = fromUtc?.ToUniversalTime().Date;
+        var toDate = toUtc?.ToUniversalTime().Date;
+
         var entryLinked = await (
             from pe in Db.Set<PmProgressEntry>()
             join ap in Db.Set<PmActivityProgress>() on pe.Id equals ap.ProgressEntryId
@@ -409,6 +576,8 @@ public class SpatialService : PmServiceBase, ISpatialService
                   && pe.SpatialNodeId != null
                   && zoneIds.Contains(pe.SpatialNodeId.Value)
                   && pe.ProgressDate <= asOfDate
+                  && (fromDate == null || pe.ProgressDate >= fromDate)
+                  && (toDate == null || pe.ProgressDate <= toDate)
             group ap by pe.SpatialNodeId!.Value
             into g
             select new { ZoneId = g.Key, Avg = g.Average(x => x.PercentComplete) }
@@ -425,6 +594,8 @@ public class SpatialService : PmServiceBase, ISpatialService
                   && ap.SpatialNodeId != null
                   && zoneIds.Contains(ap.SpatialNodeId.Value)
                   && pe.ProgressDate <= asOfDate
+                  && (fromDate == null || pe.ProgressDate >= fromDate)
+                  && (toDate == null || pe.ProgressDate <= toDate)
             group ap by ap.SpatialNodeId!.Value
             into g
             select new { ZoneId = g.Key, Avg = g.Average(x => x.PercentComplete) }
