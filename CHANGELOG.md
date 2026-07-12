@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-07-12T14:48:11-07:00
+
+### Added
+
+- **Mobile list virtualization** - project RFIs mobile card list uses pure windowing (`list-virtualization.ts`) so only a viewport of rows mounts; server `pageSize` unchanged. Vitest covers 200+ row windows.
+
+### Notes
+
+- Version **2.13.0** (minor roll after 2.12.9).
+
 ## [2.12.9] - 2026-07-12T14:47:15-07:00
 
 ### Added

@@ -10,7 +10,7 @@ services:
       context: .
       dockerfile: src/Pitbull.Api/Dockerfile
       args:
-        - VERSION=${APP_VERSION:-2.12.9}
+        - VERSION=${APP_VERSION:-2.13.0}
         - COMMIT_HASH=${COMMIT_HASH:-unknown}
         - BUILD_DATE=${BUILD_DATE:-}
     environment:
@@ -38,7 +38,7 @@ services:
       args:
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
         - NEXT_PUBLIC_DISABLE_REGISTRATION=${NEXT_PUBLIC_DISABLE_REGISTRATION:-false}
-        - NEXT_PUBLIC_APP_VERSION=${APP_VERSION:-2.12.9}
+        - NEXT_PUBLIC_APP_VERSION=${APP_VERSION:-2.13.0}
         - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}
         - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
         - COMMIT_HASH=${COMMIT_HASH:-unknown}

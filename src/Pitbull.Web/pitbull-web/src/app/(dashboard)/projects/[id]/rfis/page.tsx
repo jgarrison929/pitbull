@@ -1,9 +1,13 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import api, { ApiError, uploadFiles } from "@/lib/api";
 import { isValidGuid, cn } from "@/lib/utils";
+import {
+  getVirtualWindow,
+  sliceVirtualItems,
+} from "@/lib/list-virtualization";
 import type {
   CreateRfiCommand,
   Rfi,
@@ -149,6 +153,11 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
   const isProjectIdValid = isValidGuid(projectId);
 
   const [rfis, setRfis] = useState<Rfi[]>([]);
+  /** Mobile list windowing (2.13.0) — server pageSize unchanged. */
+  const [mobileScrollTop, setMobileScrollTop] = useState(0);
+  const mobileListRef = useRef<HTMLDivElement | null>(null);
+  const MOBILE_RFI_ROW_PX = 168;
+  const MOBILE_RFI_VIEWPORT_PX = 420;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -213,6 +222,22 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
       );
     });
   }, [rfis, search, statusFilter, priorityFilter]);
+
+  const mobileWindow = useMemo(
+    () =>
+      getVirtualWindow(
+        filtered.length,
+        MOBILE_RFI_ROW_PX,
+        mobileScrollTop,
+        MOBILE_RFI_VIEWPORT_PX,
+        3
+      ),
+    [filtered.length, mobileScrollTop]
+  );
+  const mobileVisibleRfis = useMemo(
+    () => sliceVirtualItems(filtered, mobileWindow),
+    [filtered, mobileWindow]
+  );
 
   function openCreate() {
     setEditing(false);
@@ -398,7 +423,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
             <p className="text-sm text-muted-foreground">Loading RFIs...</p>
           ) : (
             <>
-              {/* Mobile card layout */}
+              {/* Mobile card layout — virtualized window (2.13.0); API pageSize unchanged */}
               <div className="space-y-3 sm:hidden">
                 {filtered.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-4 text-center">
@@ -408,50 +433,91 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
                     <Button className="mt-3" size="sm" onClick={openCreate}>Create RFI</Button>
                   </div>
                 ) : (
-                  filtered.map((rfi) => (
-                    <div key={rfi.id} className={cn("rounded-lg border p-4 space-y-2", isOverdue(rfi) && "border-red-300 dark:border-red-800")}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">RFI-{String(rfi.number).padStart(3, "0")}</span>
-                        <div className="flex items-center gap-1.5">
-                          {isOverdue(rfi) && (
-                            <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs">Overdue</Badge>
-                          )}
-                          <Badge className={statusBadgeClass(rfi.status)}>{statusLabel(rfi.status)}</Badge>
-                        </div>
+                  <div
+                    ref={mobileListRef}
+                    data-testid="project-rfis-mobile-virtual-list"
+                    className="overflow-y-auto overscroll-contain"
+                    style={{ maxHeight: MOBILE_RFI_VIEWPORT_PX }}
+                    onScroll={(e) => setMobileScrollTop(e.currentTarget.scrollTop)}
+                  >
+                    <div style={{ height: mobileWindow.totalHeight, position: "relative" }}>
+                      <div style={{ height: mobileWindow.paddingTop }} />
+                      <div className="space-y-3">
+                        {mobileVisibleRfis.map((rfi) => (
+                          <div
+                            key={rfi.id}
+                            className={cn(
+                              "rounded-lg border p-4 space-y-2",
+                              isOverdue(rfi) && "border-red-300 dark:border-red-800"
+                            )}
+                            style={{ minHeight: MOBILE_RFI_ROW_PX - 12 }}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-medium">
+                                RFI-{String(rfi.number).padStart(3, "0")}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                {isOverdue(rfi) && (
+                                  <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 text-xs">
+                                    Overdue
+                                  </Badge>
+                                )}
+                                <Badge className={statusBadgeClass(rfi.status)}>
+                                  {statusLabel(rfi.status)}
+                                </Badge>
+                              </div>
+                            </div>
+                            <p className="text-sm">{rfi.subject}</p>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                              <Badge className={priorityBadgeClass(rfi.priority) + " text-xs"}>
+                                {priorityLabel(rfi.priority)}
+                              </Badge>
+                              {rfi.status === 0 && (
+                                <span
+                                  className={
+                                    daysOpen(rfi.createdAt) > 14
+                                      ? "text-red-600 font-medium"
+                                      : ""
+                                  }
+                                >
+                                  {daysOpen(rfi.createdAt)}d open
+                                </span>
+                              )}
+                              {rfi.ballInCourtName && (
+                                <span>Ball in Court: {rfi.ballInCourtName}</span>
+                              )}
+                              <span>Due: {formatDate(rfi.dueDate)}</span>
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                              <Button asChild variant="outline" size="sm">
+                                <Link href={`/rfis/${rfi.id}?projectId=${projectId}`}>
+                                  View
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEdit(rfi)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setPendingDelete(rfi);
+                                  setDeleteOpen(true);
+                                }}
+                              >
+                                Delete
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-sm">{rfi.subject}</p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                        <Badge className={priorityBadgeClass(rfi.priority) + " text-xs"}>{priorityLabel(rfi.priority)}</Badge>
-                        {rfi.status === 0 && (
-                          <span className={daysOpen(rfi.createdAt) > 14 ? "text-red-600 font-medium" : ""}>
-                            {daysOpen(rfi.createdAt)}d open
-                          </span>
-                        )}
-                        {rfi.ballInCourtName && (
-                          <span>Ball in Court: {rfi.ballInCourtName}</span>
-                        )}
-                        <span>Due: {formatDate(rfi.dueDate)}</span>
-                      </div>
-                      <div className="flex gap-2 pt-1">
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/rfis/${rfi.id}?projectId=${projectId}`}>View</Link>
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => openEdit(rfi)}>
-                          Edit
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setPendingDelete(rfi);
-                            setDeleteOpen(true);
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                      <div style={{ height: mobileWindow.paddingBottom }} />
                     </div>
-                  ))
+                  </div>
                 )}
               </div>
 
