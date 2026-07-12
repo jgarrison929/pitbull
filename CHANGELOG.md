@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-07-12T02:20:00-07:00
+
+### Added
+
+- **Jobsite Digital Twin MVP (major)** — zones-first spatial graph, truthful overlays (RFI/progress/schedule with linked fuel), zone detail panel, storey/as-of filters, plan?zone links, schematic board, Spatial.View/Manage permissions, optional mobile zone+plan fuel, feature flag. Ships the MVP definition of done from `docs/pitbull-digital-twin-spec.md` §3 without inventing green health or portfolio % complete.
+- Version **3.0.0**
+
+### Changed
+
+- Product minor?major for twin as a first-class workspace surface (path from 2.8.4–2.9.2 patches).
+
 ## [2.9.2] - 2026-07-12T02:05:00-07:00
 
 ### Added
