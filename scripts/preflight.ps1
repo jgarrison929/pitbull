@@ -77,6 +77,15 @@ if (-not $SkipVersion) {
       Ok "VERSION = $v"
       Assert-FileContains "src/Pitbull.Web/pitbull-web/package.json" "`"version`": `"$v`"" "package.json"
       Assert-FileContains "src/Pitbull.Web/pitbull-web/package-lock.json" "`"version`": `"$v`"" "package-lock.json (root)"
+      # Guard: never full-string Replace product VERSION through package-lock (corrupts deps like is-core-module).
+      $lockPath = Join-Path $RepoRoot "src/Pitbull.Web/pitbull-web/package-lock.json"
+      $lockText = Get-Content $lockPath -Raw
+      # Real is-core-module tops out at 2.16.x on npm — 2.17+ means VERSION stamp leaked into lockfile.
+      if ($lockText -match 'is-core-module/-/is-core-module-2\.1[7-9]\.') {
+        Fail "package-lock.json has corrupted is-core-module (product VERSION replace leaked into deps). Fix to real npm version (e.g. 2.16.2); never global-replace VERSION in package-lock."
+      } else {
+        Ok "package-lock is-core-module not product-VERSION-corrupted"
+      }
       Assert-FileContains "src/Pitbull.Api/Pitbull.Api.csproj" "<Version>$v</Version>" "API csproj Version"
       Assert-FileContains "src/Pitbull.Api/Pitbull.Api.csproj" "<AssemblyVersion>$v.0</AssemblyVersion>" "API AssemblyVersion"
       Assert-FileContains "src/Pitbull.Api/Pitbull.Api.csproj" "<FileVersion>$v.0</FileVersion>" "API FileVersion"
