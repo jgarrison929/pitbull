@@ -53,7 +53,8 @@ public class ModuleSettingsController(
         DefaultNumberingFormat: s.DefaultNumberingFormat,
         RequireBudgetBeforeActivation: s.RequireBudgetBeforeActivation,
         AutoCreatePhases: s.AutoCreatePhases,
-        DefaultRetentionPercent: s.DefaultRetentionPercent);
+        DefaultRetentionPercent: s.DefaultRetentionPercent,
+        RequireSpatialOnProgress: s.RequireSpatialOnProgress);
 
     private static ContractSettingsDto MapContractSettings(ContractSettings s) => new(
         DefaultRetainagePercent: s.DefaultRetainagePercent,

@@ -73,6 +73,7 @@ public class ProjectSettingsController(
         settings.RequireBudgetBeforeActivation = request.RequireBudgetBeforeActivation;
         settings.AutoCreatePhases = request.AutoCreatePhases;
         settings.DefaultRetentionPercent = request.DefaultRetentionPercent;
+        settings.RequireSpatialOnProgress = request.RequireSpatialOnProgress;
 
         await db.SaveChangesAsync();
 
@@ -83,17 +84,20 @@ public class ProjectSettingsController(
         DefaultNumberingFormat: s.DefaultNumberingFormat,
         RequireBudgetBeforeActivation: s.RequireBudgetBeforeActivation,
         AutoCreatePhases: s.AutoCreatePhases,
-        DefaultRetentionPercent: s.DefaultRetentionPercent);
+        DefaultRetentionPercent: s.DefaultRetentionPercent,
+        RequireSpatialOnProgress: s.RequireSpatialOnProgress);
 }
 
 public record ProjectSettingsDto(
     string DefaultNumberingFormat,
     bool RequireBudgetBeforeActivation,
     bool AutoCreatePhases,
-    decimal DefaultRetentionPercent);
+    decimal DefaultRetentionPercent,
+    bool RequireSpatialOnProgress);
 
 public record UpdateProjectSettingsRequest(
     string DefaultNumberingFormat,
     bool RequireBudgetBeforeActivation,
     bool AutoCreatePhases,
-    decimal DefaultRetentionPercent);
+    decimal DefaultRetentionPercent,
+    bool RequireSpatialOnProgress = false);

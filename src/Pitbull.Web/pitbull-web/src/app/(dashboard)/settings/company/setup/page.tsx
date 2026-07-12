@@ -93,6 +93,7 @@ const DEFAULT_PROJECT_SETTINGS: ProjectSettingsData = {
   requireBudgetBeforeActivation: false,
   autoCreatePhases: true,
   defaultRetentionPercent: 10,
+  requireSpatialOnProgress: false,
 };
 
 const DEFAULT_CONTRACT_SETTINGS: ContractSettingsData = {

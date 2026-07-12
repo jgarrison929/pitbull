@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.3] - 2026-07-12T16:30:25-07:00
+
+### Added
+
+- **RequireSpatialOnProgress schema** — company `ProjectSettings` column `ProjRequireSpatialOnProgress` (default **false**). Exposed on project settings GET/PUT and module settings aggregate. Optional; field enforcement is later 2.18.x. Not an executive KPI.
+
+### Notes
+
+- Version **2.18.3**. Migration `AddRequireSpatialOnProgress`. Next: PM setting UI 2.18.4.
+
 ## [2.18.2] - 2026-07-12T16:26:34-07:00
 
 ### Added

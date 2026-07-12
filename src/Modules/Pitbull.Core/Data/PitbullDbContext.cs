@@ -325,6 +325,10 @@ public class PitbullDbContext(
                     .HasColumnName("ProjDefaultRetentionPercent")
                     .HasPrecision(5, 2)
                     .HasDefaultValue(10m);
+
+                ps.Property(p => p.RequireSpatialOnProgress)
+                    .HasColumnName("ProjRequireSpatialOnProgress")
+                    .HasDefaultValue(false);
             });
 
             // ContractSettings as owned entity (stored as columns on companies table)
