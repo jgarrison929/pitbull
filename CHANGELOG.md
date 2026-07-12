@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.1] - 2026-07-12T15:27:49-07:00
+
+### Added
+
+- **PostHog `twin_zone_drill` timing** - diagnostic event with `duration_ms` + `pins_empty` when a twin zone is drilled (not a health KPI).
+
+### Notes
+
+- Version **2.16.1**
 ## [2.16.0] - 2026-07-12T15:25:17-07:00
 
 ### Added
