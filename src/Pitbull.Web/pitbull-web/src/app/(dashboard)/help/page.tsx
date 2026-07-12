@@ -19,6 +19,7 @@ import {
   Smartphone,
   MapPin,
   WifiOff,
+  Boxes,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -27,6 +28,11 @@ import {
   mobileFaqItems,
   type FieldWorkflowCard,
 } from "@/lib/help-field-workflows";
+import {
+  TWIN_TRUTH_LEGEND_SECTION_TITLE,
+  twinTruthBands,
+  twinTruthLegendBullets,
+} from "@/lib/help-twin-overlays";
 
 const fieldWorkflowIcons: Record<FieldWorkflowCard["icon"], LucideIcon> = {
   "file-text": FileText,
@@ -270,6 +276,35 @@ export default function HelpPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Twin overlay truth legend (2.15.8) — never all-green default */}
+      <div data-testid="help-twin-truth-legend">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <Boxes className="h-5 w-5 text-amber-500" />
+          {TWIN_TRUTH_LEGEND_SECTION_TITLE}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          How to read Digital Twin overlay colors honestly. Empty or gray is not
+          all-clear and is never painted green by default.
+        </p>
+        <Card>
+          <CardContent className="pt-5 space-y-4">
+            <ul className="space-y-2">
+              {twinTruthBands.map((b) => (
+                <li key={b.id} className="text-sm">
+                  <span className="font-medium">{b.band}: </span>
+                  <span className="text-muted-foreground">{b.meaning}</span>
+                </li>
+              ))}
+            </ul>
+            <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+              {twinTruthLegendBullets.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
       </div>
 
       {/* FAQ */}
