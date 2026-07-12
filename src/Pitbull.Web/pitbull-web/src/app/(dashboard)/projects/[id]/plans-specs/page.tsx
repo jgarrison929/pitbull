@@ -9,6 +9,7 @@ import {
   PLANS_ADMIN_BLOCK_CLASS,
   PLANS_ADMIN_CTA_CLASS,
 } from "@/lib/plans-specs-mobile";
+import { formatPlanRevisionLabel } from "@/lib/plan-revision-label";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -658,8 +659,8 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {DISCIPLINE_LABELS[viewingPlan.discipline] ?? viewingPlan.discipline}
-                  {viewingPlan.revision
-                    ? ` · ${REVISION_LABELS[viewingPlan.revision] ?? viewingPlan.revision}`
+                  {formatPlanRevisionLabel(REVISION_LABELS[viewingPlan.revision] ?? viewingPlan.revision)
+                    ? ` · ${formatPlanRevisionLabel(REVISION_LABELS[viewingPlan.revision] ?? viewingPlan.revision)}`
                     : ""}
                   {viewingPlan.sheetNumber ? ` · Sheet ${viewingPlan.sheetNumber}` : ""}
                 </p>
