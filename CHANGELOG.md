@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.3] - 2026-07-12T15:54:39-07:00
+
+### Changed
+
+- **Overlay query batch perf** - RFI/progress/schedule zone-link fuel loads run in parallel via `Task.WhenAll` (GroupBy SQL; no per-zone N+1).
+
+### Notes
+
+- Version **2.17.3**
 ## [2.17.2] - 2026-07-12T15:52:53-07:00
 
 ### Added
