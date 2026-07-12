@@ -68,6 +68,7 @@ import {
   toggleFieldActivity,
   toggleTruckCondition,
 } from "@/lib/pour-field";
+import { MOBILE_FIELD_WIZARD_ACTION_BAR } from "@/components/layout/mobile-shell";
 import {
   ArrowLeft,
   ArrowRight,
@@ -1136,8 +1137,8 @@ export default function MobileDailyReportPage() {
           )}
         </div>
 
-        {/* Bottom bar */}
-        <div className="fixed bottom-16 sm:bottom-0 left-0 right-0 bg-background border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))] z-20">
+        {/* Bottom bar — nav hidden on this route; pin CTAs above home indicator only */}
+        <div className={MOBILE_FIELD_WIZARD_ACTION_BAR}>
           <div className="flex gap-3">
             {stepIndex > 0 && (
               <Button

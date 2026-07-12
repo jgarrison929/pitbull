@@ -3,7 +3,7 @@
 
 // Bump when shipping shell changes so activate() drops stale precache (also
 // keyed indirectly by VersionUpdateGuard hard-reload on product version).
-const CACHE_VERSION = "v2.12.1";
+const CACHE_VERSION = "v2.12.3";
 const STATIC_CACHE = `pitbull-static-${CACHE_VERSION}`;
 const API_CACHE = `pitbull-api-${CACHE_VERSION}`;
 
@@ -12,8 +12,13 @@ const PERIODIC_SYNC_TAG = "pitbull-periodic-sync";
 const DB_NAME = "pitbull-offline";
 const SYNC_QUEUE_STORE = "syncQueue";
 
-// App shell assets to precache
-const PRECACHE_URLS = ["/", "/time-tracking/mobile", "/offline.html"];
+// App shell assets to precache (field report route for offline PWA shell)
+const PRECACHE_URLS = [
+  "/",
+  "/time-tracking/mobile",
+  "/daily-reports/mobile",
+  "/offline.html",
+];
 
 // API routes to cache for offline reference data
 const CACHEABLE_API_PATTERNS = [

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { KeyboardShortcutsProvider } from "@/contexts/keyboard-shortcuts-context";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -17,6 +17,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { DemoBanner } from "@/components/layout/demo-banner";
 import {
   DASHBOARD_CONTENT_COLUMN,
+  isFieldReportMobilePath,
   MOBILE_MAIN_BOTTOM_CLEARANCE,
 } from "@/components/layout/mobile-shell";
 
@@ -27,6 +28,9 @@ export default function DashboardLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  // Field report wizard owns the bottom chrome — hide nav + FAB to avoid double bars.
+  const fieldReportWizard = isFieldReportMobilePath(pathname);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -64,12 +68,12 @@ export default function DashboardLayout({
       </div>
       <KeyboardShortcutsHelp />
       <CommandPalette />
-      <QuickActionFAB />
+      {!fieldReportWizard && <QuickActionFAB />}
       <FeedbackWidget />
       <WelcomeTour />
 
       <AiChatPanel />
-      <MobileBottomNav />
+      {!fieldReportWizard && <MobileBottomNav />}
     </KeyboardShortcutsProvider>
   );
 }

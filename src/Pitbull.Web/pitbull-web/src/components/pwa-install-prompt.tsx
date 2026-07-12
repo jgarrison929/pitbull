@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MOBILE_PWA_PROMPT_POSITION } from "@/components/layout/mobile-shell";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -54,7 +55,7 @@ export function PwaInstallPrompt() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md animate-in slide-in-from-bottom-4 fade-in-50 duration-300">
+    <div className={MOBILE_PWA_PROMPT_POSITION}>
       <div className="flex items-center gap-3 rounded-lg border bg-background p-4 shadow-lg">
         <Download className="h-5 w-5 shrink-0 text-amber-500" />
         <div className="flex-1 min-w-0">

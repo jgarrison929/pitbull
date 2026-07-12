@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { MOBILE_FIELD_WIZARD_ACTION_BAR } from "@/components/layout/mobile-shell";
 
 export default function MobileDailyReportLoading() {
   return (
@@ -11,7 +12,7 @@ export default function MobileDailyReportLoading() {
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-32 w-full" />
       </div>
-      <div className="fixed bottom-16 left-0 right-0 p-4">
+      <div className={MOBILE_FIELD_WIZARD_ACTION_BAR}>
         <Skeleton className="h-12 w-full" />
       </div>
     </div>
