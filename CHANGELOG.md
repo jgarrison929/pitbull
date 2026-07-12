@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.8] - 2026-07-12T15:44:29-07:00
+
+### Added
+
+- **Model conversion error + retry UX** - fail-conversion with clear error copy; retry-conversion Failed→Processing (still not ready). Twin UI shows error text + Retry button.
+
+### Notes
+
+- Version **2.16.8**
 ## [2.16.7] - 2026-07-12T15:41:59-07:00
 
 ### Added

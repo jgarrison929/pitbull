@@ -2953,4 +2953,24 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
     [ProducesResponseType(typeof(ModelAssetDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> SetActiveModelAsset(Guid projectId, Guid modelAssetId)
         => HandleResult(await spatialService.SetActiveModelAssetAsync(projectId, modelAssetId));
+
+    /// <summary>Mark conversion failed with clear error copy (2.16.8).</summary>
+    [HttpPost("model-assets/{modelAssetId:guid}/fail-conversion")]
+    [Authorize(Policy = "Spatial.Manage")]
+    [ProducesResponseType(typeof(ModelAssetDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> FailModelConversion(
+        Guid projectId,
+        Guid modelAssetId,
+        [FromBody] FailModelConversionRequest? body = null)
+        => HandleResult(await spatialService.FailModelConversionAsync(
+            projectId, modelAssetId, body?.ErrorMessage));
+
+    /// <summary>Retry failed conversion → Processing stub (2.16.8). Still not ready.</summary>
+    [HttpPost("model-assets/{modelAssetId:guid}/retry-conversion")]
+    [Authorize(Policy = "Spatial.Manage")]
+    [ProducesResponseType(typeof(ModelAssetDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RetryModelConversion(Guid projectId, Guid modelAssetId)
+        => HandleResult(await spatialService.RetryModelConversionAsync(projectId, modelAssetId));
 }
+
+public sealed record FailModelConversionRequest(string? ErrorMessage);
