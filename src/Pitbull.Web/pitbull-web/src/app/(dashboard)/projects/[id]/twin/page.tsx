@@ -32,6 +32,7 @@ import {
   type TwinPhotoPinDto,
   type TwinPhotoPinsResponse,
 } from "@/lib/twin-photo-pins";
+import { resolveTwinOverlayPollMs } from "@/lib/twin-overlay-poll";
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -142,9 +143,37 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     }
   }, [projectId, valid, mode, storeyFilter, asOfDate]);
 
+  /** Quiet overlay refresh for poll — no full-page loading flash. */
+  const refreshOverlays = useCallback(async () => {
+    if (!valid) return;
+    try {
+      const overlayQs = new URLSearchParams({ mode });
+      if (asOfDate) overlayQs.set("asOf", asOfDate);
+      if (storeyFilter && storeyFilter !== "__all__")
+        overlayQs.set("storeyNodeId", storeyFilter);
+      const o = await api<SpatialOverlayResponse>(
+        `/api/projects/${projectId}/spatial/overlays?${overlayQs.toString()}`
+      );
+      setOverlay(o);
+    } catch {
+      // keep last overlay; poll failures stay silent
+    }
+  }, [projectId, valid, mode, storeyFilter, asOfDate]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  // 2.15.6: configurable overlay poll (default 30s; NEXT_PUBLIC_TWIN_OVERLAY_POLL_MS)
+  useEffect(() => {
+    if (!valid) return;
+    const ms = resolveTwinOverlayPollMs();
+    if (ms <= 0) return;
+    const id = window.setInterval(() => {
+      void refreshOverlays();
+    }, ms);
+    return () => window.clearInterval(id);
+  }, [valid, refreshOverlays]);
 
   useEffect(() => {
     if (!valid) return;

@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.6] - 2026-07-12T15:13:50-07:00
+
+### Added
+
+- **Twin overlay poll interval** - default 30s via `resolveTwinOverlayPollMs`; override with `NEXT_PUBLIC_TWIN_OVERLAY_POLL_MS` (`0`/`off` disables).
+
+### Notes
+
+- Version **2.15.6**
 ## [2.15.5] - 2026-07-12T15:11:46-07:00
 
 ### Changed
