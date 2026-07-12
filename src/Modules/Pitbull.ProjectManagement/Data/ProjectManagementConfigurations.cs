@@ -1509,3 +1509,26 @@ public class SpatialNodeConfiguration : IEntityTypeConfiguration<SpatialNode>
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class SpatialPlanLinkConfiguration : IEntityTypeConfiguration<SpatialPlanLink>
+{
+    public void Configure(EntityTypeBuilder<SpatialPlanLink> builder)
+    {
+        builder.ConfigureBase("pm_spatial_plan_links");
+        builder.Property(x => x.Notes).HasMaxLength(500);
+        builder.HasIndex(x => new { x.SpatialNodeId, x.PlanSheetId }).IsUnique();
+        builder.HasIndex(x => new { x.ProjectId, x.PlanSheetId });
+        builder.HasOne<SpatialNode>()
+            .WithMany()
+            .HasForeignKey(x => x.SpatialNodeId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<PmPlanSheet>()
+            .WithMany()
+            .HasForeignKey(x => x.PlanSheetId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

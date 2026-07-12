@@ -66,4 +66,5 @@ export interface SpatialZoneDetailResponse {
   dailyReports: SpatialLinkedItemDto[];
   progressEntries: SpatialLinkedItemDto[];
   scheduleActivities: SpatialLinkedItemDto[];
+  planSheets: SpatialLinkedItemDto[];
 }
