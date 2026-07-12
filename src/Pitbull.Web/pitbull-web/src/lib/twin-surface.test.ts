@@ -30,6 +30,7 @@ describe("twin surface static structure", () => {
     expect(src).toContain("twin-loading-skeleton");
     expect(src).toContain("twin-model-assets");
     expect(src).toContain("twin-schematic-zones");
+    expect(src).toContain("twin-mobile-controls");
     expect(src).toContain("twin-schematic-board");
     expect(src).toMatch(/No spatial graph yet|No published spatial graph|Seed demo zones/i);
   });

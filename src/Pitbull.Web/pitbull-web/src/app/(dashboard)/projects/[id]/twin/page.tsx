@@ -441,12 +441,15 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             <p className="text-sm text-muted-foreground truncate">{projectName}</p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
+        <div
+          className="flex flex-col sm:flex-row flex-wrap gap-2 items-stretch sm:items-center w-full sm:w-auto"
+          data-testid="twin-mobile-controls"
+        >
           <Select
             value={mode}
             onValueChange={(v) => setMode(v as OverlayMode)}
           >
-            <SelectTrigger className="min-h-[44px] w-[160px]" data-testid="twin-overlay-mode">
+            <SelectTrigger className="min-h-[44px] w-full sm:w-[160px]" data-testid="twin-overlay-mode">
               <SelectValue placeholder="Overlay" />
             </SelectTrigger>
             <SelectContent>
@@ -456,7 +459,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             </SelectContent>
           </Select>
           <Select value={storeyFilter} onValueChange={setStoreyFilter}>
-            <SelectTrigger className="min-h-[44px] w-[150px]" data-testid="twin-storey-filter">
+            <SelectTrigger className="min-h-[44px] w-full sm:w-[150px]" data-testid="twin-storey-filter">
               <SelectValue placeholder="Storey" />
             </SelectTrigger>
             <SelectContent>
@@ -472,13 +475,13 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             type="date"
             value={asOfDate}
             onChange={(e) => setAsOfDate(e.target.value)}
-            className="min-h-[44px] rounded-md border bg-background px-2 text-sm"
+            className="min-h-[44px] w-full sm:w-auto rounded-md border bg-background px-2 text-sm"
             data-testid="twin-asof-date"
             aria-label="As-of date"
           />
           <Button
             variant="outline"
-            className="min-h-[44px]"
+            className="min-h-[44px] w-full sm:w-auto"
             onClick={() => void load()}
             disabled={loading}
           >
