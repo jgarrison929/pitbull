@@ -27,6 +27,7 @@ import {
 import type { MyCrewResult, CrewMemberDto } from "@/types/crew-entry.types";
 import {
   ArrowLeft,
+  Boxes,
   Calendar,
   FileStack,
   Footprints,
@@ -34,6 +35,7 @@ import {
   MessageSquareWarning,
   Users,
 } from "lucide-react";
+import { isDigitalTwinEnabled } from "@/lib/feature-flags";
 
 function asDataMap(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -270,6 +272,19 @@ function SiteWalkContent({ params }: { params: Promise<{ id: string }> }) {
             Schedule
           </Link>
         </Button>
+        {isDigitalTwinEnabled() && (
+          <Button
+            variant="outline"
+            className="min-h-[52px] col-span-2"
+            asChild
+            data-testid="site-walk-open-twin"
+          >
+            <Link href={`/projects/${projectId}/twin`}>
+              <Boxes className="h-4 w-4 mr-2" />
+              Digital Twin (zones)
+            </Link>
+          </Button>
+        )}
       </div>
 
       {loading ? (
