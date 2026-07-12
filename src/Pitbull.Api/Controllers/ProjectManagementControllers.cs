@@ -2848,18 +2848,21 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
 {
     /// <summary>Gets the published spatial graph or an honest no-graph payload.</summary>
     [HttpGet("graph")]
+    [Authorize(Policy = "Spatial.View")]
     [ProducesResponseType(typeof(SpatialGraphResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetGraph(Guid projectId)
         => HandleResult(await spatialService.GetGraphAsync(projectId));
 
     /// <summary>Seeds a default Site→Building→Storey→Zones tree when none exists (demo / bootstrap).</summary>
     [HttpPost("graph/ensure-seeded")]
+    [Authorize(Policy = "Spatial.Manage")]
     [ProducesResponseType(typeof(SpatialGraphResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> EnsureSeeded(Guid projectId)
         => HandleResult(await spatialService.EnsureSeededGraphAsync(projectId));
 
     /// <summary>Zone overlay colors for a documented mode (progress|schedule|rfi).</summary>
     [HttpGet("overlays")]
+    [Authorize(Policy = "Spatial.View")]
     [ProducesResponseType(typeof(SpatialOverlayResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetOverlays(
         Guid projectId,
@@ -2872,12 +2875,14 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
 
     /// <summary>Flat zone list for mobile pickers.</summary>
     [HttpGet("zones")]
+    [Authorize(Policy = "Spatial.View")]
     [ProducesResponseType(typeof(IReadOnlyList<SpatialZoneOptionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListZones(Guid projectId)
         => HandleResult(await spatialService.ListZonesAsync(projectId));
 
     /// <summary>Zone drill panel: linked RFIs / reports / progress / schedule or honest empty.</summary>
     [HttpGet("zones/{spatialNodeId:guid}")]
+    [Authorize(Policy = "Spatial.View")]
     [ProducesResponseType(typeof(SpatialZoneDetailResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetZoneDetail(Guid projectId, Guid spatialNodeId)
         => HandleResult(await spatialService.GetZoneDetailAsync(projectId, spatialNodeId));

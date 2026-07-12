@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.9] - 2026-07-12T01:20:00-07:00
+
+### Added
+
+- **Spatial permissions** — `Spatial.View` / `Spatial.Manage` policies on twin APIs; seeded for Admin, Project Manager (view+manage), Foreman/Executive (view)
+- Version **2.8.9**
+
 ## [2.8.8] - 2026-07-12T01:00:00-07:00
 
 ### Added
