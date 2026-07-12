@@ -50,6 +50,13 @@ import {
   buildFieldReportSubmittedProps,
 } from "@/lib/field-report-analytics";
 import { applyVoiceTranscriptToNarratives } from "@/lib/voice-transcript";
+import {
+  applyFieldAiSuggestion,
+  FIELD_AI_SUGGESTION_LABEL,
+  normalizeFieldAiSuggestion,
+  suggestionHasContent,
+  type FieldAiSuggestion,
+} from "@/lib/field-ai-suggestion";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -93,6 +100,7 @@ import {
   MapPin,
   Mic,
   MicOff,
+  Sparkles,
   Send,
   Truck,
 } from "lucide-react";
@@ -144,6 +152,10 @@ export default function MobileDailyReportPage() {
   const [geoAvailable, setGeoAvailable] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [showWeather, setShowWeather] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState<FieldAiSuggestion | null>(
+    null
+  );
+  const [aiBusy, setAiBusy] = useState(false);
 
   // Field / pour capture
   const [activities, setActivities] = useState<FieldActivityId[]>([]);
@@ -1188,6 +1200,137 @@ export default function MobileDailyReportPage() {
                     rows={2}
                     className="text-base"
                   />
+
+                  {/* 2.19.5 — AI suggestion chip (user confirm required) */}
+                  <div
+                    className="space-y-2 rounded-lg border border-dashed p-3"
+                    data-testid="ai-suggestion-panel"
+                  >
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {FIELD_AI_SUGGESTION_LABEL}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full min-h-[44px] gap-2"
+                      data-testid="ai-suggest-from-notes"
+                      disabled={
+                        aiBusy ||
+                        (!workNarrative.trim() &&
+                          !delaysNarrative.trim() &&
+                          !safetyNarrative.trim())
+                      }
+                      onClick={async () => {
+                        const transcript = [
+                          workNarrative,
+                          delaysNarrative,
+                          safetyNarrative,
+                        ]
+                          .filter((s) => s.trim())
+                          .join("\n");
+                        if (!transcript.trim()) {
+                          toast.error("Add a note or voice transcript first");
+                          return;
+                        }
+                        setAiBusy(true);
+                        try {
+                          const raw = await api<unknown>(
+                            "/api/ai/field-voice-suggestion",
+                            {
+                              method: "POST",
+                              body: {
+                                transcript,
+                                projectId: projectId || null,
+                              },
+                            }
+                          );
+                          const s = normalizeFieldAiSuggestion(raw);
+                          setAiSuggestion(s);
+                          if (!suggestionHasContent(s)) {
+                            toast.message(
+                              s?.confidenceNote ||
+                                "No structured suggestion — edit narratives manually"
+                            );
+                          }
+                        } catch (e: unknown) {
+                          setAiSuggestion(null);
+                          toast.error(
+                            e instanceof Error
+                              ? e.message
+                              : "AI suggestion unavailable"
+                          );
+                        } finally {
+                          setAiBusy(false);
+                        }
+                      }}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {aiBusy ? "Suggesting…" : "Suggest from notes (AI)"}
+                    </Button>
+                    {aiSuggestion && suggestionHasContent(aiSuggestion) && (
+                      <div
+                        className="space-y-2 text-sm"
+                        data-testid="ai-suggestion-chip"
+                      >
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          {aiSuggestion.label || FIELD_AI_SUGGESTION_LABEL}. Not
+                          applied until you confirm.
+                        </p>
+                        {aiSuggestion.workNarrative && (
+                          <p>
+                            <span className="font-medium">Work: </span>
+                            {aiSuggestion.workNarrative}
+                          </p>
+                        )}
+                        {aiSuggestion.delaysNarrative && (
+                          <p>
+                            <span className="font-medium">Delays: </span>
+                            {aiSuggestion.delaysNarrative}
+                          </p>
+                        )}
+                        {aiSuggestion.safetyNarrative && (
+                          <p>
+                            <span className="font-medium">Safety: </span>
+                            {aiSuggestion.safetyNarrative}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            className="flex-1 min-h-[44px] bg-amber-500 hover:bg-amber-600"
+                            data-testid="ai-apply-suggestion"
+                            onClick={() => {
+                              const next = applyFieldAiSuggestion(
+                                {
+                                  workNarrative,
+                                  delaysNarrative,
+                                  safetyNarrative,
+                                },
+                                aiSuggestion,
+                                { confirm: true, mode: "fillEmpty" }
+                              );
+                              setWorkNarrative(next.workNarrative);
+                              setDelaysNarrative(next.delaysNarrative);
+                              setSafetyNarrative(next.safetyNarrative);
+                              setAiSuggestion(null);
+                              toast.success("AI suggestion applied — review before submit");
+                            }}
+                          >
+                            Apply suggestion
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="min-h-[44px]"
+                            data-testid="ai-dismiss-suggestion"
+                            onClick={() => setAiSuggestion(null)}
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 

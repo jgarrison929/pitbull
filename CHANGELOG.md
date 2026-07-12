@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.5] - 2026-07-12T16:56:52-07:00
+
+### Added
+
+- **Field report Apply AI suggestion chip** — mobile daily report can request structured AI suggestions from notes; chip shows “Suggestion — review before submit”; **Apply** only after user confirm (never auto-applies).
+
+### Notes
+
+- Version **2.19.5**. Next: AI usage tracking per company (2.19.6).
+
 ## [2.19.4] - 2026-07-12T16:54:22-07:00
 
 ### Changed
