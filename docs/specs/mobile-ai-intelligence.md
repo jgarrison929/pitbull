@@ -1,8 +1,8 @@
 # Spec: Mobile AI intelligence (MVP)
 
-**Status:** Pending  
+**Status:** In progress — voice scaffold **2.19.3**  
 **Version band:** 2.19.3 → 2.21.2 (20 PRs)  
-**Related:** [`docs/mobile3.md`](../mobile3.md) Phase 4, AI module, `AiChatController`
+**Related:** [`docs/mobile3.md`](../mobile3.md) Phase 4, AI module, `AiChatController`, `AiFieldVoiceController`
 
 ## Problem
 

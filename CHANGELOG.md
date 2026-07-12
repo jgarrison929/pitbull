@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.3] - 2026-07-12T16:52:19-07:00
+
+### Added
+
+- **AI field voice suggestion scaffold** — POST /api/ai/field-voice-suggestion (auth + rate limit). Returns structured work/delays/safety suggestion DTO labeled “Suggestion — review before submit”; never auto-applies. When AI unconfigured, honest empty scaffold (no invented narratives).
+
+### Notes
+
+- Version **2.19.3**. Next: construction jargon prompt (2.19.4).
+
 ## [2.19.2] - 2026-07-12T16:50:14-07:00
 
 ### Added
