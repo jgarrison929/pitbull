@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.7] - 2026-07-12T15:41:59-07:00
+
+### Added
+
+- **Runtime model version pointer** - `POST .../model-assets/{id}/set-active` selects active runtime version; only **Succeeded** assets may be active (Pending/Processing rejected).
+
+### Notes
+
+- Version **2.16.7**
 ## [2.16.6] - 2026-07-12T15:40:01-07:00
 
 ### Notes

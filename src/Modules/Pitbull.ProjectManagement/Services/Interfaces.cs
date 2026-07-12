@@ -259,4 +259,12 @@ public interface ISpatialService
         Guid projectId,
         Guid modelAssetId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Set runtime active version pointer (2.16.7). Only Succeeded assets may be active.
+    /// </summary>
+    Task<Result<ModelAssetDto>> SetActiveModelAssetAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        CancellationToken cancellationToken = default);
 }

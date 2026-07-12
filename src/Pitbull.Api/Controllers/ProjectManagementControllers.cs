@@ -2944,4 +2944,13 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
     [ProducesResponseType(typeof(ModelAssetDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> StartModelConversion(Guid projectId, Guid modelAssetId)
         => HandleResult(await spatialService.StartModelConversionAsync(projectId, modelAssetId));
+
+    /// <summary>
+    /// Set active runtime model version (2.16.7). Only Succeeded assets may be selected.
+    /// </summary>
+    [HttpPost("model-assets/{modelAssetId:guid}/set-active")]
+    [Authorize(Policy = "Spatial.Manage")]
+    [ProducesResponseType(typeof(ModelAssetDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SetActiveModelAsset(Guid projectId, Guid modelAssetId)
+        => HandleResult(await spatialService.SetActiveModelAssetAsync(projectId, modelAssetId));
 }

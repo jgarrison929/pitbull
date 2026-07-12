@@ -42,6 +42,13 @@ export function buildStartConversionUrl(
   return `/api/projects/${projectId}/spatial/model-assets/${modelAssetId}/start-conversion`;
 }
 
+export function buildSetActiveModelUrl(
+  projectId: string,
+  modelAssetId: string
+): string {
+  return `/api/projects/${projectId}/spatial/model-assets/${modelAssetId}/set-active`;
+}
+
 /** Status badge copy — never "ready" for Pending/Processing. */
 export function modelAssetStatusLabel(asset: ModelAssetDto): string {
   if (asset.isReady) return "Ready";

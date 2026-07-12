@@ -39,6 +39,7 @@ import {
 } from "@/lib/twin-zone-drill-analytics";
 import {
   buildModelAssetsUrl,
+  buildSetActiveModelUrl,
   buildStartConversionUrl,
   modelAssetStatusLabel,
   type ModelAssetDto,
@@ -336,6 +337,23 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     } catch (e) {
       toast.error("Could not start conversion", {
         description: e instanceof Error ? e.message : undefined,
+      });
+    }
+  }
+
+  async function setActiveModel(modelAssetId: string) {
+    try {
+      await api<ModelAssetDto>(buildSetActiveModelUrl(projectId, modelAssetId), {
+        method: "POST",
+      });
+      toast.success("Active runtime model version updated");
+      await loadModelAssets();
+    } catch (e) {
+      toast.error("Could not set active version", {
+        description:
+          e instanceof Error
+            ? e.message
+            : "Only Succeeded models can be active.",
       });
     }
   }
@@ -822,6 +840,22 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                               Start conversion
                             </Button>
                           )}
+                        {a.isReady && !a.isActiveVersion && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="hidden md:inline-flex min-h-[36px]"
+                            data-testid={`twin-model-set-active-${a.id}`}
+                            onClick={() => void setActiveModel(a.id)}
+                          >
+                            Set active
+                          </Button>
+                        )}
+                        {a.isActiveVersion && (
+                          <Badge variant="outline" data-testid={`twin-model-active-${a.id}`}>
+                            Active runtime
+                          </Badge>
+                        )}
                       </div>
                     </li>
                   ))}

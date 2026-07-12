@@ -392,6 +392,38 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(dto);
     }
 
+    public async Task<Result<ModelAssetDto>> SetActiveModelAssetAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<ModelAssetDto>("Project not found.", "NOT_FOUND");
+
+        var entity = await Db.Set<ModelAsset>()
+            .FirstOrDefaultAsync(
+                a => a.Id == modelAssetId && a.ProjectId == projectId && !a.IsDeleted,
+                cancellationToken);
+        if (entity is null)
+            return Result.Failure<ModelAssetDto>("Model asset not found.", "NOT_FOUND");
+
+        // Runtime pointer only when conversion Succeeded — never promote Pending/Processing.
+        if (entity.ConversionStatus != ModelConversionStatus.Succeeded)
+            return Result.Failure<ModelAssetDto>(
+                "Only Succeeded model assets can be the active runtime version. Pending/Processing is not ready.",
+                "NOT_READY");
+
+        var others = await Db.Set<ModelAsset>()
+            .Where(a => a.ProjectId == projectId && !a.IsDeleted && a.Id != modelAssetId && a.IsActiveVersion)
+            .ToListAsync(cancellationToken);
+        foreach (var o in others)
+            o.IsActiveVersion = false;
+
+        entity.IsActiveVersion = true;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ModelAssetStatus.ToDto(entity));
+    }
+
     public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(
         Guid projectId,
         Guid spatialNodeId,
