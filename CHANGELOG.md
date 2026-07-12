@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.6] - 2026-07-12T15:40:01-07:00
+
+### Notes
+
+- **Sample glTF/IFC seed skipped** - no bundled open BIM sample in-repo yet (license + size). Model upload remains admin register + conversion stub; demo uses zones-first twin without a 3D package. Honest skip per band acceptance.
+- Version **2.16.6**
 ## [2.16.5] - 2026-07-12T15:37:56-07:00
 
 ### Added
