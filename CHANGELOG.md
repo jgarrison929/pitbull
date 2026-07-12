@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.4] - 2026-07-12T16:54:22-07:00
+
+### Changed
+
+- **Construction jargon ? structured narratives prompt** — FieldVoicePrompts.ConstructionJargonSystemPrompt maps field slang (pour, strip forms, rain day, toolbox) into work/delays/safety suggestions; still forbids invented costs/% complete/green.
+
+### Notes
+
+- Version **2.19.4**. Next: Apply AI suggestion chip (2.19.5).
+
 ## [2.19.3] - 2026-07-12T16:52:19-07:00
 
 ### Added

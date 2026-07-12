@@ -36,4 +36,15 @@ public class AiFieldVoiceSuggestionTests
         Assert.False(r.AutoApplied);
         Assert.Contains("manually", r.ConfidenceNote, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Construction_jargon_prompt_forbids_invented_costs_and_green()
+    {
+        var p = FieldVoicePrompts.ConstructionJargonSystemPrompt;
+        Assert.Contains("Never invent cost", p, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("pour", p, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("rain day", p, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("always mark complete", p, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SUGGESTION", p, StringComparison.OrdinalIgnoreCase);
+    }
 }
