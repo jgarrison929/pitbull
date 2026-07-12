@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-07-12T16:23:08-07:00
+
+### Added
+
+- **Overlay load seed scale doc** - `docs/ci/twin-overlay-load-scale.md` (demo scale + batch query notes).
+
+### Notes
+
+- Version **2.18.0**
 ## [2.17.9] - 2026-07-12T16:20:57-07:00
 
 ### Added
