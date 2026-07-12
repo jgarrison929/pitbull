@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.7] - 2026-07-12T14:53:14-07:00
+
+### Added
+
+- **Plan revision label** - `formatPlanRevisionLabel` shows API revision only (never invents `latest`). Used in plans-specs viewer.
+
+### Notes
+
+- Version **2.13.7**
+
 ## [2.13.6] - 2026-07-12T14:52:52-07:00
 
 ### Added
