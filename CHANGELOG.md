@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.2] - 2026-07-12T16:26:34-07:00
+
+### Added
+
+- **Performance / overlays band checkpoint** - shipped through 2.18.2; notes + twin phase2 status updated.
+
+### Notes
+
+- Version **2.18.2** closes perf/overlays band. Next: RequireSpatialOnProgress 2.18.3+.
 ## [2.18.1] - 2026-07-12T16:24:51-07:00
 
 ### Added
