@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { buildPlansSpecsHref, resolveSiteWalkPlansFilter } from "@/lib/plans-specs-lookup";
+import { buildProjectRfisForSubHref } from "@/lib/rfi-sub-link";
 import {
   buildSubStatusItems,
   filterLookAheadTasks,
@@ -419,9 +420,13 @@ function SiteWalkContent({ params }: { params: Promise<{ id: string }> }) {
                 </p>
               ) : (
                 subs.slice(0, 12).map((sub) => (
-                  <div
+                  <Link
                     key={sub.id}
-                    className="rounded-lg border p-3 flex items-center justify-between gap-2"
+                    href={buildProjectRfisForSubHref(projectId, {
+                      subName: sub.name,
+                      subId: sub.id,
+                    })}
+                    className="rounded-lg border p-3 flex items-center justify-between gap-2 touch-manipulation hover:border-amber-400"
                     data-testid="sub-status-card"
                   >
                     <div className="min-w-0">
@@ -433,8 +438,11 @@ function SiteWalkContent({ params }: { params: Promise<{ id: string }> }) {
                         )}
                       </p>
                     </div>
-                    {healthBadge(sub.health)}
-                  </div>
+                    <div className="flex flex-col items-end gap-1">
+                      {healthBadge(sub.health)}
+                      <span className="text-[10px] text-amber-700">RFIs</span>
+                    </div>
+                  </Link>
                 ))
               )}
             </CardContent>

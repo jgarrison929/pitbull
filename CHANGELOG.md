@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.6] - 2026-07-12T14:58:51-07:00
+
+### Added
+
+- **Sub status → RFIs** - site walk sub cards deep-link to project RFIs with real `search=` filter (proxy status labels retained; no fake health scores).
+
+### Notes
+
+- Version **2.14.6**
+
 ## [2.14.5] - 2026-07-12T14:58:01-07:00
 
 ### Added
