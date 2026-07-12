@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.9.1] - 2026-07-12T01:55:00-07:00
+
+### Added
+
+- **Schematic twin board** — 2.5D zone card grid colored by overlay bands with explicit Insufficient/Watch/Risk/OnTrack legend (no invented green)
+- Version **2.9.1**
+
 ## [2.9.0] - 2026-07-12T01:40:00-07:00
 
 ### Added
