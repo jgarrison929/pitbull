@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.4] - 2026-07-12T14:51:36-07:00
+
+### Changed
+
+- **Plans field viewer on phone** - Plans & Specs hides primary admin create/edit/delete CTAs below `lg`; field mode hint + tap-to-view remains. Tokens in `plans-specs-mobile.ts` + vitest.
+
+### Notes
+
+- Version **2.13.4**
+
 ## [2.13.3] - 2026-07-12T14:50:51-07:00
 
 ### Added

@@ -4,7 +4,11 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import api, { getDownloadUrl } from "@/lib/api";
 import { getToken } from "@/lib/auth";
-import { isValidGuid } from "@/lib/utils";
+import { isValidGuid, cn } from "@/lib/utils";
+import {
+  PLANS_ADMIN_BLOCK_CLASS,
+  PLANS_ADMIN_CTA_CLASS,
+} from "@/lib/plans-specs-mobile";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -604,6 +608,10 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
 
   return (
     <div className="space-y-6">
+      {/* 2.13.4 field mode: viewer-first on phone */}
+      <p className="text-sm text-muted-foreground lg:hidden" data-testid="plans-field-mode-hint">
+        Field view — search and open sheets. Admin upload/edit is available on desktop.
+      </p>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Plans &amp; Specs</h1>
@@ -852,7 +860,7 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                   <CardTitle>Plan Sets</CardTitle>
                   <CardDescription>Drawing sets organized by discipline.</CardDescription>
                 </div>
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreatePlan}>
+                <Button className={cn("bg-amber-500 hover:bg-amber-600 text-white", PLANS_ADMIN_CTA_CLASS)} onClick={openCreatePlan}>
                   <Plus className="mr-2 h-4 w-4" /> New Plan Set
                 </Button>
               </div>
@@ -872,7 +880,7 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                         <p className="text-sm text-muted-foreground">
                           No plan sets yet. Create your first plan set for this project.
                         </p>
-                        <Button className="mt-3 bg-amber-500 hover:bg-amber-600 text-white" size="sm" onClick={openCreatePlan}>Create Plan Set</Button>
+                        <Button className={cn("mt-3 bg-amber-500 hover:bg-amber-600 text-white", PLANS_ADMIN_CTA_CLASS)} size="sm" onClick={openCreatePlan}>Create Plan Set</Button>
                       </div>
                     ) : (
                       planRows.map((row) => (
@@ -896,7 +904,7 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                             </div>
                             <span className="text-xs text-amber-700">Tap to view</span>
                           </button>
-                          <div className="flex gap-2 pt-1">
+                          <div className={cn("flex gap-2 pt-1", PLANS_ADMIN_BLOCK_CLASS)}>
                             <Button
                               variant="outline"
                               size="icon"
@@ -999,7 +1007,7 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                     Specification sections organized by CSI division.
                   </CardDescription>
                 </div>
-                <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={openCreateSpec}>
+                <Button className={cn("bg-amber-500 hover:bg-amber-600 text-white", PLANS_ADMIN_CTA_CLASS)} onClick={openCreateSpec}>
                   <Plus className="mr-2 h-4 w-4" /> New Spec Section
                 </Button>
               </div>
@@ -1019,7 +1027,7 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                         <p className="text-sm text-muted-foreground">
                           No spec sections yet. Create your first spec section for this project.
                         </p>
-                        <Button className="mt-3 bg-amber-500 hover:bg-amber-600 text-white" size="sm" onClick={openCreateSpec}>Create Spec Section</Button>
+                        <Button className={cn("mt-3 bg-amber-500 hover:bg-amber-600 text-white", PLANS_ADMIN_CTA_CLASS)} size="sm" onClick={openCreateSpec}>Create Spec Section</Button>
                       </div>
                     ) : (
                       specRows.map((row) => (
