@@ -59,7 +59,8 @@ public sealed record SpatialZoneDetailResponse(
     IReadOnlyList<SpatialLinkedItemDto> OpenRfis,
     IReadOnlyList<SpatialLinkedItemDto> DailyReports,
     IReadOnlyList<SpatialLinkedItemDto> ProgressEntries,
-    IReadOnlyList<SpatialLinkedItemDto> ScheduleActivities);
+    IReadOnlyList<SpatialLinkedItemDto> ScheduleActivities,
+    IReadOnlyList<SpatialLinkedItemDto> PlanSheets);
 
 public sealed record SpatialLinkedItemDto(
     Guid Id,

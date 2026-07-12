@@ -175,6 +175,7 @@ public sealed class SpatialServiceTests
         mechDetail.IsSuccess.Should().BeTrue();
         mechDetail.Value!.OpenRfis.Should().BeEmpty();
         mechDetail.Value.DailyReports.Should().BeEmpty();
+        mechDetail.Value.PlanSheets.Should().BeEmpty();
         mechDetail.Value.Message.Should().Contain("No linked");
     }
 }

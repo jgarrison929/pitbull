@@ -315,10 +315,28 @@ public class SpatialService : PmServiceBase, ISpatialService
                 a.IsCritical ? "Critical path*" : null))
             .ToListAsync(cancellationToken);
 
-        var anyLinks = rfis.Count + reports.Count + progressDtos.Count + activities.Count > 0;
+        var planLinks = await (
+            from link in Db.Set<SpatialPlanLink>()
+            join sheet in Db.Set<PmPlanSheet>() on link.PlanSheetId equals sheet.Id
+            where link.ProjectId == projectId
+                  && !link.IsDeleted
+                  && !sheet.IsDeleted
+                  && link.SpatialNodeId == spatialNodeId
+            orderby sheet.DrawingNumber
+            select new SpatialLinkedItemDto(
+                sheet.Id,
+                "plan_sheet",
+                $"{sheet.DrawingNumber} — {sheet.Title}",
+                sheet.CurrentRevision,
+                null,
+                sheet.Discipline))
+            .Take(25)
+            .ToListAsync(cancellationToken);
+
+        var anyLinks = rfis.Count + reports.Count + progressDtos.Count + activities.Count + planLinks.Count > 0;
         var message = anyLinks
-            ? "Linked artifacts for this zone (only rows with SpatialNodeId / PrimarySpatialNodeId)."
-            : "No linked RFIs, daily reports, progress, or schedule activities for this zone yet — not empty green health.";
+            ? "Linked artifacts for this zone (SpatialNodeId / PrimarySpatialNodeId / plan links)."
+            : "No linked RFIs, daily reports, progress, schedule, or plan sheets for this zone yet — not empty green health.";
 
         return Result.Success(new SpatialZoneDetailResponse(
             spatialNodeId,
@@ -330,7 +348,8 @@ public class SpatialService : PmServiceBase, ISpatialService
             rfis,
             reports,
             progressDtos,
-            activities));
+            activities,
+            planLinks));
     }
 
     /// <summary>
@@ -476,6 +495,29 @@ public class SpatialService : PmServiceBase, ISpatialService
             SpatialNodeId = westId,
             CreatedBy = "system-seed"
         });
+
+        // Optional plan sheet link for L1-EAST when a sheet exists on the project
+        var sheetId = await Db.Set<PmPlanSheet>()
+            .Where(s => s.ProjectId == projectId && !s.IsDeleted)
+            .Select(s => s.Id)
+            .FirstOrDefaultAsync(ct);
+        if (sheetId != Guid.Empty)
+        {
+            var hasLink = await Db.Set<SpatialPlanLink>()
+                .AnyAsync(l => l.SpatialNodeId == eastId && l.PlanSheetId == sheetId && !l.IsDeleted, ct);
+            if (!hasLink)
+            {
+                Db.Set<SpatialPlanLink>().Add(new SpatialPlanLink
+                {
+                    CompanyId = companyId,
+                    ProjectId = projectId,
+                    SpatialNodeId = eastId,
+                    PlanSheetId = sheetId,
+                    Notes = "Twin seed plan link",
+                    CreatedBy = "system-seed"
+                });
+            }
+        }
 
         await Db.SaveChangesAsync(ct);
     }

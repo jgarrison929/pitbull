@@ -26,6 +26,7 @@ import type {
   SpatialZoneDetailResponse,
 } from "@/lib/spatial-types";
 import { buildFieldReportHref } from "@/lib/projects";
+import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import {
   ArrowLeft,
   Boxes,
@@ -462,6 +463,18 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                         items={zoneDetail.scheduleActivities}
                         empty="No schedule activities linked"
                       />
+                      <LinkedList
+                        title="Plan sheets"
+                        items={zoneDetail.planSheets ?? []}
+                        empty="No plan sheets linked"
+                        hrefForItem={(item) => {
+                          const sheet = item.title.split("—")[0]?.trim();
+                          return buildPlansSpecsHref(projectId, {
+                            sheet: sheet || undefined,
+                            view: "plans",
+                          });
+                        }}
+                      />
                     </div>
                   )}
                   {selected.nodeType === "Zone" && (
@@ -487,10 +500,12 @@ function LinkedList({
   title,
   items,
   empty,
+  hrefForItem,
 }: {
   title: string;
   items: Array<{ id: string; title: string; status?: string | null; detail?: string | null }>;
   empty: string;
+  hrefForItem?: (item: { id: string; title: string }) => string;
 }) {
   return (
     <div>
@@ -501,24 +516,38 @@ function LinkedList({
         <p className="text-xs text-muted-foreground italic">{empty}</p>
       ) : (
         <ul className="space-y-1.5">
-          {items.map((item) => (
-            <li
-              key={item.id}
-              className="rounded-md border px-2 py-1.5 text-sm"
-            >
-              <span className="font-medium">{item.title}</span>
-              {item.status && (
-                <span className="ml-1 text-xs text-muted-foreground">
-                  · {item.status}
-                </span>
-              )}
-              {item.detail && (
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {item.detail}
-                </p>
-              )}
-            </li>
-          ))}
+          {items.map((item) => {
+            const href = hrefForItem?.(item);
+            const body = (
+              <>
+                <span className="font-medium">{item.title}</span>
+                {item.status && (
+                  <span className="ml-1 text-xs text-muted-foreground">
+                    · {item.status}
+                  </span>
+                )}
+                {item.detail && (
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {item.detail}
+                  </p>
+                )}
+              </>
+            );
+            return (
+              <li
+                key={item.id}
+                className="rounded-md border px-2 py-1.5 text-sm"
+              >
+                {href ? (
+                  <Link href={href} className="hover:text-amber-600 block">
+                    {body}
+                  </Link>
+                ) : (
+                  body
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

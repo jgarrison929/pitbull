@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.8] - 2026-07-12T01:00:00-07:00
+
+### Added
+
+- **Plan sheet ? zone links** — `SpatialPlanLink` join table; zone detail returns plan sheets with deep links into Plans & Specs
+- Version **2.8.8**
+
 ## [2.8.7] - 2026-07-12T00:45:00-07:00
 
 ### Added

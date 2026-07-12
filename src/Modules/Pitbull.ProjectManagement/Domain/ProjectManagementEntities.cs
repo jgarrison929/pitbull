@@ -1027,3 +1027,13 @@ public class SpatialNode : BaseEntity, ICompanyScoped
     public bool IsActive { get; set; } = true;
     public string? RetiredReason { get; set; }
 }
+
+/// <summary>Many-to-many plan sheet ↔ spatial node (storey/zone).</summary>
+public class SpatialPlanLink : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid SpatialNodeId { get; set; }
+    public Guid PlanSheetId { get; set; }
+    public string? Notes { get; set; }
+}
