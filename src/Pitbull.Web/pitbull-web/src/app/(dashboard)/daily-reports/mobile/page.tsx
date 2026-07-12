@@ -50,6 +50,7 @@ import {
 } from "@/lib/field-report-analytics";
 import { applyVoiceTranscriptToNarratives } from "@/lib/voice-transcript";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
+import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
 import { buildOfflinePhotos, countEmbeddedPhotos } from "@/lib/offline-photo";
 import {
@@ -103,6 +104,8 @@ export default function MobileDailyReportPage() {
   const searchParams = useSearchParams();
   const urlProjectId = searchParams.get("projectId");
   const urlZoneId = searchParams.get("zoneId");
+  const urlActivityId = searchParams.get("activityId");
+  const urlActivityName = searchParams.get("activityName");
   const [step, setStep] = useState<MobileReportStep>("Project");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -757,6 +760,28 @@ export default function MobileDailyReportPage() {
             </div>
           )}
 
+          {step === "Project" && urlActivityName && (
+            <p
+              className="text-sm rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2"
+              data-testid="field-report-schedule-activity"
+            >
+              Linked schedule activity: <strong>{urlActivityName}</strong>
+              {projectId && (
+                <>
+                  {" · "}
+                  <Link
+                    className="text-amber-800 underline"
+                    href={buildProgressDraftHref(projectId, {
+                      activityId: urlActivityId ?? undefined,
+                      activityName: urlActivityName,
+                    })}
+                  >
+                    Open progress
+                  </Link>
+                </>
+              )}
+            </p>
+          )}
           {step === "Project" && (
             <Card>
               <CardHeader>

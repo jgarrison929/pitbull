@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-07-12T15:00:24-07:00
+
+### Added
+
+- **Field report schedule activity deep link** - optional `activityId` / `activityName` query on `/daily-reports/mobile` shows banner + progress link.
+
+### Notes
+
+- Version **2.15.0**
+
 ## [2.14.9] - 2026-07-12T14:59:58-07:00
 
 ### Added
