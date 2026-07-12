@@ -171,8 +171,8 @@ describe("enqueueDailyReportForSync", () => {
         truckNotes: "3 loads",
         spatialNodeId: zoneId,
         planSheetId: planId,
-        zones: [{ id: zoneId, name: "Zone A", code: "A" }],
-        planSheets: [{ id: planId, sheetNumber: "A-101", title: "Plan" }],
+        zones: [{ id: zoneId, name: "Zone A", code: "A", pathLabel: "Jobsite / Zone A" }],
+        planSheets: [{ id: planId, drawingNumber: "A-101", title: "Plan" }],
       },
       "dr-sw-parity-1"
     );

@@ -8,6 +8,7 @@ import { isValidGuid, cn } from "@/lib/utils";
 import {
   PLANS_ADMIN_BLOCK_CLASS,
   PLANS_ADMIN_CTA_CLASS,
+  PLANS_MOBILE_SEARCH_INPUT_CLASS,
 } from "@/lib/plans-specs-mobile";
 import { formatPlanRevisionLabel } from "@/lib/plan-revision-label";
 import type { PmEntityDto, PmPagedResult, PmUpsertRequest } from "@/lib/pm-types";

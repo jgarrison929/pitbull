@@ -69,3 +69,76 @@ public sealed record SpatialLinkedItemDto(
     string? Status,
     DateTime? Date,
     string? Detail);
+
+/// <summary>
+/// Photo pin for twin zone panel (2.15.3 stub). Never invent green pins —
+/// empty Pins means no GPS/zone-linked photos yet.
+/// </summary>
+public sealed record TwinPhotoPinDto(
+    Guid PhotoId,
+    Guid? SpatialNodeId,
+    double? Latitude,
+    double? Longitude,
+    string? ThumbnailUrl,
+    DateTime? CapturedAt,
+    string PlacementSource // "gps" | "zone" | "unknown"
+);
+
+/// <summary>Aggregate photo pins for a project (or one zone). Honest empty list.</summary>
+public sealed record TwinPhotoPinsResponse(
+    Guid ProjectId,
+    Guid? SpatialNodeId,
+    string Message,
+    IReadOnlyList<TwinPhotoPinDto> Pins
+);
+
+/// <summary>Pure aggregation helpers for photo pins (unit-tested; no fake green).</summary>
+public static class TwinPhotoPinAggregation
+{
+    /// <summary>
+    /// Build pins only from real photo records with optional GPS/zone.
+    /// Missing GPS does not invent coordinates.
+    /// </summary>
+    public static IReadOnlyList<TwinPhotoPinDto> Aggregate(
+        IEnumerable<(
+            Guid PhotoId,
+            Guid? SpatialNodeId,
+            double? Latitude,
+            double? Longitude,
+            string? ThumbnailUrl,
+            DateTime? CapturedAt
+        )> photos,
+        Guid? filterZoneId = null)
+    {
+        var list = new List<TwinPhotoPinDto>();
+        foreach (var p in photos)
+        {
+            if (filterZoneId is Guid z && p.SpatialNodeId != z)
+                continue;
+
+            var hasGps = p.Latitude is not null && p.Longitude is not null;
+            var hasZone = p.SpatialNodeId is not null;
+            if (!hasGps && !hasZone)
+                continue; // cannot place pin honestly
+
+            var source = hasGps ? "gps" : hasZone ? "zone" : "unknown";
+            list.Add(new TwinPhotoPinDto(
+                p.PhotoId,
+                p.SpatialNodeId,
+                hasGps ? p.Latitude : null,
+                hasGps ? p.Longitude : null,
+                p.ThumbnailUrl,
+                p.CapturedAt,
+                source));
+        }
+
+        return list;
+    }
+
+    public static TwinPhotoPinsResponse Empty(Guid projectId, Guid? zoneId = null) =>
+        new(
+            projectId,
+            zoneId,
+            "No photo pins yet — pins appear when field photos have GPS or a zone link. Empty is not all-clear.",
+            Array.Empty<TwinPhotoPinDto>());
+}

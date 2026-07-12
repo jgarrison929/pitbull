@@ -16,6 +16,10 @@ import { buildPlansSpecsHref, resolveSiteWalkPlansFilter } from "@/lib/plans-spe
 import { buildProjectRfisForSubHref } from "@/lib/rfi-sub-link";
 import { captureProductEvent } from "@/lib/posthog";
 import {
+  SITE_WALK_STARTED_EVENT,
+  buildSiteWalkStartedProps,
+} from "@/lib/site-walk-analytics";
+import {
   buildSubStatusItems,
   filterLookAheadTasks,
   type ScheduleLookAheadTask,

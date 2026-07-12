@@ -2906,4 +2906,15 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
     [ProducesResponseType(typeof(SpatialZoneDetailResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetZoneDetail(Guid projectId, Guid spatialNodeId)
         => HandleResult(await spatialService.GetZoneDetailAsync(projectId, spatialNodeId));
+
+    /// <summary>
+    /// Photo pins for twin zone panel (2.15.3 stub). Empty Pins is honest — not “all clear”.
+    /// </summary>
+    [HttpGet("photo-pins")]
+    [Authorize(Policy = "Spatial.View")]
+    [ProducesResponseType(typeof(TwinPhotoPinsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListPhotoPins(
+        Guid projectId,
+        [FromQuery] Guid? spatialNodeId = null)
+        => HandleResult(await spatialService.ListPhotoPinsAsync(projectId, spatialNodeId));
 }

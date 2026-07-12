@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.3] - 2026-07-12T15:02:22-07:00
+
+### Added
+
+- **Twin photo pin API stub** - `GET /api/projects/{id}/spatial/photo-pins` returns honest empty pins (no fake green). `TwinPhotoPinAggregation` pure helpers + unit tests. Real GPS/zone aggregation continues 2.15.5+.
+
+### Fixed
+
+- Residual Arc C wire-ups: `buildSiteWalkHref` / plans mobile search import, progress `activityId` query preselect, site-walk analytics import, offline-store zone/plan types, voice `useCallback` deps (React Compiler).
+
+### Notes
+
+- Version **2.15.3** (Arc D start).
+
 ## [2.15.2] - 2026-07-12T15:01:07-07:00
 
 ### Added

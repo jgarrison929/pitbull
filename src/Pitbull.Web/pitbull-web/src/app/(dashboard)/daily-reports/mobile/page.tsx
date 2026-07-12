@@ -311,7 +311,14 @@ export default function MobileDailyReportPage() {
       setDelaysNarrative(next.delaysNarrative);
       setSafetyNarrative(next.safetyNarrative);
     },
-    [workNarrative, delaysNarrative, safetyNarrative]
+    [
+      workNarrative,
+      delaysNarrative,
+      safetyNarrative,
+      setWorkNarrative,
+      setDelaysNarrative,
+      setSafetyNarrative,
+    ]
   );
 
   function toggleVoice() {

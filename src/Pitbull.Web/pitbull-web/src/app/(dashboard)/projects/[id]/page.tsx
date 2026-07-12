@@ -46,6 +46,7 @@ import {
   projectStatusBadgeClass,
   projectStatusLabel,
 } from "@/lib/projects";
+import { buildSiteWalkHref, SITE_WALK_ENTRY_LABEL } from "@/lib/site-walk";
 import { ProjectStatus } from "@/lib/types";
 import type {
   Employee,
