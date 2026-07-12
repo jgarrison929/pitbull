@@ -50,6 +50,10 @@ import {
   defaultStoreyFilter,
   zonesForStorey,
 } from "@/lib/twin-storey-lazy";
+import {
+  COST_NOT_ALLOCATED_BANNER,
+  shouldShowCostNotAllocatedBanner,
+} from "@/lib/twin-cost-banner";
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -501,13 +505,13 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
           </p>
         </div>
       )}
-      {mode === "cost" && (
+      {shouldShowCostNotAllocatedBanner(mode, overlay?.nodes) && (
         <div
           className="rounded-lg border border-muted bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
           data-testid="twin-cost-not-allocated-banner"
           role="status"
         >
-          Cost by zone is off unless allocation links exist — no fake cost heat.
+          {COST_NOT_ALLOCATED_BANNER}
         </div>
       )}
 
