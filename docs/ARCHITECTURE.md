@@ -69,7 +69,7 @@ Each module is a separate .NET project under `src/Modules/`.
 | **Bids** | Bid tracking, items, conversion to project |
 | **Contracts** | Subcontracts, SOV, change orders |
 | **TimeTracking** | TimeEntry, crew timecards, pay periods, payroll workflow, employees |
-| **ProjectManagement** | Schedule, RFIs, submittals, daily reports, punch lists, meetings, tasks |
+| **ProjectManagement** | Schedule, RFIs, submittals, daily reports, punch lists, meetings, tasks; **Jobsite Twin** zones-first spatial graph (`SpatialGraph`/`SpatialNode`), overlays, plan links (`SpatialPlanLink`) |
 | **Billing** | Vendors, customers, payment apps (AIA G702/G703), GL/journal, WIP, AP/AR, retention, lien waivers, POs/invoices, bank rec |
 | **Reports** | Labor cost, profitability, exports (PDF/CSV), financial statements (trial balance etc.) |
 | **AI** | Provider abstraction (Anthropic + OpenAI), orchestrator, usage tracking, extraction handlers (invoice, delivery ticket) |
@@ -80,6 +80,20 @@ Each module is a separate .NET project under `src/Modules/`.
 | **RFIs** | Legacy RFI support (largely merged into ProjectManagement) |
 
 **Notes:** Prefer this document, `CHANGELOG.md`, and `src/Modules` for current state. Portal remains limited. Dual-book accounting and some advanced financial workflows continue to expand.
+
+### Jobsite Digital Twin (zones-first)
+
+Truthful spatial visualization over ERP + field fuel (not BIM-required for MVP):
+
+| Surface | Location |
+|---------|----------|
+| APIs | `GET/POST /api/projects/{id}/spatial/*` — graph, ensure-seeded, overlays, zones, zone detail |
+| Permissions | `Spatial.View` (read), `Spatial.Manage` (seed/publish) |
+| Web | `/projects/[id]/twin` — tree, schematic zone board, overlay modes, storey/as-of filters |
+| Fuel | Optional `SpatialNodeId` on daily reports / RFIs / progress; `PrimarySpatialNodeId` on schedule activities; `SpatialPlanLink` ↔ plan sheets |
+| Overlays | `progress` / `schedule` / `rfi` pure math in `SpatialOverlayCalculator` — **never invent default-green**; unlinked zones stay InsufficientData |
+
+Spec: `docs/pitbull-digital-twin-spec.md`. Capture engine: `docs/mobile3.md`.
 
 ### Infrastructure Layer
 
