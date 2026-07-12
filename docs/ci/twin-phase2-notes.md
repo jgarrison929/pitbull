@@ -85,3 +85,31 @@ Documented in `src/Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
 
 Next: overlay performance band 2.17.3+.
 
+
+## RequireSpatialOnProgress (2.18.3–2.18.6)
+
+| Version | Deliverable |
+|---------|-------------|
+| 2.18.3 | Schema `ProjRequireSpatialOnProgress` (default false) |
+| 2.18.4 | PM Settings + company setup toggle |
+| 2.18.5 | Field mobile prompt + API `SPATIAL_ZONE_REQUIRED` on submit |
+| 2.18.6 | **Demo skip path** (this section) |
+
+### Demo skip path (2.18.6)
+
+**Problem:** Explore demo personas must walk field → twin without getting stuck when company setting is on.
+
+**Rules:**
+
+1. JWT claim `is_demo_user=true` (seeded demo personas / demo-role-login) **may submit daily reports without a spatial zone** even when `RequireSpatialOnProgress` is true.
+2. Client: `canSubmitWithSpatialPolicy({ isDemoUser: true })` always allows; UI shows honest copy that production still requires a zone.
+3. Server: `SubmitDailyReportAsync` skips `SPATIAL_ZONE_REQUIRED` when `IsCurrentUserDemo()` (claim `is_demo_user`).
+4. Non-demo production users are still blocked client + server when zones exist and no `SpatialNodeId`.
+5. Draft save remains unrestricted for everyone.
+6. This is **not** an executive KPI and does not invent green zones.
+
+**Manual QA**
+
+1. Demo superintendent: enable RequireSpatial on Settings → Projects → submit field report without zone → success.
+2. Non-demo user (or pretend by clearing claim): same → toast + API error `SPATIAL_ZONE_REQUIRED`.
+

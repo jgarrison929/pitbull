@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.6] - 2026-07-12T16:38:04-07:00
+
+### Added
+
+- **Demo skip for RequireSpatialOnProgress** — demo JWT (is_demo_user) may submit field progress without a zone; production still enforces. Documented in docs/ci/twin-phase2-notes.md. Honest UI copy on mobile daily report.
+
+### Notes
+
+- Version **2.18.6**. Next: % reports with spatial ref quality metric (2.18.7).
+
 ## [2.18.5] - 2026-07-12T16:35:51-07:00
 
 ### Added

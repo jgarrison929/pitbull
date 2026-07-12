@@ -34,6 +34,7 @@ import { OfflineIndicator } from "@/components/time-tracking/offline-indicator";
 import { useRecentSelections } from "@/hooks/use-recent-selections";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
 import { useOnlineStatus } from "@/lib/use-online-status";
+import { useAuth } from "@/contexts/auth-context";
 import { getValidRecentIds } from "@/lib/entity-lookup";
 import {
   buildDailyReportApiData,
@@ -109,6 +110,7 @@ export default function MobileDailyReportPage() {
   const urlZoneId = searchParams.get("zoneId");
   const urlActivityId = searchParams.get("activityId");
   const urlActivityName = searchParams.get("activityName");
+  const { isDemoUser } = useAuth();
   const [step, setStep] = useState<MobileReportStep>("Project");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -158,10 +160,10 @@ export default function MobileDailyReportPage() {
   const [requireSpatialOnProgress, setRequireSpatialOnProgress] = useState(false);
   const [planSheets, setPlanSheets] = useState<PlanSheetOption[]>([]);
   const [planSheetId, setPlanSheetId] = useState("");
-  const zoneRequired = isSpatialZoneRequired(
-    requireSpatialOnProgress,
-    zones.length > 0
-  );
+  // Demo personas may skip company spatial requirement (documented demo path)
+  const zoneRequired =
+    !isDemoUser &&
+    isSpatialZoneRequired(requireSpatialOnProgress, zones.length > 0);
 
   useEffect(() => {
     setGeoAvailable("geolocation" in navigator);
@@ -638,6 +640,7 @@ export default function MobileDailyReportPage() {
       zones,
       decision: spatialDecision,
       asDraft,
+      isDemoUser,
     });
     if (!spatialGate.ok) {
       toast.error(spatialGate.message);
@@ -929,7 +932,9 @@ export default function MobileDailyReportPage() {
                     <p className="text-xs text-muted-foreground">
                       {zoneRequired
                         ? "Company requires a twin zone on progress submit when zones exist for this job. Drafts can still save without a zone."
-                        : "Optional twin fuel — skip anytime, including offline."}
+                        : isDemoUser && requireSpatialOnProgress
+                          ? "Demo mode: zone skip allowed even when company requires spatial on progress. Production users must pick a zone."
+                          : "Optional twin fuel — skip anytime, including offline."}
                     </p>
                   </div>
                 )}
