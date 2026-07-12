@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.7] - 2026-07-12T14:59:15-07:00
+
+### Changed
+
+- **Site walk twin link** - Digital Twin CTA gated with `shouldShowSiteWalkTwinLink(isDigitalTwinEnabled())` (hidden when flag off).
+
+### Notes
+
+- Version **2.14.7**
+
 ## [2.14.6] - 2026-07-12T14:58:51-07:00
 
 ### Added
