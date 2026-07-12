@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.2] - 2026-07-12T16:50:14-07:00
+
+### Added
+
+- **Arc D checkpoint** — digital twin Phase 2 Status **Shipped through 2.19.2**; DoD checkboxes closed; twin-phase2 notes status final.
+
+### Notes
+
+- Version **2.19.2** closes Arc D (2.15.3?2.19.2). Next: Arc E AI / product close 2.19.3?2.22.2.
+
 ## [2.19.1] - 2026-07-12T16:48:35-07:00
 
 ### Changed
