@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.8] - 2026-07-12T16:42:40-07:00
+
+### Added
+
+- **Help: field zone picker + Digital Twin** — Help Center section on where the zone picker lives, optional vs required, demo skip, twin fuel, and capture-quality as labeled data quality (not a KPI).
+
+### Notes
+
+- Version **2.18.8**. Next: E2E twin zone round-trip (2.18.9).
+
 ## [2.18.7] - 2026-07-12T16:40:11-07:00
 
 ### Added
