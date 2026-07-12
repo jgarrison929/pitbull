@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.5] - 2026-07-12T15:59:39-07:00
+
+### Added
+
+- **Overlay fuel timing diagnostics** - `OverlayPerfMetrics` log line + p95 helper (diagnostic only, not a health KPI).
+
+### Notes
+
+- Version **2.17.5**
 ## [2.17.4] - 2026-07-12T15:57:35-07:00
 
 ### Changed
