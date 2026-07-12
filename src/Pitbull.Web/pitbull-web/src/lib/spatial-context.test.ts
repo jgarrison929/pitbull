@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   applySpatialContextToReportData,
   applyTwinFuelToReportData,
+  canSubmitWithSpatialPolicy,
   formatZoneLabel,
   isSpatialContextOptionalForSubmit,
+  isSpatialZoneRequired,
   normalizeZoneOptions,
   pickSpatialContext,
   type SpatialZoneOption,
@@ -69,7 +71,7 @@ describe("applySpatialContextToReportData", () => {
 });
 
 describe("isSpatialContextOptionalForSubmit", () => {
-  it("never blocks submit", () => {
+  it("allows skip when policy off", () => {
     expect(isSpatialContextOptionalForSubmit({ kind: "skip" })).toBe(true);
     expect(
       isSpatialContextOptionalForSubmit({
@@ -79,12 +81,62 @@ describe("isSpatialContextOptionalForSubmit", () => {
       })
     ).toBe(true);
   });
+
+  it("blocks skip when required and zones exist", () => {
+    expect(
+      isSpatialContextOptionalForSubmit({ kind: "skip" }, true, true)
+    ).toBe(false);
+    expect(
+      isSpatialContextOptionalForSubmit(
+        { kind: "apply", spatialNodeId: "zone-east", zone: ZONES[0]! },
+        true,
+        true
+      )
+    ).toBe(true);
+  });
+});
+
+describe("canSubmitWithSpatialPolicy", () => {
+  it("allows draft without zone even when required", () => {
+    expect(
+      canSubmitWithSpatialPolicy({
+        requireSpatialOnProgress: true,
+        zones: ZONES,
+        decision: { kind: "skip" },
+        asDraft: true,
+      }).ok
+    ).toBe(true);
+  });
+
+  it("blocks submit without zone when required and zones exist", () => {
+    const r = canSubmitWithSpatialPolicy({
+      requireSpatialOnProgress: true,
+      zones: ZONES,
+      decision: { kind: "skip" },
+      asDraft: false,
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.message).toMatch(/zone/i);
+  });
+
+  it("does not require when no zones loaded", () => {
+    expect(isSpatialZoneRequired(true, false)).toBe(false);
+    expect(
+      canSubmitWithSpatialPolicy({
+        requireSpatialOnProgress: true,
+        zones: [],
+        decision: { kind: "skip" },
+        asDraft: false,
+      }).ok
+    ).toBe(true);
+  });
 });
 
 describe("formatZoneLabel / normalizeZoneOptions", () => {
   it("formats path and normalizes API casing", () => {
     expect(formatZoneLabel(ZONES[0])).toContain("Level 1");
     expect(formatZoneLabel(null)).toContain("optional");
+    expect(formatZoneLabel(null, true)).toContain("required");
     const zones = normalizeZoneOptions([
       { Id: "a", Code: "Z1", Name: "Zone 1", PathLabel: "A / Z1" },
     ]);

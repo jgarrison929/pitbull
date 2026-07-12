@@ -1,6 +1,6 @@
 /**
- * Pure helpers for optional zones-first spatial context on field capture.
- * Skip is always safe — never block offline submit when zone is unset.
+ * Pure helpers for zones-first spatial context on field capture.
+ * Zone is optional unless company RequireSpatialOnProgress is on and zones exist.
  */
 
 export interface SpatialZoneOption {
@@ -39,17 +39,54 @@ export function applySpatialContextToReportData(
   return { ...data, SpatialNodeId: decision.spatialNodeId };
 }
 
-/** True when form may submit offline/online regardless of zone selection. */
-export function isSpatialContextOptionalForSubmit(
-  decision: SpatialContextDecision
+/**
+ * Whether company policy asks for a spatial zone on progress submits.
+ * Only meaningful when the project has zone options loaded.
+ */
+export function isSpatialZoneRequired(
+  requireSpatialOnProgress: boolean,
+  zonesAvailable: boolean
 ): boolean {
-  // Zone is always optional for capture fuel
-  void decision;
-  return true;
+  return requireSpatialOnProgress === true && zonesAvailable === true;
 }
 
-export function formatZoneLabel(zone: SpatialZoneOption | null | undefined): string {
-  if (!zone) return "No zone (optional)";
+/**
+ * Block non-draft submit (online or offline queue) when zone is required and missing.
+ * Drafts remain free to save without a zone.
+ */
+export function canSubmitWithSpatialPolicy(opts: {
+  requireSpatialOnProgress: boolean;
+  zones: SpatialZoneOption[];
+  decision: SpatialContextDecision;
+  asDraft: boolean;
+}): { ok: true } | { ok: false; message: string } {
+  if (opts.asDraft) return { ok: true };
+  if (!isSpatialZoneRequired(opts.requireSpatialOnProgress, opts.zones.length > 0)) {
+    return { ok: true };
+  }
+  if (opts.decision.kind === "apply") return { ok: true };
+  return {
+    ok: false,
+    message:
+      "Select a site zone before submitting. Company settings require a spatial zone on progress reports when zones exist for this job.",
+  };
+}
+
+/** @deprecated Prefer canSubmitWithSpatialPolicy — kept for existing imports. */
+export function isSpatialContextOptionalForSubmit(
+  decision: SpatialContextDecision,
+  requireSpatialOnProgress = false,
+  zonesAvailable = false
+): boolean {
+  if (!isSpatialZoneRequired(requireSpatialOnProgress, zonesAvailable)) return true;
+  return decision.kind === "apply";
+}
+
+export function formatZoneLabel(
+  zone: SpatialZoneOption | null | undefined,
+  required = false
+): string {
+  if (!zone) return required ? "No zone (required)" : "No zone (optional)";
   const path = zone.pathLabel?.trim();
   if (path) return path;
   return `${zone.code} — ${zone.name}`.trim();
