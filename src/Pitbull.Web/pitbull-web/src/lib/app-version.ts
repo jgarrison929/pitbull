@@ -6,7 +6,7 @@ export function getAppVersion(): string {
   const fromEnv = process.env.NEXT_PUBLIC_APP_VERSION?.trim();
   if (fromEnv) return fromEnv.replace(/^v/i, "");
   // Fallback if env missing (e.g. misconfigured deploy) — keep in sync with package.json / VERSION
-  return "2.17.3";
+  return "2.17.4";
 }
 
 /** Short label for chrome (e.g. "v2.1.0"). */

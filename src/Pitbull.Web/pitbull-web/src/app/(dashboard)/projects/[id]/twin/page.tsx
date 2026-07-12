@@ -46,6 +46,10 @@ import {
   type ModelAssetDto,
   type ModelAssetListResponse,
 } from "@/lib/model-assets";
+import {
+  defaultStoreyFilter,
+  zonesForStorey,
+} from "@/lib/twin-storey-lazy";
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -147,6 +151,11 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
       ]);
       setGraph(g);
       setOverlay(o);
+      // 2.17.4: lazy default — first storey, not all floors at once
+      if (g?.nodes?.length && storeyFilter === "__all__") {
+        const def = defaultStoreyFilter(g.nodes);
+        if (def !== "__all__") setStoreyFilter(def);
+      }
       if (project) {
         setProjectName(
           [project.number, project.name].filter(Boolean).join(" — ") || "Project"
@@ -573,10 +582,25 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                   Floor-plan style cards — color is overlay band only (gray =
                   insufficient, not green).
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {tree
-                    .filter((n) => n.nodeType === "Zone" || n.nodeType === "zone")
-                    .map((node) => {
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" data-testid="twin-schematic-zones">
+                  {zonesForStorey(
+                    (graph?.nodes ?? []).map((n) => ({
+                      id: n.id,
+                      parentNodeId: n.parentNodeId,
+                      nodeType: n.nodeType,
+                      code: n.code,
+                      name: n.name,
+                    })),
+                    storeyFilter
+                  ).map((z) => {
+                    const node = tree.find((t) => t.id === z.id) ?? {
+                      ...z,
+                      sortOrder: 0,
+                      isActive: true,
+                      depth: 0,
+                    };
+                    return { node, z };
+                  }).map(({ node }) => {
                       const ov = overlayById.get(node.id);
                       const band = ov?.band ?? "InsufficientData";
                       const active = selectedId === node.id;
