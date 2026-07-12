@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   FolderOpen,
   DollarSign,
+  MapPin,
   Save,
   RotateCcw,
   AlertTriangle,
@@ -101,7 +102,7 @@ export default function ProjectSettingsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Project Settings</h1>
           <p className="text-muted-foreground">
-            Configure project numbering, budget requirements, and retention defaults
+            Configure project numbering, budget requirements, retention, and optional field spatial rules
           </p>
         </div>
         <div className="flex gap-2">
@@ -231,6 +232,44 @@ export default function ProjectSettingsPage() {
                 Applied to new subcontracts and payment applications by default
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Field spatial (digital twin fuel) */}
+        <Card className="lg:col-span-2" data-testid="require-spatial-on-progress-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              Field spatial progress
+            </CardTitle>
+            <CardDescription>
+              Optional company default for requiring a zone (spatial ref) on field progress captures
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg border">
+              <div className="space-y-0.5 pr-4">
+                <Label htmlFor="requireSpatialOnProgress">
+                  Require spatial zone on progress
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, field daily reports / progress should include a twin zone (or
+                  equivalent spatial ref). Default is off. Enforcement in the field form lands in a
+                  following release; this toggle only stores the company preference.
+                </p>
+              </div>
+              <Switch
+                id="requireSpatialOnProgress"
+                data-testid="require-spatial-on-progress-switch"
+                checked={settings.requireSpatialOnProgress}
+                onCheckedChange={(checked) =>
+                  update({ requireSpatialOnProgress: checked })
+                }
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Not an executive KPI. Empty zones stay neutral — this never invents green progress.
+            </p>
           </CardContent>
         </Card>
       </div>

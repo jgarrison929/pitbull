@@ -545,6 +545,21 @@ export default function CompanySetupWizard() {
                       }
                     />
                   </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="space-y-0.5">
+                      <Label>Require spatial zone on progress</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Optional. Default off. Field enforcement follows; never invents green zones.
+                      </p>
+                    </div>
+                    <Switch
+                      data-testid="setup-require-spatial-on-progress"
+                      checked={projectSettings.requireSpatialOnProgress}
+                      onCheckedChange={(checked) =>
+                        setProjectSettings((p) => ({ ...p, requireSpatialOnProgress: checked }))
+                      }
+                    />
+                  </div>
                 </CardContent>
               </Card>
             )}
