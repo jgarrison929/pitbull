@@ -1,6 +1,6 @@
 # Spec: Mobile Phase 2 — plans & specs viewer
 
-**Status:** Pending  
+**Status:** In progress (2.13.3 wireframe notes)  
 **Version band:** 2.13.3 → 2.14.2 (10 PRs)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 2, [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) §4
 
@@ -66,3 +66,32 @@ Superintendent, PM on site walk.
 - [ ] Field viewer usable at 390×844  
 - [ ] PlanSheetId selectable on field report  
 - [ ] Help + notes committed  
+
+## Field-mode wireframe notes (2.13.3)
+
+**Viewport policy**
+
+| Viewport | Default surface | Admin / CRUD |
+|----------|-----------------|--------------|
+| `<lg` (phone / small tablet) | **Viewer-first** — sheet search + PDF viewer | Hidden or secondary; no primary upload CTA above the fold |
+| `≥lg` (desktop) | Viewer + full admin CRUD | Upload, replace, delete, metadata edit as today |
+
+**Phone layout (390×844)**
+
+1. Sticky top: project breadcrumb + sheet search (min 44px input).
+2. Sheet list (virtualized later if needed) — tap opens viewer.
+3. Viewer chrome: zoom / page with 44px targets; revision label from API (2.13.7).
+4. No blocking admin dialogs on first paint.
+
+**Desktop**
+
+- Keep existing admin tabs/actions; field viewer remains available as a tab.
+
+**Deep links (later rows)**
+
+- Site walk → `/projects/{id}/plans-specs?sheet=…` (2.13.6)
+- Field report → `PlanSheetId` picker (2.14.0)
+
+**API routes to document as implemented**
+
+- List/detail/download plan sheets under project documents API (exact paths confirmed when 2.13.4 touches page).

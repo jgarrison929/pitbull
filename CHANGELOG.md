@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.3] - 2026-07-12T14:50:51-07:00
+
+### Added
+
+- **Plans field-mode wireframe notes** - `mobile-phase2-plans-viewer.md` documents viewer-default `<lg` vs admin CRUD desktop; Arc B starts.
+
+### Notes
+
+- Version **2.13.3**
+
 ## [2.13.2] - 2026-07-12T14:50:27-07:00
 
 ### Added
