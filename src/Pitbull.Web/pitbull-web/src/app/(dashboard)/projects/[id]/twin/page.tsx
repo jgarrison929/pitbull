@@ -39,6 +39,7 @@ import {
 } from "@/lib/twin-zone-drill-analytics";
 import {
   buildModelAssetsUrl,
+  buildStartConversionUrl,
   modelAssetStatusLabel,
   type ModelAssetDto,
   type ModelAssetListResponse,
@@ -317,6 +318,25 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
       });
     } finally {
       setRegisteringModel(false);
+    }
+  }
+
+  async function startConversion(modelAssetId: string) {
+    try {
+      const dto = await api<ModelAssetDto>(
+        buildStartConversionUrl(projectId, modelAssetId),
+        { method: "POST" }
+      );
+      if (dto.isReady) {
+        toast.error("Invariant: processing must not be ready");
+      } else {
+        toast.message("Conversion started — status Processing (not ready)");
+      }
+      await loadModelAssets();
+    } catch (e) {
+      toast.error("Could not start conversion", {
+        description: e instanceof Error ? e.message : undefined,
+      });
     }
   }
 
@@ -783,12 +803,26 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                           v{a.versionNumber} · {a.sourceFormat}
                         </span>
                       </span>
-                      <Badge
-                        variant={a.isReady ? "default" : "secondary"}
-                        data-testid={`twin-model-status-${a.id}`}
-                      >
-                        {modelAssetStatusLabel(a)}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant={a.isReady ? "default" : "secondary"}
+                          data-testid={`twin-model-status-${a.id}`}
+                        >
+                          {modelAssetStatusLabel(a)}
+                        </Badge>
+                        {!a.isReady &&
+                          a.conversionStatus.toLowerCase() === "pending" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="hidden md:inline-flex min-h-[36px]"
+                              data-testid={`twin-model-start-conversion-${a.id}`}
+                              onClick={() => void startConversion(a.id)}
+                            >
+                              Start conversion
+                            </Button>
+                          )}
+                      </div>
                     </li>
                   ))}
                 </ul>

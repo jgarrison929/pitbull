@@ -42,4 +42,21 @@ public class ModelAssetStatusTests
         Assert.Contains("No model assets", empty.Message, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("failed", empty.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void ToDto_processing_is_never_ready()
+    {
+        var entity = new ModelAsset
+        {
+            Id = Guid.NewGuid(),
+            ProjectId = Guid.NewGuid(),
+            DisplayName = "Converting",
+            ConversionStatus = ModelConversionStatus.Processing,
+            VersionNumber = 1,
+            RuntimeBlobKey = null,
+        };
+        var dto = ModelAssetStatus.ToDto(entity);
+        Assert.False(dto.IsReady);
+        Assert.Equal("Processing", dto.ConversionStatus);
+    }
 }

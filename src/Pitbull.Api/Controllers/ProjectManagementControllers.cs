@@ -2935,4 +2935,13 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
         Guid projectId,
         [FromBody] RegisterModelAssetRequest request)
         => HandleResult(await spatialService.RegisterModelAssetAsync(projectId, request));
+
+    /// <summary>
+    /// Conversion job stub (2.16.5): Pending → Processing only. Never claims ready.
+    /// </summary>
+    [HttpPost("model-assets/{modelAssetId:guid}/start-conversion")]
+    [Authorize(Policy = "Spatial.Manage")]
+    [ProducesResponseType(typeof(ModelAssetDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> StartModelConversion(Guid projectId, Guid modelAssetId)
+        => HandleResult(await spatialService.StartModelConversionAsync(projectId, modelAssetId));
 }

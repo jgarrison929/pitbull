@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.5] - 2026-07-12T15:37:56-07:00
+
+### Added
+
+- **Model conversion job stub** - `POST .../model-assets/{id}/start-conversion` moves Pending → Processing only; never marks Succeeded/ready.
+
+### Notes
+
+- Version **2.16.5**
 ## [2.16.4] - 2026-07-12T15:35:26-07:00
 
 ### Added
