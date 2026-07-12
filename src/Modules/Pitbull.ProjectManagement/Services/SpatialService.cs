@@ -231,14 +231,48 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(zones);
     }
 
-    public Task<Result<TwinPhotoPinsResponse>> ListPhotoPinsAsync(
+    public async Task<Result<TwinPhotoPinsResponse>> ListPhotoPinsAsync(
         Guid projectId,
         Guid? spatialNodeId = null,
         CancellationToken cancellationToken = default)
     {
-        // 2.15.3 stub: contract + honest empty. Aggregation of real GPS/zone photos lands 2.15.5+.
-        _ = cancellationToken;
-        return Task.FromResult(Result.Success(TwinPhotoPinAggregation.Empty(projectId, spatialNodeId)));
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<TwinPhotoPinsResponse>("Project not found.", "NOT_FOUND");
+
+        // Join photos → parent report (project + optional zone). Honest: no GPS/zone ⇒ no pin.
+        var rows = await (
+            from photo in Db.Set<PmDailyReportPhoto>().AsNoTracking()
+            join report in Db.Set<PmDailyReport>().AsNoTracking()
+                on photo.DailyReportId equals report.Id
+            where !photo.IsDeleted
+                  && !report.IsDeleted
+                  && report.ProjectId == projectId
+            select new
+            {
+                photo.Id,
+                photo.DocumentId,
+                photo.Latitude,
+                photo.Longitude,
+                photo.TakenAt,
+                report.SpatialNodeId,
+            }
+        ).ToListAsync(cancellationToken);
+
+        var source = rows.Select(r => (
+            PhotoId: r.Id,
+            SpatialNodeId: r.SpatialNodeId,
+            Latitude: r.Latitude.HasValue ? (double?)Convert.ToDouble(r.Latitude.Value) : null,
+            Longitude: r.Longitude.HasValue ? (double?)Convert.ToDouble(r.Longitude.Value) : null,
+            ThumbnailUrl: (string?)($"/api/files/{r.DocumentId}/download"),
+            CapturedAt: r.TakenAt
+        ));
+
+        var pins = TwinPhotoPinAggregation.Aggregate(source, spatialNodeId);
+        var message = pins.Count == 0
+            ? "No photo pins yet — pins appear when field photos have GPS or a zone link. Empty is not all-clear."
+            : $"{pins.Count} photo pin(s) from daily reports (GPS and/or zone). Missing GPS is not invented.";
+
+        return Result.Success(new TwinPhotoPinsResponse(projectId, spatialNodeId, message, pins));
     }
 
     public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(

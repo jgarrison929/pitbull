@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.5] - 2026-07-12T15:11:46-07:00
+
+### Changed
+
+- **Twin photo pins from daily report GPS/zone** - `ListPhotoPinsAsync` joins `PmDailyReportPhoto` + report `SpatialNodeId`; places pins only when GPS and/or zone exist (no invented coordinates).
+
+### Notes
+
+- Version **2.15.5**
 ## [2.15.4] - 2026-07-12T15:09:21-07:00
 
 ### Added
