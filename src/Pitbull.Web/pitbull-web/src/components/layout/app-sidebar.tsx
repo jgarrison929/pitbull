@@ -526,7 +526,7 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
             captureProductEvent("workspace_switched", { workspace_id: id });
             router.push(getWorkspaceLandingHref(id));
             onNavigate?.();
-          }
+          }}
           isCollapsed={effectiveCollapsed}
         />
       </div>
