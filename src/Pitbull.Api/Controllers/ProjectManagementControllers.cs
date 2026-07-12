@@ -2872,4 +2872,10 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
     [ProducesResponseType(typeof(IReadOnlyList<SpatialZoneOptionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListZones(Guid projectId)
         => HandleResult(await spatialService.ListZonesAsync(projectId));
+
+    /// <summary>Zone drill panel: linked RFIs / reports / progress / schedule or honest empty.</summary>
+    [HttpGet("zones/{spatialNodeId:guid}")]
+    [ProducesResponseType(typeof(SpatialZoneDetailResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetZoneDetail(Guid projectId, Guid spatialNodeId)
+        => HandleResult(await spatialService.GetZoneDetailAsync(projectId, spatialNodeId));
 }

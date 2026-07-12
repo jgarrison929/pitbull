@@ -225,4 +225,5 @@ public interface ISpatialService
     Task<Result<SpatialGraphResponse>> EnsureSeededGraphAsync(Guid projectId, CancellationToken cancellationToken = default);
     Task<Result<SpatialOverlayResponse>> GetOverlayAsync(Guid projectId, string mode, DateTime? asOf = null, CancellationToken cancellationToken = default);
     Task<Result<IReadOnlyList<SpatialZoneOptionDto>>> ListZonesAsync(Guid projectId, CancellationToken cancellationToken = default);
+    Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(Guid projectId, Guid spatialNodeId, CancellationToken cancellationToken = default);
 }
