@@ -33,6 +33,11 @@ import {
   twinTruthBands,
   twinTruthLegendBullets,
 } from "@/lib/help-twin-overlays";
+import {
+  ZONE_PICKER_TWIN_SECTION_TITLE,
+  zonePickerTwinBullets,
+  zonePickerTwinSteps,
+} from "@/lib/help-zone-picker-twin";
 
 const fieldWorkflowIcons: Record<FieldWorkflowCard["icon"], LucideIcon> = {
   "file-text": FileText,
@@ -300,6 +305,35 @@ export default function HelpPage() {
             </ul>
             <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
               {twinTruthLegendBullets.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Zone picker + twin fuel (2.18.8) */}
+      <div data-testid="help-zone-picker-twin">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <MapPin className="h-5 w-5 text-amber-500" />
+          {ZONE_PICKER_TWIN_SECTION_TITLE}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          How field zone selection feeds Digital Twin. Optional by default; required
+          only when company enables it. Empty twin panels stay neutral — not all-clear.
+        </p>
+        <Card>
+          <CardContent className="pt-5 space-y-4">
+            <ul className="space-y-3">
+              {zonePickerTwinBullets.map((b) => (
+                <li key={b.id} className="text-sm">
+                  <span className="font-medium">{b.title}: </span>
+                  <span className="text-muted-foreground">{b.body}</span>
+                </li>
+              ))}
+            </ul>
+            <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+              {zonePickerTwinSteps.map((step, i) => (
                 <li key={i}>{step}</li>
               ))}
             </ol>
