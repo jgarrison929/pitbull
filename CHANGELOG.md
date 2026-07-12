@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.1] - 2026-07-12T04:00:00-07:00
+
+### Fixed
+
+- **Role summary N+1** - batch portfolio aggregates in `GetRoleSummary` (projects, COs, bids, employees, compliance) so CEO/estimator home no longer trips `n_plus_one_detected` (~26 queries).
+- **RFI list 403 for office/demo roles** - `ProjectAccessService` grants company-wide access to Identity **Manager** (and Admin), matching demo CEO/CFO/PM/Estimator; field User/Supervisor still need an active project assignment.
+- Version **2.12.1**
+
 ## [2.12.0] - 2026-07-11T20:30:00-07:00
 
 ### Changed
