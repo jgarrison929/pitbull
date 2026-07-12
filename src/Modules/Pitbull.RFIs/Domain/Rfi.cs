@@ -35,6 +35,9 @@ public class Rfi : BaseEntity, ICompanyScoped
     public string? SpecSection { get; set; }        // CSI format: "03 30 00 - Cast-in-Place Concrete"
     public string? DrawingReferences { get; set; }  // JSON array: ["S-101", "S-102", "D-001"]
 
+    /// <summary>Optional zone for jobsitetwin overlay (zones-first).</summary>
+    public Guid? SpatialNodeId { get; set; }
+
     // Cost impact tracking
     public bool HasCostImpact { get; set; }
     public decimal? EstimatedCostImpact { get; set; }

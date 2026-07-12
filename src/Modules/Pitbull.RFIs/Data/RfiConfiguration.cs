@@ -35,6 +35,7 @@ public class RfiConfiguration : IEntityTypeConfiguration<Rfi>
         builder.HasIndex(r => r.Status);
         builder.HasIndex(r => r.BallInCourtUserId);
         builder.HasIndex(r => r.AssignedToUserId);
+        builder.HasIndex(r => r.SpatialNodeId);
 
         // Optimistic concurrency using PostgreSQL xmin
         builder.Property<uint>("xmin")

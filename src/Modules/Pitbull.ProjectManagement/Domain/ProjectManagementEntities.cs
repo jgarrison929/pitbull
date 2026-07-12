@@ -108,6 +108,8 @@ public class PmScheduleActivity : BaseEntity, ICompanyScoped
     public Guid? CostCodeId { get; set; }
     public Guid? PhaseId { get; set; }
     public int SortOrder { get; set; }
+    /// <summary>Default zone for activity (schedule overlay fuel).</summary>
+    public Guid? PrimarySpatialNodeId { get; set; }
 }
 
 public class PmScheduleDependency : BaseEntity, ICompanyScoped
@@ -552,6 +554,8 @@ public class PmProgressEntry : BaseEntity, ICompanyScoped
     public Guid EnteredByUserId { get; set; }
     public ProgressEntryType EntryType { get; set; }
     public ProgressEntryStatus Status { get; set; }
+    /// <summary>Optional zone of work for twin progress overlay.</summary>
+    public Guid? SpatialNodeId { get; set; }
 }
 
 public class PmActivityProgress : BaseEntity, ICompanyScoped
@@ -563,6 +567,8 @@ public class PmActivityProgress : BaseEntity, ICompanyScoped
     public decimal? InstalledQuantity { get; set; }
     public string? Unit { get; set; }
     public decimal? EarnedHours { get; set; }
+    /// <summary>Optional zone pin finer than parent entry.</summary>
+    public Guid? SpatialNodeId { get; set; }
 }
 
 public class PmCostCodeProgress : BaseEntity, ICompanyScoped
