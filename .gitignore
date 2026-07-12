@@ -31,7 +31,11 @@ Thumbs.db
 # Agent/session artifacts
 agent-tools/
 terminals/
-
+mcps/
+.railway-config-pull-*/
+posthog-self-driving-report.md
+coverage/
+.next/
 # Docker
 pitbull-pgdata/
 pitbull-redis/
