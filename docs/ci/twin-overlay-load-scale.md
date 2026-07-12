@@ -35,3 +35,16 @@ See `SpatialService.GetOverlayAsync` and unit structural check `SpatialOverlayBa
 
 - Empty / insufficient zones are **not** all-clear.
 - Load numbers above are **seed guidance**, not guaranteed p95 product KPIs.
+
+## SLO evidence (2.18.1) — diagnostic, not executive KPI
+
+| Check | Evidence | Result |
+|-------|----------|--------|
+| No N+1 on zone list fuel | `Task.WhenAll` + SQL `GroupBy` in `SpatialService` | Structural pass (unit: `SpatialOverlayBatchNotesTests`) |
+| Overlay fuel timing logged | `OverlayPerfMetrics.FormatFuelLog` / Debug line | Diagnostic only |
+| Formula regression | `overlay-formula.test.ts` + `SpatialOverlayCalculatorTests` | Unit pass |
+| Cost heat honesty | cost mode Insufficient without allocation | Unit pass (`SpatialCostOverlayTests`) |
+| Demo seed scale | Table above | Documented |
+
+**Target (engineering, not marketed SLA):** for seed scale ≤40 zones + ≤50 open RFIs linked, overlay fuel batch should complete in well under 1s on local/dev Postgres.  
+**Production p95:** not claimed without continuous metrics pipeline — capture `twin_overlay_fuel elapsed_ms` samples before asserting.
