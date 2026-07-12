@@ -147,9 +147,14 @@ public class SpatialService : PmServiceBase, ISpatialService
             .ToList();
         var zoneIds = SpatialGraphFilter.ZoneIdsUnderStorey(nodeRefs, storeyNodeId);
 
-        var rfiCounts = await LoadOpenRfiCountsByZoneAsync(projectId, zoneIds, from, to, cancellationToken);
-        var progressByZone = await LoadProgressPercentByZoneAsync(projectId, zoneIds, asOfUtc, from, to, cancellationToken);
-        var scheduleByZone = await LoadScheduleSignalsByZoneAsync(projectId, zoneIds, asOfUtc, cancellationToken);
+        // 2.17.3: batch zone-link queries in parallel (no per-zone N+1; GroupBy in SQL).
+        var rfiTask = LoadOpenRfiCountsByZoneAsync(projectId, zoneIds, from, to, cancellationToken);
+        var progressTask = LoadProgressPercentByZoneAsync(projectId, zoneIds, asOfUtc, from, to, cancellationToken);
+        var scheduleTask = LoadScheduleSignalsByZoneAsync(projectId, zoneIds, asOfUtc, cancellationToken);
+        await Task.WhenAll(rfiTask, progressTask, scheduleTask);
+        var rfiCounts = await rfiTask;
+        var progressByZone = await progressTask;
+        var scheduleByZone = await scheduleTask;
 
         // Only emit overlay rows for in-scope zones (+ ancestors for tree context as Insufficient)
         var inputs = graphResult.Value.Nodes
