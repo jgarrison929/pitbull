@@ -130,6 +130,18 @@ describe("canSubmitWithSpatialPolicy", () => {
       }).ok
     ).toBe(true);
   });
+
+  it("allows demo users to skip when policy would require a zone", () => {
+    expect(
+      canSubmitWithSpatialPolicy({
+        requireSpatialOnProgress: true,
+        zones: ZONES,
+        decision: { kind: "skip" },
+        asDraft: false,
+        isDemoUser: true,
+      }).ok
+    ).toBe(true);
+  });
 });
 
 describe("formatZoneLabel / normalizeZoneOptions", () => {

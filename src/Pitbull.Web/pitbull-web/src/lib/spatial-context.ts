@@ -53,14 +53,18 @@ export function isSpatialZoneRequired(
 /**
  * Block non-draft submit (online or offline queue) when zone is required and missing.
  * Drafts remain free to save without a zone.
+ * Demo users may skip (honest demo path — production still enforces).
  */
 export function canSubmitWithSpatialPolicy(opts: {
   requireSpatialOnProgress: boolean;
   zones: SpatialZoneOption[];
   decision: SpatialContextDecision;
   asDraft: boolean;
+  /** JWT isDemoUser / demo persona — skip enforcement for demos */
+  isDemoUser?: boolean;
 }): { ok: true } | { ok: false; message: string } {
   if (opts.asDraft) return { ok: true };
+  if (opts.isDemoUser) return { ok: true };
   if (!isSpatialZoneRequired(opts.requireSpatialOnProgress, opts.zones.length > 0)) {
     return { ok: true };
   }

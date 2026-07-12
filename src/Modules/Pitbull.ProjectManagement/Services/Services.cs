@@ -445,6 +445,16 @@ public abstract class PmServiceBase
         return Guid.TryParse(sub, out var id) ? id : Guid.Empty;
     }
 
+    /// <summary>
+    /// Demo personas (JWT <c>is_demo_user</c>) may skip RequireSpatialOnProgress enforcement
+    /// so field demos stay unblocked. Production users still enforce. See docs/ci/twin-phase2-notes.md.
+    /// </summary>
+    protected bool IsCurrentUserDemo()
+    {
+        var user = _httpContextAccessor.HttpContext?.User;
+        return string.Equals(user?.FindFirst("is_demo_user")?.Value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task<bool> HasCurrentUserProjectAccessAsync(Guid projectId, CancellationToken ct)
     {
         if (!ShouldEnforceProjectAccess())
@@ -1118,8 +1128,9 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (!await HasDailyReportManpowerAsync(dailyReportId, dailyReport.WorkNarrative, cancellationToken))
             return Result.Failure<PmActionResultDto>("At least one crew/manpower entry or a work narrative is required before submitting", "VALIDATION_ERROR");
 
-        // Require spatial zone when company ProjectSettings.RequireSpatialOnProgress and project has zones
-        if (dailyReport.SpatialNodeId is null && CurrentCompanyId != Guid.Empty)
+        // Require spatial zone when company ProjectSettings.RequireSpatialOnProgress and project has zones.
+        // Demo users may skip (documented demo path) so Explore personas stay unblocked.
+        if (dailyReport.SpatialNodeId is null && CurrentCompanyId != Guid.Empty && !IsCurrentUserDemo())
         {
             var requireSpatial = await Db.Companies
                 .AsNoTracking()
