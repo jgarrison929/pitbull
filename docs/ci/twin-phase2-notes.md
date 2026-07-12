@@ -53,3 +53,15 @@ Model upload band: 2.16.3 â†’ 2.17.2
 
 **Skipped** shipping a sample glTF/IFC blob in this band (license/size). Runtime pointer and conversion remain admin-driven; zones-first path is authoritative for demos.
 
+
+## Feature flag (2.17.1)
+
+`NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` / product name `features.digitalTwin`:
+
+| Env | Behavior |
+|-----|----------|
+| unset / empty | **ON** (production default) |
+| `false` / `0` / `off` / `no` | OFF — hide twin nav |
+
+Documented in `src/Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
+

@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.1] - 2026-07-12T15:51:19-07:00
+
+### Changed
+
+- **Digital Twin feature flag prod default** - documented: `NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` unset/empty = **ON** in production (same as demo/dev). Opt-out via false/0/off.
+
+### Notes
+
+- Version **2.17.1**
 ## [2.17.0] - 2026-07-12T15:49:49-07:00
 
 ### Added
