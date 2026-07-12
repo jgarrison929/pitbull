@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.3] - 2026-07-12T08:30:00-07:00
+
+### Fixed
+
+- **Field report mobile chrome** - hide `MobileBottomNav` and quick-action FAB on `/daily-reports/mobile` so the wizard owns a single bottom action bar (no double fixed bars at 390×844).
+- **PWA install prompt** - position above bottom nav + `safe-area-inset-bottom` via shared `MOBILE_PWA_PROMPT_POSITION` (was raw `bottom-4` under the nav).
+
+### Added
+
+- **SW shell precache** - `/daily-reports/mobile` in `public/sw.js` `PRECACHE_URLS`; `CACHE_VERSION` bumped to `v2.12.3`.
+- **Shared chrome tokens** - `MOBILE_FIELD_WIZARD_ACTION_BAR`, `isFieldReportMobilePath`, PWA offset in `mobile-shell.ts` with vitest coverage.
+
+### Notes
+
+- Version **2.12.3**
+
 ## [2.12.2] - 2026-07-12T12:00:00-07:00
 
 ### Added

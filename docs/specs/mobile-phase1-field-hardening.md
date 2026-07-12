@@ -73,9 +73,11 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** `daily-reports/mobile/page.tsx`, `layout.tsx`, `mobile-bottom-nav.tsx`, `mobile-shell.ts`, PWA prompt component, `public/sw.js`, vitest if constants change
 
 **Acceptance:**
-- [ ] At 390×844, field report wizard primary CTA not covered by bottom nav **or** nav hidden on wizard  
-- [ ] PWA install prompt sits above bottom nav + `safe-area-inset-bottom`  
-- [ ] SW precache includes `/daily-reports/mobile` (or documented shell URL)  
+- [x] At 390×844, field report wizard primary CTA not covered by bottom nav **or** nav hidden on wizard  
+- [x] PWA install prompt sits above bottom nav + `safe-area-inset-bottom`  
+- [x] SW precache includes `/daily-reports/mobile` (or documented shell URL)  
+
+**Shipped approach:** Hide `MobileBottomNav` + FAB on field report path; wizard uses `MOBILE_FIELD_WIZARD_ACTION_BAR` at true bottom + safe-area.
 
 **Tests:** `mobile-shell.test.ts` (extend if needed); manual 390×844  
 
