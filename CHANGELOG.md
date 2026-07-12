@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-07-12T15:25:17-07:00
+
+### Added
+
+- **Integration tests zone + photo pins** - `SpatialEndpointsTests` covers honest empty `photo-pins` (project + zone filter) and auth gate.
+
+### Notes
+
+- Version **2.16.0**
 ## [2.15.9] - 2026-07-12T15:22:55-07:00
 
 ### Added
