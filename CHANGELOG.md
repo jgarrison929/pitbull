@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.9] - 2026-07-12T15:47:01-07:00
+
+### Added
+
+- **Spatial.Manage on model upload** - unit tests assert register/conversion/retry/set-active require `Spatial.Manage`; list requires `Spatial.View`. Integration: anonymous POST 401.
+
+### Notes
+
+- Version **2.16.9**
 ## [2.16.8] - 2026-07-12T15:44:29-07:00
 
 ### Added
