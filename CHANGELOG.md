@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.4] - 2026-07-12T15:57:35-07:00
+
+### Changed
+
+- **Twin storey lazy schematic** - default first storey; schematic zones filtered via `zonesForStorey` (load on demand, not all floors at once).
+
+### Notes
+
+- Version **2.17.4**
 ## [2.17.3] - 2026-07-12T15:54:39-07:00
 
 ### Changed
