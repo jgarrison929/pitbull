@@ -419,11 +419,16 @@ public abstract class PmServiceBase
             ? Result.Success()
             : Result.Failure("Reference entity was not found in this project", "NOT_FOUND");
     }
-    private bool IsCurrentUserAdmin()
-        => _httpContextAccessor.HttpContext?.User?.IsInRole("Admin") == true;
-
     private bool ShouldEnforceProjectAccess()
-        => _httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated == true && !IsCurrentUserAdmin();
+    {
+        var user = _httpContextAccessor.HttpContext?.User;
+        if (user?.Identity?.IsAuthenticated != true)
+            return false;
+        // Admin/Manager = company-wide (same gate as ProjectAccessService / RFIs)
+        if (ProjectAccessService.HasCompanyWideProjectAccess(user))
+            return false;
+        return true;
+    }
 
     private string? GetCurrentUserEmail()
     {
@@ -542,6 +547,16 @@ public class ScheduleService : PmServiceBase, IScheduleService
         await Db.SaveChangesAsync(cancellationToken);
         return Action("Baseline created", baseline.Id, new { baseline.ScheduleId, baseline.CapturedAt });
     }
+    public Task<Result<PagedResult<PmEntityDto>>> ListActivitiesAsync(
+        Guid projectId,
+        Guid scheduleId,
+        PmListQuery query,
+        CancellationToken cancellationToken = default)
+        => ListAsync(
+            ProjectScoped<PmScheduleActivity>(projectId).Where(a => a.ScheduleId == scheduleId),
+            query,
+            cancellationToken);
+
     public async Task<Result<PmEntityDto>> AddActivityAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
         if (request.Data is not null)
@@ -610,6 +625,16 @@ public class ScheduleService : PmServiceBase, IScheduleService
 
         return null;
     }
+    public Task<Result<PagedResult<PmEntityDto>>> ListDependenciesAsync(
+        Guid projectId,
+        Guid scheduleId,
+        PmListQuery query,
+        CancellationToken cancellationToken = default)
+        => ListAsync(
+            ProjectScoped<PmScheduleDependency>(projectId).Where(d => d.ScheduleId == scheduleId),
+            query,
+            cancellationToken);
+
     public async Task<Result<PmEntityDto>> AddDependencyAsync(Guid projectId, Guid scheduleId, PmUpsertRequest request, CancellationToken cancellationToken = default)
     {
         var scheduleExists = await ProjectScoped<PmSchedule>(projectId).AnyAsync(s => s.Id == scheduleId, cancellationToken);

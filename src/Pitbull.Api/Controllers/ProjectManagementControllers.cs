@@ -103,6 +103,16 @@ public class ProjectSchedulesController(IScheduleService scheduleService) : Proj
         => HandleAction(await scheduleService.DeleteScheduleAsync(projectId, scheduleId));
 
     /// <summary>
+    /// Lists schedule activities for the specified schedule (site walk / Gantt).
+    /// </summary>
+    [HttpGet("{scheduleId:guid}/activities")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListActivities(Guid projectId, Guid scheduleId, [FromQuery] PmListQuery query)
+        => HandleResult(await scheduleService.ListActivitiesAsync(projectId, scheduleId, query));
+
+    /// <summary>
     /// Adds a schedule activity to the specified schedule.
     /// </summary>
     /// <param name="projectId">Project identifier.</param>
@@ -136,6 +146,16 @@ public class ProjectSchedulesController(IScheduleService scheduleService) : Proj
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateActivity(Guid projectId, Guid scheduleId, Guid activityId, [FromBody] PmUpsertRequest request)
         => HandleResult(await scheduleService.UpdateActivityAsync(projectId, scheduleId, activityId, request));
+
+    /// <summary>
+    /// Lists dependency relationships for the specified schedule (Gantt).
+    /// </summary>
+    [HttpGet("{scheduleId:guid}/dependencies")]
+    [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ListDependencies(Guid projectId, Guid scheduleId, [FromQuery] PmListQuery query)
+        => HandleResult(await scheduleService.ListDependenciesAsync(projectId, scheduleId, query));
 
     /// <summary>
     /// Adds a dependency relationship to the specified schedule.

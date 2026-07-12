@@ -15,7 +15,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Role summary N+1** - batch portfolio aggregates in `GetRoleSummary` (projects, COs, bids, employees, compliance) so CEO/estimator home no longer trips `n_plus_one_detected` (~26 queries).
 - **RFI list 403 for office/demo roles** - `ProjectAccessService` grants company-wide access to Identity **Manager** (and Admin), matching demo CEO/CFO/PM/Estimator; field User/Supervisor still need an active project assignment.
 - **Digital Twin discoverability** - Twin is a primary project nav item (sidebar + mobile hub after Site Walk) and a field home last-job action; no longer buried under "More on this job".
+- **Schedule activities/dependencies GET** - site walk / Gantt called list endpoints that only had POST (405); add `ListActivities` / `ListDependencies`.
+- **Pay period current 404 noise** - missing period returns **204** (optional UI) instead of 404 that spammed PostHog `api_error`.
+- **Admin users list N+1** - batch role load for paged users (and role filter path).
+- **pm_daily_reports.Title** - defensive `ADD COLUMN IF NOT EXISTS` after migrate for envs that lagged migration history (Postgres 42703).
+- **PM project scope** - Manager company-wide access aligned with RFI gate for schedule/PM create paths.
 - Version **2.12.1**
+
+### Added
+
+- **Product funnel events** - `twin_opened`, `field_report_submitted` (online/offline), `workspace_switched` for PostHog analysis beyond pageviews.
 
 ## [2.12.0] - 2026-07-11T20:30:00-07:00
 

@@ -41,6 +41,7 @@ import {
 } from "@/lib/daily-report-offline";
 import { enqueueDailyReportForSync } from "@/lib/offline-store";
 import { requestBackgroundSync } from "@/components/service-worker-register";
+import { captureProductEvent } from "@/lib/posthog";
 import { applyVoiceTranscriptToNarratives } from "@/lib/voice-transcript";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -488,6 +489,12 @@ export default function MobileDailyReportPage() {
           ? "Report + photos saved on device"
           : "Report saved; large photos need online upload",
     });
+    captureProductEvent("field_report_submitted", {
+      project_id: projectId,
+      as_draft: asDraft,
+      photo_count: embedded,
+      offline: true,
+    });
     resetForm();
   }
 
@@ -540,6 +547,12 @@ export default function MobileDailyReportPage() {
 
       toast.success(asDraft ? "Draft saved" : "Report submitted", {
         description: `${title} — ${photos.length} photo(s)`,
+      });
+      captureProductEvent("field_report_submitted", {
+        project_id: projectId,
+        as_draft: asDraft,
+        photo_count: photos.length,
+        offline: false,
       });
       resetForm();
     } catch (error) {

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Controllers;
 
@@ -22,7 +23,8 @@ public class AdminUsersController(
     PitbullDbContext db,
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,
-    RoleSeeder roleSeeder) : ControllerBase
+    RoleSeeder roleSeeder,
+    ITenantContext tenantContext) : ControllerBase
 {
     /// <summary>
     /// List all users in the tenant with their roles
@@ -59,15 +61,17 @@ public class AdminUsersController(
 
         if (!string.IsNullOrWhiteSpace(role))
         {
-            // Role filter requires checking each user — but still limit the working set
             var users = await query.OrderBy(u => u.LastName).ThenBy(u => u.FirstName).ToListAsync();
-            var filtered = new List<AdminUserDto>();
-            foreach (var user in users)
-            {
-                var roles = await roleSeeder.GetUserRolesAsync(user);
-                if (roles.Contains(role, StringComparer.OrdinalIgnoreCase))
-                    filtered.Add(MapToDto(user, roles.ToList()));
-            }
+            var rolesByUser = await LoadRolesByUserIdAsync(users.Select(u => u.Id).ToList());
+            var filtered = users
+                .Select(u =>
+                {
+                    var roles = rolesByUser.GetValueOrDefault(u.Id, []);
+                    return (User: u, Roles: roles);
+                })
+                .Where(x => x.Roles.Contains(role, StringComparer.OrdinalIgnoreCase))
+                .Select(x => MapToDto(x.User, x.Roles))
+                .ToList();
             totalCount = filtered.Count;
             items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         }
@@ -80,12 +84,12 @@ public class AdminUsersController(
                 .Take(pageSize)
                 .ToListAsync();
 
-            items = new List<AdminUserDto>();
-            foreach (var user in users)
-            {
-                var roles = await roleSeeder.GetUserRolesAsync(user);
-                items.Add(MapToDto(user, roles.ToList()));
-            }
+            // Batch role load — avoids N+1 GetUserRolesAsync per row (PostHog n_plus_one_detected).
+            var userIds = users.Select(u => u.Id).ToList();
+            var rolesByUser = await LoadRolesByUserIdAsync(userIds);
+            items = users
+                .Select(u => MapToDto(u, rolesByUser.GetValueOrDefault(u.Id, [])))
+                .ToList();
         }
 
         return Ok(new AdminListUsersResult
@@ -338,6 +342,37 @@ public class AdminUsersController(
         EmployeeId = user.EmployeeId,
         CompanyId = user.CompanyId
     };
+
+    /// <summary>
+    /// One join for all user roles on the page (not per-user GetRolesAsync).
+    /// </summary>
+    private async Task<Dictionary<Guid, List<string>>> LoadRolesByUserIdAsync(List<Guid> userIds)
+    {
+        if (userIds.Count == 0)
+            return new Dictionary<Guid, List<string>>();
+
+        var tenantId = tenantContext.TenantId;
+        var prefix = $"{tenantId}:";
+
+        var rows = await db.Set<IdentityUserRole<Guid>>()
+            .Where(ur => userIds.Contains(ur.UserId))
+            .Join(
+                db.Set<AppRole>().Where(r => r.TenantId == tenantId),
+                ur => ur.RoleId,
+                r => r.Id,
+                (ur, r) => new { ur.UserId, r.Name })
+            .ToListAsync();
+
+        return rows
+            .GroupBy(x => x.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .Select(x => x.Name ?? "")
+                    .Where(n => n.StartsWith(prefix, StringComparison.Ordinal))
+                    .Select(n => n[prefix.Length..])
+                    .ToList());
+    }
 }
 
 public record BootstrapAdminRequest

@@ -32,7 +32,10 @@ export function PayPeriodIndicator({
       try {
         const data = await getCurrentPayPeriod(date);
         setPeriod(data);
+        setError(null);
       } catch (err) {
+        // Missing period is 204/null — only hard failures land here
+        setPeriod(null);
         setError(err instanceof Error ? err.message : "Failed to load pay period");
       } finally {
         setIsLoading(false);
