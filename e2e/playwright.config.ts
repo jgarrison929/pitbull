@@ -56,5 +56,19 @@ export default defineConfig({
       testMatch: /owner-signup\.spec\.ts/,
       retries: 0,
     },
+    {
+      // 2.12.5+ mobile field report scaffold (full submit in 2.12.6)
+      name: 'mobile-field-report',
+      dependencies: ['setup-roles'],
+      testMatch: /mobile-field-report\.spec\.ts/,
+      retries: 0,
+      use: {
+        viewport: { width: 390, height: 844 },
+        video: {
+          mode: 'on',
+          size: { width: 390, height: 844 },
+        },
+      },
+    },
   ],
 });

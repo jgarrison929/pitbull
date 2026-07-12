@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.5] - 2026-07-12T09:20:00-07:00
+
+### Added
+
+- **Playwright mobile field-report scaffold** - `e2e/tests/mobile-field-report.spec.ts` with field persona (`field-eng@demo.local` / Foreman) auth via existing role fixtures, viewport **390×844**, project `mobile-field-report` in `playwright.config.ts`.
+- **npm scripts** - `test:mobile-field` / `test:mobile-field:list` under `e2e/package.json`.
+- **openAsPersona viewport option** - optional phone viewport on browser context for mobile E2E.
+
+### Notes
+
+- Full 4-step submit E2E deferred to **2.12.6** (`test.skip` placeholder). Scaffold skips cleanly when web/API/auth state unavailable so the suite does not crash.
+- Version **2.12.5**
+
 ## [2.12.4] - 2026-07-12T09:05:00-07:00
 
 ### Fixed

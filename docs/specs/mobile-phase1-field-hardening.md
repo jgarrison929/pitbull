@@ -109,11 +109,13 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** create `e2e/tests/mobile-field-report.spec.ts`; `e2e/playwright.config.ts` if project needed
 
 **Acceptance:**
-- [ ] Spec file exists; superintendent demo login helper reused from role fixtures  
-- [ ] Viewport 390×844 set  
-- [ ] Test runs (pass or documented skip with issue comment) without crashing suite  
+- [x] Spec file exists; superintendent demo login helper reused from role fixtures  
+- [x] Viewport 390×844 set  
+- [x] Test runs (pass or documented skip with issue comment) without crashing suite  
 
-**Tests:** `npx playwright test mobile-field-report` (from e2e dir per repo convention)  
+**Shipped:** `e2e/tests/mobile-field-report.spec.ts` + project `mobile-field-report`. Field persona = `fieldEng` (ROLE-PERSONA-MAP daily report create). Full 4-step submit = **2.12.6**.
+
+**Tests:** `cd e2e; npm run test:mobile-field` (or `--list` / `--no-deps` for scaffold parse)  
 
 ---
 
