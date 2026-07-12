@@ -14,8 +14,11 @@ describe("isDigitalTwinEnabled", () => {
     else process.env[key] = prev;
   });
 
-  it("defaults on when unset", () => {
+  it("defaults on when unset (prod default documented 2.17.1)", () => {
     delete process.env[key];
+    expect(isDigitalTwinEnabled()).toBe(true);
+    // empty string also means default ON
+    process.env[key] = "";
     expect(isDigitalTwinEnabled()).toBe(true);
   });
 
