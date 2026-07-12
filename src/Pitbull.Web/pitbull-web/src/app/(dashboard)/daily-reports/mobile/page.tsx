@@ -56,7 +56,9 @@ import {
   formatZoneLabel,
   normalizeZoneOptions,
   pickSpatialContext,
+  pickPlanSheet,
   type SpatialZoneOption,
+  type PlanSheetOption,
 } from "@/lib/spatial-context";
 import {
   DEFAULT_CREW_TRADES,
@@ -147,6 +149,8 @@ export default function MobileDailyReportPage() {
   // Optional zones-first twin fuel — never required for submit/offline
   const [zones, setZones] = useState<SpatialZoneOption[]>([]);
   const [spatialNodeId, setSpatialNodeId] = useState("");
+  const [planSheets, setPlanSheets] = useState<PlanSheetOption[]>([]);
+  const [planSheetId, setPlanSheetId] = useState("");
 
   useEffect(() => {
     setGeoAvailable("geolocation" in navigator);
@@ -216,6 +220,48 @@ export default function MobileDailyReportPage() {
       cancelled = true;
     };
   }, [projectId, isOnline, urlZoneId]);
+  // Optional plan sheet catalog for twin fuel (2.14.0)
+  useEffect(() => {
+    if (!projectId) {
+      setPlanSheets([]);
+      setPlanSheetId("");
+      return;
+    }
+    let cancelled = false;
+    async function loadPlanSheets() {
+      if (!isOnline) {
+        setPlanSheets([]);
+        return;
+      }
+      try {
+        const raw = await api<{ items?: Array<Record<string, unknown>> }>(
+          `/api/projects/${projectId}/plan-sets?page=1&pageSize=200`
+        );
+        if (cancelled) return;
+        const items = raw.items ?? [];
+        const options: PlanSheetOption[] = items.map((row) => {
+          const id = String(row.id ?? row.Id ?? "");
+          const name = String(row.name ?? row.Name ?? "");
+          const data = (row.data ?? row.Data ?? {}) as Record<string, unknown>;
+          const sheetNo = String(
+            data.SheetNumber ?? data.sheetNumber ?? name
+          );
+          return {
+            id,
+            drawingNumber: sheetNo || name || id.slice(0, 8),
+            title: name || sheetNo,
+          };
+        }).filter((o) => o.id);
+        setPlanSheets(options);
+      } catch {
+        if (!cancelled) setPlanSheets([]);
+      }
+    }
+    void loadPlanSheets();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, isOnline]);
 
   // Default project from URL (in-job links) or recent job context once catalog loads.
   useEffect(() => {
@@ -467,6 +513,11 @@ export default function MobileDailyReportPage() {
         spatialDecision.kind === "apply"
           ? spatialDecision.spatialNodeId
           : undefined,
+      planSheets,
+      planSheetId:
+        pickPlanSheet(planSheets, planSheetId).kind === "apply"
+          ? planSheetId
+          : undefined,
       asDraft,
     };
   }
@@ -481,6 +532,7 @@ export default function MobileDailyReportPage() {
     setWind("");
     setWorkNarrative("");
     setDelaysNarrative("");
+    setPlanSheetId("");
     setSafetyNarrative("");
     setPhotos([]);
     setActivities([]);
@@ -786,6 +838,42 @@ export default function MobileDailyReportPage() {
                     </Select>
                     <p className="text-xs text-muted-foreground">
                       Optional twin fuel — skip anytime, including offline.
+                    </p>
+                  </div>
+                )}
+
+                {projectId && planSheets.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5 text-amber-500" />
+                      Plan sheet (optional)
+                    </Label>
+                    <Select
+                      value={planSheetId || "__none__"}
+                      onValueChange={(v) =>
+                        setPlanSheetId(v === "__none__" ? "" : v)
+                      }
+                    >
+                      <SelectTrigger
+                        className="min-h-[48px] text-base"
+                        data-testid="field-plan-sheet-select"
+                      >
+                        <SelectValue placeholder="No plan sheet (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">No plan sheet</SelectItem>
+                        {planSheets.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.drawingNumber}
+                            {s.title && s.title !== s.drawingNumber
+                              ? ` — ${s.title}`
+                              : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Optional — included on submit / offline queue as PlanSheetId.
                     </p>
                   </div>
                 )}
