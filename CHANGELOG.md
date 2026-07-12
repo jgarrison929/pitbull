@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.4] - 2026-07-12T16:32:38-07:00
+
+### Added
+
+- **PM setting UI for RequireSpatialOnProgress** — Project Settings desktop card + company setup switch. Optional, default off; honest copy that enforcement lands next. Not an executive KPI.
+
+### Notes
+
+- Version **2.18.4**. Next: field report zone prompt when required (2.18.5).
+
 ## [2.18.3] - 2026-07-12T16:30:25-07:00
 
 ### Added
