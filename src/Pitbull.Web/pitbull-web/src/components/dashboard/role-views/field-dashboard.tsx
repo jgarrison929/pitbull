@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FolderOpen, Clock3, Truck, FileText } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
+import { buildFieldReportHref } from "@/lib/projects";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -147,8 +148,11 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[52px]">
           <Link href="/time-tracking"><Clock3 className="h-5 w-5 text-blue-600" /><span className="text-sm font-medium">My Timecards</span></Link>
         </Button>
-        <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[52px]">
-          <Link href="/projects"><FileText className="h-5 w-5 text-green-600" /><span className="text-sm font-medium">Daily Report</span></Link>
+        <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[52px]" data-testid="field-home-daily-report">
+          <Link href={buildFieldReportHref()}>
+            <FileText className="h-5 w-5 text-green-600" />
+            <span className="text-sm font-medium">Daily Report</span>
+          </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[52px]">
           <Link href="/equipment"><Truck className="h-5 w-5 text-purple-600" /><span className="text-sm font-medium">Equipment</span></Link>

@@ -71,6 +71,12 @@ public static class DailyReportRequestMapper
             entity.PreparedByUserId = preparedBy;
         else if (entity.PreparedByUserId == Guid.Empty && defaultPreparedByUserId != Guid.Empty)
             entity.PreparedByUserId = defaultPreparedByUserId;
+
+        // Optional zones-first twin fuel — null/omit leaves unset (offline skip-safe)
+        if (request.Data.TryGetValue("SpatialNodeId", out var spatialRaw) && spatialRaw is null)
+            entity.SpatialNodeId = null;
+        else if (TryGetGuid(request.Data, "SpatialNodeId", out var spatialNodeId))
+            entity.SpatialNodeId = spatialNodeId;
     }
 
     public static bool TryGetDuplicateKey(

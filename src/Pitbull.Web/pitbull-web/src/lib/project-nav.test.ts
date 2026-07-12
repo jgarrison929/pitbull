@@ -22,11 +22,14 @@ describe("getProjectNavItems", () => {
     expect(primary[0]?.href).toContain("/site-walk");
   });
 
-  it("includes RFIs and documents in the full catalog", () => {
+  it("includes RFIs, documents, and digital twin in the full catalog", () => {
     const ids = getProjectNavItems(PID).map((i) => i.id);
     expect(ids).toContain("rfis");
     expect(ids).toContain("documents");
     expect(ids).toContain("submittals");
+    expect(ids).toContain("twin");
+    const twin = getProjectNavItems(PID).find((i) => i.id === "twin")!;
+    expect(twin.href).toBe(`/projects/${PID}/twin`);
   });
 });
 

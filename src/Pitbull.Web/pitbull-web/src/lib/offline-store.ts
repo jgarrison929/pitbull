@@ -65,6 +65,8 @@ export interface OfflineDailyReport {
   visitors?: { name: string; company: string; purpose: string }[];
   /** Embedded offline photos (small data URLs) for upload on sync */
   photos?: OfflineDailyReportPhoto[];
+  /** Optional zone / spatial node (twin fuel) — omit when skipped */
+  spatialNodeId?: string;
   status: string;
   createdAt: string;
 }
