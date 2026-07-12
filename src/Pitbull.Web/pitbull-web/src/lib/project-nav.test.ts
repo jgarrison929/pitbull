@@ -11,15 +11,18 @@ import {
 const PID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
 describe("getProjectNavItems", () => {
-  it("puts site walk first among primary field tiles", () => {
+  it("puts site walk first, then twin, among primary field tiles", () => {
     const primary = getPrimaryProjectNavItems(PID);
     expect(primary.map((i) => i.id)).toEqual([
       "site-walk",
+      "twin",
       "field-report",
       "plans",
       "schedule",
     ]);
     expect(primary[0]?.href).toContain("/site-walk");
+    expect(primary[1]?.href).toContain("/twin");
+    expect(primary.find((i) => i.id === "twin")?.primary).toBe(true);
   });
 
   it("includes RFIs, documents, and digital twin in the full catalog", () => {
@@ -30,6 +33,7 @@ describe("getProjectNavItems", () => {
     expect(ids).toContain("twin");
     const twin = getProjectNavItems(PID).find((i) => i.id === "twin")!;
     expect(twin.href).toBe(`/projects/${PID}/twin`);
+    expect(twin.group).toBe("field");
   });
 });
 

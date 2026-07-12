@@ -209,18 +209,18 @@ export function getProjectNavItems(projectId: string): ProjectNavItem[] {
   ];
 
   if (isDigitalTwinEnabled()) {
-    items.splice(
-      items.findIndex((i) => i.id === "overview") + 1,
-      0,
-      {
-        id: "twin",
-        label: "Digital Twin",
-        shortLabel: "Twin",
-        href: `${base}/twin`,
-        group: "overview",
-        icon: "twin",
-      }
-    );
+    // Primary hub tile after site walk — was buried in "More" / overview only.
+    const walkIdx = items.findIndex((i) => i.id === "site-walk");
+    const insertAt = walkIdx >= 0 ? walkIdx + 1 : 1;
+    items.splice(insertAt, 0, {
+      id: "twin",
+      label: "Digital Twin",
+      shortLabel: "Twin",
+      href: `${base}/twin`,
+      group: "field",
+      primary: true,
+      icon: "twin",
+    });
   }
 
   return items;

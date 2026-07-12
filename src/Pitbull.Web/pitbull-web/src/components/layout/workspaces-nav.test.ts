@@ -102,16 +102,19 @@ describe("workspace nav model (2.12.0)", () => {
     expect(roleAllowsWorkspace("admin", undefined, "Admin")).toBe(true);
   });
 
-  it("open project nav has ≤5 primary items and More groups", () => {
+  it("open project nav has Twin in primary (not buried under More)", () => {
     const nav = getProjectWorkspaceNav("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-    expect(nav.primary.length).toBeLessThanOrEqual(5);
+    expect(nav.primary.length).toBeLessThanOrEqual(6);
     expect(nav.primary.length).toBeGreaterThanOrEqual(4);
     expect(nav.moreGroups.length).toBeGreaterThanOrEqual(2);
     const primaryHrefs = nav.primary.map((i) => i.href);
     expect(primaryHrefs.some((h) => h.endsWith("/site-walk"))).toBe(true);
+    expect(primaryHrefs.some((h) => h.endsWith("/twin"))).toBe(true);
     expect(primaryHrefs.some((h) => h.endsWith("/rfis"))).toBe(true);
-    // Twin is in More / Field, not primary
-    expect(primaryHrefs.some((h) => h.endsWith("/twin"))).toBe(false);
+    // Job cost stays under More / Cost
+    expect(primaryHrefs.some((h) => h.endsWith("/job-cost"))).toBe(false);
+    const moreHrefs = nav.moreGroups.flatMap((g) => g.items.map((i) => i.href));
+    expect(moreHrefs.some((h) => h.endsWith("/job-cost"))).toBe(true);
   });
 
   it("role favorites stay short (≤4)", () => {
