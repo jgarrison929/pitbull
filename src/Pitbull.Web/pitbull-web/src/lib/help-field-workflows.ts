@@ -59,6 +59,18 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     ],
   },
   {
+  {
+    id: "plans-on-site",
+    title: "Plans on site",
+    href: "/projects",
+    icon: "file-text",
+    steps: [
+      "Open Projects and select the job.",
+      "Open Plans & Specs (`/projects/{id}/plans-specs`) — viewer-first on phone.",
+      "Search sheet number; tap to view (admin upload is desktop).",
+      "From Site Walk, use Plans for a filtered deep link into the same viewer.",
+    ],
+  },
     id: "offline-pwa",
     title: "Offline / PWA",
     href: "/daily-reports/mobile",

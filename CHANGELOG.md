@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.8] - 2026-07-12T14:53:36-07:00
+
+### Added
+
+- **Help: Plans on site** - Field & mobile workflows card with real `/projects/{id}/plans-specs` path and site-walk deep-link note.
+
+### Notes
+
+- Version **2.13.8**
+
 ## [2.13.7] - 2026-07-12T14:53:14-07:00
 
 ### Added
