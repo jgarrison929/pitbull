@@ -27,6 +27,7 @@ describe("help-field-workflows", () => {
     expect(fieldWorkflowCards.map((c) => c.id)).toEqual([
       "daily-field-report",
       "site-walk",
+      "plans-on-site",
       "offline-pwa",
     ]);
 
