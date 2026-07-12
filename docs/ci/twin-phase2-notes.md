@@ -65,3 +65,23 @@ Model upload band: 2.16.3 â†’ 2.17.2
 
 Documented in `src/Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
 
+
+## Model upload band checkpoint (2.17.2)
+
+**Status:** Shipped through **2.17.2** (band 2.16.3–2.17.2).
+
+| Version | Deliverable |
+|---------|-------------|
+| 2.16.3 | ModelAsset API + migration |
+| 2.16.4 | Desktop admin register UI |
+| 2.16.5 | Conversion Processing stub |
+| 2.16.6 | Sample glTF/IFC skipped (honest) |
+| 2.16.7 | Active runtime pointer |
+| 2.16.8 | Fail + retry UX |
+| 2.16.9 | Spatial.Manage authz tests |
+| 2.17.0 | Integration lifecycle happy path |
+| 2.17.1 | Feature flag prod default ON |
+| 2.17.2 | This checkpoint |
+
+Next: overlay performance band 2.17.3+.
+
