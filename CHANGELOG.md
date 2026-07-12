@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.8] - 2026-07-12T14:59:36-07:00
+
+### Changed
+
+- **Help site walk workflow** - Site Walk help card references field home **Today on this job** entry path.
+
+### Notes
+
+- Version **2.14.8**
+
 ## [2.14.7] - 2026-07-12T14:59:15-07:00
 
 ### Changed

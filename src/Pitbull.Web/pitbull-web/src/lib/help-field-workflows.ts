@@ -52,7 +52,7 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     href: "/projects",
     icon: "map-pin",
     steps: [
-      "Open Projects and select the job you are walking.",
+      "Open Projects (or field home **Today on this job**) and select the job.",
       "From project navigation, open Site Walk (`/projects/{id}/site-walk`).",
       "Capture field notes and observations while on site.",
       "Return via project nav or bottom nav when finished.",
