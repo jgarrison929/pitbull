@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-07-12T14:55:39-07:00
+
+### Added
+
+- **Field report PlanSheetId picker** - optional plan sheet select on `/daily-reports/mobile` (loads plan-sets catalog); value flows through `formSnapshot` into online submit and offline queue `PlanSheetId` (existing builders).
+
+### Notes
+
+- Version **2.14.0** (minor roll after 2.13.9).
+
 ## [2.13.9] - 2026-07-12T14:54:26-07:00
 
 ### Added
