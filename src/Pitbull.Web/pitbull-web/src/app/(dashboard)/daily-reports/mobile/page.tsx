@@ -508,6 +508,17 @@ export default function MobileDailyReportPage() {
       toast.error("Add work activity, crew, truck note, or narrative first");
       return;
     }
+    // API SubmitDailyReport requires WeatherSummary or Temperature (Draft create does not).
+    if (
+      !asDraft &&
+      !weatherSummary.trim() &&
+      !temperatureLow.trim() &&
+      !temperatureHigh.trim()
+    ) {
+      setShowWeather(true);
+      toast.error("Add weather summary or temperature before submitting");
+      return;
+    }
 
     const title = `Daily Report - ${reportDate}`;
     // Server assigns Draft on create — do not send Submitted (INVALID_STATUS_TRANSITION).
@@ -981,7 +992,7 @@ export default function MobileDailyReportPage() {
                   >
                     <CardTitle className="flex items-center gap-2 text-base">
                       <CloudSun className="h-4 w-4 text-amber-500" />
-                      Weather (optional)
+                      Weather (required to submit)
                     </CardTitle>
                     <span className="text-xs text-muted-foreground">
                       {showWeather ? "Hide" : "Show"}
@@ -995,6 +1006,7 @@ export default function MobileDailyReportPage() {
                       onChange={(e) => setWeatherSummary(e.target.value)}
                       placeholder="Clear, rain, wind…"
                       className="min-h-[48px] text-base"
+                      data-testid="field-weather-summary"
                     />
                     <div className="grid grid-cols-2 gap-2">
                       <Input
@@ -1003,6 +1015,7 @@ export default function MobileDailyReportPage() {
                         onChange={(e) => setTemperatureLow(e.target.value)}
                         placeholder="Low °F"
                         className="min-h-[48px]"
+                        data-testid="field-temp-low"
                       />
                       <Input
                         type="number"
@@ -1010,6 +1023,7 @@ export default function MobileDailyReportPage() {
                         onChange={(e) => setTemperatureHigh(e.target.value)}
                         placeholder="High °F"
                         className="min-h-[48px]"
+                        data-testid="field-temp-high"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">

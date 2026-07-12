@@ -14,10 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Mobile field report submit workflow** - create always as server-assigned Draft; "Submit" then calls `POST .../daily-reports/{id}/submit` (sending `Submitted` on create returned `INVALID_STATUS_TRANSITION`). Offline client + SW create body omit status the same way.
 - **Turbopack monorepo root** - set `turbopack.root` to the web package so local `next dev` resolves `tailwindcss` when a parent `package-lock.json` exists.
+- **Mobile field weather gate** - require weather summary or temperature before workflow submit (API `/submit` requirement); `field-weather-summary` testids for E2E.
+- **Role workflow E2E stability** - unique cost codes, L3 company context + open pay-period day offset, L5/L6 selector hardening, demo field `permissions=*` on vendor-invoice RBAC assert.
 
 ### Added
 
-- **Playwright mobile field report E2E complete** - `fieldEng` at 390×844 drives Project → Field → Photos → Review → Submit with demo seed project and asserts daily-report create **200/201**. Wizard action buttons use `data-testid` hooks.
+- **Playwright mobile field report E2E complete** - `fieldEng` at 390×844 drives Project → Field → Photos → Review → Submit with demo seed project and asserts daily-report create **200/201** plus `/submit` **200** and success toast. Wizard action buttons use `data-testid` hooks.
 
 ### Notes
 
