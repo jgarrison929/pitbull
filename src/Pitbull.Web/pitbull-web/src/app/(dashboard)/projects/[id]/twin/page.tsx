@@ -37,6 +37,12 @@ import {
   TWIN_ZONE_DRILL_EVENT,
   buildTwinZoneDrillProps,
 } from "@/lib/twin-zone-drill-analytics";
+import {
+  buildModelAssetsUrl,
+  modelAssetStatusLabel,
+  type ModelAssetDto,
+  type ModelAssetListResponse,
+} from "@/lib/model-assets";
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -111,6 +117,13 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
   const [zonePhotoMessage, setZonePhotoMessage] = useState<string | null>(null);
   const [zonePhotosLoading, setZonePhotosLoading] = useState(false);
   const [projectName, setProjectName] = useState("");
+  const [modelAssets, setModelAssets] = useState<ModelAssetDto[]>([]);
+  const [modelAssetsMessage, setModelAssetsMessage] = useState<string | null>(null);
+  const [modelAssetsLoading, setModelAssetsLoading] = useState(false);
+  const [registeringModel, setRegisteringModel] = useState(false);
+  const [modelName, setModelName] = useState("");
+  const [modelFormat, setModelFormat] = useState("Gltf");
+  const [modelBlobKey, setModelBlobKey] = useState("");
 
   const load = useCallback(async () => {
     if (!valid) return;
@@ -164,9 +177,28 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     }
   }, [projectId, valid, mode, storeyFilter, asOfDate]);
 
+  const loadModelAssets = useCallback(async () => {
+    if (!valid) return;
+    setModelAssetsLoading(true);
+    try {
+      const res = await api<ModelAssetListResponse>(buildModelAssetsUrl(projectId));
+      setModelAssets(res.assets ?? []);
+      setModelAssetsMessage(res.message ?? null);
+    } catch {
+      setModelAssets([]);
+      setModelAssetsMessage(null);
+    } finally {
+      setModelAssetsLoading(false);
+    }
+  }, [projectId, valid]);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void loadModelAssets();
+  }, [loadModelAssets]);
 
   // 2.15.6: configurable overlay poll (default 30s; NEXT_PUBLIC_TWIN_OVERLAY_POLL_MS)
   useEffect(() => {
@@ -258,6 +290,33 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
       });
     } finally {
       setSeeding(false);
+    }
+  }
+
+  async function registerModelAsset() {
+    setRegisteringModel(true);
+    try {
+      await api(buildModelAssetsUrl(projectId), {
+        method: "POST",
+        body: {
+          displayName: modelName.trim() || undefined,
+          sourceFormat: modelFormat,
+          sourceBlobKey: modelBlobKey.trim() || undefined,
+        },
+      });
+      toast.success("Model registered as Pending (not ready until conversion succeeds)");
+      setModelName("");
+      setModelBlobKey("");
+      await loadModelAssets();
+    } catch (e) {
+      toast.error("Could not register model", {
+        description:
+          e instanceof Error
+            ? e.message
+            : "Requires Spatial.Manage — pending is never claimed ready.",
+      });
+    } finally {
+      setRegisteringModel(false);
     }
   }
 
@@ -687,6 +746,107 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
           </Card>
         </div>
       )}
+
+      {/* 2.16.4 model assets — desktop admin register; phone read-only status */}
+      <Card data-testid="twin-model-assets">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">3D model assets</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Optional. Zones-first twin works without a model. Pending/Processing is{" "}
+            <strong>not ready</strong> — never claimed live until conversion Succeeded.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {modelAssetsLoading ? (
+            <Skeleton className="h-12 w-full" />
+          ) : (
+            <>
+              {modelAssetsMessage && (
+                <p className="text-xs text-muted-foreground" data-testid="twin-model-assets-message">
+                  {modelAssetsMessage}
+                </p>
+              )}
+              {modelAssets.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic" data-testid="twin-model-assets-empty">
+                  No model assets registered.
+                </p>
+              ) : (
+                <ul className="space-y-2" data-testid="twin-model-assets-list">
+                  {modelAssets.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium">
+                        {a.displayName}{" "}
+                        <span className="text-muted-foreground font-normal">
+                          v{a.versionNumber} · {a.sourceFormat}
+                        </span>
+                      </span>
+                      <Badge
+                        variant={a.isReady ? "default" : "secondary"}
+                        data-testid={`twin-model-status-${a.id}`}
+                      >
+                        {modelAssetStatusLabel(a)}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+
+          {/* Desktop admin form (hidden on narrow phones — use md+) */}
+          <div
+            className="hidden md:block space-y-3 border-t pt-3"
+            data-testid="twin-model-assets-admin"
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Register model (desktop admin · Spatial.Manage)
+            </p>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <input
+                className="min-h-[44px] rounded-md border bg-background px-2 text-sm"
+                placeholder="Display name"
+                value={modelName}
+                onChange={(e) => setModelName(e.target.value)}
+                data-testid="twin-model-name"
+                aria-label="Model display name"
+              />
+              <Select value={modelFormat} onValueChange={setModelFormat}>
+                <SelectTrigger className="min-h-[44px]" data-testid="twin-model-format">
+                  <SelectValue placeholder="Format" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Gltf">glTF</SelectItem>
+                  <SelectItem value="Ifc">IFC</SelectItem>
+                  <SelectItem value="Obj">OBJ</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <input
+                className="min-h-[44px] rounded-md border bg-background px-2 text-sm"
+                placeholder="Source blob key (optional)"
+                value={modelBlobKey}
+                onChange={(e) => setModelBlobKey(e.target.value)}
+                data-testid="twin-model-blob-key"
+                aria-label="Source blob key"
+              />
+            </div>
+            <Button
+              className="min-h-[44px]"
+              onClick={() => void registerModelAsset()}
+              disabled={registeringModel}
+              data-testid="twin-model-register"
+            >
+              {registeringModel ? "Registering…" : "Register as Pending"}
+            </Button>
+          </div>
+          <p className="md:hidden text-xs text-muted-foreground" data-testid="twin-model-phone-note">
+            Model registration is desktop admin only. Status above is read-only on phone.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

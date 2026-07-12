@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.4] - 2026-07-12T15:35:26-07:00
+
+### Added
+
+- **Twin model assets admin UI (desktop)** - register Pending models via Spatial.Manage; phone shows read-only status. Never labels Pending/Processing as Ready.
+
+### Notes
+
+- Version **2.16.4**
 ## [2.16.3] - 2026-07-12T15:33:08-07:00
 
 ### Added
