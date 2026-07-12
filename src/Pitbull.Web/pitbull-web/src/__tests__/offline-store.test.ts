@@ -201,7 +201,9 @@ describe("enqueueDailyReportForSync", () => {
     expect(body.data.SpatialNodeId).toBe(zoneId);
     expect(body.data.PlanSheetId).toBe(planId);
     expect(body.title).toBe(stored.title);
-    expect(body.status).toBe(stored.status);
+    // Create body must not include status (server assigns Draft)
+    expect(body).not.toHaveProperty("status");
+    expect(body.submitAfterCreate).toBe(true);
   });
 });
 

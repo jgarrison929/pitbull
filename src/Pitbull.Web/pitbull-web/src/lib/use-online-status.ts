@@ -224,7 +224,7 @@ async function syncDailyReport(item: SyncQueueItem) {
     {
       method: "POST",
       headers: buildHeaders(item),
-      body: JSON.stringify(body),
+      body: JSON.stringify({ title: body.title, data: body.data }),
     }
   );
 
@@ -239,6 +239,18 @@ async function syncDailyReport(item: SyncQueueItem) {
   const created = (await response.json().catch(() => null)) as {
     id?: string;
   } | null;
+
+  // Post-create workflow submit when offline entry was not a draft.
+  if (created?.id && body.submitAfterCreate) {
+    try {
+      await fetch(
+        `${API_BASE_URL}/api/projects/${report.projectId}/daily-reports/${created.id}/submit`,
+        { method: "POST", headers: buildHeaders(item) }
+      );
+    } catch {
+      // Report created; submit failure is non-fatal for queue drain
+    }
+  }
 
   // Best-effort: upload embedded offline photos (small data URLs only)
   const embedded = (report.photos ?? []).filter((p) => p.dataUrl);

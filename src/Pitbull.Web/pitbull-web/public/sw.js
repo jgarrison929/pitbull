@@ -175,17 +175,31 @@ async function syncPendingItems() {
         if (report.planSheetId) {
           dailyData.PlanSheetId = report.planSheetId;
         }
+        // Server assigns Draft on create — omit status (parity with buildOfflineDailyReportSyncBody).
         res = await fetch(`/api/projects/${report.projectId}/daily-reports`, {
           method: "POST",
           headers: buildSyncHeaders(item),
           body: JSON.stringify({
             title: report.title,
-            status: report.status,
             data: dailyData,
           }),
         });
 
         if (res.ok || res.status === 409) {
+          // Optional post-create submit when queue entry was not a draft
+          if (res.ok && report.status && String(report.status).toLowerCase() !== "draft") {
+            try {
+              var created = await res.json();
+              if (created && created.id) {
+                await fetch(
+                  `/api/projects/${report.projectId}/daily-reports/${created.id}/submit`,
+                  { method: "POST", headers: buildSyncHeaders(item) }
+                );
+              }
+            } catch (e) {
+              // create succeeded; submit best-effort
+            }
+          }
           await removeItem(db, item.id);
         } else {
           await incrementRetry(db, item);

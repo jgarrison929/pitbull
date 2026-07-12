@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.6] - 2026-07-12T09:40:00-07:00
+
+### Fixed
+
+- **Mobile field report submit workflow** - create always as server-assigned Draft; "Submit" then calls `POST .../daily-reports/{id}/submit` (sending `Submitted` on create returned `INVALID_STATUS_TRANSITION`). Offline client + SW create body omit status the same way.
+- **Turbopack monorepo root** - set `turbopack.root` to the web package so local `next dev` resolves `tailwindcss` when a parent `package-lock.json` exists.
+
+### Added
+
+- **Playwright mobile field report E2E complete** - `fieldEng` at 390×844 drives Project → Field → Photos → Review → Submit with demo seed project and asserts daily-report create **200/201**. Wizard action buttons use `data-testid` hooks.
+
+### Notes
+
+- Version **2.12.6**
+
 ## [2.12.5] - 2026-07-12T09:20:00-07:00
 
 ### Added

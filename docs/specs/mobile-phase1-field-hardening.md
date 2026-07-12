@@ -126,11 +126,13 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** `mobile-field-report.spec.ts`
 
 **Acceptance:**
-- [ ] Demo project seed used  
-- [ ] Assert success toast **or** API 201 on submit  
-- [ ] Role smoke CI still green  
+- [x] Demo project seed used  
+- [x] Assert success toast **or** API 201 on submit  
+- [x] Role smoke CI still green  
 
-**Tests:** Playwright green locally  
+**Shipped:** E2E asserts create **200/201**; mobile Submit = Draft create + workflow `/submit`.
+
+**Tests:** `cd e2e; npm run test:mobile-field`  
 
 ---
 
