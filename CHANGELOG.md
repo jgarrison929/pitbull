@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.1] - 2026-07-12T14:56:06-07:00
+
+### Added
+
+- **SW plan metadata cache** - service worker network-first caches `GET /api/projects/{id}/plan-sets` (metadata only; not PDF binaries). `CACHE_VERSION` `v2.14.1`. Contract + vitest in `plan-metadata-cache.ts`.
+
+### Notes
+
+- Version **2.14.1**
+
 ## [2.14.0] - 2026-07-12T14:55:39-07:00
 
 ### Added

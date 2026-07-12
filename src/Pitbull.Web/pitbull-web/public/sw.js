@@ -3,7 +3,7 @@
 
 // Bump when shipping shell changes so activate() drops stale precache (also
 // keyed indirectly by VersionUpdateGuard hard-reload on product version).
-const CACHE_VERSION = "v2.12.4";
+const CACHE_VERSION = "v2.14.1";
 const STATIC_CACHE = `pitbull-static-${CACHE_VERSION}`;
 const API_CACHE = `pitbull-api-${CACHE_VERSION}`;
 
@@ -21,10 +21,13 @@ const PRECACHE_URLS = [
 ];
 
 // API routes to cache for offline reference data
+// PLAN_SETS_CACHE: network-first GET /api/projects/{id}/plan-sets (metadata only)
 const CACHEABLE_API_PATTERNS = [
   /\/api\/projects(\?|$)/,
   /\/api\/employees(\?|$)/,
   /\/api\/cost-codes(\?|$)/,
+  // Plan set metadata for active job pickers (2.14.1) — not full PDF binaries
+  /\/api\/projects\/[^/]+\/plan-sets(\?|$)/,
 ];
 
 // Install: precache app shell
