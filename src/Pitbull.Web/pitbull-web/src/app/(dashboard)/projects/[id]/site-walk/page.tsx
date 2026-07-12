@@ -37,6 +37,7 @@ import {
   Users,
 } from "lucide-react";
 import { isDigitalTwinEnabled } from "@/lib/feature-flags";
+import { shouldShowSiteWalkTwinLink } from "@/lib/site-walk-twin-link";
 
 function asDataMap(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -282,7 +283,7 @@ function SiteWalkContent({ params }: { params: Promise<{ id: string }> }) {
             Schedule
           </Link>
         </Button>
-        {isDigitalTwinEnabled() && (
+        {shouldShowSiteWalkTwinLink(isDigitalTwinEnabled()) && (
           <Button
             variant="outline"
             className="min-h-[52px] col-span-2"
