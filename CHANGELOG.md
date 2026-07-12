@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.5] - 2026-07-12T14:52:02-07:00
+
+### Changed
+
+- **Plans mobile touch + search** - codified 44px touch targets and one-handed search input classes (`PLANS_MOBILE_SEARCH_INPUT_CLASS`) for plans-specs.
+
+### Notes
+
+- Version **2.13.5**
+
 ## [2.13.4] - 2026-07-12T14:51:36-07:00
 
 ### Changed
