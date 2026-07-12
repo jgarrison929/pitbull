@@ -295,7 +295,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
       )}
 
       {!loading && graph && !graph.hasGraph && (
-        <Card data-testid="twin-empty-state">
+        <Card data-testid="twin-empty-state" role="status" aria-live="polite">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Layers className="h-5 w-5" />
