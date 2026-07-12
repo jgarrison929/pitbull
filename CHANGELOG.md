@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.8] - 2026-07-12T14:45:28-07:00
+
+### Fixed
+
+- **Help mobile FAQ accuracy** - removed `fully responsive` blanket claim; FAQ documents field paths (`/daily-reports/mobile`, bottom nav Report/Crew), offline queue + PWA install, and Digital Twin / Plans routes.
+
+### Notes
+
+- Version **2.12.8**
+
 ## [2.12.7] - 2026-07-12T14:41:55-07:00
 
 ### Added

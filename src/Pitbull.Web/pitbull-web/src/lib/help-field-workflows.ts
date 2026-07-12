@@ -14,6 +14,25 @@ export type FieldWorkflowCard = {
 
 export const FIELD_WORKFLOWS_SECTION_TITLE = "Field & mobile workflows";
 
+/** 2.12.8 — accurate mobile FAQ copy (no “fully responsive” blanket claim). */
+export const mobileFaqItems: { question: string; answer: string }[] = [
+  {
+    question: "Can I use Pitbull on mobile devices?",
+    answer:
+      "Yes for field capture and glance. Use phone bottom nav: Report → `/daily-reports/mobile` for the four-step field report; Crew → `/time-tracking/mobile` for time. Desktop ledgers and portfolio aggregation stay on larger screens — the app is not a full desktop clone on a phone.",
+  },
+  {
+    question: "How does offline and PWA work on a phone?",
+    answer:
+      "Install Pitbull when the PWA prompt appears above the bottom nav. If you lose connectivity, field report submit can queue offline; when you reconnect, the queue syncs. Watch the offline/queue indicator on field paths.",
+  },
+  {
+    question: "Where are Digital Twin and Plans on a job?",
+    answer:
+      "Open a project from Projects, then use project navigation: Digital Twin at `/projects/{id}/twin` and Plans & Specs at `/projects/{id}/plans-specs`. Site Walk is `/projects/{id}/site-walk`.",
+  },
+];
+
 export const fieldWorkflowCards: FieldWorkflowCard[] = [
   {
     id: "daily-field-report",

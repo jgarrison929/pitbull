@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   fieldWorkflowCards,
   FIELD_WORKFLOWS_SECTION_TITLE,
+  mobileFaqItems,
 } from "./help-field-workflows";
 
 /**
@@ -10,6 +11,16 @@ import {
 describe("help-field-workflows", () => {
   it("exposes section title for Field & mobile workflows", () => {
     expect(FIELD_WORKFLOWS_SECTION_TITLE).toBe("Field & mobile workflows");
+  });
+
+  it("2.12.8 mobile FAQ is truthful (no fully-responsive blanket; real routes)", () => {
+    const blob = mobileFaqItems.map((f) => f.answer).join("\n");
+    expect(blob.toLowerCase()).not.toContain("fully responsive");
+    expect(blob).toContain("/daily-reports/mobile");
+    expect(blob).toMatch(/bottom nav|Report/i);
+    expect(blob).toMatch(/offline|PWA|queue/i);
+    expect(blob).toContain("/projects/{id}/twin");
+    expect(blob).toContain("/projects/{id}/plans-specs");
   });
 
   it("ships Daily Field Report, Site Walk, Offline/PWA with deep links and 3–5 steps", () => {

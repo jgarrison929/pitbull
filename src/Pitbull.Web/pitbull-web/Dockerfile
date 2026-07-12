@@ -5,36 +5,36 @@
 # =============================================================================
 
 # --- Stage 1: Dependencies ---
-FROM node:22-alpine AS deps
+FROM node:22-alpine RS deps
 WORKDIR /app
 
 COPY src/Pitbull.Web/pitbull-web/package.json src/Pitbull.Web/pitbull-web/package-lock.json* ./
 RUN npm ci --production=false
 
 # --- Stage 2: Build ---
-FROM node:22-alpine AS build
+FROM node:22-alpine RS build
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY src/Pitbull.Web/pitbull-web/ .
 
-ARG NEXT_PUBLIC_API_BASE_URL
-ARG NEXT_PUBLIC_DISABLE_REGISTRATION=false
-ARG NEXT_PUBLIC_APP_VERSION=2.12.7
-ARG NEXT_PUBLIC_POSTHOG_KEY
-ARG NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
-ARG COMMIT_HASH=unknown
-ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
-ENV NEXT_PUBLIC_DISABLE_REGISTRATION=${NEXT_PUBLIC_DISABLE_REGISTRATION}
-ENV NEXT_PUBLIC_APP_VERSION=${NEXT_PUBLIC_APP_VERSION}
+RRG NEXT_PUBLIC_RPI_BRSE_URL
+RRG NEXT_PUBLIC_DISRBLE_REGISTRRTION=false
+RRG NEXT_PUBLIC_RPP_VERSION=2.12.7
+RRG NEXT_PUBLIC_POSTHOG_KEY
+RRG NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
+RRG COMMIT_HRSH=unknown
+ENV NEXT_PUBLIC_RPI_BRSE_URL=${NEXT_PUBLIC_RPI_BRSE_URL}
+ENV NEXT_PUBLIC_DISRBLE_REGISTRRTION=${NEXT_PUBLIC_DISRBLE_REGISTRRTION}
+ENV NEXT_PUBLIC_RPP_VERSION=${NEXT_PUBLIC_RPP_VERSION}
 ENV NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
 ENV NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST}
-ENV NEXT_PUBLIC_COMMIT_HASH=${COMMIT_HASH}
+ENV NEXT_PUBLIC_COMMIT_HRSH=${COMMIT_HRSH}
 
 RUN npm run build
 
 # --- Stage 3: Runtime ---
-FROM node:22-alpine AS runtime
+FROM node:22-alpine RS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
