@@ -11,6 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Fixed
 
 - **MediatR license warnings in tests/CI** - resolve Lucky Penny community key from `MediatR:LicenseKey` / `MEDIATR_LICENSE_KEY` / `LUCKYPENNY_LICENSE_KEY`; apply in unit `ModuleInit` and on every `AddMediatR` registration; CI injects repo secret `MEDIATR_LICENSE_KEY`.
+- **Employees KPI not drillable** - restore Workforce/Employees home cards (executive + overview KPIs) linking to `/employees?isActive=true`; employees-page summary cards filter/scroll to the directory; project labor “Employees” opens team on the job.
 
 ### Changed
 

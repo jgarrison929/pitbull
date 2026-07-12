@@ -4,16 +4,17 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderOpen, Clock3, Inbox, MessageCircle } from "lucide-react";
+import { FolderOpen, Clock3, Inbox, MessageCircle, Users } from "lucide-react";
+import { roleKpiDrillHref } from "@/lib/role-kpi-drills";
 
 interface DashboardAnalytics {
   activeProjects: number;
+  totalEmployees: number;
   hoursThisWeek: number;
   hoursLastWeek: number;
   pendingApprovals: number;
   openRFIs: number;
 }
-
 function trendPercent(current: number, previous: number): number {
   if (previous === 0) return current === 0 ? 0 : 100;
   return ((current - previous) / previous) * 100;
@@ -32,9 +33,9 @@ export function KpiCardsWidget({
     "h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer";
 
   return (
-    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
       <Link
-        href="/projects?excludeCompleted=true"
+        href={roleKpiDrillHref("activeProjects")}
         className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
       >
         <Card className={cardClass}>
@@ -57,7 +58,33 @@ export function KpiCardsWidget({
       </Link>
 
       <Link
-        href="/time-tracking?view=entries&period=thisWeek"
+        href={roleKpiDrillHref("workforce")}
+        className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+      >
+        <Card className={cardClass}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
+              Employees
+            </CardTitle>
+            <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-xl font-bold tabular-nums sm:text-2xl">
+                  {data?.totalEmployees ?? 0}
+                </div>
+                <p className="text-xs text-muted-foreground">Active workforce</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
+
+      <Link
+        href={roleKpiDrillHref("hoursThisWeek")}
         className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
       >
         <Card className={cardClass}>
@@ -88,7 +115,7 @@ export function KpiCardsWidget({
       </Link>
 
       <Link
-        href="/time-tracking/approval?status=pending"
+        href={roleKpiDrillHref("pendingTimeApprovals")}
         className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
       >
         <Card className={cardClass}>
@@ -116,7 +143,7 @@ export function KpiCardsWidget({
       </Link>
 
       <Link
-        href="/rfis?status=notClosed"
+        href={roleKpiDrillHref("openRfis")}
         className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
       >
         <Card className={cardClass}>

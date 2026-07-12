@@ -78,9 +78,13 @@ function TimeTrackingContent() {
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filters
-  const [projectFilter, setProjectFilter] = useState<string>(ALL_VALUE);
-  const [employeeFilter, setEmployeeFilter] = useState<string>(ALL_VALUE);
+  // Filters — honor ?projectId= / ?employeeId= from KPI / labor drills
+  const [projectFilter, setProjectFilter] = useState<string>(
+    () => searchParams.get("projectId") ?? ALL_VALUE
+  );
+  const [employeeFilter, setEmployeeFilter] = useState<string>(
+    () => searchParams.get("employeeId") ?? ALL_VALUE
+  );
   const [statusFilter, setStatusFilter] = useState<string>(ALL_VALUE);
   const [phaseFilter, setPhaseFilter] = useState<string>(ALL_VALUE);
   const [equipmentFilter, setEquipmentFilter] = useState<string>(ALL_VALUE);

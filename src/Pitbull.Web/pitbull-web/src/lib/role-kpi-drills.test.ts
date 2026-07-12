@@ -34,6 +34,12 @@ describe("roleKpiDrillHref", () => {
     expect(roleKpiDrillHref("bidPipeline")).toContain("pipeline=open");
   });
 
+  it("maps workforce to active employees directory", () => {
+    const href = roleKpiDrillHref("workforce");
+    expect(href).toContain("/employees");
+    expect(href).toContain("isActive=true");
+  });
+
   it("maps safety YTD to safety report, not mobile daily entry", () => {
     const href = roleKpiDrillHref("safetyYtd");
     expect(href).toContain("/reports/safety");
