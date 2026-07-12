@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.1] - 2026-07-12T14:49:11-07:00
+
+### Added
+
+- **Slim mobile projects list** - `GET /api/projects?view=mobile` returns `ProjectMobileListItemDto` (id, name, number, status only). Field report + time-tracking mobile pickers use it. Unit test proves JSON smaller than full `ProjectDto`. Desktop default shape unchanged.
+
+### Notes
+
+- Version **2.13.1**
+
 ## [2.13.0] - 2026-07-12T14:48:11-07:00
 
 ### Added
