@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.6] - 2026-07-12T16:01:36-07:00
+
+### Changed
+
+- **Mobile twin read-only polish** - stack controls on small screens; zone panel full-width under board; touch-friendly min heights preserved for 390×844.
+
+### Notes
+
+- Version **2.17.6**
 ## [2.17.5] - 2026-07-12T15:59:39-07:00
 
 ### Added
