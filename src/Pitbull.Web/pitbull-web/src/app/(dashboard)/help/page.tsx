@@ -16,7 +16,22 @@ import {
   DollarSign,
   Upload,
   BookOpen,
+  Smartphone,
+  MapPin,
+  WifiOff,
+  type LucideIcon,
 } from "lucide-react";
+import {
+  fieldWorkflowCards,
+  FIELD_WORKFLOWS_SECTION_TITLE,
+  type FieldWorkflowCard,
+} from "@/lib/help-field-workflows";
+
+const fieldWorkflowIcons: Record<FieldWorkflowCard["icon"], LucideIcon> = {
+  "file-text": FileText,
+  "map-pin": MapPin,
+  "wifi-off": WifiOff,
+};
 
 const quickStartSteps = [
   {
@@ -211,6 +226,51 @@ export default function HelpPage() {
               </Card>
             </Link>
           ))}
+        </div>
+      </div>
+
+      {/* Field & mobile workflows (2.12.7) */}
+      <div data-testid="help-field-workflows">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <Smartphone className="h-5 w-5 text-amber-500" />
+          {FIELD_WORKFLOWS_SECTION_TITLE}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Phone-first paths for superintendents and field crews. Links open the
+          live app routes.
+        </p>
+        <div className="grid gap-4 md:grid-cols-3">
+          {fieldWorkflowCards.map((card) => {
+            const Icon = fieldWorkflowIcons[card.icon];
+            return (
+              <Card
+                key={card.id}
+                data-testid={`help-field-card-${card.id}`}
+                className="h-full"
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Icon className="h-5 w-5 text-amber-500 shrink-0" />
+                    {card.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <ol className="list-decimal list-inside space-y-1.5 text-sm text-muted-foreground">
+                    {card.steps.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ol>
+                  <Link
+                    href={card.href}
+                    className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                  >
+                    Open {card.title}
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 

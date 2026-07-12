@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.7] - 2026-07-12T14:41:55-07:00
+
+### Added
+
+- **Help Center field workflows** - section "Field & mobile workflows" with Daily Field Report (/daily-reports/mobile), Site Walk (via Projects ? `/projects/{id}/site-walk`), and Offline/PWA cards (3–5 steps + deep links). Shared data in `help-field-workflows.ts` with vitest coverage.
+
+### Notes
+
+- Version **2.12.7**
+
 ## [2.12.6] - 2026-07-12T09:40:00-07:00
 
 ### Fixed

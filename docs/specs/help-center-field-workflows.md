@@ -1,6 +1,6 @@
 # Spec: Help Center — field & mobile workflows
 
-**Status:** Pending  
+**Status:** Partial (2.12.7 shipped)  
 **Version band:** 2.12.7 → 2.12.8 (within Arc A)  
 **Related:** [`help/page.tsx`](../../src/Pitbull.Web/pitbull-web/src/app/(dashboard)/help/page.tsx), `ROLE-EXPERIENCE.md`
 
@@ -32,9 +32,9 @@ UI-only.
 **Deliverable:** Section **“Field & mobile workflows”**.
 
 **Acceptance:**
-- [ ] Card: **Daily Field Report** — steps open Report tab → complete 4-step wizard → submit/offline queue; href `/daily-reports/mobile`  
-- [ ] Card: **Site Walk** — open project → Site Walk; href pattern `/projects/{id}/site-walk` (use demo project helper or generic projects list)  
-- [ ] Card: **Offline / PWA** — install prompt, queue indicator, reconnect sync  
+- [x] Card: **Daily Field Report** — steps open Report tab → complete 4-step wizard → submit/offline queue; href `/daily-reports/mobile`  
+- [x] Card: **Site Walk** — open project → Site Walk; href pattern `/projects/{id}/site-walk` (use demo project helper or generic projects list)  
+- [x] Card: **Offline / PWA** — install prompt, queue indicator, reconnect sync  
 
 **Files:** `help/page.tsx`  
 
@@ -68,5 +68,5 @@ UI-only.
 
 ## Band DoD
 
-- [ ] Field section live  
+- [x] Field section live  
 - [ ] Mobile FAQ truthful  
