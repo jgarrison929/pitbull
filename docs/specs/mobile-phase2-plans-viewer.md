@@ -1,6 +1,6 @@
 # Spec: Mobile Phase 2 — plans & specs viewer
 
-**Status:** In progress (2.13.3 wireframe notes)  
+**Status:** Shipped through 2.14.2  
 **Version band:** 2.13.3 → 2.14.2 (10 PRs)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 2, [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) §4
 
@@ -63,9 +63,9 @@ Superintendent, PM on site walk.
 
 ## Band DoD (2.14.2)
 
-- [ ] Field viewer usable at 390×844  
-- [ ] PlanSheetId selectable on field report  
-- [ ] Help + notes committed  
+- [x] Field viewer usable at 390×844  
+- [x] PlanSheetId selectable on field report  
+- [x] Help + notes committed  
 
 ## Field-mode wireframe notes (2.13.3)
 
