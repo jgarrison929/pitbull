@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.4] - 2026-07-12T15:09:21-07:00
+
+### Added
+
+- **Twin zone panel photo thumbnails** - zone drill fetches `photo-pins` and shows a neutral empty state or thumbnail grid when URLs exist (no fake green / all-clear).
+
+### Notes
+
+- Version **2.15.4**
+
 ## [2.15.3] - 2026-07-12T15:02:22-07:00
 
 ### Added

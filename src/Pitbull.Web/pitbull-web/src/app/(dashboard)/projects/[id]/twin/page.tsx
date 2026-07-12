@@ -25,6 +25,13 @@ import type {
   SpatialOverlayResponse,
   SpatialZoneDetailResponse,
 } from "@/lib/spatial-types";
+import {
+  buildPhotoPinsUrl,
+  photoThumbsEmptyMessage,
+  pinsWithThumbnails,
+  type TwinPhotoPinDto,
+  type TwinPhotoPinsResponse,
+} from "@/lib/twin-photo-pins";
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -95,6 +102,9 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     null
   );
   const [zoneDetailLoading, setZoneDetailLoading] = useState(false);
+  const [zonePhotoPins, setZonePhotoPins] = useState<TwinPhotoPinDto[]>([]);
+  const [zonePhotoMessage, setZonePhotoMessage] = useState<string | null>(null);
+  const [zonePhotosLoading, setZonePhotosLoading] = useState(false);
   const [projectName, setProjectName] = useState("");
 
   const load = useCallback(async () => {
@@ -144,10 +154,13 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
   useEffect(() => {
     if (!valid || !selectedId) {
       setZoneDetail(null);
+      setZonePhotoPins([]);
+      setZonePhotoMessage(null);
       return;
     }
     let cancelled = false;
     setZoneDetailLoading(true);
+    setZonePhotosLoading(true);
     void (async () => {
       try {
         const d = await api<SpatialZoneDetailResponse>(
@@ -158,6 +171,24 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
         if (!cancelled) setZoneDetail(null);
       } finally {
         if (!cancelled) setZoneDetailLoading(false);
+      }
+    })();
+    void (async () => {
+      try {
+        const res = await api<TwinPhotoPinsResponse>(
+          buildPhotoPinsUrl(projectId, selectedId)
+        );
+        if (!cancelled) {
+          setZonePhotoPins(res.pins ?? []);
+          setZonePhotoMessage(res.message ?? null);
+        }
+      } catch {
+        if (!cancelled) {
+          setZonePhotoPins([]);
+          setZonePhotoMessage(null);
+        }
+      } finally {
+        if (!cancelled) setZonePhotosLoading(false);
       }
     })();
     return () => {
@@ -516,6 +547,11 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                       <p className="text-xs text-muted-foreground">
                         {zoneDetail.message}
                       </p>
+                      <ZonePhotoThumbs
+                        loading={zonePhotosLoading}
+                        pins={zonePhotoPins}
+                        apiMessage={zonePhotoMessage}
+                      />
                       <LinkedList
                         title="Open RFIs"
                         items={zoneDetail.openRfis}
@@ -571,6 +607,51 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             </CardContent>
           </Card>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Zone panel photo thumbnails (2.15.4) — neutral empty, never fake green. */
+function ZonePhotoThumbs({
+  loading,
+  pins,
+  apiMessage,
+}: {
+  loading: boolean;
+  pins: TwinPhotoPinDto[];
+  apiMessage: string | null;
+}) {
+  const thumbs = pinsWithThumbnails(pins);
+  const emptyMsg = photoThumbsEmptyMessage(pins, apiMessage);
+  return (
+    <div data-testid="twin-zone-photo-thumbs">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+        Photos
+      </p>
+      {loading ? (
+        <Skeleton className="h-14 w-full" data-testid="twin-zone-photo-thumbs-loading" />
+      ) : thumbs.length === 0 ? (
+        <p
+          className="text-xs text-muted-foreground italic"
+          data-testid="twin-zone-photo-thumbs-empty"
+        >
+          {emptyMsg}
+        </p>
+      ) : (
+        <ul className="flex flex-wrap gap-2" data-testid="twin-zone-photo-thumbs-grid">
+          {thumbs.map((pin) => (
+            <li key={pin.photoId}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- remote field thumbs; not optimized assets */}
+              <img
+                src={pin.thumbnailUrl!}
+                alt="Field photo"
+                className="h-14 w-14 rounded-md object-cover border border-border bg-muted"
+                loading="lazy"
+              />
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

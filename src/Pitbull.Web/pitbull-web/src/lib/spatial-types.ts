@@ -68,3 +68,9 @@ export interface SpatialZoneDetailResponse {
   scheduleActivities: SpatialLinkedItemDto[];
   planSheets: SpatialLinkedItemDto[];
 }
+
+/** Re-export photo pin shapes for twin zone panel (2.15.3+). */
+export type {
+  TwinPhotoPinDto,
+  TwinPhotoPinsResponse,
+} from "./twin-photo-pins";
