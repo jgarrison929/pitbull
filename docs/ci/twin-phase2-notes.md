@@ -113,3 +113,22 @@ Next: overlay performance band 2.17.3+.
 1. Demo superintendent: enable RequireSpatial on Settings → Projects → submit field report without zone → success.
 2. Non-demo user (or pretend by clearing claim): same → toast + API error `SPATIAL_ZONE_REQUIRED`.
 
+
+## E2E twin zone round-trip (2.18.9)
+
+**Spec:** `e2e/tests/twin-zone-roundtrip.spec.ts`  
+**Playwright project:** `twin-zone-roundtrip`
+
+| Condition | Behavior |
+|-----------|----------|
+| API/web down or missing auth storage | **Self-skip** (honest — not a false green) |
+| `RUN_TWIN_E2E=0` | Explicit skip |
+| Live demo with seeded zones | Field zone picker + twin shell + `capture-quality` API |
+
+```powershell
+# Optional live run
+$env:RUN_TWIN_E2E = "1"
+cd e2e
+npx playwright test --project=twin-zone-roundtrip
+```
+
