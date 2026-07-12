@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.4] - 2026-07-12T14:57:36-07:00
+
+### Added
+
+- **Schedule look-ahead → progress draft** - mobile schedule cards deep-link to progress with `activityId` / `activityName` preselect banner.
+
+### Notes
+
+- Version **2.14.4**
+
 ## [2.14.3] - 2026-07-12T14:57:01-07:00
 
 ### Added

@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, CloudSun, BarChart2, Users, Clock } from "lucide-react";
@@ -301,6 +302,15 @@ export default function ProgressPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="space-y-6">
+      {preselectActivityName && (
+        <p
+          className="text-sm text-amber-800 dark:text-amber-200 rounded-md border border-amber-200 bg-amber-50/60 dark:bg-amber-950/30 px-3 py-2"
+          data-testid="progress-activity-preselect"
+        >
+          Progress draft for schedule activity: <strong>{preselectActivityName}</strong>
+          {preselectActivityId ? ` (${preselectActivityId.slice(0, 8)}…)` : ""}
+        </p>
+      )}
       <Breadcrumbs items={[
         { label: "Projects", href: "/projects" },
         { label: projectName, href: `/projects/${id}` },
