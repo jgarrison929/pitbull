@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- **PostHog .NET SDK** - `PostHog` / `PostHog.AspNetCore` **2.2.2 → 2.6.0** (server analytics client).
+
 ## [2.12.1] - 2026-07-12T04:00:00-07:00
 
 ### Fixed
