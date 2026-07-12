@@ -44,7 +44,7 @@ export interface SpatialOverlayResponse {
   nodes: SpatialOverlayNodeDto[];
 }
 
-export type OverlayMode = "progress" | "schedule" | "rfi";
+export type OverlayMode = "progress" | "schedule" | "rfi" | "cost";
 
 export interface SpatialLinkedItemDto {
   id: string;

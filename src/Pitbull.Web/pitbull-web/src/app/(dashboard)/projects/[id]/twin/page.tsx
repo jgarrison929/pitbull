@@ -456,6 +456,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
               <SelectItem value="rfi">Open RFIs*</SelectItem>
               <SelectItem value="progress">Progress %*</SelectItem>
               <SelectItem value="schedule">Schedule risk*</SelectItem>
+              <SelectItem value="cost">Cost by zone*</SelectItem>
             </SelectContent>
           </Select>
           <Select value={storeyFilter} onValueChange={setStoreyFilter}>
@@ -498,6 +499,15 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             <span className="font-medium">Truth note: </span>
             {overlay.truthNote}
           </p>
+        </div>
+      )}
+      {mode === "cost" && (
+        <div
+          className="rounded-lg border border-muted bg-muted/40 px-3 py-2 text-sm text-muted-foreground"
+          data-testid="twin-cost-not-allocated-banner"
+          role="status"
+        >
+          Cost by zone is off unless allocation links exist — no fake cost heat.
         </div>
       )}
 
