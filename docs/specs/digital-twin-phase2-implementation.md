@@ -1,8 +1,8 @@
 # Spec: Digital Twin Phase 2 implementation
 
-**Status:** In progress — photo pins **2.16.2**; model upload **2.17.2**; perf/overlays **2.18.2**; RequireSpatial schema **2.18.3**  
+**Status:** Shipped through **2.19.2** (Arc D complete)  
 **Version band:** 2.15.3 → 2.19.2 (40 PRs)  
-**Related:** [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) Phase 2 (authoritative for data model)
+**Related:** [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) Phase 2 (authoritative for data model); notes [`docs/ci/twin-phase2-notes.md`](../ci/twin-phase2-notes.md)
 
 ## Problem
 
@@ -116,7 +116,11 @@ Implementers must re-read twin master §4–§7 before each sub-band.
 
 ## Band DoD (2.19.2)
 
-- [ ] Photo pins MVP or honest flag  
-- [ ] Upload path or documented skip  
-- [ ] Overlay perf notes + truth banners  
-- [ ] RequireSpatial optional setting shipped  
+- [x] Photo pins MVP or honest flag  
+- [x] Upload path or documented skip (sample glTF skipped honestly)  
+- [x] Overlay perf notes + truth banners  
+- [x] RequireSpatial optional setting shipped  
+- [x] Capture quality labeled metric  
+- [x] Help zone picker + twin; E2E flag-gated  
+- [x] `docs/ci/twin-phase2-notes.md` complete  
+

@@ -1,7 +1,7 @@
 # Twin Phase 2 — complete notes (Arc D)
 
 **Band:** 2.15.3 → 2.19.2  
-**Status:** Notes complete through **2.19.1**; Arc D checkpoint **2.19.2**  
+**Status:** **Shipped through 2.19.2** (Arc D complete)  
 **Spec:** `docs/specs/digital-twin-phase2-implementation.md`  
 **Master:** `docs/pitbull-digital-twin-spec.md`
 
