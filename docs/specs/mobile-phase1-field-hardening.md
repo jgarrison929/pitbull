@@ -172,9 +172,9 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** field report page + posthog helpers; spec addendum event table
 
 **Acceptance:**
-- [ ] Step and submit events include `viewport_class` (e.g. `phone` / `desktop`)  
-- [ ] Offline submit still captures with online/offline flag  
-- [ ] Event names documented in this spec §Analytics  
+- [x] Step and submit events include `viewport_class` (e.g. `phone` / `desktop`)  
+- [x] Offline submit still captures with online/offline flag  
+- [x] Event names documented in this spec §Analytics  
 
 **Tests:** Vitest for pure helpers if extracted  
 

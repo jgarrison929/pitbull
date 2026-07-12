@@ -42,6 +42,12 @@ import {
 import { enqueueDailyReportForSync } from "@/lib/offline-store";
 import { requestBackgroundSync } from "@/components/service-worker-register";
 import { captureProductEvent } from "@/lib/posthog";
+import {
+  FIELD_REPORT_STEP_EVENT,
+  FIELD_REPORT_SUBMITTED_EVENT,
+  buildFieldReportStepProps,
+  buildFieldReportSubmittedProps,
+} from "@/lib/field-report-analytics";
 import { applyVoiceTranscriptToNarratives } from "@/lib/voice-transcript";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -372,12 +378,34 @@ export default function MobileDailyReportPage() {
 
   function goNext() {
     const n = nextReportStep(step);
-    if (n) setStep(n);
+    if (n) {
+      captureProductEvent(
+        FIELD_REPORT_STEP_EVENT,
+        buildFieldReportStepProps({
+          from_step: step,
+          to_step: n,
+          direction: "next",
+          project_id: projectId,
+        })
+      );
+      setStep(n);
+    }
   }
 
   function goBack() {
     const p = prevReportStep(step);
-    if (p) setStep(p);
+    if (p) {
+      captureProductEvent(
+        FIELD_REPORT_STEP_EVENT,
+        buildFieldReportStepProps({
+          from_step: step,
+          to_step: p,
+          direction: "back",
+          project_id: projectId,
+        })
+      );
+      setStep(p);
+    }
   }
 
   function handlePhotosChange(newFiles: FileItem[]) {
@@ -490,12 +518,15 @@ export default function MobileDailyReportPage() {
           ? "Report + photos saved on device"
           : "Report saved; large photos need online upload",
     });
-    captureProductEvent("field_report_submitted", {
-      project_id: projectId,
-      as_draft: asDraft,
-      photo_count: embedded,
-      offline: true,
-    });
+    captureProductEvent(
+      FIELD_REPORT_SUBMITTED_EVENT,
+      buildFieldReportSubmittedProps({
+        project_id: projectId,
+        as_draft: asDraft,
+        photo_count: embedded,
+        offline: true,
+      })
+    );
     resetForm();
   }
 
@@ -557,12 +588,15 @@ export default function MobileDailyReportPage() {
       toast.success(asDraft ? "Draft saved" : "Report submitted", {
         description: `${title} — ${photos.length} photo(s)`,
       });
-      captureProductEvent("field_report_submitted", {
-        project_id: projectId,
-        as_draft: asDraft,
-        photo_count: photos.length,
-        offline: false,
-      });
+      captureProductEvent(
+        FIELD_REPORT_SUBMITTED_EVENT,
+        buildFieldReportSubmittedProps({
+          project_id: projectId,
+          as_draft: asDraft,
+          photo_count: photos.length,
+          offline: false,
+        })
+      );
       resetForm();
     } catch (error) {
       try {
