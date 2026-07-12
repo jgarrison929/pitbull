@@ -244,6 +244,48 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
 
+    /// <summary>2.16.9 — model upload requires auth; manage endpoints are not anonymous.</summary>
+    [Fact]
+    public async Task Model_assets_post_without_auth_returns_401()
+    {
+        await Db.ResetAsync();
+        using var client = Factory.CreateClient();
+        var resp = await client.PostAsJsonAsync(
+            $"/api/projects/{Guid.NewGuid()}/spatial/model-assets",
+            new { sourceFormat = "Gltf", displayName = "x" });
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Model_assets_list_and_register_with_auth()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Model-Auth");
+
+        var listResp = await client.GetAsync($"/api/projects/{projectId}/spatial/model-assets");
+        listResp.EnsureSuccessStatusCode();
+        var list = await listResp.Content.ReadFromJsonAsync<ModelAssetsListDto>(JsonOpts);
+        Assert.NotNull(list);
+        Assert.Empty(list.Assets ?? []);
+        Assert.Contains("No model assets", list.Message ?? "", StringComparison.OrdinalIgnoreCase);
+
+        var reg = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/spatial/model-assets",
+            new { sourceFormat = "Gltf", displayName = "Auth model" });
+        // Admin demo user has Spatial.Manage in seed → 200; otherwise 403 documents authz.
+        Assert.True(
+            reg.StatusCode is HttpStatusCode.OK or HttpStatusCode.Forbidden,
+            $"Expected 200 or 403 for register, got {(int)reg.StatusCode}");
+        if (reg.StatusCode == HttpStatusCode.OK)
+        {
+            var dto = await reg.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+            Assert.NotNull(dto);
+            Assert.False(dto.IsReady);
+            Assert.Equal("Pending", dto.ConversionStatus);
+        }
+    }
+
     private sealed record GraphDto(
         bool HasGraph,
         string? Message,
@@ -294,4 +336,15 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         double? Longitude,
         string? ThumbnailUrl,
         string PlacementSource);
+
+    private sealed record ModelAssetsListDto(
+        Guid ProjectId,
+        string Message,
+        List<ModelAssetDto>? Assets);
+
+    private sealed record ModelAssetDto(
+        Guid Id,
+        string DisplayName,
+        string ConversionStatus,
+        bool IsReady);
 }
