@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.1] - 2026-07-12T16:24:51-07:00
+
+### Added
+
+- **Overlay SLO evidence (diagnostic)** - table in `docs/ci/twin-overlay-load-scale.md` (batch loads, formula tests, cost honesty). Not an executive KPI.
+
+### Notes
+
+- Version **2.18.1**
 ## [2.18.0] - 2026-07-12T16:23:08-07:00
 
 ### Added
