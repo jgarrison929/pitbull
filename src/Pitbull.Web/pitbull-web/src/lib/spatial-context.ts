@@ -73,3 +73,66 @@ export function normalizeZoneOptions(raw: unknown): SpatialZoneOption[] {
   }
   return out;
 }
+
+export interface PlanSheetOption {
+  id: string;
+  drawingNumber: string;
+  title: string;
+}
+
+export type PlanSheetDecision =
+  | { kind: "skip" }
+  | { kind: "apply"; planSheetId: string; sheet: PlanSheetOption };
+
+export function pickPlanSheet(
+  sheets: PlanSheetOption[],
+  selectedId: string | null | undefined
+): PlanSheetDecision {
+  const id = typeof selectedId === "string" ? selectedId.trim() : "";
+  if (!id) return { kind: "skip" };
+  const sheet = sheets.find((s) => s.id === id);
+  if (!sheet) return { kind: "skip" };
+  return { kind: "apply", planSheetId: sheet.id, sheet };
+}
+
+/** Attach optional zone + plan sheet to report data without blocking skip. */
+export function applyTwinFuelToReportData(
+  data: Record<string, unknown>,
+  zone: SpatialContextDecision,
+  plan: PlanSheetDecision
+): Record<string, unknown> {
+  let next = applySpatialContextToReportData(data, zone);
+  if (plan.kind === "skip") {
+    const { PlanSheetId: _drop, ...rest } = next;
+    return rest;
+  }
+  return { ...next, PlanSheetId: plan.planSheetId };
+}
+
+/** Local remember last zone for a project (field convenience; not a KPI). */
+const LAST_ZONE_KEY = "pitbull-last-zone-by-project";
+
+export function rememberLastZone(projectId: string, zoneId: string | null): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    const raw = localStorage.getItem(LAST_ZONE_KEY);
+    const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
+    if (!zoneId) delete map[projectId];
+    else map[projectId] = zoneId;
+    localStorage.setItem(LAST_ZONE_KEY, JSON.stringify(map));
+  } catch {
+    // ignore quota
+  }
+}
+
+export function recallLastZone(projectId: string): string | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LAST_ZONE_KEY);
+    if (!raw) return null;
+    const map = JSON.parse(raw) as Record<string, string>;
+    return map[projectId] ?? null;
+  } catch {
+    return null;
+  }
+}

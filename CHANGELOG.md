@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-07-12T01:40:00-07:00
+
+### Added
+
+- **Mobile twin fuel round-trip** — pure helpers for optional zone + plan sheet on field reports; offline/online payloads carry SpatialNodeId/PlanSheetId when applied; last-zone remember per project
+- Version **2.9.0**
+
 ## [2.8.9] - 2026-07-12T01:20:00-07:00
 
 ### Added
