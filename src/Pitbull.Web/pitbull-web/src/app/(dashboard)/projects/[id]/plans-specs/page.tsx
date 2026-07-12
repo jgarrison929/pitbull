@@ -845,8 +845,8 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search sheet, title, section…"
-              className="pl-9 min-h-[48px] sm:min-h-9 text-base sm:text-sm"
-              data-testid="plans-specs-search"
+              className={cn(PLANS_MOBILE_SEARCH_INPUT_CLASS)}
+              data-testid="plans-specs-search" aria-label="Search plan sheets"
             />
           </div>
         </div>
