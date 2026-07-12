@@ -306,7 +306,7 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
     return { total, active, baselined, draft };
   }, [schedules]);
 
-  const lookAheadCardsRaw = useMemo((): ScheduleLookAheadTask[] => {
+  const lookAheadCards = useMemo((): ScheduleLookAheadTask[] => {
     const tasks: ScheduleLookAheadTask[] = ganttActivities.map((a) => ({
       id: a.id,
       name: a.name,
