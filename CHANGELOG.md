@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.9] - 2026-07-12T14:47:15-07:00
+
+### Added
+
+- **PostHog field funnel** - `field_report_step` on wizard next/back; `field_report_submitted` (online/offline) continues via `captureProductEvent` which always attaches `viewport_class` (phone/tablet/desktop). Pure builders in `field-report-analytics.ts` + vitest.
+
+### Notes
+
+- Version **2.12.9** â€” last patch of minor 12 before 2.13.0.
+
 ## [2.12.8] - 2026-07-12T14:45:28-07:00
 
 ### Fixed
@@ -22,7 +32,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Help Center field workflows** - section "Field & mobile workflows" with Daily Field Report (/daily-reports/mobile), Site Walk (via Projects ? `/projects/{id}/site-walk`), and Offline/PWA cards (3–5 steps + deep links). Shared data in `help-field-workflows.ts` with vitest coverage.
+- **Help Center field workflows** - section "Field & mobile workflows" with Daily Field Report (/daily-reports/mobile), Site Walk (via Projects ? `/projects/{id}/site-walk`), and Offline/PWA cards (3ï¿½5 steps + deep links). Shared data in `help-field-workflows.ts` with vitest coverage.
 
 ### Notes
 
