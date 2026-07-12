@@ -326,7 +326,72 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
 
       {!loading && graph?.hasGraph && (
         <div className="grid gap-4 lg:grid-cols-5">
-          <Card className="lg:col-span-3">
+          <div className="lg:col-span-3 space-y-4">
+            <Card data-testid="twin-schematic-board">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-amber-500" />
+                  Schematic zones (2.5D)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Floor-plan style cards — color is overlay band only (gray =
+                  insufficient, not green).
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {tree
+                    .filter((n) => n.nodeType === "Zone" || n.nodeType === "zone")
+                    .map((node) => {
+                      const ov = overlayById.get(node.id);
+                      const band = ov?.band ?? "InsufficientData";
+                      const active = selectedId === node.id;
+                      return (
+                        <button
+                          key={node.id}
+                          type="button"
+                          onClick={() => setSelectedId(node.id)}
+                          className={cn(
+                            "min-h-[72px] rounded-lg border-2 p-2 text-left touch-manipulation transition-shadow",
+                            bandClass(band),
+                            active && "ring-2 ring-amber-500 shadow-md"
+                          )}
+                          data-testid={`twin-schematic-${node.code}`}
+                        >
+                          <span className="text-xs font-semibold block truncate">
+                            {node.name}
+                          </span>
+                          <span className="text-[10px] opacity-80">{node.code}</span>
+                          <span className="block text-[10px] mt-1 font-medium">
+                            {ov?.label ?? "No data*"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3 text-[10px] text-muted-foreground">
+                  <span className={cn("px-1.5 py-0.5 rounded border", bandClass("OnTrack"))}>
+                    OnTrack
+                  </span>
+                  <span className={cn("px-1.5 py-0.5 rounded border", bandClass("Watch"))}>
+                    Watch*
+                  </span>
+                  <span className={cn("px-1.5 py-0.5 rounded border", bandClass("Risk"))}>
+                    Risk*
+                  </span>
+                  <span
+                    className={cn(
+                      "px-1.5 py-0.5 rounded border",
+                      bandClass("InsufficientData")
+                    )}
+                  >
+                    Insufficient*
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+          <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">
                 Zones tree
@@ -338,7 +403,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 max-h-[28rem] overflow-y-auto">
+            <CardContent className="space-y-1 max-h-[20rem] overflow-y-auto">
               {tree.map((node) => {
                 const ov = overlayById.get(node.id);
                 const active = selectedId === node.id;
@@ -382,6 +447,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
               })}
             </CardContent>
           </Card>
+          </div>
 
           <Card className="lg:col-span-2">
             <CardHeader className="pb-2">
