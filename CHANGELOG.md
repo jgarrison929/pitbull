@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.0] - 2026-07-12T16:46:24-07:00
+
+### Changed
+
+- **Arc D integration suite tidy** — SpatialEndpointsTests tagged Arc/TwinPhase2; added capture-quality + RequireSpatialOnProgress default integration cases.
+
+### Notes
+
+- Version **2.19.0**. Next: twin-phase2-notes complete (2.19.1).
+
 ## [2.18.9] - 2026-07-12T16:44:34-07:00
 
 ### Added

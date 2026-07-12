@@ -5,7 +5,13 @@ using Pitbull.Tests.Integration.Infrastructure;
 
 namespace Pitbull.Tests.Integration.ProjectManagement;
 
+/// <summary>
+/// Arc D twin Phase 2 integration suite (tidy 2.19.0).
+/// Filter: FullyQualifiedName~SpatialEndpoints OR Trait=ArcD
+/// </summary>
 [Collection(DatabaseCollection.Name)]
+[Trait("Arc", "D")]
+[Trait("Band", "TwinPhase2")]
 public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTestBase(db)
 {
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -349,6 +355,55 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
             Assert.DoesNotContain("\"isReady\":true", body, StringComparison.OrdinalIgnoreCase);
         }
     }
+
+    /// <summary>2.18.7/2.19.0 — capture-quality labeled metric; empty window ⇒ null percent.</summary>
+    [Fact]
+    public async Task Capture_quality_empty_window_is_honest_null_percent()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Quality");
+
+        var resp = await client.GetAsync(
+            $"/api/projects/{projectId}/spatial/capture-quality?windowDays=7");
+        resp.EnsureSuccessStatusCode();
+        var body = await resp.Content.ReadFromJsonAsync<CaptureQualityDto>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.Equal(projectId, body.ProjectId);
+        Assert.Equal(0, body.CombinedTotal);
+        Assert.Null(body.CombinedPercentWithSpatialRef);
+        Assert.Contains("quality", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("executive KPI", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
+        // Label explicitly not a vanity KPI
+        Assert.Contains("not an executive KPI", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>2.18.3/2.19.0 — project settings expose RequireSpatialOnProgress default false.</summary>
+    [Fact]
+    public async Task Project_settings_require_spatial_defaults_false()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+
+        var resp = await client.GetAsync("/api/companies/settings/projects");
+        resp.EnsureSuccessStatusCode();
+        var json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("requireSpatialOnProgress", json, StringComparison.OrdinalIgnoreCase);
+
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var prop = root.TryGetProperty("requireSpatialOnProgress", out var p)
+            ? p
+            : root.GetProperty("RequireSpatialOnProgress");
+        Assert.False(prop.GetBoolean());
+    }
+
+    private sealed record CaptureQualityDto(
+        Guid ProjectId,
+        int CombinedTotal,
+        decimal? CombinedPercentWithSpatialRef,
+        string? Label,
+        string? TruthNote);
 
     private sealed record GraphDto(
         bool HasGraph,
