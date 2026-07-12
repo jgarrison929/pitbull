@@ -51,6 +51,7 @@ import { useListPageShortcuts } from "@/hooks/use-page-shortcuts";
 import { GanttChart, type GanttActivity, type GanttDependency } from "@/components/schedule/gantt-chart";
 import { filterLookAheadTasks, type ScheduleLookAheadTask } from "@/lib/site-walk";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
+import { filterCriticalPathTasks } from "@/lib/schedule-critical-filter";
 import Link from "next/link";
 import { Pencil, Trash2, CalendarDays } from "lucide-react";
 
@@ -171,6 +172,7 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
   const [ganttScheduleId, setGanttScheduleId] = useState<string | null>(null);
   const [ganttActivities, setGanttActivities] = useState<GanttActivity[]>([]);
   const [ganttDependencies, setGanttDependencies] = useState<GanttDependency[]>([]);
+  const [criticalOnly, setCriticalOnly] = useState(false);
   const [ganttLoading, setGanttLoading] = useState(false);
 
   const loadGanttData = useCallback(async (scheduleId: string) => {
@@ -304,7 +306,7 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
     return { total, active, baselined, draft };
   }, [schedules]);
 
-  const lookAheadCards = useMemo((): ScheduleLookAheadTask[] => {
+  const lookAheadCardsRaw = useMemo((): ScheduleLookAheadTask[] => {
     const tasks: ScheduleLookAheadTask[] = ganttActivities.map((a) => ({
       id: a.id,
       name: a.name,
@@ -448,6 +450,19 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
       </div>
 
       {/* Mobile look-ahead cards — primary site-walk surface */}
+      <div className="flex items-center justify-between gap-2 sm:hidden">
+        <span className="text-sm font-medium">Look-ahead</span>
+        <Button
+          type="button"
+          size="sm"
+          variant={criticalOnly ? "default" : "outline"}
+          className="min-h-[44px]"
+          data-testid="schedule-critical-filter"
+          onClick={() => setCriticalOnly((v) => !v)}
+        >
+          {criticalOnly ? "Critical only" : "All activities"}
+        </Button>
+      </div>
       <Card className="lg:hidden border-amber-200" data-testid="schedule-look-ahead">
         <CardHeader className="pb-2">
           <CardTitle className="text-base flex items-center gap-2">
@@ -461,12 +476,14 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
         <CardContent className="space-y-2">
           {ganttLoading ? (
             <CardListSkeleton rows={3} />
-          ) : lookAheadCards.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No near-term activities. Activate a schedule with activities to see the look-ahead.
+          ) : filterCriticalPathTasks(lookAheadCards, criticalOnly).length === 0 ? (
+            <p className="text-sm text-muted-foreground" data-testid="schedule-critical-empty">
+              {criticalOnly
+                ? "No critical-path activities in the look-ahead. Turn off Critical only to see all near-term work."
+                : "No near-term activities. Activate a schedule with activities to see the look-ahead."}
             </p>
           ) : (
-            lookAheadCards.slice(0, 15).map((task) => (
+            filterCriticalPathTasks(lookAheadCards, criticalOnly).slice(0, 15).map((task) => (
               <Link
                 key={task.id}
                 href={buildProgressDraftHref(projectId, {
