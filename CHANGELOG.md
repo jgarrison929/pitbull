@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.2] - 2026-07-12T14:56:27-07:00
+
+### Added
+
+- **Arc B checkpoint** - `docs/ci/mobile-phase2-notes.md`; plans viewer band marked **Shipped through 2.14.2**.
+
+### Notes
+
+- Version **2.14.2** closes Arc B. Next: Arc C (2.14.3+).
+
 ## [2.14.1] - 2026-07-12T14:56:06-07:00
 
 ### Added
