@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FolderOpen, Clock3, FileText, MapPin } from "lucide-react";
 import Link from "next/link";
 import { buildFieldReportHref } from "@/lib/projects";
+import { buildSiteWalkHref, SITE_WALK_ENTRY_LABEL } from "@/lib/site-walk";
 import { useRecentProjects } from "@/hooks/use-recent-projects";
 
 interface DashboardAnalytics {
@@ -56,7 +57,7 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
                 <Link href={buildFieldReportHref(lastJob.id)}>Field report</Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="min-h-[48px]">
-                <Link href={`/projects/${lastJob.id}/site-walk`}>Site walk</Link>
+                <Link href={buildSiteWalkHref(lastJob.id)} data-testid="field-home-site-walk">{SITE_WALK_ENTRY_LABEL}</Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="min-h-[48px]" data-testid="field-home-twin">
                 <Link href={`/projects/${lastJob.id}/twin`}>Twin</Link>

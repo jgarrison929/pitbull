@@ -675,8 +675,8 @@ export default function ProjectDetailPage({
         <CardContent>
           <div className="flex flex-wrap gap-3">
             <Button asChild className="bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]">
-              <Link href={`/projects/${id}/site-walk`}>
-                Site walk
+              <Link href={buildSiteWalkHref(id)} data-testid="project-hub-site-walk">
+                {SITE_WALK_ENTRY_LABEL}
               </Link>
             </Button>
             <Button asChild variant="outline" className="min-h-[44px]">
