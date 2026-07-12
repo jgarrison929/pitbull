@@ -2864,8 +2864,11 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
     public async Task<IActionResult> GetOverlays(
         Guid projectId,
         [FromQuery] string mode = "rfi",
-        [FromQuery] DateTime? asOf = null)
-        => HandleResult(await spatialService.GetOverlayAsync(projectId, mode, asOf));
+        [FromQuery] DateTime? asOf = null,
+        [FromQuery] Guid? storeyNodeId = null,
+        [FromQuery] DateTime? from = null,
+        [FromQuery] DateTime? to = null)
+        => HandleResult(await spatialService.GetOverlayAsync(projectId, mode, asOf, storeyNodeId, from, to));
 
     /// <summary>Flat zone list for mobile pickers.</summary>
     [HttpGet("zones")]

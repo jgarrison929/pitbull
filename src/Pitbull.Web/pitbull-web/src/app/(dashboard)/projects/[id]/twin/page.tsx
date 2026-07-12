@@ -83,6 +83,10 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
   const [graph, setGraph] = useState<SpatialGraphResponse | null>(null);
   const [overlay, setOverlay] = useState<SpatialOverlayResponse | null>(null);
   const [mode, setMode] = useState<OverlayMode>("rfi");
+  const [storeyFilter, setStoreyFilter] = useState<string>("__all__");
+  const [asOfDate, setAsOfDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoneDetail, setZoneDetail] = useState<SpatialZoneDetailResponse | null>(
     null
@@ -94,10 +98,14 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     if (!valid) return;
     setLoading(true);
     try {
+      const overlayQs = new URLSearchParams({ mode });
+      if (asOfDate) overlayQs.set("asOf", asOfDate);
+      if (storeyFilter && storeyFilter !== "__all__")
+        overlayQs.set("storeyNodeId", storeyFilter);
       const [g, o, project] = await Promise.all([
         api<SpatialGraphResponse>(`/api/projects/${projectId}/spatial/graph`),
         api<SpatialOverlayResponse>(
-          `/api/projects/${projectId}/spatial/overlays?mode=${mode}`
+          `/api/projects/${projectId}/spatial/overlays?${overlayQs.toString()}`
         ),
         api<{ name?: string; number?: string }>(`/api/projects/${projectId}`).catch(
           () => null
@@ -119,7 +127,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     } finally {
       setLoading(false);
     }
-  }, [projectId, valid, mode]);
+  }, [projectId, valid, mode, storeyFilter, asOfDate]);
 
   useEffect(() => {
     void load();
@@ -165,6 +173,14 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
       setSeeding(false);
     }
   }
+
+  const storeys = useMemo(
+    () =>
+      (graph?.nodes ?? []).filter(
+        (n) => n.nodeType === "Storey" || n.nodeType === "storey"
+      ),
+    [graph]
+  );
 
   const tree = useMemo(
     () => (graph?.nodes ? buildTree(graph.nodes) : []),
@@ -212,7 +228,7 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             <p className="text-sm text-muted-foreground truncate">{projectName}</p>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           <Select
             value={mode}
             onValueChange={(v) => setMode(v as OverlayMode)}
@@ -226,6 +242,27 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
               <SelectItem value="schedule">Schedule risk*</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={storeyFilter} onValueChange={setStoreyFilter}>
+            <SelectTrigger className="min-h-[44px] w-[150px]" data-testid="twin-storey-filter">
+              <SelectValue placeholder="Storey" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">All storeys</SelectItem>
+              {storeys.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input
+            type="date"
+            value={asOfDate}
+            onChange={(e) => setAsOfDate(e.target.value)}
+            className="min-h-[44px] rounded-md border bg-background px-2 text-sm"
+            data-testid="twin-asof-date"
+            aria-label="As-of date"
+          />
           <Button
             variant="outline"
             className="min-h-[44px]"
