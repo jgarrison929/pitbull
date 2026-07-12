@@ -39,6 +39,7 @@ import {
 } from "@/lib/twin-zone-drill-analytics";
 import {
   buildModelAssetsUrl,
+  buildRetryConversionUrl,
   buildSetActiveModelUrl,
   buildStartConversionUrl,
   modelAssetStatusLabel,
@@ -354,6 +355,25 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
           e instanceof Error
             ? e.message
             : "Only Succeeded models can be active.",
+      });
+    }
+  }
+
+  async function retryConversion(modelAssetId: string) {
+    try {
+      const dto = await api<ModelAssetDto>(
+        buildRetryConversionUrl(projectId, modelAssetId),
+        { method: "POST" }
+      );
+      toast.message(
+        dto.isReady
+          ? "Unexpected ready after retry"
+          : "Retry started — Processing (still not ready)"
+      );
+      await loadModelAssets();
+    } catch (e) {
+      toast.error("Retry failed", {
+        description: e instanceof Error ? e.message : "Clear failure — try again later.",
       });
     }
   }
@@ -815,15 +835,32 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                       key={a.id}
                       className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
                     >
-                      <span className="font-medium">
-                        {a.displayName}{" "}
-                        <span className="text-muted-foreground font-normal">
-                          v{a.versionNumber} · {a.sourceFormat}
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium">
+                          {a.displayName}{" "}
+                          <span className="text-muted-foreground font-normal">
+                            v{a.versionNumber} · {a.sourceFormat}
+                          </span>
                         </span>
-                      </span>
-                      <div className="flex items-center gap-2">
+                        {a.conversionStatus.toLowerCase() === "failed" &&
+                          a.conversionError && (
+                            <p
+                              className="text-xs text-destructive mt-1"
+                              data-testid={`twin-model-error-${a.id}`}
+                            >
+                              {a.conversionError}
+                            </p>
+                          )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Badge
-                          variant={a.isReady ? "default" : "secondary"}
+                          variant={
+                            a.conversionStatus.toLowerCase() === "failed"
+                              ? "destructive"
+                              : a.isReady
+                                ? "default"
+                                : "secondary"
+                          }
                           data-testid={`twin-model-status-${a.id}`}
                         >
                           {modelAssetStatusLabel(a)}
@@ -840,6 +877,17 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                               Start conversion
                             </Button>
                           )}
+                        {a.conversionStatus.toLowerCase() === "failed" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="hidden md:inline-flex min-h-[36px]"
+                            data-testid={`twin-model-retry-${a.id}`}
+                            onClick={() => void retryConversion(a.id)}
+                          >
+                            Retry conversion
+                          </Button>
+                        )}
                         {a.isReady && !a.isActiveVersion && (
                           <Button
                             size="sm"

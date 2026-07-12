@@ -424,6 +424,70 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(ModelAssetStatus.ToDto(entity));
     }
 
+    public async Task<Result<ModelAssetDto>> FailModelConversionAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        string? errorMessage,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<ModelAssetDto>("Project not found.", "NOT_FOUND");
+
+        var entity = await Db.Set<ModelAsset>()
+            .FirstOrDefaultAsync(
+                a => a.Id == modelAssetId && a.ProjectId == projectId && !a.IsDeleted,
+                cancellationToken);
+        if (entity is null)
+            return Result.Failure<ModelAssetDto>("Model asset not found.", "NOT_FOUND");
+
+        entity.ConversionStatus = ModelConversionStatus.Failed;
+        entity.ConversionError = string.IsNullOrWhiteSpace(errorMessage)
+            ? "Conversion failed. Retry when ready — model is not ready for runtime."
+            : errorMessage.Trim();
+        entity.RuntimeBlobKey = null;
+        entity.IsActiveVersion = false;
+        await Db.SaveChangesAsync(cancellationToken);
+        var dto = ModelAssetStatus.ToDto(entity);
+        return Result.Success(dto);
+    }
+
+    public async Task<Result<ModelAssetDto>> RetryModelConversionAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<ModelAssetDto>("Project not found.", "NOT_FOUND");
+
+        var entity = await Db.Set<ModelAsset>()
+            .FirstOrDefaultAsync(
+                a => a.Id == modelAssetId && a.ProjectId == projectId && !a.IsDeleted,
+                cancellationToken);
+        if (entity is null)
+            return Result.Failure<ModelAssetDto>("Model asset not found.", "NOT_FOUND");
+
+        if (entity.ConversionStatus is not ModelConversionStatus.Failed
+            and not ModelConversionStatus.Pending)
+        {
+            if (entity.ConversionStatus is ModelConversionStatus.Processing)
+                return Result.Failure<ModelAssetDto>(
+                    "Conversion already processing — wait or mark failed before retry.",
+                    "ALREADY_PROCESSING");
+            if (entity.ConversionStatus is ModelConversionStatus.Succeeded)
+                return Result.Failure<ModelAssetDto>(
+                    "Conversion already succeeded — no retry needed.",
+                    "ALREADY_SUCCEEDED");
+        }
+
+        // Retry: Failed/Pending → Processing (stub). Still not ready.
+        entity.ConversionStatus = ModelConversionStatus.Processing;
+        entity.ConversionError = null;
+        entity.RuntimeBlobKey = null;
+        entity.IsActiveVersion = false;
+        await Db.SaveChangesAsync(cancellationToken);
+        return Result.Success(ModelAssetStatus.ToDto(entity));
+    }
+
     public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(
         Guid projectId,
         Guid spatialNodeId,

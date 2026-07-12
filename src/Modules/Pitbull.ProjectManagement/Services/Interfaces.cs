@@ -267,4 +267,18 @@ public interface ISpatialService
         Guid projectId,
         Guid modelAssetId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Mark conversion failed with message, or retry Failed → Pending (2.16.8).
+    /// </summary>
+    Task<Result<ModelAssetDto>> FailModelConversionAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        string? errorMessage,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<ModelAssetDto>> RetryModelConversionAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        CancellationToken cancellationToken = default);
 }
