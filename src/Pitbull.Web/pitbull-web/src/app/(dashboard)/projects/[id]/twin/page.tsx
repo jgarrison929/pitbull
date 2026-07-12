@@ -28,6 +28,7 @@ import type {
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
+import { captureProductEvent } from "@/lib/posthog";
 import {
   ArrowLeft,
   Boxes,
@@ -134,6 +135,11 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!valid) return;
+    captureProductEvent("twin_opened", { project_id: projectId });
+  }, [valid, projectId]);
 
   useEffect(() => {
     if (!valid || !selectedId) {

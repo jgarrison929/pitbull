@@ -84,19 +84,19 @@ export function getProjectWorkspaceNav(projectId: string | null): ProjectWorkspa
   }
 
   const base = `/projects/${projectId}`;
+  // Day-job primary: walk the job, see the twin, capture, open RFIs. Job cost lives under More.
   const primary: NavItem[] = [
     { label: "Overview", href: base, icon: "📄", requiredPermission: "Projects.View" },
     { label: "Site Walk", href: `${base}/site-walk`, icon: "🚶", requiredPermission: "Projects.View" },
+    { label: "Digital Twin", href: `${base}/twin`, icon: "🗺️", requiredPermission: "Spatial.View" },
     { label: "Daily Reports", href: `${base}/daily-reports`, icon: "📝", requiredPermission: "PM.DailyReports" },
     { label: "RFIs", href: `${base}/rfis`, icon: "❓", requiredPermission: "PM.RFIs" },
-    { label: "Job Cost", href: `${base}/job-cost`, icon: "💰", requiredPermission: "Projects.View" },
   ];
 
   const moreGroups: ProjectNavGroup[] = [
     {
       label: "Field",
       items: [
-        { label: "Digital Twin", href: `${base}/twin`, icon: "🗺️", requiredPermission: "Spatial.View" },
         { label: "Schedule", href: `${base}/schedule`, icon: "📅", requiredPermission: "PM.Schedule" },
         { label: "Plans & Specs", href: `${base}/plans-specs`, icon: "📐", requiredPermission: "Documents.View" },
         { label: "Punch List", href: `${base}/punch-list`, icon: "📋", requiredPermission: "PM.PunchList" },
@@ -115,6 +115,7 @@ export function getProjectWorkspaceNav(projectId: string | null): ProjectWorkspa
     {
       label: "Cost & docs",
       items: [
+        { label: "Job Cost", href: `${base}/job-cost`, icon: "💰", requiredPermission: "Projects.View" },
         { label: "Progress", href: `${base}/progress`, icon: "📈", requiredPermission: "Projects.View" },
         { label: "Cost Projections", href: `${base}/projections`, icon: "🔮", requiredPermission: "Projects.View" },
         { label: "Documents", href: `${base}/documents`, icon: "📁", requiredPermission: "Documents.View" },

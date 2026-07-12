@@ -48,7 +48,7 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
               <p className="font-semibold">{lastJob.name}</p>
               <p className="text-sm text-muted-foreground">{lastJob.number}</p>
             </div>
-            <div className="grid gap-2 grid-cols-1 sm:grid-cols-3">
+            <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
               <Button asChild size="lg" className="min-h-[48px] bg-amber-600 hover:bg-amber-700">
                 <Link href="/time-tracking/crew-entry">Crew time</Link>
               </Button>
@@ -57,6 +57,9 @@ export function FieldDashboard({ data, isLoading }: { data: DashboardAnalytics |
               </Button>
               <Button asChild size="lg" variant="outline" className="min-h-[48px]">
                 <Link href={`/projects/${lastJob.id}/site-walk`}>Site walk</Link>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="min-h-[48px]" data-testid="field-home-twin">
+                <Link href={`/projects/${lastJob.id}/twin`}>Twin</Link>
               </Button>
             </div>
           </CardContent>

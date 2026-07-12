@@ -159,3 +159,28 @@ export function captureAppException(
     posthog as unknown as PostHogExceptionClient
   );
 }
+
+/**
+ * Named product funnel events (beyond $pageview) for field / role UX analysis.
+ * Never throws. Safe when PostHog is not configured.
+ */
+export function captureProductEvent(
+  event: string,
+  properties?: Record<string, unknown>
+): void {
+  try {
+    if (!posthog.__loaded) return;
+    const width = typeof window !== "undefined" ? window.innerWidth : undefined;
+    posthog.capture(event, {
+      ...properties,
+      viewport_width: width,
+      is_narrow_viewport: width != null ? isNarrowViewport(width) : undefined,
+      viewport_class:
+        width == null
+          ? undefined
+          : classifyViewportWidth(width),
+    });
+  } catch {
+    // analytics must never break product flows
+  }
+}

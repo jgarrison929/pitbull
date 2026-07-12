@@ -10,8 +10,13 @@ public interface IProjectAccessService
 }
 
 /// <summary>
-/// Unified project access check: Admin role bypasses; otherwise requires an active
-/// ProjectAssignment matching the current user's employee email.
+/// Unified project access check used by RFIs (and similar project-scoped modules).
+/// <list type="bullet">
+/// <item><description><b>Admin</b> / <b>Manager</b> — company-wide access (office + demo personas).</description></item>
+/// <item><description>Everyone else — active <c>project_assignments</c> matching the user's employee email.</description></item>
+/// </list>
+/// Manager includes demo CEO/CFO/PM/Estimator (Identity role Manager, not Admin) so site-walk
+/// RFI panels do not 403 while the same user can still open the project.
 /// </summary>
 public sealed class ProjectAccessService(PitbullDbContext db) : IProjectAccessService
 {
@@ -20,9 +25,18 @@ public sealed class ProjectAccessService(PitbullDbContext db) : IProjectAccessSe
         public int Value { get; set; }
     }
 
+    /// <summary>
+    /// Pure role gate — unit-testable without SQL.
+    /// </summary>
+    public static bool HasCompanyWideProjectAccess(ClaimsPrincipal? user)
+    {
+        if (user is null) return false;
+        return user.IsInRole("Admin") || user.IsInRole("Manager");
+    }
+
     public async Task<bool> HasProjectAccessAsync(Guid projectId, ClaimsPrincipal? user, CancellationToken ct)
     {
-        if (user?.IsInRole("Admin") == true)
+        if (HasCompanyWideProjectAccess(user))
             return true;
 
         var email = user?.Identity?.Name

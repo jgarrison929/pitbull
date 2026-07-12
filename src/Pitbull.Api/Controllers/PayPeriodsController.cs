@@ -48,14 +48,17 @@ public class PayPeriodsController(IPayPeriodService payPeriodService) : Controll
 
     [HttpGet("current")]
     [ProducesResponseType(typeof(PayPeriodDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> GetCurrent([FromQuery] DateOnly? date = null)
     {
         var result = await payPeriodService.GetCurrentPeriodAsync(date);
         if (!result.IsSuccess)
-            return result.ErrorCode == "NOT_FOUND"
-                ? this.NotFoundError(result.Error ?? "No pay period found for the requested date")
-                : this.BadRequestError(result.Error ?? "Request failed");
+        {
+            // Optional UI indicator: no open period is not an app error (was spamming PostHog api_error 404).
+            if (result.ErrorCode == "NOT_FOUND")
+                return NoContent();
+            return this.BadRequestError(result.Error ?? "Request failed");
+        }
 
         return Ok(result.Value);
     }

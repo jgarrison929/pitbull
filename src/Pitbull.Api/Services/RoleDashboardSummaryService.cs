@@ -16,6 +16,7 @@ namespace Pitbull.Api.Services;
 /// <summary>
 /// Truthful, role-oriented portfolio metrics for CEO / CFO dashboards.
 /// Prefer honest labels over invented scores.
+/// Query budget: batched aggregates so a single request stays under N+1 thresholds.
 /// </summary>
 public interface IRoleDashboardSummaryService
 {
@@ -30,17 +31,24 @@ public sealed class RoleDashboardSummaryService(
 {
     public async Task<RoleDashboardSummaryDto> GetSummaryAsync(CancellationToken ct = default)
     {
-        var portfolioContractValue = await SafeAsync("PortfolioContractValue",
-            () => db.Set<Project>().AsNoTracking()
+        // Batch independent aggregates — each SafeAsync block is 0–1 DB round-trips.
+        // Avoids the previous ~20+ sequential Count/Sum calls that tripped n_plus_one_detected.
+        var projectStats = await SafeAsync("Projects", async () =>
+        {
+            var row = await db.Set<Project>().AsNoTracking()
                 .Where(p => p.Status != ProjectStatus.Completed)
-                .SumAsync(p => (decimal?)p.ContractAmount, ct), 0m) ?? 0m;
-
-        var activeProjectCount = await SafeAsync("ActiveProjects",
-            () => db.Set<Project>().AsNoTracking()
-                .CountAsync(p => p.Status != ProjectStatus.Completed, ct), 0);
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    Count = g.Count(),
+                    ContractSum = g.Sum(p => p.ContractAmount),
+                })
+                .FirstOrDefaultAsync(ct);
+            return row is null ? (Count: 0, ContractSum: 0m) : (row.Count, row.ContractSum);
+        }, (Count: 0, ContractSum: 0m));
 
         var billedToDate = await SafeAsync("BilledToDate", () => ComputeBilledToDateAsync(ct), 0m);
-        var unbilledContractValue = Math.Max(0m, portfolioContractValue - billedToDate);
+        var unbilledContractValue = Math.Max(0m, projectStats.ContractSum - billedToDate);
 
         var aging = await LoadAgingAsync(ct);
         var arTotal = aging?.AccountsReceivable.Total ?? 0m;
@@ -55,18 +63,21 @@ public sealed class RoleDashboardSummaryService(
             : aging.AccountsPayable.Current + aging.AccountsPayable.Days1To30;
         var arApNet = aging?.NetPosition ?? (arTotal - apTotal);
 
-        var openChangeOrders = await SafeAsync("OpenCOs",
-            () => db.Set<ChangeOrder>().AsNoTracking()
-                .CountAsync(co =>
-                    co.Status == ChangeOrderStatus.Pending
-                    || co.Status == ChangeOrderStatus.UnderReview, ct), 0);
-
-        var openCoAmount = await SafeAsync("OpenCoAmount",
-            () => db.Set<ChangeOrder>().AsNoTracking()
+        var coStats = await SafeAsync("ChangeOrders", async () =>
+        {
+            var row = await db.Set<ChangeOrder>().AsNoTracking()
                 .Where(co =>
                     co.Status == ChangeOrderStatus.Pending
                     || co.Status == ChangeOrderStatus.UnderReview)
-                .SumAsync(co => (decimal?)co.Amount, ct), 0m) ?? 0m;
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    Count = g.Count(),
+                    Amount = g.Sum(co => co.Amount),
+                })
+                .FirstOrDefaultAsync(ct);
+            return row is null ? (Count: 0, Amount: 0m) : (row.Count, row.Amount);
+        }, (Count: 0, Amount: 0m));
 
         var openRfis = await SafeAsync("OpenRFIs",
             () => db.Set<Rfi>().AsNoTracking()
@@ -76,40 +87,57 @@ public sealed class RoleDashboardSummaryService(
 
         var compliance = await SafeAsync("Compliance", async () =>
         {
-            var total = await db.Set<ComplianceDocument>().AsNoTracking().CountAsync(ct);
-            var active = await db.Set<ComplianceDocument>().AsNoTracking()
-                .CountAsync(x => x.Status == "Active", ct);
-            var expiring = await db.Set<ComplianceDocument>().AsNoTracking()
-                .CountAsync(x => x.Status == "ExpiringSoon", ct);
-            var expired = await db.Set<ComplianceDocument>().AsNoTracking()
-                .CountAsync(x => x.Status == "Expired", ct);
+            var rows = await db.Set<ComplianceDocument>().AsNoTracking()
+                .GroupBy(x => x.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+
+            var total = rows.Sum(r => r.Count);
+            var active = rows.Where(r => r.Status == "Active").Sum(r => r.Count);
+            var expiring = rows.Where(r => r.Status == "ExpiringSoon").Sum(r => r.Count);
+            var expired = rows.Where(r => r.Status == "Expired").Sum(r => r.Count);
             return new ComplianceSnapshotDto(total, active, expiring, expired);
         }, new ComplianceSnapshotDto(0, 0, 0, 0));
 
         var yearStartDate = new DateOnly(DateTime.UtcNow.Year, 1, 1);
-        var activeEmployees = await SafeAsync("ActiveEmployees",
-            () => db.Set<Employee>().AsNoTracking().CountAsync(e => e.IsActive, ct), 0);
-        var terminationsYtd = await SafeAsync("TerminationsYtd",
-            () => db.Set<Employee>().AsNoTracking()
-                .CountAsync(e => e.TerminationDate != null && e.TerminationDate >= yearStartDate, ct), 0);
-        var hiresYtd = await SafeAsync("HiresYtd",
-            () => db.Set<Employee>().AsNoTracking()
-                .CountAsync(e => e.HireDate != null && e.HireDate >= yearStartDate, ct), 0);
+        var employeeStats = await SafeAsync("Employees", async () =>
+        {
+            var row = await db.Set<Employee>().AsNoTracking()
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    Active = g.Count(e => e.IsActive),
+                    TermsYtd = g.Count(e =>
+                        e.TerminationDate != null && e.TerminationDate >= yearStartDate),
+                    HiresYtd = g.Count(e =>
+                        e.HireDate != null && e.HireDate >= yearStartDate),
+                })
+                .FirstOrDefaultAsync(ct);
+            return row is null
+                ? (Active: 0, TermsYtd: 0, HiresYtd: 0)
+                : (row.Active, row.TermsYtd, row.HiresYtd);
+        }, (Active: 0, TermsYtd: 0, HiresYtd: 0));
 
-        var openBidCount = await SafeAsync("OpenBids",
-            () => db.Set<Bid>().AsNoTracking()
-                .CountAsync(b => b.Status == BidStatus.Draft || b.Status == BidStatus.Submitted, ct), 0);
-        var pipelineValue = await SafeAsync("PipelineValue",
-            () => db.Set<Bid>().AsNoTracking()
+        var bidStats = await SafeAsync("Bids", async () =>
+        {
+            var row = await db.Set<Bid>().AsNoTracking()
                 .Where(b => b.Status == BidStatus.Draft || b.Status == BidStatus.Submitted)
-                .SumAsync(b => (decimal?)b.EstimatedValue, ct), 0m) ?? 0m;
+                .GroupBy(_ => 1)
+                .Select(g => new
+                {
+                    Count = g.Count(),
+                    Pipeline = g.Sum(b => b.EstimatedValue),
+                })
+                .FirstOrDefaultAsync(ct);
+            return row is null ? (Count: 0, Pipeline: 0m) : (row.Count, row.Pipeline);
+        }, (Count: 0, Pipeline: 0m));
 
         var activeCustomers = await SafeAsync("ActiveCustomers",
             () => db.Set<Customer>().AsNoTracking().CountAsync(c => c.IsActive, ct), 0);
 
         return new RoleDashboardSummaryDto(
-            ActiveProjectCount: activeProjectCount,
-            PortfolioContractValue: portfolioContractValue,
+            ActiveProjectCount: projectStats.Count,
+            PortfolioContractValue: projectStats.ContractSum,
             BilledToDate: billedToDate,
             BilledToDateLabel: "Owner billed to date (G702 completed & stored)",
             UnbilledContractValue: unbilledContractValue,
@@ -120,22 +148,23 @@ public sealed class RoleDashboardSummaryService(
             ApDueNearTerm: apDueNearTerm,
             ArApNetPosition: arApNet,
             ArApNetPositionLabel: "AR − AP net position (aging)",
-            OpenChangeOrderCount: openChangeOrders,
-            OpenChangeOrderAmount: openCoAmount,
+            OpenChangeOrderCount: coStats.Count,
+            OpenChangeOrderAmount: coStats.Amount,
             OpenRfiCount: openRfis,
             SafetyIncidentsYtd: safetyYtd,
             Compliance: compliance,
-            ActiveEmployeeCount: activeEmployees,
-            TerminationsYtd: terminationsYtd,
-            HiresYtd: hiresYtd,
-            OpenBidCount: openBidCount,
-            BidPipelineValue: pipelineValue,
+            ActiveEmployeeCount: employeeStats.Active,
+            TerminationsYtd: employeeStats.TermsYtd,
+            HiresYtd: employeeStats.HiresYtd,
+            OpenBidCount: bidStats.Count,
+            BidPipelineValue: bidStats.Pipeline,
             ActiveCustomerCount: activeCustomers);
     }
 
     private async Task<decimal> ComputeBilledToDateAsync(CancellationToken ct)
     {
         // Latest non-void application per owner contract — avoid double-counting progress apps.
+        // Single round-trip; grouping done in-memory (few rows per company).
         var apps = await db.Set<BillingApplication>().AsNoTracking()
             .Where(a => a.Status != BillingApplicationStatus.Void
                         && a.Status != BillingApplicationStatus.Draft)
@@ -157,7 +186,6 @@ public sealed class RoleDashboardSummaryService(
     private async Task<int> CountSafetyIncidentsYtdAsync(CancellationToken ct)
     {
         var yearStartUtc = new DateTime(DateTime.UtcNow.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        // Incidents inherit CreatedAt from BaseEntity
         return await db.Set<PmDailyReportSafetyIncident>().AsNoTracking()
             .CountAsync(i => i.CreatedAt >= yearStartUtc, ct);
     }

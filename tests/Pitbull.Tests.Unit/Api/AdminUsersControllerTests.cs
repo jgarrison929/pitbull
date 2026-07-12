@@ -10,6 +10,7 @@ using Pitbull.Api.Controllers;
 using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.Tests.Unit.Helpers;
 
 namespace Pitbull.Tests.Unit.Api;
@@ -44,7 +45,14 @@ public class AdminUsersControllerTests
             userManager.Object,
             db,
             NullLogger<RoleSeeder>.Instance);
-        var controller = new AdminUsersController(db, userManager.Object, roleManager.Object, roleSeeder);
+        var tenantContext = new Mock<ITenantContext>();
+        tenantContext.SetupGet(t => t.TenantId).Returns(TestTenantId);
+        var controller = new AdminUsersController(
+            db,
+            userManager.Object,
+            roleManager.Object,
+            roleSeeder,
+            tenantContext.Object);
 
         var claims = new List<Claim>();
         if (isAuthenticated)

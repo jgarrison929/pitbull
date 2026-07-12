@@ -769,6 +769,22 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeeder>();
     await db.Database.MigrateAsync();
 
+    // Defensive schema patch: PostHog saw Postgres 42703 on pm_daily_reports.Title when
+    // an env's migration history lagged. IF NOT EXISTS is safe if already applied.
+    try
+    {
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            ALTER TABLE pm_daily_reports
+            ADD COLUMN IF NOT EXISTS "Title" character varying(200) NULL;
+            """);
+    }
+    catch (Exception schemaEx)
+    {
+        var startupLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        startupLogger.LogWarning(schemaEx, "Optional pm_daily_reports.Title ensure failed — continuing");
+    }
+
     // Optional: bootstrap the public demo tenant + seed data
     try
     {

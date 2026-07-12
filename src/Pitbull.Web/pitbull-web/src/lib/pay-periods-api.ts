@@ -34,11 +34,13 @@ export async function listPayPeriods(params?: {
 }
 
 /**
- * Get the current (or specified date's) pay period
+ * Get the current (or specified date's) pay period.
+ * Returns null when no period is configured (API 204) — not an error.
  */
-export async function getCurrentPayPeriod(date?: string): Promise<PayPeriod> {
+export async function getCurrentPayPeriod(date?: string): Promise<PayPeriod | null> {
   const query = date ? `?date=${date}` : "";
-  return api<PayPeriod>(`/api/pay-periods/current${query}`);
+  const result = await api<PayPeriod | undefined>(`/api/pay-periods/current${query}`);
+  return result ?? null;
 }
 
 export async function createPayPeriod(request: CreatePayPeriodRequest): Promise<PayPeriod> {

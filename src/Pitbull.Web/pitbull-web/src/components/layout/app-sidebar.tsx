@@ -44,6 +44,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { getAppVersionLabel } from "@/lib/app-version";
+import { captureProductEvent } from "@/lib/posthog";
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -522,6 +523,7 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
           active={activeWorkspace}
           onSelect={(id) => {
             setActiveWorkspace(id);
+            captureProductEvent("workspace_switched", { workspace_id: id });
             router.push(getWorkspaceLandingHref(id));
             onNavigate?.();
           }}
