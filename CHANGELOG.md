@@ -8,147 +8,168 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [3.0.0] - 2026-07-12T02:20:00-07:00
-
-### Added
-
-- **Jobsite Digital Twin MVP (major)** � zones-first spatial graph, truthful overlays (RFI/progress/schedule with linked fuel), zone detail panel, storey/as-of filters, plan?zone links, schematic board, Spatial.View/Manage permissions, optional mobile zone+plan fuel, feature flag. Ships the MVP definition of done from `docs/pitbull-digital-twin-spec.md` �3 without inventing green health or portfolio % complete.
-- Version **3.0.0**
+## [2.12.0] - 2026-07-11T20:30:00-07:00
 
 ### Changed
 
-- Product minor?major for twin as a first-class workspace surface (path from 2.8.4�2.9.2 patches).
+- **Role UX A-C (simplify workflows)** - role-scoped workspace switcher (field/estimator see My Work + Projects only; CEO drops Admin; CFO/PM trimmed); open-job sidebar is 5 primary links + collapsible More groups; role homes refocused (CEO exceptions first, PM needs-you + approvals, estimator real pipeline dollars, field last-job CTAs).
+- Nav schema `2.12.0` re-seeds favorites.
+- Field report trucks/material chips only when Pour is selected.
+- Version **2.12.0**
+
+## [2.11.0] - 2026-07-11T19:38:59-07:00
+
+### Changed
+
+- **Role UX nav redesign** - workspace menus cleaned for every persona: People is workforce-only (employees, time, payroll, fleet); **Cost Codes** moved to Projects under Estimating (with Bids); finance lands on WIP and leads with AR/billing before GL; operations groups contracts; role favorites/mobile tabs re-seeded for CEO/CFO/PM/field/estimator.
+- People workspace landing is **Employees** (was Cost Codes). Nav schema `2.11.0` re-seeds local favorites so demo roles pick up the new IA.
+- Version **2.11.0**
+
+### Fixed
+
+- Cost codes no longer appear under People sidebar (misplaced "Day-1 Setup" group removed).
+
+## [2.10.0] - 2026-07-12T02:20:00-07:00
+
+### Added
+
+- **Jobsite Digital Twin MVP** - zones-first spatial graph, truthful overlays (RFI/progress/schedule with linked fuel), zone detail panel, storey/as-of filters, plan-to-zone links, schematic board, Spatial.View/Manage permissions, optional mobile zone+plan fuel, feature flag. Ships the MVP definition of done from `docs/pitbull-digital-twin-spec.md` section 3 without inventing green health or portfolio % complete.
+- Version **2.10.0**
+
+### Changed
+
+- Twin ships as a first-class workspace surface (continued 2.8.4-2.9.2 path; product stays 2.x - not a major).
 
 ## [2.9.2] - 2026-07-12T02:05:00-07:00
 
 ### Added
 
-- **Digital Twin feature flag** � `NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` (default on); hides project nav Twin entry when off
-- **Twin ? site walk** cross-link from zone panel
+- **Digital Twin feature flag** - `NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` (default on); hides project nav Twin entry when off
+- **Twin to site walk** cross-link from zone panel
 - Version **2.9.2**
 
 ## [2.9.1] - 2026-07-12T01:55:00-07:00
 
 ### Added
 
-- **Schematic twin board** � 2.5D zone card grid colored by overlay bands with explicit Insufficient/Watch/Risk/OnTrack legend (no invented green)
+- **Schematic twin board** - 2.5D zone card grid colored by overlay bands with explicit Insufficient/Watch/Risk/OnTrack legend (no invented green)
 - Version **2.9.1**
 
 ## [2.9.0] - 2026-07-12T01:40:00-07:00
 
 ### Added
 
-- **Mobile twin fuel round-trip** � pure helpers for optional zone + plan sheet on field reports; offline/online payloads carry SpatialNodeId/PlanSheetId when applied; last-zone remember per project
+- **Mobile twin fuel round-trip** - pure helpers for optional zone + plan sheet on field reports; offline/online payloads carry SpatialNodeId/PlanSheetId when applied; last-zone remember per project
 - Version **2.9.0**
 
 ## [2.8.9] - 2026-07-12T01:20:00-07:00
 
 ### Added
 
-- **Spatial permissions** � `Spatial.View` / `Spatial.Manage` policies on twin APIs; seeded for Admin, Project Manager (view+manage), Foreman/Executive (view)
+- **Spatial permissions** - `Spatial.View` / `Spatial.Manage` policies on twin APIs; seeded for Admin, Project Manager (view+manage), Foreman/Executive (view)
 - Version **2.8.9**
 
 ## [2.8.8] - 2026-07-12T01:00:00-07:00
 
 ### Added
 
-- **Plan sheet ? zone links** � `SpatialPlanLink` join table; zone detail returns plan sheets with deep links into Plans & Specs
+- **Plan sheet to zone links** - `SpatialPlanLink` join table; zone detail returns plan sheets with deep links into Plans & Specs
 - Version **2.8.8**
 
 ## [2.8.7] - 2026-07-12T00:45:00-07:00
 
 ### Added
 
-- **Twin storey + as-of filters** � overlay API accepts `storeyNodeId`, `from`, `to`, `asOf`; pure `SpatialGraphFilter` scopes zones under a storey; twin UI storey select + as-of date
+- **Twin storey + as-of filters** - overlay API accepts `storeyNodeId`, `from`, `to`, `asOf`; pure `SpatialGraphFilter` scopes zones under a storey; twin UI storey select + as-of date
 - Version **2.8.7**
 
 ## [2.8.6] - 2026-07-12T00:30:00-07:00
 
 ### Added
 
-- **Zone detail API + twin panel** � `GET /api/projects/{id}/spatial/zones/{nodeId}` returns linked RFIs, daily reports, progress, and schedule activities (or honest empty copy); Digital Twin side panel loads links on zone select
+- **Zone detail API + twin panel** - `GET /api/projects/{id}/spatial/zones/{nodeId}` returns linked RFIs, daily reports, progress, and schedule activities (or honest empty copy); Digital Twin side panel loads links on zone select
 - Version **2.8.6**
 
 ## [2.8.5] - 2026-07-12T00:10:00-07:00
 
 ### Added
 
-- **Twin overlay fuel from real links** � `SpatialNodeId` on RFI / progress entry / activity progress; `PrimarySpatialNodeId` on schedule activities; overlay modes aggregate open RFIs, progress %, and schedule delay by zone
-- **Demo seed fixture bands** � ensure-seeded attaches known RFIs/progress/schedule to named zones so overlays paint Risk/Watch/OnTrack; unlinked zones stay InsufficientData (not invent green)
+- **Twin overlay fuel from real links** - `SpatialNodeId` on RFI / progress entry / activity progress; `PrimarySpatialNodeId` on schedule activities; overlay modes aggregate open RFIs, progress %, and schedule delay by zone
+- **Demo seed fixture bands** - ensure-seeded attaches known RFIs/progress/schedule to named zones so overlays paint Risk/Watch/OnTrack; unlinked zones stay InsufficientData (not invent green)
 - Version **2.8.5**
 
 ## [2.8.4] - 2026-07-11T23:55:00-07:00
 
 ### Added
 
-- **Jobsite Digital Twin (zones-first)** — project spatial graph (Site → Building → Storey → Zone) with authenticated APIs (`/api/projects/{id}/spatial/*`), honest empty/insufficient overlay bands (never invent default-green health), demo seed tree, and project workspace **Digital Twin** page with overlay modes (RFI / progress / schedule proxies)
-- **Field report zone context** — optional zone picker on mobile field report (and twin deep-link `?zoneId=`) feeds `SpatialNodeId` on daily reports; skip-safe offline
+- **Jobsite Digital Twin (zones-first)** - project spatial graph (Site -> Building -> Storey -> Zone) with authenticated APIs (`/api/projects/{id}/spatial/*`), honest empty/insufficient overlay bands (never invent default-green health), demo seed tree, and project workspace **Digital Twin** page with overlay modes (RFI / progress / schedule proxies)
+- **Field report zone context** - optional zone picker on mobile field report (and twin deep-link `?zoneId=`) feeds `SpatialNodeId` on daily reports; skip-safe offline
 
 ### Fixed
 
-- **Field home Daily Report** — quick action pointed at `/projects` instead of the mobile field report flow (`/daily-reports/mobile`); restores the path PostHog already shows field users actually use
+- **Field home Daily Report** - quick action pointed at `/projects` instead of the mobile field report flow (`/daily-reports/mobile`); restores the path PostHog already shows field users actually use
 - Version **2.8.4**
 
 ## [2.8.3] - 2026-07-11T23:15:00-07:00
 
 ### Fixed
 
-- **Signup dark mode** — Create Account used hardcoded light shell (`bg-white` / `slate-*`) so dark login → signup looked broken; now theme tokens + amber brand, matching login; verify-email aligned; pre-paint theme script avoids flash
+- **Signup dark mode** - Create Account used hardcoded light shell (`bg-white` / `slate-*`) so dark login -> signup looked broken; now theme tokens + amber brand, matching login; verify-email aligned; pre-paint theme script avoids flash
 - Version **2.8.3**
 
 ## [2.8.2] - 2026-07-11T22:20:00-07:00
 
 ### Fixed
 
-- **Mobile home briefing cards** — morning briefing metrics were cramped (3-across), hard to read, and not tappable; now 2-up with larger type, drill-through links, and chevrons; executive/field KPI cards get the same touch-friendly treatment
-- **Project Portfolio overflow** — labor $ / % no longer run off-screen on narrow phones (compact $K/$M + wrapping layout)
-- **Welcome tour tap-stealing** — on-page tour chip no longer uses full-width fixed layer that blocked dashboard taps
+- **Mobile home briefing cards** - morning briefing metrics were cramped (3-across), hard to read, and not tappable; now 2-up with larger type, drill-through links, and chevrons; executive/field KPI cards get the same touch-friendly treatment
+- **Project Portfolio overflow** - labor $ / % no longer run off-screen on narrow phones (compact $K/$M + wrapping layout)
+- **Welcome tour tap-stealing** - on-page tour chip no longer uses full-width fixed layer that blocked dashboard taps
 
 ### Added
 
-- **Hard refresh on version change** — when API product version advances past the shell the client has loaded, unregister SW caches and reload once (plus SW `controllerchange` reload); stops field phones stuck on stale PWA shells
+- **Hard refresh on version change** - when API product version advances past the shell the client has loaded, unregister SW caches and reload once (plus SW `controllerchange` reload); stops field phones stuck on stale PWA shells
 - Version **2.8.2**
 
 ## [2.8.1] - 2026-07-11T21:40:00-07:00
 
 ### Fixed
 
-- **Field report project smart lookup** — pick list was empty because status filter compared numeric enums to API string values (`"Active"`). Coerces status correctly; shows Active / PreConstruction / OnHold jobs; clearer empty-catalog message
-- **Field report defaults current job** — when opened with `?projectId=` (site walk, project-context mobile tab) or from recent job context, pre-fills the project; deep-links skip straight to Field capture
+- **Field report project smart lookup** - pick list was empty because status filter compared numeric enums to API string values (`"Active"`). Coerces status correctly; shows Active / PreConstruction / OnHold jobs; clearer empty-catalog message
+- **Field report defaults current job** - when opened with `?projectId=` (site walk, project-context mobile tab) or from recent job context, pre-fills the project; deep-links skip straight to Field capture
 
 ### Changed
 
-- **Project mobile nav** — replaced horizontal scroll tabs with a field hub (Site walk, Field report, Plans, Schedule) + searchable “More on this job” sheet; Site walk promoted in sidebar/workspace order
+- **Project mobile nav** - replaced horizontal scroll tabs with a field hub (Site walk, Field report, Plans, Schedule) + searchable "More on this job" sheet; Site walk promoted in sidebar/workspace order
 - Version **2.8.1** (patch: field report pick list + project mobile hub; stamps VERSION / package.json / csproj / Docker / compose)
 
 ## [2.8.0] - 2026-07-11T16:20:00-07:00
 
 ### Added
 
-- **Field / pour capture on mobile daily report** — short path Project → Field → Photos → Review; work chips (Pour / Form / Rebar / Finish / Dirt); truck/material chips (too wet, too dry, rejected, held); crew counts; optional weather; voice notes
-- **Offline photos with report queue** — up to 5 images ≤~1.2MB embedded as data URLs; sync uploads them after the report posts; oversized photos honestly skipped
-- **Plans drawing files** — plans-specs loads project documents (Plans/PDF/image), View iframe / Open full-screen for field use
+- **Field / pour capture on mobile daily report** - short path Project -> Field -> Photos -> Review; work chips (Pour / Form / Rebar / Finish / Dirt); truck/material chips (too wet, too dry, rejected, held); crew counts; optional weather; voice notes
+- **Offline photos with report queue** - up to 5 images ≤~1.2MB embedded as data URLs; sync uploads them after the report posts; oversized photos honestly skipped
+- **Plans drawing files** - plans-specs loads project documents (Plans/PDF/image), View iframe / Open full-screen for field use
 
 ### Changed
 
-- Mobile report titled “Field report”; weather demoted to optional fold-in; Review can skip photo step
+- Mobile report titled "Field report"; weather demoted to optional fold-in; Review can skip photo step
 - Version **2.8.0** (vision-gap field truth after 2.7.x plumbing)
 
 ## [2.7.2] - 2026-07-11T15:55:00-07:00
 
 ### Fixed
 
-- **PostHog Error Tracking** — `capture_exceptions` enabled; `reportError` dual-writes via `captureException` (not only ad-hoc `$exception`); 5xx fetch path uses same helper; boundaries use single path
+- **PostHog Error Tracking** - `capture_exceptions` enabled; `reportError` dual-writes via `captureException` (not only ad-hoc `$exception`); 5xx fetch path uses same helper; boundaries use single path
 
 ### Changed
 
-- **Site walk truth** — renamed to “Today on this job”; shows **crew assigned to this project**, near-term work, and **subs ranked by trade language from the look-ahead** (pour/form before electrical); health badges labeled as proxies (`OK*` / `Watch*` / `Risk*`)
+- **Site walk truth** - renamed to "Today on this job"; shows **crew assigned to this project**, near-term work, and **subs ranked by trade language from the look-ahead** (pour/form before electrical); health badges labeled as proxies (`OK*` / `Watch*` / `Risk*`)
 
 ## [2.7.1] - 2026-07-11T15:05:00-07:00
 
 ### Changed
 
-- **Cost types match job-cost language** — `CostType` now includes **Sub Labor / Sub Material / Sub Third Party** (+ existing Labor, Material, Equipment, Overhead). Legacy `Subcontract` kept for old rows; API `CostTypeName` uses super-facing labels via `CostTypeLabels`
+- **Cost types match job-cost language** - `CostType` now includes **Sub Labor / Sub Material / Sub Third Party** (+ existing Labor, Material, Equipment, Overhead). Legacy `Subcontract` kept for old rows; API `CostTypeName` uses super-facing labels via `CostTypeLabels`
 - **Web cost-codes UI** aligned: filter/create options, badges, summary cards (Sub* + Overhead); shared `lib/cost-type.ts` wire values stable with API
 - **Seed / CSI template** remapped so sub codes use splits instead of one generic Subcontract bucket; Overhead present in CSI seed
 
@@ -156,22 +177,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Mobile3 Phase 1 — Daily report offline + voice** — `/daily-reports/mobile` queues submits via `enqueueDailyReportForSync` when offline or network fails (visible queued badge + OfflineIndicator); SpeechRecognition voice control maps transcripts into work/delays/safety narratives via pure helpers
-- **Mobile3 Phase 2 — Plans & Specs field view** — searchable plan/spec filter (`filterPlanSets` / `filterSpecSections`), tap-to-view surface, deep links (`?planId` / `sheet` / `section` / `view`) from daily report
-- **Mobile3 Phase 3 — Site walk** — `/projects/[id]/site-walk` composes plans entry, 7-day schedule look-ahead cards, sub status, open RFIs; schedule page gains mobile look-ahead cards; portfolio `/sub-status` at-a-glance
+- **Mobile3 Phase 1 - Daily report offline + voice** - `/daily-reports/mobile` queues submits via `enqueueDailyReportForSync` when offline or network fails (visible queued badge + OfflineIndicator); SpeechRecognition voice control maps transcripts into work/delays/safety narratives via pure helpers
+- **Mobile3 Phase 2 - Plans & Specs field view** - searchable plan/spec filter (`filterPlanSets` / `filterSpecSections`), tap-to-view surface, deep links (`?planId` / `sheet` / `section` / `view`) from daily report
+- **Mobile3 Phase 3 - Site walk** - `/projects/[id]/site-walk` composes plans entry, 7-day schedule look-ahead cards, sub status, open RFIs; schedule page gains mobile look-ahead cards; portfolio `/sub-status` at-a-glance
 
 ### Changed
 
-- Version bumped to **2.7.0** (mobile3 Phases 1–3 MVP field experience)
+- Version bumped to **2.7.0** (mobile3 Phases 1-3 MVP field experience)
 
 ## [2.6.0] - 2026-07-11T13:23:44-07:00
 
 ### Added
 
-- **Searchable entity lookups (mobile-first)** — shared `EntityLookupField` + pure `filterAndRankEntities` / `selectEntity` helpers with recent-match ranking for project, cost code, phase, and equipment
-- **Crew time entry** — project picker is searchable with recent projects (no free-form id typing); mobile crew cards use lookups for cost code / phase / equipment and apply-to-all
-- **Mobile daily report** — project step uses searchable + recent project lookup; narratives/weather remain free text by design
-- **New RFI** — project field uses the same find-and-match lookup pattern (secondary high-traffic form path)
+- **Searchable entity lookups (mobile-first)** - shared `EntityLookupField` + pure `filterAndRankEntities` / `selectEntity` helpers with recent-match ranking for project, cost code, phase, and equipment
+- **Crew time entry** - project picker is searchable with recent projects (no free-form id typing); mobile crew cards use lookups for cost code / phase / equipment and apply-to-all
+- **Mobile daily report** - project step uses searchable + recent project lookup; narratives/weather remain free text by design
+- **New RFI** - project field uses the same find-and-match lookup pattern (secondary high-traffic form path)
 
 ### Changed
 
@@ -181,10 +202,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Billing applications mobile cards** — AIA G702 list stacks as tappable cards under `sm` (payment due / completed / retainage readable without horizontal page scroll)
-- **Owner contracts mobile cards** — contract list same pattern for field/finance phone use
-- **AR/AP aging scroll containers** — intentional horizontal swipe + min-width tables so page chrome no longer blows out sideways
-- **Demo-role mobile paths** — CEO/CFO/PM/Estimator bottom-nav + FAB evaluated: role-aware FAB (`quickActions`), longest-match active tab, CFO WIP + journal list cards, CEO aging tab
+- **Billing applications mobile cards** - AIA G702 list stacks as tappable cards under `sm` (payment due / completed / retainage readable without horizontal page scroll)
+- **Owner contracts mobile cards** - contract list same pattern for field/finance phone use
+- **AR/AP aging scroll containers** - intentional horizontal swipe + min-width tables so page chrome no longer blows out sideways
+- **Demo-role mobile paths** - CEO/CFO/PM/Estimator bottom-nav + FAB evaluated: role-aware FAB (`quickActions`), longest-match active tab, CFO WIP + journal list cards, CEO aging tab
 
 ### Changed
 
@@ -195,23 +216,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Mobile shell tokens** — shared `mobile-shell` clearance for main content, FAB, and version badge (safe-area aware)
-- **Exported `isMobileTabActive`** — pure path matching for role bottom-nav tabs (prefix-safe; no `/projects` vs `/project-management` collision)
+- **Mobile shell tokens** - shared `mobile-shell` clearance for main content, FAB, and version badge (safe-area aware)
+- **Exported `isMobileTabActive`** - pure path matching for role bottom-nav tabs (prefix-safe; no `/projects` vs `/project-management` collision)
 
 ### Fixed
 
-- **Dashboard bottom chrome** — main content clears fixed bottom nav + safe-area; content column `min-w-0` / `overflow-x-hidden` stops page-level horizontal scroll
-- **Quick Action FAB** — aligns with `lg` bottom nav breakpoint and sits above the nav band
-- **Header breadcrumbs** — collapse middle crumbs + truncate on narrow viewports
-- **Crew entry weekly grids** — contained horizontal scroll + swipe hint; submit row not covered by nav
+- **Dashboard bottom chrome** - main content clears fixed bottom nav + safe-area; content column `min-w-0` / `overflow-x-hidden` stops page-level horizontal scroll
+- **Quick Action FAB** - aligns with `lg` bottom nav breakpoint and sits above the nav band
+- **Header breadcrumbs** - collapse middle crumbs + truncate on narrow viewports
+- **Crew entry weekly grids** - contained horizontal scroll + swipe hint; submit row not covered by nav
 - Version bumped to **2.4.0**
 
 ## [2.3.0] - 2026-07-10T12:58:16-07:00
 
 ### Added
 
-- **PM soft-delete (complete the loop)** — project tasks, daily reports (draft only), job-cost budgets, submittals (not approved/closed), meetings (not completed), narratives (not approved/published), communications, monthly cost projections (draft only), **plan sets / spec sections**, and **RFIs** (`DELETE /api/projects/{id}/rfis/{id}` → `IRfiService.DeleteRfiAsync`) now soft-delete via service + `DELETE` API; UI no longer hits dead ends
-- **Field dashboard active equipment** — role field home shows real active fleet count from `GET /api/equipment?isActive=true` (removed “Coming soon” placeholder)
+- **PM soft-delete (complete the loop)** - project tasks, daily reports (draft only), job-cost budgets, submittals (not approved/closed), meetings (not completed), narratives (not approved/published), communications, monthly cost projections (draft only), **plan sets / spec sections**, and **RFIs** (`DELETE /api/projects/{id}/rfis/{id}` -> `IRfiService.DeleteRfiAsync`) now soft-delete via service + `DELETE` API; UI no longer hits dead ends
+- **Field dashboard active equipment** - role field home shows real active fleet count from `GET /api/equipment?isActive=true` (removed "Coming soon" placeholder)
 
 ### Changed
 
@@ -220,15 +241,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Integration migrate** — `20260709140618_AddPmDailyReportTitle` is idempotent (`ADD COLUMN IF NOT EXISTS`) so fresh DBs no longer 42701 after June’s `pm_daily_reports.Title` add
+- **Integration migrate** - `20260709140618_AddPmDailyReportTitle` is idempotent (`ADD COLUMN IF NOT EXISTS`) so fresh DBs no longer 42701 after June's `pm_daily_reports.Title` add
 - Professionalized public documentation (README, VISION, SECURITY, agent instructions); removed historical planning archive from the tree
 
 ## [2.2.1] - 2026-07-10T11:03:00-07:00
 
 ### Added
 
-- **Changelog published timestamps** — release headers support date **and** time (ISO-8601); About `/settings/about#changelog` shows local date + time for when each release was published
-- **`docs/architecture/README.md`** — explains living vs frozen design docs so agents stop treating Feb 2026 Alpha design notes as current architecture
+- **Changelog published timestamps** - release headers support date **and** time (ISO-8601); About `/settings/about#changelog` shows local date + time for when each release was published
+- **`docs/architecture/README.md`** - explains living vs frozen design docs so agents stop treating Feb 2026 Alpha design notes as current architecture
 
 ### Changed
 
@@ -237,18 +258,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Railway web deploy after v2.2 KPI drills** — time-tracking page used undefined `viewParam` (Next.js typecheck failed); use `drill.viewEntries`
+- **Railway web deploy after v2.2 KPI drills** - time-tracking page used undefined `viewParam` (Next.js typecheck failed); use `drill.viewEntries`
 - Architecture unit test: public `ChangelogController` excluded from required `[Authorize]` (same pattern as `VersionController`)
 
 ## [2.2.0] - 2026-07-10T09:10:40-07:00
 
 ### Added
 
-- **Role KPI drill-through (answer why)** — pure `roleKpiDrillHref` maps every executive/controller/PM/estimator KPI card to a filtered destination (not bare generic lists)
-- **Unbilled backlog list** — `GET /api/projects?unbilled=true` returns active projects with remaining G702 unbilled value (billed/unbilled columns on projects page)
-- **Budget alert filter** — `budgetAlert=true&budgetAlertPercent=75|90` filters projects by labor-to-contract proxy and sorts by severity
-- **Safety YTD report** — `GET /api/dashboard/safety-incidents` + `/reports/safety` for executive Safety KPI drill
-- **Compliance report (non-admin)** — `/reports/compliance?status=attention` for expiring/expired docs without Identity Admin gate
+- **Role KPI drill-through (answer why)** - pure `roleKpiDrillHref` maps every executive/controller/PM/estimator KPI card to a filtered destination (not bare generic lists)
+- **Unbilled backlog list** - `GET /api/projects?unbilled=true` returns active projects with remaining G702 unbilled value (billed/unbilled columns on projects page)
+- **Budget alert filter** - `budgetAlert=true&budgetAlertPercent=75|90` filters projects by labor-to-contract proxy and sorts by severity
+- **Safety YTD report** - `GET /api/dashboard/safety-incidents` + `/reports/safety` for executive Safety KPI drill
+- **Compliance report (non-admin)** - `/reports/compliance?status=attention` for expiring/expired docs without Identity Admin gate
 
 ### Changed
 
@@ -258,56 +279,56 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Aging page applies `focus` / `overdue`** — AR/AP KPI drills no longer land on unfiltered dual boards; 31+ overdue lines filtered when `overdue=true`
-- **Hours This Week drill** — uses `view=entries&period=thisWeek` so list stays on entries with this-week date range (no silent redirect to crew entry)
-- **AR − AP Net drill** — lands on full aging board (both AR and AP + net), not `focus=ar` alone
-- **RFI drill parity** — Open RFIs KPI uses `status=notClosed` (Open+Answered) to match `Status != Closed` headline count
-- **Active projects drill** — `excludeCompleted=true` matches portfolio count (`Status != Completed`)
-- **Drill contract table** — `role-kpi-drill-contracts.ts` + parity tests tie each KPI href to its server predicate
+- **Aging page applies `focus` / `overdue`** - AR/AP KPI drills no longer land on unfiltered dual boards; 31+ overdue lines filtered when `overdue=true`
+- **Hours This Week drill** - uses `view=entries&period=thisWeek` so list stays on entries with this-week date range (no silent redirect to crew entry)
+- **AR − AP Net drill** - lands on full aging board (both AR and AP + net), not `focus=ar` alone
+- **RFI drill parity** - Open RFIs KPI uses `status=notClosed` (Open+Answered) to match `Status != Closed` headline count
+- **Active projects drill** - `excludeCompleted=true` matches portfolio count (`Status != Completed`)
+- **Drill contract table** - `role-kpi-drill-contracts.ts` + parity tests tie each KPI href to its server predicate
 
 ## [2.1.0] - 2026-07-10T08:54:03-07:00
 
 ### Added
 
-- **Role-native home experience** — shared `RoleProfileResolver` (title-first) for morning briefing, dashboard layout defaults, and JWT `role_profile` / `job_title` claims; CEO no longer receives a PM briefing when Identity role is only `Manager`
-- **`GET /api/dashboard/role-summary`** — truthful portfolio metrics (G702 billed-to-date, unbilled backlog, AR/AP aging, safety YTD, compliance, bid pipeline, workforce hires/terms)
-- **Executive & Controller dashboards** — wired to role-summary (real AR/AP; honest labels; labor-vs-contract marked as proxy)
-- **Estimator dashboard layout** — bid-centric home + estimator morning briefing section (pipeline / due this week)
-- **Expanded executive briefing** — contract value, labor over-budget count, open COs, bid pipeline, AR overdue 31+
-- **Docs hygiene** — root `AGENTS.md`, `docs/ROLE-EXPERIENCE.md`, `docs/ROADMAP-2.1.md`; refreshed ARCHITECTURE / docs README / BEST-PRACTICES services-first note
-- **In-app changelog** — `GET /api/changelog` parses root `CHANGELOG.md` (Keep a Changelog); version badge opens “What’s new” dialog for the current app version; About page shows current release notes + recent history
-- **Root `VERSION` file** — single documented product version; Docker API/web defaults stamp product version
-- **Differentiated demo company archetypes** — seed v12: 01 enterprise GC holding (Summit Builders Group), 02 mid-market commercial GC (Summit Commercial Builders), 03 small-market heavy highway (Summit Highway Division), 04 union multi-division HVAC (Summit Mechanical); see `docs/DEMO-COMPANY-PROFILES.md`
-- **Fictional-only demo parties** — seed customers/vendors/agencies/insurers use clearly fictional names (no real brands or real public agencies)
-- **Demo role login on `/login`** — one-click CEO / CFO / Project Manager / Estimator buttons call `POST /api/auth/demo-role-login` (password stays server-side); catalog via `GET /api/auth/demo-roles` when `Demo:Enabled`; demo personas skip company-setup gate so they land in the product
-- **Always-visible app version** — `AppVersionBadge` in root layout (every page, including login); sidebar About link uses the same `getAppVersion()` helper
+- **Role-native home experience** - shared `RoleProfileResolver` (title-first) for morning briefing, dashboard layout defaults, and JWT `role_profile` / `job_title` claims; CEO no longer receives a PM briefing when Identity role is only `Manager`
+- **`GET /api/dashboard/role-summary`** - truthful portfolio metrics (G702 billed-to-date, unbilled backlog, AR/AP aging, safety YTD, compliance, bid pipeline, workforce hires/terms)
+- **Executive & Controller dashboards** - wired to role-summary (real AR/AP; honest labels; labor-vs-contract marked as proxy)
+- **Estimator dashboard layout** - bid-centric home + estimator morning briefing section (pipeline / due this week)
+- **Expanded executive briefing** - contract value, labor over-budget count, open COs, bid pipeline, AR overdue 31+
+- **Docs hygiene** - root `AGENTS.md`, `docs/ROLE-EXPERIENCE.md`, `docs/ROADMAP-2.1.md`; refreshed ARCHITECTURE / docs README / BEST-PRACTICES services-first note
+- **In-app changelog** - `GET /api/changelog` parses root `CHANGELOG.md` (Keep a Changelog); version badge opens "What's new" dialog for the current app version; About page shows current release notes + recent history
+- **Root `VERSION` file** - single documented product version; Docker API/web defaults stamp product version
+- **Differentiated demo company archetypes** - seed v12: 01 enterprise GC holding (Summit Builders Group), 02 mid-market commercial GC (Summit Commercial Builders), 03 small-market heavy highway (Summit Highway Division), 04 union multi-division HVAC (Summit Mechanical); see `docs/DEMO-COMPANY-PROFILES.md`
+- **Fictional-only demo parties** - seed customers/vendors/agencies/insurers use clearly fictional names (no real brands or real public agencies)
+- **Demo role login on `/login`** - one-click CEO / CFO / Project Manager / Estimator buttons call `POST /api/auth/demo-role-login` (password stays server-side); catalog via `GET /api/auth/demo-roles` when `Demo:Enabled`; demo personas skip company-setup gate so they land in the product
+- **Always-visible app version** - `AppVersionBadge` in root layout (every page, including login); sidebar About link uses the same `getAppVersion()` helper
 
 ### Security
 
-- **Demo admin is read-only** — `DemoRestrictionMiddleware` allows GET on admin/system APIs but blocks POST/PUT/PATCH/DELETE; secrets stay fully blocked; seeded personas are flagged `IsDemoUser` (including backfill) so JWT + email fallback enforce restrictions
+- **Demo admin is read-only** - `DemoRestrictionMiddleware` allows GET on admin/system APIs but blocks POST/PUT/PATCH/DELETE; secrets stay fully blocked; seeded personas are flagged `IsDemoUser` (including backfill) so JWT + email fallback enforce restrictions
 
 ### Changed
 
-- **.NET 10 LTS upgrade (#218)** — all projects target `net10.0`; SDK pin (`global.json` 10.0.100 rollForward), CI `DOTNET_VERSION` 10.0.x, Docker `sdk:10.0`/`aspnet:10.0`; Microsoft ASP.NET/EF packages 10.0.9 and Npgsql EF 10.0.2; OpenAPI document transformer updated for Microsoft.OpenApi 2.x; pin `Microsoft.OpenApi` 2.7.5 (GHSA-v5pm-xwqc-g5wc)
+- **.NET 10 LTS upgrade (#218)** - all projects target `net10.0`; SDK pin (`global.json` 10.0.100 rollForward), CI `DOTNET_VERSION` 10.0.x, Docker `sdk:10.0`/`aspnet:10.0`; Microsoft ASP.NET/EF packages 10.0.9 and Npgsql EF 10.0.2; OpenAPI document transformer updated for Microsoft.OpenApi 2.x; pin `Microsoft.OpenApi` 2.7.5 (GHSA-v5pm-xwqc-g5wc)
 - Version bumped to **2.1.0** across API, frontend, Docker defaults, and `VERSION`
 - Nav/workspace defaults keyed by JWT `role_profile` (not only Identity role display names)
 
 ### Fixed
 
-- **Demo User01 (CEO) is not Identity Admin** — c-suite personas seed as Manager; bootstrap re-syncs exclusive roles so existing `ceo@demo.local` loses Admin on next deploy
-- **Demo seed on Railway** — add missing `pm_daily_reports.Title` migration so `DemoBootstrapper` domain seed (projects/bids/etc.) can complete when `Demo__SeedOnStartup=true`
-- **Post-signup onboarding gate** — `isSetupComplete` derives from company setup checklist (4 wizard steps), not company name heuristic; new owners with a named company no longer bypass `/settings/company/setup`; wizard marks checklist on completion
-- **Dashboard reset** — `ResetToDefaultAsync` re-detects persona layout instead of forcing generic Overview
+- **Demo User01 (CEO) is not Identity Admin** - c-suite personas seed as Manager; bootstrap re-syncs exclusive roles so existing `ceo@demo.local` loses Admin on next deploy
+- **Demo seed on Railway** - add missing `pm_daily_reports.Title` migration so `DemoBootstrapper` domain seed (projects/bids/etc.) can complete when `Demo__SeedOnStartup=true`
+- **Post-signup onboarding gate** - `isSetupComplete` derives from company setup checklist (4 wizard steps), not company name heuristic; new owners with a named company no longer bypass `/settings/company/setup`; wizard marks checklist on completion
+- **Dashboard reset** - `ResetToDefaultAsync` re-detects persona layout instead of forcing generic Overview
 
 ## [2.0.0] - 2026-07-07T10:06:02-07:00
 
 ### Added
 
-- **Unified workflow approval engine (Phase 1)** — tenant admins configure approval chains for change orders (`UnderReview`) and owner billing applications (`PmReview`) via `POST /api/workflow-definitions`
-- **Cross-entity My Approvals dashboard** — `GET /api/workflow-approvals/pending` aggregates pending actions; approve/reject via dedicated endpoints with domain transition enforcement (no status bypass)
-- **Workflow orchestration layer** — `WorkflowDefinition`, `WorkflowApprovalStep`, and `WorkflowApprovalAction` entities with sequential step progression, pending-action blocking, and `WorkflowTransition` audit on completion
-- **Admin UI** — `/admin/workflow-definitions` to create chains; `/my-approvals` for approvers
-- **Integration + unit tests** — `WorkflowApprovalServiceTests`, `WorkflowApprovalTests` driving real API transitions end-to-end
+- **Unified workflow approval engine (Phase 1)** - tenant admins configure approval chains for change orders (`UnderReview`) and owner billing applications (`PmReview`) via `POST /api/workflow-definitions`
+- **Cross-entity My Approvals dashboard** - `GET /api/workflow-approvals/pending` aggregates pending actions; approve/reject via dedicated endpoints with domain transition enforcement (no status bypass)
+- **Workflow orchestration layer** - `WorkflowDefinition`, `WorkflowApprovalStep`, and `WorkflowApprovalAction` entities with sequential step progression, pending-action blocking, and `WorkflowTransition` audit on completion
+- **Admin UI** - `/admin/workflow-definitions` to create chains; `/my-approvals` for approvers
+- **Integration + unit tests** - `WorkflowApprovalServiceTests`, `WorkflowApprovalTests` driving real API transitions end-to-end
 
 ### Changed
 
@@ -316,10 +337,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Owner self-service signup** — login page links to `/signup`; middleware only redirects signup to `/demo` when `NEXT_PUBLIC_DISABLE_REGISTRATION=true`; `pitbull_token` cookie omits `Secure` on HTTP localhost; `buildOwnerRegisterPayload()` trims wizard state to match API validators; idempotent `handleSubmit`; `RoleSeeder` checks `PitbullDbContext` with `IgnoreQueryFilters`; Playwright wizard E2E + Vitest/RTL contract tests
+- **Owner self-service signup** - login page links to `/signup`; middleware only redirects signup to `/demo` when `NEXT_PUBLIC_DISABLE_REGISTRATION=true`; `pitbull_token` cookie omits `Secure` on HTTP localhost; `buildOwnerRegisterPayload()` trims wizard state to match API validators; idempotent `handleSubmit`; `RoleSeeder` checks `PitbullDbContext` with `IgnoreQueryFilters`; Playwright wizard E2E + Vitest/RTL contract tests
 - Workflow approval blocking now covers **all** outbound transitions while pending (including withdraw bypass)
-- Approve/reject completion is atomic — entity status is applied before persisting approval action on final approve; reject completes entity transition before marking action rejected
-- `EntityRelationship` approver resolution (`ProjectManager`, `Superintendent`) via project → employee → user lookup
+- Approve/reject completion is atomic - entity status is applied before persisting approval action on final approve; reject completes entity transition before marking action rejected
+- `EntityRelationship` approver resolution (`ProjectManager`, `Superintendent`) via project -> employee -> user lookup
 - Role-based approvers scoped to active company via `UserCompanyAccess`
 - Workflow definition validation ensures approved/rejected targets are valid per entity `*StatusTransitions` graphs
 
@@ -328,18 +349,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - **Trial Balance, Balance Sheet, and Income Statement** financial reports with drill-down (#0315e8c)
-- **AP Payment Processing** with GL integration — partial payments, status workflow, auto journal entries (#cbafeac)
+- **AP Payment Processing** with GL integration - partial payments, status workflow, auto journal entries (#cbafeac)
 - **Real Estate Development Partnership** COA template with 40 accounts and company provisioning service + admin UI (#e731544)
-- **Punch List module** — backend entities, API, migration, seed data, summary cards, filterable table, CRUD dialogs (#d173ff7, #3fb6ae3)
-- **Progress → Schedule → Cost** foundation and frontend — progress entry, earned value dashboard, cost code mapping, WIP integration (#c0eed35, #0d15015, #0d0100b)
+- **Punch List module** - backend entities, API, migration, seed data, summary cards, filterable table, CRUD dialogs (#d173ff7, #3fb6ae3)
+- **Progress -> Schedule -> Cost** foundation and frontend - progress entry, earned value dashboard, cost code mapping, WIP integration (#c0eed35, #0d15015, #0d0100b)
 - **Owner-side payment tracking** for pay applications (#d5441c1)
 - **Delivery ticket OCR** for daily reports using Vision API (#a1c20e2)
 - **Hangfire background job infrastructure** (#36e3bb8)
 - **Playwright PR demo video recording** infrastructure (#39df0ff)
 - **Blob storage abstraction** with local filesystem and S3/MinIO providers (#e0cb37b)
 - **Weather API integration** for daily reports (#1228a5f)
-- **Dashboard KPI drill-down** — all cards clickable with filtered URLs (#573ea87, #07696f8)
-- **Multi-company demo seed data** — Companies 02, 03, 04 with full data (#140d06b)
+- **Dashboard KPI drill-down** - all cards clickable with filtered URLs (#573ea87, #07696f8)
+- **Multi-company demo seed data** - Companies 02, 03, 04 with full data (#140d06b)
 - **Public demo self-service signup** with permission lockdown (#7d75717)
 - **Seed data versioning** + company profile renames (redacted internal profiles) (#be03406)
 - **Comprehensive seed data** for all modules and roles (#de6f7fc)
@@ -347,14 +368,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Secure Swagger API docs** for all environments (#362eaab)
 - **O3 offline PWA** with service worker, IndexedDB sync, and offline fallback (#f696828)
 - **F4 multi-currency & sales tax** support (#8b16884)
-- **Encrypted secrets vault** — entity, CRUD API, admin UI (#9d0921d)
-- **Workflow status indicators** — StatusBadge, StatusTimeline, transition tracking (#faacc5b)
-- **Cost-to-complete predictions** — per-cost-code linear regression (#2af9706)
-- **AI invoice extraction** — Vision API, fuzzy vendor matching, PO lookup (#2116aef)
+- **Encrypted secrets vault** - entity, CRUD API, admin UI (#9d0921d)
+- **Workflow status indicators** - StatusBadge, StatusTimeline, transition tracking (#faacc5b)
+- **Cost-to-complete predictions** - per-cost-code linear regression (#2af9706)
+- **AI invoice extraction** - Vision API, fuzzy vendor matching, PO lookup (#2116aef)
 - **Response caching** extended to read-heavy endpoints (#d56c4bd)
 - **Bid-to-project conversion** with Converted status (#072fe20)
 - **Stale submittal review notifications** (48h+) (#3e459d5)
-- **PDF reports** — WIP Schedule, AR Aging, Project Cost, Submittal Log, Punch List (#77cef80)
+- **PDF reports** - WIP Schedule, AR Aging, Project Cost, Submittal Log, Punch List (#77cef80)
 - **Enhanced feedback widget** (#b3065e9)
 - **Realistic bank reconciliation seed data** for demo (#0b25725)
 - **Version API endpoint** (`GET /api/version`) returning version, build date, and commit hash
@@ -365,22 +386,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - TypeScript errors in recharts charts blocking deployments since April 4 (#2060897)
 - Stale `eslint-plugin-react` patch breaking all frontend builds (#6eea551)
-- Token refresh — 30-min JWT, 30-day refresh, session expiry toast (#7146999)
+- Token refresh - 30-min JWT, 30-day refresh, session expiry toast (#7146999)
 - Mobile navigation visible up to lg breakpoint (#f0cc54f)
-- Retention model corrected — hold on contract value from execution, not per-billing (#10e2fa2, #faa3dc9)
-- P1 404s — companies list, users/me, contracts, WIP, glossary (#37ad609)
-- Dashboard 404 — GET /api/dashboard returns analytics (#b8530c4)
-- PostHog error tracking — intercept all fetch() calls, global tracking with session flag (#de234e6, #b0c63f0)
+- Retention model corrected - hold on contract value from execution, not per-billing (#10e2fa2, #faa3dc9)
+- P1 404s - companies list, users/me, contracts, WIP, glossary (#37ad609)
+- Dashboard 404 - GET /api/dashboard returns analytics (#b8530c4)
+- PostHog error tracking - intercept all fetch() calls, global tracking with session flag (#de234e6, #b0c63f0)
 - React hydration mismatch on /employees and /time-tracking/audit (#3e2c92b)
-- WipReportLine PercentComplete overflow — numeric(8,6) cannot hold 100 (#5ab50f7)
+- WipReportLine PercentComplete overflow - numeric(8,6) cannot hold 100 (#5ab50f7)
 - BulkDeleteAsync uses SAVEPOINT to prevent transaction poisoning (#ee07ebd)
-- Demo signup UX — company switcher 403, wrong default company (#85a6285)
+- Demo signup UX - company switcher 403, wrong default company (#85a6285)
 - Company switcher dropdown now functional in header (#d4a8e3a)
 - Welcome tour persists across page navigation (#3b83922)
 - RBAC policy authorization added to Jobs, PaymentApplications, PaymentApplicationSettings controllers (#410ccad)
-- P0 production bugs — workspace switcher, progress entry save, date mapping (#9fd045f)
+- P0 production bugs - workspace switcher, progress entry save, date mapping (#9fd045f)
 - Change Orders 404 when navigating from project workspace (#567d9db)
-- CI integration fixes — execution strategy, deadline disposal, orphan migration (#cf14552)
+- CI integration fixes - execution strategy, deadline disposal, orphan migration (#cf14552)
 - Demo users see pre-seeded employees in crew timecard grid (#2149cac)
 - Demo users get wildcard permission in JWT for API policy gates (#5afd576)
 - Password validation UI on demo registration page (#6b0e454)
@@ -390,20 +411,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Security
 
 - Pinned `System.Security.Cryptography.Xml` to 9.0.15 (2 HIGH advisories) (#b678235)
-- Updated Next.js → latest (HTTP smuggling, CSRF bypass, DoS fixes) (#b678235)
-- Fixed dompurify, protobufjs, postcss vulnerabilities — 0 npm audit findings (#b678235)
-- MEDIUM security — 7 findings + email enumeration fix (#8032d19)
+- Updated Next.js -> latest (HTTP smuggling, CSRF bypass, DoS fixes) (#b678235)
+- Fixed dompurify, protobufjs, postcss vulnerabilities - 0 npm audit findings (#b678235)
+- MEDIUM security - 7 findings + email enumeration fix (#8032d19)
 
 ### Changed
 
-- Upgraded Swashbuckle 7.2.0 → 10.1.4 (#35b7b60)
+- Upgraded Swashbuckle 7.2.0 -> 10.1.4 (#35b7b60)
 - Bumped recharts, posthog-js, vitest, UI group, Microsoft packages, AWSSDK.S3, Hangfire.PostgreSql, QuestPDF, coverlet.collector
-- Bumped React 19.2.4 → 19.2.5, eslint-config-next updates
+- Bumped React 19.2.4 -> 19.2.5, eslint-config-next updates
 - Version bumped to 0.15.0 across frontend (package.json) and backend (.csproj)
 
 ### Tests
 
-- Coverage wave 3 — 43 tests for 5 billing services (#995f34e)
+- Coverage wave 3 - 43 tests for 5 billing services (#995f34e)
 - Punch list report tests use PunchListPriority enum (#abb53ca)
 
 ---
@@ -412,7 +433,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Flaky SystemAdmin tests — register module assembly in ModuleInit + sequential collection (#dca3616)
+- Flaky SystemAdmin tests - register module assembly in ModuleInit + sequential collection (#dca3616)
 
 ---
 
@@ -420,7 +441,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
-- CRITICAL + HIGH — JWT key validation, admin seed gate, pageSize clamp, CORS hardening (#0b35709)
+- CRITICAL + HIGH - JWT key validation, admin seed gate, pageSize clamp, CORS hardening (#0b35709)
 
 ---
 
@@ -428,12 +449,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- Test coverage wave 2 — EmployeeOnboarding, Employee, AiUsage, TenantSettings (22 tests) (#0044bca)
-- Test coverage — PaymentApplicationService + ApiKeyService tests (#bf4244f)
+- Test coverage wave 2 - EmployeeOnboarding, Employee, AiUsage, TenantSettings (22 tests) (#0044bca)
+- Test coverage - PaymentApplicationService + ApiKeyService tests (#bf4244f)
 
 ### Security
 
-- HIGH — JWT claim parity + admin route guard (#c109591)
+- HIGH - JWT claim parity + admin route guard (#c109591)
 - Open redirect, CSPRNG tokens, constant-time compare, security headers (#73b6e13)
 
 ---
@@ -442,11 +463,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- Middleware security — tenant enforcement, response sanitization, health check auth (#3309a36)
-- Frontend security — Secure cookie flag, no localhost fallback, omit empty auth header (#6650aa4)
-- Middleware pipeline ordering — security headers and correlation before exception handler (#b778248)
-- Program.cs architecture — auth before rate limiter, Redis health check, gate dev tools (#b778248)
-- MEDIUM middleware findings — 404 rate limit, seed timeout gate, company fallback warning (#422f76d)
+- Middleware security - tenant enforcement, response sanitization, health check auth (#3309a36)
+- Frontend security - Secure cookie flag, no localhost fallback, omit empty auth header (#6650aa4)
+- Middleware pipeline ordering - security headers and correlation before exception handler (#b778248)
+- Program.cs architecture - auth before rate limiter, Redis health check, gate dev tools (#b778248)
+- MEDIUM middleware findings - 404 rate limit, seed timeout gate, company fallback warning (#422f76d)
 
 ---
 
@@ -454,18 +475,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **AI morning briefing** — role-adaptive personalized dashboard landing (#6c67c78)
-- **Workspace navigation** — 7 focused workspaces replace 78-item flat sidebar (#472c9e6)
+- **AI morning briefing** - role-adaptive personalized dashboard landing (#6c67c78)
+- **Workspace navigation** - 7 focused workspaces replace 78-item flat sidebar (#472c9e6)
 - **AIA G702/G703 billing system** with owner contracts and SOV (#0b9c46e)
 - **Prevailing wage determinations**, PM review workflow, and export system (#52e9ee7)
 - **Payroll compliance runs** and certified reports (#51d28d3)
 - **Retention & Lien Waiver tracking** + pay period test mocks (#94c774f)
 - **Purchase order and invoice matching** workflows (#2a6c1fa)
 - **WIP Schedule Phase 1** (#c7e567e)
-- **GL Module Phase 1** — journal entries and accounting periods (#5de4b28)
+- **GL Module Phase 1** - journal entries and accounting periods (#5de4b28)
 - **Chart of accounts** CRUD and tree UI (#04dce10)
 - **AP/AR foundation** entities and vendor/customer CRUD (#20e612a)
-- **Bank reconciliation module** — entities, migration, services, controllers, frontend, 24 tests (Sprint 4) (#89960b5)
+- **Bank reconciliation module** - entities, migration, services, controllers, frontend, 24 tests (Sprint 4) (#89960b5)
 - **Feature-level RBAC** with 45 permissions and 8 role templates (Sprint 3) (#839cc29)
 - **Punch list module**, Gantt chart, submittal PDF (Sprint 2) (#13b3c1d)
 - **WH-347 certified payroll** PDF export and AI usage dashboard (Sprint 5) (#ffddc5b)
@@ -477,19 +498,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Migration accelerator**, offline PWA, GPS geofencing, AI service decomposition (Sprint 11) (#647156a)
 - **PDF report generation** with QuestPDF + enhanced seed data (#bd88119)
 - **AP/AR aging dashboard** + bid-to-project conversion wizard (#febc518)
-- **PM module polish** — domain validation, FK fix, Gantt chart, 200+ new tests (#f02b789, #33c7172, #e178ef8)
+- **PM module polish** - domain validation, FK fix, Gantt chart, 200+ new tests (#f02b789, #33c7172, #e178ef8)
 - **Structured logging** (Serilog), admin health dashboard, in-app feedback widget (#de47645)
 - **File upload security validation** (#6a1aea1)
-- **UX overhaul** — PM dashboard, help panel, glossary, dashboard preferences (#f8b0438)
+- **UX overhaul** - PM dashboard, help panel, glossary, dashboard preferences (#f8b0438)
 - Comprehensive design specs: GL, WIP, AP/AR, payroll compliance, retention, AIA billing, PO matching, Vista migration, schedule module, job cost, document management, workflow engine
 
 ### Fixed
 
-- 3 CRITICAL stability bugs — WIP GL double-posting, payment app delta logic, journal entry number races (#69539c3)
-- 14 HIGH severity stability bugs — financial integrity, payroll, vendor, time entry (#42ee327)
-- 8 MEDIUM severity stability bugs — validation, rounding, security (#9ee73d8)
+- 3 CRITICAL stability bugs - WIP GL double-posting, payment app delta logic, journal entry number races (#69539c3)
+- 14 HIGH severity stability bugs - financial integrity, payroll, vendor, time entry (#42ee327)
+- 8 MEDIUM severity stability bugs - validation, rounding, security (#9ee73d8)
 - Billing carry-forward double-counting and voided app handling (#cd0a319)
-- WIP GL posting — account type validation and entry number generation (#00856b1)
+- WIP GL posting - account type validation and entry number generation (#00856b1)
 - Aging report date arithmetic (#50bea40)
 - DemoBootstrapper crash-loop (#4e8a3dc)
 - ajv ReDoS vulnerability (#ba9b349)
@@ -501,67 +522,67 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **DotNetCore.CAP event bus** — replaced MassTransit with CAP (MIT-licensed) using PostgreSQL outbox + Redis Streams transport, with in-memory fallback for local dev (#221).
-- **Resend transactional email** — verification, password reset, and invitation emails via Resend with example.com domain (#206).
-- **Per-user AI rate limiting** — individual user quotas on AI endpoints to prevent abuse (#204).
-- **CSI cost code seeding** — new tenants receive standard CSI division codes out of the box (#234).
-- **Email notification decorator** — notification service wired to send emails on key events (#234).
-- **Approval audit trail page** — dedicated UI for reviewing time entry approvals and rejections (#235).
-- **AI chat context awareness** — AI chat detects current page and injects relevant system context (#235).
-- **Dashboard quick actions + activity feed** — one-click shortcuts and recent activity on the main dashboard (#237).
-- **Pay app print view** — print-friendly layout for G702/G703 payment applications (#237).
+- **DotNetCore.CAP event bus** - replaced MassTransit with CAP (MIT-licensed) using PostgreSQL outbox + Redis Streams transport, with in-memory fallback for local dev (#221).
+- **Resend transactional email** - verification, password reset, and invitation emails via Resend with example.com domain (#206).
+- **Per-user AI rate limiting** - individual user quotas on AI endpoints to prevent abuse (#204).
+- **CSI cost code seeding** - new tenants receive standard CSI division codes out of the box (#234).
+- **Email notification decorator** - notification service wired to send emails on key events (#234).
+- **Approval audit trail page** - dedicated UI for reviewing time entry approvals and rejections (#235).
+- **AI chat context awareness** - AI chat detects current page and injects relevant system context (#235).
+- **Dashboard quick actions + activity feed** - one-click shortcuts and recent activity on the main dashboard (#237).
+- **Pay app print view** - print-friendly layout for G702/G703 payment applications (#237).
 - **File upload** on RFI create and daily report pages (#229).
-- **Project management page enhancements** — document categories, meeting attendees/minutes, submittal ball-in-court tracking (#249).
-- **Vista import UX improvements** — better error display, help center link, footer links (#248).
-- **Dark mode consistency + accessibility** — ARIA labels, app version footer, consistent dark theme (#247).
+- **Project management page enhancements** - document categories, meeting attendees/minutes, submittal ball-in-court tracking (#249).
+- **Vista import UX improvements** - better error display, help center link, footer links (#248).
+- **Dark mode consistency + accessibility** - ARIA labels, app version footer, consistent dark theme (#247).
 - **404 page** for dashboard routes, onboarding celebration state, keyboard shortcuts (#245).
 - **CSV exports** for all report pages (labor cost, profitability, equipment) (#244).
 - **Bid-to-project conversion** preview and contract billing progress bar (#243).
-- **Crew entry UX** — recent search history, settings status indicators (#242).
+- **Crew entry UX** - recent search history, settings status indicators (#242).
 - **Empty states** for 6+ list pages with inline form validation (#240).
 - **Loading skeletons** on 16 routes (#239).
 - **Breadcrumbs** standardized across 22 pages (#252).
-- **823 new unit tests** — CSI seeding, email decorator, system health, audit controller (#254).
+- **823 new unit tests** - CSI seeding, email decorator, system health, audit controller (#254).
 
 ### Security
 
-- **SQL injection fix** — `SystemHealthService.SafeCountAsync` now uses table name whitelist instead of string interpolation (#250).
-- **API error handling hardening** — controllers no longer leak exception messages in production; standardized ProblemDetails responses (#253).
-- **Bootstrap-admin privilege escalation** — disabled admin bootstrap endpoint once an admin exists (#203).
-- **AI prompt injection sanitization** — zero-width character bypass, metadata sanitization, collection bounds (#201, carried from v0.12.0 sprint).
+- **SQL injection fix** - `SystemHealthService.SafeCountAsync` now uses table name whitelist instead of string interpolation (#250).
+- **API error handling hardening** - controllers no longer leak exception messages in production; standardized ProblemDetails responses (#253).
+- **Bootstrap-admin privilege escalation** - disabled admin bootstrap endpoint once an admin exists (#203).
+- **AI prompt injection sanitization** - zero-width character bypass, metadata sanitization, collection bounds (#201, carried from v0.12.0 sprint).
 
 ### Changed
 
-- **MassTransit → CAP migration** — MassTransit v9 requires commercial Massient license; migrated to CAP (MIT) with PostgreSQL outbox (#221).
-- **ESLint 9 → 10** upgrade (#207).
+- **MassTransit -> CAP migration** - MassTransit v9 requires commercial Massient license; migrated to CAP (MIT) with PostgreSQL outbox (#221).
+- **ESLint 9 -> 10** upgrade (#207).
 - **Microsoft packages** upgraded to latest 9.0.x patches (#208).
-- **Tailwind CSS 4.1 → 4.2** with posthog-js and types/node bumps (#251).
-- **Sidebar navigation** reordered to match user workflow: daily use → resources → financial (#250, #230).
+- **Tailwind CSS 4.1 -> 4.2** with posthog-js and types/node bumps (#251).
+- **Sidebar navigation** reordered to match user workflow: daily use -> resources -> financial (#250, #230).
 - **Toast error patterns** standardized to title + description format across 28 call sites (#252).
-- **Dialog modals** — added max-height and overflow-y-auto to prevent viewport overflow (#251).
+- **Dialog modals** - added max-height and overflow-y-auto to prevent viewport overflow (#251).
 
 ### Fixed
 
-- **5 production 500 errors** — systemic `DateTime UTC normalization` converts all `DateTimeKind.Unspecified` to UTC before save (#238).
-- **DataProtection key persistence** — keys stored in PostgreSQL instead of ephemeral container filesystem (#222).
-- **Same-day bid validation** — bids with due date = today no longer rejected (#223).
+- **5 production 500 errors** - systemic `DateTime UTC normalization` converts all `DateTimeKind.Unspecified` to UTC before save (#238).
+- **DataProtection key persistence** - keys stored in PostgreSQL instead of ephemeral container filesystem (#222).
+- **Same-day bid validation** - bids with due date = today no longer rejected (#223).
 - **Bid categories** payload mismatch resolved (#222).
-- **Integration test enum deserialization** — 83 test failures fixed with shared `JsonStringEnumConverter` options (#225).
-- **MassTransit 9 production crash** — reverted to 8.3.6, then migrated to CAP (#221).
-- **5 PostHog-reported API bugs** — enum serialization, RFI DTO, AI 503, employee certifications (#219).
-- **Dashboard analytics** — sequential DbContext queries (thread-safety fix) (#218).
+- **Integration test enum deserialization** - 83 test failures fixed with shared `JsonStringEnumConverter` options (#225).
+- **MassTransit 9 production crash** - reverted to 8.3.6, then migrated to CAP (#221).
+- **5 PostHog-reported API bugs** - enum serialization, RFI DTO, AI 503, employee certifications (#219).
+- **Dashboard analytics** - sequential DbContext queries (thread-safety fix) (#218).
 - **Sidebar active-link detection** and cost-codes sorting/pagination (#226).
 - **Projects pagination**, bid validation, pay app dates, change order status transitions (#227).
 - **Loading skeletons**, CSV import parser, verify-email page (#228).
 - **Overtime settings** wired to backend API, removed localStorage usage (#231).
-- **Signup data persistence** — industryType and employeeRange saved from registration (#231).
+- **Signup data persistence** - industryType and employeeRange saved from registration (#231).
 - **Setup gating redirect**, pay period date validation, company switch reload (#236).
-- **CI repair** — unit test constructor mismatches, architecture exclusions, npm audit scope (#241).
-- **Zero build warnings** — removed 12 unused parameters, fixed XML docs, cleaned lint (#246).
+- **CI repair** - unit test constructor mismatches, architecture exclusions, npm audit scope (#241).
+- **Zero build warnings** - removed 12 unused parameters, fixed XML docs, cleaned lint (#246).
 
 ### Stats
 
-- **PRs merged (Feb 18–19):** 50+
+- **PRs merged (Feb 18-19):** 50+
 - **Unit tests:** 1,686 passing
 - **Integration tests:** 263 passing
 - **Build warnings:** 0 (C# and TypeScript)
@@ -614,7 +635,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🧪 Testing
 
 - **Controller unit test coverage expansion** - Added tests for 4 more controllers (13/22 total):
-  - CostCodesController, DashboardController, EquipmentController, PayPeriodsController
+ - CostCodesController, DashboardController, EquipmentController, PayPeriodsController
 - **Timecard settings test hardening** - Fixed 4 tests to properly seed project data, added invalid DefaultProjectId test
 - **Unit test count:** 1,189 (up from 1,063)
 - **Total test count:** 1,414 (unit + integration)
@@ -631,15 +652,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🧪 Testing
 
 - **Controller unit test coverage expansion** - Added comprehensive unit tests for 9 of 22 API controllers:
-  - AuthController (37 tests) - login, register, change-password, profile, bootstrap-admin
-  - TimeEntriesController (38 tests) - all 9 endpoints including approval workflows and Vista export
-  - ProjectsController (28 tests) - CRUD, AI summary, stats, RFI cost summary
-  - EmployeesController (27 tests) - CRUD, project assignments, stats
-  - BidsController (29 tests) - CRUD, bid-to-project conversion
-  - RfisController (26 tests) - CRUD with cross-project isolation, cost impact
-  - SubcontractsController (29 tests) - CRUD with status transitions
-  - ChangeOrdersController (34 tests) - CRUD with approval/rejection workflows
-  - Middleware (38 tests) - request/response logging, correlation ID, exception handling
+ - AuthController (37 tests) - login, register, change-password, profile, bootstrap-admin
+ - TimeEntriesController (38 tests) - all 9 endpoints including approval workflows and Vista export
+ - ProjectsController (28 tests) - CRUD, AI summary, stats, RFI cost summary
+ - EmployeesController (27 tests) - CRUD, project assignments, stats
+ - BidsController (29 tests) - CRUD, bid-to-project conversion
+ - RfisController (26 tests) - CRUD with cross-project isolation, cost impact
+ - SubcontractsController (29 tests) - CRUD with status transitions
+ - ChangeOrdersController (34 tests) - CRUD with approval/rejection workflows
+ - Middleware (38 tests) - request/response logging, correlation ID, exception handling
 - **Unit test count:** 1,063 (up from 815)
 - **Total test count:** 1,288 (unit + integration)
 
@@ -650,13 +671,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🚀 Features
 
 - **Multi-Company Support** - Single tenant, multiple legal entities
-  - Company entity with code, name, tax ID, address, fiscal year, branding
-  - Vista-style company switcher in navigation - switch without page reload
-  - Company admin page with full CRUD (create, edit, deactivate companies)
-  - Per-user company access controls with optional role overrides
-  - X-Company-Id header on every API request for company-scoped data filtering
-  - Auto-creates default company for existing tenants (zero-friction migration)
-  - Single-company tenants see no UI changes - fully transparent
+ - Company entity with code, name, tax ID, address, fiscal year, branding
+ - Vista-style company switcher in navigation - switch without page reload
+ - Company admin page with full CRUD (create, edit, deactivate companies)
+ - Per-user company access controls with optional role overrides
+ - X-Company-Id header on every API request for company-scoped data filtering
+ - Auto-creates default company for existing tenants (zero-friction migration)
+ - Single-company tenants see no UI changes - fully transparent
 
 ### 🏗️ Infrastructure
 
@@ -673,133 +694,133 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🚀 RFI Management
 
 - **RFI Management UI** - Complete RFI workflow in the web interface
-  - List view with search, status/priority filters, and result count
-  - Detail view with tabbed interface (Details + Cost Impact)
-  - Create/edit forms with all fields
-  - CSV export for RFI lists
+ - List view with search, status/priority filters, and result count
+ - Detail view with tabbed interface (Details + Cost Impact)
+ - Create/edit forms with all fields
+ - CSV export for RFI lists
 
 - **RFI Cost Impact Tracking** - Full financial visibility
-  - New database fields: `EstimatedCost`, `ActualCost`, `DelayDays`, `DelayCost`
-  - Document references: `SpecSection`, `DrawingSheet`
-  - AI-ready fields: `SuggestedAnswer`, `AiConfidence`
-  - Link Change Orders to originating RFIs
+ - New database fields: `EstimatedCost`, `ActualCost`, `DelayDays`, `DelayCost`
+ - Document references: `SpecSection`, `DrawingSheet`
+ - AI-ready fields: `SuggestedAnswer`, `AiConfidence`
+ - Link Change Orders to originating RFIs
 
 - **RFI Cost Impact API** - New endpoints for cost analysis
-  - `GET /api/projects/{id}/rfis/{rfiId}/cost-impact` - Single RFI cost breakdown with linked change orders and timeline
-  - `GET /api/projects/{id}/rfi-cost-summary` - Project-level aggregates: total costs, delay days, top 5 costly RFIs
+ - `GET /api/projects/{id}/rfis/{rfiId}/cost-impact` - Single RFI cost breakdown with linked change orders and timeline
+ - `GET /api/projects/{id}/rfi-cost-summary` - Project-level aggregates: total costs, delay days, top 5 costly RFIs
 
 - **RFI Cost Impact UI** - Visual cost tracking
-  - Tabbed detail view with cost breakdown
-  - Linked change orders table with status badges
-  - Timeline of events showing RFI lifecycle
+ - Tabbed detail view with cost breakdown
+ - Linked change orders table with status badges
+ - Timeline of events showing RFI lifecycle
 
-- **RFI → Change Order Workflow** - Seamless cost tracking
-  - "Create Change Order" button on RFI detail page
-  - Pre-fills description with RFI context
-  - Automatically links CO back to originating RFI
-  - Full traceability: RFI → Change Order → Cost Impact
+- **RFI -> Change Order Workflow** - Seamless cost tracking
+ - "Create Change Order" button on RFI detail page
+ - Pre-fills description with RFI context
+ - Automatically links CO back to originating RFI
+ - Full traceability: RFI -> Change Order -> Cost Impact
 
 ### 📊 Dashboard Improvements
 
 - **Recently Viewed Section** - Quick access to your recent work
-  - Shows last 5 projects, bids, and RFIs you've viewed
-  - Click to jump back instantly
-  - Persisted in localStorage
+ - Shows last 5 projects, bids, and RFIs you've viewed
+ - Click to jump back instantly
+ - Persisted in localStorage
 
 - **RFIs Needing Attention Widget** - Never miss critical RFIs
-  - Shows overdue RFIs and those assigned to you
-  - Sorted by urgency (overdue first)
-  - Direct links to RFI detail pages
-  - Color-coded priority badges
+ - Shows overdue RFIs and those assigned to you
+ - Sorted by urgency (overdue first)
+ - Direct links to RFI detail pages
+ - Color-coded priority badges
 
 - **Notification Center** - Stay informed
-  - Bell icon in header with unread count badge
-  - Dropdown panel with recent notifications
-  - Mark as read/unread functionality
+ - Bell icon in header with unread count badge
+ - Dropdown panel with recent notifications
+ - Mark as read/unread functionality
 
 ### ⚡ User Experience Improvements
 
 - **Global Command Palette** - Keyboard-first navigation (Cmd/Ctrl+K)
-  - Search projects, bids, RFIs, and employees
-  - Quick actions: create new items, navigate to pages
-  - Fuzzy search with keyboard navigation
-  - Recent searches remembered
+ - Search projects, bids, RFIs, and employees
+ - Quick actions: create new items, navigate to pages
+ - Fuzzy search with keyboard navigation
+ - Recent searches remembered
 
 - **Keyboard Shortcuts** - Power user productivity
-  - `?` or `Cmd+/` opens help modal with all shortcuts
-  - `g p` - Go to Projects
-  - `g b` - Go to Bids
-  - `g r` - Go to RFIs
-  - `g t` - Go to Time Tracking
-  - `g d` - Go to Dashboard
-  - `c p` - Create new Project
-  - `c b` - Create new Bid
-  - `Esc` - Close modals/dialogs
+ - `?` or `Cmd+/` opens help modal with all shortcuts
+ - `g p` - Go to Projects
+ - `g b` - Go to Bids
+ - `g r` - Go to RFIs
+ - `g t` - Go to Time Tracking
+ - `g d` - Go to Dashboard
+ - `c p` - Create new Project
+ - `c b` - Create new Bid
+ - `Esc` - Close modals/dialogs
 
 - **Dark Mode** - Easy on the eyes
-  - Toggle in Settings page
-  - Persists across sessions
-  - Smooth transition animations
-  - Full theme support across all components
+ - Toggle in Settings page
+ - Persists across sessions
+ - Smooth transition animations
+ - Full theme support across all components
 
 - **Breadcrumb Navigation** - Always know where you are
-  - Added to all detail pages (Projects, Bids, RFIs, Employees)
-  - Clickable navigation back to parent lists
-  - Shows current item name
+ - Added to all detail pages (Projects, Bids, RFIs, Employees)
+ - Clickable navigation back to parent lists
+ - Shows current item name
 
 - **Quick Project Switcher** - Fast context switching
-  - Dropdown in sidebar header
-  - Search/filter your projects
-  - One-click to switch active project context
+ - Dropdown in sidebar header
+ - Search/filter your projects
+ - One-click to switch active project context
 
 - **Loading Skeletons** - Better perceived performance
-  - Shimmer animations on list pages
-  - Cards and tables show placeholder content
-  - Reduces perceived wait time
+ - Shimmer animations on list pages
+ - Cards and tables show placeholder content
+ - Reduces perceived wait time
 
 - **Copy Link Buttons** - Easy sharing
-  - Added to RFIs, Projects, and Bids detail pages
-  - One-click copy URL to clipboard
-  - Toast confirmation on copy
+ - Added to RFIs, Projects, and Bids detail pages
+ - One-click copy URL to clipboard
+ - Toast confirmation on copy
 
 - **Icon Button Tooltips** - Better accessibility
-  - All icon-only buttons now have descriptive tooltips
-  - Helps new users discover functionality
-  - ARIA labels for screen readers
+ - All icon-only buttons now have descriptive tooltips
+ - Helps new users discover functionality
+ - ARIA labels for screen readers
 
 ### 📱 Mobile Improvements
 
 - **Floating Action Button (FAB)** - Quick actions on mobile
-  - Fixed position bottom-right on small screens
-  - Expandable menu with context-aware actions
-  - Create Project, Bid, RFI, Log Time
-  - Smooth animations
+ - Fixed position bottom-right on small screens
+ - Expandable menu with context-aware actions
+ - Create Project, Bid, RFI, Log Time
+ - Smooth animations
 
 ### 📄 Reporting & Export
 
 - **Printable Project Summary** - Professional reports
-  - Print-optimized layout at `/projects/{id}/print`
-  - Includes project details, budget, timeline
-  - Clean formatting for client presentations
+ - Print-optimized layout at `/projects/{id}/print`
+ - Includes project details, budget, timeline
+ - Clean formatting for client presentations
 
 - **RFI CSV Export** - Data portability
-  - Export filtered RFI list to CSV
-  - Includes all fields and metadata
-  - Compatible with Excel and other tools
+ - Export filtered RFI list to CSV
+ - Includes all fields and metadata
+ - Compatible with Excel and other tools
 
 ### ⏱️ Time Tracking Improvements
 
 - **Bulk Approve/Reject** - Faster supervisor workflow
-  - Checkbox selection on individual entries
-  - "Select All" with indeterminate state
-  - Bulk approve/reject with confirmation dialogs
-  - Shows success/failure counts
+ - Checkbox selection on individual entries
+ - "Select All" with indeterminate state
+ - Bulk approve/reject with confirmation dialogs
+ - Shows success/failure counts
 
 - **Improved Form Validation** - Better feedback
-  - Inline validation messages
-  - Required field indicators with asterisks
-  - Real-time validation as you type
-  - Clear error states with recovery hints
+ - Inline validation messages
+ - Required field indicators with asterisks
+ - Real-time validation as you type
+ - Clear error states with recovery hints
 
 ### 🐛 Bug Fixes
 
@@ -829,36 +850,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🚀 Features
 
 - **RFI Cost Impact Tracking** - Track the full financial impact of RFIs through the project lifecycle
-  - Link Change Orders to originating RFIs
-  - Track delay costs separately from direct costs
-  - Document references (spec sections, drawing sheets)
-  - AI assistance fields for future answer suggestions
-  - *"This RFI cost us $45K in delays"* - now trackable end-to-end
+ - Link Change Orders to originating RFIs
+ - Track delay costs separately from direct costs
+ - Document references (spec sections, drawing sheets)
+ - AI assistance fields for future answer suggestions
+ - *"This RFI cost us $45K in delays"* - now trackable end-to-end
 
 - **RFI Cost Impact API** (Phase 2) - New endpoints for cost analysis
-  - `GET /api/projects/{id}/rfis/{rfiId}/cost-impact` - Single RFI cost breakdown with linked change orders and timeline
-  - `GET /api/projects/{id}/rfi-cost-summary` - Project-level aggregates: total costs, delay days, top 5 costly RFIs
-  - Enables dashboards and reports showing true RFI financial impact
+ - `GET /api/projects/{id}/rfis/{rfiId}/cost-impact` - Single RFI cost breakdown with linked change orders and timeline
+ - `GET /api/projects/{id}/rfi-cost-summary` - Project-level aggregates: total costs, delay days, top 5 costly RFIs
+ - Enables dashboards and reports showing true RFI financial impact
 
 ### 🏗️ Infrastructure
 
 - **Architecture:** 🎉 **MediatR removal COMPLETE** - Entire codebase is now MediatR-free!
-  - Removed MediatR from ALL 12 controllers (Issue #118)
-  - Final batch: DashboardController, RfisController, TimeEntriesController, ProjectAssignmentsController, PayPeriodsController
-  - TimeEntriesController: 9 handler usages consolidated into TimeEntryService
-  - ProjectAssignmentsController: -307 lines of code
-  - PayPeriodsController: 7 handlers deleted
-  - Direct service injection improves testability and debugging
-  - Preserves CQRS patterns without message bus overhead
-  - New `IEmployeeService` with full CRUD + stats operations
+ - Removed MediatR from ALL 12 controllers (Issue #118)
+ - Final batch: DashboardController, RfisController, TimeEntriesController, ProjectAssignmentsController, PayPeriodsController
+ - TimeEntriesController: 9 handler usages consolidated into TimeEntryService
+ - ProjectAssignmentsController: -307 lines of code
+ - PayPeriodsController: 7 handlers deleted
+ - Direct service injection improves testability and debugging
+ - Preserves CQRS patterns without message bus overhead
+ - New `IEmployeeService` with full CRUD + stats operations
 
 - **Demo Environment:** Fixed PostgreSQL session variable handling
-  - `SET LOCAL` replaced with `set_config()` function for parameterized queries
-  - Resolves Railway demo startup crash
+ - `SET LOCAL` replaced with `set_config()` function for parameterized queries
+ - Resolves Railway demo startup crash
 
 - **ci:** Switched from self-hosted to GitHub-hosted runners (`ubuntu-latest`)
-  - Self-hosted runners were offline 23+ hours
-  - CI now completes in ~4 minutes (was stuck indefinitely)
+ - Self-hosted runners were offline 23+ hours
+ - CI now completes in ~4 minutes (was stuck indefinitely)
 
 ### 🐛 Bug Fixes
 
@@ -883,11 +904,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 📊 Test Coverage
 
 - **Bids integration tests** (+2 tests)
-  - Delete nonexistent bid returns 404
-  - Update bid with mismatched ID returns 400
+ - Delete nonexistent bid returns 404
+ - Update bid with mismatched ID returns 400
 - **Subcontracts integration tests** (+2 tests)
-  - Delete nonexistent subcontract returns 404
-  - Update subcontract with mismatched ID returns 400
+ - Delete nonexistent subcontract returns 404
+ - Update subcontract with mismatched ID returns 400
 
 **Total tests:** 1017 (834 unit + 183 integration)
 
@@ -903,19 +924,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 📊 Test Coverage
 
 - **Contracts module validator tests** (+57 tests)
-  - CreateSubcontractValidator (22 tests)
-  - CreateChangeOrderValidator (19 tests)
-  - CreatePaymentApplicationValidator (16 tests)
+ - CreateSubcontractValidator (22 tests)
+ - CreateChangeOrderValidator (19 tests)
+ - CreatePaymentApplicationValidator (16 tests)
 - **Security middleware tests** (+9 tests)
-  - SecurityHeadersMiddleware header verification
+ - SecurityHeadersMiddleware header verification
 - **Bids integration tests** (+3 tests)
-  - Convert to project workflow
+ - Convert to project workflow
 - **Projects V2 integration tests** (+5 tests)
-  - Full CRUD coverage for V2 endpoints
+ - Full CRUD coverage for V2 endpoints
 - **RFI integration tests** (+2 tests)
-  - Nonexistent RFI edge cases
+ - Nonexistent RFI edge cases
 - **Various module integration tests** (+10 tests)
-  - Tenants, SeedData, TimeEntries, Dashboard
+ - Tenants, SeedData, TimeEntries, Dashboard
 
 **Total tests:** 1013 (834 unit + 179 integration) 🎉 **Crossed 1000 tests milestone!**
 
@@ -926,20 +947,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 📊 Test Coverage
 
 - **Integration tests for PaymentApplications endpoints** (+6 tests)
-  - Update payment application
-  - Update nonexistent payment application returns 404
-  - Update with mismatched ID returns 400
-  - Delete draft payment application
-  - Delete nonexistent payment application returns 404
-  - Cannot delete submitted payment application
+ - Update payment application
+ - Update nonexistent payment application returns 404
+ - Update with mismatched ID returns 400
+ - Delete draft payment application
+ - Delete nonexistent payment application returns 404
+ - Cannot delete submitted payment application
 - **Integration tests for TimeEntries approval workflow** (+8 tests)
-  - Approve/reject auth checks
-  - Project-based time entry filtering
-  - Labor cost report endpoint
+ - Approve/reject auth checks
+ - Project-based time entry filtering
+ - Labor cost report endpoint
 - **Integration tests for Dashboard** (+3 tests)
-  - Weekly hours endpoint coverage
+ - Weekly hours endpoint coverage
 - **Integration tests for Users** (+6 tests)
-  - Role assignment endpoints
+ - Role assignment endpoints
 
 ### 📝 Documentation
 
@@ -991,7 +1012,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1244 (1000 unit + 244 integration)
 - **New integration tests**: +24
-  - EmployeesEndpointsTests (+24): Comprehensive coverage including auth, CRUD, tenant isolation, filtering by department/employment status, search, soft-delete behavior
+ - EmployeesEndpointsTests (+24): Comprehensive coverage including auth, CRUD, tenant isolation, filtering by department/employment status, search, soft-delete behavior
 
 ### 🏗️ Infrastructure
 
@@ -1007,12 +1028,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1220 (1000 unit + 220 integration)
 - **New integration tests**: +9
-  - ProjectAssignmentsEndpointsTests (+9): Auth tests (4), CRUD tests (2), error handling tests (3)
+ - ProjectAssignmentsEndpointsTests (+9): Auth tests (4), CRUD tests (2), error handling tests (3)
 
 ### 🐛 Bug Fix
 
 - Fixed `ProjectAssignmentsController` returning 400 instead of 404 for nonexistent assignments
-  - Handler returned `ASSIGNMENT_NOT_FOUND` but controller only checked for `NOT_FOUND`
+ - Handler returned `ASSIGNMENT_NOT_FOUND` but controller only checked for `NOT_FOUND`
 
 ---
 
@@ -1022,7 +1043,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1211 (1000 unit + 211 integration)
 - **New integration tests**: +7
-  - ProjectsEndpointsTests (+7): Update, delete, filter by type, search by name, stats 404, cannot update nonexistent, cannot delete nonexistent
+ - ProjectsEndpointsTests (+7): Update, delete, filter by type, search by name, stats 404, cannot update nonexistent, cannot delete nonexistent
 
 ### 📝 Documentation
 
@@ -1037,8 +1058,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1204 (1000 unit + 204 integration)
 - **New integration tests**: +9
-  - SubcontractsEndpointsTests (+5): Update, delete, filter by project, search by name, nonexistent update
-  - ChangeOrdersEndpointsTests (+4): Delete, filter by subcontract, filter by status, nonexistent delete
+ - SubcontractsEndpointsTests (+5): Update, delete, filter by project, search by name, nonexistent update
+ - ChangeOrdersEndpointsTests (+4): Delete, filter by subcontract, filter by status, nonexistent delete
 
 ### 📝 Documentation
 
@@ -1053,8 +1074,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1195 (1000 unit + 195 integration)
 - **New integration tests**: +18
-  - HRWithholdingElectionsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, tax jurisdiction filtering, current elections by employee, auto-expiration of previous elections, W-4 fields
-  - HREVerifyCasesEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint, needs-action endpoint, status updates (TNC, authorized, etc.)
+ - HRWithholdingElectionsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, tax jurisdiction filtering, current elections by employee, auto-expiration of previous elections, W-4 fields
+ - HREVerifyCasesEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint, needs-action endpoint, status updates (TNC, authorized, etc.)
 - **HR Module 100% Complete!** All 10 HR controllers now have integration test coverage
 
 ### 📝 Documentation
@@ -1070,7 +1091,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1177 (1000 unit + 177 integration)
 - **New integration tests**: +9
-  - HRUnionMembershipsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, union local filtering, by-employee endpoint, dispatch tracking, fringe rates
+ - HRUnionMembershipsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, union local filtering, by-employee endpoint, dispatch tracking, fringe rates
 
 ### 📝 Documentation
 
@@ -1085,12 +1106,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1168 (1000 unit + 168 integration)
 - **New integration tests**: +44
-  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
-  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
-  - HREmergencyContactsEndpointsTests (+8): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint
-  - HRDeductionsEndpointsTests (+9): Auth, CRUD, tenant isolation, garnishments, employee filtering, active deductions endpoint
-  - HREmploymentEpisodesEndpointsTests (+9): Auth, list/get, tenant isolation, employee filtering, termination workflow, delete
-  - HRI9RecordsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, eligibility verification workflow
+ - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
+ - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
+ - HREmergencyContactsEndpointsTests (+8): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint
+ - HRDeductionsEndpointsTests (+9): Auth, CRUD, tenant isolation, garnishments, employee filtering, active deductions endpoint
+ - HREmploymentEpisodesEndpointsTests (+9): Auth, list/get, tenant isolation, employee filtering, termination workflow, delete
+ - HRI9RecordsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, eligibility verification workflow
 
 ### 📝 Documentation
 
@@ -1105,10 +1126,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1150 (1000 unit + 150 integration)
 - **New integration tests**: +35
-  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
-  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
-  - HREmergencyContactsEndpointsTests (+8): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint
-  - HRDeductionsEndpointsTests (+9): Auth, CRUD, tenant isolation, garnishments, employee filtering, active deductions endpoint
+ - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
+ - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
+ - HREmergencyContactsEndpointsTests (+8): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint
+ - HRDeductionsEndpointsTests (+9): Auth, CRUD, tenant isolation, garnishments, employee filtering, active deductions endpoint
 
 ### 📝 Documentation
 
@@ -1123,8 +1144,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1133 (1000 unit + 133 integration)
 - **New integration tests**: +18
-  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
-  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
+ - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
+ - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
 
 ### 📝 Documentation
 
@@ -1139,9 +1160,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1115 (1000 unit + 115 integration)
 - **New integration tests**: +18
-  - AdminAuditEndpointsTests (+6): Auth, listing, pagination, filters, resource types, action types
-  - AdminCompanyEndpointsTests (+5): Auth, default settings, update, minimal update, persistence
-  - UsersEndpointsTests (+7): Auth, listing, user details, roles, search, pagination
+ - AdminAuditEndpointsTests (+6): Auth, listing, pagination, filters, resource types, action types
+ - AdminCompanyEndpointsTests (+5): Auth, default settings, update, minimal update, persistence
+ - UsersEndpointsTests (+7): Auth, listing, user details, roles, search, pagination
 
 ### 📝 Documentation
 
@@ -1156,13 +1177,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Total tests**: 1097 (1000 unit + 97 integration)
 - **New integration tests**: +41 (from 56 to 97)
-  - Dashboard endpoints (+3): Auth, response validation, tenant isolation
-  - CostCodes endpoints (+8): Pagination, filters, search
-  - Monitoring endpoints (+7): Version, health, security status
-  - Auth endpoints (+9): Login, register, profile, change-password
-  - Health endpoints (+3): Liveness, readiness, combined health
-  - Tenants endpoints (+5): Current tenant, access control, cross-tenant security
-  - Admin Users endpoints (+6): List, get, roles, search
+ - Dashboard endpoints (+3): Auth, response validation, tenant isolation
+ - CostCodes endpoints (+8): Pagination, filters, search
+ - Monitoring endpoints (+7): Version, health, security status
+ - Auth endpoints (+9): Login, register, profile, change-password
+ - Health endpoints (+3): Liveness, readiness, combined health
+ - Tenants endpoints (+5): Current tenant, access control, cross-tenant security
+ - Admin Users endpoints (+6): List, get, roles, search
 
 ### 📝 Documentation
 
@@ -1181,7 +1202,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### 🐛 Bug Fixes
 
-- Fixed BidNumber → Number column reference in dashboard raw SQL query
+- Fixed BidNumber -> Number column reference in dashboard raw SQL query
 - Fixed Payroll module registration in Program.cs (was causing PendingModelChangesWarning)
 
 ### 📊 Test Coverage
@@ -1197,45 +1218,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### 🎉 HR Module Complete!
 
 Full HR Core module with 10 entities, 10 controllers, 55+ endpoints.
-Foundation for Payroll → Job Costing → Accounting pipeline.
+Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ### ✨ New Entities (this release)
 
 - **EmploymentEpisode CRUD**: Rehire tracking for construction's 60%+ turnover
-  - Auto-incrementing episode numbers per employee
-  - Separation reason tracking
-  - Prevents duplicate active episodes
+ - Auto-incrementing episode numbers per employee
+ - Separation reason tracking
+ - Prevents duplicate active episodes
 
 - **WithholdingElection CRUD**: Federal W-4 and state tax elections
-  - 2020+ W-4 fields (filing status, multiple jobs, dependents, extra withholding)
-  - All 50 states + DC + PR validation
-  - Effective dating (new elections auto-expire previous)
+ - 2020+ W-4 fields (filing status, multiple jobs, dependents, extra withholding)
+ - All 50 states + DC + PR validation
+ - Effective dating (new elections auto-expire previous)
 
 - **Deduction CRUD**: Payroll deductions management
-  - Benefits (health, dental, vision, 401k with employer match)
-  - Garnishments with court case tracking (child support, tax levies)
-  - Union dues, charity contributions
-  - Pre-tax vs post-tax handling
-  - YTD tracking for annual limits
+ - Benefits (health, dental, vision, 401k with employer match)
+ - Garnishments with court case tracking (child support, tax levies)
+ - Union dues, charity contributions
+ - Pre-tax vs post-tax handling
+ - YTD tracking for annual limits
 
 - **UnionMembership CRUD**: Union labor management
-  - Union local and membership tracking
-  - Apprentice level tracking (1-10)
-  - Dispatch tracking (number, date, list position)
-  - Fringe benefit rates (H&W, pension, training)
-  - Dues paid status and expiration
+ - Union local and membership tracking
+ - Apprentice level tracking (1-10)
+ - Dispatch tracking (number, date, list position)
+ - Fringe benefit rates (H&W, pension, training)
+ - Dues paid status and expiration
 
 - **I9Record CRUD**: Employment eligibility verification
-  - Section 1: Employee information + citizenship status
-  - Section 2: Employer document verification (List A/B/C)
-  - Section 3: Reverification for work auth expiration
-  - `/reverification-needed` endpoint for compliance dashboard
+ - Section 1: Employee information + citizenship status
+ - Section 2: Employer document verification (List A/B/C)
+ - Section 3: Reverification for work auth expiration
+ - `/reverification-needed` endpoint for compliance dashboard
 
 - **EVerifyCase CRUD**: DHS employment verification
-  - Case submission and status tracking
-  - SSA and DHS verification results
-  - TNC (Tentative Non-Confirmation) workflow
-  - `/needs-action` endpoint for pending cases
+ - Case submission and status tracking
+ - SSA and DHS verification results
+ - TNC (Tentative Non-Confirmation) workflow
+ - `/needs-action` endpoint for pending cases
 
 ### 📊 Test Coverage
 
@@ -1249,30 +1270,30 @@ Foundation for Payroll → Job Costing → Accounting pipeline.
 ### ✨ New Features
 
 - **HR Module Certification CRUD**: Full certification tracking for compliance
-  - `POST /api/hr/certifications` - Create employee certification
-  - `GET /api/hr/certifications/{id}` - Get certification details
-  - `GET /api/hr/certifications` - List with filtering (status, type, expiring)
-  - `PUT /api/hr/certifications/{id}` - Update certification
-  - `DELETE /api/hr/certifications/{id}` - Soft-delete certification
-  - `GET /api/hr/certifications/expiring` - Compliance dashboard convenience endpoint
-  - Supports expiration tracking, verification status, warning notifications
-  - 39 new tests (validators + handlers)
+ - `POST /api/hr/certifications` - Create employee certification
+ - `GET /api/hr/certifications/{id}` - Get certification details
+ - `GET /api/hr/certifications` - List with filtering (status, type, expiring)
+ - `PUT /api/hr/certifications/{id}` - Update certification
+ - `DELETE /api/hr/certifications/{id}` - Soft-delete certification
+ - `GET /api/hr/certifications/expiring` - Compliance dashboard convenience endpoint
+ - Supports expiration tracking, verification status, warning notifications
+ - 39 new tests (validators + handlers)
 
 - **HR Module PayRate CRUD**: Construction-specific pay rate management
-  - `POST /api/hr/pay-rates` - Create pay rate
-  - `GET /api/hr/pay-rates/{id}` - Get pay rate details
-  - `GET /api/hr/pay-rates` - List with filtering (type, project, shift, state)
-  - `PUT /api/hr/pay-rates/{id}` - Update pay rate
-  - `DELETE /api/hr/pay-rates/{id}` - Soft-delete pay rate
-  - `GET /api/hr/pay-rates/employee/{id}/active` - Active rates for employee
-  - Supports effective dating, project-specific rates, shift differentials
-  - Union fringe benefits (H&W, pension, training) with TotalHourlyCost calculation
-  - Priority-based rate selection for complex scenarios
-  - 34 new tests (validators + handlers)
+ - `POST /api/hr/pay-rates` - Create pay rate
+ - `GET /api/hr/pay-rates/{id}` - Get pay rate details
+ - `GET /api/hr/pay-rates` - List with filtering (type, project, shift, state)
+ - `PUT /api/hr/pay-rates/{id}` - Update pay rate
+ - `DELETE /api/hr/pay-rates/{id}` - Soft-delete pay rate
+ - `GET /api/hr/pay-rates/employee/{id}/active` - Active rates for employee
+ - Supports effective dating, project-specific rates, shift differentials
+ - Union fringe benefits (H&W, pension, training) with TotalHourlyCost calculation
+ - Priority-based rate selection for complex scenarios
+ - 34 new tests (validators + handlers)
 
 - **HR Module DeleteEmployee**: Soft-delete endpoint for HR employees
-  - `DELETE /api/hr/employees/{id}`
-  - 3 new tests
+ - `DELETE /api/hr/employees/{id}`
+ - 3 new tests
 
 ### 📊 Test Coverage
 
@@ -1286,9 +1307,9 @@ Foundation for Payroll → Job Costing → Accounting pipeline.
 ### 🐛 Bug Fixes
 
 - **TimeTracking Soft-Delete Filtering**: Completes consistency across ALL modules
-  - `GetEmployeeHandler`, `ListEmployeesHandler` now filter deleted records
-  - `GetTimeEntryHandler`, `ListTimeEntriesHandler` now filter deleted records
-  - All 5 modules now have proper soft-delete filtering
+ - `GetEmployeeHandler`, `ListEmployeesHandler` now filter deleted records
+ - `GetTimeEntryHandler`, `ListTimeEntriesHandler` now filter deleted records
+ - All 5 modules now have proper soft-delete filtering
 
 ---
 
@@ -1297,31 +1318,31 @@ Foundation for Payroll → Job Costing → Accounting pipeline.
 ### 🐛 Bug Fixes
 
 - **Soft-Delete Filtering Consistency**: Fixed data integrity across all modules
-  - **Bids**: `GetBidHandler`, `ListBidsHandler` now filter deleted records
-  - **Projects**: `GetProjectHandler`, `ListProjectsHandler` now filter deleted records
-  - **Contracts**: All handlers (Subcontracts, Change Orders, Payment Applications) filter deleted records
-  - **RFIs**: `GetRfiHandler`, `ListRfisHandler` now filter deleted records
-  - Ensures proper data lifecycle management across the platform
+ - **Bids**: `GetBidHandler`, `ListBidsHandler` now filter deleted records
+ - **Projects**: `GetProjectHandler`, `ListProjectsHandler` now filter deleted records
+ - **Contracts**: All handlers (Subcontracts, Change Orders, Payment Applications) filter deleted records
+ - **RFIs**: `GetRfiHandler`, `ListRfisHandler` now filter deleted records
+ - Ensures proper data lifecycle management across the platform
 
 ### 🏗️ Infrastructure
 
 - **Railway Deployment Fix**: Resolved multi-service deployment issues
-  - Moved from root `railway.toml` to service-specific `railway.json` configs
-  - Fixed web Dockerfile to use relative paths with Root Directory
-  - API: `src/Pitbull.Api/railway.json`
-  - Web: `src/Pitbull.Web/pitbull-web/railway.json`
-  - Production deploys now working correctly
+ - Moved from root `railway.toml` to service-specific `railway.json` configs
+ - Fixed web Dockerfile to use relative paths with Root Directory
+ - API: `src/Pitbull.Api/railway.json`
+ - Web: `src/Pitbull.Web/pitbull-web/railway.json`
+ - Production deploys now working correctly
 
 - **CI Migration Safety**: Added automated checks for dangerous migration patterns
-  - Detects `DROP TABLE`, `DROP COLUMN`, `DELETE FROM` without safeguards
-  - Prevents accidental data loss in production deployments
+ - Detects `DROP TABLE`, `DROP COLUMN`, `DELETE FROM` without safeguards
+ - Prevents accidental data loss in production deployments
 
 ### 🧪 Test Coverage
 
 - **Integration Tests**: +24 new integration tests
-  - Bids: +4 (CRUD, status workflow, soft-delete)
-  - RFIs: +6 (auth, CRUD, status, numbering, multi-tenant)
-  - Contracts: +14 (Subcontracts, Change Orders, Payment Applications)
+ - Bids: +4 (CRUD, status workflow, soft-delete)
+ - RFIs: +6 (auth, CRUD, status, numbering, multi-tenant)
+ - Contracts: +14 (Subcontracts, Change Orders, Payment Applications)
 - **Total tests:** 806 (768 unit + 38 integration)
 
 ---
@@ -1331,10 +1352,10 @@ Foundation for Payroll → Job Costing → Accounting pipeline.
 ### 🧪 Test Coverage
 
 - **RFI Handler Tests** (PR #147): +36 comprehensive handler tests for RFI module
-  - CreateRfiHandler (14 tests): RFI creation, sequential numbering, ball-in-court defaults
-  - GetRfiHandler (5 tests): retrieval, project isolation, all field mapping
-  - ListRfisHandler (14 tests): status/priority/user filtering, search, pagination
-  - UpdateRfiHandler (18 tests): field updates, status transitions (Open->Answered->Closed), timestamp logic
+ - CreateRfiHandler (14 tests): RFI creation, sequential numbering, ball-in-court defaults
+ - GetRfiHandler (5 tests): retrieval, project isolation, all field mapping
+ - ListRfisHandler (14 tests): status/priority/user filtering, search, pagination
+ - UpdateRfiHandler (18 tests): field updates, status transitions (Open->Answered->Closed), timestamp logic
 
 ### 📊 Test Stats
 
@@ -1348,21 +1369,21 @@ Foundation for Payroll → Job Costing → Accounting pipeline.
 ### 🧹 Quality Improvements
 
 - **EF Core Query Diagnostics** (PR #146): Development-only diagnostics to catch performance issues early
-  - Enable detailed errors and sensitive data logging in dev
-  - Log N+1 query warnings (MultipleCollectionIncludeWarning)
-  - Throw on potential unintended Equals() usage in queries
+ - Enable detailed errors and sensitive data logging in dev
+ - Log N+1 query warnings (MultipleCollectionIncludeWarning)
+ - Throw on potential unintended Equals() usage in queries
 - **Connection Pool Configuration**: Added production-ready pool settings documentation
-  - Maximum Pool Size: 50 (prevents exhaustion)
-  - Connection Idle Lifetime: 300s
-  - Updated .env.example with pool documentation
+ - Maximum Pool Size: 50 (prevents exhaustion)
+ - Connection Idle Lifetime: 300s
+ - Updated .env.example with pool documentation
 
 ### 📊 Quality Strategy
 
 - **v0.2.0 Checklist: 4/7 items complete**
-  - ✅ N+1 query detection in dev
-  - ✅ Missing database indexes
-  - ✅ Multi-SaveChanges transaction rule (documented + verified)
-  - ✅ DB connection pool configuration
+ - ✅ N+1 query detection in dev
+ - ✅ Missing database indexes
+ - ✅ Multi-SaveChanges transaction rule (documented + verified)
+ - ✅ DB connection pool configuration
 
 ---
 
@@ -1371,17 +1392,17 @@ Foundation for Payroll → Job Costing → Accounting pipeline.
 ### 🔒 Security
 
 - **Optimistic Concurrency for TimeTracking**: Added PostgreSQL `xmin` concurrency tokens to prevent "last write wins" data corruption
-  - Employee entity: concurrent edit protection
-  - TimeEntry entity: concurrent edit protection
-  - ProjectAssignment entity: concurrent edit protection
-  - CostCode entity: concurrent edit protection
+ - Employee entity: concurrent edit protection
+ - TimeEntry entity: concurrent edit protection
+ - ProjectAssignment entity: concurrent edit protection
+ - CostCode entity: concurrent edit protection
 
 ### 📊 Quality Milestone
 
 - **v0.1.0 Quality Checklist: 13/13 COMPLETE** ✅
-  - All P0 security items done
-  - All P1 architecture items done
-  - Foundation ready for Beta Demo phase
+ - All P0 security items done
+ - All P1 architecture items done
+ - Foundation ready for Beta Demo phase
 
 ### 🗄️ Database
 
@@ -1395,12 +1416,12 @@ Foundation for Payroll → Job Costing → Accounting pipeline.
 ### 🧪 Test Coverage
 
 - **Contracts Handler Tests**: +45 comprehensive handler tests
-  - GetChangeOrderHandler (4 tests): retrieve, not found, approval/rejection details
-  - ListChangeOrdersHandler (9 tests): filtering, search, pagination, ordering
-  - UpdateChangeOrderHandler (11 tests): field updates, duplicate detection, status transitions
-  - GetPaymentApplicationHandler (4 tests): retrieve, not found, approval/paid details
-  - ListPaymentApplicationsHandler (8 tests): filtering, pagination, ordering
-  - UpdatePaymentApplicationHandler (9 tests): recalculation, status transitions, subcontract sync
+ - GetChangeOrderHandler (4 tests): retrieve, not found, approval/rejection details
+ - ListChangeOrdersHandler (9 tests): filtering, search, pagination, ordering
+ - UpdateChangeOrderHandler (11 tests): field updates, duplicate detection, status transitions
+ - GetPaymentApplicationHandler (4 tests): retrieve, not found, approval/paid details
+ - ListPaymentApplicationsHandler (8 tests): filtering, pagination, ordering
+ - UpdatePaymentApplicationHandler (9 tests): recalculation, status transitions, subcontract sync
 
 ### 📚 Documentation
 
@@ -1426,14 +1447,14 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 - Contract values: original, current, billed, paid, retainage tracking
 - Subcontractor info: name, contact, email, phone, address
 - Scope of work and trade code classification
-- Status workflow: Draft → Active → Completed → Closed
+- Status workflow: Draft -> Active -> Completed -> Closed
 - Insurance/compliance tracking with expiration dates
 
 #### Change Orders (#139)
 - **Change order entity** linked to subcontracts
 - Financial impact tracking (positive/negative amounts)
 - Schedule impact (days extension)
-- Approval workflow: Pending → Approved/Rejected/Void
+- Approval workflow: Pending -> Approved/Rejected/Void
 - Automatic subcontract value updates on approval
 - Audit trail: submitted/approved/rejected dates, approver tracking
 
@@ -1441,7 +1462,7 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 - **AIA G702-style billing** with full pay app workflow
 - Auto-calculated amounts from previous applications
 - Retainage calculations matching subcontract terms
-- Status workflow: Draft → Submitted → UnderReview → Approved/PartiallyApproved/Rejected → Paid
+- Status workflow: Draft -> Submitted -> UnderReview -> Approved/PartiallyApproved/Rejected -> Paid
 - Automatic subcontract totals sync when marked Paid
 - 26 new validator tests for comprehensive coverage
 
@@ -1463,16 +1484,16 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 ### 🔒 Security
 
 - **RLS Policies for TimeTracking**: Added missing Row-Level Security policies for `employees`, `time_entries`, and `employee_project_assignments` tables
-  - Migration `20260207120000_AddMissingRLSPolicies` ensures tenant isolation
-  - Critical fix: tables added after initial RLS migration were unprotected
+ - Migration `20260207120000_AddMissingRLSPolicies` ensures tenant isolation
+ - Critical fix: tables added after initial RLS migration were unprotected
 
 ### 🧪 Test Coverage
 
 - **TimeEntries Integration Tests**: 5 new integration tests for TimeTracking API
-  - Authentication requirements
-  - CRUD operations
-  - Multi-tenant isolation
-  - Duplicate employee number validation
+ - Authentication requirements
+ - CRUD operations
+ - Multi-tenant isolation
+ - Duplicate employee number validation
 
 ### 📈 Stats
 
@@ -1486,10 +1507,10 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 ### 🧪 Test Coverage
 
 - **RFI Validators**: CreateRfiValidator (19 tests), UpdateRfiValidator (26 tests)
-  - ProjectId, Subject, Question, Priority validation
-  - Answer length validation for updates
-  - Status enum validation (Open/Answered/Closed)
-  - All edge cases and workflow scenarios covered
+ - ProjectId, Subject, Question, Priority validation
+ - Answer length validation for updates
+ - Status enum validation (Open/Answered/Closed)
+ - All edge cases and workflow scenarios covered
 
 ### 📈 Stats
 
@@ -1521,9 +1542,9 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 ### 🔧 Code Quality
 
 - **User Context for Soft Deletes**: `ProjectService` now captures actual user ID for `DeletedBy` field instead of hardcoded "system"
-  - Injected `IHttpContextAccessor` into service
-  - Added `GetCurrentUserId()` helper method (same pattern as DbContext)
-  - Provides proper audit trail for soft delete operations
+ - Injected `IHttpContextAccessor` into service
+ - Added `GetCurrentUserId()` helper method (same pattern as DbContext)
+ - Provides proper audit trail for soft delete operations
 
 - **Improved Error Logging**: Enhanced domain event error messages in `PitbullDbContext` to include exception type
 
@@ -1609,18 +1630,18 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 ### 📊 Dashboard Analytics
 
 - **Weekly Hours Chart** - Visual labor trends on dashboard
-  - Stacked bar chart showing regular/OT/DT hours by week
-  - 8-week rolling history with hover tooltips
-  - Average hours per week displayed
-  - Uses recharts library for interactive visualization
-  - New GET `/api/dashboard/weekly-hours` endpoint
+ - Stacked bar chart showing regular/OT/DT hours by week
+ - 8-week rolling history with hover tooltips
+ - Average hours per week displayed
+ - Uses recharts library for interactive visualization
+ - New GET `/api/dashboard/weekly-hours` endpoint
 - **Project Labor Summary** - Comprehensive stats on project detail pages
-  - Total hours with reg/OT/DT breakdown
-  - Labor cost with average $/hr calculation
-  - Assigned employee count
-  - Time entry counts with status badges
-  - Activity date range
-  - Uses new GET `/api/projects/{id}/stats` endpoint
+ - Total hours with reg/OT/DT breakdown
+ - Labor cost with average $/hr calculation
+ - Assigned employee count
+ - Time entry counts with status badges
+ - Activity date range
+ - Uses new GET `/api/projects/{id}/stats` endpoint
 
 ### 🔌 New API Endpoints
 
@@ -1653,19 +1674,19 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 ### 🛡️ Error Handling & Polish
 
 - **Error Boundaries** - Graceful error handling throughout the app
-  - `error.tsx` - Route-level error catching with retry functionality
-  - `global-error.tsx` - Root layout error boundary for critical failures
-  - Mobile-responsive error UI with helpful recovery options
+ - `error.tsx` - Route-level error catching with retry functionality
+ - `global-error.tsx` - Root layout error boundary for critical failures
+ - Mobile-responsive error UI with helpful recovery options
 - **Custom 404 Page** - User-friendly "not found" experience
-  - Clear messaging with helpful navigation links
-  - Quick access to Projects, Bids, Time Tracking, and Employees
-  - Consistent branding and design
+ - Clear messaging with helpful navigation links
+ - Quick access to Projects, Bids, Time Tracking, and Employees
+ - Consistent branding and design
 - **SEO & PWA Enhancements**
-  - Comprehensive metadata with Open Graph and Twitter cards
-  - Web manifest for PWA installability ("Add to Home Screen")
-  - Viewport configuration with theme color support
-  - robots.txt for search engine guidance
-  - Construction management SEO keywords
+ - Comprehensive metadata with Open Graph and Twitter cards
+ - Web manifest for PWA installability ("Add to Home Screen")
+ - Viewport configuration with theme color support
+ - robots.txt for search engine guidance
+ - Construction management SEO keywords
 
 ### 📈 Stats
 
@@ -1680,17 +1701,17 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 ### 📚 API Documentation
 
 - **Complete OpenAPI Documentation** - All 13 API controllers now have comprehensive Swagger docs
-  - TimeEntriesController: 9 endpoints with full request/response schemas
-  - EmployeesController: 5 endpoints with classification enum docs
-  - CostCodesController: 2 endpoints with cost type documentation
-  - ProjectAssignmentsController: 5 endpoints with role permission details
-  - Detailed XML comments with `<remarks>`, `<param>`, and `<response>` tags
-  - `[ProducesResponseType]` attributes for all response codes
-  - Sample requests and business logic explanations
+ - TimeEntriesController: 9 endpoints with full request/response schemas
+ - EmployeesController: 5 endpoints with classification enum docs
+ - CostCodesController: 2 endpoints with cost type documentation
+ - ProjectAssignmentsController: 5 endpoints with role permission details
+ - Detailed XML comments with `<remarks>`, `<param>`, and `<response>` tags
+ - `[ProducesResponseType]` attributes for all response codes
+ - Sample requests and business logic explanations
 - **Swagger UI** - Interactive API explorer ready for demos and UAT
-  - Complete endpoint documentation visible at `/swagger`
-  - Try-it-out functionality for all authenticated endpoints
-  - Request/response examples for complex operations
+ - Complete endpoint documentation visible at `/swagger`
+ - Try-it-out functionality for all authenticated endpoints
+ - Request/response examples for complex operations
 
 ### 📈 Stats
 
@@ -1705,21 +1726,21 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 ### 📤 Vista Export Integration
 
 - **Vista Export API** - GET `/api/time-entries/export/vista`
-  - Exports approved time entries in Vista/Viewpoint compatible CSV format
-  - RFC 4180 compliant CSV with proper escaping for special characters
-  - Supports date range and project filtering
-  - Includes all payroll fields: employee, date, project, cost code, hours, amounts
-  - Calculates regular, OT (1.5x), and DT (2.0x) wage amounts
-  - Admin/Manager role authorization required
-  - 12 comprehensive unit tests covering all scenarios
+ - Exports approved time entries in Vista/Viewpoint compatible CSV format
+ - RFC 4180 compliant CSV with proper escaping for special characters
+ - Supports date range and project filtering
+ - Includes all payroll fields: employee, date, project, cost code, hours, amounts
+ - Calculates regular, OT (1.5x), and DT (2.0x) wage amounts
+ - Admin/Manager role authorization required
+ - 12 comprehensive unit tests covering all scenarios
 - **Vista Export UI** - New reporting page at `/reports/vista-export`
-  - Date range selection with quick presets (This Week, Last Week, This Month, etc.)
-  - Project filter dropdown
-  - Preview mode shows export metadata before download
-  - Stats cards: entry count, total hours, employees, projects
-  - CSV download with automatic filename
-  - Help section with Vista import instructions
-  - Responsive design for desktop and mobile
+ - Date range selection with quick presets (This Week, Last Week, This Month, etc.)
+ - Project filter dropdown
+ - Preview mode shows export metadata before download
+ - Stats cards: entry count, total hours, employees, projects
+ - CSV download with automatic filename
+ - Help section with Vista import instructions
+ - Responsive design for desktop and mobile
 
 ### 📈 Stats
 
@@ -1733,26 +1754,26 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 ### 📊 Job Costing & Reporting
 
 - **Labor Cost Calculator** - Server-side job costing engine
-  - Base wage calculation with OT (1.5x) and DT (2.0x) multipliers
-  - Configurable burden rate (default 35%)
-  - Batch calculation support for reporting
-  - 16 unit tests covering all calculation scenarios
+ - Base wage calculation with OT (1.5x) and DT (2.0x) multipliers
+ - Configurable burden rate (default 35%)
+ - Batch calculation support for reporting
+ - 16 unit tests covering all calculation scenarios
 - **Cost Rollup API** - GET `/api/time-entries/cost-report`
-  - Aggregates approved time entries into cost summaries
-  - Groups by project and cost code
-  - Date range and project filtering
-  - 10 comprehensive handler tests
+ - Aggregates approved time entries into cost summaries
+ - Groups by project and cost code
+ - Date range and project filtering
+ - 10 comprehensive handler tests
 - **Labor Cost Report UI** - Interactive reporting page at `/reports/labor-cost`
-  - Summary cards: total cost, hours, projects, burden rate
-  - Date range presets (this week, last week, this month, last month, YTD)
-  - Project filter dropdown with approved-only toggle
-  - Desktop: expandable table with project rows showing cost code breakdown
-  - Mobile: responsive card layout with project summaries
-  - Loading skeleton for better UX
+ - Summary cards: total cost, hours, projects, burden rate
+ - Date range presets (this week, last week, this month, last month, YTD)
+ - Project filter dropdown with approved-only toggle
+ - Desktop: expandable table with project rows showing cost code breakdown
+ - Mobile: responsive card layout with project summaries
+ - Loading skeleton for better UX
 - **Cost Codes Management UI** - Cost code directory at `/cost-codes`
-  - Searchable, filterable list with summary cards
-  - Badge indicators for cost type (Labor, Material, Equipment, Subcontract)
-  - Desktop table and mobile card responsive layouts
+ - Searchable, filterable list with summary cards
+ - Badge indicators for cost type (Labor, Material, Equipment, Subcontract)
+ - Desktop table and mobile card responsive layouts
 
 ### 🎨 UI Components
 
@@ -1770,87 +1791,87 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 ### 🤖 AI Features
 
 - **AI Project Health Insights** - Claude-powered analysis at `/api/projects/{id}/ai-summary`
-  - Health score (0-100) with color-coded status
-  - Executive summary with natural language overview
-  - Highlights, concerns, and actionable recommendations
-  - Key metrics: hours logged, labor costs, budget utilization, pending approvals
+ - Health score (0-100) with color-coded status
+ - Executive summary with natural language overview
+ - Highlights, concerns, and actionable recommendations
+ - Key metrics: hours logged, labor costs, budget utilization, pending approvals
 - **Interactive AI Insights UI** - Beautiful frontend integration on project detail pages
-  - Animated circular health gauge with color transitions
-  - Metrics grid with key project statistics
-  - Categorized insights cards (highlights, concerns, recommendations)
-  - Loading skeleton with shimmer animations
+ - Animated circular health gauge with color transitions
+ - Metrics grid with key project statistics
+ - Categorized insights cards (highlights, concerns, recommendations)
+ - Loading skeleton with shimmer animations
 
 ### 🔒 Security & Access Control
 
 - **Role-Based Access Control (RBAC)** - Complete permission system
-  - Four built-in roles: Admin, Manager, Supervisor, User
-  - Automatic Admin role assignment for first user per tenant
-  - JWT tokens include role claims for API authorization
-  - Role-protected endpoints for sensitive operations
+ - Four built-in roles: Admin, Manager, Supervisor, User
+ - Automatic Admin role assignment for first user per tenant
+ - JWT tokens include role claims for API authorization
+ - Role-protected endpoints for sensitive operations
 - **User Management Dashboard** - Admin panel at `/admin/users`
-  - View all users with roles and status
-  - Assign and remove roles via UI
-  - Search and filter capabilities
-  - Prevents self-demotion (can't remove own Admin role)
+ - View all users with roles and status
+ - Assign and remove roles via UI
+ - Search and filter capabilities
+ - Prevents self-demotion (can't remove own Admin role)
 - **Frontend Role Enforcement** - UI adapts to user permissions
-  - Admin-only navigation section
-  - `hasRole()`, `isAdmin`, `isManager` helper functions
-  - Conditional rendering based on user roles
+ - Admin-only navigation section
+ - `hasRole()`, `isAdmin`, `isManager` helper functions
+ - Conditional rendering based on user roles
 
 ### 🚀 Features
 
 - **Enhanced Dashboard** - Real-time project insights
-  - Personalized greeting with user name
-  - Clickable stat cards for quick navigation
-  - Quick actions panel (create project, bid, employee, log time)
-  - Live activity feed showing recent changes
-  - Portfolio summary with total values
+ - Personalized greeting with user name
+ - Clickable stat cards for quick navigation
+ - Quick actions panel (create project, bid, employee, log time)
+ - Live activity feed showing recent changes
+ - Portfolio summary with total values
 - **Settings Page** - User profile management at `/settings`
-  - View profile info, roles, and tenant details
-  - Change password functionality
-  - Admin link to user management
+ - View profile info, roles, and tenant details
+ - Change password functionality
+ - Admin link to user management
 - **Employee Management** - Complete CRUD workflow
-  - Employee directory with search and filters
-  - Create employee form with validation
-  - Employee detail page with assignments and time entries
-  - Employee edit form with status toggle
-  - Clickable list rows for quick navigation
+ - Employee directory with search and filters
+ - Create employee form with validation
+ - Employee detail page with assignments and time entries
+ - Employee edit form with status toggle
+ - Clickable list rows for quick navigation
 - **Onboarding Experience** - Guide new users
-  - Getting Started checklist on dashboard
-  - Progress tracking for first project, employee, bid, time entry
-  - Dismissible with localStorage persistence
+ - Getting Started checklist on dashboard
+ - Progress tracking for first project, employee, bid, time entry
+ - Dismissible with localStorage persistence
 
 ### ⚡ User Experience
 
 - **Form Improvements**
-  - Phone number auto-formatting `(XXX) XXX-XXXX`
-  - Loading buttons with spinner during submission
-  - Disabled forms while submitting
-  - Required field indicators
-  - Inline validation messages
+ - Phone number auto-formatting `(XXX) XXX-XXXX`
+ - Loading buttons with spinner during submission
+ - Disabled forms while submitting
+ - Required field indicators
+ - Inline validation messages
 - **Accessibility Enhancements**
-  - ARIA labels on all icon-only buttons
-  - Screen reader support for form errors
-  - Keyboard navigation improvements
-  - Focus management in dialogs
+ - ARIA labels on all icon-only buttons
+ - Screen reader support for form errors
+ - Keyboard navigation improvements
+ - Focus management in dialogs
 - **Confirmation Dialogs** - Prevent accidental actions
-  - Danger/warning/info variants
-  - Loading states during operations
+ - Danger/warning/info variants
+ - Loading states during operations
 - **Tooltips & Help Text**
-  - Tooltips for complex form fields
-  - Help text for business concepts (Classification, Cost Code)
+ - Tooltips for complex form fields
+ - Help text for business concepts (Classification, Cost Code)
 
 ### 🏗️ Infrastructure
 
 - **Demo Data Seeder** - Investor-ready demonstration data
-  - 60 standard construction cost codes (CSI divisions)
-  - 15 realistic employees (PMs, superintendents, tradespeople)
-  - Project assignments linking workers to projects
-  - 30 days of time entries with realistic patterns
+ - 60 standard construction cost codes (CSI divisions)
+ - 15 realistic employees (PMs, superintendents, tradespeople)
+ - Project assignments linking workers to projects
+ - 30 days of time entries with realistic patterns
 - **Code Quality**
-  - 172 tests passing (163 unit + 9 integration)
-  - ESLint errors resolved across all components
-  - Repository cleanup (40 stale branches removed)
+ - 172 tests passing (163 unit + 9 integration)
+ - ESLint errors resolved across all components
+ - Repository cleanup (40 stale branches removed)
 
 ---
 
@@ -1863,7 +1884,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 - **Improved API authentication** - Confirmed production API returns proper 401 status codes instead of redirects
 - **Added comprehensive integration testing** - All 9 integration test suites now passing consistently
 
-### 🚀 Features  
+### 🚀 Features 
 
 - **Enhanced deployment monitoring** - Added database health scripts and deployment status tracking ([PR #135](https://github.com/jgarrison929/pitbull/pull/135))
 - **HTTP response caching** - Implemented read endpoint caching for improved performance ([PR #134](https://github.com/jgarrison929/pitbull/pull/134))
@@ -1944,10 +1965,10 @@ Initial feature-complete MVP for construction project and bid management.
 
 - **Next.js** App Router with TypeScript
 - **Mobile-responsive UI** audit and fixes across all views
-  - Minimum 375px viewport support (iPhone SE)
-  - Touch-friendly tap targets (44px minimum)
-  - Collapsible navigation on small screens
-  - Responsive tables and card layouts
+ - Minimum 375px viewport support (iPhone SE)
+ - Touch-friendly tap targets (44px minimum)
+ - Collapsible navigation on small screens
+ - Responsive tables and card layouts
 - **Dashboard with real statistics** (project counts, bid win rates, contract totals)
 - Project list, detail, and create/edit views
 - Bid list, detail, and create/edit views with line item management

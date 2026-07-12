@@ -4,7 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderOpen, MessageCircle, Inbox, Clock3, Plus, BarChart3 } from "lucide-react";
+import {
+  FolderOpen,
+  MessageCircle,
+  Inbox,
+  Clock3,
+  CheckCircle2,
+  FileText,
+} from "lucide-react";
 import Link from "next/link";
 import { roleKpiDrillHref } from "@/lib/role-kpi-drills";
 
@@ -30,11 +37,42 @@ function trendPercent(current: number, previous: number): number {
   return ((current - previous) / previous) * 100;
 }
 
+/** PM home: run today's jobs — approvals, RFIs, open jobs. */
 export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | null; isLoading: boolean }) {
   const hoursDelta = data ? trendPercent(data.hoursThisWeek, data.hoursLastWeek) : 0;
+  const needsAttention =
+    (data?.pendingApprovals ?? 0) > 0 || (data?.openRFIs ?? 0) > 5;
 
   return (
     <div className="space-y-6">
+      {needsAttention && (
+        <Card className="border-amber-200 bg-amber-50/40 dark:border-amber-500/30 dark:bg-amber-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Needs you today</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {(data?.pendingApprovals ?? 0) > 0 && (
+              <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700">
+                <Link href="/my-approvals">
+                  {data!.pendingApprovals} time/workflow approval
+                  {(data!.pendingApprovals ?? 0) !== 1 ? "s" : ""}
+                </Link>
+              </Button>
+            )}
+            {(data?.openRFIs ?? 0) > 0 && (
+              <Button asChild size="sm" variant="outline">
+                <Link href={roleKpiDrillHref("openRfis")}>
+                  {data!.openRFIs} open RFI{(data!.openRFIs ?? 0) !== 1 ? "s" : ""}
+                </Link>
+              </Button>
+            )}
+            <Button asChild size="sm" variant="outline">
+              <Link href="/time-tracking/approval">Timecard queue</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Link href={roleKpiDrillHref("activeProjects")} className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
@@ -98,26 +136,40 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
           </Card>
         </Link>
       </div>
+
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href="/projects/new"><Plus className="h-5 w-5 text-amber-600" /><span className="text-sm font-medium">New Project</span></Link>
+          <Link href="/projects">
+            <FolderOpen className="h-5 w-5 text-amber-600" />
+            <span className="text-sm font-medium">My Projects</span>
+          </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href="/time-tracking/crew-entry"><Clock3 className="h-5 w-5 text-blue-600" /><span className="text-sm font-medium">Enter Time</span></Link>
+          <Link href="/my-approvals">
+            <CheckCircle2 className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-medium">Approvals</span>
+          </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href="/reports"><BarChart3 className="h-5 w-5 text-purple-600" /><span className="text-sm font-medium">Run Reports</span></Link>
+          <Link href={roleKpiDrillHref("viewRfis")}>
+            <MessageCircle className="h-5 w-5 text-green-600" />
+            <span className="text-sm font-medium">RFIs</span>
+          </Link>
         </Button>
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href={roleKpiDrillHref("viewRfis")}><MessageCircle className="h-5 w-5 text-green-600" /><span className="text-sm font-medium">View RFIs</span></Link>
+          <Link href="/daily-reports/mobile">
+            <FileText className="h-5 w-5 text-purple-600" />
+            <span className="text-sm font-medium">Field Report</span>
+          </Link>
         </Button>
       </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle>Project Budget Health</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {isLoading && Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            {!isLoading && data?.projectBudgetHealth.slice(0, 8).map((p) => (
+            {!isLoading && data?.projectBudgetHealth.slice(0, 6).map((p) => (
               <div key={p.name} className="flex items-center justify-between rounded-md border p-3">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{p.name}</p>
@@ -127,6 +179,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
                       style={{ width: `${Math.min(p.percentUsed, 100)}%` }}
                     />
                   </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Labor vs contract (proxy)</p>
                 </div>
                 <div className="text-right ml-4 shrink-0">
                   <p className="text-sm font-medium">{formatCurrency(p.spent)} / {formatCurrency(p.budget)}</p>
@@ -143,7 +196,7 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
           <CardHeader><CardTitle>Upcoming Deadlines</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {isLoading && Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
-            {!isLoading && data?.upcomingDeadlines.slice(0, 8).map((d, i) => (
+            {!isLoading && data?.upcomingDeadlines.slice(0, 6).map((d, i) => (
               <div key={`${d.projectName}-${i}`} className="flex items-center justify-between rounded-md border p-3">
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate">{d.projectName}</p>

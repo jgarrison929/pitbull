@@ -63,6 +63,7 @@ import {
   isFieldStepReady,
   nextReportStep,
   prevReportStep,
+  showsTruckMaterialSection,
   toggleFieldActivity,
   toggleTruckCondition,
 } from "@/lib/pour-field";
@@ -331,15 +332,25 @@ export default function MobileDailyReportPage() {
 
   const stepIndex = MOBILE_REPORT_STEPS.indexOf(step);
 
+  const showTrucksMaterial = showsTruckMaterialSection(activities);
+
   const fieldSnapshot = useMemo(
     () => ({
       activities,
+      // Drop truck fuel from readiness/summary when Pour is not selected
+      truckConditions: showTrucksMaterial ? truckConditions : [],
+      truckNotes: showTrucksMaterial ? truckNotes : "",
+      crewCounts,
+      workNarrative,
+    }),
+    [
+      activities,
+      showTrucksMaterial,
       truckConditions,
       truckNotes,
       crewCounts,
       workNarrative,
-    }),
-    [activities, truckConditions, truckNotes, crewCounts, workNarrative]
+    ]
   );
 
   const canProceed = useCallback(() => {
@@ -404,6 +415,7 @@ export default function MobileDailyReportPage() {
 
   function formSnapshot(asDraft: boolean) {
     const spatialDecision = pickSpatialContext(zones, spatialNodeId);
+    const trucksOn = showsTruckMaterialSection(activities);
     return {
       projectId,
       reportDate,
@@ -417,8 +429,8 @@ export default function MobileDailyReportPage() {
       delaysNarrative,
       safetyNarrative,
       fieldActivities: activities,
-      truckConditions,
-      truckNotes,
+      truckConditions: trucksOn ? truckConditions : [],
+      truckNotes: trucksOn ? truckNotes : "",
       crewCounts,
       zones,
       spatialNodeId:
@@ -758,11 +770,18 @@ export default function MobileDailyReportPage() {
                         <button
                           key={a.id}
                           type="button"
-                          onClick={() =>
-                            setActivities((prev) =>
-                              toggleFieldActivity(prev, a.id)
-                            )
-                          }
+                          onClick={() => {
+                            setActivities((prev) => {
+                              const next = toggleFieldActivity(prev, a.id);
+                              // Leaving Pour: clear concrete truck chips so they
+                              // do not stick on review/offline payload.
+                              if (!showsTruckMaterialSection(next)) {
+                                setTruckConditions([]);
+                                setTruckNotes("");
+                              }
+                              return next;
+                            });
+                          }}
                           className={cn(
                             "min-h-[56px] rounded-lg border px-2 py-2 text-center touch-manipulation",
                             on
@@ -782,48 +801,53 @@ export default function MobileDailyReportPage() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Truck className="h-4 w-4 text-amber-500" />
-                    Trucks / material
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    {TRUCK_CONDITIONS.map((t) => {
-                      const on = truckConditions.includes(t.id);
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() =>
-                            setTruckConditions((prev) =>
-                              toggleTruckCondition(prev, t.id)
-                            )
-                          }
-                          className={cn(
-                            "min-h-[44px] rounded-full border px-4 text-sm touch-manipulation",
-                            on
-                              ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-medium"
-                              : "border-input"
-                          )}
-                          data-testid={`truck-${t.id}`}
-                        >
-                          {t.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <Textarea
-                    value={truckNotes}
-                    onChange={(e) => setTruckNotes(e.target.value)}
-                    placeholder="e.g. Load 3 too wet — drove around. Vault walls need better slump."
-                    rows={2}
-                    className="text-base min-h-[48px]"
-                  />
-                </CardContent>
-              </Card>
+              {showTrucksMaterial && (
+                <Card data-testid="trucks-material-section">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Truck className="h-4 w-4 text-amber-500" />
+                      Trucks / material
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Concrete loads for today&apos;s pour — skip if not relevant.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {TRUCK_CONDITIONS.map((t) => {
+                        const on = truckConditions.includes(t.id);
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() =>
+                              setTruckConditions((prev) =>
+                                toggleTruckCondition(prev, t.id)
+                              )
+                            }
+                            className={cn(
+                              "min-h-[44px] rounded-full border px-4 text-sm touch-manipulation",
+                              on
+                                ? "border-amber-500 bg-amber-50 dark:bg-amber-900/30 font-medium"
+                                : "border-input"
+                            )}
+                            data-testid={`truck-${t.id}`}
+                          >
+                            {t.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Textarea
+                      value={truckNotes}
+                      onChange={(e) => setTruckNotes(e.target.value)}
+                      placeholder="e.g. Load 3 too wet — drove around. Vault walls need better slump."
+                      rows={2}
+                      className="text-base min-h-[48px]"
+                    />
+                  </CardContent>
+                </Card>
+              )}
 
               <Card>
                 <CardHeader className="pb-2">
@@ -1051,7 +1075,8 @@ export default function MobileDailyReportPage() {
                     </p>
                   </div>
                 )}
-                {truckConditions.length > 0 && (
+                {showTrucksMaterial &&
+                  (truckConditions.length > 0 || truckNotes.trim()) && (
                   <div>
                     <p className="text-muted-foreground">Trucks / material</p>
                     <p className="font-medium">

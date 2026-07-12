@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
@@ -25,6 +25,7 @@ import {
   type WorkspaceId,
   type Workspace,
   getProjectWorkspaceItems,
+  getProjectWorkspaceNav,
   getProjectWorkspaceSeparators,
   getAllNavItems,
   getWorkspaceLandingHref,
@@ -34,6 +35,7 @@ import { useKeyboardShortcuts } from "@/contexts/keyboard-shortcuts-context";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Star,
   Settings,
   HelpCircle,
@@ -360,6 +362,14 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
     isFavorite,
   } = useWorkspaceNav();
 
+  // Open-project uses primary + More groups; portfolio / other workspaces stay flat.
+  const projectNav = useMemo(
+    () =>
+      activeWorkspace === "projects" ? getProjectWorkspaceNav(currentProjectId) : null,
+    [activeWorkspace, currentProjectId]
+  );
+  const useProjectPrimaryMore = Boolean(projectNav && currentProjectId);
+
   // Build items for the current workspace
   const workspaceItems = useMemo(() => {
     if (activeWorkspace === "my-work") return []; // My Work is special
@@ -372,6 +382,8 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
 
   const workspaceSeparators = useMemo(() => {
     if (activeWorkspace === "projects") {
+      // Flat separators only when no project open (portfolio view)
+      if (currentProjectId) return undefined;
       return getProjectWorkspaceSeparators(currentProjectId);
     }
     const ws = visibleWorkspaces.find((w) => w.id === activeWorkspace);
@@ -380,18 +392,24 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
 
   // Filter items by permission. Demo users see almost everything (browse), but not Secrets.
   const isDemoUser = user?.isDemoUser ?? false;
-  const filteredItems = useMemo(() => {
-    if (isDemoUser) {
-      return workspaceItems.filter(
-        (item) => item.href !== "/admin/secrets" && !item.href.startsWith("/admin/secrets/")
-      );
-    }
-    return workspaceItems.filter((item) => {
+  const filterNavItem = useCallback(
+    (item: NavItemType) => {
+      if (item.href === "/admin/secrets" || item.href.startsWith("/admin/secrets/")) {
+        return false;
+      }
+      if (isDemoUser) return true;
       if (item.requiredPermission) return can(item.requiredPermission);
       if (item.requiredAnyPermission) return canAny(item.requiredAnyPermission);
       return true;
-    });
-  }, [workspaceItems, can, canAny, isDemoUser]);
+    },
+    [can, canAny, isDemoUser]
+  );
+
+  const filteredItems = useMemo(() => {
+    return workspaceItems.filter(filterNavItem);
+  }, [workspaceItems, filterNavItem]);
+
+  const [moreOpen, setMoreOpen] = useState(false);
 
   // All items for active href calculation
   const allNavItems = useMemo(() => getAllNavItems(currentProjectId), [currentProjectId]);
@@ -541,8 +559,82 @@ export function AppSidebar({ onNavigate, variant = "desktop" }: { onNavigate?: (
           />
         )}
 
-        {/* Workspace items (not My Work) */}
-        {activeWorkspace !== "my-work" && (
+        {/* Projects with open job: portfolio strip + primary + More */}
+        {activeWorkspace === "projects" && useProjectPrimaryMore && projectNav && !effectiveCollapsed && (
+          <>
+            {projectNav.portfolio.filter(filterNavItem).map((item) => (
+              <SidebarNavItem
+                key={item.href}
+                item={item}
+                isActive={item.href === activeHref}
+                isCollapsed={false}
+                isFavorite={isFavorite(item.href)}
+                onToggleFavorite={toggleFavorite}
+                onNavigate={onNavigate}
+              />
+            ))}
+            <WorkspaceSectionSeparator label="This job" />
+            {projectNav.primary.filter(filterNavItem).map((item) => (
+              <SidebarNavItem
+                key={item.href}
+                item={item}
+                isActive={item.href === activeHref}
+                isCollapsed={false}
+                isFavorite={isFavorite(item.href)}
+                onToggleFavorite={toggleFavorite}
+                onNavigate={onNavigate}
+              />
+            ))}
+            <button
+              type="button"
+              onClick={() => setMoreOpen((o) => !o)}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+              aria-expanded={moreOpen}
+            >
+              <span className="flex-1 text-left">More on this job</span>
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", moreOpen && "rotate-180")} />
+            </button>
+            {moreOpen &&
+              projectNav.moreGroups.map((group) => {
+                const items = group.items.filter(filterNavItem);
+                if (items.length === 0) return null;
+                return (
+                  <div key={group.label}>
+                    <WorkspaceSectionSeparator label={group.label} />
+                    {items.map((item) => (
+                      <SidebarNavItem
+                        key={item.href}
+                        item={item}
+                        isActive={item.href === activeHref}
+                        isCollapsed={false}
+                        isFavorite={isFavorite(item.href)}
+                        onToggleFavorite={toggleFavorite}
+                        onNavigate={onNavigate}
+                      />
+                    ))}
+                  </div>
+                );
+              })}
+          </>
+        )}
+
+        {/* Collapsed project context: primary icons only */}
+        {activeWorkspace === "projects" && useProjectPrimaryMore && projectNav && effectiveCollapsed && (
+          <>
+            {projectNav.primary.filter(filterNavItem).map((item) => (
+              <SidebarNavItem
+                key={item.href}
+                item={item}
+                isActive={item.href === activeHref}
+                isCollapsed={true}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </>
+        )}
+
+        {/* Flat workspace items (not My Work, not open-project primary/More) */}
+        {activeWorkspace !== "my-work" && !useProjectPrimaryMore && (
           <>
             {itemsWithSeparators.map((entry) => {
               if (entry.type === "separator") {
