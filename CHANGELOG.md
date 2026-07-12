@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.7] - 2026-07-12T15:15:46-07:00
+
+### Changed
+
+- **Twin mobile loading skeleton** - structured board + panel placeholders (`twin-loading-skeleton`) so phones never flash blank white while twin loads.
+
+### Notes
+
+- Version **2.15.7**
 ## [2.15.6] - 2026-07-12T15:13:50-07:00
 
 ### Added
