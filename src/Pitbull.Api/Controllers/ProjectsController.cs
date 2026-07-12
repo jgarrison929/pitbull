@@ -172,13 +172,18 @@ public class ProjectsController(
         [FromQuery] int budgetAlertPercent = 75,
         [FromQuery] bool excludeCompleted = false,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        // view=mobile → ProjectMobileListItemDto (id, name, number, status only)
+        [FromQuery] string? view = null)
     {
-        // Cache only unfiltered default queries (dropdown-style "get all")
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+
+        // Cache only unfiltered default queries (dropdown-style "get all") — never for mobile view shape.
         var isDefaultQuery = status is null && type is null
             && string.IsNullOrEmpty(search)
             && !unbilled && !budgetAlert && !excludeCompleted
-            && page == 1 && pageSize == 10;
+            && page == 1 && pageSize == 10
+            && !mobileView;
 
         if (isDefaultQuery)
         {
@@ -206,6 +211,16 @@ public class ProjectsController(
         var result = await projectService.GetProjectsAsync(query);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
+
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(ProjectListViewMapper.ToMobileListItem)
+                .ToArray();
+            return Ok(new PagedResult<ProjectMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
 
         return Ok(result.Value);
     }

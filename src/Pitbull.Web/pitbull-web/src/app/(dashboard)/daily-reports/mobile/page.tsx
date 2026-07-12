@@ -171,7 +171,7 @@ export default function MobileDailyReportPage() {
     async function loadProjects() {
       try {
         const result = await api<PagedResult<Project>>(
-          "/api/projects?pageSize=500"
+          "/api/projects?pageSize=500&view=mobile"
         );
         setProjects(result.items ?? []);
       } catch {

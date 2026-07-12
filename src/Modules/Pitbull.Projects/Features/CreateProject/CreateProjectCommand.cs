@@ -66,3 +66,19 @@ public record ProjectDto(
     decimal? LaborSpent = null,
     decimal? LaborPercentOfContract = null
 );
+
+/// <summary>
+/// Slim project row for phone pickers (GET /api/projects?view=mobile). Omits address, client, billing enrichments.
+/// </summary>
+public record ProjectMobileListItemDto(
+    Guid Id,
+    string Name,
+    string Number,
+    ProjectStatus Status
+);
+
+public static class ProjectListViewMapper
+{
+    public static ProjectMobileListItemDto ToMobileListItem(ProjectDto p) =>
+        new(p.Id, p.Name, p.Number, p.Status);
+}

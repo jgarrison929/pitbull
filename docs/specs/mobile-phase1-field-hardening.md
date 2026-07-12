@@ -201,9 +201,9 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** API controller + service + frontend consumer (phone only)
 
 **Acceptance:**
-- [ ] Document endpoint name in this row + CHANGELOG  
-- [ ] Integration or unit test: field count or payload smaller than default  
-- [ ] Desktop default shape unbroken  
+- [x] Document endpoint name in this row + CHANGELOG (`GET /api/projects?view=mobile`)  
+- [x] Integration or unit test: field count or payload smaller than default  
+- [x] Desktop default shape unbroken  
 
 **Tests:** Integration test or contract test  
 

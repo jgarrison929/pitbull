@@ -450,7 +450,7 @@ export default function MobileTimeEntryPage() {
         const [profile, employeesRes, projectsRes, costCodeRes] = await Promise.all([
           api<AuthProfile>("/api/auth/me"),
           api<ListEmployeesResult>("/api/employees?isActive=true&pageSize=500"),
-          api<SimpleListResult<Project>>("/api/projects?pageSize=500"),
+          api<SimpleListResult<Project>>("/api/projects?pageSize=500&view=mobile"),
           api<CostCodeListResult>("/api/cost-codes?costType=1&pageSize=500"),
         ]);
 
