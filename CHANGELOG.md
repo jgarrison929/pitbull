@@ -8,14 +8,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.2] - 2026-07-12T12:00:00-07:00
+
+### Added
+
+- **3.0.0 program firm path (Arc A–E)** - product ends at `2.22.2` (~101 PRs); runway `2.22.3`→`2.24.2` (20 PRs); major `2.24.2`→`3.0.0` (≈122 PRs total). Old 878-PR / 2.97–2.99 ladder retired for 3.0.0.
+- **Agent-ready specs** under `docs/specs/` for mobile Phase 1–3, twin Phase 2, AI, approvals, KPI drills, help, CI smoke.
+- **Copy-paste `/goal` prompts** for every version step in `docs/260712/goal-prompts.md`.
+- **Post-3.0 product band themes** parked in `docs/roadmap/post-3.0-product-bands.md` (do not block major).
+- **PR template** — spec link, version stamp checklist, preflight, help center.
+
+### Changed
+
+- **VERSION-WORKFLOW / plan1 / AGENTS** — single source of truth for Arc A–E → 3.0.0 autonomous loop.
+- **AGENTS.md** — required reading by task type; mobile perf rule (no client ledger aggregation).
+
 ### Fixed
 
 - **MediatR license warnings in tests/CI** - resolve Lucky Penny community key from `MediatR:LicenseKey` / `MEDIATR_LICENSE_KEY` / `LUCKYPENNY_LICENSE_KEY`; apply in unit `ModuleInit` and on every `AddMediatR` registration; CI injects repo secret `MEDIATR_LICENSE_KEY`.
 - **Employees KPI not drillable** - restore Workforce/Employees home cards (executive + overview KPIs) linking to `/employees?isActive=true`; employees-page summary cards filter/scroll to the directory; project labor “Employees” opens team on the job.
 
-### Changed
+### Notes
 
-- **PostHog .NET SDK** - `PostHog` / `PostHog.AspNetCore` **2.2.2 → 2.6.0** (server analytics client).
+- **PostHog .NET SDK** - `PostHog` / `PostHog.AspNetCore` **2.2.2 → 2.6.0** (server analytics client) carried from unreleased.
+- Version **2.12.2** — docs/agent infrastructure only; mobile chrome and SW parity start at 2.12.3.
 
 ## [2.12.1] - 2026-07-12T04:00:00-07:00
 

@@ -30,10 +30,46 @@ When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator via `POST 
 |-----------------|-----------|
 | `src/`, tests, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/ROLE-EXPERIENCE.md` | Historical design notes under `docs/architecture/` (see its README) |
 | Live Railway: `deploy/RAILWAY-*.md` | Older multi-env notes in `docs/deployment/*` |
+| Session program: `docs/260712/*` | Post-3.0 themes: `docs/roadmap/post-3.0-product-bands.md` |
+
+## Required reading by task type
+
+| Task | Read first |
+|------|------------|
+| Any version ship | `docs/260712/VERSION-WORKFLOW.md` + matching block in `goal-prompts.md` |
+| Mobile / field UX | Spec for band + `docs/mobile3.md` + `docs/ROLE-EXPERIENCE.md` |
+| Digital twin | `docs/pitbull-digital-twin-spec.md` + `docs/specs/digital-twin-phase2-implementation.md` |
+| Workflow / approvals | `docs/WORKFLOW-EVALUATION-MATRIX.md` + band spec |
+| Help center | `docs/specs/help-center-*.md` + `help/page.tsx` |
+| CI / E2E | `docs/specs/ci-mobile-owner-smoke.md`, `e2e/fixtures/ROLE-PERSONA-MAP.md` |
+| Preflight | `./scripts/preflight.ps1 -FullWeb -DotNet` before push |
 
 ## Version bumps
 
 Per `CONTRIBUTING.md`: update `VERSION`, web `package.json`, API csproj Version props, Docker ARGs together. Stamp CHANGELOG headers with ISO date+time.
+
+**This program (to 3.0.0):** product ends **`2.22.2`**; runway **`2.22.3`→`2.24.2`**; major **`2.24.2`→`3.0.0`**. One bump per PR. Never skip. See `VERSION-WORKFLOW.md`.
+
+## Session workflow (canonical — do not re-derive in chat)
+
+| Doc | Purpose |
+|-----|---------|
+| [`docs/260712/VERSION-WORKFLOW.md`](docs/260712/VERSION-WORKFLOW.md) | Product **2.12.2→2.22.2** (~101 PRs); runway **2.22.3→3.0.0** (21 PRs) |
+| [`docs/260712/plan1.md`](docs/260712/plan1.md) | Master plan + 3.0.0 release checklist |
+| [`docs/260712/spec-workload.md`](docs/260712/spec-workload.md) | Spec index Arc A–E + runway |
+| [`docs/260712/goal-prompts.md`](docs/260712/goal-prompts.md) | Copy-paste `/goal` prompts per version step |
+| [`docs/260712/release-checklist-runway.md`](docs/260712/release-checklist-runway.md) | 2.22.3+ verification/fixes only |
+
+## Mobile / performance rules
+
+- **PWA-first** through 3.0.0 — no native app shell in this program  
+- Phone = **capture + glance + filtered drill** — **no client-side ledger / portfolio aggregation**  
+- Prefer slim DTOs (`?view=mobile`), server pagination, list virtualization  
+
+## Specs
+
+- User-facing features: `docs/specs/<name>.md` before code (agent-ready bar in `docs/specs/README.md`)  
+- Update help in the **same PR** when flows change  
 
 ## Safety
 
