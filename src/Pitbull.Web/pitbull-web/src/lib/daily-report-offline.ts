@@ -106,14 +106,16 @@ export function buildOfflineDailyReportPayload(
 }
 
 /**
- * Offline queue → POST body for daily-report create.
+ * Offline queue → POST body for daily-report **create**.
  * Client `syncDailyReport` and `public/sw.js` must stay in parity on `data` keys.
+ * Do **not** include `status` — server assigns Draft; use submit workflow for Submitted.
  * SW cannot import this module — keep sw.js body construction aligned and covered by tests here.
  */
 export function buildOfflineDailyReportSyncBody(report: OfflineDailyReport): {
   title: string;
-  status: string;
   data: Record<string, unknown>;
+  /** Intent for post-create submit workflow (not sent on create body). */
+  submitAfterCreate: boolean;
 } {
   const data: Record<string, unknown> = {
     ReportDate: report.reportDate,
@@ -139,10 +141,13 @@ export function buildOfflineDailyReportSyncBody(report: OfflineDailyReport): {
   if (report.planSheetId) {
     data.PlanSheetId = report.planSheetId;
   }
+  const submitAfterCreate = Boolean(
+    report.status && report.status.toLowerCase() !== "draft"
+  );
   return {
     title: report.title,
-    status: report.status,
     data,
+    submitAfterCreate,
   };
 }
 

@@ -510,9 +510,9 @@ export default function MobileDailyReportPage() {
     }
 
     const title = `Daily Report - ${reportDate}`;
+    // Server assigns Draft on create — do not send Submitted (INVALID_STATUS_TRANSITION).
     const payload: PmUpsertRequest = {
       title,
-      status: asDraft ? "Draft" : "Submitted",
       data: buildDailyReportApiData(formSnapshot(asDraft)),
     };
 
@@ -544,6 +544,14 @@ export default function MobileDailyReportPage() {
         } catch {
           toast.error("Report saved but photo upload failed");
         }
+      }
+
+      // Field "Submit" = create draft then workflow submit action
+      if (!asDraft && created.id) {
+        await api(
+          `/api/projects/${projectId}/daily-reports/${created.id}/submit`,
+          { method: "POST" }
+        );
       }
 
       toast.success(asDraft ? "Draft saved" : "Report submitted", {
@@ -1160,6 +1168,7 @@ export default function MobileDailyReportPage() {
                   loading={saving}
                   loadingText="Saving..."
                   className="flex-1 min-h-[48px]"
+                  data-testid="field-report-draft"
                 >
                   Draft
                 </LoadingButton>
@@ -1168,6 +1177,7 @@ export default function MobileDailyReportPage() {
                   loading={saving}
                   loadingText="Sending..."
                   className="flex-1 min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white"
+                  data-testid="field-report-submit"
                 >
                   <Send className="h-4 w-4 mr-1" />
                   Submit
@@ -1179,6 +1189,7 @@ export default function MobileDailyReportPage() {
                   onClick={goNext}
                   disabled={!canProceed()}
                   className="flex-1 min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white"
+                  data-testid="field-report-next"
                 >
                   Photos
                   <ArrowRight className="h-4 w-4 ml-1" />
@@ -1188,6 +1199,7 @@ export default function MobileDailyReportPage() {
                   onClick={() => setStep("Review")}
                   disabled={!canProceed()}
                   className="min-h-[48px] px-3"
+                  data-testid="field-report-skip-to-review"
                 >
                   Review
                 </Button>
@@ -1197,6 +1209,7 @@ export default function MobileDailyReportPage() {
                 onClick={goNext}
                 disabled={!canProceed()}
                 className="flex-1 min-h-[48px] bg-amber-500 hover:bg-amber-600 text-white"
+                data-testid="field-report-next"
               >
                 Next
                 <ArrowRight className="h-4 w-4 ml-1" />
