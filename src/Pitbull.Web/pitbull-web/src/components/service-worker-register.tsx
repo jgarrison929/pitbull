@@ -9,7 +9,10 @@ export function ServiceWorkerRegister() {
     let registration: ServiceWorkerRegistration | null = null;
     const onVisible = () => {
       if (document.visibilityState === "visible" && registration) {
-        void registration.update();
+        // Swallow update failures the same way the initial register() does —
+        // a failed SW re-fetch (network blip, redeploy, security block) is
+        // benign since the app works without the service worker.
+        registration.update().catch(() => {});
       }
     };
 
