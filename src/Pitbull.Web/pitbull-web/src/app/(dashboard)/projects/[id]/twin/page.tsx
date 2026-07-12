@@ -27,6 +27,7 @@ import type {
 } from "@/lib/spatial-types";
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
+import { buildSiteWalkHref } from "@/lib/site-walk";
 import {
   ArrowLeft,
   Boxes,
@@ -543,15 +544,22 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                       />
                     </div>
                   )}
-                  {selected.nodeType === "Zone" && (
-                    <Button variant="outline" className="w-full min-h-[44px]" asChild>
-                      <Link
-                        href={`${buildFieldReportHref(projectId)}&zoneId=${encodeURIComponent(selected.id)}`}
-                      >
-                        Field report in this zone
+                  <div className="flex flex-col gap-2">
+                    {selected.nodeType === "Zone" && (
+                      <Button variant="outline" className="w-full min-h-[44px]" asChild>
+                        <Link
+                          href={`${buildFieldReportHref(projectId)}&zoneId=${encodeURIComponent(selected.id)}`}
+                        >
+                          Field report in this zone
+                        </Link>
+                      </Button>
+                    )}
+                    <Button variant="ghost" className="w-full min-h-[44px]" asChild>
+                      <Link href={buildSiteWalkHref(projectId)}>
+                        Open site walk
                       </Link>
                     </Button>
-                  )}
+                  </div>
                 </>
               )}
             </CardContent>

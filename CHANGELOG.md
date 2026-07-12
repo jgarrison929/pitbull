@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.9.2] - 2026-07-12T02:05:00-07:00
+
+### Added
+
+- **Digital Twin feature flag** — `NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` (default on); hides project nav Twin entry when off
+- **Twin ? site walk** cross-link from zone panel
+- Version **2.9.2**
+
 ## [2.9.1] - 2026-07-12T01:55:00-07:00
 
 ### Added
