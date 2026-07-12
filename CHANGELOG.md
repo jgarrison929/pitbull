@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.1] - 2026-07-12T15:00:58-07:00
+
+### Changed
+
+- **Mobile schedule empty states** - honest copy when no activities / no critical-path rows (`schedule-empty-copy.ts`).
+
+### Notes
+
+- Version **2.15.1**
+
 ## [2.15.0] - 2026-07-12T15:00:24-07:00
 
 ### Added

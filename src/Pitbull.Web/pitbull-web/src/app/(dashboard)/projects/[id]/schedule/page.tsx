@@ -52,6 +52,10 @@ import { GanttChart, type GanttActivity, type GanttDependency } from "@/componen
 import { filterLookAheadTasks, type ScheduleLookAheadTask } from "@/lib/site-walk";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { filterCriticalPathTasks } from "@/lib/schedule-critical-filter";
+import {
+  SCHEDULE_EMPTY_CRITICAL_ONLY,
+  SCHEDULE_EMPTY_NO_ACTIVITIES,
+} from "@/lib/schedule-empty-copy";
 import Link from "next/link";
 import { Pencil, Trash2, CalendarDays } from "lucide-react";
 
@@ -479,8 +483,8 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
           ) : filterCriticalPathTasks(lookAheadCards, criticalOnly).length === 0 ? (
             <p className="text-sm text-muted-foreground" data-testid="schedule-critical-empty">
               {criticalOnly
-                ? "No critical-path activities in the look-ahead. Turn off Critical only to see all near-term work."
-                : "No near-term activities. Activate a schedule with activities to see the look-ahead."}
+                ? SCHEDULE_EMPTY_CRITICAL_ONLY
+                : SCHEDULE_EMPTY_NO_ACTIVITIES}
             </p>
           ) : (
             filterCriticalPathTasks(lookAheadCards, criticalOnly).slice(0, 15).map((task) => (
