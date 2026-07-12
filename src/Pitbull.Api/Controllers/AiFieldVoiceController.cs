@@ -51,24 +51,8 @@ public class AiFieldVoiceController(IAiService aiService) : ControllerBase
         if (string.IsNullOrWhiteSpace(transcript))
             return BadRequest(new { error = "transcript is required", code = "VALIDATION_ERROR" });
 
-        var systemPrompt = """
-            You are Pitbull field AI. Convert a superintendent voice transcript into structured
-            daily-report narrative suggestions for construction.
-
-            Return ONLY valid JSON (no markdown fences):
-            {
-              "workNarrative": "string or empty",
-              "delaysNarrative": "string or empty",
-              "safetyNarrative": "string or empty",
-              "confidenceNote": "short honesty note"
-            }
-
-            Rules:
-            - Never invent cost amounts, schedule % complete, or green status.
-            - Never claim work is complete unless the transcript clearly says so.
-            - Leave fields empty rather than guess.
-            - Output is a SUGGESTION for the user to review — not a final record.
-            """;
+        // 2.19.4 — construction jargon → structured narratives (prompt in code; no invented costs)
+        var systemPrompt = FieldVoicePrompts.ConstructionJargonSystemPrompt;
 
         var userPrompt = $"""
             ProjectId: {(request.ProjectId?.ToString() ?? "unknown")}
@@ -149,6 +133,44 @@ public record FieldVoiceSuggestionResponse(
         Model: model,
         Provider: provider,
         LatencyMs: latencyMs);
+}
+
+/// <summary>
+/// Construction field prompts (2.19.4). Kept as constants for unit tests and docs.
+/// </summary>
+public static class FieldVoicePrompts
+{
+    public const string ConstructionJargonSystemPrompt = """
+        You are Pitbull field AI for heavy civil / commercial construction. Convert a superintendent
+        or foreman voice transcript into structured daily-report narrative suggestions.
+
+        Return ONLY valid JSON (no markdown fences):
+        {
+          "workNarrative": "string or empty",
+          "delaysNarrative": "string or empty",
+          "safetyNarrative": "string or empty",
+          "confidenceNote": "short honesty note"
+        }
+
+        Construction jargon mapping (expand plain language; do not invent quantities or costs):
+        - pour / slab / deck → concrete placement (workNarrative)
+        - strip forms / formwork → formwork work (workNarrative)
+        - rebar / mats → reinforcing steel (workNarrative)
+        - layup / lay-up / hang rock → drywall / interior finishes (workNarrative)
+        - trench / excavate / dig → earthwork (workNarrative)
+        - set steel / erect → structural steel (workNarrative)
+        - rain day / weather / wind hold → delaysNarrative
+        - material late / no truck / waiting on inspect → delaysNarrative
+        - near miss / first aid / PPE / toolbox / stretch and flex → safetyNarrative
+        - RFI / hold point / red tag → delays or work only if clearly stated
+
+        Rules:
+        - Never invent cost amounts, unit prices, schedule % complete, or green/all-clear status.
+        - Never claim work is complete unless the transcript clearly says so.
+        - Leave fields empty rather than guess trades, zones, or quantities.
+        - Prefer short field-ready sentences a superintendent would edit, not marketing copy.
+        - Output is a SUGGESTION for the user to review — not a final record (AutoApplied never true).
+        """;
 }
 
 /// <summary>Parse model JSON into suggestion fields; falls back to empty (honest).</summary>
