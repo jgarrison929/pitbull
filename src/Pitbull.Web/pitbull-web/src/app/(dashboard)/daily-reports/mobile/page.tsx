@@ -420,6 +420,7 @@ export default function MobileDailyReportPage() {
       truckConditions,
       truckNotes,
       crewCounts,
+      zones,
       spatialNodeId:
         spatialDecision.kind === "apply"
           ? spatialDecision.spatialNodeId

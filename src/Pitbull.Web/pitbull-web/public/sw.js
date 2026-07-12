@@ -3,7 +3,7 @@
 
 // Bump when shipping shell changes so activate() drops stale precache (also
 // keyed indirectly by VersionUpdateGuard hard-reload on product version).
-const CACHE_VERSION = "v2.8.9";
+const CACHE_VERSION = "v2.9.0";
 const STATIC_CACHE = `pitbull-static-${CACHE_VERSION}`;
 const API_CACHE = `pitbull-api-${CACHE_VERSION}`;
 

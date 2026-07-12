@@ -11,6 +11,13 @@ import {
   type FieldCrewCount,
   type TruckConditionId,
 } from "./pour-field";
+import {
+  applyTwinFuelToReportData,
+  pickPlanSheet,
+  pickSpatialContext,
+  type PlanSheetOption,
+  type SpatialZoneOption,
+} from "./spatial-context";
 
 export interface MobileDailyReportFormSnapshot {
   projectId: string;
@@ -31,6 +38,11 @@ export interface MobileDailyReportFormSnapshot {
   photos?: OfflineDailyReportPhoto[];
   /** Optional zones-first twin fuel — omit/skip when unset. */
   spatialNodeId?: string | null;
+  /** Optional plan sheet fuel for twin plan links. */
+  planSheetId?: string | null;
+  /** Zone catalog used to validate pick (offline skip if missing). */
+  zones?: SpatialZoneOption[];
+  planSheets?: PlanSheetOption[];
   asDraft?: boolean;
 }
 
@@ -57,10 +69,12 @@ export function buildOfflineDailyReportPayload(
   });
 
   const title = `Daily Report - ${form.reportDate}`;
+  const zoneDecision = pickSpatialContext(form.zones ?? [], form.spatialNodeId);
+  const planDecision = pickPlanSheet(form.planSheets ?? [], form.planSheetId);
   const spatialNodeId =
-    typeof form.spatialNodeId === "string" && form.spatialNodeId.trim()
-      ? form.spatialNodeId.trim()
-      : undefined;
+    zoneDecision.kind === "apply" ? zoneDecision.spatialNodeId : undefined;
+  const planSheetId =
+    planDecision.kind === "apply" ? planDecision.planSheetId : undefined;
   return {
     id:
       id ??
@@ -85,6 +99,7 @@ export function buildOfflineDailyReportPayload(
     crewEntries: crewEntries.length ? crewEntries : undefined,
     photos: form.photos?.length ? form.photos : undefined,
     spatialNodeId,
+    planSheetId,
     status: form.asDraft ? "Draft" : "Submitted",
     createdAt: new Date().toISOString(),
   };
@@ -104,12 +119,7 @@ export function buildDailyReportApiData(form: MobileDailyReportFormSnapshot): Re
     workNarrative: form.workNarrative ?? "",
   });
 
-  const spatialNodeId =
-    typeof form.spatialNodeId === "string" && form.spatialNodeId.trim()
-      ? form.spatialNodeId.trim()
-      : undefined;
-
-  return {
+  const base: Record<string, unknown> = {
     ReportDate: form.reportDate,
     ReportType: form.reportType,
     WeatherSummary: form.weatherSummary || null,
@@ -124,6 +134,9 @@ export function buildDailyReportApiData(form: MobileDailyReportFormSnapshot): Re
     TruckConditions: truckConditions.length ? truckConditions : null,
     TruckNotes: truckNotes || null,
     CrewEntries: crewEntries.length ? crewEntries : null,
-    ...(spatialNodeId ? { SpatialNodeId: spatialNodeId } : {}),
   };
+
+  const zoneDecision = pickSpatialContext(form.zones ?? [], form.spatialNodeId);
+  const planDecision = pickPlanSheet(form.planSheets ?? [], form.planSheetId);
+  return applyTwinFuelToReportData(base, zoneDecision, planDecision);
 }
