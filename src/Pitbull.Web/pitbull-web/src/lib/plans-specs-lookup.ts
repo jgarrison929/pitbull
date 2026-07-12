@@ -108,13 +108,36 @@ export function selectPlanOrSpecFromDeepLink(
 /** Build deep-link path for plans-specs from daily report / site walk. */
 export function buildPlansSpecsHref(
   projectId: string,
-  opts?: { planId?: string; sheet?: string; section?: string; view?: "plans" | "specs" }
+  opts?: {
+    planId?: string;
+    sheet?: string;
+    section?: string;
+    view?: "plans" | "specs";
+    /** Prefill sheet search box (2.13.6). */
+    q?: string;
+  }
 ): string {
   const params = new URLSearchParams();
   if (opts?.planId) params.set("planId", opts.planId);
   if (opts?.sheet) params.set("sheet", opts.sheet);
   if (opts?.section) params.set("section", opts.section);
   if (opts?.view) params.set("view", opts.view);
+  if (opts?.q?.trim()) params.set("q", opts.q.trim());
   const qs = params.toString();
   return `/projects/${projectId}/plans-specs${qs ? `?${qs}` : ""}`;
+}
+
+/**
+ * Prefer an explicit sheet filter; otherwise a short look-ahead keyword for search prefill.
+ * Pure — no invented sheet numbers.
+ */
+export function resolveSiteWalkPlansFilter(opts: {
+  sheet?: string | null;
+  lookAheadKeyword?: string | null;
+}): { sheet?: string; q?: string } {
+  const sheet = opts.sheet?.trim();
+  if (sheet) return { sheet };
+  const q = opts.lookAheadKeyword?.trim();
+  if (q) return { q };
+  return {};
 }

@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
-import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
+import { buildPlansSpecsHref, resolveSiteWalkPlansFilter } from "@/lib/plans-specs-lookup";
 import {
   buildSubStatusItems,
   filterLookAheadTasks,
@@ -261,7 +261,16 @@ function SiteWalkContent({ params }: { params: Promise<{ id: string }> }) {
           </Link>
         </Button>
         <Button variant="outline" className="min-h-[52px]" asChild>
-          <Link href={buildPlansSpecsHref(projectId, { view: "plans" })}>
+          <Link
+            href={buildPlansSpecsHref(projectId, {
+              view: "plans",
+              ...resolveSiteWalkPlansFilter({
+                // Prefer first look-ahead task name fragment as search prefill (not an invented sheet #).
+                lookAheadKeyword: lookAhead[0]?.name?.split(/\s+/)[0] ?? null,
+              }),
+            })}
+            data-testid="site-walk-open-plans"
+          >
             <FileStack className="h-4 w-4 mr-2" />
             Plans
           </Link>
