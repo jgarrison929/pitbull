@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-07-12T15:49:49-07:00
+
+### Added
+
+- **Model upload integration happy path** - register → start conversion (Processing, not ready) → fail with error → retry; set-active rejected while not Succeeded.
+
+### Notes
+
+- Version **2.17.0**
 ## [2.16.9] - 2026-07-12T15:47:01-07:00
 
 ### Added

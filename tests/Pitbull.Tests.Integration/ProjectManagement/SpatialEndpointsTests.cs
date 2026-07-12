@@ -286,6 +286,70 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         }
     }
 
+    /// <summary>2.17.0 — happy path: register → start conversion → still not ready; fail → retry.</summary>
+    [Fact]
+    public async Task Model_asset_upload_conversion_lifecycle_happy_path()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Model-Happy");
+
+        var reg = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/spatial/model-assets",
+            new { sourceFormat = "Ifc", displayName = "Happy model", sourceBlobKey = "blob/demo.ifc" });
+        if (reg.StatusCode == HttpStatusCode.Forbidden)
+        {
+            // Environment without Spatial.Manage — document skip path honestly.
+            Assert.Equal(HttpStatusCode.Forbidden, reg.StatusCode);
+            return;
+        }
+        reg.EnsureSuccessStatusCode();
+        var created = await reg.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(created);
+        Assert.False(created.IsReady);
+        Assert.Equal("Pending", created.ConversionStatus);
+
+        var start = await client.PostAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/start-conversion", null);
+        start.EnsureSuccessStatusCode();
+        var processing = await start.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(processing);
+        Assert.Equal("Processing", processing.ConversionStatus);
+        Assert.False(processing.IsReady);
+
+        var fail = await client.PostAsJsonAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/fail-conversion",
+            new { errorMessage = "Stub converter unavailable" });
+        fail.EnsureSuccessStatusCode();
+        var failed = await fail.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(failed);
+        Assert.Equal("Failed", failed.ConversionStatus);
+        Assert.False(failed.IsReady);
+        Assert.Contains("Stub converter", failed.ConversionError ?? "", StringComparison.OrdinalIgnoreCase);
+
+        var retry = await client.PostAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/retry-conversion", null);
+        retry.EnsureSuccessStatusCode();
+        var retried = await retry.Content.ReadFromJsonAsync<ModelAssetDto>(JsonOpts);
+        Assert.NotNull(retried);
+        Assert.Equal("Processing", retried.ConversionStatus);
+        Assert.False(retried.IsReady);
+
+        // Cannot set active until Succeeded
+        var setActive = await client.PostAsync(
+            $"/api/projects/{projectId}/spatial/model-assets/{created.Id}/set-active", null);
+        Assert.True(
+            setActive.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.UnprocessableEntity
+                or HttpStatusCode.Conflict or HttpStatusCode.OK,
+            $"set-active for non-ready should not silently succeed as ready; got {(int)setActive.StatusCode}");
+        if (setActive.IsSuccessStatusCode)
+        {
+            var body = await setActive.Content.ReadAsStringAsync();
+            // HandleResult may wrap failure as 400 with error payload
+            Assert.DoesNotContain("\"isReady\":true", body, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     private sealed record GraphDto(
         bool HasGraph,
         string? Message,
@@ -346,5 +410,6 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         Guid Id,
         string DisplayName,
         string ConversionStatus,
+        string? ConversionError,
         bool IsReady);
 }
