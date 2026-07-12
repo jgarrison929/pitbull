@@ -1532,3 +1532,24 @@ public class SpatialPlanLinkConfiguration : IEntityTypeConfiguration<SpatialPlan
             .OnDelete(DeleteBehavior.Restrict);
     }
 }
+
+public class ModelAssetConfiguration : IEntityTypeConfiguration<ModelAsset>
+{
+    public void Configure(EntityTypeBuilder<ModelAsset> builder)
+    {
+        builder.ConfigureBase("pm_model_assets");
+        builder.Property(x => x.DisplayName).HasMaxLength(200).IsRequired();
+        builder.Property(x => x.SourceFormat).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.ConversionStatus).HasConversion<string>().HasMaxLength(50);
+        builder.Property(x => x.SourceBlobKey).HasMaxLength(500);
+        builder.Property(x => x.RuntimeBlobKey).HasMaxLength(500);
+        builder.Property(x => x.ConversionError).HasMaxLength(2000);
+        builder.Property(x => x.LicenseAttribution).HasMaxLength(1000);
+        builder.HasIndex(x => new { x.ProjectId, x.VersionNumber });
+        builder.HasIndex(x => new { x.ProjectId, x.IsActiveVersion });
+        builder.HasOne<Project>()
+            .WithMany()
+            .HasForeignKey(x => x.ProjectId)
+            .OnDelete(DeleteBehavior.Restrict);
+    }
+}

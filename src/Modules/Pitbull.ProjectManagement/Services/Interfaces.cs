@@ -240,4 +240,15 @@ public interface ISpatialService
         Guid projectId,
         Guid? spatialNodeId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>List model assets for twin (2.16.3+). Empty is honest — zones work without a model.</summary>
+    Task<Result<ModelAssetListResponse>> ListModelAssetsAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Register model asset metadata (upload scaffold). Requires Spatial.Manage. Status starts Pending — not ready.</summary>
+    Task<Result<ModelAssetDto>> RegisterModelAssetAsync(
+        Guid projectId,
+        RegisterModelAssetRequest request,
+        CancellationToken cancellationToken = default);
 }

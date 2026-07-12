@@ -1037,3 +1037,28 @@ public class SpatialPlanLink : BaseEntity, ICompanyScoped
     public Guid PlanSheetId { get; set; }
     public string? Notes { get; set; }
 }
+
+// ── Digital Twin model assets (Phase 2 — 2.16.3+) ───────────────────────────
+
+public enum ModelSourceFormat { Gltf = 0, Ifc = 1, Obj = 2, Other = 3 }
+public enum ModelConversionStatus { Pending = 0, Processing = 1, Succeeded = 2, Failed = 3 }
+
+/// <summary>
+/// Optional BIM/glTF package for a project. Projects without a model still use zones graph.
+/// ConversionStatus is never claimed ready while Pending/Processing.
+/// </summary>
+public class ModelAsset : BaseEntity, ICompanyScoped
+{
+    public Guid CompanyId { get; set; }
+    public Guid ProjectId { get; set; }
+    public string DisplayName { get; set; } = "Primary model";
+    public ModelSourceFormat SourceFormat { get; set; } = ModelSourceFormat.Gltf;
+    public string? SourceBlobKey { get; set; }
+    public string? RuntimeBlobKey { get; set; }
+    public ModelConversionStatus ConversionStatus { get; set; } = ModelConversionStatus.Pending;
+    public string? ConversionError { get; set; }
+    public string? LicenseAttribution { get; set; }
+    public Guid? PublishedGraphId { get; set; }
+    public bool IsActiveVersion { get; set; }
+    public int VersionNumber { get; set; } = 1;
+}
