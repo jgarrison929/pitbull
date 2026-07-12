@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.9] - 2026-07-12T15:22:55-07:00
+
+### Added
+
+- **Photo pin aggregation unit tests** - expanded coverage: GPS+zone preference, partial GPS honesty, order/thumbnails, empty zone filter (2.15.9).
+
+### Notes
+
+- Version **2.15.9**
 ## [2.15.8] - 2026-07-12T15:20:57-07:00
 
 ### Added
