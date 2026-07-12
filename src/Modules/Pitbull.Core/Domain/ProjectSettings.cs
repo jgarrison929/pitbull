@@ -29,4 +29,11 @@ public class ProjectSettings
     /// Industry standard is typically 5-10%.
     /// </summary>
     public decimal DefaultRetentionPercent { get; set; } = 10m;
+
+    /// <summary>
+    /// When true, field progress / daily report submissions should require a spatial zone
+    /// (or equivalent spatial ref) for non-demo paths. Default off — optional company setting.
+    /// Enforcement UX lands in later 2.18.x; schema only until then.
+    /// </summary>
+    public bool RequireSpatialOnProgress { get; set; } = false;
 }

@@ -1395,6 +1395,8 @@ export interface ProjectSettingsData {
   requireBudgetBeforeActivation: boolean;
   autoCreatePhases: boolean;
   defaultRetentionPercent: number;
+  /** When true, field progress should require spatial zone (enforcement later). Default false. */
+  requireSpatialOnProgress: boolean;
 }
 
 export interface ContractSettingsData {

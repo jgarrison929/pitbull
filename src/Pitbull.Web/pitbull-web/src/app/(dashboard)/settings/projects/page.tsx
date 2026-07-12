@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: ProjectSettingsData = {
   requireBudgetBeforeActivation: false,
   autoCreatePhases: true,
   defaultRetentionPercent: 10,
+  requireSpatialOnProgress: false,
 };
 
 export default function ProjectSettingsPage() {

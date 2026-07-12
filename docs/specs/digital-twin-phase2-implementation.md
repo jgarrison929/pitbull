@@ -1,6 +1,6 @@
 # Spec: Digital Twin Phase 2 implementation
 
-**Status:** In progress — photo pins **2.16.2**; model upload **2.17.2**; perf/overlays **2.18.2**  
+**Status:** In progress — photo pins **2.16.2**; model upload **2.17.2**; perf/overlays **2.18.2**; RequireSpatial schema **2.18.3**  
 **Version band:** 2.15.3 → 2.19.2 (40 PRs)  
 **Related:** [`pitbull-digital-twin-spec.md`](../pitbull-digital-twin-spec.md) Phase 2 (authoritative for data model)
 
