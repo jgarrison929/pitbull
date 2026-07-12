@@ -199,7 +199,7 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("q") || searchParams.get("sheet") || "");
   const [viewingPlan, setViewingPlan] = useState<PlanSetSearchItem | null>(null);
   const [viewingSpec, setViewingSpec] = useState<SpecSectionSearchItem | null>(null);
   const [activeTab, setActiveTab] = useState(

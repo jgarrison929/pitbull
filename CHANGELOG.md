@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.13.6] - 2026-07-12T14:52:52-07:00
+
+### Added
+
+- **Site walk → Plans deep link with filter** - Plans action uses `buildPlansSpecsHref` + `resolveSiteWalkPlansFilter` (sheet or look-ahead keyword `q`). Plans-specs seeds search from `?q=` / `?sheet=`.
+
+### Notes
+
+- Version **2.13.6**
+
 ## [2.13.5] - 2026-07-12T14:52:02-07:00
 
 ### Changed
