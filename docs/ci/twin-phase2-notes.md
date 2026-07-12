@@ -1,36 +1,22 @@
-# Twin Phase 2 — Photo pins MVP notes
+# Twin Phase 2 — complete notes (Arc D)
 
-**Band:** 2.15.3 → 2.16.2  
-**Status:** Shipped through 2.16.2  
+**Band:** 2.15.3 → 2.19.2  
+**Status:** Notes complete through **2.19.1**; Arc D checkpoint **2.19.2**  
+**Spec:** `docs/specs/digital-twin-phase2-implementation.md`  
+**Master:** `docs/pitbull-digital-twin-spec.md`
 
 ## Truth rules (mandatory)
 
 - Empty photo pins / gray overlays are **not** all-clear and **not** green by default.
 - GPS is never invented; pins only when GPS and/or zone link exist.
-- Help truth legend: `help-twin-truth-legend` on Help Center.
+- Cost overlay off or proxy-labeled without allocation links.
+- Pending/Processing model assets are never “ready.”
+- Capture quality % is **labeled data quality**, not an executive KPI.
+- Help: `help-twin-truth-legend`, `help-zone-picker-twin`.
 
-## Test commands
+## Full version map
 
-```powershell
-# Unit — aggregation
-dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter "FullyQualifiedName~TwinPhotoPinAggregation"
-
-# Integration — zone + photo-pins
-dotnet test tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj --filter "FullyQualifiedName~Photo_pins"
-
-# Web helpers
-cd src/Pitbull.Web/pitbull-web
-npm test -- --run twin-photo-pins twin-overlay-poll twin-zone-drill-analytics help-twin-overlays twin-surface
-```
-
-## Manual QA
-
-1. Twin zone drill → Photos section neutral empty when no pins
-2. Photo-pins API: `GET /api/projects/{id}/spatial/photo-pins`
-3. Help: Digital Twin overlays truth legend
-4. Loading: `twin-loading-skeleton` on first load (mobile)
-
-## Version map
+### Photo pins (2.15.3 → 2.16.2)
 
 | Version | Deliverable |
 |---------|-------------|
@@ -43,92 +29,141 @@ npm test -- --run twin-photo-pins twin-overlay-poll twin-zone-drill-analytics he
 | 2.15.9 | Aggregation unit tests expanded |
 | 2.16.0 | Integration zone + photo-pins |
 | 2.16.1 | PostHog `twin_zone_drill` timing |
-| 2.16.2 | Checkpoint (this notes fragment) |
+| 2.16.2 | Photo pins MVP checkpoint |
 
-## Next
-
-Model upload band: 2.16.3 → 2.17.2
-
-## Model sample (2.16.6)
-
-**Skipped** shipping a sample glTF/IFC blob in this band (license/size). Runtime pointer and conversion remain admin-driven; zones-first path is authoritative for demos.
-
-
-## Feature flag (2.17.1)
-
-`NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` / product name `features.digitalTwin`:
-
-| Env | Behavior |
-|-----|----------|
-| unset / empty | **ON** (production default) |
-| `false` / `0` / `off` / `no` | OFF � hide twin nav |
-
-Documented in `src/Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
-
-
-## Model upload band checkpoint (2.17.2)
-
-**Status:** Shipped through **2.17.2** (band 2.16.3�2.17.2).
+### Model upload (2.16.3 → 2.17.2)
 
 | Version | Deliverable |
 |---------|-------------|
 | 2.16.3 | ModelAsset API + migration |
 | 2.16.4 | Desktop admin register UI |
 | 2.16.5 | Conversion Processing stub |
-| 2.16.6 | Sample glTF/IFC skipped (honest) |
+| 2.16.6 | Sample glTF/IFC **skipped** (honest; license/size) |
 | 2.16.7 | Active runtime pointer |
 | 2.16.8 | Fail + retry UX |
 | 2.16.9 | Spatial.Manage authz tests |
 | 2.17.0 | Integration lifecycle happy path |
-| 2.17.1 | Feature flag prod default ON |
-| 2.17.2 | This checkpoint |
+| 2.17.1 | Feature flag `features.digitalTwin` prod default ON |
+| 2.17.2 | Model upload band checkpoint |
 
-Next: overlay performance band 2.17.3+.
-
-
-## RequireSpatialOnProgress (2.18.3–2.18.6)
+### Performance / overlays (2.17.3 → 2.18.2)
 
 | Version | Deliverable |
 |---------|-------------|
-| 2.18.3 | Schema `ProjRequireSpatialOnProgress` (default false) |
-| 2.18.4 | PM Settings + company setup toggle |
-| 2.18.5 | Field mobile prompt + API `SPATIAL_ZONE_REQUIRED` on submit |
-| 2.18.6 | **Demo skip path** (this section) |
+| 2.17.3 | Overlay query batch (no N+1) |
+| 2.17.4 | Storey stream lazy load |
+| 2.17.5 | Overlay p95 metric logging |
+| 2.17.6 | Mobile twin read-only polish |
+| 2.17.7 | Cost overlay hidden unless allocation |
+| 2.17.8 | Banner “cost by zone not allocated” |
+| 2.17.9 | Vitest overlay formula regression |
+| 2.18.0 | Load seed scale doc (`twin-overlay-load-scale.md`) |
+| 2.18.1 | SLO evidence (diagnostic) |
+| 2.18.2 | Performance band checkpoint |
+
+### Require spatial + close (2.18.3 → 2.19.2)
+
+| Version | Deliverable |
+|---------|-------------|
+| 2.18.3 | `RequireSpatialOnProgress` schema (default false) |
+| 2.18.4 | PM Settings + company setup UI |
+| 2.18.5 | Field report zone prompt + API `SPATIAL_ZONE_REQUIRED` |
+| 2.18.6 | Demo skip path (documented below) |
+| 2.18.7 | Capture quality metric (labeled) |
+| 2.18.8 | Help zone picker + twin |
+| 2.18.9 | E2E twin zone round-trip (flag-gated) |
+| 2.19.0 | Arc D integration suite tidy |
+| 2.19.1 | **This notes file complete** |
+| 2.19.2 | Arc D checkpoint (spec Status shipped) |
+
+## Feature flag (2.17.1)
+
+`NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` / `features.digitalTwin`:
+
+| Env | Behavior |
+|-----|----------|
+| unset / empty | **ON** (production default) |
+| `false` / `0` / `off` / `no` | OFF — hide twin nav |
+
+See `src/Pitbull.Web/pitbull-web/src/lib/feature-flags.ts`.
+
+## Model sample (2.16.6)
+
+**Skipped** shipping a sample glTF/IFC blob (license/size). Zones-first path is authoritative for demos.
+
+## RequireSpatialOnProgress
+
+| Setting | Company `ProjectSettings.RequireSpatialOnProgress` → column `ProjRequireSpatialOnProgress` |
+| UI | Settings → Projects; company setup |
+| Field | Mobile daily report zone select; required when setting on **and** zones exist |
+| Draft | Always free without zone |
+| Demo | `is_demo_user` may skip (client + server) |
+| API | Submit may return `SPATIAL_ZONE_REQUIRED` for non-demo |
 
 ### Demo skip path (2.18.6)
 
-**Problem:** Explore demo personas must walk field → twin without getting stuck when company setting is on.
+1. JWT `is_demo_user=true` may submit without spatial zone when setting is on.
+2. Client: `canSubmitWithSpatialPolicy({ isDemoUser: true })`.
+3. Server: `IsCurrentUserDemo()` skips `SPATIAL_ZONE_REQUIRED`.
+4. Production non-demo still enforced.
+5. Not an executive KPI; does not invent green zones.
 
-**Rules:**
+## Capture quality (2.18.7)
 
-1. JWT claim `is_demo_user=true` (seeded demo personas / demo-role-login) **may submit daily reports without a spatial zone** even when `RequireSpatialOnProgress` is true.
-2. Client: `canSubmitWithSpatialPolicy({ isDemoUser: true })` always allows; UI shows honest copy that production still requires a zone.
-3. Server: `SubmitDailyReportAsync` skips `SPATIAL_ZONE_REQUIRED` when `IsCurrentUserDemo()` (claim `is_demo_user`).
-4. Non-demo production users are still blocked client + server when zones exist and no `SpatialNodeId`.
-5. Draft save remains unrestricted for everyone.
-6. This is **not** an executive KPI and does not invent green zones.
+`GET /api/projects/{id}/spatial/capture-quality?windowDays=7`
 
-**Manual QA**
-
-1. Demo superintendent: enable RequireSpatial on Settings → Projects → submit field report without zone → success.
-2. Non-demo user (or pretend by clearing claim): same → toast + API error `SPATIAL_ZONE_REQUIRED`.
-
+- % of daily reports + progress entries with `SpatialNodeId` in window.
+- Empty window ⇒ **null** percent (not 0% failure).
+- Label: data quality — **not** an executive KPI.
 
 ## E2E twin zone round-trip (2.18.9)
 
 **Spec:** `e2e/tests/twin-zone-roundtrip.spec.ts`  
-**Playwright project:** `twin-zone-roundtrip`
+**Project:** `twin-zone-roundtrip`
 
 | Condition | Behavior |
 |-----------|----------|
-| API/web down or missing auth storage | **Self-skip** (honest — not a false green) |
+| API/web down or missing auth | **Self-skip** (honest) |
 | `RUN_TWIN_E2E=0` | Explicit skip |
-| Live demo with seeded zones | Field zone picker + twin shell + `capture-quality` API |
+| Live demo + seeded zones | Zone picker + twin shell + capture-quality |
 
 ```powershell
-# Optional live run
 $env:RUN_TWIN_E2E = "1"
 cd e2e
 npx playwright test --project=twin-zone-roundtrip
 ```
 
+## Integration suite (2.19.0)
+
+```powershell
+# Arc D spatial suite
+dotnet test tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj --filter "FullyQualifiedName~SpatialEndpoints"
+
+# Unit slices
+dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter "FullyQualifiedName~TwinPhotoPinAggregation|SpatialCaptureQuality|ModelAsset|SpatialCost"
+
+# Web
+cd src/Pitbull.Web/pitbull-web
+npm test -- --run twin-photo-pins overlay-formula help-twin-overlays help-zone-picker-twin spatial-context twin-surface
+```
+
+## Manual QA checklist
+
+1. Twin zone drill → neutral empty photos when no pins  
+2. `GET .../spatial/photo-pins`  
+3. Model admin: Pending/Processing never shows ready  
+4. Cost mode: banner when not allocated  
+5. Settings → Projects → Require spatial toggle  
+6. Field report zone required vs demo skip  
+7. Help: truth legend + zone picker sections  
+8. `GET .../spatial/capture-quality`  
+
+## Arc D DoD (target 2.19.2)
+
+- [x] Photo pins MVP or honest empty  
+- [x] Upload path (stub conversion; sample glTF skipped honestly)  
+- [x] Overlay perf notes + truth banners  
+- [x] RequireSpatial optional setting shipped  
+- [x] Notes complete (this file)  
+
+Next product arc: **Arc E** (2.19.3+) — AI / CI / close to 2.22.2 per `docs/260712/goal-prompts.md`.
