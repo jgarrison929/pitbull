@@ -2918,6 +2918,18 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
         [FromQuery] Guid? spatialNodeId = null)
         => HandleResult(await spatialService.ListPhotoPinsAsync(projectId, spatialNodeId));
 
+    /// <summary>
+    /// Data quality: % of daily reports + progress in last N days with spatial ref.
+    /// Labeled quality only — not a vanity or executive KPI.
+    /// </summary>
+    [HttpGet("capture-quality")]
+    [Authorize(Policy = "Spatial.View")]
+    [ProducesResponseType(typeof(SpatialCaptureQualityResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCaptureQuality(
+        Guid projectId,
+        [FromQuery] int windowDays = 7)
+        => HandleResult(await spatialService.GetCaptureQualityAsync(projectId, windowDays));
+
     /// <summary>List model assets (2.16.3). Empty list is honest — zones work without a 3D model.</summary>
     [HttpGet("model-assets")]
     [Authorize(Policy = "Spatial.View")]

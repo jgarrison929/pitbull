@@ -241,6 +241,59 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(zones);
     }
 
+    public async Task<Result<SpatialCaptureQualityResponse>> GetCaptureQualityAsync(
+        Guid projectId,
+        int windowDays = 7,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<SpatialCaptureQualityResponse>("Project not found.", "NOT_FOUND");
+
+        if (windowDays < 1) windowDays = 1;
+        if (windowDays > 90) windowDays = 90;
+
+        var end = DateTime.UtcNow;
+        var start = end.AddDays(-windowDays);
+
+        var reports = await Db.Set<PmDailyReport>().AsNoTracking()
+            .Where(r => r.ProjectId == projectId && !r.IsDeleted
+                        && r.ReportDate >= start && r.ReportDate <= end)
+            .Select(r => r.SpatialNodeId)
+            .ToListAsync(cancellationToken);
+
+        var progress = await Db.Set<PmProgressEntry>().AsNoTracking()
+            .Where(p => p.ProjectId == projectId && !p.IsDeleted
+                        && p.ProgressDate >= start && p.ProgressDate <= end)
+            .Select(p => p.SpatialNodeId)
+            .ToListAsync(cancellationToken);
+
+        var drTotal = reports.Count;
+        var drWith = reports.Count(id => SpatialCaptureQualityCalculator.HasSpatialRef(id));
+        var peTotal = progress.Count;
+        var peWith = progress.Count(id => SpatialCaptureQualityCalculator.HasSpatialRef(id));
+        var combinedTotal = drTotal + peTotal;
+        var combinedWith = drWith + peWith;
+        var pct = SpatialCaptureQualityCalculator.CombinedPercent(combinedTotal, combinedWith);
+
+        return Result.Success(new SpatialCaptureQualityResponse(
+            ProjectId: projectId,
+            WindowStartUtc: start.ToString("o"),
+            WindowEndUtc: end.ToString("o"),
+            WindowDays: windowDays,
+            DailyReportsTotal: drTotal,
+            DailyReportsWithSpatialRef: drWith,
+            ProgressEntriesTotal: peTotal,
+            ProgressEntriesWithSpatialRef: peWith,
+            CombinedTotal: combinedTotal,
+            CombinedWithSpatialRef: combinedWith,
+            CombinedPercentWithSpatialRef: pct,
+            Label: "Spatial capture quality (labeled data quality — not an executive KPI)",
+            TruthNote:
+                "Percent of daily reports and progress entries in the window with SpatialNodeId. " +
+                "Empty window ⇒ null percent (not 0% failure). Never invents green coverage. " +
+                "PlanSheetId is not stored on daily reports yet — zone SpatialNodeId only."));
+    }
+
     public async Task<Result<TwinPhotoPinsResponse>> ListPhotoPinsAsync(
         Guid projectId,
         Guid? spatialNodeId = null,
