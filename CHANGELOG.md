@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.2] - 2026-07-12T15:52:53-07:00
+
+### Added
+
+- **Model upload band checkpoint** - notes updated; twin phase2 model upload **Shipped through 2.17.2**.
+
+### Notes
+
+- Version **2.17.2** closes model upload band. Next: performance/overlays 2.17.3+.
 ## [2.17.1] - 2026-07-12T15:51:19-07:00
 
 ### Changed
