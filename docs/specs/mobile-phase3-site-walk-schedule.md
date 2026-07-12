@@ -1,6 +1,6 @@
 # Spec: Mobile Phase 3 — site walk & schedule
 
-**Status:** Pending  
+**Status:** Shipped through 2.15.2  
 **Version band:** 2.14.3 → 2.15.2 (10 PRs)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 3
 
@@ -67,4 +67,4 @@ Superintendent, PM.
 
 ## Band DoD (2.15.2)
 
-- [ ] Walk entry + schedule bridge + help + notes  
+- [x] Walk entry + schedule bridge + help + notes  
