@@ -1,5 +1,7 @@
 # Spec: Owner Post-Signup Onboarding Gate (v2.0.2)
 
+**Status:** Shipped (historical) — **out of 2.12→3.0 ladder**
+
 ## Problem
 
 After owner self-service signup, `GET /api/onboarding/status` treats setup as complete when the company name differs from `"{FirstName}'s Company"`. Owners who enter a company name in the signup wizard therefore bypass the 4-step company setup wizard and land on an empty dashboard. The setup wizard also never updates the onboarding checklist.

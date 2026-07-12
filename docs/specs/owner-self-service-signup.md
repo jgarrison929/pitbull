@@ -1,5 +1,8 @@
 # Spec: Owner Self-Service Signup (v2.0.1)
 
+**Status:** Shipped (historical ~2.0.x) — **out of 2.12→3.0 ladder**  
+**Related CI:** re-gated under [`ci-mobile-owner-smoke.md`](./ci-mobile-owner-smoke.md) for 3.0.0
+
 ## Problem
 
 New owners cannot discover or complete account creation: the login page only promotes the demo path, and post-registration tenant provisioning fails under PostgreSQL RLS because `app.current_tenant` is unset in the provisioning scope.
