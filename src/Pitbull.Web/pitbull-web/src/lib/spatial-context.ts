@@ -101,7 +101,7 @@ export function applyTwinFuelToReportData(
   zone: SpatialContextDecision,
   plan: PlanSheetDecision
 ): Record<string, unknown> {
-  let next = applySpatialContextToReportData(data, zone);
+  const next = applySpatialContextToReportData(data, zone);
   if (plan.kind === "skip") {
     const { PlanSheetId: _drop, ...rest } = next;
     return rest;
