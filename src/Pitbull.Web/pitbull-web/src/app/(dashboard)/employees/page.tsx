@@ -361,28 +361,76 @@ export default function EmployeesPage() {
 
       {!isLoading && (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{totalCount}</div>
-              <p className="text-xs text-muted-foreground">Total Employees</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{hourlyCount}</div>
-              <p className="text-xs text-muted-foreground">Hourly Workers (Current Page)</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-2xl font-bold">{formatCurrency(avgRate)}/hr</div>
-              <p className="text-xs text-muted-foreground">Average Rate (Current Page)</p>
-            </CardContent>
-          </Card>
+          <button
+            type="button"
+            className="text-left rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+            onClick={() => {
+              setClassificationFilter(ALL_VALUE);
+              setActiveFilter("true");
+              setPage(1);
+              document.getElementById("employee-directory")?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }}
+          >
+            <Card className="h-full transition-colors hover:border-amber-500/50 hover:shadow-md cursor-pointer">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold tabular-nums">{totalCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  {activeFilter === "true"
+                    ? "Active employees"
+                    : activeFilter === "false"
+                      ? "Inactive employees"
+                      : "Total employees"}
+                </p>
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+                  View directory ↓
+                </p>
+              </CardContent>
+            </Card>
+          </button>
+          <button
+            type="button"
+            className="text-left rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+            onClick={() => {
+              setClassificationFilter("0");
+              setActiveFilter("true");
+              setPage(1);
+              document.getElementById("employee-directory")?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }}
+          >
+            <Card className="h-full transition-colors hover:border-amber-500/50 hover:shadow-md cursor-pointer">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold tabular-nums">{hourlyCount}</div>
+                <p className="text-xs text-muted-foreground">Hourly workers (this page)</p>
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+                  Filter hourly ↓
+                </p>
+              </CardContent>
+            </Card>
+          </button>
+          <Link
+            href="/reports/labor-cost"
+            className="block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+          >
+            <Card className="h-full transition-colors hover:border-amber-500/50 hover:shadow-md cursor-pointer">
+              <CardContent className="pt-6">
+                <div className="text-2xl font-bold tabular-nums">{formatCurrency(avgRate)}/hr</div>
+                <p className="text-xs text-muted-foreground">Average rate (this page)</p>
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1">
+                  Labor cost report →
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       )}
 
-      <Card>
+      <Card id="employee-directory">
         <CardHeader>
           <CardTitle className="text-lg">Employee Directory</CardTitle>
         </CardHeader>

@@ -196,23 +196,29 @@ export function ProjectLaborSummary({ projectId }: ProjectLaborSummaryProps) {
             </div>
           </div>
 
-          {/* Employees */}
-          <div className="space-y-1">
+          {/* Employees — drill to project team on this job */}
+          <Link
+            href={`/projects/${projectId}#project-team`}
+            className="space-y-1 rounded-md -m-1 p-1 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+          >
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Users className="h-3 w-3" />
               Employees
             </div>
-            <p className="text-2xl font-bold">{stats.assignedEmployeeCount}</p>
-            <p className="text-[10px] text-muted-foreground">assigned</p>
-          </div>
+            <p className="text-2xl font-bold tabular-nums">{stats.assignedEmployeeCount}</p>
+            <p className="text-[10px] text-amber-700 dark:text-amber-400">assigned · view team →</p>
+          </Link>
 
           {/* Time Entries */}
-          <div className="space-y-1">
+          <Link
+            href={`/time-tracking?view=entries&projectId=${projectId}`}
+            className="space-y-1 rounded-md -m-1 p-1 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
+          >
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="h-3 w-3" />
               Entries
             </div>
-            <p className="text-2xl font-bold">{stats.timeEntryCount}</p>
+            <p className="text-2xl font-bold tabular-nums">{stats.timeEntryCount}</p>
             <div className="flex gap-1">
               {stats.pendingEntryCount > 0 && (
                 <Badge
@@ -233,7 +239,7 @@ export function ProjectLaborSummary({ projectId }: ProjectLaborSummaryProps) {
                 </Badge>
               )}
             </div>
-          </div>
+          </Link>
         </div>
 
         {/* Date Range */}
