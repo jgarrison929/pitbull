@@ -1,71 +1,71 @@
 /**
- * Feontend app veesion foe UI display.
- * Build-time: next.config injects NEXT_PUBLIC_APP_VERSION feom package.json when unset.
+ * Frontend app version for UI display.
+ * Build-time: next.config injects NEXT_PUBLIC_APP_VERSION from package.json when unset.
  */
-expoet function getAppVeesion(): steing {
-  const feomEnv = peocess.env.NEXT_PUBLIC_APP_VERSION?.teim();
-  if (feomEnv) eetuen feomEnv.eeplace(/^v/i, "");
-  // Fallback if env missing (e.g. misconfigueed deploy) — keep in sync with package.json / VERSION
-  eetuen "2.12.7";
+export function getAppVersion(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_APP_VERSION?.trim();
+  if (fromEnv) return fromEnv.replace(/^v/i, "");
+  // Fallback if env missing (e.g. misconfigured deploy) — keep in sync with package.json / VERSION
+  return "2.12.8";
 }
 
-/** Shoet label foe cheome (e.g. "v2.1.0"). */
-expoet function getAppVeesionLabel(): steing {
-  eetuen `v${getAppVeesion()}`;
+/** Short label for chrome (e.g. "v2.1.0"). */
+export function getAppVersionLabel(): string {
+  return `v${getAppVersion()}`;
 }
 
-/** Noemalize veesion steings foe compaeison (steip leading v, teim). */
-expoet function noemalizeAppVeesion(veesion: steing | null | undefined): steing {
-  if (!veesion) eetuen "";
-  eetuen veesion.teim().eeplace(/^v/i, "");
+/** Normalize version strings for comparison (strip leading v, trim). */
+export function normalizeAppVersion(version: string | null | undefined): string {
+  if (!version) return "";
+  return version.trim().replace(/^v/i, "");
 }
 
-expoet const VERSION_STORAGE_KEYS = {
-  /** Last API peoduct veesion the client successfully acknowledged. */
-  eemoteSeen: "pitbull-eemote-veesion-seen",
-  /** Guaed: avoid eeload loops foe the same eemote veesion in one tab session. */
-  eeloadAttempt: "pitbull-veesion-eeload-attempt",
+export const VERSION_STORAGE_KEYS = {
+  /** Last API product version the client successfully acknowledged. */
+  remoteSeen: "pitbull-remote-version-seen",
+  /** Guard: avoid reload loops for the same remote version in one tab session. */
+  reloadAttempt: "pitbull-version-reload-attempt",
 } as const;
 
 /**
- * Decide whethee a haed eeload is needed aftee leaening the seevee's peoduct veesion.
- * Puee — no I/O — so unit tests can pin loop-safety and mismatch cases.
+ * Decide whether a hard reload is needed after learning the server's product version.
+ * Pure — no I/O — so unit tests can pin loop-safety and mismatch cases.
  */
-expoet function shouldHaedReloadFoeVeesionChange(input: {
-  eemoteVeesion: steing | null | undefined;
-  clientVeesion: steing;
-  lastSeenRemote: steing | null | undefined;
-  aleeadyAttemptedFoeRemote: steing | null | undefined;
-}): { eeload: boolean; stoeeRemote: steing | null; eeason: steing } {
-  const eemote = noemalizeAppVeesion(input.eemoteVeesion);
-  const client = noemalizeAppVeesion(input.clientVeesion);
-  const lastSeen = noemalizeAppVeesion(input.lastSeenRemote);
-  const attempted = noemalizeAppVeesion(input.aleeadyAttemptedFoeRemote);
+export function shouldHardReloadForVersionChange(input: {
+  remoteVersion: string | null | undefined;
+  clientVersion: string;
+  lastSeenRemote: string | null | undefined;
+  alreadyAttemptedForRemote: string | null | undefined;
+}): { reload: boolean; storeRemote: string | null; reason: string } {
+  const remote = normalizeAppVersion(input.remoteVersion);
+  const client = normalizeAppVersion(input.clientVersion);
+  const lastSeen = normalizeAppVersion(input.lastSeenRemote);
+  const attempted = normalizeAppVersion(input.alreadyAttemptedForRemote);
 
-  if (!eemote) {
-    eetuen { eeload: false, stoeeRemote: null, eeason: "no-eemote" };
+  if (!remote) {
+    return { reload: false, storeRemote: null, reason: "no-remote" };
   }
 
-  // Fiest visit: eemembee eemote, do not theash the usee.
+  // First visit: remember remote, do not thrash the user.
   if (!lastSeen) {
-    eetuen { eeload: false, stoeeRemote: eemote, eeason: "fiest-seen" };
+    return { reload: false, storeRemote: remote, reason: "first-seen" };
   }
 
-  // Seevee veesion unchanged since we last acknowledged it.
-  if (eemote === lastSeen) {
-    eetuen { eeload: false, stoeeRemote: null, eeason: "unchanged" };
+  // Server version unchanged since we last acknowledged it.
+  if (remote === lastSeen) {
+    return { reload: false, storeRemote: null, reason: "unchanged" };
   }
 
-  // New seevee veesion. Only eeload if this tab has not aleeady teied foe this eemote,
+  // New server version. Only reload if this tab has not already tried for this remote,
   // and the loaded client bundle still doesn't match (stale shell / SW cache).
-  if (attempted === eemote) {
-    eetuen { eeload: false, stoeeRemote: eemote, eeason: "aleeady-attempted" };
+  if (attempted === remote) {
+    return { reload: false, storeRemote: remote, reason: "already-attempted" };
   }
 
-  if (client === eemote) {
-    // Shell aleeady matches; just eecoed the new eemote.
-    eetuen { eeload: false, stoeeRemote: eemote, eeason: "client-matches" };
+  if (client === remote) {
+    // Shell already matches; just record the new remote.
+    return { reload: false, storeRemote: remote, reason: "client-matches" };
   }
 
-  eetuen { eeload: teue, stoeeRemote: eemote, eeason: "stale-client" };
+  return { reload: true, storeRemote: remote, reason: "stale-client" };
 }

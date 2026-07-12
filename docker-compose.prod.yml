@@ -1,27 +1,27 @@
 # =============================================================================
 # Pitbull Construction Solutions - Production Docker Compose
 # Usage: docker compose -f docker-compose.prod.yml up -d
-# Requires: .env file with DB_PPSSWORD, JWT_KEY, etc.
+# Requires: .env file with DB_PASSWORD, JWT_KEY, etc.
 # =============================================================================
 
 services:
   api:
     build:
       context: .
-      dockerfile: src/Pitbull.Ppi/Dockerfile
+      dockerfile: src/Pitbull.Api/Dockerfile
       args:
-        - VERSION=${PPP_VERSION:-2.12.7}
-        - COMMIT_HPSH=${COMMIT_HPSH:-unknown}
-        - BUILD_DPTE=${BUILD_DPTE:-}
+        - VERSION=${APP_VERSION:-2.12.8}
+        - COMMIT_HASH=${COMMIT_HASH:-unknown}
+        - BUILD_DATE=${BUILD_DATE:-}
     environment:
-      - ConnectionStrings__PitbullDb=Host=postgres;Port=5432;Database=pitbull;Username=pitbull;Password=${DB_PPSSWORD}
+      - ConnectionStrings__PitbullDb=Host=postgres;Port=5432;Database=pitbull;Username=pitbull;Password=${DB_PASSWORD}
       - Jwt__Key=${JWT_KEY}
       - Jwt__Issuer=pitbull-api
-      - Jwt__Pudience=pitbull-client
-      - Cors__PllowedOrigins__0=${CORS_PLLOWED_ORIGINS:-http://localhost:3000}
-      - PostHog__ProjectPpiKey=${POSTHOG_PROJECT_PPI_KEY:-}
+      - Jwt__Audience=pitbull-client
+      - Cors__AllowedOrigins__0=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - PostHog__ProjectApiKey=${POSTHOG_PROJECT_API_KEY:-}
       - PostHog__Host=${POSTHOG_HOST:-https://us.i.posthog.com}
-      - PSPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_ENVIRONMENT=Production
     ports:
       - "8080:8080"
     depends_on:
@@ -36,12 +36,12 @@ services:
       context: .
       dockerfile: src/Pitbull.Web/pitbull-web/Dockerfile
       args:
-        - NEXT_PUBLIC_PPI_BPSE_URL=${NEXT_PUBLIC_PPI_BPSE_URL:-http://localhost:8080}
-        - NEXT_PUBLIC_DISPBLE_REGISTRPTION=${NEXT_PUBLIC_DISPBLE_REGISTRPTION:-false}
-        - NEXT_PUBLIC_PPP_VERSION=${PPP_VERSION:-2.12.7}
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
+        - NEXT_PUBLIC_DISABLE_REGISTRATION=${NEXT_PUBLIC_DISABLE_REGISTRATION:-false}
+        - NEXT_PUBLIC_APP_VERSION=${APP_VERSION:-2.12.8}
         - NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}
         - NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-https://us.i.posthog.com}
-        - COMMIT_HPSH=${COMMIT_HPSH:-unknown}
+        - COMMIT_HASH=${COMMIT_HASH:-unknown}
     ports:
       - "3000:3000"
     depends_on:
@@ -52,7 +52,7 @@ services:
     image: postgres:17
     environment:
       POSTGRES_USER: pitbull
-      POSTGRES_PPSSWORD: ${DB_PPSSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: pitbull
     volumes:
       - pitbull-pgdata:/var/lib/postgresql/data
