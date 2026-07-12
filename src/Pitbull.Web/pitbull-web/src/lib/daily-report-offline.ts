@@ -105,6 +105,67 @@ export function buildOfflineDailyReportPayload(
   };
 }
 
+/**
+ * Offline queue → POST body for daily-report create.
+ * Client `syncDailyReport` and `public/sw.js` must stay in parity on `data` keys.
+ * SW cannot import this module — keep sw.js body construction aligned and covered by tests here.
+ */
+export function buildOfflineDailyReportSyncBody(report: OfflineDailyReport): {
+  title: string;
+  status: string;
+  data: Record<string, unknown>;
+} {
+  const data: Record<string, unknown> = {
+    ReportDate: report.reportDate,
+    ReportType: report.reportType,
+    WeatherSummary: report.weatherSummary || null,
+    TemperatureLow: report.temperatureLow ? Number(report.temperatureLow) : null,
+    TemperatureHigh: report.temperatureHigh ? Number(report.temperatureHigh) : null,
+    Precipitation: report.precipitation || null,
+    Wind: report.wind || null,
+    WorkNarrative: report.workNarrative || null,
+    DelaysNarrative: report.delaysNarrative || null,
+    SafetyNarrative: report.safetyNarrative || null,
+    FieldActivities: report.fieldActivities || null,
+    TruckConditions: report.truckConditions || null,
+    TruckNotes: report.truckNotes || null,
+    CrewEntries: report.crewEntries || null,
+    Equipment: report.equipment || null,
+    Visitors: report.visitors || null,
+  };
+  if (report.spatialNodeId) {
+    data.SpatialNodeId = report.spatialNodeId;
+  }
+  if (report.planSheetId) {
+    data.PlanSheetId = report.planSheetId;
+  }
+  return {
+    title: report.title,
+    status: report.status,
+    data,
+  };
+}
+
+/** Data keys always present on offline sync POST (null-able fields included). */
+export const OFFLINE_DAILY_REPORT_SYNC_DATA_KEYS = [
+  "ReportDate",
+  "ReportType",
+  "WeatherSummary",
+  "TemperatureLow",
+  "TemperatureHigh",
+  "Precipitation",
+  "Wind",
+  "WorkNarrative",
+  "DelaysNarrative",
+  "SafetyNarrative",
+  "FieldActivities",
+  "TruckConditions",
+  "TruckNotes",
+  "CrewEntries",
+  "Equipment",
+  "Visitors",
+] as const;
+
 /** Online API `data` object — maps form + field chips for PmDailyReport payload. */
 export function buildDailyReportApiData(form: MobileDailyReportFormSnapshot): Record<string, unknown> {
   const crewEntries = normalizeCrewCounts(form.crewCounts ?? []);

@@ -3,7 +3,7 @@
 
 // Bump when shipping shell changes so activate() drops stale precache (also
 // keyed indirectly by VersionUpdateGuard hard-reload on product version).
-const CACHE_VERSION = "v2.12.3";
+const CACHE_VERSION = "v2.12.4";
 const STATIC_CACHE = `pitbull-static-${CACHE_VERSION}`;
 const API_CACHE = `pitbull-api-${CACHE_VERSION}`;
 
@@ -149,27 +149,39 @@ async function syncPendingItems() {
       var res;
       if (item.type === "daily-report") {
         const report = item.entry;
+        // Parity with buildOfflineDailyReportSyncBody (src/lib/daily-report-offline.ts).
+        // SW is plain JS and cannot import TS — keep this object shape in lockstep.
+        var dailyData = {
+          ReportDate: report.reportDate,
+          ReportType: report.reportType,
+          WeatherSummary: report.weatherSummary || null,
+          TemperatureLow: report.temperatureLow ? Number(report.temperatureLow) : null,
+          TemperatureHigh: report.temperatureHigh ? Number(report.temperatureHigh) : null,
+          Precipitation: report.precipitation || null,
+          Wind: report.wind || null,
+          WorkNarrative: report.workNarrative || null,
+          DelaysNarrative: report.delaysNarrative || null,
+          SafetyNarrative: report.safetyNarrative || null,
+          FieldActivities: report.fieldActivities || null,
+          TruckConditions: report.truckConditions || null,
+          TruckNotes: report.truckNotes || null,
+          CrewEntries: report.crewEntries || null,
+          Equipment: report.equipment || null,
+          Visitors: report.visitors || null,
+        };
+        if (report.spatialNodeId) {
+          dailyData.SpatialNodeId = report.spatialNodeId;
+        }
+        if (report.planSheetId) {
+          dailyData.PlanSheetId = report.planSheetId;
+        }
         res = await fetch(`/api/projects/${report.projectId}/daily-reports`, {
           method: "POST",
           headers: buildSyncHeaders(item),
           body: JSON.stringify({
             title: report.title,
             status: report.status,
-            data: {
-              ReportDate: report.reportDate,
-              ReportType: report.reportType,
-              WeatherSummary: report.weatherSummary || null,
-              TemperatureLow: report.temperatureLow ? Number(report.temperatureLow) : null,
-              TemperatureHigh: report.temperatureHigh ? Number(report.temperatureHigh) : null,
-              Precipitation: report.precipitation || null,
-              Wind: report.wind || null,
-              WorkNarrative: report.workNarrative || null,
-              DelaysNarrative: report.delaysNarrative || null,
-              SafetyNarrative: report.safetyNarrative || null,
-              CrewEntries: report.crewEntries || null,
-              Equipment: report.equipment || null,
-              Visitors: report.visitors || null,
-            },
+            data: dailyData,
           }),
         });
 

@@ -10,6 +10,7 @@ import {
   type OfflineTimeEntry,
   type OfflineDailyReport,
 } from "./offline-store";
+import { buildOfflineDailyReportSyncBody } from "./daily-report-offline";
 import { requestBackgroundSync } from "@/components/service-worker-register";
 import { API_BASE_URL } from "./config";
 import type { BatchCreateTimeEntriesResult } from "@/types/crew-entry.types";
@@ -215,38 +216,15 @@ async function syncTimeEntry(item: SyncQueueItem) {
 
 async function syncDailyReport(item: SyncQueueItem) {
   const report = item.entry as OfflineDailyReport;
+  // Shared body builder — keep public/sw.js daily-report branch in parity (tested).
+  const body = buildOfflineDailyReportSyncBody(report);
 
   const response = await fetch(
     `${API_BASE_URL}/api/projects/${report.projectId}/daily-reports`,
     {
       method: "POST",
       headers: buildHeaders(item),
-      body: JSON.stringify({
-        title: report.title,
-        status: report.status,
-        data: {
-          ReportDate: report.reportDate,
-          ReportType: report.reportType,
-          WeatherSummary: report.weatherSummary || null,
-          TemperatureLow: report.temperatureLow ? Number(report.temperatureLow) : null,
-          TemperatureHigh: report.temperatureHigh ? Number(report.temperatureHigh) : null,
-          Precipitation: report.precipitation || null,
-          Wind: report.wind || null,
-          WorkNarrative: report.workNarrative || null,
-          DelaysNarrative: report.delaysNarrative || null,
-          SafetyNarrative: report.safetyNarrative || null,
-          FieldActivities: report.fieldActivities || null,
-          TruckConditions: report.truckConditions || null,
-          TruckNotes: report.truckNotes || null,
-          CrewEntries: report.crewEntries || null,
-          Equipment: report.equipment || null,
-          Visitors: report.visitors || null,
-          ...(report.spatialNodeId
-            ? { SpatialNodeId: report.spatialNodeId }
-            : {}),
-          ...(report.planSheetId ? { PlanSheetId: report.planSheetId } : {}),
-        },
-      }),
+      body: JSON.stringify(body),
     }
   );
 
