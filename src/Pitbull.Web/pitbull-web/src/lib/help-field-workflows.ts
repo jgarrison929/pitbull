@@ -1,5 +1,5 @@
 /**
- * Help Center — Field & mobile workflows card data (2.12.7).
+ * Help Center — Field & mobile workflows card data (2.12.7+).
  * Pure data for page + unit tests; routes must match real app paths.
  */
 
@@ -59,7 +59,6 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     ],
   },
   {
-  {
     id: "plans-on-site",
     title: "Plans on site",
     href: "/projects",
@@ -71,6 +70,7 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
       "From Site Walk, use Plans for a filtered deep link into the same viewer.",
     ],
   },
+  {
     id: "offline-pwa",
     title: "Offline / PWA",
     href: "/daily-reports/mobile",
