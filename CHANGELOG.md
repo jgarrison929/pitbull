@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.9] - 2026-07-12T16:44:34-07:00
+
+### Added
+
+- **E2E twin zone round-trip (flag-gated)** — Playwright project 	win-zone-roundtrip covers field zone picker + twin shell + capture-quality when stack/auth available; self-skips honestly otherwise. Documented in twin-phase2 notes.
+
+### Notes
+
+- Version **2.18.9**. Next: Arc D integration suite tidy (2.19.0).
+
 ## [2.18.8] - 2026-07-12T16:42:40-07:00
 
 ### Added

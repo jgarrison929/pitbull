@@ -70,5 +70,15 @@ export default defineConfig({
         },
       },
     },
+    {
+      // 2.18.9 twin zone round-trip (self-skips without stack/auth; RUN_TWIN_E2E=0 disables)
+      name: 'twin-zone-roundtrip',
+      dependencies: ['setup-roles'],
+      testMatch: /twin-zone-roundtrip\.spec\.ts/,
+      retries: 0,
+      use: {
+        viewport: { width: 390, height: 844 },
+      },
+    },
   ],
 });
