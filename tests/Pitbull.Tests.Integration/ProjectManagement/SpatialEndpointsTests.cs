@@ -194,6 +194,56 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         Assert.True(graph.HasGraph);
     }
 
+    /// <summary>2.16.0 — photo-pins + zone detail: honest empty, no fake green pins.</summary>
+    [Fact]
+    public async Task Photo_pins_empty_is_honest_and_zone_filter_scopes()
+    {
+        await Db.ResetAsync();
+        var (client, _, _) = await CreateAuthenticatedClientAsync();
+        var projectId = await CreateProjectAsync(client, "Twin-Photo-Pins");
+
+        var seedResp = await client.PostAsync($"/api/projects/{projectId}/spatial/graph/ensure-seeded", null);
+        seedResp.EnsureSuccessStatusCode();
+        var graph = await seedResp.Content.ReadFromJsonAsync<GraphDto>(JsonOpts);
+        Assert.NotNull(graph?.Nodes);
+        var east = graph.Nodes!.First(n => n.Code == "L1-EAST");
+
+        // Project-wide pins: no GPS/zone photos yet → honest empty (not all-clear).
+        var pinsResp = await client.GetAsync($"/api/projects/{projectId}/spatial/photo-pins");
+        pinsResp.EnsureSuccessStatusCode();
+        var pins = await pinsResp.Content.ReadFromJsonAsync<PhotoPinsDto>(JsonOpts);
+        Assert.NotNull(pins);
+        Assert.Equal(projectId, pins.ProjectId);
+        Assert.Empty(pins.Pins ?? []);
+        Assert.Contains("No photo pins", pins.Message ?? "", StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("all clear", pins.Message ?? "", StringComparison.OrdinalIgnoreCase);
+
+        // Zone-scoped pins still empty and bind SpatialNodeId.
+        var zonePinsResp = await client.GetAsync(
+            $"/api/projects/{projectId}/spatial/photo-pins?spatialNodeId={east.Id}");
+        zonePinsResp.EnsureSuccessStatusCode();
+        var zonePins = await zonePinsResp.Content.ReadFromJsonAsync<PhotoPinsDto>(JsonOpts);
+        Assert.NotNull(zonePins);
+        Assert.Equal(east.Id, zonePins.SpatialNodeId);
+        Assert.Empty(zonePins.Pins ?? []);
+
+        // Zone detail still works alongside photo-pins (integration of zone + photos surfaces).
+        var detailResp = await client.GetAsync($"/api/projects/{projectId}/spatial/zones/{east.Id}");
+        detailResp.EnsureSuccessStatusCode();
+        var detail = await detailResp.Content.ReadFromJsonAsync<ZoneDetailDto>(JsonOpts);
+        Assert.NotNull(detail);
+        Assert.Equal(east.Id, detail.SpatialNodeId);
+    }
+
+    [Fact]
+    public async Task Photo_pins_without_auth_returns_401()
+    {
+        await Db.ResetAsync();
+        using var client = Factory.CreateClient();
+        var resp = await client.GetAsync($"/api/projects/{Guid.NewGuid()}/spatial/photo-pins");
+        Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
+    }
+
     private sealed record GraphDto(
         bool HasGraph,
         string? Message,
@@ -230,4 +280,18 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         List<LinkedDto>? PlanSheets);
 
     private sealed record LinkedDto(Guid Id, string Kind, string Title);
+
+    private sealed record PhotoPinsDto(
+        Guid ProjectId,
+        Guid? SpatialNodeId,
+        string Message,
+        List<PhotoPinDto>? Pins);
+
+    private sealed record PhotoPinDto(
+        Guid PhotoId,
+        Guid? SpatialNodeId,
+        double? Latitude,
+        double? Longitude,
+        string? ThumbnailUrl,
+        string PlacementSource);
 }
