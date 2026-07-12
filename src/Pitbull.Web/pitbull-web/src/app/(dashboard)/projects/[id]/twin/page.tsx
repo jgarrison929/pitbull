@@ -33,6 +33,10 @@ import {
   type TwinPhotoPinsResponse,
 } from "@/lib/twin-photo-pins";
 import { resolveTwinOverlayPollMs } from "@/lib/twin-overlay-poll";
+import {
+  TWIN_ZONE_DRILL_EVENT,
+  buildTwinZoneDrillProps,
+} from "@/lib/twin-zone-drill-analytics";
 import { buildFieldReportHref } from "@/lib/projects";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -190,34 +194,49 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
     let cancelled = false;
     setZoneDetailLoading(true);
     setZonePhotosLoading(true);
+    const started = performance.now();
     void (async () => {
+      let pinsEmpty = true;
       try {
-        const d = await api<SpatialZoneDetailResponse>(
-          `/api/projects/${projectId}/spatial/zones/${selectedId}`
-        );
-        if (!cancelled) setZoneDetail(d);
-      } catch {
-        if (!cancelled) setZoneDetail(null);
-      } finally {
-        if (!cancelled) setZoneDetailLoading(false);
-      }
-    })();
-    void (async () => {
-      try {
-        const res = await api<TwinPhotoPinsResponse>(
-          buildPhotoPinsUrl(projectId, selectedId)
-        );
-        if (!cancelled) {
+        const [detailSettled, pinsSettled] = await Promise.allSettled([
+          api<SpatialZoneDetailResponse>(
+            `/api/projects/${projectId}/spatial/zones/${selectedId}`
+          ),
+          api<TwinPhotoPinsResponse>(buildPhotoPinsUrl(projectId, selectedId)),
+        ]);
+        if (cancelled) return;
+
+        if (detailSettled.status === "fulfilled") {
+          setZoneDetail(detailSettled.value);
+        } else {
+          setZoneDetail(null);
+        }
+
+        if (pinsSettled.status === "fulfilled") {
+          const res = pinsSettled.value;
           setZonePhotoPins(res.pins ?? []);
           setZonePhotoMessage(res.message ?? null);
-        }
-      } catch {
-        if (!cancelled) {
+          pinsEmpty = (res.pins ?? []).length === 0;
+        } else {
           setZonePhotoPins([]);
           setZonePhotoMessage(null);
         }
+
+        // 2.16.1 diagnostic only — duration of zone drill load
+        captureProductEvent(
+          TWIN_ZONE_DRILL_EVENT,
+          buildTwinZoneDrillProps({
+            projectId,
+            spatialNodeId: selectedId,
+            durationMs: performance.now() - started,
+            pinsEmpty,
+          })
+        );
       } finally {
-        if (!cancelled) setZonePhotosLoading(false);
+        if (!cancelled) {
+          setZoneDetailLoading(false);
+          setZonePhotosLoading(false);
+        }
       }
     })();
     return () => {
