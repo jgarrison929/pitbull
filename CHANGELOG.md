@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.9] - 2026-07-12T14:59:58-07:00
+
+### Added
+
+- **PostHog `site_walk_started`** - fired on site walk open with `project_id`; `viewport_class` via `captureProductEvent`.
+
+### Notes
+
+- Version **2.14.9**
+
 ## [2.14.8] - 2026-07-12T14:59:36-07:00
 
 ### Changed

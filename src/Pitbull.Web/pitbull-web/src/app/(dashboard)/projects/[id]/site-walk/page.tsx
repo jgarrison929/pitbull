@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { buildPlansSpecsHref, resolveSiteWalkPlansFilter } from "@/lib/plans-specs-lookup";
 import { buildProjectRfisForSubHref } from "@/lib/rfi-sub-link";
+import { captureProductEvent } from "@/lib/posthog";
 import {
   buildSubStatusItems,
   filterLookAheadTasks,
@@ -75,6 +76,11 @@ function SiteWalkContent({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
   const valid = isValidGuid(projectId);
   const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    if (!projectId) return;
+    captureProductEvent(SITE_WALK_STARTED_EVENT, buildSiteWalkStartedProps(projectId));
+  }, [projectId]);
   const [lookAhead, setLookAhead] = useState<ScheduleLookAheadTask[]>([]);
   const [subs, setSubs] = useState<
     Array<SubStatusItem & { relevanceScore?: number }>
