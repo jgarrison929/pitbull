@@ -2917,4 +2917,22 @@ public class ProjectSpatialController(ISpatialService spatialService) : ProjectM
         Guid projectId,
         [FromQuery] Guid? spatialNodeId = null)
         => HandleResult(await spatialService.ListPhotoPinsAsync(projectId, spatialNodeId));
+
+    /// <summary>List model assets (2.16.3). Empty list is honest — zones work without a 3D model.</summary>
+    [HttpGet("model-assets")]
+    [Authorize(Policy = "Spatial.View")]
+    [ProducesResponseType(typeof(ModelAssetListResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ListModelAssets(Guid projectId)
+        => HandleResult(await spatialService.ListModelAssetsAsync(projectId));
+
+    /// <summary>
+    /// Register model asset metadata (upload scaffold). Starts as Pending — never ready until conversion Succeeded.
+    /// </summary>
+    [HttpPost("model-assets")]
+    [Authorize(Policy = "Spatial.Manage")]
+    [ProducesResponseType(typeof(ModelAssetDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RegisterModelAsset(
+        Guid projectId,
+        [FromBody] RegisterModelAssetRequest request)
+        => HandleResult(await spatialService.RegisterModelAssetAsync(projectId, request));
 }

@@ -275,6 +275,84 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(new TwinPhotoPinsResponse(projectId, spatialNodeId, message, pins));
     }
 
+    public async Task<Result<ModelAssetListResponse>> ListModelAssetsAsync(
+        Guid projectId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<ModelAssetListResponse>("Project not found.", "NOT_FOUND");
+
+        var assets = await Db.Set<ModelAsset>()
+            .AsNoTracking()
+            .Where(a => a.ProjectId == projectId && !a.IsDeleted)
+            .OrderByDescending(a => a.VersionNumber)
+            .ToListAsync(cancellationToken);
+
+        if (assets.Count == 0)
+            return Result.Success(ModelAssetStatus.EmptyList(projectId));
+
+        var dtos = assets.Select(ModelAssetStatus.ToDto).ToList();
+        var anyReady = dtos.Any(d => d.IsReady);
+        var message = anyReady
+            ? $"{dtos.Count} model asset(s); at least one Succeeded (IsReady)."
+            : $"{dtos.Count} model asset(s); none ready yet (Pending/Processing is not ready).";
+
+        return Result.Success(new ModelAssetListResponse(projectId, message, dtos));
+    }
+
+    public async Task<Result<ModelAssetDto>> RegisterModelAssetAsync(
+        Guid projectId,
+        RegisterModelAssetRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<ModelAssetDto>("Project not found.", "NOT_FOUND");
+
+        var project = await Db.Set<Project>()
+            .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);
+        if (project is null)
+            return Result.Failure<ModelAssetDto>("Project not found.", "NOT_FOUND");
+
+        var companyId = project.CompanyId != Guid.Empty
+            ? project.CompanyId
+            : CurrentCompanyId;
+
+        if (!Enum.TryParse<ModelSourceFormat>(request.SourceFormat, ignoreCase: true, out var format))
+            format = ModelSourceFormat.Other;
+
+        var maxVersion = await Db.Set<ModelAsset>()
+            .Where(a => a.ProjectId == projectId && !a.IsDeleted)
+            .Select(a => (int?)a.VersionNumber)
+            .MaxAsync(cancellationToken) ?? 0;
+
+        var entity = new ModelAsset
+        {
+            Id = Guid.NewGuid(),
+            CompanyId = companyId,
+            ProjectId = projectId,
+            DisplayName = string.IsNullOrWhiteSpace(request.DisplayName)
+                ? $"Model v{maxVersion + 1}"
+                : request.DisplayName.Trim(),
+            SourceFormat = format,
+            SourceBlobKey = string.IsNullOrWhiteSpace(request.SourceBlobKey)
+                ? null
+                : request.SourceBlobKey.Trim(),
+            ConversionStatus = ModelConversionStatus.Pending,
+            ConversionError = null,
+            RuntimeBlobKey = null,
+            LicenseAttribution = request.LicenseAttribution,
+            IsActiveVersion = false,
+            VersionNumber = maxVersion + 1,
+            CreatedBy = "model-upload-scaffold",
+        };
+
+        Db.Set<ModelAsset>().Add(entity);
+        await Db.SaveChangesAsync(cancellationToken);
+
+        // Never claim ready on register — conversion is Pending.
+        return Result.Success(ModelAssetStatus.ToDto(entity));
+    }
+
     public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(
         Guid projectId,
         Guid spatialNodeId,

@@ -142,3 +142,63 @@ public static class TwinPhotoPinAggregation
             "No photo pins yet — pins appear when field photos have GPS or a zone link. Empty is not all-clear.",
             Array.Empty<TwinPhotoPinDto>());
 }
+
+// ── Model assets (2.16.3+) ───────────────────────────────────────────────────
+
+/// <summary>Model asset DTO. Ready=true only when ConversionStatus is Succeeded.</summary>
+public sealed record ModelAssetDto(
+    Guid Id,
+    Guid ProjectId,
+    string DisplayName,
+    string SourceFormat,
+    string ConversionStatus,
+    string? ConversionError,
+    string? SourceBlobKey,
+    string? RuntimeBlobKey,
+    string? LicenseAttribution,
+    bool IsActiveVersion,
+    int VersionNumber,
+    bool IsReady
+);
+
+public sealed record ModelAssetListResponse(
+    Guid ProjectId,
+    string Message,
+    IReadOnlyList<ModelAssetDto> Assets
+);
+
+public sealed record RegisterModelAssetRequest(
+    string? DisplayName,
+    string SourceFormat,
+    string? SourceBlobKey,
+    string? LicenseAttribution
+);
+
+/// <summary>Pure helpers for model asset status truth (never ready while processing).</summary>
+public static class ModelAssetStatus
+{
+    public static bool IsReady(string conversionStatus) =>
+        string.Equals(conversionStatus, nameof(ModelConversionStatus.Succeeded), StringComparison.OrdinalIgnoreCase)
+        || string.Equals(conversionStatus, "Succeeded", StringComparison.OrdinalIgnoreCase);
+
+    public static ModelAssetDto ToDto(ModelAsset entity) =>
+        new(
+            entity.Id,
+            entity.ProjectId,
+            entity.DisplayName,
+            entity.SourceFormat.ToString(),
+            entity.ConversionStatus.ToString(),
+            entity.ConversionError,
+            entity.SourceBlobKey,
+            entity.RuntimeBlobKey,
+            entity.LicenseAttribution,
+            entity.IsActiveVersion,
+            entity.VersionNumber,
+            IsReady(entity.ConversionStatus.ToString()));
+
+    public static ModelAssetListResponse EmptyList(Guid projectId) =>
+        new(
+            projectId,
+            "No model assets yet — zones-first twin works without a 3D model. Empty is not a failure.",
+            Array.Empty<ModelAssetDto>());
+}

@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.16.3] - 2026-07-12T15:33:08-07:00
+
+### Added
+
+- **ModelAsset upload API scaffold** - entity + migration `pm_model_assets`; `GET/POST /api/projects/{id}/spatial/model-assets` (View list / Manage register). Register starts **Pending** — never ready until conversion Succeeded.
+
+### Notes
+
+- Version **2.16.3**
 ## [2.16.2] - 2026-07-12T15:29:55-07:00
 
 ### Added
