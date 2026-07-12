@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.9] - 2026-07-12T16:20:57-07:00
+
+### Added
+
+- **Overlay formula vitest regression** - frontend `overlay-formula` mirrors RFI/progress/schedule/cost band thresholds (aligned with API calculator truth rules).
+
+### Notes
+
+- Version **2.17.9**
 ## [2.17.8] - 2026-07-12T16:18:45-07:00
 
 ### Added
