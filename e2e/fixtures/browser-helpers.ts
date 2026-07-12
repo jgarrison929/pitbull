@@ -7,10 +7,11 @@ const authDir = path.join(__dirname, '..', '.auth');
 export async function openAsPersona(
   browser: Browser,
   persona: PersonaKey,
-  options?: { companyId?: string }
+  options?: { companyId?: string; viewport?: { width: number; height: number } }
 ): Promise<{ context: BrowserContext; page: Page }> {
   const context = await browser.newContext({
     storageState: path.join(authDir, `${persona}.json`),
+    ...(options?.viewport ? { viewport: options.viewport } : {}),
   });
   if (options?.companyId) {
     await context.addInitScript((id: string) => {
