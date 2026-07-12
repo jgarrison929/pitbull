@@ -64,13 +64,15 @@ public static class PermissionConstants
     public const string PayrollCertifiedReport = "Payroll.CertifiedReport";
     public const string PayrollViewRates = "Payroll.ViewRates";
 
-    // -- Project Management (6) --
+    // -- Project Management (8) --
     public const string PMRFIs = "PM.RFIs";
     public const string PMSubmittals = "PM.Submittals";
     public const string PMDailyReports = "PM.DailyReports";
     public const string PMSchedule = "PM.Schedule";
     public const string PMPunchList = "PM.PunchList";
     public const string PMMeetings = "PM.Meetings";
+    public const string SpatialView = "Spatial.View";
+    public const string SpatialManage = "Spatial.Manage";
 
     // -- Equipment (2) --
     public const string EquipmentView = "Equipment.View";
@@ -137,6 +139,7 @@ public static class PermissionConstants
         PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates,
         // PM
         PMRFIs, PMSubmittals, PMDailyReports, PMSchedule, PMPunchList, PMMeetings,
+        SpatialView, SpatialManage,
         // Equipment
         EquipmentView, EquipmentManage,
         // Documents
@@ -235,6 +238,11 @@ public static class PermissionConstants
                 (PMSchedule, "Manage project schedule"),
                 (PMPunchList, "Manage punch list items"),
                 (PMMeetings, "Manage meetings"),
+            },
+            ["Spatial"] = new[]
+            {
+                (SpatialView, "View jobsitetwin spatial graph and overlays"),
+                (SpatialManage, "Seed/manage spatial graph (publish zones tree)"),
             },
             ["Equipment"] = new[]
             {
@@ -335,6 +343,7 @@ public static class PermissionConstants
                 EquipmentView, DocumentsView, EmployeesView,
                 ReportsView, ReportsExport,
                 PMRFIs, PMSubmittals, PMDailyReports, PMSchedule, PMPunchList, PMMeetings,
+                SpatialView,
                 AIChat,
             },
 
@@ -358,6 +367,7 @@ public static class PermissionConstants
                 ContractsView, ContractsCreate, ContractsEdit, ContractsApproveChangeOrders,
                 // Full PM access
                 "PM.",
+                SpatialView, SpatialManage,
                 // Bids
                 BidsView, BidsCreate, BidsEdit, BidsConvertToProject,
                 // Time
@@ -374,6 +384,7 @@ public static class PermissionConstants
                 ProjectsView,
                 TimeTrackingView, TimeTrackingCreate,
                 PMDailyReports, PMPunchList,
+                SpatialView,
                 EquipmentView, DocumentsView,
             },
 
