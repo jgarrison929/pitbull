@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.1] - 2026-07-12T16:48:35-07:00
+
+### Changed
+
+- **docs/ci/twin-phase2-notes.md complete** — full Arc D version map (photo pins ? require spatial close), truth rules, demo skip, capture quality, E2E, integration commands.
+
+### Notes
+
+- Version **2.19.1**. Next: Arc D checkpoint 2.19.2.
+
 ## [2.19.0] - 2026-07-12T16:46:24-07:00
 
 ### Changed

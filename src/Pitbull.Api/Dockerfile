@@ -40,7 +40,7 @@ COPY tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj tests/Pitb
 RUN dotnet restore Pitbull.sln
 
 # Build args for version info (keep in sync with root VERSION / package.json / csproj)
-ARG VERSION=2.19.0
+ARG VERSION=2.19.1
 ARG COMMIT_HASH=unknown
 
 # Copy all source files
@@ -62,7 +62,7 @@ WORKDIR /app
 COPY --from=build /out .
 COPY --from=build /changelog/CHANGELOG.md ./CHANGELOG.md
 
-ARG VERSION=2.19.0
+ARG VERSION=2.19.1
 ARG COMMIT_HASH=unknown
 ARG BUILD_DATE=""
 ENV ASPNETCORE_ENVIRONMENT=Production
