@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.8] - 2026-07-12T16:18:45-07:00
+
+### Added
+
+- **Cost not-allocated banner** - shown in cost mode when all zones are InsufficientData (`COST_NOT_ALLOCATED_BANNER`).
+
+### Notes
+
+- Version **2.17.8**
 ## [2.17.7] - 2026-07-12T16:15:40-07:00
 
 ### Added
