@@ -187,8 +187,8 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** Chosen list page under `time-tracking/mobile` or `projects/[id]/rfis`; TanStack Virtual or existing pattern
 
 **Acceptance:**
-- [ ] Only window of rows rendered; server pagination unchanged  
-- [ ] Smooth scroll with 200+ seed rows (or mock)  
+- [x] Only window of rows rendered; server pagination unchanged  
+- [x] Smooth scroll with 200+ seed rows (or mock)  
 
 **Tests:** Vitest/render smoke if practical; manual  
 
