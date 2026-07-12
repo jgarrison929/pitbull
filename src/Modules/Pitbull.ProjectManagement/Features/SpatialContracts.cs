@@ -92,6 +92,42 @@ public sealed record TwinPhotoPinsResponse(
     IReadOnlyList<TwinPhotoPinDto> Pins
 );
 
+/// <summary>
+/// Data-quality metric (2.18.7): % of daily reports / progress entries in window with a spatial ref.
+/// Labeled quality only — never an executive KPI or vanity “coverage” score.
+/// </summary>
+public sealed record SpatialCaptureQualityResponse(
+    Guid ProjectId,
+    string WindowStartUtc,
+    string WindowEndUtc,
+    int WindowDays,
+    int DailyReportsTotal,
+    int DailyReportsWithSpatialRef,
+    int ProgressEntriesTotal,
+    int ProgressEntriesWithSpatialRef,
+    int CombinedTotal,
+    int CombinedWithSpatialRef,
+    /// <summary>0–100, one decimal; null when no rows in window (honest empty — not 0% fail).</summary>
+    decimal? CombinedPercentWithSpatialRef,
+    string Label,
+    string TruthNote
+);
+
+/// <summary>Pure calculator for spatial capture quality (unit-tested).</summary>
+public static class SpatialCaptureQualityCalculator
+{
+    public static decimal? CombinedPercent(int total, int withRef)
+    {
+        if (total <= 0) return null;
+        if (withRef < 0) withRef = 0;
+        if (withRef > total) withRef = total;
+        return Math.Round(100m * withRef / total, 1, MidpointRounding.AwayFromZero);
+    }
+
+    public static bool HasSpatialRef(Guid? spatialNodeId, Guid? planSheetId = null)
+        => spatialNodeId is not null || planSheetId is not null;
+}
+
 /// <summary>Pure aggregation helpers for photo pins (unit-tested; no fake green).</summary>
 public static class TwinPhotoPinAggregation
 {

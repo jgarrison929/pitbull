@@ -241,6 +241,15 @@ public interface ISpatialService
         Guid? spatialNodeId = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Data quality: % of daily reports + progress entries in last N days with SpatialNodeId.
+    /// Labeled quality — not a vanity KPI.
+    /// </summary>
+    Task<Result<SpatialCaptureQualityResponse>> GetCaptureQualityAsync(
+        Guid projectId,
+        int windowDays = 7,
+        CancellationToken cancellationToken = default);
+
     /// <summary>List model assets for twin (2.16.3+). Empty is honest — zones work without a model.</summary>
     Task<Result<ModelAssetListResponse>> ListModelAssetsAsync(
         Guid projectId,

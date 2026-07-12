@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.7] - 2026-07-12T16:40:11-07:00
+
+### Added
+
+- **Spatial capture quality metric (labeled)** — GET /api/projects/{id}/spatial/capture-quality returns last-7d % of daily reports + progress entries with SpatialNodeId. Explicitly labeled data quality, not an executive KPI. Empty window ? null percent (honest). Unit tests for calculator.
+
+### Notes
+
+- Version **2.18.7**. Next: Help zone picker + twin (2.18.8).
+
 ## [2.18.6] - 2026-07-12T16:38:04-07:00
 
 ### Added
