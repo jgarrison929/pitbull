@@ -69,12 +69,12 @@ public static class ServiceCollectionExtensions
                 .Log(RelationalEventId.MultipleCollectionIncludeWarning));
         });
 
-        ApplyMediatRLicense(configuration);
+        MediatRLicense.Apply(configuration);
 
         // MediatR + pipeline behaviors
         services.AddMediatR(cfg =>
         {
-            ConfigureMediatRLicense(cfg, configuration);
+            MediatRLicense.Configure(cfg, configuration);
             cfg.RegisterServicesFromAssemblyContaining<PitbullDbContext>();
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
@@ -93,7 +93,11 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services)
     {
         services.AddMediatR(cfg =>
-            cfg.RegisterServicesFromAssemblyContaining<TAssemblyMarker>());
+        {
+            // Re-apply license on each AddMediatR call (module registrations)
+            MediatRLicense.Configure(cfg);
+            cfg.RegisterServicesFromAssemblyContaining<TAssemblyMarker>();
+        });
         services.AddValidatorsFromAssemblyContaining<TAssemblyMarker>();
         return services;
     }
@@ -131,17 +135,45 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    private static void ApplyMediatRLicense(IConfiguration configuration)
+}
+
+/// <summary>
+/// Resolves the Lucky Penny / MediatR community license key and applies it before
+/// MediatR registration so unit/integration tests and API hosts stop logging license warnings.
+/// </summary>
+public static class MediatRLicense
+{
+    /// <summary>
+    /// Precedence: explicit configuration, then MEDIATR_LICENSE_KEY, then LUCKYPENNY_LICENSE_KEY.
+    /// </summary>
+    public static string? Resolve(IConfiguration? configuration = null)
     {
-        var licenseKey = configuration["MediatR:LicenseKey"];
-        if (!string.IsNullOrWhiteSpace(licenseKey))
-            Mediator.LicenseKey = licenseKey;
+        var fromConfig = configuration?["MediatR:LicenseKey"];
+        if (!string.IsNullOrWhiteSpace(fromConfig))
+            return fromConfig.Trim();
+
+        var mediatrEnv = Environment.GetEnvironmentVariable("MEDIATR_LICENSE_KEY");
+        if (!string.IsNullOrWhiteSpace(mediatrEnv))
+            return mediatrEnv.Trim();
+
+        var luckyEnv = Environment.GetEnvironmentVariable("LUCKYPENNY_LICENSE_KEY");
+        if (!string.IsNullOrWhiteSpace(luckyEnv))
+            return luckyEnv.Trim();
+
+        return null;
     }
 
-    private static void ConfigureMediatRLicense(MediatRServiceConfiguration cfg, IConfiguration configuration)
+    public static void Apply(IConfiguration? configuration = null)
     {
-        var licenseKey = configuration["MediatR:LicenseKey"];
-        if (!string.IsNullOrWhiteSpace(licenseKey))
-            cfg.LicenseKey = licenseKey;
+        var key = Resolve(configuration);
+        if (!string.IsNullOrWhiteSpace(key))
+            Mediator.LicenseKey = key;
+    }
+
+    public static void Configure(MediatRServiceConfiguration cfg, IConfiguration? configuration = null)
+    {
+        var key = Resolve(configuration);
+        if (!string.IsNullOrWhiteSpace(key))
+            cfg.LicenseKey = key;
     }
 }
