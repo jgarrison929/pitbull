@@ -8,6 +8,7 @@ import {
   workspaces,
   getRoleDefaults,
   getAllNavItems,
+  detectWorkspaceFromPath,
 } from "@/components/layout/workspaces";
 
 // ---------------------------------------------------------------------------
@@ -19,6 +20,9 @@ const FAVORITES_KEY = "pitbull:workspace:favorites";
 const RECENTS_KEY = "pitbull:workspace:recents";
 const COLLAPSED_KEY = "pitbull:sidebar:collapsed";
 const INITIALIZED_KEY = "pitbull:workspace:initialized";
+/** Bump when role defaults / workspace item placement change so favorites re-seed. */
+const NAV_SCHEMA_VERSION = "2.12.0";
+const NAV_SCHEMA_KEY = "pitbull:workspace:nav-schema";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,21 +59,6 @@ function writeStorage(key: string, value: unknown) {
   }
 }
 
-/** Detect which workspace a URL belongs to */
-function detectWorkspaceFromPath(pathname: string): WorkspaceId | null {
-  if (pathname.startsWith("/projects")) return "projects";
-  if (pathname.startsWith("/bids")) return "projects";
-  if (pathname.startsWith("/accounting") || pathname.startsWith("/chart-of-accounts")) return "finance";
-  if (pathname.startsWith("/billing") || pathname.startsWith("/payment-applications")) return "finance";
-  if (pathname.startsWith("/procurement") || pathname.startsWith("/vendors") || pathname.startsWith("/customers")) return "operations";
-  if (pathname.startsWith("/contracts") || pathname.startsWith("/change-orders")) return "operations";
-  if (pathname.startsWith("/employees") || pathname.startsWith("/time-tracking") || pathname.startsWith("/payroll")) return "people";
-  if (pathname.startsWith("/cost-codes") || pathname.startsWith("/equipment")) return "people";
-  if (pathname.startsWith("/reports")) return "reports";
-  if (pathname.startsWith("/admin")) return "admin";
-  return null;
-}
-
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -82,14 +71,17 @@ export function useWorkspaceNav() {
     [user?.roles, user?.roleProfile]
   );
 
-  // Initialize on first use — seed favorites from role defaults
+  // Initialize on first use — seed favorites from role defaults.
+  // Re-seed when NAV_SCHEMA_VERSION changes (e.g. 2.12.0 role UX simplify).
   const [initialized] = useState(() => {
     if (typeof window === "undefined") return false;
     const already = localStorage.getItem(INITIALIZED_KEY);
-    if (!already) {
+    const schema = localStorage.getItem(NAV_SCHEMA_KEY);
+    if (!already || schema !== NAV_SCHEMA_VERSION) {
       writeStorage(FAVORITES_KEY, defaults.favorites);
-      writeStorage(WORKSPACE_KEY, JSON.stringify(defaults.defaultWorkspace));
+      writeStorage(WORKSPACE_KEY, defaults.defaultWorkspace);
       localStorage.setItem(INITIALIZED_KEY, "true");
+      localStorage.setItem(NAV_SCHEMA_KEY, NAV_SCHEMA_VERSION);
       return false;
     }
     return true;
@@ -132,17 +124,22 @@ export function useWorkspaceNav() {
   // Only triggers on pathname change — NOT on manual workspace selection — to prevent
   // a feedback loop where selecting workspace X while viewing a page in workspace Y
   // would immediately revert the selection back to Y.
+  // Skip workspaces outside the persona allow-list (e.g. field on /admin deep link).
   const prevPathnameRef = useRef<string | null>(null);
   useEffect(() => {
     if (isProjectContext) return; // Don't auto-switch when in project context
     if (prevPathnameRef.current !== null && prevPathnameRef.current === pathname) return;
     prevPathnameRef.current = pathname;
     const detected = detectWorkspaceFromPath(pathname);
-    if (detected && detected !== activeWorkspace) {
-      setActiveWorkspaceState(detected);  
+    if (
+      detected &&
+      detected !== activeWorkspace &&
+      defaults.workspaces.includes(detected)
+    ) {
+      setActiveWorkspaceState(detected);
       writeStorage(WORKSPACE_KEY, detected);
     }
-  }, [pathname, isProjectContext, activeWorkspace]);
+  }, [pathname, isProjectContext, activeWorkspace, defaults.workspaces]);
 
   // Track page visit in recents
   useEffect(() => {
@@ -193,28 +190,29 @@ export function useWorkspaceNav() {
     [favorites]
   );
 
-  // Get visible workspaces (filtered by permissions + demo user restrictions)
+  // Role allow-list first (persona UX), then permission gate.
+  // Demo Explore-as-role uses the same allow-list so CEO/field menus stay clean.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization -- user?.permissions is the correct dependency
   const visibleWorkspaces = useMemo(() => {
-    // If no user/permissions yet, show all (permissions will re-filter on load)
-    if (!user?.permissions) return workspaces;
+    const allowed = new Set(defaults.workspaces);
+    const byRole = workspaces.filter((ws) => allowed.has(ws.id));
 
-    // Demo users see all workspaces including Admin (browse-only).
-    // API DemoRestrictionMiddleware enforces read-only on admin endpoints.
-    if (user.isDemoUser) {
-      return workspaces;
-    }
+    // No permissions yet: still show role-scoped list (permissions re-filter on load)
+    if (!user?.permissions) return byRole;
 
     const perms = new Set(user.permissions);
     const hasPerm = (p: string) => perms.has("*") || perms.has(p);
     const hasAnyPerm = (ps: string[]) => perms.has("*") || ps.some((p) => perms.has(p));
 
-    return workspaces.filter((ws) => {
+    // Demo users: role allow-list only (browse-only on admin enforced by API if they deep-link)
+    if (user.isDemoUser) return byRole;
+
+    return byRole.filter((ws) => {
       if (ws.requiredPermission) return hasPerm(ws.requiredPermission);
       if (ws.requiredAnyPermission) return hasAnyPerm(ws.requiredAnyPermission);
-      return true; // my-work is always visible
+      return true; // my-work is always visible when allowed
     });
-  }, [user?.permissions, user?.isDemoUser]);
+  }, [user?.permissions, user?.isDemoUser, defaults.workspaces]);
 
   return {
     // State

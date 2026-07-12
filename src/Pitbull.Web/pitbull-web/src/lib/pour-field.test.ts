@@ -5,6 +5,7 @@ import {
   nextReportStep,
   normalizeCrewCounts,
   prevReportStep,
+  showsTruckMaterialSection,
   toggleFieldActivity,
   toggleTruckCondition,
 } from "./pour-field";
@@ -38,6 +39,15 @@ describe("normalizeCrewCounts", () => {
   });
 });
 
+describe("showsTruckMaterialSection", () => {
+  it("is true only when Pour is selected", () => {
+    expect(showsTruckMaterialSection([])).toBe(false);
+    expect(showsTruckMaterialSection(["rebar", "form"])).toBe(false);
+    expect(showsTruckMaterialSection(["pour"])).toBe(true);
+    expect(showsTruckMaterialSection(["form", "pour"])).toBe(true);
+  });
+});
+
 describe("buildFieldWorkSummary", () => {
   it("builds plain super language from chips + notes", () => {
     const summary = buildFieldWorkSummary({
@@ -54,6 +64,19 @@ describe("buildFieldWorkSummary", () => {
     expect(summary).toContain("Too wet");
     expect(summary).toContain("Place×6");
     expect(summary).toContain("East vault walls");
+  });
+
+  it("omits truck material when Pour is not selected", () => {
+    const summary = buildFieldWorkSummary({
+      activities: ["rebar"],
+      truckConditions: ["too_wet"],
+      truckNotes: "should not appear",
+      crewCounts: [],
+      workNarrative: "Tied steel on L1.",
+    });
+    expect(summary).toContain("Rebar");
+    expect(summary).not.toContain("Too wet");
+    expect(summary).not.toContain("should not appear");
   });
 
   it("does not invent narrative when empty", () => {
@@ -89,6 +112,27 @@ describe("isFieldStepReady", () => {
         workNarrative: "",
       })
     ).toBe(true);
+  });
+
+  it("does not treat orphan truck chips as ready without Pour", () => {
+    expect(
+      isFieldStepReady({
+        activities: ["rebar"],
+        truckConditions: ["too_wet"],
+        truckNotes: "leftover",
+        crewCounts: [],
+        workNarrative: "",
+      })
+    ).toBe(true); // rebar activity is enough
+    expect(
+      isFieldStepReady({
+        activities: [],
+        truckConditions: ["too_wet"],
+        truckNotes: "leftover",
+        crewCounts: [],
+        workNarrative: "",
+      })
+    ).toBe(false);
   });
 });
 

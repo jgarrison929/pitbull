@@ -23,7 +23,7 @@ const DEMO_PERSONAS = [
     key: "pm",
     profile: "projectManager",
     homeLayout: "pm",
-    mustReach: ["/", "/projects", "/rfis", "/time-tracking"],
+    mustReach: ["/", "/projects", "/my-approvals", "/time-tracking"],
   },
   {
     key: "superintendent",

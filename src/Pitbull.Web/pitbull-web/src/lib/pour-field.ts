@@ -43,6 +43,21 @@ export const TRUCK_CONDITIONS: {
   { id: "held", label: "Held / drive around" },
 ];
 
+/**
+ * Concrete truck / material chips (slump, rejected, drive-around) only apply
+ * when the super selected Pour. Other activities hide that section.
+ */
+export const ACTIVITIES_WITH_TRUCK_MATERIAL: readonly FieldActivityId[] = [
+  "pour",
+];
+
+/** Whether Trucks / material UI should show for the current activity selection. */
+export function showsTruckMaterialSection(
+  activities: readonly FieldActivityId[]
+): boolean {
+  return activities.some((id) => ACTIVITIES_WITH_TRUCK_MATERIAL.includes(id));
+}
+
 export interface FieldCrewCount {
   trade: string;
   count: number;
@@ -98,9 +113,12 @@ export function buildFieldWorkSummary(snapshot: PourFieldSnapshot): string {
   const activityLabels = snapshot.activities
     .map((id) => FIELD_ACTIVITIES.find((a) => a.id === id)?.label)
     .filter(Boolean) as string[];
-  const truckLabels = snapshot.truckConditions
-    .map((id) => TRUCK_CONDITIONS.find((t) => t.id === id)?.label)
-    .filter(Boolean) as string[];
+  const includeTrucks = showsTruckMaterialSection(snapshot.activities);
+  const truckLabels = includeTrucks
+    ? (snapshot.truckConditions
+        .map((id) => TRUCK_CONDITIONS.find((t) => t.id === id)?.label)
+        .filter(Boolean) as string[])
+    : [];
 
   const parts: string[] = [];
   if (activityLabels.length) {
@@ -109,7 +127,7 @@ export function buildFieldWorkSummary(snapshot: PourFieldSnapshot): string {
   if (truckLabels.length) {
     parts.push(`Material/trucks: ${truckLabels.join(", ")}.`);
   }
-  if (snapshot.truckNotes.trim()) {
+  if (includeTrucks && snapshot.truckNotes.trim()) {
     parts.push(snapshot.truckNotes.trim());
   }
   const crew = normalizeCrewCounts(snapshot.crewCounts);
@@ -133,8 +151,11 @@ export function isFieldStepReady(snapshot: PourFieldSnapshot): boolean {
   if (snapshot.activities.length > 0) return true;
   if (snapshot.workNarrative.trim().length > 0) return true;
   if (normalizeCrewCounts(snapshot.crewCounts).length > 0) return true;
-  if (snapshot.truckConditions.length > 0) return true;
-  if (snapshot.truckNotes.trim().length > 0) return true;
+  // Truck chips only count when Pour is selected (section is visible)
+  if (showsTruckMaterialSection(snapshot.activities)) {
+    if (snapshot.truckConditions.length > 0) return true;
+    if (snapshot.truckNotes.trim().length > 0) return true;
+  }
   return false;
 }
 

@@ -35,52 +35,113 @@ export interface QuickAction {
 
 export interface RoleDefaults {
   defaultWorkspace: WorkspaceId;
-  favorites: string[]; // hrefs
+  /** Workspaces in the switcher for this persona (order preserved). */
+  workspaces: WorkspaceId[];
+  favorites: string[]; // hrefs — keep short (3–4)
   quickActions: QuickAction[];
   mobileTabs: { label: string; href: string; icon: string; matchPaths?: string[] }[];
 }
 
+export const ALL_WORKSPACE_IDS: WorkspaceId[] = [
+  "my-work",
+  "projects",
+  "finance",
+  "operations",
+  "people",
+  "reports",
+  "admin",
+];
+
 // ---------------------------------------------------------------------------
-// Workspace: Projects
+// Workspace: Projects — portfolio + primary job links + More groups
 // ---------------------------------------------------------------------------
 
-export function getProjectWorkspaceItems(projectId: string | null): NavItem[] {
-  const base = projectId ? `/projects/${projectId}` : null;
+export interface ProjectNavGroup {
+  label: string;
+  items: NavItem[];
+}
 
-  const globalItems: NavItem[] = [
+/** Structured project nav for sidebar (primary + collapsible More). */
+export interface ProjectWorkspaceNav {
+  portfolio: NavItem[];
+  /** Only when a project is open — day-job links (≤5). */
+  primary: NavItem[];
+  moreGroups: ProjectNavGroup[];
+}
+
+function portfolioItems(): NavItem[] {
+  return [
     { label: "All Projects", href: "/projects", icon: "🏗️", requiredPermission: "Projects.View" },
     { label: "Bids", href: "/bids", icon: "📋", requiredPermission: "Bids.View" },
+    { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
   ];
+}
 
-  if (!base) return globalItems;
+export function getProjectWorkspaceNav(projectId: string | null): ProjectWorkspaceNav {
+  const portfolio = portfolioItems();
+  if (!projectId) {
+    return { portfolio, primary: [], moreGroups: [] };
+  }
 
-  // Field-first order: Site Walk + reports before back-office modules.
-  const projectItems: NavItem[] = [
-    { label: "Overview", href: `${base}`, icon: "📄", requiredPermission: "Projects.View" },
+  const base = `/projects/${projectId}`;
+  const primary: NavItem[] = [
+    { label: "Overview", href: base, icon: "📄", requiredPermission: "Projects.View" },
     { label: "Site Walk", href: `${base}/site-walk`, icon: "🚶", requiredPermission: "Projects.View" },
-    { label: "Schedule", href: `${base}/schedule`, icon: "📅", requiredPermission: "PM.Schedule" },
-    { label: "Plans & Specs", href: `${base}/plans-specs`, icon: "📐", requiredPermission: "Documents.View" },
     { label: "Daily Reports", href: `${base}/daily-reports`, icon: "📝", requiredPermission: "PM.DailyReports" },
     { label: "RFIs", href: `${base}/rfis`, icon: "❓", requiredPermission: "PM.RFIs" },
-    { label: "Submittals", href: `${base}/submittals`, icon: "📬", requiredPermission: "PM.Submittals" },
-    { label: "Tasks", href: `${base}/tasks`, icon: "✅", requiredPermission: "Projects.View" },
-    { label: "Punch List", href: `${base}/punch-list`, icon: "📋", requiredPermission: "PM.PunchList" },
     { label: "Job Cost", href: `${base}/job-cost`, icon: "💰", requiredPermission: "Projects.View" },
-    { label: "Change Orders", href: `${base}/change-orders`, icon: "📝", requiredPermission: "Contracts.View" },
-    { label: "Documents", href: `${base}/documents`, icon: "📁", requiredPermission: "Documents.View" },
-    { label: "Progress", href: `${base}/progress`, icon: "📈", requiredPermission: "Projects.View" },
-    { label: "Cost Projections", href: `${base}/projections`, icon: "🔮", requiredPermission: "Projects.View" },
-    { label: "Communications", href: `${base}/communications`, icon: "💬", requiredPermission: "Projects.View" },
-    { label: "Meetings", href: `${base}/meetings`, icon: "🤝", requiredPermission: "PM.Meetings" },
-    { label: "Narratives", href: `${base}/narratives`, icon: "📖", requiredPermission: "Projects.View" },
   ];
 
-  return [...globalItems, ...projectItems];
+  const moreGroups: ProjectNavGroup[] = [
+    {
+      label: "Field",
+      items: [
+        { label: "Digital Twin", href: `${base}/twin`, icon: "🗺️", requiredPermission: "Spatial.View" },
+        { label: "Schedule", href: `${base}/schedule`, icon: "📅", requiredPermission: "PM.Schedule" },
+        { label: "Plans & Specs", href: `${base}/plans-specs`, icon: "📐", requiredPermission: "Documents.View" },
+        { label: "Punch List", href: `${base}/punch-list`, icon: "📋", requiredPermission: "PM.PunchList" },
+      ],
+    },
+    {
+      label: "Coordination",
+      items: [
+        { label: "Submittals", href: `${base}/submittals`, icon: "📬", requiredPermission: "PM.Submittals" },
+        { label: "Tasks", href: `${base}/tasks`, icon: "✅", requiredPermission: "Projects.View" },
+        { label: "Change Orders", href: `${base}/change-orders`, icon: "📝", requiredPermission: "Contracts.View" },
+        { label: "Meetings", href: `${base}/meetings`, icon: "🤝", requiredPermission: "PM.Meetings" },
+        { label: "Communications", href: `${base}/communications`, icon: "💬", requiredPermission: "Projects.View" },
+      ],
+    },
+    {
+      label: "Cost & docs",
+      items: [
+        { label: "Progress", href: `${base}/progress`, icon: "📈", requiredPermission: "Projects.View" },
+        { label: "Cost Projections", href: `${base}/projections`, icon: "🔮", requiredPermission: "Projects.View" },
+        { label: "Documents", href: `${base}/documents`, icon: "📁", requiredPermission: "Documents.View" },
+        { label: "Narratives", href: `${base}/narratives`, icon: "📖", requiredPermission: "Projects.View" },
+      ],
+    },
+  ];
+
+  return { portfolio, primary, moreGroups };
+}
+
+/** Flat list for ⌘K / recents / active-href (includes primary + more). */
+export function getProjectWorkspaceItems(projectId: string | null): NavItem[] {
+  const nav = getProjectWorkspaceNav(projectId);
+  return [
+    ...nav.portfolio,
+    ...nav.primary,
+    ...nav.moreGroups.flatMap((g) => g.items),
+  ];
 }
 
 export function getProjectWorkspaceSeparators(projectId: string | null): Workspace["separators"] {
-  if (!projectId) return undefined;
-  return [{ beforeIndex: 2, label: "Active Project" }];
+  // Portfolio-only view still uses separators; open-project uses primary/More UI.
+  if (!projectId) {
+    return [{ beforeIndex: 2, label: "Estimating" }];
+  }
+  return undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,27 +149,28 @@ export function getProjectWorkspaceSeparators(projectId: string | null): Workspa
 // ---------------------------------------------------------------------------
 
 const financeItems: NavItem[] = [
+  // Day-to-day construction finance first (WIP + AR), then GL setup.
+  { label: "WIP Schedule", href: "/accounting/wip", icon: "📈", requiredPermission: "Accounting.ViewGL" },
+  { label: "AR Aging", href: "/billing/aging", icon: "📊", requiredPermission: "Billing.View" },
+  { label: "Owner Billing (AR)", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
+  { label: "Sub Pay Apps (AP)", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
+  { label: "Owner Contracts", href: "/billing/contracts", icon: "📑", requiredPermission: "Billing.View" },
+  { label: "Retention", href: "/accounting/retention", icon: "🔒", requiredPermission: "Billing.View" },
+  { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋", requiredPermission: "Billing.LienWaivers" },
+  // General ledger
   { label: "Journal Entries", href: "/accounting/journal-entries", icon: "📓", requiredPermission: "Accounting.ViewGL" },
   { label: "Chart of Accounts", href: "/chart-of-accounts", icon: "🧾", requiredPermission: "Accounting.ViewGL" },
   { label: "Accounting Periods", href: "/accounting/periods", icon: "📆", requiredPermission: "Accounting.ManagePeriods" },
-  { label: "WIP Schedule", href: "/accounting/wip", icon: "📈", requiredPermission: "Accounting.ViewGL" },
   { label: "Bank Reconciliation", href: "/accounting/bank-reconciliation", icon: "🏦", requiredPermission: "Accounting.ManageBankAccounts" },
-  { label: "Retention", href: "/accounting/retention", icon: "🔒", requiredPermission: "Billing.View" },
-  { label: "Lien Waivers", href: "/accounting/lien-waivers", icon: "📋", requiredPermission: "Billing.LienWaivers" },
-  // Billing section
-  { label: "Owner Contracts", href: "/billing/contracts", icon: "📑", requiredPermission: "Billing.View" },
-  { label: "Owner Billing (AR)", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
-  { label: "Sub Pay Apps (AP)", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
-  { label: "AR Aging", href: "/billing/aging", icon: "📊", requiredPermission: "Billing.View" },
   { label: "AI Invoice Extract", href: "/invoices/extract", icon: "🤖", requiredPermission: "AP.View" },
 ];
 
 const financeSeparators: Workspace["separators"] = [
-  { beforeIndex: 7, label: "Billing" },
+  { beforeIndex: 7, label: "General Ledger" },
 ];
 
 // ---------------------------------------------------------------------------
-// Workspace: Operations (old Procurement)
+// Workspace: Operations (procurement + vendor/customer contracts)
 // ---------------------------------------------------------------------------
 
 const operationsItems: NavItem[] = [
@@ -120,32 +182,34 @@ const operationsItems: NavItem[] = [
   { label: "Change Orders", href: "/change-orders", icon: "📝", requiredPermission: "Contracts.View" },
 ];
 
+const operationsSeparators: Workspace["separators"] = [
+  { beforeIndex: 4, label: "Contracts" },
+];
+
 // ---------------------------------------------------------------------------
-// Workspace: People (HR + Payroll + Time Tracking)
+// Workspace: People (workforce only — HR, time, payroll, fleet)
+// Cost codes, projects, and subcontracts live in Projects / Operations.
 // ---------------------------------------------------------------------------
 
 const peopleItems: NavItem[] = [
   { label: "My Approvals", href: "/my-approvals", icon: "✅" },
-  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
   { label: "Employees", href: "/employees", icon: "👷", requiredPermission: "Employees.View" },
-  { label: "Projects", href: "/projects", icon: "🏗️", requiredPermission: "Projects.View" },
-  { label: "Subcontracts", href: "/contracts", icon: "📄", requiredPermission: "Contracts.View" },
   { label: "Time Tracking", href: "/time-tracking", icon: "⏱️", requiredPermission: "TimeTracking.View" },
-  { label: "Approvals", href: "/time-tracking/approval", icon: "✅", requiredPermission: "TimeTracking.Approve" },
-  // Payroll section
+  { label: "Time Approvals", href: "/time-tracking/approval", icon: "✅", requiredPermission: "TimeTracking.Approve" },
+  // Payroll
   { label: "Payroll Runs", href: "/payroll/runs", icon: "🧮", requiredPermission: "Payroll.View" },
   { label: "Certified Payroll", href: "/payroll/certified", icon: "📄", requiredPermission: "Payroll.View" },
   { label: "Payroll Reviews", href: "/payroll/reviews", icon: "✅", requiredPermission: "Payroll.Process" },
   { label: "Wage Determinations", href: "/payroll/wage-determinations", icon: "📚", requiredPermission: "Payroll.View" },
   { label: "Payroll Exports", href: "/payroll/exports", icon: "📤", requiredPermission: "Payroll.View" },
-  // Resources section
+  // Fleet
   { label: "Equipment", href: "/equipment", icon: "🚜", requiredPermission: "Equipment.View" },
 ];
 
 const peopleSeparators: Workspace["separators"] = [
-  { beforeIndex: 1, label: "Day-1 Setup" },
-  { beforeIndex: 7, label: "Payroll" },
-  { beforeIndex: 12, label: "Resources" },
+  { beforeIndex: 1, label: "Workforce" },
+  { beforeIndex: 4, label: "Payroll" },
+  { beforeIndex: 9, label: "Fleet" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -216,12 +280,13 @@ export const workspaces: Workspace[] = [
     icon: "📦",
     requiredAnyPermission: ["AP.View", "AR.View", "Contracts.View"],
     items: operationsItems,
+    separators: operationsSeparators,
   },
   {
     id: "people",
     label: "People",
     icon: "👥",
-    requiredAnyPermission: ["Employees.View", "TimeTracking.View", "Payroll.View"],
+    requiredAnyPermission: ["Employees.View", "TimeTracking.View", "Payroll.View", "Equipment.View"],
     items: peopleItems,
     separators: peopleSeparators,
   },
@@ -255,12 +320,13 @@ export function getAllNavItems(projectId: string | null): NavItem[] {
     ...peopleItems,
     ...reportsItems,
     ...adminWorkspaceItems,
-    // Settings (accessible via ⌘K even though not in sidebar)
+    // Field + estimating shortcuts used as favorites / quick actions / ⌘K
+    { label: "Crew Time Entry", href: "/time-tracking/crew-entry", icon: "⏱️", requiredPermission: "TimeTracking.View" },
+    { label: "Mobile Daily Report", href: "/daily-reports/mobile", icon: "📝", requiredPermission: "PM.DailyReports" },
     { label: "Settings", href: "/settings", icon: "⚙️" },
     { label: "Notifications", href: "/settings/notifications", icon: "🔔" },
     { label: "Overtime Rules", href: "/settings/overtime", icon: "⏰" },
     { label: "Help Center", href: "/help", icon: "❓" },
-    { label: "My Approvals", href: "/my-approvals", icon: "✅" },
   ];
 }
 
@@ -272,93 +338,113 @@ export function getAllNavItems(projectId: string | null): NavItem[] {
  * Keys match JWT `role_profile` claim (RoleProfileResolver.ToApiName).
  * Legacy display names kept as aliases for older callers.
  */
+const PM_DEFAULTS: RoleDefaults = {
+  defaultWorkspace: "projects",
+  workspaces: ["my-work", "projects", "people", "reports"],
+  favorites: ["/", "/projects", "/my-approvals", "/time-tracking/approval"],
+  quickActions: [
+    { label: "My Approvals", href: "/my-approvals", icon: "✅" },
+    { label: "Projects", href: "/projects", icon: "🏗️" },
+    { label: "Field Report", href: "/daily-reports/mobile", icon: "📝" },
+  ],
+  mobileTabs: [
+    { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
+    { label: "Projects", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
+    { label: "Approve", href: "/my-approvals", icon: "✅", matchPaths: ["/my-approvals", "/time-tracking/approval"] },
+    { label: "Time", href: "/time-tracking", icon: "⏱️", matchPaths: ["/time-tracking"] },
+  ],
+};
+
+const CFO_DEFAULTS: RoleDefaults = {
+  defaultWorkspace: "my-work",
+  workspaces: ["my-work", "finance", "operations", "reports"],
+  favorites: ["/", "/accounting/wip", "/billing/aging", "/billing/applications"],
+  quickActions: [
+    { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
+    { label: "AR Aging", href: "/billing/aging", icon: "📊" },
+    { label: "Owner Billing", href: "/billing/applications", icon: "💰" },
+  ],
+  mobileTabs: [
+    { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
+    { label: "WIP", href: "/accounting/wip", icon: "📈", matchPaths: ["/accounting/wip"] },
+    { label: "Aging", href: "/billing/aging", icon: "📊", matchPaths: ["/billing/aging"] },
+    { label: "Billing", href: "/billing/applications", icon: "💰", matchPaths: ["/billing/applications", "/billing/contracts"] },
+  ],
+};
+
+const FIELD_DEFAULTS: RoleDefaults = {
+  defaultWorkspace: "my-work",
+  workspaces: ["my-work", "projects"],
+  favorites: ["/", "/time-tracking/crew-entry", "/daily-reports/mobile", "/projects"],
+  quickActions: [
+    { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
+    { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
+    { label: "Jobs", href: "/projects", icon: "🏗️" },
+  ],
+  mobileTabs: [
+    { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
+    { label: "Crew", href: "/time-tracking/crew-entry", icon: "⏱️", matchPaths: ["/time-tracking"] },
+    { label: "Report", href: "/daily-reports/mobile", icon: "📝", matchPaths: ["/daily-reports"] },
+    { label: "Jobs", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
+  ],
+};
+
+const HR_DEFAULTS: RoleDefaults = {
+  defaultWorkspace: "people",
+  workspaces: ["my-work", "people"],
+  favorites: ["/", "/employees", "/time-tracking"],
+  quickActions: [
+    { label: "Employees", href: "/employees", icon: "👷" },
+    { label: "New Employee", href: "/employees/new", icon: "👷" },
+    { label: "Compliance", href: "/admin/compliance", icon: "✅" },
+  ],
+  mobileTabs: [
+    { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
+    { label: "Employees", href: "/employees", icon: "👷", matchPaths: ["/employees"] },
+    { label: "Time", href: "/time-tracking", icon: "⏱️", matchPaths: ["/time-tracking"] },
+    { label: "Compliance", href: "/admin/compliance", icon: "✅", matchPaths: ["/admin/compliance"] },
+  ],
+};
+
 export const roleDefaults: Record<string, RoleDefaults> = {
   executive: {
-    defaultWorkspace: "reports",
-    favorites: ["/", "/reports/financial-overview", "/accounting/wip", "/billing/aging", "/bids", "/projects"],
+    defaultWorkspace: "my-work",
+    workspaces: ["my-work", "projects", "finance", "reports"],
+    favorites: ["/", "/reports/financial-overview", "/accounting/wip", "/billing/aging"],
     quickActions: [
       { label: "Financial Overview", href: "/reports/financial-overview", icon: "📊" },
       { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
       { label: "AR Aging", href: "/billing/aging", icon: "💰" },
     ],
     mobileTabs: [
-      // Demo CEO: portfolio + cash + financials (high mobile traffic)
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
       { label: "Projects", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
       { label: "Aging", href: "/billing/aging", icon: "💰", matchPaths: ["/billing/aging"] },
       { label: "Reports", href: "/reports/financial-overview", icon: "📊", matchPaths: ["/reports"] },
     ],
   },
-  cfo: {
-    defaultWorkspace: "finance",
-    favorites: ["/", "/accounting/wip", "/billing/aging", "/accounting/journal-entries", "/reports/financial-overview"],
-    quickActions: [
-      { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
-      { label: "AR Aging", href: "/billing/aging", icon: "📊" },
-      { label: "Owner Billing", href: "/billing/applications", icon: "💰" },
-    ],
-    mobileTabs: [
-      // Demo CFO: keep paths specific so WIP vs journal vs billing don't all light up
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "WIP", href: "/accounting/wip", icon: "📈", matchPaths: ["/accounting/wip"] },
-      { label: "Aging", href: "/billing/aging", icon: "📊", matchPaths: ["/billing/aging"] },
-      { label: "Billing", href: "/billing/applications", icon: "💰", matchPaths: ["/billing/applications", "/billing/contracts"] },
-    ],
-  },
-  projectManager: {
-    defaultWorkspace: "projects",
-    favorites: ["/", "/projects", "/time-tracking/approval", "/rfis", "/my-approvals"],
-    quickActions: [
-      { label: "New RFI", href: "/rfis/new", icon: "❓" },
-      { label: "Approve Timecards", href: "/time-tracking/approval", icon: "✅" },
-      { label: "New Daily Report", href: "/daily-reports/mobile", icon: "📝" },
-    ],
-    mobileTabs: [
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Projects", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
-      { label: "RFIs", href: "/rfis", icon: "❓", matchPaths: ["/rfis"] },
-      { label: "Time", href: "/time-tracking", icon: "⏱️", matchPaths: ["/time-tracking"] },
-    ],
-  },
+  cfo: CFO_DEFAULTS,
+  projectManager: PM_DEFAULTS,
   /** @deprecated use projectManager */
-  "Project Manager": {
-    defaultWorkspace: "projects",
-    favorites: ["/", "/projects", "/time-tracking/approval"],
-    quickActions: [
-      { label: "New RFI", href: "/rfis/new", icon: "❓" },
-      { label: "Approve Timecards", href: "/time-tracking/approval", icon: "✅" },
-      { label: "New Daily Report", href: "/daily-reports/mobile", icon: "📝" },
-    ],
-    mobileTabs: [
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Projects", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
-      { label: "RFIs", href: "/rfis", icon: "❓", matchPaths: ["/rfis"] },
-      { label: "Time", href: "/time-tracking", icon: "⏱️", matchPaths: ["/time-tracking"] },
-    ],
-  },
+  "Project Manager": PM_DEFAULTS,
   /** @deprecated use cfo */
   Controller: {
-    defaultWorkspace: "finance",
-    favorites: ["/", "/accounting/journal-entries", "/accounting/wip", "/reports/financial-overview"],
+    ...CFO_DEFAULTS,
+    favorites: ["/", "/accounting/wip", "/accounting/journal-entries", "/billing/aging"],
     quickActions: [
-      { label: "New Journal Entry", href: "/accounting/journal-entries/new", icon: "📓" },
       { label: "WIP Schedule", href: "/accounting/wip", icon: "📈" },
+      { label: "New Journal Entry", href: "/accounting/journal-entries/new", icon: "📓" },
       { label: "Close Period", href: "/accounting/periods", icon: "📆" },
-    ],
-    mobileTabs: [
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Journal", href: "/accounting/journal-entries", icon: "📓", matchPaths: ["/accounting/journal-entries"] },
-      { label: "WIP", href: "/accounting/wip", icon: "📈", matchPaths: ["/accounting/wip"] },
-      { label: "Billing", href: "/billing/applications", icon: "💰", matchPaths: ["/billing/applications", "/billing/contracts"] },
     ],
   },
   clerk: {
     defaultWorkspace: "operations",
-    favorites: ["/", "/procurement/invoices", "/payment-applications", "/billing/applications", "/vendors"],
+    workspaces: ["my-work", "operations", "finance"],
+    favorites: ["/", "/procurement/invoices", "/payment-applications", "/vendors"],
     quickActions: [
       { label: "Enter Invoice", href: "/procurement/invoices/new", icon: "🧾" },
       { label: "Sub Pay Apps", href: "/payment-applications", icon: "💵" },
-      { label: "Owner Billing", href: "/billing/applications", icon: "💰" },
+      { label: "Vendors", href: "/vendors", icon: "🏢" },
     ],
     mobileTabs: [
       { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
@@ -369,7 +455,8 @@ export const roleDefaults: Record<string, RoleDefaults> = {
   },
   "AP Clerk": {
     defaultWorkspace: "operations",
-    favorites: ["/", "/procurement/invoices", "/payment-applications", "/procurement/purchase-orders", "/vendors"],
+    workspaces: ["my-work", "operations"],
+    favorites: ["/", "/procurement/invoices", "/payment-applications", "/vendors"],
     quickActions: [
       { label: "Enter Invoice", href: "/procurement/invoices/new", icon: "🧾" },
       { label: "Sub Pay Apps", href: "/payment-applications", icon: "💵" },
@@ -384,6 +471,7 @@ export const roleDefaults: Record<string, RoleDefaults> = {
   },
   "AR Clerk": {
     defaultWorkspace: "finance",
+    workspaces: ["my-work", "finance", "operations"],
     favorites: ["/", "/billing/applications", "/billing/aging", "/customers"],
     quickActions: [
       { label: "Owner Billing", href: "/billing/applications", icon: "💰" },
@@ -399,6 +487,7 @@ export const roleDefaults: Record<string, RoleDefaults> = {
   },
   "Payroll Manager": {
     defaultWorkspace: "people",
+    workspaces: ["my-work", "people"],
     favorites: ["/", "/payroll/runs", "/payroll/certified", "/time-tracking"],
     quickActions: [
       { label: "Process Payroll", href: "/payroll/runs", icon: "🧮" },
@@ -412,72 +501,14 @@ export const roleDefaults: Record<string, RoleDefaults> = {
       { label: "Certified", href: "/payroll/certified", icon: "📄", matchPaths: ["/payroll/certified"] },
     ],
   },
-  hr: {
-    defaultWorkspace: "people",
-    favorites: ["/", "/employees", "/admin/compliance", "/employees/onboarding"],
-    quickActions: [
-      { label: "New Employee", href: "/employees/new", icon: "👷" },
-      { label: "Compliance", href: "/admin/compliance", icon: "✅" },
-      { label: "Onboarding", href: "/employees/onboarding", icon: "📋" },
-    ],
-    mobileTabs: [
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Employees", href: "/employees", icon: "👷", matchPaths: ["/employees"] },
-      { label: "Compliance", href: "/admin/compliance", icon: "✅", matchPaths: ["/admin/compliance"] },
-      { label: "Onboarding", href: "/employees/onboarding", icon: "📋", matchPaths: ["/employees/onboarding"] },
-    ],
-  },
-  "HR Director": {
-    defaultWorkspace: "people",
-    favorites: ["/", "/employees", "/admin/compliance", "/employees/onboarding"],
-    quickActions: [
-      { label: "New Employee", href: "/employees/new", icon: "👷" },
-      { label: "Compliance", href: "/admin/compliance", icon: "✅" },
-      { label: "Onboarding", href: "/employees/onboarding", icon: "📋" },
-    ],
-    mobileTabs: [
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Employees", href: "/employees", icon: "👷", matchPaths: ["/employees"] },
-      { label: "Compliance", href: "/admin/compliance", icon: "✅", matchPaths: ["/admin/compliance"] },
-      { label: "Onboarding", href: "/employees/onboarding", icon: "📋", matchPaths: ["/employees/onboarding"] },
-    ],
-  },
-  field: {
-    defaultWorkspace: "my-work",
-    favorites: ["/time-tracking/crew-entry", "/daily-reports/mobile", "/equipment", "/projects"],
-    quickActions: [
-      { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
-      { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
-      { label: "Sub Status", href: "/sub-status", icon: "🔧" },
-      { label: "Equipment", href: "/equipment", icon: "🚜" },
-    ],
-    mobileTabs: [
-      // Superintendent / foreman phone path: time first, then report & jobs
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Crew", href: "/time-tracking/crew-entry", icon: "⏱️", matchPaths: ["/time-tracking"] },
-      { label: "Report", href: "/daily-reports/mobile", icon: "📝", matchPaths: ["/daily-reports"] },
-      { label: "Jobs", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
-    ],
-  },
-  Foreman: {
-    defaultWorkspace: "my-work",
-    favorites: ["/time-tracking/crew-entry", "/daily-reports/mobile", "/equipment", "/projects"],
-    quickActions: [
-      { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
-      { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
-      { label: "Sub Status", href: "/sub-status", icon: "🔧" },
-      { label: "Equipment", href: "/equipment", icon: "🚜" },
-    ],
-    mobileTabs: [
-      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
-      { label: "Crew", href: "/time-tracking/crew-entry", icon: "⏱️", matchPaths: ["/time-tracking"] },
-      { label: "Report", href: "/daily-reports/mobile", icon: "📝", matchPaths: ["/daily-reports"] },
-      { label: "Jobs", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
-    ],
-  },
+  hr: HR_DEFAULTS,
+  "HR Director": HR_DEFAULTS,
+  field: FIELD_DEFAULTS,
+  Foreman: FIELD_DEFAULTS,
   estimator: {
     defaultWorkspace: "projects",
-    favorites: ["/", "/bids", "/cost-codes", "/projects"],
+    workspaces: ["my-work", "projects"],
+    favorites: ["/", "/bids", "/projects", "/cost-codes"],
     quickActions: [
       { label: "Bid Pipeline", href: "/bids", icon: "📋" },
       { label: "New Bid", href: "/bids/new", icon: "➕" },
@@ -492,6 +523,7 @@ export const roleDefaults: Record<string, RoleDefaults> = {
   },
   itAdmin: {
     defaultWorkspace: "admin",
+    workspaces: ALL_WORKSPACE_IDS,
     favorites: ["/", "/admin/system-health", "/admin/users", "/admin/roles"],
     quickActions: [
       { label: "System Health", href: "/admin/system-health", icon: "💚" },
@@ -507,6 +539,7 @@ export const roleDefaults: Record<string, RoleDefaults> = {
   },
   Admin: {
     defaultWorkspace: "admin",
+    workspaces: ALL_WORKSPACE_IDS,
     favorites: ["/", "/admin/system-health", "/admin/users", "/admin/audit-logs"],
     quickActions: [
       { label: "System Health", href: "/admin/system-health", icon: "💚" },
@@ -525,6 +558,7 @@ export const roleDefaults: Record<string, RoleDefaults> = {
 /** Fallback defaults when user role doesn't match any known role */
 export const defaultRoleDefaults: RoleDefaults = {
   defaultWorkspace: "my-work",
+  workspaces: ["my-work", "projects", "people"],
   favorites: ["/", "/projects", "/time-tracking"],
   quickActions: [
     { label: "Dashboard", href: "/", icon: "📊" },
@@ -547,18 +581,80 @@ export function getWorkspaceLandingHref(workspaceId: WorkspaceId): string {
     case "projects":
       return "/projects";
     case "finance":
-      return "/accounting/journal-entries";
+      return "/accounting/wip";
     case "operations":
       return "/procurement/purchase-orders";
     case "people":
-      return "/cost-codes";
+      return "/employees";
     case "reports":
-      return "/reports";
+      return "/reports/weekly-summary";
     case "admin":
       return "/admin/company";
     default:
       return "/";
   }
+}
+
+/**
+ * Which workspace owns a path for auto-switch + breadcrumbs.
+ * Cost codes live under Projects (estimating/job cost), not People.
+ */
+export function detectWorkspaceFromPath(pathname: string): WorkspaceId | null {
+  if (pathname === "/" || pathname.startsWith("/settings") || pathname.startsWith("/help")) {
+    return null;
+  }
+  // Personal inbox — My Work, not People (HR)
+  if (pathname.startsWith("/my-approvals")) return "my-work";
+  if (pathname.startsWith("/projects") || pathname.startsWith("/bids") || pathname.startsWith("/cost-codes")) {
+    return "projects";
+  }
+  if (
+    pathname.startsWith("/accounting") ||
+    pathname.startsWith("/chart-of-accounts") ||
+    pathname.startsWith("/billing") ||
+    pathname.startsWith("/payment-applications") ||
+    pathname.startsWith("/invoices")
+  ) {
+    return "finance";
+  }
+  if (
+    pathname.startsWith("/procurement") ||
+    pathname.startsWith("/vendors") ||
+    pathname.startsWith("/customers") ||
+    pathname.startsWith("/contracts") ||
+    pathname.startsWith("/change-orders")
+  ) {
+    return "operations";
+  }
+  if (
+    pathname.startsWith("/employees") ||
+    pathname.startsWith("/time-tracking") ||
+    pathname.startsWith("/payroll") ||
+    pathname.startsWith("/equipment")
+  ) {
+    return "people";
+  }
+  if (pathname.startsWith("/reports")) return "reports";
+  if (pathname.startsWith("/admin")) return "admin";
+  // Global field shortcuts often live on My Work favorites
+  if (pathname.startsWith("/daily-reports") || pathname.startsWith("/rfis") || pathname.startsWith("/sub-status")) {
+    return "my-work";
+  }
+  return null;
+}
+
+/** True if People menu must never surface this href (guard for regressions). */
+export function isMisplacedUnderPeople(href: string): boolean {
+  return (
+    href === "/cost-codes" ||
+    href.startsWith("/cost-codes/") ||
+    href === "/projects" ||
+    href.startsWith("/projects/") ||
+    href === "/contracts" ||
+    href.startsWith("/contracts/") ||
+    href === "/bids" ||
+    href.startsWith("/bids/")
+  );
 }
 
 /**
@@ -578,4 +674,14 @@ export function getRoleDefaults(
     }
   }
   return defaultRoleDefaults;
+}
+
+/** Whether a workspace id is in the persona allow-list. */
+export function roleAllowsWorkspace(
+  workspaceId: WorkspaceId,
+  roles?: string[],
+  roleProfile?: string | null
+): boolean {
+  const allowed = getRoleDefaults(roles, roleProfile).workspaces;
+  return allowed.includes(workspaceId);
 }

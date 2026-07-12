@@ -6,16 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   FolderOpen,
-  Users,
   DollarSign,
   TrendingUp,
   BarChart3,
   AlertTriangle,
-  Shield,
-  ClipboardList,
   FileWarning,
   HeartPulse,
-  Building2,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import api from "@/lib/api";
@@ -74,18 +71,14 @@ function formatCurrency(v: number) {
   }).format(v);
 }
 
-/** Compact currency for narrow portfolio rows ($1.2M / $450K). */
 function formatCurrencyCompact(v: number) {
   const abs = Math.abs(v);
-  if (abs >= 1_000_000) {
-    return `$${(v / 1_000_000).toFixed(1)}M`;
-  }
-  if (abs >= 10_000) {
-    return `$${(v / 1_000).toFixed(0)}K`;
-  }
+  if (abs >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
+  if (abs >= 10_000) return `$${(v / 1_000).toFixed(0)}K`;
   return formatCurrency(v);
 }
 
+/** CEO home: exceptions first, then 4 money headlines — not a metric museum. */
 export function ExecutiveDashboard({
   data,
   isLoading,
@@ -118,19 +111,121 @@ export function ExecutiveDashboard({
   const loading = isLoading || summaryLoading;
   const alertCount =
     data?.projectBudgetHealth.filter((p) => p.percentUsed >= 75).length ?? 0;
-  const compliancePct =
-    summary && summary.compliance.total > 0
-      ? Math.round((summary.compliance.active / summary.compliance.total) * 100)
-      : null;
+  const complianceIssues =
+    (summary?.compliance.expiringSoon ?? 0) + (summary?.compliance.expired ?? 0);
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Needs attention</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 sm:grid-cols-2">
+          {loading ? (
+            <>
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </>
+          ) : (
+            <>
+              <Link
+                href={roleKpiDrillHref("arOverdue")}
+                className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
+              >
+                <DollarSign
+                  className={`h-5 w-5 shrink-0 ${
+                    (summary?.arOverdue ?? 0) > 0 ? "text-red-500" : "text-emerald-500"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    AR overdue 31+: {formatCurrency(summary?.arOverdue ?? 0)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Aging report — not bank cash</p>
+                </div>
+              </Link>
+              <Link
+                href={roleKpiDrillHref("budgetAlert")}
+                className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
+              >
+                <AlertTriangle
+                  className={`h-5 w-5 shrink-0 ${
+                    alertCount > 0 ? "text-amber-500" : "text-emerald-500"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {alertCount} job{alertCount !== 1 ? "s" : ""} over 75% labor-to-contract
+                  </p>
+                  <p className="text-xs text-muted-foreground">Proxy — not full job cost</p>
+                </div>
+              </Link>
+              <Link
+                href={roleKpiDrillHref("safetyYtd")}
+                className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
+              >
+                <HeartPulse
+                  className={`h-5 w-5 shrink-0 ${
+                    (summary?.safetyIncidentsYtd ?? 0) > 0 ? "text-amber-500" : "text-emerald-500"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {summary?.safetyIncidentsYtd ?? 0} safety incident
+                    {(summary?.safetyIncidentsYtd ?? 0) !== 1 ? "s" : ""} YTD
+                  </p>
+                  <p className="text-xs text-muted-foreground">From daily reports</p>
+                </div>
+              </Link>
+              <Link
+                href={roleKpiDrillHref("complianceAttention")}
+                className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
+              >
+                <Shield
+                  className={`h-5 w-5 shrink-0 ${
+                    complianceIssues > 0 ? "text-amber-500" : "text-emerald-500"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {complianceIssues} compliance doc{complianceIssues !== 1 ? "s" : ""} need action
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {summary?.compliance.expiringSoon ?? 0} expiring ·{" "}
+                    {summary?.compliance.expired ?? 0} expired
+                  </p>
+                </div>
+              </Link>
+              <Link
+                href={roleKpiDrillHref("openRfis")}
+                className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40 sm:col-span-2"
+              >
+                <FileWarning
+                  className={`h-5 w-5 shrink-0 ${
+                    (summary?.openRfiCount ?? data?.openRFIs ?? 0) > 5
+                      ? "text-amber-500"
+                      : "text-emerald-500"
+                  }`}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    {summary?.openRfiCount ?? data?.openRFIs ?? 0} open RFIs ·{" "}
+                    {summary?.openChangeOrderCount ?? 0} open COs (
+                    {formatCurrency(summary?.openChangeOrderAmount ?? 0)})
+                  </p>
+                </div>
+              </Link>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <Link
           href={roleKpiDrillHref("activeProjects")}
           className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
         >
-          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
               <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
                 Active Projects
@@ -153,7 +248,7 @@ export function ExecutiveDashboard({
           href={roleKpiDrillHref("billedToDate")}
           className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
         >
-          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
               <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
                 Billed to Date
@@ -181,7 +276,7 @@ export function ExecutiveDashboard({
           href={roleKpiDrillHref("unbilledBacklog")}
           className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
         >
-          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
               <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
                 Unbilled Backlog
@@ -197,7 +292,7 @@ export function ExecutiveDashboard({
                     {formatCurrency(summary?.unbilledContractValue ?? 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                    Portfolio {formatCurrency(summary?.portfolioContractValue ?? 0)} − billed
+                    Portfolio {formatCurrencyCompact(summary?.portfolioContractValue ?? 0)} − billed
                   </p>
                 </>
               )}
@@ -209,7 +304,7 @@ export function ExecutiveDashboard({
           href={roleKpiDrillHref("arApNet")}
           className="group block min-w-0 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-amber-500/60"
         >
-          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md group-active:bg-muted/40 cursor-pointer">
+          <Card className="h-full min-h-[5.5rem] transition-colors touch-manipulation group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 p-3 pb-2 sm:p-6 sm:pb-2">
               <CardTitle className="text-xs font-medium leading-snug sm:text-sm">
                 AR − AP Net
@@ -229,8 +324,7 @@ export function ExecutiveDashboard({
                     {formatCurrency(summary?.arApNetPosition ?? 0)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 leading-snug">
-                    AR {formatCurrency(summary?.arTotal ?? 0)} · AP{" "}
-                    {formatCurrency(summary?.apTotal ?? 0)}
+                    From aging — not bank cash
                   </p>
                 </>
               )}
@@ -239,105 +333,7 @@ export function ExecutiveDashboard({
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Link href={roleKpiDrillHref("workforce")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Workforce</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {summary?.activeEmployeeCount ?? data?.totalEmployees ?? 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    YTD hires {summary?.hiresYtd ?? 0} · terms{" "}
-                    {summary?.terminationsYtd ?? 0}
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href={roleKpiDrillHref("safetyYtd")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Safety (YTD)</CardTitle>
-              <HeartPulse className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {summary?.safetyIncidentsYtd ?? 0}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Daily-report incidents this year
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href={roleKpiDrillHref("complianceAttention")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Compliance</CardTitle>
-              <Shield className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-16" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {compliancePct != null ? `${compliancePct}%` : "—"}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {summary?.compliance.active ?? 0} active ·{" "}
-                    {summary?.compliance.expiringSoon ?? 0} expiring ·{" "}
-                    {summary?.compliance.expired ?? 0} expired
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Link>
-
-        <Link href={roleKpiDrillHref("bidPipeline")} className="group">
-          <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer h-full">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Bid Pipeline</CardTitle>
-              <ClipboardList className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <Skeleton className="h-8 w-24" />
-              ) : (
-                <>
-                  <div className="text-2xl font-bold">
-                    {formatCurrency(summary?.bidPipelineValue ?? 0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {summary?.openBidCount ?? 0} open bids ·{" "}
-                    {summary?.activeCustomerCount ?? 0} customers
-                  </p>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
-
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+      <div className="grid gap-3 grid-cols-3">
         <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
           <Link href="/reports/financial-overview">
             <BarChart3 className="h-5 w-5 text-purple-600" />
@@ -356,165 +352,55 @@ export function ExecutiveDashboard({
             <span className="text-sm font-medium">Projects</span>
           </Link>
         </Button>
-        <Button variant="outline" asChild className="h-auto py-3 flex-col gap-1.5 min-h-[44px]">
-          <Link href="/customers">
-            <Building2 className="h-5 w-5 text-blue-600" />
-            <span className="text-sm font-medium">Customers</span>
-          </Link>
-        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Project Portfolio</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {isLoading &&
-              Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            {!isLoading &&
-              data?.projectBudgetHealth.slice(0, 8).map((p) => (
-                <div
-                  key={p.name}
-                  className="rounded-md border p-3 space-y-2 overflow-hidden"
-                >
-                  <div className="flex items-start justify-between gap-2 min-w-0">
-                    <p className="font-medium text-sm leading-snug min-w-0 break-words">
-                      {p.name}
-                    </p>
-                    <div className="text-right shrink-0 tabular-nums">
-                      <p className="text-sm font-semibold whitespace-nowrap">
-                        <span className="sm:hidden">
-                          {formatCurrencyCompact(p.budget)}
-                        </span>
-                        <span className="hidden sm:inline">
-                          {formatCurrency(p.budget)}
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground whitespace-nowrap">
-                        {p.percentUsed.toFixed(0)}% labor
-                      </p>
-                    </div>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full ${
-                        p.percentUsed >= 90
-                          ? "bg-red-500"
-                          : p.percentUsed >= 75
-                            ? "bg-amber-500"
-                            : "bg-emerald-500"
-                      }`}
-                      style={{ width: `${Math.min(p.percentUsed, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    Labor cost vs contract (proxy — not full job cost)
+      <Card>
+        <CardHeader>
+          <CardTitle>Project Portfolio</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading &&
+            Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full" />
+            ))}
+          {!isLoading &&
+            data?.projectBudgetHealth.slice(0, 6).map((p) => (
+              <div
+                key={p.name}
+                className="rounded-md border p-3 space-y-2 overflow-hidden"
+              >
+                <div className="flex items-start justify-between gap-2 min-w-0">
+                  <p className="font-medium text-sm leading-snug min-w-0 break-words">
+                    {p.name}
                   </p>
+                  <div className="text-right shrink-0 tabular-nums">
+                    <p className="text-sm font-semibold whitespace-nowrap">
+                      {formatCurrencyCompact(p.budget)}
+                    </p>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">
+                      {p.percentUsed.toFixed(0)}% labor
+                    </p>
+                  </div>
                 </div>
-              ))}
-            {!isLoading && (data?.projectBudgetHealth.length ?? 0) === 0 && (
-              <p className="text-sm text-muted-foreground">No active projects.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Risks &amp; Exceptions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {loading ? (
-                <Skeleton className="h-20 w-full" />
-              ) : (
-                <>
-                  <Link
-                    href={roleKpiDrillHref("budgetAlert")}
-                    className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
-                  >
-                    <AlertTriangle
-                      className={`h-5 w-5 ${alertCount > 0 ? "text-amber-500" : "text-emerald-500"}`}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {alertCount} project{alertCount !== 1 ? "s" : ""} over 75%
-                        labor-to-contract
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Review cost projections
-                      </p>
-                    </div>
-                  </Link>
-                  <Link
-                    href={roleKpiDrillHref("openRfis")}
-                    className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
-                  >
-                    <FileWarning
-                      className={`h-5 w-5 ${
-                        (summary?.openRfiCount ?? data?.openRFIs ?? 0) > 5
-                          ? "text-amber-500"
-                          : "text-emerald-500"
-                      }`}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {summary?.openRfiCount ?? data?.openRFIs ?? 0} open RFIs
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        May impact schedule
-                      </p>
-                    </div>
-                  </Link>
-                  <Link
-                    href={roleKpiDrillHref("openChangeOrders")}
-                    className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
-                  >
-                    <AlertTriangle
-                      className={`h-5 w-5 ${
-                        (summary?.openChangeOrderCount ?? 0) > 0
-                          ? "text-amber-500"
-                          : "text-emerald-500"
-                      }`}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {summary?.openChangeOrderCount ?? 0} open change orders (
-                        {formatCurrency(summary?.openChangeOrderAmount ?? 0)})
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Pending / under review
-                      </p>
-                    </div>
-                  </Link>
-                  <Link
-                    href={roleKpiDrillHref("arOverdue")}
-                    className="flex items-center gap-3 rounded-md border p-3 hover:bg-muted/40"
-                  >
-                    <DollarSign
-                      className={`h-5 w-5 ${
-                        (summary?.arOverdue ?? 0) > 0
-                          ? "text-red-500"
-                          : "text-emerald-500"
-                      }`}
-                    />
-                    <div>
-                      <p className="text-sm font-medium">
-                        AR overdue 31+ days: {formatCurrency(summary?.arOverdue ?? 0)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        From aging report
-                      </p>
-                    </div>
-                  </Link>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full ${
+                      p.percentUsed >= 90
+                        ? "bg-red-500"
+                        : p.percentUsed >= 75
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                    }`}
+                    style={{ width: `${Math.min(p.percentUsed, 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          {!isLoading && (data?.projectBudgetHealth.length ?? 0) === 0 && (
+            <p className="text-sm text-muted-foreground">No active projects.</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

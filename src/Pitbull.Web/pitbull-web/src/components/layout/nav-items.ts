@@ -22,10 +22,9 @@ export const coreNavItems: NavItem[] = [
   { label: "Approvals", href: "/time-tracking/approval", icon: "✅", requiredPermission: "TimeTracking.Approve" },
 ];
 
-// Resources — always visible under "Resources" header
+// Resources — workforce / fleet only (cost codes live under Projects / estimating)
 export const resourceItems: NavItem[] = [
   { label: "Employees", href: "/employees", icon: "👷", requiredPermission: "Employees.View" },
-  { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
   { label: "Equipment", href: "/equipment", icon: "🚜", requiredPermission: "Equipment.View" },
   { label: "Audit Trail", href: "/time-tracking/audit", icon: "📜", requiredPermission: "TimeTracking.View" },
 ];
@@ -56,7 +55,14 @@ export const moduleGroups: ModuleGroup[] = [
       { label: "Owner Billing (AR)", href: "/billing/applications", icon: "💰", requiredPermission: "Billing.View" },
       { label: "Aging Reports", href: "/billing/aging", icon: "📊", requiredPermission: "Billing.View" },
       { label: "Sub Pay Apps (AP)", href: "/payment-applications", icon: "💵", requiredPermission: "Billing.View" },
+    ],
+  },
+  {
+    id: "estimating",
+    label: "Estimating",
+    items: [
       { label: "Bids", href: "/bids", icon: "📋", requiredPermission: "Bids.View" },
+      { label: "Cost Codes", href: "/cost-codes", icon: "🏷️", requiredPermission: "Projects.View" },
     ],
   },
   {

@@ -1,6 +1,6 @@
-# Twin cycle CI notes (2.8.4–3.0.0)
+# Twin cycle CI notes (2.8.4-2.10.0)
 
-See implementer `ci-notes.md` for session detail. Production version stamps: `VERSION` = 3.0.0.
+See implementer `ci-notes.md` for session detail. Twin MVP product stamp: `VERSION` = 2.10.0 (not a major).
 
 Key CI lessons:
 1. Seed overlay fuel must use a real user id for `PmProgressEntry.EnteredByUserId` on PostgreSQL.

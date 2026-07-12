@@ -1,6 +1,29 @@
-# Role experience map (v2.1)
+# Role experience map (v2.12)
 
 How demo and real users land in the product after login. All personas use shell route **`/`**; content differs by **role profile**.
+
+## Workspace map (2.12.0)
+
+| Workspace | Owns | Landing |
+|-----------|------|---------|
+| **My Work** | Favorites + recents + role quick actions | `/` |
+| **Projects** | Jobs, Bids, **Cost Codes**; open job = 5 primary + More | `/projects` |
+| **Finance** | WIP, AR/AP billing, then GL | `/accounting/wip` |
+| **Operations** | POs, vendor invoices, vendors/customers, contracts/COs | `/procurement/purchase-orders` |
+| **People** | Employees, time, payroll, equipment — **not** cost codes | `/employees` |
+| **Reports** | Company reports | `/reports/weekly-summary` |
+| **Admin** | Company, users, roles, system | `/admin/company` |
+
+### Workspaces by persona (switcher allow-list)
+
+| Profile | Workspaces |
+|---------|------------|
+| executive | My Work, Projects, Finance, Reports |
+| cfo | My Work, Finance, Operations, Reports |
+| projectManager | My Work, Projects, People, Reports |
+| estimator / field | My Work, Projects |
+| payroll / hr | My Work, People |
+| Admin | all |
 
 ## Profile pipeline
 
@@ -16,7 +39,7 @@ AppUser.Title + Identity roles
         └── welcome tour steps
 ```
 
-Frontend nav defaults: `getRoleDefaults(roles, roleProfile)` in `workspaces.ts`.
+Frontend nav defaults: `getRoleDefaults(roles, roleProfile)` in `workspaces.ts`. Nav schema version re-seeds favorites when IA changes.
 
 ## One-click demo roles
 
@@ -52,4 +75,4 @@ AP/AR clerks, field engineer, payroll — full seed exists (`DemoBootstrapper`);
 
 - **PM / Supervisor:** Project ? Digital Twin for zone tree, overlay modes (RFI/progress/schedule proxies), zone drill for linked RFIs/reports/plans. Seed demo tree if empty.
 - **Field:** Optional zone on mobile field report; site walk links to Twin when `NEXT_PUBLIC_FEATURE_DIGITAL_TWIN` is on (default).
-- **Truth:** Overlay bands with * or InsufficientData are proxies / missing links � not invent green health or portfolio % complete from the twin.
+- **Truth:** Overlay bands with * or InsufficientData are proxies / missing links � not invent green health or portfolio % complete from the twin.
