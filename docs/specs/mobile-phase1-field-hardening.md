@@ -1,6 +1,6 @@
 # Spec: Mobile Phase 1 field hardening
 
-**Status:** In progress (2.12.2 agent infra shipped with program firm-up)  
+**Status:** Shipped through 2.13.2
 **Version band:** 2.12.2 → 2.13.2 (11 PRs from 2.12.1)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 1, [`docs/260712/goal-prompts.md`](../260712/goal-prompts.md)
 
@@ -216,9 +216,9 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** create `docs/ci/mobile-phase1-notes.md`; this spec Status
 
 **Acceptance:**
-- [ ] All version rows 2.12.3–2.13.1 checked or P0 gap listed with owner  
-- [ ] Notes include test commands + manual QA  
-- [ ] Status: `Shipped through 2.13.2`  
+- [x] All version rows 2.12.3–2.13.1 checked or P0 gap listed with owner  
+- [x] Notes include test commands + manual QA  
+- [x] Status: `Shipped through 2.13.2`  
 
 **Tests:** preflight -FullWeb -DotNet  
 
