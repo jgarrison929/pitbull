@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import api, { ApiError, uploadFiles } from "@/lib/api";
 import { isValidGuid, cn } from "@/lib/utils";
@@ -150,6 +151,7 @@ function formatDate(value?: string | null): string {
 
 export default function ProjectRfisPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: projectId } = use(params);
+  const searchParams = useSearchParams();
   const isProjectIdValid = isValidGuid(projectId);
 
   const [rfis, setRfis] = useState<Rfi[]>([]);
@@ -161,7 +163,7 @@ export default function ProjectRfisPage({ params }: { params: Promise<{ id: stri
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => searchParams.get("search") || "");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
 
