@@ -121,6 +121,9 @@ export function buildSubStatusItems(
   });
 }
 
+/** Unified CTA copy for field/PM home + project hub (2.14.3). */
+export const SITE_WALK_ENTRY_LABEL = "Today on this job";
+
 export function buildSiteWalkHref(projectId: string): string {
   return `/projects/${projectId}/site-walk`;
 }

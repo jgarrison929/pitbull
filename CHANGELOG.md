@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.14.3] - 2026-07-12T14:57:01-07:00
+
+### Added
+
+- **Today on this job entry** - unified `SITE_WALK_ENTRY_LABEL` on field home last-job card and project hub quick actions via `buildSiteWalkHref`.
+
+### Notes
+
+- Version **2.14.3** (Arc C start).
+
 ## [2.14.2] - 2026-07-12T14:56:27-07:00
 
 ### Added
