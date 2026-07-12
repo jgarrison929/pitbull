@@ -92,9 +92,11 @@ Field report flow is used on real devices (PostHog) but chrome conflicts, thin o
 **Files:** `public/sw.js`, optionally extract shared payload builder consumed by SW + client; `offline-store.test.ts`
 
 **Acceptance:**
-- [ ] Queued report with `fieldActivities` + `spatialNodeId` survives SW-shaped replay  
-- [ ] Unit test asserts payload keys present  
-- [ ] Time-entry sync untouched unless required  
+- [x] Queued report with `fieldActivities` + `spatialNodeId` survives SW-shaped replay  
+- [x] Unit test asserts payload keys present  
+- [x] Time-entry sync untouched unless required  
+
+**Shipped:** `buildOfflineDailyReportSyncBody` + SW `dailyData` mirror; tests in `offline-store.test.ts`.
 
 **Tests:** `npm test` / vitest offline-store path  
 

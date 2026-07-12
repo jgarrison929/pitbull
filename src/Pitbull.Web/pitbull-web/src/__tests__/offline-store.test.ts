@@ -150,6 +150,94 @@ describe("enqueueDailyReportForSync", () => {
     expect(entry.title).toContain("Daily Report");
     expect(entry.workNarrative).toBe("Voice logged pour");
   });
+
+  it("queues field activities + spatial + plan and survives SW-shaped sync body", async () => {
+    const {
+      buildOfflineDailyReportPayload,
+      buildOfflineDailyReportSyncBody,
+      OFFLINE_DAILY_REPORT_SYNC_DATA_KEYS,
+    } = await import("@/lib/daily-report-offline");
+
+    const zoneId = "11111111-1111-4111-8111-111111111111";
+    const planId = "22222222-2222-4222-8222-222222222222";
+    const payload = buildOfflineDailyReportPayload(
+      {
+        projectId: "proj-sw-parity",
+        reportDate: "2026-07-12",
+        reportType: "Foreman",
+        workNarrative: "Poured east wall",
+        fieldActivities: ["pour", "finish"],
+        truckConditions: ["ok"],
+        truckNotes: "3 loads",
+        spatialNodeId: zoneId,
+        planSheetId: planId,
+        zones: [{ id: zoneId, name: "Zone A", code: "A" }],
+        planSheets: [{ id: planId, sheetNumber: "A-101", title: "Plan" }],
+      },
+      "dr-sw-parity-1"
+    );
+
+    await enqueueDailyReportForSync(payload);
+    const items = await getPendingSyncItems();
+    const match = items.find((i) => i.id === "dr-sw-parity-1");
+    expect(match).toBeDefined();
+    const stored = match!.entry as OfflineDailyReport;
+
+    // Queue must retain offline fields (what SW will read from IndexedDB).
+    expect(stored.fieldActivities).toEqual(["pour", "finish"]);
+    expect(stored.truckConditions).toEqual(["ok"]);
+    expect(stored.truckNotes).toBe("3 loads");
+    expect(stored.spatialNodeId).toBe(zoneId);
+    expect(stored.planSheetId).toBe(planId);
+
+    // SW-shaped POST body (same builder client uses; SW mirrors keys in public/sw.js).
+    const body = buildOfflineDailyReportSyncBody(stored);
+    for (const key of OFFLINE_DAILY_REPORT_SYNC_DATA_KEYS) {
+      expect(body.data).toHaveProperty(key);
+    }
+    expect(body.data.FieldActivities).toEqual(["pour", "finish"]);
+    expect(body.data.TruckConditions).toEqual(["ok"]);
+    expect(body.data.TruckNotes).toBe("3 loads");
+    expect(body.data.SpatialNodeId).toBe(zoneId);
+    expect(body.data.PlanSheetId).toBe(planId);
+    expect(body.title).toBe(stored.title);
+    expect(body.status).toBe(stored.status);
+  });
+});
+
+describe("buildOfflineDailyReportSyncBody (SW parity contract)", () => {
+  it("includes FieldActivities/Truck*/spatial/plan when present on OfflineDailyReport", async () => {
+    const { buildOfflineDailyReportSyncBody } = await import(
+      "@/lib/daily-report-offline"
+    );
+    const report = makeDailyReport({
+      fieldActivities: ["form"],
+      truckConditions: ["delayed"],
+      truckNotes: "waiting rebar",
+      spatialNodeId: "zone-9",
+      planSheetId: "sheet-3",
+      crewEntries: [{ trade: "Carpenter", count: 4 }],
+    });
+    const { data } = buildOfflineDailyReportSyncBody(report);
+    expect(data.FieldActivities).toEqual(["form"]);
+    expect(data.TruckConditions).toEqual(["delayed"]);
+    expect(data.TruckNotes).toBe("waiting rebar");
+    expect(data.SpatialNodeId).toBe("zone-9");
+    expect(data.PlanSheetId).toBe("sheet-3");
+    expect(data.CrewEntries).toEqual([{ trade: "Carpenter", count: 4 }]);
+  });
+
+  it("omits SpatialNodeId and PlanSheetId when unset (no invented ids)", async () => {
+    const { buildOfflineDailyReportSyncBody } = await import(
+      "@/lib/daily-report-offline"
+    );
+    const { data } = buildOfflineDailyReportSyncBody(makeDailyReport());
+    expect(data).not.toHaveProperty("SpatialNodeId");
+    expect(data).not.toHaveProperty("PlanSheetId");
+    expect(data.FieldActivities).toBeNull();
+    expect(data.TruckConditions).toBeNull();
+    expect(data.TruckNotes).toBeNull();
+  });
 });
 
 describe("getPendingSyncItems", () => {

@@ -8,6 +8,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.12.4] - 2026-07-12T09:05:00-07:00
+
+### Fixed
+
+- **Offline daily-report SW sync parity** - service worker POST now includes `FieldActivities`, `TruckConditions`, `TruckNotes`, and optional `SpatialNodeId` / `PlanSheetId` matching client `syncDailyReport` (previously thin payload dropped field chips and twin fuel).
+
+### Added
+
+- **`buildOfflineDailyReportSyncBody`** in `daily-report-offline.ts` — shared pure builder used by client sync; SW mirrors the same keys (plain JS cannot import TS). Vitest covers queue → SW-shaped body with activities + spatial + plan.
+
+### Notes
+
+- Version **2.12.4** — daily-report offline path only; time-entry sync unchanged.
+
 ## [2.12.3] - 2026-07-12T08:30:00-07:00
 
 ### Fixed
