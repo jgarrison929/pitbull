@@ -47,3 +47,24 @@ public sealed record SpatialZoneOptionDto(
     string Code,
     string Name,
     string PathLabel);
+
+/// <summary>Zone drill panel: linked operational artifacts or honest empty lists.</summary>
+public sealed record SpatialZoneDetailResponse(
+    Guid SpatialNodeId,
+    string Code,
+    string Name,
+    string NodeType,
+    string PathLabel,
+    string Message,
+    IReadOnlyList<SpatialLinkedItemDto> OpenRfis,
+    IReadOnlyList<SpatialLinkedItemDto> DailyReports,
+    IReadOnlyList<SpatialLinkedItemDto> ProgressEntries,
+    IReadOnlyList<SpatialLinkedItemDto> ScheduleActivities);
+
+public sealed record SpatialLinkedItemDto(
+    Guid Id,
+    string Kind,
+    string Title,
+    string? Status,
+    DateTime? Date,
+    string? Detail);

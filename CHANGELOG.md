@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.8.6] - 2026-07-12T00:30:00-07:00
+
+### Added
+
+- **Zone detail API + twin panel** — `GET /api/projects/{id}/spatial/zones/{nodeId}` returns linked RFIs, daily reports, progress, and schedule activities (or honest empty copy); Digital Twin side panel loads links on zone select
+- Version **2.8.6**
+
 ## [2.8.5] - 2026-07-12T00:10:00-07:00
 
 ### Added

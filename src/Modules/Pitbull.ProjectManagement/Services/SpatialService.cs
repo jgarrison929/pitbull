@@ -222,6 +222,108 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(zones);
     }
 
+    public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(
+        Guid projectId,
+        Guid spatialNodeId,
+        CancellationToken cancellationToken = default)
+    {
+        var graphResult = await GetGraphAsync(projectId, cancellationToken);
+        if (!graphResult.IsSuccess)
+            return Result.Failure<SpatialZoneDetailResponse>(graphResult.Error ?? "Failed.", graphResult.ErrorCode);
+        if (!graphResult.Value!.HasGraph)
+            return Result.Failure<SpatialZoneDetailResponse>("No spatial graph for this project.", "NOT_FOUND");
+
+        var byId = graphResult.Value.Nodes.ToDictionary(n => n.Id);
+        if (!byId.TryGetValue(spatialNodeId, out var node))
+            return Result.Failure<SpatialZoneDetailResponse>("Spatial node not found on this project graph.", "NOT_FOUND");
+
+        var path = BuildPath(node, byId);
+
+        var rfis = await Db.Set<Rfi>()
+            .Where(r => r.ProjectId == projectId && !r.IsDeleted && r.SpatialNodeId == spatialNodeId)
+            .OrderByDescending(r => r.CreatedAt)
+            .Take(25)
+            .Select(r => new SpatialLinkedItemDto(
+                r.Id,
+                "rfi",
+                $"RFI #{r.Number}: {r.Subject}",
+                r.Status.ToString(),
+                r.CreatedAt,
+                r.Priority.ToString()))
+            .ToListAsync(cancellationToken);
+
+        var reports = await Db.Set<PmDailyReport>()
+            .Where(d => d.ProjectId == projectId && !d.IsDeleted && d.SpatialNodeId == spatialNodeId)
+            .OrderByDescending(d => d.ReportDate)
+            .Take(25)
+            .Select(d => new SpatialLinkedItemDto(
+                d.Id,
+                "daily_report",
+                d.Title ?? $"Daily report {d.ReportDate:yyyy-MM-dd}",
+                d.Status.ToString(),
+                d.ReportDate,
+                d.WorkNarrative))
+            .ToListAsync(cancellationToken);
+
+        var progress = await (
+            from pe in Db.Set<PmProgressEntry>()
+            join ap in Db.Set<PmActivityProgress>() on pe.Id equals ap.ProgressEntryId into aps
+            from ap in aps.DefaultIfEmpty()
+            where pe.ProjectId == projectId
+                  && !pe.IsDeleted
+                  && (pe.SpatialNodeId == spatialNodeId
+                      || (ap != null && !ap.IsDeleted && ap.SpatialNodeId == spatialNodeId))
+            orderby pe.ProgressDate descending
+            select new { pe, ap }
+        ).Take(25).ToListAsync(cancellationToken);
+
+        var progressDtos = progress
+            .GroupBy(x => x.pe.Id)
+            .Select(g =>
+            {
+                var pe = g.First().pe;
+                var pct = g.Where(x => x.ap != null).Select(x => (decimal?)x.ap!.PercentComplete).FirstOrDefault();
+                return new SpatialLinkedItemDto(
+                    pe.Id,
+                    "progress",
+                    $"Progress {pe.ProgressDate:yyyy-MM-dd}",
+                    pe.Status.ToString(),
+                    pe.ProgressDate,
+                    pct is null ? null : $"{pct:0}% complete*");
+            })
+            .ToList();
+
+        var activities = await Db.Set<PmScheduleActivity>()
+            .Where(a => a.ProjectId == projectId && !a.IsDeleted && a.PrimarySpatialNodeId == spatialNodeId)
+            .OrderBy(a => a.SortOrder)
+            .Take(25)
+            .Select(a => new SpatialLinkedItemDto(
+                a.Id,
+                "schedule_activity",
+                a.Name,
+                a.Status.ToString(),
+                a.PlannedFinish,
+                a.IsCritical ? "Critical path*" : null))
+            .ToListAsync(cancellationToken);
+
+        var anyLinks = rfis.Count + reports.Count + progressDtos.Count + activities.Count > 0;
+        var message = anyLinks
+            ? "Linked artifacts for this zone (only rows with SpatialNodeId / PrimarySpatialNodeId)."
+            : "No linked RFIs, daily reports, progress, or schedule activities for this zone yet — not empty green health.";
+
+        return Result.Success(new SpatialZoneDetailResponse(
+            spatialNodeId,
+            node.Code,
+            node.Name,
+            node.NodeType,
+            path,
+            message,
+            rfis,
+            reports,
+            progressDtos,
+            activities));
+    }
+
     /// <summary>
     /// Seeds fixture-known overlay fuel (RFIs + progress + schedule) on named demo zones.
     /// Idempotent: skips if open RFIs already linked for the project.

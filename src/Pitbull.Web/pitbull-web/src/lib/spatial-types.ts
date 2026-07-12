@@ -45,3 +45,25 @@ export interface SpatialOverlayResponse {
 }
 
 export type OverlayMode = "progress" | "schedule" | "rfi";
+
+export interface SpatialLinkedItemDto {
+  id: string;
+  kind: string;
+  title: string;
+  status?: string | null;
+  date?: string | null;
+  detail?: string | null;
+}
+
+export interface SpatialZoneDetailResponse {
+  spatialNodeId: string;
+  code: string;
+  name: string;
+  nodeType: string;
+  pathLabel: string;
+  message: string;
+  openRfis: SpatialLinkedItemDto[];
+  dailyReports: SpatialLinkedItemDto[];
+  progressEntries: SpatialLinkedItemDto[];
+  scheduleActivities: SpatialLinkedItemDto[];
+}

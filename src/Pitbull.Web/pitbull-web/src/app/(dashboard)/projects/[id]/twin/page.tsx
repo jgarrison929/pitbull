@@ -23,6 +23,7 @@ import type {
   SpatialNodeDto,
   SpatialOverlayNodeDto,
   SpatialOverlayResponse,
+  SpatialZoneDetailResponse,
 } from "@/lib/spatial-types";
 import { buildFieldReportHref } from "@/lib/projects";
 import {
@@ -83,6 +84,10 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
   const [overlay, setOverlay] = useState<SpatialOverlayResponse | null>(null);
   const [mode, setMode] = useState<OverlayMode>("rfi");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [zoneDetail, setZoneDetail] = useState<SpatialZoneDetailResponse | null>(
+    null
+  );
+  const [zoneDetailLoading, setZoneDetailLoading] = useState(false);
   const [projectName, setProjectName] = useState("");
 
   const load = useCallback(async () => {
@@ -119,6 +124,30 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!valid || !selectedId) {
+      setZoneDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setZoneDetailLoading(true);
+    void (async () => {
+      try {
+        const d = await api<SpatialZoneDetailResponse>(
+          `/api/projects/${projectId}/spatial/zones/${selectedId}`
+        );
+        if (!cancelled) setZoneDetail(d);
+      } catch {
+        if (!cancelled) setZoneDetail(null);
+      } finally {
+        if (!cancelled) setZoneDetailLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, selectedId, valid]);
 
   async function ensureSeeded() {
     setSeeding(true);
@@ -365,6 +394,39 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
                       No overlay row for this node.
                     </p>
                   )}
+                  {zoneDetailLoading && (
+                    <Skeleton className="h-20 w-full" data-testid="twin-zone-detail-loading" />
+                  )}
+                  {!zoneDetailLoading && zoneDetail && (
+                    <div
+                      className="space-y-3 border-t pt-3"
+                      data-testid="twin-zone-linked-artifacts"
+                    >
+                      <p className="text-xs text-muted-foreground">
+                        {zoneDetail.message}
+                      </p>
+                      <LinkedList
+                        title="Open RFIs"
+                        items={zoneDetail.openRfis}
+                        empty="No RFIs linked to this zone"
+                      />
+                      <LinkedList
+                        title="Daily reports"
+                        items={zoneDetail.dailyReports}
+                        empty="No daily reports linked"
+                      />
+                      <LinkedList
+                        title="Progress"
+                        items={zoneDetail.progressEntries}
+                        empty="No progress entries linked"
+                      />
+                      <LinkedList
+                        title="Schedule"
+                        items={zoneDetail.scheduleActivities}
+                        empty="No schedule activities linked"
+                      />
+                    </div>
+                  )}
                   {selected.nodeType === "Zone" && (
                     <Button variant="outline" className="w-full min-h-[44px]" asChild>
                       <Link
@@ -379,6 +441,48 @@ function TwinContent({ params }: { params: Promise<{ id: string }> }) {
             </CardContent>
           </Card>
         </div>
+      )}
+    </div>
+  );
+}
+
+function LinkedList({
+  title,
+  items,
+  empty,
+}: {
+  title: string;
+  items: Array<{ id: string; title: string; status?: string | null; detail?: string | null }>;
+  empty: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+        {title}
+      </p>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic">{empty}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {items.map((item) => (
+            <li
+              key={item.id}
+              className="rounded-md border px-2 py-1.5 text-sm"
+            >
+              <span className="font-medium">{item.title}</span>
+              {item.status && (
+                <span className="ml-1 text-xs text-muted-foreground">
+                  · {item.status}
+                </span>
+              )}
+              {item.detail && (
+                <p className="text-xs text-muted-foreground line-clamp-2">
+                  {item.detail}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

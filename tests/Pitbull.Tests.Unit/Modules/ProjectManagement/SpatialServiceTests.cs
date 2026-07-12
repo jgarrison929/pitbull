@@ -153,4 +153,28 @@ public sealed class SpatialServiceTests
         zones.Value!.Should().HaveCount(4);
         zones.Value.Should().OnlyContain(z => z.PathLabel.Contains('/'));
     }
+
+    [Fact]
+    public async Task ZoneDetail_linked_zone_lists_rfis_unlinked_is_honest_empty()
+    {
+        using var db = TestDbContextFactory.Create();
+        await TestDbContextFactory.SeedProjectAsync(db, ProjectId);
+        var service = CreateService(db);
+        await service.EnsureSeededGraphAsync(ProjectId);
+        var graph = (await service.GetGraphAsync(ProjectId)).Value!;
+        var east = graph.Nodes.First(n => n.Code == "L1-EAST");
+        var mech = graph.Nodes.First(n => n.Code == "L2-MECH");
+
+        var eastDetail = await service.GetZoneDetailAsync(ProjectId, east.Id);
+        var mechDetail = await service.GetZoneDetailAsync(ProjectId, mech.Id);
+
+        eastDetail.IsSuccess.Should().BeTrue();
+        eastDetail.Value!.OpenRfis.Should().NotBeEmpty();
+        eastDetail.Value.Message.Should().Contain("Linked");
+
+        mechDetail.IsSuccess.Should().BeTrue();
+        mechDetail.Value!.OpenRfis.Should().BeEmpty();
+        mechDetail.Value.DailyReports.Should().BeEmpty();
+        mechDetail.Value.Message.Should().Contain("No linked");
+    }
 }
