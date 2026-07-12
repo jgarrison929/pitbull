@@ -125,6 +125,9 @@ function emptyForm(): ProgressForm {
 
 export default function ProgressPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const searchParams = useSearchParams();
+  const preselectActivityId = searchParams.get("activityId") ?? "";
+  const preselectActivityName = searchParams.get("activityName") ?? "";
 
   const [entries, setEntries] = useState<PmEntityDto[]>([]);
   const [loading, setLoading] = useState(true);

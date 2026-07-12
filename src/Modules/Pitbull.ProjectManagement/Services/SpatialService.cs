@@ -231,6 +231,16 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(zones);
     }
 
+    public Task<Result<TwinPhotoPinsResponse>> ListPhotoPinsAsync(
+        Guid projectId,
+        Guid? spatialNodeId = null,
+        CancellationToken cancellationToken = default)
+    {
+        // 2.15.3 stub: contract + honest empty. Aggregation of real GPS/zone photos lands 2.15.5+.
+        _ = cancellationToken;
+        return Task.FromResult(Result.Success(TwinPhotoPinAggregation.Empty(projectId, spatialNodeId)));
+    }
+
     public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(
         Guid projectId,
         Guid spatialNodeId,

@@ -235,4 +235,9 @@ public interface ISpatialService
         CancellationToken cancellationToken = default);
     Task<Result<IReadOnlyList<SpatialZoneOptionDto>>> ListZonesAsync(Guid projectId, CancellationToken cancellationToken = default);
     Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(Guid projectId, Guid spatialNodeId, CancellationToken cancellationToken = default);
+    /// <summary>Photo pins for twin (2.15.3+). Stub returns honest empty until photos linked.</summary>
+    Task<Result<TwinPhotoPinsResponse>> ListPhotoPinsAsync(
+        Guid projectId,
+        Guid? spatialNodeId = null,
+        CancellationToken cancellationToken = default);
 }
