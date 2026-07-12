@@ -27,6 +27,7 @@ describe("twin surface static structure", () => {
     expect(src).toContain("twin-empty-state");
     expect(src).toContain("twin-zone-linked-artifacts");
     expect(src).toContain("twin-zone-photo-thumbs");
+    expect(src).toContain("twin-loading-skeleton");
     expect(src).toContain("twin-schematic-board");
     expect(src).toMatch(/No spatial graph yet|No published spatial graph|Seed demo zones/i);
   });
