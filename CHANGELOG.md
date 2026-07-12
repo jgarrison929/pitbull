@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.17.7] - 2026-07-12T16:15:40-07:00
+
+### Added
+
+- **Cost overlay honesty** - mode `cost` stays Insufficient unless allocation links; twin UI option + banner. No fake cost heat.
+
+### Notes
+
+- Version **2.17.7**
 ### Fixed
 
 - **Railway web `npm ci` (package-lock corruption)** - ladder version stamps used global string Replace on `package-lock.json`, rewriting real dep `is-core-module@2.16.x` into non-existent `2.17.x` tarballs. Restored `is-core-module@2.16.2`. Preflight now fails if product VERSION leaks into that package.

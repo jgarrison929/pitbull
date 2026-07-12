@@ -46,22 +46,22 @@ if ($pkg -eq $pkg2) { throw "package.json version not updated" }
 [System.IO.File]::WriteAllText($pkgPath, $pkg2)
 Write-Host "OK package.json"
 
-# package-lock: only root package version (lines 1–15 style), not global replace
+# package-lock: only first two root "version" lines — never global replace
 $lockPath = Join-Path $RepoRoot "src/Pitbull.Web/pitbull-web/package-lock.json"
-$lock = [System.IO.File]::ReadAllText($lockPath)
-# First two "version": "X.Y.Z" near root for name pitbull-web
-$rx = [regex]'(?m)^(\s*"version":\s*")' + [regex]::Escape($From) + '(")'
-# Limit to first 2 replacements only (root + packages[""])
+$lines = [System.IO.File]::ReadAllLines($lockPath)
 $n = 0
-$lock2 = $rx.Replace($lock, {
-  param($m)
-  $script:n++
-  if ($script:n -le 2) { return $m.Groups[1].Value + $To + $m.Groups[2].Value }
-  return $m.Value
-})
+$fromVer = "`"$From`""
+$toVer = "`"$To`""
+for ($i = 0; $i -lt $lines.Length; $i++) {
+  if ($n -ge 2) { break }
+  if ($lines[$i] -match ('^\s*"version":\s*' + [regex]::Escape($fromVer))) {
+    $lines[$i] = $lines[$i].Replace($fromVer, $toVer)
+    $n++
+  }
+}
 if ($n -lt 1) { throw "package-lock root version not found for $From" }
-[System.IO.File]::WriteAllText($lockPath, $lock2)
-Write-Host "OK package-lock.json (root only, $n root-ish replacements)"
+[System.IO.File]::WriteAllLines($lockPath, $lines)
+Write-Host "OK package-lock.json (root only, $n replacements)"
 
 Replace-FileExact "src/Pitbull.Api/Pitbull.Api.csproj" "<Version>$From</Version>" "<Version>$To</Version>"
 Replace-FileExact "src/Pitbull.Api/Pitbull.Api.csproj" "<AssemblyVersion>$From.0</AssemblyVersion>" "<AssemblyVersion>$To.0</AssemblyVersion>"
