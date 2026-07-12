@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.15.2] - 2026-07-12T15:01:07-07:00
+
+### Added
+
+- **Arc C checkpoint** - `docs/ci/mobile-phase3-notes.md`; site walk/schedule band **Shipped through 2.15.2**.
+
+### Notes
+
+- Version **2.15.2** closes Arc C. Next: Arc D (2.15.3+).
+
 ## [2.15.1] - 2026-07-12T15:00:58-07:00
 
 ### Changed
