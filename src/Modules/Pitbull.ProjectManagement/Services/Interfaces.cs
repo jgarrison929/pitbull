@@ -251,4 +251,12 @@ public interface ISpatialService
         Guid projectId,
         RegisterModelAssetRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Start conversion stub (2.16.5). Moves Pending → Processing; never Succeeded here.
+    /// </summary>
+    Task<Result<ModelAssetDto>> StartModelConversionAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        CancellationToken cancellationToken = default);
 }

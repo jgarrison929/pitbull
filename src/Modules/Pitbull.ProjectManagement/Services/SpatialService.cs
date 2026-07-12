@@ -353,6 +353,45 @@ public class SpatialService : PmServiceBase, ISpatialService
         return Result.Success(ModelAssetStatus.ToDto(entity));
     }
 
+    public async Task<Result<ModelAssetDto>> StartModelConversionAsync(
+        Guid projectId,
+        Guid modelAssetId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await ProjectExistsAsync(projectId, cancellationToken))
+            return Result.Failure<ModelAssetDto>("Project not found.", "NOT_FOUND");
+
+        var entity = await Db.Set<ModelAsset>()
+            .FirstOrDefaultAsync(
+                a => a.Id == modelAssetId && a.ProjectId == projectId && !a.IsDeleted,
+                cancellationToken);
+        if (entity is null)
+            return Result.Failure<ModelAssetDto>("Model asset not found.", "NOT_FOUND");
+
+        // Stub job: only Pending → Processing. Never mark Succeeded here (2.16.5 honesty).
+        if (entity.ConversionStatus is ModelConversionStatus.Succeeded)
+            return Result.Success(ModelAssetStatus.ToDto(entity));
+
+        if (entity.ConversionStatus is ModelConversionStatus.Failed)
+            return Result.Failure<ModelAssetDto>(
+                "Model conversion previously failed — use retry path later (2.16.8).",
+                "CONVERSION_FAILED");
+
+        entity.ConversionStatus = ModelConversionStatus.Processing;
+        entity.ConversionError = null;
+        entity.RuntimeBlobKey = null; // not ready
+        entity.IsActiveVersion = false;
+        await Db.SaveChangesAsync(cancellationToken);
+
+        var dto = ModelAssetStatus.ToDto(entity);
+        if (dto.IsReady)
+            return Result.Failure<ModelAssetDto>(
+                "Invariant violated: processing must not be ready.",
+                "INVARIANT");
+
+        return Result.Success(dto);
+    }
+
     public async Task<Result<SpatialZoneDetailResponse>> GetZoneDetailAsync(
         Guid projectId,
         Guid spatialNodeId,
