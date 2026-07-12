@@ -278,6 +278,20 @@ GitHub Actions runs automatically on push/PR to `main` (see .github/workflows/ci
 
 Both jobs must pass before merge. (No develop branch in current CI.)
 
+### MediatR community license (quiet Lucky Penny warnings)
+
+Core still registers MediatR for domain events/handlers. Without a license key, tests and API startup log Lucky Penny license warnings.
+
+**Do not commit the JWT.** Wire it via env / user-secrets / CI secret:
+
+| Where | How |
+|-------|-----|
+| Local API | `dotnet user-secrets set "MediatR:LicenseKey" "<jwt>" --project src/Pitbull.Api` or `MediatR__LicenseKey` in `.env` |
+| Local tests / shell | `$env:MEDIATR_LICENSE_KEY = "<jwt>"` (or `LUCKYPENNY_LICENSE_KEY`) |
+| CI | Repo secret `MEDIATR_LICENSE_KEY` (injected in `.github/workflows/ci.yml`) |
+
+Resolution order (see `MediatRLicense` in Core): `MediatR:LicenseKey` config → `MEDIATR_LICENSE_KEY` → `LUCKYPENNY_LICENSE_KEY`. Community keys: [luckypennysoftware.com/community](https://luckypennysoftware.com/community).
+
 ### Writing Tests
 
 - Unit tests go in `tests/Pitbull.Tests.Unit/`

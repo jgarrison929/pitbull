@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **MediatR license warnings in tests/CI** - resolve Lucky Penny community key from `MediatR:LicenseKey` / `MEDIATR_LICENSE_KEY` / `LUCKYPENNY_LICENSE_KEY`; apply in unit `ModuleInit` and on every `AddMediatR` registration; CI injects repo secret `MEDIATR_LICENSE_KEY`.
+
 ### Changed
 
 - **PostHog .NET SDK** - `PostHog` / `PostHog.AspNetCore` **2.2.2 → 2.6.0** (server analytics client).

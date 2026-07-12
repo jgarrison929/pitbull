@@ -6,6 +6,7 @@ using Pitbull.Bids.Features.CreateBid;
 using Pitbull.Billing.Features;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Core.Data;
+using Pitbull.Core.Extensions;
 using Pitbull.Core.Services;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.Projects.Features.CreateProject;
@@ -27,6 +28,9 @@ internal static class ModuleInit
     [ModuleInitializer]
     internal static void Initialize()
     {
+        // Quiet Lucky Penny MediatR license warnings during unit tests (env MEDIATR_LICENSE_KEY).
+        MediatRLicense.Apply();
+
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateProjectCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateBidCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateTimeEntryCommand).Assembly);
