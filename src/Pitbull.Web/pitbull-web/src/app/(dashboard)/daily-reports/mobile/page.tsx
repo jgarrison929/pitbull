@@ -54,13 +54,16 @@ import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
 import { buildOfflinePhotos, countEmbeddedPhotos } from "@/lib/offline-photo";
 import {
+  canSubmitWithSpatialPolicy,
   formatZoneLabel,
+  isSpatialZoneRequired,
   normalizeZoneOptions,
   pickSpatialContext,
   pickPlanSheet,
   type SpatialZoneOption,
   type PlanSheetOption,
 } from "@/lib/spatial-context";
+import type { ProjectSettingsData } from "@/lib/types";
 import {
   DEFAULT_CREW_TRADES,
   FIELD_ACTIVITIES,
@@ -149,11 +152,16 @@ export default function MobileDailyReportPage() {
   const [crewCounts, setCrewCounts] = useState<FieldCrewCount[]>(() =>
     DEFAULT_CREW_TRADES.map((trade) => ({ trade, count: 0 }))
   );
-  // Optional zones-first twin fuel — never required for submit/offline
+  // Zones-first twin fuel — required only when company RequireSpatialOnProgress is on
   const [zones, setZones] = useState<SpatialZoneOption[]>([]);
   const [spatialNodeId, setSpatialNodeId] = useState("");
+  const [requireSpatialOnProgress, setRequireSpatialOnProgress] = useState(false);
   const [planSheets, setPlanSheets] = useState<PlanSheetOption[]>([]);
   const [planSheetId, setPlanSheetId] = useState("");
+  const zoneRequired = isSpatialZoneRequired(
+    requireSpatialOnProgress,
+    zones.length > 0
+  );
 
   useEffect(() => {
     setGeoAvailable("geolocation" in navigator);
@@ -188,6 +196,28 @@ export default function MobileDailyReportPage() {
       }
     }
     void loadProjects();
+  }, []);
+
+  // Company preference for requiring spatial zone on progress (optional; default off)
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProjectSettings() {
+      try {
+        const data = await api<ProjectSettingsData>(
+          "/api/companies/settings/projects"
+        );
+        if (!cancelled) {
+          setRequireSpatialOnProgress(!!data.requireSpatialOnProgress);
+        }
+      } catch {
+        // Offline / missing settings → treat as optional (never invent requirement)
+        if (!cancelled) setRequireSpatialOnProgress(false);
+      }
+    }
+    void loadProjectSettings();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Load zone options when job changes (skip-safe if graph missing / offline)
@@ -602,6 +632,19 @@ export default function MobileDailyReportPage() {
       return;
     }
 
+    const spatialDecision = pickSpatialContext(zones, spatialNodeId);
+    const spatialGate = canSubmitWithSpatialPolicy({
+      requireSpatialOnProgress,
+      zones,
+      decision: spatialDecision,
+      asDraft,
+    });
+    if (!spatialGate.ok) {
+      toast.error(spatialGate.message);
+      setStep("Project");
+      return;
+    }
+
     const title = `Daily Report - ${reportDate}`;
     // Server assigns Draft on create — do not send Submitted (INVALID_STATUS_TRANSITION).
     const payload: PmUpsertRequest = {
@@ -840,10 +883,14 @@ export default function MobileDailyReportPage() {
                   </div>
                 </div>
                 {projectId && zones.length > 0 && (
-                  <div className="space-y-2">
+                  <div
+                    className="space-y-2"
+                    data-testid="field-zone-prompt"
+                    data-zone-required={zoneRequired ? "true" : "false"}
+                  >
                     <Label className="flex items-center gap-1.5">
                       <MapPin className="h-3.5 w-3.5 text-amber-500" />
-                      Zone (optional)
+                      {zoneRequired ? "Zone (required)" : "Zone (optional)"}
                     </Label>
                     <Select
                       value={spatialNodeId || "__none__"}
@@ -852,14 +899,25 @@ export default function MobileDailyReportPage() {
                       }
                     >
                       <SelectTrigger
-                        className="min-h-[48px] text-base"
+                        className={`min-h-[48px] text-base${
+                          zoneRequired && !spatialNodeId
+                            ? " border-amber-500 ring-1 ring-amber-400/40"
+                            : ""
+                        }`}
                         data-testid="field-zone-select"
+                        aria-required={zoneRequired}
                       >
-                        <SelectValue placeholder="No zone (optional)" />
+                        <SelectValue
+                          placeholder={
+                            zoneRequired
+                              ? "Select a zone to submit"
+                              : "No zone (optional)"
+                          }
+                        />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none__">
-                          {formatZoneLabel(null)}
+                          {formatZoneLabel(null, zoneRequired)}
                         </SelectItem>
                         {zones.map((z) => (
                           <SelectItem key={z.id} value={z.id}>
@@ -869,7 +927,9 @@ export default function MobileDailyReportPage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Optional twin fuel — skip anytime, including offline.
+                      {zoneRequired
+                        ? "Company requires a twin zone on progress submit when zones exist for this job. Drafts can still save without a zone."
+                        : "Optional twin fuel — skip anytime, including offline."}
                     </p>
                   </div>
                 )}

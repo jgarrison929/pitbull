@@ -1118,6 +1118,30 @@ public class DailyReportService : PmServiceBase, IDailyReportService
         if (!await HasDailyReportManpowerAsync(dailyReportId, dailyReport.WorkNarrative, cancellationToken))
             return Result.Failure<PmActionResultDto>("At least one crew/manpower entry or a work narrative is required before submitting", "VALIDATION_ERROR");
 
+        // Require spatial zone when company ProjectSettings.RequireSpatialOnProgress and project has zones
+        if (dailyReport.SpatialNodeId is null && CurrentCompanyId != Guid.Empty)
+        {
+            var requireSpatial = await Db.Companies
+                .AsNoTracking()
+                .Where(c => c.Id == CurrentCompanyId && !c.IsDeleted)
+                .Select(c => c.ProjectSettings.RequireSpatialOnProgress)
+                .FirstOrDefaultAsync(cancellationToken);
+            if (requireSpatial)
+            {
+                var hasZones = await Db.Set<SpatialNode>()
+                    .AsNoTracking()
+                    .AnyAsync(
+                        n => n.ProjectId == projectId && !n.IsDeleted && n.NodeType == SpatialNodeType.Zone,
+                        cancellationToken);
+                if (hasZones)
+                {
+                    return Result.Failure<PmActionResultDto>(
+                        "Company requires a spatial zone on progress submit when zones exist for this job",
+                        "SPATIAL_ZONE_REQUIRED");
+                }
+            }
+        }
+
         var fromStatus = dailyReport.Status.ToString();
         dailyReport.Status = DailyReportStatus.Submitted;
         dailyReport.UpdatedAt = DateTime.UtcNow;

@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.18.5] - 2026-07-12T16:35:51-07:00
+
+### Added
+
+- **Field report zone prompt when required** — mobile daily report labels zone required when company RequireSpatialOnProgress is on and project has zones; blocks non-draft submit/offline queue with honest toast. Drafts still save without a zone. API submit returns SPATIAL_ZONE_REQUIRED as server-side guard.
+
+### Notes
+
+- Version **2.18.5**. Demo skip path is 2.18.6. Not an executive KPI.
+
 ## [2.18.4] - 2026-07-12T16:32:38-07:00
 
 ### Added
