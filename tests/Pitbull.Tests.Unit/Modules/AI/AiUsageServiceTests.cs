@@ -44,6 +44,37 @@ public sealed class AiUsageServiceTests
     }
 
     [Fact]
+    public async Task LogUsage_with_companyId_increments_company_meter()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = new AiUsageService(db, new TestTenantContext(TestDbContextFactory.TestTenantId));
+        var companyId = Guid.NewGuid();
+
+        await service.LogUsageAsync(
+            userId: Guid.NewGuid(),
+            provider: "openai",
+            model: "gpt-4.1",
+            tokensIn: 10,
+            tokensOut: 5,
+            estimatedCost: 0m,
+            feature: "field-voice-suggestion",
+            durationMs: 100,
+            companyId: companyId);
+
+        var count = await service.GetCompanyRequestCountAsync(
+            companyId,
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)));
+        count.Should().Be(1);
+
+        var other = await service.GetCompanyRequestCountAsync(
+            Guid.NewGuid(),
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-1)),
+            DateOnly.FromDateTime(DateTime.UtcNow.AddDays(1)));
+        other.Should().Be(0);
+    }
+
+    [Fact]
     public async Task GetUsageSummary_AggregatesRequestsTokensAndCost()
     {
         using var db = TestDbContextFactory.Create();

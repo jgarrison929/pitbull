@@ -41,5 +41,6 @@ public class AiUsageRecordConfiguration : IEntityTypeConfiguration<AiUsageRecord
         builder.HasIndex(x => x.TenantId);
         builder.HasIndex(x => new { x.TenantId, x.UserId, x.RequestedAt });
         builder.HasIndex(x => new { x.TenantId, x.Provider });
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.RequestedAt });
     }
 }

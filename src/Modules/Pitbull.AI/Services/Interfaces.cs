@@ -23,11 +23,14 @@ public interface IAiService
 public interface IAiUsageService
 {
     Task LogUsageAsync(Guid userId, string provider, string model, int tokensIn, int tokensOut,
-                       decimal estimatedCost, string? feature, int durationMs, decimal confidenceScore = 0m, CancellationToken ct = default);
+                       decimal estimatedCost, string? feature, int durationMs, decimal confidenceScore = 0m,
+                       CancellationToken ct = default, Guid? companyId = null);
     Task<AiUsageSummaryDto> GetUsageSummaryAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
     Task<List<AiUsageByUserDto>> GetUsageByUserAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
     Task<List<AiUsageByProviderDto>> GetUsageByProviderAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
     Task<List<AiDailyUsageDto>> GetDailyUsageAsync(DateOnly from, DateOnly to, CancellationToken ct = default);
+    /// <summary>Per-company meter (2.19.6) — request counts in range for a company.</summary>
+    Task<int> GetCompanyRequestCountAsync(Guid companyId, DateOnly from, DateOnly to, CancellationToken ct = default);
 }
 
 public record AiUsageSummaryDto(int TotalRequests, int TotalTokensIn, int TotalTokensOut, decimal TotalCost);

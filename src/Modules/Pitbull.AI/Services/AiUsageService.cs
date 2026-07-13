@@ -11,13 +11,15 @@ public class AiUsageService(
     ITenantContext tenantContext) : IAiUsageService
 {
     public async Task LogUsageAsync(Guid userId, string provider, string model, int tokensIn, int tokensOut,
-                                    decimal estimatedCost, string? feature, int durationMs, decimal confidenceScore = 0m, CancellationToken ct = default)
+                                    decimal estimatedCost, string? feature, int durationMs, decimal confidenceScore = 0m,
+                                    CancellationToken ct = default, Guid? companyId = null)
     {
         var record = new AiUsageRecord
         {
             Id = Guid.NewGuid(),
             TenantId = tenantContext.TenantId,
             UserId = userId,
+            CompanyId = companyId,
             Provider = provider,
             Model = model,
             TokensIn = tokensIn,
@@ -31,6 +33,17 @@ public class AiUsageService(
 
         db.Set<AiUsageRecord>().Add(record);
         await db.SaveChangesAsync(ct);
+    }
+
+    public async Task<int> GetCompanyRequestCountAsync(Guid companyId, DateOnly from, DateOnly to, CancellationToken ct = default)
+    {
+        var fromDate = from.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        var toDate = to.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+        return await db.Set<AiUsageRecord>()
+            .AsNoTracking()
+            .CountAsync(
+                r => r.CompanyId == companyId && r.RequestedAt >= fromDate && r.RequestedAt < toDate,
+                ct);
     }
 
     public async Task<AiUsageSummaryDto> GetUsageSummaryAsync(DateOnly from, DateOnly to, CancellationToken ct = default)
