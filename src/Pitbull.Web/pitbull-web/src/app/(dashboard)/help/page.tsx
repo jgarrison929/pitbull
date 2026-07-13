@@ -21,6 +21,7 @@ import {
   WifiOff,
   Boxes,
   Inbox,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -44,6 +45,10 @@ import {
   approvalsFaqItems,
   approvalsHelpCards,
 } from "@/lib/help-approvals";
+import {
+  OFFICE_WORKFLOWS_SECTION_TITLE,
+  officeHelpCards,
+} from "@/lib/help-office-workflows";
 
 const fieldWorkflowIcons: Record<FieldWorkflowCard["icon"], LucideIcon> = {
   "file-text": FileText,
@@ -362,6 +367,41 @@ export default function HelpPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {approvalsHelpCards.map((card) => (
             <Card key={card.id}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{card.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {card.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+                <Link
+                  href={card.href}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 hover:underline"
+                >
+                  Open {card.title}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Office workflows (2.22.1) — CEO / CFO / PM / Estimator */}
+      <div data-testid="help-office-workflows">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <Building2 className="h-5 w-5 text-amber-500" />
+          {OFFICE_WORKFLOWS_SECTION_TITLE}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Title-first role profiles drive home layout. Cards match live demo
+          personas and KPI drill contracts — no invented metrics.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {officeHelpCards.map((card) => (
+            <Card key={card.id} data-testid={`help-office-card-${card.id}`}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">{card.title}</CardTitle>
               </CardHeader>

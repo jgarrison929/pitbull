@@ -1,8 +1,8 @@
 # Spec: Help Center — office personas
 
-**Status:** Pending  
+**Status:** In progress (cards 2.22.1; FAQ 2.22.2)  
 **Version band:** 2.22.1 → 2.22.2 (parallel with KPI + CI close)  
-**Related:** [`ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md), `help/page.tsx`
+**Related:** [`ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md), `help/page.tsx`, `help-office-workflows.ts`
 
 ## Problem
 
@@ -19,6 +19,7 @@ Office user opens Help → persona-relevant card → deep link into live workflo
 ## Primary code touchpoints
 
 - `src/.../app/(dashboard)/help/page.tsx`  
+- `src/.../lib/help-office-workflows.ts`  
 - Role home components under `role-views/`  
 - `docs/ROLE-EXPERIENCE.md`  
 
@@ -30,7 +31,7 @@ UI-only.
 
 | Version | Deliverable | Acceptance |
 |---------|-------------|------------|
-| 2.22.1 | Cards: CEO briefing, CFO WIP, PM approvals, Estimator pipeline | Each card 3–5 steps + real href |
+| 2.22.1 | Cards: CEO briefing, CFO WIP, PM approvals, Estimator pipeline | Each card 3–5 steps + real href — **done** |
 | 2.22.2 | FAQ: role profiles, demo explore, KPI drill truth | Mentions title-first role profiles; no fake KPI claims |
 
 ## Non-goals
@@ -43,4 +44,5 @@ UI-only.
 
 ## Band DoD
 
-- [ ] Office cards + FAQ live on help page  
+- [x] Office cards live on help page (2.22.1)  
+- [ ] FAQ live (2.22.2)  
