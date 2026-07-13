@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.22.4] - 2026-07-12T18:04:09-07:00
+
+### Changed
+
+- **Runway 2.22.4** - Checklist section 1 mobile E2E and mobile-phase specs sign-off evidence.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.22.3] - 2026-07-12T18:02:02-07:00
 
 ### Added
