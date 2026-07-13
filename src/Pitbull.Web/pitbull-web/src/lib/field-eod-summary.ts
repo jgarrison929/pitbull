@@ -19,8 +19,28 @@ export type EodSummary = {
   title: string;
   bullets: string[];
   truthNote: string;
-  source: "rule-based";
+  source: "rule-based" | "llm-suggestion";
 };
+
+/** Build a labeled LLM-suggestion summary from free text bullets (never auto-applied). */
+export function buildLlmEodSuggestionFromText(opts: {
+  prose: string;
+  model?: string | null;
+}): EodSummary {
+  const lines = opts.prose
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, 12);
+  return {
+    title: "End-of-day field summary (AI suggestion)",
+    bullets: lines.length > 0 ? lines : ["(empty AI response — use rule-based summary)"],
+    truthNote:
+      "Suggestion — review before submit. Optional LLM path (flag fieldLlmEod). Not an executive KPI; no invented cost/% complete. Model: " +
+      (opts.model?.trim() || "unknown"),
+    source: "llm-suggestion",
+  };
+}
 
 export function buildRuleBasedEodSummary(input: EodSummaryInput): EodSummary {
   const bullets: string[] = [];

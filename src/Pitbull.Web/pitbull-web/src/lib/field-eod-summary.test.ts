@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildRuleBasedEodSummary } from "./field-eod-summary";
+import {
+  buildLlmEodSuggestionFromText,
+  buildRuleBasedEodSummary,
+} from "./field-eod-summary";
 
 describe("rule-based EOD summary (2.20.0)", () => {
   it("summarizes entered fields without inventing KPIs", () => {
@@ -38,5 +41,16 @@ describe("rule-based EOD summary (2.20.0)", () => {
     expect(s.bullets.some((b) => /none entered|none noted/i.test(b))).toBe(
       true
     );
+  });
+
+  it("LLM suggestion wrapper is labeled and not rule-based source", () => {
+    const s = buildLlmEodSuggestionFromText({
+      prose: "- Poured east\n- Rain delay AM",
+      model: "test-model",
+    });
+    expect(s.source).toBe("llm-suggestion");
+    expect(s.bullets).toEqual(["Poured east", "Rain delay AM"]);
+    expect(s.truthNote).toMatch(/Suggestion|review/i);
+    expect(s.truthNote).toMatch(/test-model/);
   });
 });

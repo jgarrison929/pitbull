@@ -132,7 +132,118 @@ public class AiFieldVoiceController(
             AutoApplied = false,
         });
     }
+
+    public const string EodUsageFeatureName = "field-eod-summary";
+
+    /// <summary>
+    /// Optional LLM end-of-day summary (2.20.1). Suggestion only — client flag defaults OFF.
+    /// Never invents cost or % complete. Does not write reports.
+    /// </summary>
+    [HttpPost("field-eod-summary")]
+    [ProducesResponseType(typeof(FieldEodSummaryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> FieldEodSummary(
+        [FromBody] FieldEodSummaryRequest request,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.FactsText))
+            return BadRequest(new { error = "factsText is required", code = "VALIDATION_ERROR" });
+
+        if (AiInputSanitizer.ValidateLength(request.FactsText, MaxTranscriptLength, "factsText") is { } lenErr)
+            return BadRequest(new { error = lenErr, code = "VALIDATION_ERROR" });
+
+        var facts = AiInputSanitizer.Sanitize(request.FactsText);
+        if (string.IsNullOrWhiteSpace(facts))
+            return BadRequest(new { error = "factsText is required", code = "VALIDATION_ERROR" });
+
+        var systemPrompt = """
+            You are Pitbull field AI. Rewrite the provided field-report facts into a short end-of-day
+            summary for a superintendent. Return ONLY bullet lines (no markdown headings, no JSON).
+
+            Rules:
+            - Use only facts provided. Never invent quantities, costs, % complete, or green/all-clear status.
+            - Max 8 bullets. Keep each under 120 characters.
+            - This is a SUGGESTION for review before submit — not an official report.
+            """;
+
+        var aiRequest = new AiCompletionRequest(
+            SystemPrompt: systemPrompt,
+            UserPrompt: facts,
+            Capability: AiCapability.TextGeneration,
+            MaxTokens: 512,
+            Temperature: 0.3m);
+
+        var tenantId = GetTenantId();
+        var result = await aiService.CompleteAsync(tenantId, aiRequest, null, ct);
+
+        if (!result.IsSuccess)
+        {
+            return Ok(new FieldEodSummaryResponse(
+                Prose: "",
+                Bullets: [],
+                Label: FieldVoiceSuggestionResponse.DefaultLabel,
+                AutoApplied: false,
+                ConfidenceNote: result.ErrorCode == "AI_NOT_CONFIGURED"
+                    ? "AI is not configured — use the rule-based summary."
+                    : "AI unavailable — use the rule-based summary.",
+                Model: null,
+                Provider: null,
+                LatencyMs: 0));
+        }
+
+        var latencyMs = (long)result.Value!.Latency.TotalMilliseconds;
+        try
+        {
+            Guid? companyId = companyContext.IsResolved ? companyContext.CompanyId : null;
+            await usageService.LogUsageAsync(
+                GetUserId(),
+                result.Value.Provider,
+                result.Value.Model,
+                tokensIn: 0,
+                tokensOut: 0,
+                estimatedCost: 0m,
+                feature: EodUsageFeatureName,
+                durationMs: (int)Math.Min(latencyMs, int.MaxValue),
+                confidenceScore: result.Value.ConfidenceScore,
+                ct: ct,
+                companyId: companyId);
+        }
+        catch
+        {
+            // Metering must not fail the suggestion path
+        }
+
+        var prose = result.Value.Content.Trim();
+        var bullets = prose
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(l => l.TrimStart('-', '*', '•', ' ').Trim())
+            .Where(l => l.Length > 0)
+            .Take(8)
+            .ToList();
+
+        return Ok(new FieldEodSummaryResponse(
+            Prose: prose,
+            Bullets: bullets,
+            Label: FieldVoiceSuggestionResponse.DefaultLabel,
+            AutoApplied: false,
+            ConfidenceNote: "Suggestion — review before submit. Not an executive KPI.",
+            Model: result.Value.Model,
+            Provider: result.Value.Provider,
+            LatencyMs: latencyMs));
+    }
 }
+
+public record FieldEodSummaryRequest(string FactsText, Guid? ProjectId = null);
+
+public record FieldEodSummaryResponse(
+    string Prose,
+    IReadOnlyList<string> Bullets,
+    string Label,
+    bool AutoApplied,
+    string ConfidenceNote,
+    string? Model,
+    string? Provider,
+    long LatencyMs);
 
 public record FieldVoiceSuggestionRequest(
     string Transcript,

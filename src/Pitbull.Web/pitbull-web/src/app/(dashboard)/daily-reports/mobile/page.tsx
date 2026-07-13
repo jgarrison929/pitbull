@@ -64,7 +64,12 @@ import {
   type PhotoSafetySuggestion,
 } from "@/lib/field-photo-safety-suggestion";
 import { AI_SUGGESTION_REVIEW_LABEL } from "@/lib/ai-suggestion-label";
-import { buildRuleBasedEodSummary } from "@/lib/field-eod-summary";
+import {
+  buildLlmEodSuggestionFromText,
+  buildRuleBasedEodSummary,
+  type EodSummary,
+} from "@/lib/field-eod-summary";
+import { isFieldLlmEodEnabled } from "@/lib/feature-flags";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -166,6 +171,11 @@ export default function MobileDailyReportPage() {
   const [aiBusy, setAiBusy] = useState(false);
   const [photoSafetySuggestion, setPhotoSafetySuggestion] =
     useState<PhotoSafetySuggestion | null>(null);
+  const [llmEodSuggestion, setLlmEodSuggestion] = useState<EodSummary | null>(
+    null
+  );
+  const [llmEodBusy, setLlmEodBusy] = useState(false);
+  const fieldLlmEodEnabled = isFieldLlmEodEnabled();
 
   // Field / pour capture
   const [activities, setActivities] = useState<FieldActivityId[]>([]);
@@ -1588,6 +1598,97 @@ export default function MobileDailyReportPage() {
                       <p className="text-[11px] text-muted-foreground">
                         {eod.truthNote}
                       </p>
+                      {fieldLlmEodEnabled && isOnline && (
+                        <div className="pt-1 space-y-2" data-testid="field-llm-eod-panel">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full min-h-[40px]"
+                            disabled={llmEodBusy}
+                            data-testid="field-llm-eod-request"
+                            onClick={async () => {
+                              setLlmEodBusy(true);
+                              try {
+                                const factsText = eod.bullets.join("\n");
+                                const raw = await api<{
+                                  prose?: string;
+                                  Prose?: string;
+                                  model?: string;
+                                  Model?: string;
+                                  confidenceNote?: string;
+                                  ConfidenceNote?: string;
+                                }>("/api/ai/field-eod-summary", {
+                                  method: "POST",
+                                  body: {
+                                    factsText,
+                                    projectId: projectId || null,
+                                  },
+                                });
+                                const prose =
+                                  raw.prose ?? raw.Prose ?? "";
+                                const suggestion = buildLlmEodSuggestionFromText({
+                                  prose,
+                                  model: raw.model ?? raw.Model,
+                                });
+                                if (
+                                  raw.confidenceNote ||
+                                  raw.ConfidenceNote
+                                ) {
+                                  suggestion.truthNote =
+                                    raw.confidenceNote ??
+                                    raw.ConfidenceNote ??
+                                    suggestion.truthNote;
+                                }
+                                setLlmEodSuggestion(suggestion);
+                              } catch (e: unknown) {
+                                setLlmEodSuggestion(null);
+                                toast.error(
+                                  e instanceof Error
+                                    ? e.message
+                                    : "AI EOD unavailable — rule-based summary still applies"
+                                );
+                              } finally {
+                                setLlmEodBusy(false);
+                              }
+                            }}
+                          >
+                            {llmEodBusy
+                              ? "Asking AI…"
+                              : "Optional AI rewrite (suggestion)"}
+                          </Button>
+                          <p className="text-[11px] text-muted-foreground">
+                            Flag <code>NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD</code>{" "}
+                            is on. Default prod is off — rule-based always works.
+                          </p>
+                        </div>
+                      )}
+                      {llmEodSuggestion && (
+                        <div
+                          className="rounded-md border border-dashed p-2 space-y-1"
+                          data-testid="field-llm-eod-suggestion"
+                        >
+                          <p className="text-xs font-medium">
+                            {llmEodSuggestion.title}
+                          </p>
+                          <ul className="list-disc list-inside text-xs text-muted-foreground">
+                            {llmEodSuggestion.bullets.map((b, i) => (
+                              <li key={i}>{b}</li>
+                            ))}
+                          </ul>
+                          <p className="text-[11px] text-amber-800 dark:text-amber-200">
+                            {llmEodSuggestion.truthNote}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setLlmEodSuggestion(null)}
+                          >
+                            Dismiss AI suggestion
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
