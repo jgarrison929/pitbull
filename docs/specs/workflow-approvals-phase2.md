@@ -1,6 +1,6 @@
 # Spec: Workflow approvals Phase 2
 
-**Status:** In progress — lifecycle **frozen 2.21.3** (Time entries)  
+**Status:** Shipped through **2.22.0** (Phase 2 complete; lifecycle Time entries)  
 **Version band:** 2.21.3 → 2.22.0 (8 PRs)  
 **Related:** [`WORKFLOW-EVALUATION-MATRIX.md`](../WORKFLOW-EVALUATION-MATRIX.md), Phase 1 CO + billing
 
@@ -78,4 +78,10 @@ PM, Manager, CFO (read), field (submit only where applicable).
 
 ## Band DoD (2.22.0)
 
-- [ ] Aggregate + one mobile approve path + tests + help  
+- [x] Aggregate `GET /api/approvals/pending` (real DB counts)  
+- [x] PM home pending card (live API)  
+- [x] One mobile approve path: `/time-tracking/approval/mobile`  
+- [x] Time entry transitions mirrored in `workflow-transitions.ts`  
+- [x] Integration tests + Help approvals section  
+- [x] CI mobile-smoke + owner-signup-smoke (continue-on-error)  
+

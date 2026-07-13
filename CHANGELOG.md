@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.22.0] - 2026-07-12T17:53:28-07:00
+
+### Added
+
+- **Workflow approvals Phase 2 checkpoint** — Status Shipped through 2.22.0; DoD closed (pending aggregate, PM card, mobile time approve, transitions mirror, help, CI smokes).
+
+### Notes
+
+- Version **2.22.0**. Next: KPI drill audit + office help (2.22.1).
+
 ## [2.21.9] - 2026-07-12T17:51:51-07:00
 
 ### Added
