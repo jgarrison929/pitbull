@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.1] - 2026-07-12T17:32:25-07:00
+
+### Added
+
+- **AI trust boundary docs** — docs/ARCHITECTURE.md section + docs/architecture/AI-TRUST-BOUNDARY.md (confirm-to-apply, sanitizer, demo rate limits, offline honesty).
+
+### Notes
+
+- Version **2.21.1**. Next: intelligence band checkpoint 2.21.2.
+
 ## [2.21.0] - 2026-07-12T17:30:37-07:00
 
 ### Added
