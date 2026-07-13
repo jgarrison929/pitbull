@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.3] - 2026-07-12T17:13:51-07:00
+
+### Added
+
+- **Schedule slip risk flag (proxy labeled)** — field report shows Watch/Risk chip when linked activity plannedFinish is before report date; insufficient data when no plan date (not all-clear). No invented % complete.
+
+### Notes
+
+- Version **2.20.3**. Next: PostHog ai_suggestion_applied (2.20.4).
+
 ## [2.20.2] - 2026-07-12T17:11:58-07:00
 
 ### Added
