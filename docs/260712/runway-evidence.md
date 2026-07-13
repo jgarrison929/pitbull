@@ -174,3 +174,7 @@ Buffer: clean.
 ## Ship stamp 2.23.3
 Buffer: clean.
 
+
+## Ship stamp 2.23.4
+Demo seed: ROLE-PERSONA-MAP + demo-role-login keys aligned (ceo/cfo/pm/superintendent/estimator).
+
