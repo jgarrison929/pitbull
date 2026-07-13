@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-07-13T09:00:00-07:00
+
+### Fixed
+
+- **Jobsite Twin overlays 500** - SpatialService.GetOverlayAsync loaded the RFI, progress, and schedule zone-fuel queries concurrently on the shared per-request PitbullDbContext via Task.WhenAll. EF Core forbids concurrent operations on one DbContext, so overlapping queries threw "A second operation was started on this context instance", surfacing as a generic 500 on every overlay request (both mode=rfi and mode=progress) and leaving zones unpainted. The three loads now await sequentially on the shared context; each still batches its zone links with a single grouped query (no per-zone N+1). Regression from 2.17.3.
+
 ## [3.0.0] - 2026-07-12T18:32:02-07:00
 
 ### Added
