@@ -244,6 +244,8 @@ public class ArchitectureTests
                 .And().DoNotHaveName("SearchController")
                 .And().DoNotHaveName("AiSuggestController")
                 .And().DoNotHaveName("AiChatController")
+                .And().DoNotHaveName("AiFieldVoiceController")
+                .And().DoNotHaveName("ApprovalsController")
                 .And().DoNotHaveName("TimeEntryAuditController")
                 .And().DoNotHaveName("MigrationAcceleratorController")
                 .ShouldNot().HaveDependencyOn(dep)
