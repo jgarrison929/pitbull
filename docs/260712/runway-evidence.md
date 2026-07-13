@@ -192,3 +192,7 @@ Major 3.0.0 summarizes Arc A-E product bands (mobile3, digital twin Phase 2, fie
 ## Ship stamp 2.23.7
 ARCHITECTURE.md + ROLE-EXPERIENCE.md still match stack (.NET 10, Next 16, title-first roles). No material drift requiring code fix.
 
+
+## Ship stamp 2.23.8
+P1 buffer: none open.
+

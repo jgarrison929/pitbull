@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.23.8] - 2026-07-12T18:24:42-07:00
+
+### Changed
+
+- **Runway 2.23.8** - Remaining P1 buffer - none open.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.23.7] - 2026-07-12T18:23:16-07:00
 
 ### Changed
