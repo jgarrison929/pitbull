@@ -51,6 +51,11 @@ interface ApiOptions extends Omit<RequestInit, "body"> {
 }
 
 class ApiError extends Error {
+  // Surfaced from the backend error body (ExceptionMiddleware always returns these on a 500)
+  // so a generic "An unexpected error occurred" can still be traced to a server-side exception.
+  public traceId?: string;
+  public correlationId?: string;
+
   constructor(
     public status: number,
     message: string,
@@ -58,6 +63,11 @@ class ApiError extends Error {
   ) {
     super(message);
     this.name = "ApiError";
+    if (data && typeof data === "object") {
+      const d = data as { traceId?: string; correlationId?: string };
+      this.traceId = d.traceId;
+      this.correlationId = d.correlationId;
+    }
   }
 }
 
@@ -137,6 +147,10 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     const errorMsg = errorData?.error || errorData?.message || `${response.status} ${response.statusText}`;
 
     if (response.status >= 500) {
+      // Carry the backend traceId/correlationId through so a frontend 500 report can be
+      // correlated with the real server-side exception instead of a generic message.
+      const traceId = errorData?.traceId as string | undefined;
+      const correlationId = errorData?.correlationId as string | undefined;
       reportError({
         source: "frontend",
         level: "error",
@@ -144,6 +158,10 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
         requestMethod: method,
         requestPath: endpoint,
         message: `API ${method} ${endpoint} returned ${response.status}: ${errorMsg}`,
+        metadata:
+          traceId || correlationId
+            ? JSON.stringify({ traceId, correlationId })
+            : undefined,
       });
     }
 
