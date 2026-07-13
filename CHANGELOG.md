@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.5] - 2026-07-12T17:18:54-07:00
+
+### Added
+
+- **Help: AI on mobile FAQ** — mobile FAQ covers field AI confirm-to-apply, offline disabled, optional LLM EOD flag, and photo safety as non-compliance suggestion.
+
+### Notes
+
+- Version **2.20.5**. Next: unit tests prompt sanitization (2.20.6).
+
 ## [2.20.4] - 2026-07-12T17:15:37-07:00
 
 ### Added

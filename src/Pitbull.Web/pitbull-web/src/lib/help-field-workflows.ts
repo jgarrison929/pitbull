@@ -31,6 +31,16 @@ export const mobileFaqItems: { question: string; answer: string }[] = [
     answer:
       "Open a project from Projects, then use project navigation: Digital Twin at `/projects/{id}/twin` and Plans & Specs at `/projects/{id}/plans-specs`. Site Walk is `/projects/{id}/site-walk`.",
   },
+  {
+    question: "How does AI work on the mobile field report?",
+    answer:
+      "On Field notes, use Suggest from notes (AI) when online — results are labeled “Suggestion — review before submit” and apply only after you confirm. Offline, AI is disabled with honest copy (enter narratives manually). Optional LLM end-of-day rewrite is off unless `NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD=true`. AI never auto-posts progress.",
+  },
+  {
+    question: "Is AI photo safety a compliance finding?",
+    answer:
+      "No. Photo assist safety notes are optional, labeled suggestions from caption heuristics only — not a site inspection or OSHA finding. Review before applying to the safety narrative.",
+  },
 ];
 
 export const fieldWorkflowCards: FieldWorkflowCard[] = [

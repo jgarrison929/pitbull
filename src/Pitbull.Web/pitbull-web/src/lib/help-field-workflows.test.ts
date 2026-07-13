@@ -23,6 +23,19 @@ describe("help-field-workflows", () => {
     expect(blob).toContain("/projects/{id}/plans-specs");
   });
 
+  it("2.20.5 AI on mobile FAQ: confirm, offline honesty, no auto-post", () => {
+    const ai = mobileFaqItems.find((f) =>
+      /AI work on the mobile field report/i.test(f.question)
+    );
+    expect(ai).toBeTruthy();
+    expect(ai!.answer).toMatch(/review before submit/i);
+    expect(ai!.answer).toMatch(/never auto-posts|Offline/i);
+    const photo = mobileFaqItems.find((f) =>
+      /photo safety|compliance/i.test(f.question)
+    );
+    expect(photo?.answer).toMatch(/not a site inspection|labeled/i);
+  });
+
   it("ships Daily Field Report, Site Walk, Offline/PWA with deep links and 3–5 steps", () => {
     expect(fieldWorkflowCards.map((c) => c.id)).toEqual([
       "daily-field-report",
