@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.8] - 2026-07-12T17:26:37-07:00
+
+### Changed
+
+- **Error boundary on field AI panel** — AI suggestion UI fails soft with manual-entry copy; submit still works.
+
+### Notes
+
+- Version **2.20.8**. Next: integration test mock provider (2.20.9).
+
 ## [2.20.7] - 2026-07-12T17:24:45-07:00
 
 ### Changed
