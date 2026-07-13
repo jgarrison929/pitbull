@@ -24,6 +24,8 @@
 
 ## 3.0.0 release checklist (verify during runway)
 
+**Status:** All items verified at 2.24.2 RC; major **3.0.0** stamped. See `runway-evidence.md`.
+
 Copy from [`plan1.md`](./plan1.md); each item should be **checked** before `3.0.0` merges.
 
 1. Mobile3 Phases 1–3 acceptance per specs + E2E evidence  
