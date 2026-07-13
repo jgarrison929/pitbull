@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.22.1] - 2026-07-12T17:56:06-07:00
+
+### Added
+
+- **KPI drill audit matrix** — persona ? KPI ? href ? filter contracts documented; low-severity orphan (pNearTerm proxy) listed for 2.22.2.
+- **Office help workflows** — CEO briefing, CFO WIP, PM approvals, Estimator pipeline cards on Help Center.
+
+### Notes
+
+- Version **2.22.1**. Next: orphan KPI fixes + office FAQ + CI notes (2.22.2 last product PR).
+
 ## [2.22.0] - 2026-07-12T17:53:28-07:00
 
 ### Added
