@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.24.2] - 2026-07-12T18:30:25-07:00
+
+### Changed
+
+- **Runway 2.24.2** - RC - all release-checklist boxes checked in runway-evidence.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.24.1] - 2026-07-12T18:29:00-07:00
 
 ### Changed

@@ -208,3 +208,7 @@ Full preflight FullWeb+DotNet PASS. Deploy: Railway live per deploy docs; demo s
 ## Ship stamp 2.24.1
 Final buffer: clean.
 
+
+## Ship stamp 2.24.2 - RELEASE CANDIDATE
+All checklist sections 1-7 evidence recorded. Ready for major 3.0.0.
+
