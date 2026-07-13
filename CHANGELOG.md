@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.2] - 2026-07-12T17:34:09-07:00
+
+### Added
+
+- **Intelligence band checkpoint** — mobile-ai-intelligence Status **Shipped through 2.21.2**; DoD closed; notes updated.
+
+### Notes
+
+- Version **2.21.2** closes AI band 2.19.3?2.21.2. Next: workflow Phase 2 freeze 2.21.3.
+
 ## [2.21.1] - 2026-07-12T17:32:25-07:00
 
 ### Added

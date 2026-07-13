@@ -1,8 +1,8 @@
 # Spec: Mobile AI intelligence (MVP)
 
-**Status:** In progress — AI MVP core through **2.20.2** (voice → EOD); remainder 2.20.3–2.21.2  
+**Status:** Shipped through **2.21.2** (intelligence band complete)  
 **Version band:** 2.19.3 → 2.21.2 (20 PRs)  
-**Related:** [`docs/mobile3.md`](../mobile3.md) Phase 4, AI module, `AiChatController`, `AiFieldVoiceController`
+**Related:** [`docs/mobile3.md`](../mobile3.md) Phase 4, AI module, `AiChatController`, `AiFieldVoiceController`; trust `docs/architecture/AI-TRUST-BOUNDARY.md`
 
 ## Problem
 
@@ -73,6 +73,10 @@ Superintendent (field report), PM (optional summary).
 
 ## Band DoD (2.21.2)
 
-- [ ] Confirm-to-apply UX  
-- [ ] Offline honesty  
-- [ ] Help + trust docs  
+- [x] Confirm-to-apply UX  
+- [x] Offline honesty  
+- [x] Help + trust docs  
+- [x] Demo AI rate limits  
+- [x] Sanitizer + integration tests  
+- [x] Rule-based EOD + optional LLM flag (default OFF)  
+
