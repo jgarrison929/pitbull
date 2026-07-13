@@ -212,3 +212,7 @@ Final buffer: clean.
 ## Ship stamp 2.24.2 - RELEASE CANDIDATE
 All checklist sections 1-7 evidence recorded. Ready for major 3.0.0.
 
+
+## Ship stamp 3.0.0 - MAJOR
+Prerequisite main was 2.24.2 RC. Major VERSION stamp 3.0.0.
+

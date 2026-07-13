@@ -8,6 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-07-12T18:32:02-07:00
+
+### Added
+
+- **Major release 3.0.0** — product program through 2.22.2 plus runway verification to release candidate 2.24.2.
+
+### Summary (Arc A-E + runway)
+
+- **Mobile3 (Arc A/B):** Field hardening, plans viewer, site walk + schedule; PWA phone = capture + glance + filtered drill.
+- **Digital twin Phase 2 (Arc D):** Overlays, zone drill, honest empty (never all-green default); RequireSpatial gates; help twin truth legend.
+- **Field AI intelligence (Arc E):** Voice/report/photo/EOD/schedule-slip suggestions with confirm-to-apply; trust boundary docs; rate limits.
+- **Workflow approvals Phase 2:** Pending aggregate, PM card, mobile time approve/reject (time entries only), transitions mirror, help, CI smokes.
+- **KPI + office help:** Drill contracts + persona matrix; office Help cards/FAQ; CI mobile/owner notes (optional required checks).
+- **Runway 2.22.3-2.24.2:** Checklist evidence in docs/260712/runway-evidence.md; verification and buffers only.
+
+### Notes
+
+- Stack unchanged: .NET 10 API, Next.js web, PostgreSQL + RLS, title-first role profiles.
+- Truth over polish: no invented executive KPIs; AR-AP net labeled proxy; empty queues honest.
+
 ## [2.24.2] - 2026-07-12T18:30:25-07:00
 
 ### Changed
