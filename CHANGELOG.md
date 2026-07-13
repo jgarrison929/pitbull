@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.6] - 2026-07-12T17:21:04-07:00
+
+### Added
+
+- **Unit tests prompt sanitization** — expanded AiInputSanitizer coverage (injection strip, length/collection limits, context keys).
+
+### Notes
+
+- Version **2.20.6**. Next: rate limit demo users (2.20.7).
+
 ## [2.20.5] - 2026-07-12T17:18:54-07:00
 
 ### Added
