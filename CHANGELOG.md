@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.9] - 2026-07-12T17:05:18-07:00
+
+### Changed
+
+- **Offline AI disabled with honest copy** — field AI suggest is disabled offline; copy states narratives must be entered manually (no silent pretend success).
+
+### Notes
+
+- Version **2.19.9**. Next: end-of-day field summary rule-based (2.20.0).
+
 ## [2.19.8] - 2026-07-12T17:03:27-07:00
 
 ### Changed
