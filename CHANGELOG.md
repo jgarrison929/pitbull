@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.22.8] - 2026-07-12T18:10:15-07:00
+
+### Changed
+
+- **Runway 2.22.8** - Checklist section 5 CI mobile/owner jobs documented.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.22.7] - 2026-07-12T18:08:49-07:00
 
 ### Changed
