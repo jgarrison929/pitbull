@@ -47,16 +47,17 @@ export function parseProjectsDrillParams(
 
 export type AgingFocus = "ar" | "ap" | "both";
 
-/** Parse aging report drill flags (focus=ar|ap, overdue=true for 31+ days). */
+/** Parse aging report drill flags (focus=ar|ap, overdue=true for 31+ days, nearTerm for Current+1–30). */
 export function parseAgingDrillParams(
   params: URLSearchParams | Record<string, string | null | undefined>
-): { focus: AgingFocus; overdueOnly: boolean } {
+): { focus: AgingFocus; overdueOnly: boolean; nearTermOnly: boolean } {
   const focusRaw = (getParam(params, "focus") ?? "").toLowerCase();
   const focus: AgingFocus =
     focusRaw === "ar" || focusRaw === "ap" ? focusRaw : "both";
   return {
     focus,
     overdueOnly: getParam(params, "overdue") === "true",
+    nearTermOnly: getParam(params, "nearTerm") === "true",
   };
 }
 
@@ -69,6 +70,14 @@ export function agingLineHasOverdue31Plus(line: {
   return (
     (line.days31To60 ?? 0) + (line.days61To90 ?? 0) + (line.days90Plus ?? 0) > 0
   );
+}
+
+/** True when a line has Current + 1–30 balance (matches ApDueNearTerm headline). */
+export function agingLineHasNearTerm(line: {
+  current: number;
+  days1To30: number;
+}): boolean {
+  return (line.current ?? 0) + (line.days1To30 ?? 0) > 0;
 }
 
 /** Monday-start ISO date range for “this week” (UTC calendar week for API filters). */

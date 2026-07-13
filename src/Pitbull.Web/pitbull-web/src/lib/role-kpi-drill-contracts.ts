@@ -108,9 +108,9 @@ export const ROLE_KPI_DRILL_CONTRACTS: Record<RoleKpiKey, RoleKpiDrillContract> 
     key: "apNearTerm",
     headlineSource: "RoleDashboardSummaryService.ApDueNearTerm",
     headlinePredicate: "AP Current + Days1To30",
-    href: "/billing/aging?focus=ap",
-    consumer: "billing/aging/page.tsx",
-    expectedSemantics: { focus: "ap", overdueOnly: false },
+    href: "/billing/aging?focus=ap&nearTerm=true",
+    consumer: "billing/aging/page.tsx nearTerm line filter",
+    expectedSemantics: { focus: "ap", overdueOnly: false, nearTermOnly: true },
   },
   workforce: {
     key: "workforce",

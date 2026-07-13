@@ -19,6 +19,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Download, TrendingDown, TrendingUp, Scale } from "lucide-react";
 import {
+  agingLineHasNearTerm,
   agingLineHasOverdue31Plus,
   parseAgingDrillParams,
 } from "@/lib/role-kpi-drills";
@@ -117,7 +118,7 @@ function downloadCsv(filename: string, headers: string[], rows: string[][]) {
 
 export default function AgingReportsPage() {
   const searchParams = useSearchParams();
-  const { focus, overdueOnly } = useMemo(
+  const { focus, overdueOnly, nearTermOnly } = useMemo(
     () => parseAgingDrillParams(searchParams),
     [searchParams]
   );
@@ -154,16 +155,18 @@ export default function AgingReportsPage() {
   }, [fetchData]);
 
   const filteredVendors = useMemo(() => {
-    const list = vendorAging?.vendors ?? [];
-    if (!overdueOnly) return list;
-    return list.filter(agingLineHasOverdue31Plus);
-  }, [vendorAging, overdueOnly]);
+    let list = vendorAging?.vendors ?? [];
+    if (overdueOnly) list = list.filter(agingLineHasOverdue31Plus);
+    if (nearTermOnly) list = list.filter(agingLineHasNearTerm);
+    return list;
+  }, [vendorAging, overdueOnly, nearTermOnly]);
 
   const filteredProjects = useMemo(() => {
-    const list = customerAging?.projects ?? [];
-    if (!overdueOnly) return list;
-    return list.filter(agingLineHasOverdue31Plus);
-  }, [customerAging, overdueOnly]);
+    let list = customerAging?.projects ?? [];
+    if (overdueOnly) list = list.filter(agingLineHasOverdue31Plus);
+    if (nearTermOnly) list = list.filter(agingLineHasNearTerm);
+    return list;
+  }, [customerAging, overdueOnly, nearTermOnly]);
 
   const exportVendorCsv = () => {
     if (!vendorAging) return;
@@ -203,6 +206,7 @@ export default function AgingReportsPage() {
           <p className="text-muted-foreground">
             {focusLabel} aging analysis
             {overdueOnly ? " — 31+ day overdue balances only" : ""}
+            {nearTermOnly ? " — current + 1–30 day balances only" : ""}
             {summary ? ` as of ${summary.asOfDate}` : ""}.
           </p>
         </div>

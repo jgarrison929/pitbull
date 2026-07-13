@@ -62,7 +62,7 @@ describe("role KPI drill parity (contracts)", () => {
     expect(p.excludeCompleted).toBe(true);
   });
 
-  it("arApNet is full board; arTotal/arOverdue are AR-focused", () => {
+  it("arApNet is full board; arTotal/arOverdue are AR-focused; apNearTerm is AP near-term", () => {
     expect(roleKpiDrillHref("arApNet")).toBe("/billing/aging");
     expect(
       parseAgingDrillParams(new URLSearchParams("")).focus
@@ -76,7 +76,12 @@ describe("role KPI drill parity (contracts)", () => {
       parseAgingDrillParams(
         new URLSearchParams(roleKpiDrillHref("arOverdue").split("?")[1] ?? "")
       )
-    ).toEqual({ focus: "ar", overdueOnly: true });
+    ).toEqual({ focus: "ar", overdueOnly: true, nearTermOnly: false });
+    expect(
+      parseAgingDrillParams(
+        new URLSearchParams(roleKpiDrillHref("apNearTerm").split("?")[1] ?? "")
+      )
+    ).toEqual({ focus: "ap", overdueOnly: false, nearTermOnly: true });
   });
 
   it("hoursThisWeek forces entries view + this-week range", () => {
@@ -120,6 +125,9 @@ describe("role KPI drill parity (contracts)", () => {
         expect(p.focus).toBe(c.expectedSemantics.focus);
         if ("overdueOnly" in c.expectedSemantics) {
           expect(p.overdueOnly).toBe(c.expectedSemantics.overdueOnly);
+        }
+        if ("nearTermOnly" in c.expectedSemantics) {
+          expect(p.nearTermOnly).toBe(c.expectedSemantics.nearTermOnly);
         }
       }
       if ("rfiStatusMode" in c.expectedSemantics) {

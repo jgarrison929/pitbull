@@ -69,5 +69,21 @@ export const officeHelpCards: OfficeHelpCard[] = [
   },
 ];
 
-/** FAQ deferred to 2.22.2 (role profiles, demo explore, KPI drill truth). */
-export const officeFaqItems: { question: string; answer: string }[] = [];
+/** FAQ: role profiles, demo explore, KPI drill truth (2.22.2). */
+export const officeFaqItems: { question: string; answer: string }[] = [
+  {
+    question: "Why does my home look different after I switch demo roles?",
+    answer:
+      "Home layout follows title-first role profiles (job_title / role_profile on the JWT), not Identity role alone. CEO → executive, CFO → controller, PM → pm, Superintendent → field, Estimator → estimator. Manager is not the same as Executive.",
+  },
+  {
+    question: "How do I explore as a different persona?",
+    answer:
+      "When Demo is enabled, use Explore as a role (or POST /api/auth/demo-role-login) with keys ceo, cfo, pm, superintendent/foreman, or estimator. Demo users are read-restricted for admin mutations.",
+  },
+  {
+    question: "Do home KPI cards invent executive totals?",
+    answer:
+      "No. Cards drill to filtered lists via role-kpi-drill-contracts (same predicate as the headline). AR−AP net is an aging proxy (AR minus AP), not a full consolidation. Empty lists mean zero matching rows — not all-clear polish.",
+  },
+];
