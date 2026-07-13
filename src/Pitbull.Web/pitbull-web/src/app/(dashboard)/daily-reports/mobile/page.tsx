@@ -1260,7 +1260,19 @@ export default function MobileDailyReportPage() {
                     className="text-base"
                   />
 
-                  {/* 2.19.5 — AI suggestion chip (user confirm required) */}
+                  {/* 2.19.5 — AI suggestion chip (user confirm required); 2.20.8 fail-soft boundary */}
+                  <ErrorBoundary
+                    label="field AI suggestion panel"
+                    fallback={
+                      <p
+                        className="text-xs text-muted-foreground rounded-lg border border-dashed p-3"
+                        data-testid="ai-panel-error-fallback"
+                      >
+                        AI suggestions unavailable right now — enter notes
+                        manually. This does not block submit.
+                      </p>
+                    }
+                  >
                   <div
                     className="space-y-2 rounded-lg border border-dashed p-3"
                     data-testid="ai-suggestion-panel"
@@ -1415,6 +1427,7 @@ export default function MobileDailyReportPage() {
                       </div>
                     )}
                   </div>
+                  </ErrorBoundary>
                 </CardContent>
               </Card>
 
