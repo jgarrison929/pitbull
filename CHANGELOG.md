@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.7] - 2026-07-12T17:24:45-07:00
+
+### Changed
+
+- **AI rate limits for demo users** — AiRateLimitPolicy applies stricter per-minute permits on i-chat / i-suggest / i-document when JWT is_demo_user=true.
+
+### Notes
+
+- Version **2.20.7**. Next: error boundary AI panel (2.20.8).
+
 ## [2.20.6] - 2026-07-12T17:21:04-07:00
 
 ### Added
