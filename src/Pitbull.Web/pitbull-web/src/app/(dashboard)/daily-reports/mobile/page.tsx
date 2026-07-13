@@ -1218,18 +1218,35 @@ export default function MobileDailyReportPage() {
                     <p className="text-xs font-medium text-muted-foreground">
                       {FIELD_AI_SUGGESTION_LABEL}
                     </p>
+                    {!isOnline && (
+                      <p
+                        className="text-xs text-muted-foreground"
+                        data-testid="ai-offline-disabled"
+                      >
+                        AI suggestions need a connection. Offline: enter
+                        narratives manually — we do not pretend AI ran
+                        successfully.
+                      </p>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
                       className="w-full min-h-[44px] gap-2"
                       data-testid="ai-suggest-from-notes"
                       disabled={
+                        !isOnline ||
                         aiBusy ||
                         (!workNarrative.trim() &&
                           !delaysNarrative.trim() &&
                           !safetyNarrative.trim())
                       }
                       onClick={async () => {
+                        if (!isOnline) {
+                          toast.error(
+                            "AI is unavailable offline — edit narratives manually"
+                          );
+                          return;
+                        }
                         const transcript = [
                           workNarrative,
                           delaysNarrative,

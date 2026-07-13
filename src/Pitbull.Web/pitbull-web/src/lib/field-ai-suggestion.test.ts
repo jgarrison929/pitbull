@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   applyFieldAiSuggestion,
+  FIELD_AI_OFFLINE_COPY,
   FIELD_AI_SUGGESTION_LABEL,
+  isFieldAiAvailableOffline,
   normalizeFieldAiSuggestion,
   suggestionHasContent,
 } from "./field-ai-suggestion";
@@ -58,5 +60,12 @@ describe("field-ai-suggestion apply confirm (2.19.5)", () => {
     expect(n?.autoApplied).toBe(true); // pass-through for honesty if server lied
     expect(suggestionHasContent(n)).toBe(true);
     expect(FIELD_AI_SUGGESTION_LABEL).toMatch(/review before submit/i);
+  });
+
+  it("offline disables AI without silent success", () => {
+    expect(isFieldAiAvailableOffline(false)).toBe(false);
+    expect(isFieldAiAvailableOffline(true)).toBe(true);
+    expect(FIELD_AI_OFFLINE_COPY).toMatch(/offline/i);
+    expect(FIELD_AI_OFFLINE_COPY).not.toMatch(/queued for ai|will auto-run/i);
   });
 });

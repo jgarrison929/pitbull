@@ -43,6 +43,14 @@ export function suggestionHasContent(s: FieldAiSuggestion | null | undefined): b
   );
 }
 
+/** Honest offline gate — AI must not claim success when offline. */
+export function isFieldAiAvailableOffline(isOnline: boolean): boolean {
+  return isOnline === true;
+}
+
+export const FIELD_AI_OFFLINE_COPY =
+  "AI suggestions need a connection. Offline: enter narratives manually — we do not pretend AI ran successfully." as const;
+
 /**
  * Apply suggestion into form fields only after confirm=true.
  * Without confirm, returns original fields unchanged.
