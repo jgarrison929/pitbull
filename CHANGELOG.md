@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.4] - 2026-07-12T17:38:51-07:00
+
+### Added
+
+- **GET /api/approvals/pending** — real DB counts for submitted time entries + pending change orders; company-scoped; honest zeros. Expanded lifecycle: timeEntries.
+
+### Notes
+
+- Version **2.21.4**. Next: PM home pending card / CI mobile-smoke (2.21.5).
+
 ## [2.21.3] - 2026-07-12T17:36:42-07:00
 
 ### Changed
