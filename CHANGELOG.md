@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.9] - 2026-07-12T17:51:51-07:00
+
+### Added
+
+- **Help: approvals workflow** — Help Center cards for PM pending card, mobile time approve, and desktop review; FAQ freezes time-entries lifecycle.
+
+### Notes
+
+- Version **2.21.9**. Next: workflow Phase 2 checkpoint (2.22.0).
+
 ## [2.21.8] - 2026-07-12T17:49:34-07:00
 
 ### Added
