@@ -204,3 +204,7 @@ P1 buffer: none open.
 ## Ship stamp 2.24.0
 Full preflight FullWeb+DotNet PASS. Deploy: Railway live per deploy docs; demo smoke = health + login personas post-deploy (ops).
 
+
+## Ship stamp 2.24.1
+Final buffer: clean.
+
