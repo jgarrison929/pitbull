@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.0] - 2026-07-12T17:07:25-07:00
+
+### Added
+
+- **End-of-day field summary (rule-based)** — Review step shows a form-derived bullet summary (activities, crew, delays, safety, photos/zone). No LLM; not an executive KPI; no invented %/cost/green.
+
+### Notes
+
+- Version **2.20.0**. Next: optional LLM summary behind flag (2.20.1).
+
 ## [2.19.9] - 2026-07-12T17:05:18-07:00
 
 ### Changed
