@@ -1,6 +1,6 @@
 # Mobile AI MVP core notes (2.19.3 → 2.20.2)
 
-**Status:** Checkpoint **2.20.2**  
+**Status:** Intelligence band **shipped through 2.21.2**  
 **Spec:** `docs/specs/mobile-ai-intelligence.md`
 
 ## Truth rules
@@ -45,6 +45,19 @@ npm test -- --run field-ai-suggestion field-eod-summary field-photo-safety featu
 dotnet test tests/Pitbull.Tests.Unit --filter "FullyQualifiedName~AiFieldVoice|AiUsage"
 ```
 
-## Next (2.20.3+)
+## Remainder shipped (2.20.3 → 2.21.2)
 
-Risk flag schedule slip, PostHog, Help FAQ, sanitization tests, demo rate limits, error boundary, integration mock, vitest merge, trust docs, band close 2.21.2.
+| Version | Deliverable |
+|---------|-------------|
+| 2.20.3 | Schedule slip risk proxy flag |
+| 2.20.4 | PostHog `ai_suggestion_applied` |
+| 2.20.5 | Help AI mobile FAQ |
+| 2.20.6 | AiInputSanitizer unit tests |
+| 2.20.7 | Demo AI rate limits |
+| 2.20.8 | AI panel error boundary |
+| 2.20.9 | Field AI integration tests |
+| 2.21.0 | voice-ai-merge vitest |
+| 2.21.1 | AI trust boundary docs |
+| 2.21.2 | **Band checkpoint** |
+
+Next product: workflow + CI subset **2.21.3+**.
