@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.23.0] - 2026-07-12T18:13:06-07:00
+
+### Changed
+
+- **Runway 2.23.0** - Checklist section 7 truth rules review.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.22.9] - 2026-07-12T18:11:40-07:00
 
 ### Changed
