@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.23.6] - 2026-07-12T18:21:50-07:00
+
+### Changed
+
+- **Runway 2.23.6** - Draft 3.0.0 CHANGELOG narrative in runway-evidence.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.23.5] - 2026-07-12T18:20:24-07:00
 
 ### Changed
