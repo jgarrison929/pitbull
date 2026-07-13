@@ -63,6 +63,7 @@ import {
   PHOTO_SAFETY_SUGGESTION_LABEL,
   type PhotoSafetySuggestion,
 } from "@/lib/field-photo-safety-suggestion";
+import { AI_SUGGESTION_REVIEW_LABEL } from "@/lib/ai-suggestion-label";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -1525,6 +1526,14 @@ export default function MobileDailyReportPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm">
+                <p
+                  className="text-xs rounded-md border border-amber-200 bg-amber-50/80 dark:bg-amber-950/30 px-3 py-2 text-amber-900 dark:text-amber-100"
+                  data-testid="ai-suggestion-review-label"
+                >
+                  AI-assisted narratives are{" "}
+                  <strong>{AI_SUGGESTION_REVIEW_LABEL}</strong>. Confirm content
+                  is accurate before submit — nothing posts without you.
+                </p>
                 <div>
                   <p className="text-muted-foreground">Project</p>
                   <p className="font-medium">

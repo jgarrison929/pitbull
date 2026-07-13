@@ -18,8 +18,9 @@ export type NarrativeFields = {
   safetyNarrative: string;
 };
 
-export const FIELD_AI_SUGGESTION_LABEL =
-  "Suggestion — review before submit" as const;
+import { AI_SUGGESTION_REVIEW_LABEL } from "./ai-suggestion-label";
+
+export const FIELD_AI_SUGGESTION_LABEL = AI_SUGGESTION_REVIEW_LABEL;
 
 /** Normalize API camel/Pascal payload into a suggestion. */
 export function normalizeFieldAiSuggestion(raw: unknown): FieldAiSuggestion | null {

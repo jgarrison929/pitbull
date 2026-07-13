@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.8] - 2026-07-12T17:03:27-07:00
+
+### Changed
+
+- **AI suggestion label on all field AI surfaces** — shared AI_SUGGESTION_REVIEW_LABEL (“Suggestion — review before submit”) on notes AI, photo safety, and Review step banner.
+
+### Notes
+
+- Version **2.19.8**. Next: offline AI disabled honest copy (2.19.9).
+
 ## [2.19.7] - 2026-07-12T17:01:38-07:00
 
 ### Added
