@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.24.0] - 2026-07-12T18:27:33-07:00
+
+### Changed
+
+- **Runway 2.24.0** - Full preflight + deploy smoke notes for demo.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.23.9] - 2026-07-12T18:26:07-07:00
 
 ### Changed
