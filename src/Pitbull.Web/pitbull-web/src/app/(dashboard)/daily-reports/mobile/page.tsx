@@ -64,6 +64,7 @@ import {
   type PhotoSafetySuggestion,
 } from "@/lib/field-photo-safety-suggestion";
 import { AI_SUGGESTION_REVIEW_LABEL } from "@/lib/ai-suggestion-label";
+import { buildRuleBasedEodSummary } from "@/lib/field-eod-summary";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -1551,6 +1552,45 @@ export default function MobileDailyReportPage() {
                   <strong>{AI_SUGGESTION_REVIEW_LABEL}</strong>. Confirm content
                   is accurate before submit — nothing posts without you.
                 </p>
+                {(() => {
+                  const eod = buildRuleBasedEodSummary({
+                    projectLabel: selectedProject
+                      ? `${selectedProject.number} — ${selectedProject.name}`
+                      : "",
+                    reportDate,
+                    activities: activities
+                      .map(
+                        (id) =>
+                          FIELD_ACTIVITIES.find((a) => a.id === id)?.label ?? id
+                      )
+                      .filter(Boolean),
+                    crewHeadcount: crewCounts.reduce(
+                      (sum, c) => sum + (c.count || 0),
+                      0
+                    ),
+                    workNarrative,
+                    delaysNarrative,
+                    safetyNarrative,
+                    photoCount: photos.length,
+                    hasZone: Boolean(spatialNodeId),
+                  });
+                  return (
+                    <div
+                      className="rounded-lg border p-3 space-y-2"
+                      data-testid="field-eod-summary"
+                    >
+                      <p className="font-medium text-sm">{eod.title}</p>
+                      <ul className="list-disc list-inside text-xs text-muted-foreground space-y-0.5">
+                        {eod.bullets.map((b, i) => (
+                          <li key={i}>{b}</li>
+                        ))}
+                      </ul>
+                      <p className="text-[11px] text-muted-foreground">
+                        {eod.truthNote}
+                      </p>
+                    </div>
+                  );
+                })()}
                 <div>
                   <p className="text-muted-foreground">Project</p>
                   <p className="font-medium">
