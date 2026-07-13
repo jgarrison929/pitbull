@@ -117,6 +117,24 @@ Spec: `docs/pitbull-digital-twin-spec.md`. Capture engine: `docs/mobile3.md`.
 
 See the source code, tests, and docs/ARCHITECTURE.md (this file) for current patterns and anti-patterns. Cross-reference live code.
 
+### AI trust boundary (2.21.1)
+
+Field and in-app AI are **assistive only**. Trust rules:
+
+| Rule | Implementation |
+|------|----------------|
+| Never auto-post progress / daily reports | Suggestion DTOs set `AutoApplied=false`; UI requires explicit Apply confirm |
+| Label all suggestions | “Suggestion — review before submit” (`AI_SUGGESTION_REVIEW_LABEL`) |
+| No invented cost / % complete / green all-clear | System prompts + sanitizer; empty scaffold when unconfigured |
+| Offline honesty | Field AI disabled offline with explicit copy |
+| Demo rate limits | `AiRateLimitPolicy` tighter permits when `is_demo_user` |
+| Optional LLM EOD | `NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD` default **OFF** |
+| Input trust | `AiInputSanitizer` strips injection patterns before prompts |
+| Metering | `AiUsageRecord` + optional `CompanyId` (diagnostic, not a vanity KPI) |
+
+**Endpoints:** `POST /api/ai/field-voice-suggestion`, `POST /api/ai/field-eod-summary`, chat/suggest under rate policies `ai-chat` / `ai-suggest`.  
+**Notes:** `docs/ci/mobile-ai-mvp-notes.md`, spec `docs/specs/mobile-ai-intelligence.md`.
+
 ### Multi-Tenancy
 
 Two enforcement layers ensure data isolation:
