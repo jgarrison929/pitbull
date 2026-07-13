@@ -70,6 +70,7 @@ import {
   type EodSummary,
 } from "@/lib/field-eod-summary";
 import { isFieldLlmEodEnabled } from "@/lib/feature-flags";
+import { evaluateScheduleSlipRisk } from "@/lib/schedule-slip-risk";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -131,6 +132,7 @@ export default function MobileDailyReportPage() {
   const urlZoneId = searchParams.get("zoneId");
   const urlActivityId = searchParams.get("activityId");
   const urlActivityName = searchParams.get("activityName");
+  const urlPlannedFinish = searchParams.get("plannedFinish");
   const { isDemoUser } = useAuth();
   const [step, setStep] = useState<MobileReportStep>("Project");
   const [loading, setLoading] = useState(true);
@@ -846,26 +848,61 @@ export default function MobileDailyReportPage() {
           )}
 
           {step === "Project" && urlActivityName && (
-            <p
-              className="text-sm rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2"
-              data-testid="field-report-schedule-activity"
-            >
-              Linked schedule activity: <strong>{urlActivityName}</strong>
-              {projectId && (
-                <>
-                  {" · "}
-                  <Link
-                    className="text-amber-800 underline"
-                    href={buildProgressDraftHref(projectId, {
-                      activityId: urlActivityId ?? undefined,
-                      activityName: urlActivityName,
-                    })}
+            <div className="space-y-2">
+              <p
+                className="text-sm rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2"
+                data-testid="field-report-schedule-activity"
+              >
+                Linked schedule activity: <strong>{urlActivityName}</strong>
+                {projectId && (
+                  <>
+                    {" · "}
+                    <Link
+                      className="text-amber-800 underline"
+                      href={buildProgressDraftHref(projectId, {
+                        activityId: urlActivityId ?? undefined,
+                        activityName: urlActivityName,
+                      })}
+                    >
+                      Open progress
+                    </Link>
+                  </>
+                )}
+              </p>
+              {(() => {
+                const slip = evaluateScheduleSlipRisk({
+                  reportDate,
+                  plannedFinishDate: urlPlannedFinish,
+                  activityName: urlActivityName,
+                });
+                if (!slip.showFlag) {
+                  return slip.band === "insufficient" && urlPlannedFinish === null ? (
+                    <p
+                      className="text-xs text-muted-foreground px-1"
+                      data-testid="schedule-slip-insufficient"
+                    >
+                      {slip.truthNote}
+                    </p>
+                  ) : null;
+                }
+                return (
+                  <div
+                    className={`text-sm rounded-md border px-3 py-2 ${
+                      slip.band === "risk"
+                        ? "border-red-200 bg-red-50/80 dark:bg-red-950/20"
+                        : "border-amber-200 bg-amber-50/80"
+                    }`}
+                    data-testid="schedule-slip-risk-flag"
+                    data-band={slip.band}
                   >
-                    Open progress
-                  </Link>
-                </>
-              )}
-            </p>
+                    <p className="font-medium">{slip.label}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {slip.truthNote}
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
           )}
           {step === "Project" && (
             <Card>
