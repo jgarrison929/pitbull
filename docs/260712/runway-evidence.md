@@ -134,3 +134,7 @@ Jobs: `mobile-smoke`, `owner-signup-smoke` with continue-on-error; role smoke + 
 - [x] §5 CI documented  
 - [x] §6 Perf  
 - [x] §7 Truth  
+
+## Ship stamp 2.22.4
+Section 1 Mobile E2E + specs confirmed. CI mobile-smoke present (optional required).
+
