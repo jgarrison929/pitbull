@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.7] - 2026-07-12T17:01:38-07:00
+
+### Added
+
+- **Photo assist optional safety suggestion (labeled)** — mobile Photos step can offer a caption-heuristic safety note; labeled “Suggestion — review before submit”; apply requires confirm; never auto-posts.
+
+### Notes
+
+- Version **2.19.7**. Next: UI label consistency (2.19.8).
+
 ## [2.19.6] - 2026-07-12T16:59:42-07:00
 
 ### Added

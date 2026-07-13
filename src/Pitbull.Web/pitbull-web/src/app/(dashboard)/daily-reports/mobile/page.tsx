@@ -57,6 +57,12 @@ import {
   suggestionHasContent,
   type FieldAiSuggestion,
 } from "@/lib/field-ai-suggestion";
+import {
+  applyPhotoSafetySuggestion,
+  heuristicPhotoSafetySuggestion,
+  PHOTO_SAFETY_SUGGESTION_LABEL,
+  type PhotoSafetySuggestion,
+} from "@/lib/field-photo-safety-suggestion";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
@@ -156,6 +162,8 @@ export default function MobileDailyReportPage() {
     null
   );
   const [aiBusy, setAiBusy] = useState(false);
+  const [photoSafetySuggestion, setPhotoSafetySuggestion] =
+    useState<PhotoSafetySuggestion | null>(null);
 
   // Field / pour capture
   const [activities, setActivities] = useState<FieldActivityId[]>([]);
@@ -1421,6 +1429,89 @@ export default function MobileDailyReportPage() {
                   enableCamera
                   placeholder="Take or upload progress photos"
                 />
+
+                {/* 2.19.7 — optional photo safety suggestion (labeled only) */}
+                {photos.length > 0 && (
+                  <div
+                    className="space-y-2 rounded-lg border border-dashed p-3"
+                    data-testid="photo-safety-suggestion-panel"
+                  >
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {PHOTO_SAFETY_SUGGESTION_LABEL}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Optional safety assist from photo captions — not a
+                      compliance finding and never auto-posted.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full min-h-[44px]"
+                      data-testid="photo-safety-suggest"
+                      onClick={() => {
+                        const caption = photos
+                          .map((p) => p.caption ?? p.name ?? "")
+                          .filter(Boolean)
+                          .join(" ");
+                        const s = heuristicPhotoSafetySuggestion({
+                          caption,
+                          hasPhoto: photos.length > 0,
+                        });
+                        setPhotoSafetySuggestion(s);
+                        if (!s.safetyNarrative) {
+                          toast.message(
+                            s.confidenceNote ||
+                              "No safety keywords found in photo names/captions"
+                          );
+                        }
+                      }}
+                    >
+                      Suggest safety note from photos
+                    </Button>
+                    {photoSafetySuggestion?.safetyNarrative ? (
+                      <div
+                        className="space-y-2 text-sm"
+                        data-testid="photo-safety-chip"
+                      >
+                        <p className="text-xs text-amber-700 dark:text-amber-300">
+                          {photoSafetySuggestion.label}.{" "}
+                          {photoSafetySuggestion.confidenceNote}
+                        </p>
+                        <p>{photoSafetySuggestion.safetyNarrative}</p>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            className="flex-1 min-h-[44px] bg-amber-500 hover:bg-amber-600"
+                            data-testid="photo-safety-apply"
+                            onClick={() => {
+                              setSafetyNarrative(
+                                applyPhotoSafetySuggestion(
+                                  safetyNarrative,
+                                  photoSafetySuggestion,
+                                  true
+                                )
+                              );
+                              setPhotoSafetySuggestion(null);
+                              toast.success(
+                                "Safety suggestion applied — review before submit"
+                              );
+                            }}
+                          >
+                            Apply to safety
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="min-h-[44px]"
+                            onClick={() => setPhotoSafetySuggestion(null)}
+                          >
+                            Dismiss
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
