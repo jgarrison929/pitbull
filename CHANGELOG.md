@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.0] - 2026-07-12T17:30:37-07:00
+
+### Added
+
+- **Vitest voice + AI merge helpers** — mergeVoiceAndAiSuggestions applies voice transcript then optional AI fill-empty only after confirm.
+
+### Notes
+
+- Version **2.21.0**. Next: AI trust boundary docs (2.21.1).
+
 ## [2.20.9] - 2026-07-12T17:28:33-07:00
 
 ### Added
