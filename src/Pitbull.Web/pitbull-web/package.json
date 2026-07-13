@@ -1,6 +1,6 @@
 {
   "name": "pitbull-web",
-  "version": "2.21.8",
+  "version": "2.21.9",
   "private": true,
   "scripts": {
     "dev": "next dev",
