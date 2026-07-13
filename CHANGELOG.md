@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.22.3] - 2026-07-12T18:02:02-07:00
+
+### Added
+
+- **Runway opens** — docs/260712/runway-evidence.md checklist snapshot; no P0 regressions from 2.22.2 product close.
+
+### Notes
+
+- Version **2.22.3**. Verification-only runway to 3.0.0. Next: §1 mobile E2E evidence (2.22.4).
+
 ## [2.22.2] - 2026-07-12T17:59:52-07:00
 
 ### Added
