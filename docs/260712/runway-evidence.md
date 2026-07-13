@@ -138,3 +138,7 @@ Jobs: `mobile-smoke`, `owner-signup-smoke` with continue-on-error; role smoke + 
 ## Ship stamp 2.22.4
 Section 1 Mobile E2E + specs confirmed. CI mobile-smoke present (optional required).
 
+
+## Ship stamp 2.22.5
+Section 2 Twin Phase 2 + help twin truth copy audited.
+
