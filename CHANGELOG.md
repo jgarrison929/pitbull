@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.8] - 2026-07-12T17:49:34-07:00
+
+### Added
+
+- **Time entry transitions in workflow-transitions.ts** — mirrors C# IsValidTransition (Submitted?Approved/Rejected); vitest + integration tests for review queue / pending aggregate.
+
+### Notes
+
+- Version **2.21.8**. Next: Help approvals workflow (2.21.9).
+
 ## [2.21.7] - 2026-07-12T17:47:15-07:00
 
 ### Added

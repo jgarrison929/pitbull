@@ -1,4 +1,10 @@
-import { BidStatus, ChangeOrderStatus, PaymentApplicationStatus, RfiStatus } from "./types";
+import {
+  BidStatus,
+  ChangeOrderStatus,
+  PaymentApplicationStatus,
+  RfiStatus,
+  TimeEntryStatus,
+} from "./types";
 
 /**
  * Frontend mirrors of backend *StatusTransitions classes.
@@ -157,6 +163,44 @@ export function getAllowedSubmittalStatuses(from: string | null): string[] {
 
 export function getNextSubmittalStatuses(from: string): string[] {
   return submittalAllowedTransitions[from] ?? [];
+}
+
+// ─── Time entries (2.21.8 — mirrors TimeEntryService.IsValidTransition) ──
+
+/**
+ * Keep in sync with C# TimeEntryService.IsValidTransition:
+ * Draft→Submitted; Submitted→Approved|Rejected|Draft; Rejected→Draft|Submitted; Approved terminal.
+ */
+export const timeEntryAllowedTransitions: Record<TimeEntryStatus, TimeEntryStatus[]> = {
+  [TimeEntryStatus.Draft]: [TimeEntryStatus.Submitted],
+  [TimeEntryStatus.Submitted]: [
+    TimeEntryStatus.Approved,
+    TimeEntryStatus.Rejected,
+    TimeEntryStatus.Draft,
+  ],
+  [TimeEntryStatus.Rejected]: [TimeEntryStatus.Draft, TimeEntryStatus.Submitted],
+  [TimeEntryStatus.Approved]: [],
+};
+
+export function getNextTimeEntryStatuses(from: TimeEntryStatus): TimeEntryStatus[] {
+  return timeEntryAllowedTransitions[from] ?? [];
+}
+
+export function canTransitionTimeEntry(
+  from: TimeEntryStatus,
+  to: TimeEntryStatus
+): boolean {
+  if (from === to) return true;
+  return getNextTimeEntryStatuses(from).includes(to);
+}
+
+/** Mobile/desktop review only approves/rejects from Submitted. */
+export function canReviewTimeEntryFromSubmitted(
+  decision: "approve" | "reject"
+): boolean {
+  const to =
+    decision === "approve" ? TimeEntryStatus.Approved : TimeEntryStatus.Rejected;
+  return canTransitionTimeEntry(TimeEntryStatus.Submitted, to);
 }
 
 // ─── Daily reports ──────────────────────────────────────────
