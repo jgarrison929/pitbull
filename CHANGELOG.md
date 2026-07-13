@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.22.5] - 2026-07-12T18:05:35-07:00
+
+### Changed
+
+- **Runway 2.22.5** - Checklist section 2 twin Phase 2 flags and copy audit.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.22.4] - 2026-07-12T18:04:09-07:00
 
 ### Changed
