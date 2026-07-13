@@ -64,6 +64,34 @@ public class AiRateLimitingPolicyTests
     }
 
     [Fact]
+    public void Demo_users_get_stricter_permit_limits_than_production()
+    {
+        Assert.True(
+            Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit("ai-chat", isDemo: true)
+            < Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit("ai-chat", isDemo: false));
+        Assert.True(
+            Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit("ai-suggest", isDemo: true)
+            < Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit("ai-suggest", isDemo: false));
+        Assert.Equal(8, Pitbull.Api.Configuration.AiRateLimitPolicy.ChatDemoPermitLimit);
+        Assert.Equal(10, Pitbull.Api.Configuration.AiRateLimitPolicy.SuggestDemoPermitLimit);
+    }
+
+    [Fact]
+    public void IsDemoUser_reads_is_demo_user_claim()
+    {
+        var ctx = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim("is_demo_user", "true"),
+                new Claim(ClaimTypes.NameIdentifier, "demo-1"),
+            ], "test"))
+        };
+        Assert.True(Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(ctx));
+        Assert.Contains("demo-1", Pitbull.Api.Configuration.AiRateLimitPolicy.PartitionKey(ctx));
+    }
+
+    [Fact]
     public void PartitionKey_UsesUserIdFromJwtClaim()
     {
         // Arrange

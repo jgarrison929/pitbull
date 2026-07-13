@@ -659,54 +659,43 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             }));
 
-    // AI endpoints: per-user rate limits (keyed by user ID from JWT, fallback to IP)
+    // AI endpoints: per-user rate limits; demo users tighter (2.20.7 AiRateLimitPolicy)
     options.AddPolicy("ai-chat", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? context.Connection.RemoteIpAddress?.ToString()
-                ?? "anonymous",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 20,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            partitionKey: Pitbull.Api.Configuration.AiRateLimitPolicy.PartitionKey(context)
+                + (Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context) ? ":demo" : ""),
+            factory: _ => Pitbull.Api.Configuration.AiRateLimitPolicy.WindowOptions(
+                Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit(
+                    "ai-chat",
+                    Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context)))));
 
+    // 2.20.7 — demo users get tighter AI permit ceilings (AiRateLimitPolicy)
     options.AddPolicy("ai-document", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? context.Connection.RemoteIpAddress?.ToString()
-                ?? "anonymous",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            partitionKey: Pitbull.Api.Configuration.AiRateLimitPolicy.PartitionKey(context)
+                + (Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context) ? ":demo" : ""),
+            factory: _ => Pitbull.Api.Configuration.AiRateLimitPolicy.WindowOptions(
+                Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit(
+                    "ai-document",
+                    Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context)))));
 
     options.AddPolicy("ai-invoice", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? context.Connection.RemoteIpAddress?.ToString()
-                ?? "anonymous",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            partitionKey: Pitbull.Api.Configuration.AiRateLimitPolicy.PartitionKey(context)
+                + (Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context) ? ":demo" : ""),
+            factory: _ => Pitbull.Api.Configuration.AiRateLimitPolicy.WindowOptions(
+                Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit(
+                    "ai-invoice",
+                    Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context)))));
 
     options.AddPolicy("ai-suggest", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? context.Connection.RemoteIpAddress?.ToString()
-                ?? "anonymous",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            partitionKey: Pitbull.Api.Configuration.AiRateLimitPolicy.PartitionKey(context)
+                + (Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context) ? ":demo" : ""),
+            factory: _ => Pitbull.Api.Configuration.AiRateLimitPolicy.WindowOptions(
+                Pitbull.Api.Configuration.AiRateLimitPolicy.PermitLimit(
+                    "ai-suggest",
+                    Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context)))));
 
     // Vendor portal: 30 requests per minute per IP (public, anonymous)
     options.AddPolicy("portal", context =>
