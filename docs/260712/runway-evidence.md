@@ -162,3 +162,7 @@ Section 6 Perf spot-check: list virtualization + field capture-only policy.
 ## Ship stamp 2.23.0
 Section 7 Truth rules: KPI proxies, twin empty, AI trust boundary reviewed.
 
+
+## Ship stamp 2.23.1
+Buffer: no P0/P1 fixes required; preflight green.
+
