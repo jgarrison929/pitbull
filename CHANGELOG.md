@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.7] - 2026-07-12T17:47:15-07:00
+
+### Added
+
+- **Mobile time entry approve/reject** — /time-tracking/approval/mobile uses existing review-queue + review APIs (Submitted lifecycle only); large touch targets; reject requires reason. Mobile-field-report already in CI (2.21.5).
+
+### Notes
+
+- Version **2.21.7**. Next: mirror workflow-transitions (2.21.8).
+
 ## [2.21.6] - 2026-07-12T17:44:59-07:00
 
 ### Added
