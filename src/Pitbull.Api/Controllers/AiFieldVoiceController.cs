@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.AI.Providers;
 using Pitbull.AI.Services;
 using Pitbull.Api.Validation;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Controllers;
 
@@ -19,14 +21,24 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("ai-suggest")]
 [Produces("application/json")]
 [Tags("AI")]
-public class AiFieldVoiceController(IAiService aiService) : ControllerBase
+public class AiFieldVoiceController(
+    IAiService aiService,
+    IAiUsageService usageService,
+    ICompanyContext companyContext) : ControllerBase
 {
+    public const string UsageFeatureName = "field-voice-suggestion";
     private const int MaxTranscriptLength = 8000;
 
     private Guid GetTenantId()
     {
         var tenantClaim = User.FindFirst("tenant_id")?.Value;
         return Guid.TryParse(tenantClaim, out var tid) ? tid : Guid.Empty;
+    }
+
+    private Guid GetUserId()
+    {
+        var sub = User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(sub, out var id) ? id : Guid.Empty;
     }
 
     /// <summary>
@@ -87,12 +99,35 @@ public class AiFieldVoiceController(IAiService aiService) : ControllerBase
             return StatusCode(503, new { error = result.Error, code = result.ErrorCode });
         }
 
-        var parsed = FieldVoiceSuggestionParser.Parse(result.Value!.Content, transcript);
+        var latencyMs = (long)result.Value!.Latency.TotalMilliseconds;
+        // 2.19.6 — per-company usage meter (feature field-voice-suggestion)
+        try
+        {
+            Guid? companyId = companyContext.IsResolved ? companyContext.CompanyId : null;
+            await usageService.LogUsageAsync(
+                GetUserId(),
+                result.Value.Provider,
+                result.Value.Model,
+                tokensIn: 0,
+                tokensOut: 0,
+                estimatedCost: 0m,
+                feature: UsageFeatureName,
+                durationMs: (int)Math.Min(latencyMs, int.MaxValue),
+                confidenceScore: result.Value.ConfidenceScore,
+                ct: ct,
+                companyId: companyId);
+        }
+        catch
+        {
+            // Metering must not fail the suggestion path
+        }
+
+        var parsed = FieldVoiceSuggestionParser.Parse(result.Value.Content, transcript);
         return Ok(parsed with
         {
             Model = result.Value.Model,
             Provider = result.Value.Provider,
-            LatencyMs = (long)result.Value.Latency.TotalMilliseconds,
+            LatencyMs = latencyMs,
             Label = FieldVoiceSuggestionResponse.DefaultLabel,
             AutoApplied = false,
         });

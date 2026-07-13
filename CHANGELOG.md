@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.19.6] - 2026-07-12T16:59:42-07:00
+
+### Added
+
+- **AI usage tracking per company** — AiUsageRecord.CompanyId + GetCompanyRequestCountAsync; field-voice-suggestion logs successful completions with active company for metering.
+
+### Notes
+
+- Version **2.19.6**. Next: photo assist safety suggestion (2.19.7).
+
 ## [2.19.5] - 2026-07-12T16:56:52-07:00
 
 ### Added

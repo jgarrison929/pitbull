@@ -5,6 +5,8 @@ namespace Pitbull.AI.Domain;
 public class AiUsageRecord : BaseEntity, ITenantScoped
 {
     public Guid UserId { get; set; }
+    /// <summary>Active company when the request ran (2.19.6) — for per-company metering.</summary>
+    public Guid? CompanyId { get; set; }
     public string Provider { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
     public int TokensIn { get; set; }
