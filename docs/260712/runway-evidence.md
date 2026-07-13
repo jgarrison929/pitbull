@@ -150,3 +150,7 @@ Section 3 Help field + approvals + office personas verified on /help.
 ## Ship stamp 2.22.7
 Section 4 Spec index audit complete (product specs Shipped).
 
+
+## Ship stamp 2.22.8
+Section 5 CI jobs green-or-documented (continue-on-error risk accepted).
+
