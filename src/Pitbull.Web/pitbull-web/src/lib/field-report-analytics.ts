@@ -7,10 +7,19 @@
 export const FIELD_REPORT_SUBMITTED_EVENT = "field_report_submitted";
 export const FIELD_REPORT_STEP_EVENT = "field_report_step";
 
+/** Diagnostic only (2.20.4) — not a vanity KPI. */
+export const AI_SUGGESTION_APPLIED_EVENT = "ai_suggestion_applied";
+
 export type FieldReportSubmitProps = {
   project_id: string;
   as_draft: boolean;
   photo_count: number;
+  offline: boolean;
+};
+
+export type AiSuggestionAppliedProps = {
+  project_id?: string | null;
+  suggestion_kind: "field_voice" | "photo_safety" | "field_eod";
   offline: boolean;
 };
 
@@ -42,5 +51,16 @@ export function buildFieldReportStepProps(
     to_step: input.to_step,
     direction: input.direction,
     project_id: input.project_id ?? null,
+  };
+}
+
+/** Build PostHog props when user confirms apply on an AI suggestion. */
+export function buildAiSuggestionAppliedProps(
+  input: AiSuggestionAppliedProps
+): AiSuggestionAppliedProps {
+  return {
+    project_id: input.project_id ?? null,
+    suggestion_kind: input.suggestion_kind,
+    offline: input.offline,
   };
 }

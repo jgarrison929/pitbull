@@ -44,8 +44,10 @@ import { enqueueDailyReportForSync } from "@/lib/offline-store";
 import { requestBackgroundSync } from "@/components/service-worker-register";
 import { captureProductEvent } from "@/lib/posthog";
 import {
+  AI_SUGGESTION_APPLIED_EVENT,
   FIELD_REPORT_STEP_EVENT,
   FIELD_REPORT_SUBMITTED_EVENT,
+  buildAiSuggestionAppliedProps,
   buildFieldReportStepProps,
   buildFieldReportSubmittedProps,
 } from "@/lib/field-report-analytics";
@@ -1387,6 +1389,14 @@ export default function MobileDailyReportPage() {
                               setDelaysNarrative(next.delaysNarrative);
                               setSafetyNarrative(next.safetyNarrative);
                               setAiSuggestion(null);
+                              captureProductEvent(
+                                AI_SUGGESTION_APPLIED_EVENT,
+                                buildAiSuggestionAppliedProps({
+                                  project_id: projectId || null,
+                                  suggestion_kind: "field_voice",
+                                  offline: !isOnline,
+                                })
+                              );
                               toast.success("AI suggestion applied — review before submit");
                             }}
                           >
@@ -1558,6 +1568,14 @@ export default function MobileDailyReportPage() {
                                 )
                               );
                               setPhotoSafetySuggestion(null);
+                              captureProductEvent(
+                                AI_SUGGESTION_APPLIED_EVENT,
+                                buildAiSuggestionAppliedProps({
+                                  project_id: projectId || null,
+                                  suggestion_kind: "photo_safety",
+                                  offline: !isOnline,
+                                })
+                              );
                               toast.success(
                                 "Safety suggestion applied — review before submit"
                               );
