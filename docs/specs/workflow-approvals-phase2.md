@@ -1,6 +1,6 @@
 # Spec: Workflow approvals Phase 2
 
-**Status:** Pending  
+**Status:** In progress — lifecycle **frozen 2.21.3** (Time entries)  
 **Version band:** 2.21.3 → 2.22.0 (8 PRs)  
 **Related:** [`WORKFLOW-EVALUATION-MATRIX.md`](../WORKFLOW-EVALUATION-MATRIX.md), Phase 1 CO + billing
 
@@ -34,13 +34,31 @@ PM, Manager, CFO (read), field (submit only where applicable).
 | `GET /api/approvals/pending` (or under existing dashboard) | Aggregate counts by lifecycle — **real DB counts** |
 | Existing approve/reject for chosen lifecycle | Reuse; do not fork rules |
 
-**2.21.3 must freeze which lifecycles expand** (recommended: time entries **or** RFIs **or** POs — pick one for mobile approve).
+### Frozen expansion (2.21.3)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| **Mobile approve lifecycle** | **Time entries** | Field-adjacent; existing approve/reject APIs; PM/Manager gate |
+| **Deferred (not this band)** | RFIs, POs, submittals | Office-heavy; avoid multi-lifecycle UI in one band |
+| **Already Phase 1** | Change orders, owner billing apps | Do not re-implement |
+
+**API routes (canonical — implement in 2.21.4+):**
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/approvals/pending` | Aggregate pending counts by lifecycle key (`timeEntries`, `changeOrders`, …) — **real DB counts**, RLS/company scoped |
+| GET | existing time entry pending/list for review | Reuse list filters for “Submitted” awaiting approval |
+| POST | existing time entry approve / reject | Reuse; no forked status strings |
+
+**Mobile UX:** PM home **Pending approvals** card → count for `timeEntries` (and Phase 1 types if already available) → drill to one-tap approve/reject for **time entries only**.
+
+**Transition source of truth:** `workflow-transitions` (web) + API status enums — 2.21.7 mirrors strings.
 
 ## Version table
 
 | Version | Deliverable | Acceptance |
 |---------|-------------|------------|
-| 2.21.3 | Spec freeze: which lifecycle expands | This file lists chosen lifecycle + API routes |
+| 2.21.3 | Spec freeze: which lifecycle expands | **Time entries** + API routes frozen above |
 | 2.21.4 | API: pending approvals aggregate | Returns real counts; RLS safe |
 | 2.21.5 | Mobile card on PM home | Count matches API; empty honest |
 | 2.21.6 | Approve/reject from mobile (one lifecycle) | Success path + error toast |

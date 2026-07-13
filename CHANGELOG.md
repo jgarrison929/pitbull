@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.3] - 2026-07-12T17:36:42-07:00
+
+### Changed
+
+- **Workflow approvals Phase 2 freeze** — mobile approve lifecycle locked to **time entries**; aggregate route GET /api/approvals/pending planned; RFIs/POs deferred. Spec workflow-approvals-phase2.md.
+
+### Notes
+
+- Version **2.21.3**. Next: pending approvals aggregate API (2.21.4).
+
 ## [2.21.2] - 2026-07-12T17:34:09-07:00
 
 ### Added
