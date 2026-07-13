@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.1] - 2026-07-12T17:09:57-07:00
+
+### Added
+
+- **Optional LLM end-of-day summary behind flag** — NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD defaults **OFF** in prod; rule-based summary always available. When enabled, Review can request POST /api/ai/field-eod-summary as a labeled suggestion only.
+
+### Notes
+
+- Version **2.20.1**. Next: AI MVP core checkpoint (2.20.2).
+
 ## [2.20.0] - 2026-07-12T17:07:25-07:00
 
 ### Added
