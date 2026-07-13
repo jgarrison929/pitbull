@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.6] - 2026-07-12T17:44:59-07:00
+
+### Added
+
+- **PM home pending approvals card** — live GET /api/approvals/pending totals (time entries + COs); honest empty copy.
+- **CI owner-signup-smoke** — Playwright owner-signup project (continue-on-error: true).
+
+### Notes
+
+- Version **2.21.6**. Next: mobile approve/reject time entries (2.21.7).
+
 ## [2.21.5] - 2026-07-12T17:42:07-07:00
 
 ### Added

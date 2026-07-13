@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,12 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { roleKpiDrillHref } from "@/lib/role-kpi-drills";
+import api from "@/lib/api";
+import {
+  normalizePendingApprovals,
+  pendingApprovalsEmptyCopy,
+  type PendingApprovalsDto,
+} from "@/lib/pending-approvals";
 
 interface DashboardAnalytics {
   activeProjects: number;
@@ -40,22 +47,109 @@ function trendPercent(current: number, previous: number): number {
 /** PM home: run today's jobs — approvals, RFIs, open jobs. */
 export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | null; isLoading: boolean }) {
   const hoursDelta = data ? trendPercent(data.hoursThisWeek, data.hoursLastWeek) : 0;
+  const [pending, setPending] = useState<PendingApprovalsDto | null>(null);
+  const [pendingLoading, setPendingLoading] = useState(true);
+
+  const loadPending = useCallback(async () => {
+    setPendingLoading(true);
+    try {
+      const raw = await api<unknown>("/api/approvals/pending");
+      setPending(normalizePendingApprovals(raw));
+    } catch {
+      // Fall back to analytics proxy only for attention banner; card shows honest load fail
+      setPending(null);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPending();
+  }, [loadPending]);
+
+  // Prefer live aggregate (2.21.4 API); analytics.pendingApprovals is time-entries-only proxy
+  const liveTotal = pending?.total;
+  const displayPending =
+    liveTotal !== undefined && liveTotal !== null
+      ? liveTotal
+      : (data?.pendingApprovals ?? 0);
   const needsAttention =
-    (data?.pendingApprovals ?? 0) > 0 || (data?.openRFIs ?? 0) > 5;
+    displayPending > 0 || (data?.openRFIs ?? 0) > 5;
 
   return (
     <div className="space-y-6">
+      {/* 2.21.6 — dedicated pending approvals card from real API */}
+      <Card
+        className="border-amber-200/80"
+        data-testid="pm-pending-approvals-card"
+      >
+        <CardHeader className="pb-2 flex flex-row items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Inbox className="h-4 w-4 text-amber-600" />
+            Pending approvals
+          </CardTitle>
+          <Button asChild size="sm" variant="outline" className="min-h-[40px]">
+            <Link href="/my-approvals">Open queue</Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {pendingLoading ? (
+            <Skeleton className="h-10 w-24" />
+          ) : pending ? (
+            <>
+              <div
+                className="text-3xl font-bold tabular-nums"
+                data-testid="pm-pending-approvals-total"
+              >
+                {pending.total}
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <span data-testid="pm-pending-time-entries">
+                  Time entries: {pending.timeEntries}
+                </span>
+                <span>·</span>
+                <span data-testid="pm-pending-change-orders">
+                  Change orders: {pending.changeOrders}
+                </span>
+              </div>
+              {pending.total === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {pendingApprovalsEmptyCopy()}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Expanded lifecycle: {pending.expandedLifecycle}.{" "}
+                  {pending.truthNote}
+                </p>
+              )}
+              {pending.timeEntries > 0 && (
+                <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 min-h-[40px]">
+                  <Link href="/time-tracking/approval">
+                    Review time entries ({pending.timeEntries})
+                  </Link>
+                </Button>
+              )}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Could not load live approvals count. Analytics proxy:{" "}
+              {data?.pendingApprovals ?? "—"}. Retry from Open queue.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {needsAttention && (
         <Card className="border-amber-200 bg-amber-50/40 dark:border-amber-500/30 dark:bg-amber-500/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Needs you today</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            {(data?.pendingApprovals ?? 0) > 0 && (
+            {displayPending > 0 && (
               <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700">
                 <Link href="/my-approvals">
-                  {data!.pendingApprovals} time/workflow approval
-                  {(data!.pendingApprovals ?? 0) !== 1 ? "s" : ""}
+                  {displayPending} pending approval
+                  {displayPending !== 1 ? "s" : ""}
                 </Link>
               </Button>
             )}
@@ -101,17 +195,21 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
             </CardContent>
           </Card>
         </Link>
-        <Link href={roleKpiDrillHref("pendingTimeApprovals")} className="group">
+        <Link href="/time-tracking/approval" className="group">
           <Card className="transition-colors group-hover:border-amber-500/50 group-hover:shadow-md cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium">Pending Approvals</CardTitle>
+              <CardTitle className="text-sm font-medium">Time entries queue</CardTitle>
               <Inbox className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              {isLoading ? <Skeleton className="h-8 w-16" /> : (
+              {pendingLoading || isLoading ? <Skeleton className="h-8 w-16" /> : (
                 <>
-                  <div className="text-2xl font-bold">{data?.pendingApprovals ?? 0}</div>
-                  {(data?.pendingApprovals ?? 0) > 0 && <Badge className="mt-1 bg-amber-100 text-amber-800">Needs review</Badge>}
+                  <div className="text-2xl font-bold">
+                    {pending?.timeEntries ?? data?.pendingApprovals ?? 0}
+                  </div>
+                  {(pending?.timeEntries ?? data?.pendingApprovals ?? 0) > 0 && (
+                    <Badge className="mt-1 bg-amber-100 text-amber-800">Needs review</Badge>
+                  )}
                 </>
               )}
             </CardContent>
