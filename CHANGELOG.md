@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.2] - 2026-07-12T17:11:58-07:00
+
+### Added
+
+- **AI MVP core checkpoint** — notes docs/ci/mobile-ai-mvp-notes.md; mobile-ai-intelligence status through 2.20.2 (voice ? EOD rule/flag paths).
+
+### Notes
+
+- Version **2.20.2**. Next: risk flag schedule slip proxy (2.20.3).
+
 ## [2.20.1] - 2026-07-12T17:09:57-07:00
 
 ### Added
