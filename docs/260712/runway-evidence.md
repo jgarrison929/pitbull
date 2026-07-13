@@ -158,3 +158,7 @@ Section 5 CI jobs green-or-documented (continue-on-error risk accepted).
 ## Ship stamp 2.22.9
 Section 6 Perf spot-check: list virtualization + field capture-only policy.
 
+
+## Ship stamp 2.23.0
+Section 7 Truth rules: KPI proxies, twin empty, AI trust boundary reviewed.
+
