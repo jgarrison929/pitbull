@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.9] - 2026-07-12T17:28:33-07:00
+
+### Added
+
+- **Integration tests field AI endpoints** — auth required; suggestion DTO never AutoApplied (honest when AI unconfigured).
+
+### Notes
+
+- Version **2.20.9**. Next: vitest voice + AI merge (2.21.0).
+
 ## [2.20.8] - 2026-07-12T17:26:37-07:00
 
 ### Changed
