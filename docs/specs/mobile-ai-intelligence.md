@@ -1,6 +1,6 @@
 # Spec: Mobile AI intelligence (MVP)
 
-**Status:** In progress — voice scaffold **2.19.3**  
+**Status:** In progress — AI MVP core through **2.20.2** (voice → EOD); remainder 2.20.3–2.21.2  
 **Version band:** 2.19.3 → 2.21.2 (20 PRs)  
 **Related:** [`docs/mobile3.md`](../mobile3.md) Phase 4, AI module, `AiChatController`, `AiFieldVoiceController`
 
