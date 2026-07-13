@@ -373,8 +373,7 @@ public sealed class SpatialEndpointsTests(PostgresFixture db) : ApiIntegrationTe
         Assert.Equal(0, body.CombinedTotal);
         Assert.Null(body.CombinedPercentWithSpatialRef);
         Assert.Contains("quality", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("executive KPI", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
-        // Label explicitly not a vanity KPI
+        // Label explicitly frames itself as not a vanity KPI ("... not an executive KPI").
         Assert.Contains("not an executive KPI", body.Label ?? "", StringComparison.OrdinalIgnoreCase);
     }
 
