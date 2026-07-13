@@ -49,3 +49,13 @@ npm run test:roles
 ## P0 gaps
 
 None at checkpoint. Residual E2E weather submit was landed under 2.12.6 residual / main path.
+
+## CI mobile-smoke (2.21.5)
+
+**Job:** `mobile-smoke` in `.github/workflows/ci.yml`  
+**continue-on-error:** `true` (scaffold; may become required by 2.22.2)  
+**Project:** Playwright `mobile-field-report` after `setup-roles`
+
+| Needs | build-backend, build-frontend |
+| Stack | Postgres 17 + demo seed API + Next start |
+

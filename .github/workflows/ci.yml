@@ -249,3 +249,119 @@ jobs:
             e2e/recordings/**
             /tmp/pitbull-role-e2e-ci/**
           if-no-files-found: ignore
+
+  # 2.21.5 — mobile field report smoke (continue-on-error until required at 2.22.2)
+  mobile-smoke:
+    name: Mobile field report smoke (Playwright)
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pitbull
+          POSTGRES_PASSWORD: pitbull_dev
+          POSTGRES_DB: pitbull_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      ConnectionStrings__PitbullDb: "Host=localhost;Port=5432;Database=pitbull_test;Username=pitbull;Password=pitbull_dev"
+      Demo__Enabled: "true"
+      Demo__SeedOnStartup: "true"
+      API_BASE_URL: http://localhost:5081
+      DEMO_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5081
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            e2e/package-lock.json
+            src/Pitbull.Web/pitbull-web/package-lock.json
+
+      - name: Build API
+        run: dotnet build --configuration Release src/Pitbull.Api/Pitbull.Api.csproj
+
+      - name: Install frontend dependencies
+        working-directory: src/Pitbull.Web/pitbull-web
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: src/Pitbull.Web/pitbull-web
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:5081
+        run: npm run build
+
+      - name: Install e2e dependencies + Playwright browsers
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start API (Development + demo seed)
+        run: |
+          dotnet run --project src/Pitbull.Api/Pitbull.Api.csproj \
+            --configuration Release --no-build \
+            --urls http://localhost:5081 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:5081/health/live; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::API failed to start"
+          exit 1
+
+      - name: Start frontend
+        working-directory: src/Pitbull.Web/pitbull-web
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:5081
+        run: |
+          npm run start -- -p 3000 &
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000; then
+              echo "Frontend ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Frontend failed to start"
+          exit 1
+
+      - name: Auth setup (role storage states)
+        working-directory: e2e
+        run: npx playwright test --project=setup-roles
+
+      - name: Run mobile-field-report project
+        working-directory: e2e
+        run: npx playwright test --project=mobile-field-report
+
+      - name: Upload mobile-smoke artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mobile-smoke-artifacts
+          path: |
+            e2e/recordings/**
+            e2e/test-results/**
+          if-no-files-found: ignore
