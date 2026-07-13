@@ -142,3 +142,7 @@ Section 1 Mobile E2E + specs confirmed. CI mobile-smoke present (optional requir
 ## Ship stamp 2.22.5
 Section 2 Twin Phase 2 + help twin truth copy audited.
 
+
+## Ship stamp 2.22.6
+Section 3 Help field + approvals + office personas verified on /help.
+
