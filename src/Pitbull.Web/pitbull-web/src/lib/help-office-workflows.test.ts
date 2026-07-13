@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   OFFICE_WORKFLOWS_SECTION_TITLE,
+  officeFaqItems,
   officeHelpCards,
 } from "./help-office-workflows";
 
@@ -35,5 +36,14 @@ describe("help office workflows (2.22.1)", () => {
     // Reject polish claims — allow cautionary "not all clear" / "not invented"
     expect(blob).not.toMatch(/fake kpi/);
     expect(blob).not.toMatch(/(?:is|are|shows)\s+all clear/);
+  });
+
+  it("office FAQ covers title-first profiles and honest KPI drills (2.22.2)", () => {
+    expect(officeFaqItems.length).toBeGreaterThanOrEqual(3);
+    const blob = officeFaqItems.map((f) => `${f.question} ${f.answer}`).join("\n");
+    expect(blob).toMatch(/title-first|role_profile|job_title/i);
+    expect(blob).toMatch(/demo/i);
+    expect(blob).toMatch(/proxy|drill/i);
+    expect(blob.toLowerCase()).not.toMatch(/fake consolidation|invented kpi totals/);
   });
 });

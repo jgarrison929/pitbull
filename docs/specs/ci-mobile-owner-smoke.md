@@ -1,8 +1,8 @@
 # Spec: CI — mobile + owner-signup smoke
 
-**Status:** Pending  
+**Status:** Shipped through **2.22.2** (jobs live; branch-required optional by design — see notes)  
 **Version band:** 2.21.5 → 2.22.2 (subset of Arc E)  
-**Related:** `.github/workflows/ci.yml`, `e2e/tests/owner-signup.spec.ts`, `e2e/tests/mobile-field-report.spec.ts`
+**Related:** `.github/workflows/ci.yml`, `e2e/tests/owner-signup.spec.ts`, `e2e/tests/mobile-field-report.spec.ts`, `docs/ci/mobile-owner-smoke-notes.md`
 
 ## Problem
 
@@ -16,7 +16,7 @@ CI runs L4 role smoke; mobile field report and owner signup are not fully gated 
 | Owner signup E2E | `e2e/tests/owner-signup.spec.ts` |
 | Mobile E2E | `e2e/tests/mobile-field-report.spec.ts` (from Arc A) |
 | Role smoke | existing role-workflows job |
-| Docs | `docs/ci/` |
+| Docs | `docs/ci/mobile-owner-smoke-notes.md` |
 
 ## Version table
 
@@ -25,7 +25,7 @@ CI runs L4 role smoke; mobile field report and owner signup are not fully gated 
 | 2.21.5 | CI job scaffold `mobile-smoke` (may `continue-on-error: true` initially) | Job appears in workflow |
 | 2.21.6 | `owner-signup.spec.ts` in CI | Job runs on PR |
 | 2.21.7 | `mobile-field-report.spec.ts` in CI | Job runs on PR |
-| 2.22.2 | Required checks (or documented why optional) + `docs/ci/` notes | Branch protection guidance in notes |
+| 2.22.2 | Required checks (or documented why optional) + `docs/ci/` notes | **Documented optional** — `continue-on-error` retained; notes in `docs/ci/mobile-owner-smoke-notes.md` |
 
 ## Non-goals
 
@@ -37,4 +37,5 @@ CI runs L4 role smoke; mobile field report and owner signup are not fully gated 
 
 ## Band DoD
 
-- [ ] Evidence of CI jobs in `docs/ci/` for runway checklist §5  
+- [x] Evidence of CI jobs in `docs/ci/` for runway checklist §5  
+- [x] Honest optional required-check stance documented  

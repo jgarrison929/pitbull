@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  agingLineHasNearTerm,
   agingLineHasOverdue31Plus,
   parseAgingDrillParams,
   parseProjectsDrillParams,
@@ -109,12 +110,24 @@ describe("parseAgingDrillParams", () => {
     const p = parseAgingDrillParams(new URLSearchParams(qs));
     expect(p.focus).toBe("ap");
     expect(p.overdueOnly).toBe(false);
+    expect(p.nearTermOnly).toBe(false);
+  });
+
+  it("parses nearTerm=true for AP near-term KPI (Current + 1–30)", () => {
+    const href = roleKpiDrillHref("apNearTerm");
+    expect(href).toContain("focus=ap");
+    expect(href).toContain("nearTerm=true");
+    const p = parseAgingDrillParams(new URLSearchParams(href.split("?")[1] ?? ""));
+    expect(p.focus).toBe("ap");
+    expect(p.nearTermOnly).toBe(true);
+    expect(p.overdueOnly).toBe(false);
   });
 
   it("defaults to both focus when no params", () => {
     const p = parseAgingDrillParams(new URLSearchParams(""));
     expect(p.focus).toBe("both");
     expect(p.overdueOnly).toBe(false);
+    expect(p.nearTermOnly).toBe(false);
   });
 });
 
@@ -134,6 +147,14 @@ describe("agingLineHasOverdue31Plus", () => {
         days90Plus: 0,
       })
     ).toBe(false);
+  });
+});
+
+describe("agingLineHasNearTerm", () => {
+  it("is true when current or 1–30 has balance", () => {
+    expect(agingLineHasNearTerm({ current: 50, days1To30: 0 })).toBe(true);
+    expect(agingLineHasNearTerm({ current: 0, days1To30: 10 })).toBe(true);
+    expect(agingLineHasNearTerm({ current: 0, days1To30: 0 })).toBe(false);
   });
 });
 

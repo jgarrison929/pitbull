@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.22.2] - 2026-07-12T17:59:52-07:00
+
+### Added
+
+- **Last product PR (2.22.2)** — AP near-term aging filter (
+earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo explore, honest drills); CI mobile/owner required-check notes (jobs optional with continue-on-error).
+
+### Fixed
+
+- **apNearTerm orphan** — drill no longer opens full AP board only; filters Current + 1–30 balances.
+
+### Notes
+
+- **Product band complete at 2.22.2.** Next is runway 2.22.3 (verification/fixes only — no new features).
+
 ## [2.22.1] - 2026-07-12T17:56:06-07:00
 
 ### Added

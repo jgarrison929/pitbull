@@ -1,6 +1,6 @@
 # Spec: Role KPI drill-through contracts
 
-**Status:** In progress (audit matrix 2.22.1; orphan fixes + vitest matrix 2.22.2)  
+**Status:** Shipped through **2.22.2**  
 **Version band:** 2.22.1 → 2.22.2 (2 PRs)  
 **Related:** [`ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md), `role-kpi-drill-contracts.ts`, `role-kpi-drills.ts`
 
@@ -24,8 +24,9 @@ CEO, CFO, PM, Estimator, Superintendent (field home actions).
 |------|-------|
 | Drill contracts | `src/.../lib/role-kpi-drill-contracts.ts` |
 | Drill helpers | `src/.../lib/role-kpi-drills.ts`, `role-kpi-drills.test.ts`, `role-kpi-drill-parity.test.ts` |
+| Persona matrix | `role-kpi-persona-matrix.test.ts` |
 | Role views | `src/.../components/dashboard/role-views/*` |
-| Executive briefing | `morning-briefing.tsx`, `kpi-cards-widget.tsx` |
+| Aging consumer | `billing/aging/page.tsx` (`overdue`, `nearTerm`) |
 | ROLE-EXPERIENCE | `docs/ROLE-EXPERIENCE.md` |
 
 ## API
@@ -47,13 +48,13 @@ UI routing contracts; list pages must honor query filters that KPIs claim.
 **Deliverable:** Fix orphan KPIs; vitest href matrix green.
 
 **Acceptance:**
-- [ ] No home KPI without drill (or explicit non-clickable with reason)  
-- [ ] Vitest covers matrix  
-- [ ] Spec Status shipped through 2.22.2 (with help office if same PR split)  
+- [x] No home KPI without drill (or explicit non-clickable with reason)  
+- [x] Vitest covers matrix (`role-kpi-persona-matrix.test.ts` + parity)  
+- [x] Spec Status shipped through 2.22.2  
 
 ## Audit matrix (2.22.1)
 
-Source of truth for hrefs: `ROLE_KPI_DRILL_CONTRACTS` in `role-kpi-drill-contracts.ts`. Consumers below audited against role views + morning briefing + kpi-cards-widget (2026-07-12).
+Source of truth for hrefs: `ROLE_KPI_DRILL_CONTRACTS` in `role-kpi-drill-contracts.ts`.
 
 ### CEO (executive layout)
 
@@ -90,7 +91,6 @@ Source of truth for hrefs: `ROLE_KPI_DRILL_CONTRACTS` in `role-kpi-drill-contrac
 | Hours this week | `/time-tracking?view=entries&period=thisWeek` | Current week entries | OK |
 | View RFIs (action) | `/rfis?status=notClosed` | Same as openRfis | OK |
 | Pending time (briefing/widget) | `/time-tracking/approval?status=pending` | Submitted time | OK |
-| Pending approvals card | `/` + `/time-tracking/approval/mobile` | Live GET /api/approvals/pending | OK (not RoleKpiKey) |
 
 ### Estimator
 
@@ -103,27 +103,20 @@ Source of truth for hrefs: `ROLE_KPI_DRILL_CONTRACTS` in `role-kpi-drill-contrac
 
 | KPI / tile | Href | Filter contract | Status |
 |------------|------|-----------------|--------|
-| Field report (last job) | `/projects/{id}/...` field report | Job-scoped capture | OK (action, not RoleKpiKey) |
-| Site walk | site-walk href | Job-scoped | OK (action) |
-| Twin | `/projects/{id}/twin` | Job twin | OK (action) |
-| Project list links | `/projects/{id}` | Detail | OK |
+| Field actions (report, site walk, twin) | job-scoped routes | Capture + glance | OK intentional — no portfolio RoleKpiKey |
 
-### Shared widgets / morning briefing
+### Shared / briefing
 
 | KPI / tile | Href | Filter contract | Status |
 |------------|------|-----------------|--------|
-| kpi-cards: active, workforce, hours, pending time, open RFIs | contract table | per key | OK |
-| briefing: open COs | `/change-orders?status=open` | Pending/UnderReview | OK |
-| briefing: bid pipeline | `/bids?pipeline=open` | Open pipeline | OK |
-| briefing: AP near-term | `/billing/aging?focus=ap` | AP focus (near-term is label; list is full AP board) | **Partial** — severity Low (proxy label) |
+| AP near-term | `/billing/aging?focus=ap&nearTerm=true` | Current + 1–30 line filter | **OK (fixed 2.22.2)** |
 
-## Orphans (severity)
+## Orphans (closed)
 
-| Item | Severity | Notes | Target fix |
-|------|----------|-------|------------|
-| `apNearTerm` drill uses same href as `apTotal` (no due-date filter on aging page) | Low | Headline is Current+1–30; list is AP focus without near-term-only filter | 2.22.2 — document or add query if consumer supports it |
-| Field home has no RoleKpiKey portfolio KPIs | N/A | By design: capture + glance, not portfolio aggregation | No fix — intentional |
-| Contract keys not shown on a given persona home | N/A | e.g. `compliance` full list vs attention only | Not orphans if unused |
+| Item | Resolution |
+|------|------------|
+| `apNearTerm` shared AP board only | Fixed: `nearTerm=true` + `agingLineHasNearTerm` |
+| Field home no portfolio KPIs | By design |
 
 ## Non-goals
 
@@ -136,5 +129,5 @@ Source of truth for hrefs: `ROLE_KPI_DRILL_CONTRACTS` in `role-kpi-drill-contrac
 
 ## Band DoD
 
-- [x] Matrix complete (2.22.1)  
-- [ ] Tests green covering matrix (2.22.2)  
+- [x] Matrix complete  
+- [x] Tests green covering matrix  

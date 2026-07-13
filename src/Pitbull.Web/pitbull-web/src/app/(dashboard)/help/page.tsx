@@ -47,6 +47,7 @@ import {
 } from "@/lib/help-approvals";
 import {
   OFFICE_WORKFLOWS_SECTION_TITLE,
+  officeFaqItems,
   officeHelpCards,
 } from "@/lib/help-office-workflows";
 
@@ -185,6 +186,8 @@ const faqItems = [
   ...mobileFaqItems,
   // 2.21.9 approvals workflow
   ...approvalsFaqItems,
+  // 2.22.2 office personas / KPI drill truth
+  ...officeFaqItems,
 ];
 
 export default function HelpPage() {
