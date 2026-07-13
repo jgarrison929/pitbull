@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.21.5] - 2026-07-12T17:42:07-07:00
+
+### Added
+
+- **CI job mobile-smoke** — Playwright mobile-field-report project; continue-on-error: true until branch-protection hardening.
+
+### Notes
+
+- Version **2.21.5**. Next: owner-signup in CI + PM pending card (2.21.6).
+
 ## [2.21.4] - 2026-07-12T17:38:51-07:00
 
 ### Added
