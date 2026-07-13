@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.23.3] - 2026-07-12T18:17:33-07:00
+
+### Changed
+
+- **Runway 2.23.3** - Buffer - preflight re-verify only.
+
+### Notes
+
+- Verification only. Product complete at 2.22.2.
+
 ## [2.23.2] - 2026-07-12T18:15:58-07:00
 
 ### Changed
