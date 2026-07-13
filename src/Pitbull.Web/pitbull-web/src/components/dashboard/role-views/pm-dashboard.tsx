@@ -123,11 +123,16 @@ export function PmDashboard({ data, isLoading }: { data: DashboardAnalytics | nu
                 </p>
               )}
               {pending.timeEntries > 0 && (
-                <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 min-h-[40px]">
-                  <Link href="/time-tracking/approval">
-                    Review time entries ({pending.timeEntries})
-                  </Link>
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild size="sm" className="bg-amber-600 hover:bg-amber-700 min-h-[40px]">
+                    <Link href="/time-tracking/approval/mobile">
+                      Mobile approve ({pending.timeEntries})
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline" className="min-h-[40px]">
+                    <Link href="/time-tracking/approval">Desktop queue</Link>
+                  </Button>
+                </div>
               )}
             </>
           ) : (
