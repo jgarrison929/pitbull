@@ -3,8 +3,9 @@
  * Labeled suggestion only — never auto-posts safety narratives or incidents.
  */
 
-export const PHOTO_SAFETY_SUGGESTION_LABEL =
-  "Suggestion — review before submit" as const;
+import { AI_SUGGESTION_REVIEW_LABEL } from "./ai-suggestion-label";
+
+export const PHOTO_SAFETY_SUGGESTION_LABEL = AI_SUGGESTION_REVIEW_LABEL;
 
 export type PhotoSafetySuggestion = {
   /** Short safety narrative candidate from photo context */
