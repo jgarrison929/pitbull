@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  AI_SUGGESTION_APPLIED_EVENT,
   FIELD_REPORT_STEP_EVENT,
   FIELD_REPORT_SUBMITTED_EVENT,
+  buildAiSuggestionAppliedProps,
   buildFieldReportStepProps,
   buildFieldReportSubmittedProps,
 } from "./field-report-analytics";
@@ -47,5 +49,18 @@ describe("field-report-analytics (2.12.9)", () => {
     // captureProductEvent always merges viewport_class from this helper.
     expect(classifyViewportWidth(390)).toBe("phone");
     expect(classifyViewportWidth(1280)).toBe("desktop");
+  });
+});
+
+describe("ai_suggestion_applied (2.20.4)", () => {
+  it("exports diagnostic event name and props builder", () => {
+    expect(AI_SUGGESTION_APPLIED_EVENT).toBe("ai_suggestion_applied");
+    const p = buildAiSuggestionAppliedProps({
+      project_id: "p1",
+      suggestion_kind: "field_voice",
+      offline: false,
+    });
+    expect(p.suggestion_kind).toBe("field_voice");
+    expect(p.project_id).toBe("p1");
   });
 });

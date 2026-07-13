@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.20.4] - 2026-07-12T17:15:37-07:00
+
+### Added
+
+- **PostHog i_suggestion_applied** — diagnostic event when user confirms Apply on field voice or photo safety suggestions (not a vanity KPI).
+
+### Notes
+
+- Version **2.20.4**. Next: Help AI on mobile FAQ (2.20.5).
+
 ## [2.20.3] - 2026-07-12T17:13:51-07:00
 
 ### Added
