@@ -188,3 +188,7 @@ Role E2E: L4 role smoke in CI; local full pass via preflight + documented e2e pr
 
 Major 3.0.0 summarizes Arc A-E product bands (mobile3, digital twin Phase 2, field AI intelligence with confirm-to-apply, workflow approvals Phase 2 time-entry mobile lifecycle, KPI drill contracts + office help) plus runway verification to release candidate.
 
+
+## Ship stamp 2.23.7
+ARCHITECTURE.md + ROLE-EXPERIENCE.md still match stack (.NET 10, Next 16, title-first roles). No material drift requiring code fix.
+
