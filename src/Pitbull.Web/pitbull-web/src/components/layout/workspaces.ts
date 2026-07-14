@@ -376,16 +376,27 @@ const CFO_DEFAULTS: RoleDefaults = {
 const FIELD_DEFAULTS: RoleDefaults = {
   defaultWorkspace: "my-work",
   workspaces: ["my-work", "projects"],
-  favorites: ["/", "/time-tracking/crew-entry", "/daily-reports/mobile", "/projects"],
+  favorites: [
+    "/",
+    "/time-tracking/crew-entry",
+    "/daily-reports/mobile",
+    "/projects",
+  ],
   quickActions: [
     { label: "Enter Crew Time", href: "/time-tracking/crew-entry", icon: "⏱️" },
+    { label: "Quick Log", href: "/daily-reports/mobile?mode=quick", icon: "⚡" },
     { label: "Daily Report", href: "/daily-reports/mobile", icon: "📝" },
     { label: "Jobs", href: "/projects", icon: "🏗️" },
   ],
   mobileTabs: [
     { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
     { label: "Crew", href: "/time-tracking/crew-entry", icon: "⏱️", matchPaths: ["/time-tracking"] },
-    { label: "Report", href: "/daily-reports/mobile", icon: "📝", matchPaths: ["/daily-reports"] },
+    {
+      label: "Log",
+      href: "/daily-reports/mobile?mode=quick",
+      icon: "⚡",
+      matchPaths: ["/daily-reports"],
+    },
     { label: "Jobs", href: "/projects", icon: "🏗️", matchPaths: ["/projects"] },
   ],
 };

@@ -147,15 +147,12 @@ public class SpatialService : PmServiceBase, ISpatialService
             .ToList();
         var zoneIds = SpatialGraphFilter.ZoneIdsUnderStorey(nodeRefs, storeyNodeId);
 
-        // 2.17.3: batch zone-link queries in parallel (no per-zone N+1; GroupBy in SQL).
+        // Batch zone-link queries (GroupBy in SQL). Sequential on shared DbContext —
+        // Task.WhenAll races EF concurrency detector (see CI SpatialEndpointsTests).
         var fuelSw = System.Diagnostics.Stopwatch.StartNew();
-        var rfiTask = LoadOpenRfiCountsByZoneAsync(projectId, zoneIds, from, to, cancellationToken);
-        var progressTask = LoadProgressPercentByZoneAsync(projectId, zoneIds, asOfUtc, from, to, cancellationToken);
-        var scheduleTask = LoadScheduleSignalsByZoneAsync(projectId, zoneIds, asOfUtc, cancellationToken);
-        await Task.WhenAll(rfiTask, progressTask, scheduleTask);
-        var rfiCounts = await rfiTask;
-        var progressByZone = await progressTask;
-        var scheduleByZone = await scheduleTask;
+        var rfiCounts = await LoadOpenRfiCountsByZoneAsync(projectId, zoneIds, from, to, cancellationToken);
+        var progressByZone = await LoadProgressPercentByZoneAsync(projectId, zoneIds, asOfUtc, from, to, cancellationToken);
+        var scheduleByZone = await LoadScheduleSignalsByZoneAsync(projectId, zoneIds, asOfUtc, cancellationToken);
         fuelSw.Stop();
         // 2.17.5 diagnostic only — not a product KPI
         System.Diagnostics.Debug.WriteLine(

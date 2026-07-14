@@ -51,6 +51,9 @@ interface ApiOptions extends Omit<RequestInit, "body"> {
 }
 
 class ApiError extends Error {
+  public traceId?: string;
+  public correlationId?: string;
+
   constructor(
     public status: number,
     message: string,
@@ -58,6 +61,11 @@ class ApiError extends Error {
   ) {
     super(message);
     this.name = "ApiError";
+    if (data && typeof data === "object") {
+      const d = data as { traceId?: string; correlationId?: string };
+      this.traceId = d.traceId;
+      this.correlationId = d.correlationId;
+    }
   }
 }
 
@@ -137,6 +145,15 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     const errorMsg = errorData?.error || errorData?.message || `${response.status} ${response.statusText}`;
 
     if (response.status >= 500) {
+      // Carry backend traceId/correlationId so opaque 500s can match server logs / PostHog.
+      const traceId =
+        errorData && typeof errorData === "object"
+          ? (errorData as { traceId?: string }).traceId
+          : undefined;
+      const correlationId =
+        errorData && typeof errorData === "object"
+          ? (errorData as { correlationId?: string }).correlationId
+          : undefined;
       reportError({
         source: "frontend",
         level: "error",
@@ -144,6 +161,10 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
         requestMethod: method,
         requestPath: endpoint,
         message: `API ${method} ${endpoint} returned ${response.status}: ${errorMsg}`,
+        metadata:
+          traceId || correlationId
+            ? JSON.stringify({ traceId, correlationId })
+            : undefined,
       });
     }
 

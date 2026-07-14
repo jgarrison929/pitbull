@@ -1019,10 +1019,18 @@ public class TimeEntryAuditController(PitbullDbContext auditDb, ITenantContext t
         var approvalActions = new[] { AuditAction.Create, AuditAction.Update, AuditAction.Approval, AuditAction.Rejection, AuditAction.StatusChange };
         query = query.Where(a => approvalActions.Contains(a.Action));
 
+        // Npgsql rejects DateTime Kind=Unspecified (how DateTime query params bind)
+        // against timestamptz columns. Treat the calendar date as a UTC day boundary.
         if (from.HasValue)
-            query = query.Where(a => a.Timestamp >= from.Value.Date);
+        {
+            var fromUtc = DateTime.SpecifyKind(from.Value.Date, DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp >= fromUtc);
+        }
         if (to.HasValue)
-            query = query.Where(a => a.Timestamp < to.Value.Date.AddDays(1));
+        {
+            var toUtc = DateTime.SpecifyKind(to.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(a => a.Timestamp < toUtc);
+        }
         if (!string.IsNullOrEmpty(action) && Enum.TryParse<AuditAction>(action, true, out var parsedAction))
             query = query.Where(a => a.Action == parsedAction);
         if (!string.IsNullOrEmpty(search))

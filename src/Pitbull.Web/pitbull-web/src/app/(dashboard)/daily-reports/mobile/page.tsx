@@ -76,7 +76,17 @@ import { evaluateScheduleSlipRisk } from "@/lib/schedule-slip-risk";
 import { buildPlansSpecsHref } from "@/lib/plans-specs-lookup";
 import { buildProgressDraftHref } from "@/lib/progress-deep-link";
 import { buildSiteWalkHref } from "@/lib/site-walk";
-import { buildOfflinePhotos, countEmbeddedPhotos } from "@/lib/offline-photo";
+import {
+  buildOfflinePhotos,
+  countEmbeddedPhotos,
+  formatOfflinePhotoStatusCopy,
+} from "@/lib/offline-photo";
+import {
+  initialFieldReportStep,
+  isQuickLogMode,
+  loadFieldLastDefaults,
+  saveFieldLastDefaults,
+} from "@/lib/field-quick-log";
 import {
   canSubmitWithSpatialPolicy,
   formatZoneLabel,
@@ -135,8 +145,12 @@ export default function MobileDailyReportPage() {
   const urlActivityId = searchParams.get("activityId");
   const urlActivityName = searchParams.get("activityName");
   const urlPlannedFinish = searchParams.get("plannedFinish");
+  const quickLog = isQuickLogMode(searchParams);
   const { isDemoUser } = useAuth();
-  const [step, setStep] = useState<MobileReportStep>("Project");
+  // Quick log lands on Field (valid MobileReportStep) so narrative/activities render.
+  const [step, setStep] = useState<MobileReportStep>(() =>
+    initialFieldReportStep(quickLog)
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -227,6 +241,18 @@ export default function MobileDailyReportPage() {
           "/api/projects?pageSize=500&view=mobile"
         );
         setProjects(result.items ?? []);
+        // 3.1.7 — device-local last project / plan sheet defaults
+        const defaults = loadFieldLastDefaults();
+        if (!urlProjectId && defaults.projectId && !defaultProjectAppliedRef.current) {
+          const exists = (result.items ?? []).some((p) => p.id === defaults.projectId);
+          if (exists) {
+            setProjectId(defaults.projectId);
+            defaultProjectAppliedRef.current = true;
+          }
+        }
+        if (defaults.planSheetId) {
+          setPlanSheetId(defaults.planSheetId);
+        }
       } catch {
         toast.error("Failed to load projects");
       } finally {
@@ -234,7 +260,7 @@ export default function MobileDailyReportPage() {
       }
     }
     void loadProjects();
-  }, []);
+  }, [urlProjectId]);
 
   // Company preference for requiring spatial zone on progress (optional; default off)
   useEffect(() => {
@@ -624,7 +650,7 @@ export default function MobileDailyReportPage() {
   async function queueOffline(asDraft: boolean) {
     const offlinePhotos = await buildOfflinePhotos(photos);
     const embedded = countEmbeddedPhotos(offlinePhotos);
-    const skipped = offlinePhotos.filter((p) => p.skippedForSize).length;
+    const photoStatus = formatOfflinePhotoStatusCopy(offlinePhotos);
 
     const offlinePayload = buildOfflineDailyReportPayload({
       ...formSnapshot(asDraft),
@@ -633,20 +659,16 @@ export default function MobileDailyReportPage() {
     await enqueueDailyReportForSync(offlinePayload);
     requestBackgroundSync();
     await refreshPendingCount();
-
-    let photoNote = "";
-    if (embedded > 0) photoNote = ` · ${embedded} photo(s) embedded`;
-    if (skipped > 0)
-      photoNote += ` · ${skipped} too large (retake smaller or upload online)`;
+    saveFieldLastDefaults({
+      projectId,
+      planSheetId: planSheetId || undefined,
+    });
 
     setQueuedNotice(
-      `${offlinePayload.title} queued offline${photoNote} — syncs when connected`
+      `${offlinePayload.title} queued offline · ${photoStatus} — syncs when connected`
     );
     toast.success(asDraft ? "Draft queued offline" : "Report queued offline", {
-      description:
-        embedded > 0
-          ? "Report + photos saved on device"
-          : "Report saved; large photos need online upload",
+      description: photoStatus,
     });
     captureProductEvent(
       FIELD_REPORT_SUBMITTED_EVENT,
@@ -729,6 +751,10 @@ export default function MobileDailyReportPage() {
         );
       }
 
+      saveFieldLastDefaults({
+        projectId,
+        planSheetId: planSheetId || undefined,
+      });
       toast.success(asDraft ? "Draft saved" : "Report submitted", {
         description: `${title} — ${photos.length} photo(s)`,
       });
@@ -805,7 +831,9 @@ export default function MobileDailyReportPage() {
       <div className="min-h-screen pb-32">
         <div className="sticky top-0 z-10 bg-background border-b px-4 py-3">
           <div className="flex items-center justify-between">
-            <h1 className="text-lg font-bold">Field report</h1>
+            <h1 className="text-lg font-bold">
+              {quickLog ? "Quick field log" : "Field report"}
+            </h1>
             <div className="flex items-center gap-2">
               {!isOnline && (
                 <Badge variant="secondary" className="text-xs">
@@ -818,10 +846,23 @@ export default function MobileDailyReportPage() {
                 </Badge>
               )}
               <Badge variant="outline" className="text-xs">
-                {stepIndex + 1} / {MOBILE_REPORT_STEPS.length}
+                {quickLog ? "Quick" : `${stepIndex + 1} / ${MOBILE_REPORT_STEPS.length}`}
               </Badge>
             </div>
           </div>
+          {quickLog && (
+            <p
+              className="mt-2 text-xs text-muted-foreground"
+              data-testid="quick-log-hint"
+            >
+              Fast path: pick job (remembered when possible), note today&apos;s
+              work + photos, submit. Same daily-report API / offline queue as the
+              full wizard.{" "}
+              <Link href="/daily-reports/mobile" className="underline">
+                Full report
+              </Link>
+            </p>
+          )}
           <div className="flex gap-1 mt-2">
             {MOBILE_REPORT_STEPS.map((s, i) => (
               <div
@@ -1505,9 +1546,14 @@ export default function MobileDailyReportPage() {
                     <MapPin className="h-3 w-3" /> GPS attached when available
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Offline: up to 5 photos under ~1.2MB each are stored with the
-                  report. Larger files need online upload.
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-testid="offline-photo-honesty"
+                >
+                  Offline: up to 10 photos are queued with the report. Large
+                  jobsite images are downscaled when possible; any still too
+                  large show as skipped (not silently saved) — retake smaller or
+                  upload when online.
                 </p>
                 <FileDropZone
                   files={photos}

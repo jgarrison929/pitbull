@@ -1,5 +1,5 @@
 /**
- * Help Center — Field & mobile workflows card data (2.12.7+).
+ * Help Center — Field & mobile workflows card data (2.12.7+ / 3.1.x).
  * Pure data for page + unit tests; routes must match real app paths.
  */
 
@@ -14,17 +14,27 @@ export type FieldWorkflowCard = {
 
 export const FIELD_WORKFLOWS_SECTION_TITLE = "Field & mobile workflows";
 
-/** 2.12.8 — accurate mobile FAQ copy (no “fully responsive” blanket claim). */
+/** Mobile FAQ copy — truthful offline photo / plan limits (3.1.x). */
 export const mobileFaqItems: { question: string; answer: string }[] = [
   {
     question: "Can I use Pitbull on mobile devices?",
     answer:
-      "Yes for field capture and glance. Use phone bottom nav: Report → `/daily-reports/mobile` for the four-step field report; Crew → `/time-tracking/mobile` for time. Desktop ledgers and portfolio aggregation stay on larger screens — the app is not a full desktop clone on a phone.",
+      "Yes for field capture and glance. Use phone bottom nav: Log → `/daily-reports/mobile?mode=quick` for a fast day log, or Report → `/daily-reports/mobile` for the full field report; Crew → `/time-tracking/mobile` for time. Desktop ledgers and portfolio aggregation stay on larger screens — the app is not a full desktop clone on a phone.",
   },
   {
     question: "How does offline and PWA work on a phone?",
     answer:
-      "Install Pitbull when the PWA prompt appears above the bottom nav. If you lose connectivity, field report submit can queue offline; when you reconnect, the queue syncs. Watch the offline/queue indicator on field paths.",
+      "Install Pitbull when the PWA prompt appears above the bottom nav. Field report submit queues offline; large photos are downscaled when possible (up to 10). Photos still too large show as skipped — not silently saved. When you reconnect, the queue syncs. Watch the offline/queue indicator on field paths.",
+  },
+  {
+    question: "Can I open drawings offline?",
+    answer:
+      "On Plans & Specs (`/projects/{id}/plans-specs`), sheets you View or Save offline are stored on this device only. Sheets not cached show Not offline — we never claim the whole drawing set is available offline.",
+  },
+  {
+    question: "How do I pin an issue on a plan?",
+    answer:
+      "Open a drawing on Plans & Specs, write a pin note, then Review & create draft RFI. You must confirm before create. The draft carries drawing references (sheet/file id). Nothing auto-posts progress or cost.",
   },
   {
     question: "Where are Digital Twin and Plans on a job?",
@@ -50,10 +60,10 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     href: "/daily-reports/mobile",
     icon: "file-text",
     steps: [
-      "On a phone, open bottom nav Report (or go to Field report).",
-      "Pick project and report date on the Project step.",
-      "On Field, add work activity (and weather before submit).",
-      "Skip or attach photos, then Review and Submit (online or offline queue).",
+      "On a phone, open bottom nav Log (quick) or full Field report.",
+      "Last job/plan sheet may be remembered on this device.",
+      "Add work + photos; offline photos downscale when possible.",
+      "Review and Submit (online or offline queue — same daily-report path).",
     ],
   },
   {
@@ -74,9 +84,9 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     href: "/projects",
     icon: "file-text",
     steps: [
-      "Open Projects and select the job.",
       "Open Plans & Specs (`/projects/{id}/plans-specs`) — viewer-first on phone.",
-      "Search sheet number; tap to view (admin upload is desktop).",
+      "View or Save offline individual sheets (not the whole set).",
+      "Pin a note on an open drawing → confirm draft RFI with sheet refs.",
       "From Site Walk, use Plans for a filtered deep link into the same viewer.",
     ],
   },
@@ -87,9 +97,9 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     icon: "wifi-off",
     steps: [
       "Install Pitbull when the PWA install prompt appears above the bottom nav.",
-      "If you lose connectivity, field report submit queues offline (queue indicator).",
+      "Field report/quick log queue offline; photos downscale or show skipped honestly.",
+      "Only saved/viewed drawings open offline — others say Not offline.",
       "When back online, queued daily reports sync automatically.",
-      "Prefer Field report and Crew mobile paths on phone — not desktop ledgers.",
     ],
   },
 ];
