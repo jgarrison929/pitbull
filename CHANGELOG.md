@@ -14,6 +14,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **3.1.9 checkpoint** — Help field FAQ truthful for offline photos, selected plan offline, quick log, plan pin; `docs/ci/mobile-3.1-field-notes.md` band notes.
 
+### Fixed
+
+- **Jobsite Twin overlays 500 (PostHog #395/#396)** — sequential zone-fuel loads on shared EF `DbContext` (was `Task.WhenAll` race).
+- **Time-entry audit trail 500 (PostHog #396)** — normalize `from`/`to` query dates to UTC day boundaries for Npgsql `timestamptz`.
+- **Frontend 500 reports** — `ApiError` carries `traceId`/`correlationId` from API for correlation with server exceptions.
+- **Spatial capture-quality integration assertion** — drop contradictory `DoesNotContain("executive KPI")` (substring of honest label).
+
 ## [3.1.8] - 2026-07-13T17:14:00-07:00
 
 ### Added
