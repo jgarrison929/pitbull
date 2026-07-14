@@ -13,12 +13,14 @@ describe("help-field-workflows", () => {
     expect(FIELD_WORKFLOWS_SECTION_TITLE).toBe("Field & mobile workflows");
   });
 
-  it("2.12.8 mobile FAQ is truthful (no fully-responsive blanket; real routes)", () => {
+  it("mobile FAQ is truthful (no fully-responsive blanket; real routes + 3.1 offline honesty)", () => {
     const blob = mobileFaqItems.map((f) => f.answer).join("\n");
     expect(blob.toLowerCase()).not.toContain("fully responsive");
     expect(blob).toContain("/daily-reports/mobile");
-    expect(blob).toMatch(/bottom nav|Report/i);
+    expect(blob).toMatch(/bottom nav|Report|Log/i);
     expect(blob).toMatch(/offline|PWA|queue/i);
+    expect(blob).toMatch(/downscal|skipped/i);
+    expect(blob).toMatch(/whole drawing set|Not offline/i);
     expect(blob).toContain("/projects/{id}/twin");
     expect(blob).toContain("/projects/{id}/plans-specs");
   });

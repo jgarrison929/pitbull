@@ -27,3 +27,4 @@ These themes were the old “G band” expansion (formerly planned as 2.23→2.9
 
 - [`docs/specs/product-bands/README.md`](../specs/product-bands/README.md)  
 - [`docs/260712/VERSION-WORKFLOW.md`](../260712/VERSION-WORKFLOW.md)  
+- [`docs/roadmap/mobile-field-demand-stack-and-version-plan.md`](./mobile-field-demand-stack-and-version-plan.md) — 2026 market demand stack, surface gap map, **post-3.0 field bands M1–M5** (`3.0.1+`)  

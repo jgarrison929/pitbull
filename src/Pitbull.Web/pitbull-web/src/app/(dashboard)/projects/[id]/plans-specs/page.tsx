@@ -63,7 +63,28 @@ import {
   type PlanSetSearchItem,
   type SpecSectionSearchItem,
 } from "@/lib/plans-specs-lookup";
-import { Plus, Pencil, Trash2, FileStack, BookOpen, Eye, Search } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  FileStack,
+  BookOpen,
+  Eye,
+  Search,
+  Download,
+  MapPin,
+} from "lucide-react";
+import {
+  cachePlanFileBlob,
+  getPlanBinary,
+  isPlanBinaryCached,
+  listPlanBinaryKeys,
+  planOfflineAvailabilityLabel,
+} from "@/lib/plan-binary-cache";
+import {
+  buildPlanPinRfiDraft,
+  planPinRfiToApiJson,
+} from "@/lib/plan-pin-draft";
 
 interface DataMap {
   [key: string]: unknown;
@@ -198,6 +219,11 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
   /** Authenticated blob URL for in-page View (API downloads require Bearer). */
   const [viewingBlobUrl, setViewingBlobUrl] = useState<string | null>(null);
   const [viewingBlobLoading, setViewingBlobLoading] = useState(false);
+  /** Keys of plan binaries cached for offline open on this device. */
+  const [offlinePlanKeys, setOfflinePlanKeys] = useState<Set<string>>(new Set());
+  const [pinNote, setPinNote] = useState("");
+  const [pinBusy, setPinBusy] = useState(false);
+  const [pinConfirmOpen, setPinConfirmOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -286,7 +312,22 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
 
   useListPageShortcuts({ searchInputRef });
 
+  // Refresh offline key set (selected sheets only — never whole set)
+  const refreshOfflineKeys = useCallback(async () => {
+    try {
+      const keys = await listPlanBinaryKeys(projectId);
+      setOfflinePlanKeys(keys);
+    } catch {
+      setOfflinePlanKeys(new Set());
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void refreshOfflineKeys();
+  }, [refreshOfflineKeys]);
+
   // Load authenticated blob when user taps View (iframe cannot send Authorization)
+  // Prefer device offline cache when online fetch fails or offline.
   useEffect(() => {
     let revoked: string | null = null;
     let cancelled = false;
@@ -296,6 +337,20 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
         return;
       }
       setViewingBlobLoading(true);
+      const fileMeta = planFiles.find((f) => f.id === viewingFileId);
+
+      async function openFromCache(): Promise<boolean> {
+        try {
+          const cached = await getPlanBinary(projectId, viewingFileId!);
+          if (!cached?.dataUrl) return false;
+          if (cancelled) return false;
+          setViewingBlobUrl(cached.dataUrl);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
       try {
         const token = getToken();
         const url = getDownloadUrl(viewingFileId);
@@ -308,10 +363,24 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
         const blobUrl = URL.createObjectURL(blob);
         revoked = blobUrl;
         setViewingBlobUrl(blobUrl);
+        // 3.1.3 — cache after successful online view
+        if (fileMeta) {
+          void cachePlanFileBlob({
+            projectId,
+            fileId: fileMeta.id,
+            fileName: fileMeta.fileName,
+            contentType: fileMeta.contentType,
+            blob,
+            source: "view",
+          }).then(() => refreshOfflineKeys());
+        }
       } catch {
-        if (!cancelled) {
+        const fromCache = await openFromCache();
+        if (!cancelled && !fromCache) {
           setViewingBlobUrl(null);
-          toast.error("Could not open drawing — try Open or re-upload");
+          toast.error(
+            "Drawing not available offline — open online once or use Save for offline"
+          );
         }
       } finally {
         if (!cancelled) setViewingBlobLoading(false);
@@ -322,7 +391,90 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
       cancelled = true;
       if (revoked) URL.revokeObjectURL(revoked);
     };
-  }, [viewingFileId]);
+  }, [viewingFileId, projectId, planFiles, refreshOfflineKeys]);
+
+  async function savePlanFileForOffline(file: {
+    id: string;
+    fileName: string;
+    contentType: string;
+  }) {
+    try {
+      const token = getToken();
+      const url = getDownloadUrl(file.id);
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      await cachePlanFileBlob({
+        projectId,
+        fileId: file.id,
+        fileName: file.fileName,
+        contentType: file.contentType,
+        blob,
+        source: "save",
+      });
+      await refreshOfflineKeys();
+      toast.success("Saved for offline on this device", {
+        description: file.fileName,
+      });
+    } catch (error) {
+      toast.error("Could not save drawing offline", {
+        description: error instanceof Error ? error.message : "Need network once",
+      });
+    }
+  }
+
+  async function submitPlanPinConfirmed() {
+    if (!viewingFileId) return;
+    const fileMeta = planFiles.find((f) => f.id === viewingFileId);
+    setPinBusy(true);
+    try {
+      const draft = buildPlanPinRfiDraft({
+        projectId,
+        planFileId: viewingFileId,
+        planSheetId: viewingPlan?.id,
+        sheetLabel: fileMeta?.fileName || viewingPlan?.name || "drawing",
+        note: pinNote,
+      });
+      const body = planPinRfiToApiJson(draft);
+      await api(`/api/projects/${projectId}/rfis`, {
+        method: "POST",
+        body,
+      });
+      toast.success("Draft RFI created from plan pin", {
+        description: "Confirm was required — nothing auto-posted.",
+      });
+      setPinNote("");
+      setPinConfirmOpen(false);
+    } catch (error) {
+      // Offline / API fail — stash note honestly
+      try {
+        const key = "pitbull.plan-pin-queue.v1";
+        const raw = localStorage.getItem(key);
+        const list = raw ? (JSON.parse(raw) as unknown[]) : [];
+        list.push({
+          projectId,
+          planFileId: viewingFileId,
+          planSheetId: viewingPlan?.id,
+          note: pinNote,
+          createdAt: new Date().toISOString(),
+        });
+        localStorage.setItem(key, JSON.stringify(list));
+        toast.message("Pin draft stored on device", {
+          description: "Will need online submit — not auto-posted.",
+        });
+        setPinConfirmOpen(false);
+      } catch {
+        toast.error("Could not create RFI from pin", {
+          description:
+            error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    } finally {
+      setPinBusy(false);
+    }
+  }
 
   function openAuthenticatedDownload(fileId: string, fileName: string) {
     const token = getToken();
@@ -727,12 +879,20 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
+            <p
+              className="text-xs text-muted-foreground mb-2"
+              data-testid="plans-offline-set-honesty"
+            >
+              Only sheets you view or explicitly save are offline on this device —
+              never the whole drawing set.
+            </p>
             {planFiles.map((f) => {
               const isPdf =
                 (f.contentType ?? "").includes("pdf") ||
                 f.fileName.toLowerCase().endsWith(".pdf");
               const isImage = (f.contentType ?? "").startsWith("image/");
               const open = viewingFileId === f.id;
+              const cached = isPlanBinaryCached(offlinePlanKeys, projectId, f.id);
               return (
                 <div key={f.id} className="rounded-lg border overflow-hidden">
                   <div className="flex flex-wrap items-center justify-between gap-2 p-3">
@@ -741,8 +901,14 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                       <p className="text-xs text-muted-foreground">
                         {f.category || f.contentType || "file"}
                       </p>
+                      <p
+                        className="text-xs mt-1"
+                        data-testid={`plan-offline-status-${f.id}`}
+                      >
+                        {planOfflineAvailabilityLabel(cached)}
+                      </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {(isPdf || isImage) && (
                         <Button
                           type="button"
@@ -755,6 +921,16 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                           {open ? "Hide" : "View"}
                         </Button>
                       )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-[44px]"
+                        data-testid={`plan-save-offline-${f.id}`}
+                        onClick={() => void savePlanFileForOffline(f)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Save offline
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
@@ -772,6 +948,15 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                       Loading drawing…
                     </p>
                   )}
+                  {open && !viewingBlobLoading && !viewingBlobUrl && (
+                    <p
+                      className="p-3 text-sm text-amber-800 dark:text-amber-200 border-t"
+                      data-testid="plan-offline-unavailable"
+                    >
+                      Drawing not available offline. Connect once and tap View or
+                      Save offline.
+                    </p>
+                  )}
                   {open && !viewingBlobLoading && viewingBlobUrl && isPdf && (
                     <iframe
                       title={f.fileName}
@@ -787,12 +972,69 @@ function PlansSpecsContent({ params }: { params: Promise<{ id: string }> }) {
                       className="w-full max-h-[70vh] object-contain border-t bg-muted"
                     />
                   )}
+                  {open && viewingBlobUrl && (
+                    <div
+                      className="border-t p-3 space-y-2 bg-background"
+                      data-testid="plan-pin-panel"
+                    >
+                      <p className="text-sm font-medium flex items-center gap-1">
+                        <MapPin className="h-4 w-4 text-amber-600" />
+                        Pin issue on this drawing
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Creates a draft RFI with sheet identity after you confirm.
+                        Never auto-posts.
+                      </p>
+                      <Textarea
+                        value={pinNote}
+                        onChange={(e) => setPinNote(e.target.value)}
+                        placeholder="Describe the issue at this location…"
+                        className="min-h-[88px]"
+                        data-testid="plan-pin-note"
+                      />
+                      <Button
+                        type="button"
+                        className="w-full min-h-[44px]"
+                        disabled={!pinNote.trim() || pinBusy}
+                        data-testid="plan-pin-confirm-open"
+                        onClick={() => setPinConfirmOpen(true)}
+                      >
+                        Review &amp; create draft RFI
+                      </Button>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={pinConfirmOpen} onOpenChange={setPinConfirmOpen}>
+        <AlertDialogContent data-testid="plan-pin-confirm-dialog">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Create draft RFI from pin?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This posts a draft RFI with your note and drawing references. It
+              does not invent cost or schedule impact. Confirm to continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <p className="text-sm whitespace-pre-wrap border rounded-md p-3 bg-muted/40">
+            {pinNote}
+          </p>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pinBusy}>Cancel</AlertDialogCancel>
+            <Button
+              type="button"
+              disabled={pinBusy}
+              data-testid="plan-pin-confirm-submit"
+              onClick={() => void submitPlanPinConfirmed()}
+            >
+              {pinBusy ? "Creating…" : "Confirm create draft"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

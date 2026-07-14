@@ -8,11 +8,71 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.1.9] - 2026-07-13T17:15:00-07:00
+
+### Added
+
+- **3.1.9 checkpoint** â€” Help field FAQ truthful for offline photos, selected plan offline, quick log, plan pin; `docs/ci/mobile-3.1-field-notes.md` band notes.
+
+## [3.1.8] - 2026-07-13T17:14:00-07:00
+
+### Added
+
+- **Plan pin â†’ draft RFI** â€” note + confirm dialog on Plans & Specs drawing view; `DrawingReferences` carry sheet/file identity; no auto-post; offline note stash when create fails.
+
+## [3.1.7] - 2026-07-13T17:13:00-07:00
+
+### Added
+
+- **Last project / plan sheet defaults** â€” device-local remember after field submit; applied on next field report open.
+
+## [3.1.6] - 2026-07-13T17:12:00-07:00
+
+### Added
+
+- **Quick field log** â€” `/daily-reports/mobile?mode=quick` + field bottom-nav **Log**; same daily-report create/offline queue path as full wizard.
+
+## [3.1.5] - 2026-07-13T17:11:00-07:00
+
+### Added
+
+- **Save for offline** on drawing files (selected sheets only; never whole set).
+
+## [3.1.4] - 2026-07-13T17:10:00-07:00
+
+### Added
+
+- **Plans offline honesty** â€” per-file cached vs not labels; unavailable open copy when not on device.
+
+## [3.1.3] - 2026-07-13T17:09:00-07:00
+
+### Added
+
+- **Plan binary offline cache** after successful online view (`plan-binary-cache` IndexedDB; eviction caps).
+
+## [3.1.2] - 2026-07-13T17:08:00-07:00
+
+### Changed
+
+- Offline field photos: max **10** embeds; status copy via `formatOfflinePhotoStatusCopy` (queued / downscaled / skipped).
+
+## [3.1.1] - 2026-07-13T17:07:00-07:00
+
+### Changed
+
+- Field report offline photo step uses downscale path + honest skip messaging (no silent drop of oversized media).
+
+## [3.1.0] - 2026-07-13T17:06:00-07:00
+
+### Added
+
+- **3.1 field mobile band** (`docs/specs/product-bands/band-3.1-field-mobile.md`) â€” offline photo **downscale-before-embed** helper + unit tests (2026 top field asks ladder through 3.1.9).
+
 ## [3.0.0] - 2026-07-12T18:32:02-07:00
 
 ### Added
 
-- **Major release 3.0.0** — product program through 2.22.2 plus runway verification to release candidate 2.24.2.
+- **Major release 3.0.0** ï¿½ product program through 2.22.2 plus runway verification to release candidate 2.24.2.
 
 ### Summary (Arc A-E + runway)
 
@@ -222,33 +282,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Runway opens** — docs/260712/runway-evidence.md checklist snapshot; no P0 regressions from 2.22.2 product close.
+- **Runway opens** ï¿½ docs/260712/runway-evidence.md checklist snapshot; no P0 regressions from 2.22.2 product close.
 
 ### Notes
 
-- Version **2.22.3**. Verification-only runway to 3.0.0. Next: §1 mobile E2E evidence (2.22.4).
+- Version **2.22.3**. Verification-only runway to 3.0.0. Next: ï¿½1 mobile E2E evidence (2.22.4).
 
 ## [2.22.2] - 2026-07-12T17:59:52-07:00
 
 ### Added
 
-- **Last product PR (2.22.2)** — AP near-term aging filter (
+- **Last product PR (2.22.2)** ï¿½ AP near-term aging filter (
 earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo explore, honest drills); CI mobile/owner required-check notes (jobs optional with continue-on-error).
 
 ### Fixed
 
-- **apNearTerm orphan** — drill no longer opens full AP board only; filters Current + 1–30 balances.
+- **apNearTerm orphan** ï¿½ drill no longer opens full AP board only; filters Current + 1ï¿½30 balances.
 
 ### Notes
 
-- **Product band complete at 2.22.2.** Next is runway 2.22.3 (verification/fixes only — no new features).
+- **Product band complete at 2.22.2.** Next is runway 2.22.3 (verification/fixes only ï¿½ no new features).
 
 ## [2.22.1] - 2026-07-12T17:56:06-07:00
 
 ### Added
 
-- **KPI drill audit matrix** — persona ? KPI ? href ? filter contracts documented; low-severity orphan (pNearTerm proxy) listed for 2.22.2.
-- **Office help workflows** — CEO briefing, CFO WIP, PM approvals, Estimator pipeline cards on Help Center.
+- **KPI drill audit matrix** ï¿½ persona ? KPI ? href ? filter contracts documented; low-severity orphan (pNearTerm proxy) listed for 2.22.2.
+- **Office help workflows** ï¿½ CEO briefing, CFO WIP, PM approvals, Estimator pipeline cards on Help Center.
 
 ### Notes
 
@@ -258,7 +318,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Workflow approvals Phase 2 checkpoint** — Status Shipped through 2.22.0; DoD closed (pending aggregate, PM card, mobile time approve, transitions mirror, help, CI smokes).
+- **Workflow approvals Phase 2 checkpoint** ï¿½ Status Shipped through 2.22.0; DoD closed (pending aggregate, PM card, mobile time approve, transitions mirror, help, CI smokes).
 
 ### Notes
 
@@ -268,7 +328,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Help: approvals workflow** — Help Center cards for PM pending card, mobile time approve, and desktop review; FAQ freezes time-entries lifecycle.
+- **Help: approvals workflow** ï¿½ Help Center cards for PM pending card, mobile time approve, and desktop review; FAQ freezes time-entries lifecycle.
 
 ### Notes
 
@@ -278,7 +338,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Time entry transitions in workflow-transitions.ts** — mirrors C# IsValidTransition (Submitted?Approved/Rejected); vitest + integration tests for review queue / pending aggregate.
+- **Time entry transitions in workflow-transitions.ts** ï¿½ mirrors C# IsValidTransition (Submitted?Approved/Rejected); vitest + integration tests for review queue / pending aggregate.
 
 ### Notes
 
@@ -288,7 +348,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Mobile time entry approve/reject** — /time-tracking/approval/mobile uses existing review-queue + review APIs (Submitted lifecycle only); large touch targets; reject requires reason. Mobile-field-report already in CI (2.21.5).
+- **Mobile time entry approve/reject** ï¿½ /time-tracking/approval/mobile uses existing review-queue + review APIs (Submitted lifecycle only); large touch targets; reject requires reason. Mobile-field-report already in CI (2.21.5).
 
 ### Notes
 
@@ -298,8 +358,8 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **PM home pending approvals card** — live GET /api/approvals/pending totals (time entries + COs); honest empty copy.
-- **CI owner-signup-smoke** — Playwright owner-signup project (continue-on-error: true).
+- **PM home pending approvals card** ï¿½ live GET /api/approvals/pending totals (time entries + COs); honest empty copy.
+- **CI owner-signup-smoke** ï¿½ Playwright owner-signup project (continue-on-error: true).
 
 ### Notes
 
@@ -309,7 +369,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **CI job mobile-smoke** — Playwright mobile-field-report project; continue-on-error: true until branch-protection hardening.
+- **CI job mobile-smoke** ï¿½ Playwright mobile-field-report project; continue-on-error: true until branch-protection hardening.
 
 ### Notes
 
@@ -319,7 +379,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **GET /api/approvals/pending** — real DB counts for submitted time entries + pending change orders; company-scoped; honest zeros. Expanded lifecycle: timeEntries.
+- **GET /api/approvals/pending** ï¿½ real DB counts for submitted time entries + pending change orders; company-scoped; honest zeros. Expanded lifecycle: timeEntries.
 
 ### Notes
 
@@ -329,7 +389,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Workflow approvals Phase 2 freeze** — mobile approve lifecycle locked to **time entries**; aggregate route GET /api/approvals/pending planned; RFIs/POs deferred. Spec workflow-approvals-phase2.md.
+- **Workflow approvals Phase 2 freeze** ï¿½ mobile approve lifecycle locked to **time entries**; aggregate route GET /api/approvals/pending planned; RFIs/POs deferred. Spec workflow-approvals-phase2.md.
 
 ### Notes
 
@@ -339,7 +399,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Intelligence band checkpoint** — mobile-ai-intelligence Status **Shipped through 2.21.2**; DoD closed; notes updated.
+- **Intelligence band checkpoint** ï¿½ mobile-ai-intelligence Status **Shipped through 2.21.2**; DoD closed; notes updated.
 
 ### Notes
 
@@ -349,7 +409,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI trust boundary docs** — docs/ARCHITECTURE.md section + docs/architecture/AI-TRUST-BOUNDARY.md (confirm-to-apply, sanitizer, demo rate limits, offline honesty).
+- **AI trust boundary docs** ï¿½ docs/ARCHITECTURE.md section + docs/architecture/AI-TRUST-BOUNDARY.md (confirm-to-apply, sanitizer, demo rate limits, offline honesty).
 
 ### Notes
 
@@ -359,7 +419,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Vitest voice + AI merge helpers** — mergeVoiceAndAiSuggestions applies voice transcript then optional AI fill-empty only after confirm.
+- **Vitest voice + AI merge helpers** ï¿½ mergeVoiceAndAiSuggestions applies voice transcript then optional AI fill-empty only after confirm.
 
 ### Notes
 
@@ -369,7 +429,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Integration tests field AI endpoints** — auth required; suggestion DTO never AutoApplied (honest when AI unconfigured).
+- **Integration tests field AI endpoints** ï¿½ auth required; suggestion DTO never AutoApplied (honest when AI unconfigured).
 
 ### Notes
 
@@ -379,7 +439,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Error boundary on field AI panel** — AI suggestion UI fails soft with manual-entry copy; submit still works.
+- **Error boundary on field AI panel** ï¿½ AI suggestion UI fails soft with manual-entry copy; submit still works.
 
 ### Notes
 
@@ -389,7 +449,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **AI rate limits for demo users** — AiRateLimitPolicy applies stricter per-minute permits on i-chat / i-suggest / i-document when JWT is_demo_user=true.
+- **AI rate limits for demo users** ï¿½ AiRateLimitPolicy applies stricter per-minute permits on i-chat / i-suggest / i-document when JWT is_demo_user=true.
 
 ### Notes
 
@@ -399,7 +459,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Unit tests prompt sanitization** — expanded AiInputSanitizer coverage (injection strip, length/collection limits, context keys).
+- **Unit tests prompt sanitization** ï¿½ expanded AiInputSanitizer coverage (injection strip, length/collection limits, context keys).
 
 ### Notes
 
@@ -409,7 +469,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Help: AI on mobile FAQ** — mobile FAQ covers field AI confirm-to-apply, offline disabled, optional LLM EOD flag, and photo safety as non-compliance suggestion.
+- **Help: AI on mobile FAQ** ï¿½ mobile FAQ covers field AI confirm-to-apply, offline disabled, optional LLM EOD flag, and photo safety as non-compliance suggestion.
 
 ### Notes
 
@@ -419,7 +479,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **PostHog i_suggestion_applied** — diagnostic event when user confirms Apply on field voice or photo safety suggestions (not a vanity KPI).
+- **PostHog i_suggestion_applied** ï¿½ diagnostic event when user confirms Apply on field voice or photo safety suggestions (not a vanity KPI).
 
 ### Notes
 
@@ -429,7 +489,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Schedule slip risk flag (proxy labeled)** — field report shows Watch/Risk chip when linked activity plannedFinish is before report date; insufficient data when no plan date (not all-clear). No invented % complete.
+- **Schedule slip risk flag (proxy labeled)** ï¿½ field report shows Watch/Risk chip when linked activity plannedFinish is before report date; insufficient data when no plan date (not all-clear). No invented % complete.
 
 ### Notes
 
@@ -439,7 +499,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI MVP core checkpoint** — notes docs/ci/mobile-ai-mvp-notes.md; mobile-ai-intelligence status through 2.20.2 (voice ? EOD rule/flag paths).
+- **AI MVP core checkpoint** ï¿½ notes docs/ci/mobile-ai-mvp-notes.md; mobile-ai-intelligence status through 2.20.2 (voice ? EOD rule/flag paths).
 
 ### Notes
 
@@ -449,7 +509,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Optional LLM end-of-day summary behind flag** — NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD defaults **OFF** in prod; rule-based summary always available. When enabled, Review can request POST /api/ai/field-eod-summary as a labeled suggestion only.
+- **Optional LLM end-of-day summary behind flag** ï¿½ NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD defaults **OFF** in prod; rule-based summary always available. When enabled, Review can request POST /api/ai/field-eod-summary as a labeled suggestion only.
 
 ### Notes
 
@@ -459,7 +519,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **End-of-day field summary (rule-based)** — Review step shows a form-derived bullet summary (activities, crew, delays, safety, photos/zone). No LLM; not an executive KPI; no invented %/cost/green.
+- **End-of-day field summary (rule-based)** ï¿½ Review step shows a form-derived bullet summary (activities, crew, delays, safety, photos/zone). No LLM; not an executive KPI; no invented %/cost/green.
 
 ### Notes
 
@@ -469,7 +529,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Offline AI disabled with honest copy** — field AI suggest is disabled offline; copy states narratives must be entered manually (no silent pretend success).
+- **Offline AI disabled with honest copy** ï¿½ field AI suggest is disabled offline; copy states narratives must be entered manually (no silent pretend success).
 
 ### Notes
 
@@ -479,7 +539,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **AI suggestion label on all field AI surfaces** — shared AI_SUGGESTION_REVIEW_LABEL (“Suggestion — review before submit”) on notes AI, photo safety, and Review step banner.
+- **AI suggestion label on all field AI surfaces** ï¿½ shared AI_SUGGESTION_REVIEW_LABEL (ï¿½Suggestion ï¿½ review before submitï¿½) on notes AI, photo safety, and Review step banner.
 
 ### Notes
 
@@ -489,7 +549,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Photo assist optional safety suggestion (labeled)** — mobile Photos step can offer a caption-heuristic safety note; labeled “Suggestion — review before submit”; apply requires confirm; never auto-posts.
+- **Photo assist optional safety suggestion (labeled)** ï¿½ mobile Photos step can offer a caption-heuristic safety note; labeled ï¿½Suggestion ï¿½ review before submitï¿½; apply requires confirm; never auto-posts.
 
 ### Notes
 
@@ -499,7 +559,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI usage tracking per company** — AiUsageRecord.CompanyId + GetCompanyRequestCountAsync; field-voice-suggestion logs successful completions with active company for metering.
+- **AI usage tracking per company** ï¿½ AiUsageRecord.CompanyId + GetCompanyRequestCountAsync; field-voice-suggestion logs successful completions with active company for metering.
 
 ### Notes
 
@@ -509,7 +569,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Field report Apply AI suggestion chip** — mobile daily report can request structured AI suggestions from notes; chip shows “Suggestion — review before submit”; **Apply** only after user confirm (never auto-applies).
+- **Field report Apply AI suggestion chip** ï¿½ mobile daily report can request structured AI suggestions from notes; chip shows ï¿½Suggestion ï¿½ review before submitï¿½; **Apply** only after user confirm (never auto-applies).
 
 ### Notes
 
@@ -519,7 +579,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Construction jargon ? structured narratives prompt** — FieldVoicePrompts.ConstructionJargonSystemPrompt maps field slang (pour, strip forms, rain day, toolbox) into work/delays/safety suggestions; still forbids invented costs/% complete/green.
+- **Construction jargon ? structured narratives prompt** ï¿½ FieldVoicePrompts.ConstructionJargonSystemPrompt maps field slang (pour, strip forms, rain day, toolbox) into work/delays/safety suggestions; still forbids invented costs/% complete/green.
 
 ### Notes
 
@@ -529,7 +589,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI field voice suggestion scaffold** — POST /api/ai/field-voice-suggestion (auth + rate limit). Returns structured work/delays/safety suggestion DTO labeled “Suggestion — review before submit”; never auto-applies. When AI unconfigured, honest empty scaffold (no invented narratives).
+- **AI field voice suggestion scaffold** ï¿½ POST /api/ai/field-voice-suggestion (auth + rate limit). Returns structured work/delays/safety suggestion DTO labeled ï¿½Suggestion ï¿½ review before submitï¿½; never auto-applies. When AI unconfigured, honest empty scaffold (no invented narratives).
 
 ### Notes
 
@@ -539,7 +599,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Arc D checkpoint** — digital twin Phase 2 Status **Shipped through 2.19.2**; DoD checkboxes closed; twin-phase2 notes status final.
+- **Arc D checkpoint** ï¿½ digital twin Phase 2 Status **Shipped through 2.19.2**; DoD checkboxes closed; twin-phase2 notes status final.
 
 ### Notes
 
@@ -549,7 +609,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **docs/ci/twin-phase2-notes.md complete** — full Arc D version map (photo pins ? require spatial close), truth rules, demo skip, capture quality, E2E, integration commands.
+- **docs/ci/twin-phase2-notes.md complete** ï¿½ full Arc D version map (photo pins ? require spatial close), truth rules, demo skip, capture quality, E2E, integration commands.
 
 ### Notes
 
@@ -559,7 +619,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Arc D integration suite tidy** — SpatialEndpointsTests tagged Arc/TwinPhase2; added capture-quality + RequireSpatialOnProgress default integration cases.
+- **Arc D integration suite tidy** ï¿½ SpatialEndpointsTests tagged Arc/TwinPhase2; added capture-quality + RequireSpatialOnProgress default integration cases.
 
 ### Notes
 
@@ -569,7 +629,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **E2E twin zone round-trip (flag-gated)** — Playwright project 	win-zone-roundtrip covers field zone picker + twin shell + capture-quality when stack/auth available; self-skips honestly otherwise. Documented in twin-phase2 notes.
+- **E2E twin zone round-trip (flag-gated)** ï¿½ Playwright project 	win-zone-roundtrip covers field zone picker + twin shell + capture-quality when stack/auth available; self-skips honestly otherwise. Documented in twin-phase2 notes.
 
 ### Notes
 
@@ -579,7 +639,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Help: field zone picker + Digital Twin** — Help Center section on where the zone picker lives, optional vs required, demo skip, twin fuel, and capture-quality as labeled data quality (not a KPI).
+- **Help: field zone picker + Digital Twin** ï¿½ Help Center section on where the zone picker lives, optional vs required, demo skip, twin fuel, and capture-quality as labeled data quality (not a KPI).
 
 ### Notes
 
@@ -589,7 +649,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Spatial capture quality metric (labeled)** — GET /api/projects/{id}/spatial/capture-quality returns last-7d % of daily reports + progress entries with SpatialNodeId. Explicitly labeled data quality, not an executive KPI. Empty window ? null percent (honest). Unit tests for calculator.
+- **Spatial capture quality metric (labeled)** ï¿½ GET /api/projects/{id}/spatial/capture-quality returns last-7d % of daily reports + progress entries with SpatialNodeId. Explicitly labeled data quality, not an executive KPI. Empty window ? null percent (honest). Unit tests for calculator.
 
 ### Notes
 
@@ -599,7 +659,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Demo skip for RequireSpatialOnProgress** — demo JWT (is_demo_user) may submit field progress without a zone; production still enforces. Documented in docs/ci/twin-phase2-notes.md. Honest UI copy on mobile daily report.
+- **Demo skip for RequireSpatialOnProgress** ï¿½ demo JWT (is_demo_user) may submit field progress without a zone; production still enforces. Documented in docs/ci/twin-phase2-notes.md. Honest UI copy on mobile daily report.
 
 ### Notes
 
@@ -609,7 +669,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Field report zone prompt when required** — mobile daily report labels zone required when company RequireSpatialOnProgress is on and project has zones; blocks non-draft submit/offline queue with honest toast. Drafts still save without a zone. API submit returns SPATIAL_ZONE_REQUIRED as server-side guard.
+- **Field report zone prompt when required** ï¿½ mobile daily report labels zone required when company RequireSpatialOnProgress is on and project has zones; blocks non-draft submit/offline queue with honest toast. Drafts still save without a zone. API submit returns SPATIAL_ZONE_REQUIRED as server-side guard.
 
 ### Notes
 
@@ -619,7 +679,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **PM setting UI for RequireSpatialOnProgress** — Project Settings desktop card + company setup switch. Optional, default off; honest copy that enforcement lands next. Not an executive KPI.
+- **PM setting UI for RequireSpatialOnProgress** ï¿½ Project Settings desktop card + company setup switch. Optional, default off; honest copy that enforcement lands next. Not an executive KPI.
 
 ### Notes
 
