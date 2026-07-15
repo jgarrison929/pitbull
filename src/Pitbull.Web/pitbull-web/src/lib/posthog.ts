@@ -1,3 +1,4 @@
+import { isPostHogSessionRecordingEnabled, postHogSessionRecordingInitOptions } from "./posthog-session-recording";
 import posthog from "posthog-js";
 import {
   classifyViewportWidth,
@@ -29,7 +30,7 @@ export function registerViewportContext(): void {
   posthog.register({
     viewport_class: viewportClass,
     is_narrow_viewport: narrow,
-    // Matches bottom-nav visibility (lg:hidden → visible below 1024)
+    // Matches bottom-nav visibility (lg:hidden â†’ visible below 1024)
     mobile_chrome_expected: narrow,
     viewport_width: width,
     viewport_height: height,
@@ -87,7 +88,7 @@ export function captureApiError(
 
 /**
  * Initialize PostHog analytics (client-side only).
- * Safe to call multiple times — guards against double-init and SSR.
+ * Safe to call multiple times â€” guards against double-init and SSR.
  */
 export function initPostHog() {
   if (typeof window === "undefined") return;
@@ -98,7 +99,7 @@ export function initPostHog() {
   const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
   if (!key) {
-    // PostHog not configured — skip silently (dev/test environments)
+    // PostHog not configured â€” skip silently (dev/test environments)
     return;
   }
 
@@ -106,13 +107,14 @@ export function initPostHog() {
   if (posthog.__loaded) return;
 
   posthog.init(key, {
+    ...postHogSessionRecordingInitOptions(isPostHogSessionRecordingEnabled()),
     api_host: host || "https://us.i.posthog.com",
     defaults: "2026-05-30",
     person_profiles: "identified_only",
     capture_pageview: false, // We handle this manually via the PageViewTracker
     capture_pageleave: true,
     autocapture: true,
-    // Error Tracking — uncaught + our captureException dual-write from reportError
+    // Error Tracking â€” uncaught + our captureException dual-write from reportError
     capture_exceptions: true,
     session_recording: {
       maskAllInputs: true,
