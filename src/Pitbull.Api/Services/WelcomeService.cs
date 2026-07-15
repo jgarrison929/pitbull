@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Services;
 
@@ -56,7 +57,7 @@ public class WelcomeService(
 
         seenSteps.Add(stepId);
         await SaveSeenStepsAsync(userId, seenSteps, ct);
-        logger.LogDebug("User {UserId} completed tour step {StepId}", userId, stepId);
+        logger.LogDebug("User {UserId} completed tour step {StepId}", userId, LogSafe.Text(stepId));
     }
 
     public async Task CompleteTourAsync(Guid userId, CancellationToken ct = default)

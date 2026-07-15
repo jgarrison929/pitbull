@@ -10,6 +10,7 @@ using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Demo;
 
@@ -503,7 +504,7 @@ public sealed class DemoBootstrapper(
             var dirty = false;
             if (!string.Equals(superintendent.Email, supEmail, StringComparison.OrdinalIgnoreCase))
             {
-                logger.LogInformation("Updating DEMO-SUP email from {OldEmail} to {NewEmail}", superintendent.Email, supEmail);
+                logger.LogInformation("Updating DEMO-SUP email from {OldEmail} to {NewEmail}", LogSafe.Email(superintendent.Email), LogSafe.Email(supEmail));
                 superintendent.Email = supEmail;
                 dirty = true;
             }
@@ -535,7 +536,7 @@ public sealed class DemoBootstrapper(
 
             db.Set<Employee>().Add(superintendent);
             await db.SaveChangesAsync(ct);
-            logger.LogInformation("Created Employee {EmployeeNumber} ({Email})", superintendent.EmployeeNumber, supEmail);
+            logger.LogInformation("Created Employee {EmployeeNumber} ({Email})", LogSafe.Text(superintendent.EmployeeNumber), LogSafe.Email(supEmail));
         }
 
         // Always ensure crew members point to this superintendent
@@ -592,7 +593,7 @@ public sealed class DemoBootstrapper(
 
         logger.LogInformation(
             "Demo employee {Email}: {CrewCount} crew linked ({Repaired} repaired), {ProjectCount} project assignments ({NewAssigned} new)",
-            supEmail, crewMembers.Count, crewRepaired, projects.Count, projectsAssigned);
+            LogSafe.Email(supEmail), crewMembers.Count, crewRepaired, projects.Count, projectsAssigned);
     }
 
     /// <summary>

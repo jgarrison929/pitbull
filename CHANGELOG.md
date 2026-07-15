@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-07-15T07:00:00-07:00
+
+### Security
+
+- **CodeQL hygiene** — `LogSafe` helper strips CR/LF from untrusted log args (log forging) and redacts emails (`***@domain`) across API/modules.
+- **Employee form drafts** — omit PII (employee number, email/phone, emergency contacts, certs) from `localStorage` autosave.
+- **CI** — default `permissions: contents: read` on `GITHUB_TOKEN` (workflow least privilege).
+
 ## [3.1.9] - 2026-07-13T17:15:00-07:00
 
 ### Added

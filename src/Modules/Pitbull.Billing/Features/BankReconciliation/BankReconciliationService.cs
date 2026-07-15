@@ -4,6 +4,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using BankRecEntity = global::Pitbull.Core.Domain.BankReconciliation;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Billing.Features.BankReconciliation;
 
@@ -99,7 +100,7 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
         db.BankAccounts.Add(account);
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Bank account created: {AccountName} (GL: {GlAccountNumber})", account.AccountName, glAccount.AccountNumber);
+        logger.LogInformation("Bank account created: {AccountName} (GL: {GlAccountNumber})", LogSafe.Text(account.AccountName), LogSafe.Text(glAccount.AccountNumber));
         return Result.Success(MapBankAccountDto(account, glAccount));
     }
 
@@ -351,7 +352,7 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
         reconciliation.BankAccount = account;
 
         logger.LogInformation("Bank reconciliation started for {AccountName}, statement date {StatementDate}",
-            account.AccountName, command.StatementDate);
+            LogSafe.Text(account.AccountName), command.StatementDate);
 
         return Result.Success(MapReconciliationDto(reconciliation));
     }

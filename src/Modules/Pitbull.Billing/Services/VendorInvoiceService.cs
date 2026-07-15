@@ -6,6 +6,7 @@ using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Services;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Billing.Services;
 
@@ -123,7 +124,7 @@ public class VendorInvoiceService(
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create vendor invoice {InvoiceNumber}", command.InvoiceNumber);
+            logger.LogError(ex, "Failed to create vendor invoice {InvoiceNumber}", LogSafe.Text(command.InvoiceNumber));
             return Result.Failure<VendorInvoiceDto>("Failed to create vendor invoice", "DATABASE_ERROR");
         }
     }

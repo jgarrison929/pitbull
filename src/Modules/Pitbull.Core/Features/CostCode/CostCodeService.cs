@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Core.Features.CostCode;
 
@@ -121,7 +122,7 @@ public class CostCodeService : ICostCodeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create cost code {Code}", command.Code);
+            _logger.LogError(ex, "Failed to create cost code {Code}", LogSafe.Text(command.Code));
             return Result.Failure<CostCodeDto>("Failed to create cost code", "DATABASE_ERROR");
         }
     }

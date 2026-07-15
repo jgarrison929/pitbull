@@ -7,11 +7,15 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Least-privilege default for GITHUB_TOKEN (CodeQL actions/missing-workflow-permissions)
+permissions:
+  contents: read
+
 env:
   DOTNET_VERSION: '10.0.x'
   NODE_VERSION: '22'
-  # Lucky Penny community license — suppresses MediatR license warnings in CI tests.
-  # Repo secret: Settings → Secrets → MEDIATR_LICENSE_KEY (JWT from luckypennysoftware.com/community)
+  # Lucky Penny community license - suppresses MediatR license warnings in CI tests.
+  # Repo secret: Settings -> Secrets -> MEDIATR_LICENSE_KEY (JWT from luckypennysoftware.com/community)
   MEDIATR_LICENSE_KEY: ${{ secrets.MEDIATR_LICENSE_KEY }}
 
 jobs:
@@ -58,7 +62,7 @@ jobs:
             echo "::endgroup::"
             exit 1
           else
-            echo "✅ No vulnerable packages detected"
+            echo "âœ… No vulnerable packages detected"
           fi
           echo "::endgroup::"
 
@@ -88,7 +92,7 @@ jobs:
             echo "::error::Dangerous migration patterns detected. Review carefully before merging."
             exit 1
           else
-            echo "✅ No dangerous migration patterns detected"
+            echo "âœ… No dangerous migration patterns detected"
           fi
           echo "::endgroup::"
 
@@ -125,7 +129,7 @@ jobs:
           # Only audit production dependencies (omit dev-only tooling like eslint)
           # Dev dependency vulnerabilities (e.g. eslint/minimatch ReDoS) don't affect the built app
           if npm audit --audit-level high --omit=dev; then
-            echo "✅ No high+ production vulnerabilities detected"
+            echo "âœ… No high+ production vulnerabilities detected"
           else
             echo "::error::npm audit found high+ vulnerabilities in production dependencies!"
             echo "Run 'npm audit fix' to address auto-fixable issues"
@@ -250,7 +254,7 @@ jobs:
             /tmp/pitbull-role-e2e-ci/**
           if-no-files-found: ignore
 
-  # 2.21.5 — mobile field report smoke (continue-on-error until required at 2.22.2)
+  # 2.21.5 â€” mobile field report smoke (continue-on-error until required at 2.22.2)
   mobile-smoke:
     name: Mobile field report smoke (Playwright)
     needs: [build-backend, build-frontend]
@@ -366,7 +370,7 @@ jobs:
             e2e/test-results/**
           if-no-files-found: ignore
 
-  # 2.21.6 — owner self-service signup E2E (continue-on-error until required at 2.22.2)
+  # 2.21.6 â€” owner self-service signup E2E (continue-on-error until required at 2.22.2)
   owner-signup-smoke:
     name: Owner signup smoke (Playwright)
     needs: [build-backend, build-frontend]

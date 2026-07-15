@@ -12,6 +12,7 @@ using Pitbull.RFIs.Features;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.ListRfis;
 using Pitbull.RFIs.Features.UpdateRfi;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.RFIs.Services;
 
@@ -151,7 +152,7 @@ public class RfiService : IRfiService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create RFI '{Subject}' for project {ProjectId}", command.Subject, command.ProjectId);
+            _logger.LogError(ex, "Failed to create RFI '{Subject}' for project {ProjectId}", LogSafe.Text(command.Subject), command.ProjectId);
             return Result.Failure<RfiDto>("Failed to create RFI", "DATABASE_ERROR");
         }
     }

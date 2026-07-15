@@ -17,6 +17,7 @@ using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
 using Pitbull.RFIs.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Projects.Services;
 
@@ -356,12 +357,12 @@ public class ProjectService : IProjectService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Created project {ProjectId} '{ProjectName}'", project.Id, project.Name);
+            _logger.LogInformation("Created project {ProjectId} '{ProjectName}'", project.Id, LogSafe.Text(project.Name));
             return Result.Success(MapToDto(project));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create project '{ProjectName}'", request.Name);
+            _logger.LogError(ex, "Failed to create project '{ProjectName}'", LogSafe.Text(request.Name));
             return Result.Failure<ProjectDto>("Failed to create project", "DATABASE_ERROR");
         }
     }
@@ -468,7 +469,7 @@ public class ProjectService : IProjectService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Updated project {ProjectId} '{ProjectName}'", project.Id, project.Name);
+            _logger.LogInformation("Updated project {ProjectId} '{ProjectName}'", project.Id, LogSafe.Text(project.Name));
             return Result.Success(MapToDto(project));
         }
         catch (DbUpdateConcurrencyException)

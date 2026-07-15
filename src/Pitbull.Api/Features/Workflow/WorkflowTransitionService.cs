@@ -4,6 +4,7 @@ using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Core.Services;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Features.Workflow;
 
@@ -53,7 +54,7 @@ public sealed class WorkflowTransitionService(
 
         logger.LogInformation(
             "Workflow transition: {EntityType} {EntityId} from {From} to {To} by {User}",
-            entityType, entityId, fromStatus ?? "(initial)", toStatus, changedByName ?? changedByUserId.ToString());
+            LogSafe.Text(entityType), entityId, LogSafe.Text(fromStatus ?? "(initial)"), LogSafe.Text(toStatus), LogSafe.Text(changedByName ?? changedByUserId.ToString()));
     }
 
     public async Task<List<WorkflowTransitionDto>> GetTransitionsAsync(

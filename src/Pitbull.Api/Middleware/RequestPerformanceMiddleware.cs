@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Pitbull.Api.Infrastructure;
 using PostHog;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Middleware;
 
@@ -69,7 +70,7 @@ public class RequestPerformanceMiddleware(
 
                 logger.LogWarning(
                     "Potential N+1 detected: {QueryCount} queries for {Method} {Endpoint} ({DurationMs}ms)",
-                    queryCount, context.Request.Method, endpoint, Math.Round(durationMs, 1));
+                    queryCount, LogSafe.Text(context.Request.Method), LogSafe.Text(endpoint), Math.Round(durationMs, 1));
             }
         }
         catch (Exception ex)

@@ -23,6 +23,7 @@ using Pitbull.TimeTracking.Features.UpdateTimeEntry;
 using Pitbull.Core.Services;
 using Equipment = Pitbull.Core.Domain.Equipment;
 using Phase = Pitbull.Projects.Domain.Phase;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.TimeTracking.Services;
 
@@ -756,13 +757,13 @@ public class TimeEntryService : ITimeEntryService
                 effectiveCostCodeId = laborCostCode.Id;
                 _logger.LogInformation(
                     "Auto-assigned labor cost code {CostCodeId} (LAB) for employee {EmployeeId} on {Date}",
-                    laborCostCode.Id, command.EmployeeId, command.Date);
+                    laborCostCode.Id, LogSafe.Text(command.EmployeeId), LogSafe.Text(command.Date));
             }
             else
             {
                 _logger.LogWarning(
                     "No active LAB cost code found for tenant; cannot auto-assign cost code for employee {EmployeeId} on {Date}",
-                    command.EmployeeId, command.Date);
+                    LogSafe.Text(command.EmployeeId), LogSafe.Text(command.Date));
                 return Result.Failure<TimeEntryDto>(
                     "No cost code specified and no default labor cost code (LAB) found",
                     "COSTCODE_NOT_FOUND");
@@ -861,7 +862,7 @@ public class TimeEntryService : ITimeEntryService
         catch (DbUpdateException ex)
         {
             _logger.LogError(ex, "Database error creating time entry for employee {EmployeeId} on {Date}",
-                command.EmployeeId, command.Date);
+                LogSafe.Text(command.EmployeeId), LogSafe.Text(command.Date));
             return Result.Failure<TimeEntryDto>(
                 $"Failed to create time entry: database constraint violation ({ex.InnerException?.GetType().Name ?? ex.GetType().Name})",
                 "DATABASE_ERROR");
@@ -869,7 +870,7 @@ public class TimeEntryService : ITimeEntryService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error creating time entry for employee {EmployeeId} on {Date}",
-                command.EmployeeId, command.Date);
+                LogSafe.Text(command.EmployeeId), LogSafe.Text(command.Date));
             return Result.Failure<TimeEntryDto>(
                 $"Failed to create time entry: {ex.GetType().Name}",
                 "INTERNAL_ERROR");

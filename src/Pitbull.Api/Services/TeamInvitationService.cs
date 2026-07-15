@@ -6,6 +6,7 @@ using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Services;
 
@@ -101,11 +102,11 @@ public class TeamInvitationService(
                     company?.Name ?? "your company",
                     plaintextToken);
             }
-            catch (Exception ex) { logger.LogError(ex, "Failed to send invitation email to {Email}", request.Email); }
+            catch (Exception ex) { logger.LogError(ex, "Failed to send invitation email to {Email}", LogSafe.Email(request.Email)); }
         });
 
         logger.LogInformation("Created invitation {InvitationId} for {Email} to company {CompanyId}",
-            invitation.Id, request.Email, request.CompanyId);
+            invitation.Id, LogSafe.Email(request.Email), request.CompanyId);
 
         return new CreateInvitationResult(invitation.Id, plaintextToken);
     }
@@ -122,7 +123,7 @@ public class TeamInvitationService(
             }
             catch (InvalidOperationException ex)
             {
-                logger.LogWarning("Skipping invitation for {Email}: {Error}", request.Email, ex.Message);
+                logger.LogWarning("Skipping invitation for {Email}: {Error}", LogSafe.Email(request.Email), LogSafe.Text(ex.Message));
             }
         }
         return results;
@@ -234,7 +235,7 @@ public class TeamInvitationService(
         var roles = await roleSeeder.GetUserRolesAsync(user);
 
         logger.LogInformation("Invitation {InvitationId} accepted by user {UserId} ({Email})",
-            invitation.Id, user.Id, user.Email);
+            invitation.Id, user.Id, LogSafe.Email(user.Email));
 
         return AcceptInvitationResult.Succeeded(new AcceptInvitationUserInfo(
             user.Id, user.FullName, user.Email!, invitation.TenantId,

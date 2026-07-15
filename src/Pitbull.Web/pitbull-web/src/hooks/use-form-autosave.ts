@@ -5,11 +5,23 @@ import { useEffect, useCallback, useRef } from "react";
 /**
  * Auto-save form data to localStorage with debounce.
  * Returns helpers to load, save, and clear the draft.
+ *
+ * Pass `excludeKeys` for PII / sensitive fields that must not be stored
+ * in clear text (CodeQL js/clear-text-storage-of-sensitive-data).
  */
 export function useFormAutosave<T extends Record<string, unknown>>(
   key: string,
   data: T,
-  { debounceMs = 1000, enabled = true }: { debounceMs?: number; enabled?: boolean } = {}
+  {
+    debounceMs = 1000,
+    enabled = true,
+    excludeKeys = [],
+  }: {
+    debounceMs?: number;
+    enabled?: boolean;
+    /** Keys omitted from localStorage drafts (employee numbers, emergency contacts, etc.). */
+    excludeKeys?: readonly (keyof T & string)[];
+  } = {}
 ) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -23,7 +35,11 @@ export function useFormAutosave<T extends Record<string, unknown>>(
 
     timerRef.current = setTimeout(() => {
       try {
-        const serialized = JSON.stringify(data);
+        const toStore: Record<string, unknown> = { ...data };
+        for (const k of excludeKeys) {
+          delete toStore[k];
+        }
+        const serialized = JSON.stringify(toStore);
         localStorage.setItem(`draft:${key}`, serialized);
         localStorage.setItem(`draft:${key}:ts`, new Date().toISOString());
       } catch {
@@ -36,7 +52,7 @@ export function useFormAutosave<T extends Record<string, unknown>>(
         clearTimeout(timerRef.current);
       }
     };
-  }, [key, data, debounceMs, enabled]);
+  }, [key, data, debounceMs, enabled, excludeKeys]);
 
   // Load from localStorage
   const loadDraft = useCallback((): { data: T; savedAt: string } | null => {

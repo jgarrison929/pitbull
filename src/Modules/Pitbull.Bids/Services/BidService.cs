@@ -9,6 +9,7 @@ using Pitbull.Bids.Features.Shared;
 using Pitbull.Bids.Features.UpdateBid;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Bids.Services;
 
@@ -126,7 +127,7 @@ public class BidService : IBidService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create bid '{BidName}'", command.Name);
+            _logger.LogError(ex, "Failed to create bid '{BidName}'", LogSafe.Text(command.Name));
             return Result.Failure<BidDto>("Failed to create bid", "DATABASE_ERROR");
         }
     }
@@ -350,7 +351,7 @@ public class BidService : IBidService
 
             _logger.LogInformation(
                 "Converted bid {BidId} to project {ProjectId} ({ProjectNumber}). Budget: {HasBudget}, Subcontracts: {SubCount}, CostCodes: {CostCodeCount}",
-                bid.Id, project.Id, project.Number, budgetId.HasValue, subcontractsCreated, costCodesMapped);
+                bid.Id, project.Id, LogSafe.Text(project.Number), budgetId.HasValue, subcontractsCreated, costCodesMapped);
 
             return Result.Success(new ConvertBidToProjectResult(
                 ProjectId: project.Id,

@@ -18,6 +18,7 @@ using Pitbull.Api.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Controllers;
 
@@ -754,7 +755,7 @@ public class AuthController(
                 existingUser.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
                 await userManager.UpdateAsync(existingUser);
 
-                logger.LogInformation("Demo user re-login via registration retry: {Email}", request.Email);
+                logger.LogInformation("Demo user re-login via registration retry: {Email}", LogSafe.Email(request.Email));
 
                 return Ok(new AuthResponse(existingToken, existingUser.Id, existingUser.FullName, existingUser.Email!, existingRoles.ToArray(), existingRefresh));
             }
@@ -836,7 +837,7 @@ public class AuthController(
         user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
         await userManager.UpdateAsync(user);
 
-        logger.LogInformation("Demo user registered: {Email} as {Role} in company {CompanyCode}", request.Email, request.Role, companyCode);
+        logger.LogInformation("Demo user registered: {Email} as {Role} in company {CompanyCode}", LogSafe.Email(request.Email), LogSafe.Text(request.Role), LogSafe.Text(companyCode));
 
         return Created("", new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
     }

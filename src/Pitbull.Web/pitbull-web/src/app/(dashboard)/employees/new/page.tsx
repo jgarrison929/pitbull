@@ -44,6 +44,17 @@ import type {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+/** PII keys never written to localStorage drafts (clear-text storage). */
+const EMPLOYEE_DRAFT_EXCLUDE = [
+  "employeeNumber",
+  "email",
+  "phone",
+  "emergencyContactName",
+  "emergencyContactPhone",
+  "emergencyContactRelation",
+  "selectedCerts",
+] as const;
+
 function getTodayISO(): string {
   const d = new Date();
   const year = d.getFullYear();
@@ -173,9 +184,10 @@ export default function NewEmployeePage() {
 
   useUnsavedChanges(hasChanges);
 
-  // Auto-save draft
+  // Auto-save draft — exclude PII that CodeQL flags as clear-text storage risk
   const { loadDraft, clearDraft } = useFormAutosave("employee-new", formData, {
     enabled: hasChanges,
+    excludeKeys: EMPLOYEE_DRAFT_EXCLUDE,
   });
 
   // Load draft on mount

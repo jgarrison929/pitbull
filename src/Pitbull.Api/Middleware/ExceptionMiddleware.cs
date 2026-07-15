@@ -3,6 +3,7 @@ using System.Text.Json;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using PostHog;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Middleware;
 
@@ -25,7 +26,7 @@ public class ExceptionMiddleware(
                 ? cid?.ToString()
                 : context.Request.Headers[CorrelationIdMiddleware.CorrelationIdHeaderName].FirstOrDefault();
 
-            logger.LogError(ex, "Unhandled exception. TraceId: {TraceId} CorrelationId: {CorrelationId}", traceId, correlationId);
+            logger.LogError(ex, "Unhandled exception. TraceId: {TraceId} CorrelationId: {CorrelationId}", LogSafe.Text(traceId), LogSafe.Text(correlationId));
 
             // Save diagnostic error to database using a fresh scope to avoid
             // re-saving failed entities from the request's DbContext.
