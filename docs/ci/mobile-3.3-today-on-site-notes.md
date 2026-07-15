@@ -1,7 +1,7 @@
 # Mobile / Today on site 3.3.x — CI & verification notes
 
 **Band:** `3.3.0` → `3.3.9`  
-**Status:** In progress (notes from 3.3.7; checkpoint at 3.3.9)  
+**Status:** Shipped through **3.3.9**  
 **Spec:** `docs/specs/product-bands/band-3.3-today-on-site.md`
 
 ## Outcomes

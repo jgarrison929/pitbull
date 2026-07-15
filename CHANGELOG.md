@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.9] - 2026-07-15T13:18:18-07:00
+
+### Added
+
+- **3.3.9 checkpoint** - Today on site band complete; spec + CI notes marked shipped through 3.3.9.
+
 ## [3.3.8] - 2026-07-15T13:02:30-07:00
 
 ### Changed
