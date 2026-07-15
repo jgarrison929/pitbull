@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.8] - 2026-07-15T13:02:30-07:00
+
+### Changed
+
+- **Today on site buffer** - residual honesty guards (no health/portfolio framing regressions).
+
 ## [3.3.7] - 2026-07-15T12:42:53-07:00
 
 ### Added
