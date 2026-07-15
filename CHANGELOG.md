@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.4] - 2026-07-15T08:24:43-07:00
+
+### Added
+
+- **Plan pin offline flush helpers** - summarize/toast copy for queued pin drafts when online; does not invent RFI success.
+
+
 ## [3.2.3] - 2026-07-15T08:05:08-07:00
 
 ### Added
