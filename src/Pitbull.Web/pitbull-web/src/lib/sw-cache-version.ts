@@ -2,7 +2,7 @@
  * Expected service-worker CACHE_VERSION string (public/sw.js).
  * Bump both together on deploy-freshness stamps so activate() drops stale precache.
  */
-export const SW_CACHE_VERSION = "v3.2.1";
+export const SW_CACHE_VERSION = "v3.2.8";
 
 /** Parse CACHE_VERSION assignment from sw.js source text. */
 export function parseSwCacheVersionFromSource(swSource: string): string | null {
