@@ -1,28 +1,28 @@
-# Spec: Product band 3.3 — Today on site (real entities)
+# Spec: Product band 3.3 â€” Today on site (real entities)
 
-**Status:** Pending (starts after 3.2.9)  
-**Version band:** `3.3.0` → `3.3.9` (10 stamps)  
-**Theme:** PM/superintendent glance of **today’s** filed field activity — real entities only  
+**Status:** In progress (from 3.3.0)
+**Version band:** `3.3.0` â†’ `3.3.9` (10 stamps)  
+**Theme:** PM/superintendent glance of **todayâ€™s** filed field activity â€” real entities only  
 **Starts after:** `3.2.9` security/prod checkpoint  
 
 ## Problem
 
-Office and field leads cannot quickly see what was captured **today** on a job (reports, photo counts, open field issues) without portfolio aggregation or invented “site health” scores.
+Office and field leads cannot quickly see what was captured **today** on a job (reports, photo counts, open field issues) without portfolio aggregation or invented â€œsite healthâ€ scores.
 
 ## Version table
 
 | Version | Deliverable |
 |---------|-------------|
 | **3.3.0** | Spec + contract note: `TodayOnSiteDto` fields, empty honesty, `?view=mobile` list rules (no portfolio KPIs) |
-| **3.3.1** | API: `GET /api/projects/{id}/today-on-site` (or equivalent) slim DTO — counts from real daily reports / RFIs for **today** in tenant TZ or UTC day boundary documented |
+| **3.3.1** | API: `GET /api/projects/{id}/today-on-site` (or equivalent) slim DTO â€” counts from real daily reports / RFIs for **today** in tenant TZ or UTC day boundary documented |
 | **3.3.2** | Integration/unit tests: empty day, one report, permission deny |
 | **3.3.3** | UI card on project detail (desktop + phone-friendly) showing today counts + deep links |
 | **3.3.4** | Site walk / field hub surface for superintendent (same DTO; no second aggregation path) |
-| **3.3.5** | Mobile list polish: loading/empty/error states; label “Today’s field activity” not “health” |
+| **3.3.5** | Mobile list polish: loading/empty/error states; label â€œTodayâ€™s field activityâ€ not â€œhealthâ€ |
 | **3.3.6** | Help Center: Today on site card + FAQ (real entities only) |
 | **3.3.7** | CI notes: persona smoke path for PM/super viewing today card |
-| **3.3.8** | Buffer: residual bugs from 3.3.1–3.3.7 only (no new scope) |
-| **3.3.9** | Checkpoint — band complete; VERSION 3.3.9 |
+| **3.3.8** | Buffer: residual bugs from 3.3.1â€“3.3.7 only (no new scope) |
+| **3.3.9** | Checkpoint â€” band complete; VERSION 3.3.9 |
 
 ## API / UI touchpoints
 
@@ -43,12 +43,12 @@ Office and field leads cannot quickly see what was captured **today** on a job (
 ## Truth rules
 
 - Counts only from real entities filed today  
-- Empty day is honest empty — never fabricate activity  
+- Empty day is honest empty â€” never fabricate activity  
 - No % complete, health score, or portfolio KPI on this card  
 - Phone = glance + filtered drill only  
 
 ## Non-goals
 
-- Multi-project portfolio “today” rollup on phone  
+- Multi-project portfolio â€œtodayâ€ rollup on phone  
 - Invented subcontractor scores  
 - Full Gantt editing  

@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-07-15T10:31:30-07:00
+
+### Added
+
+- **Today on site contract** - TodayOnSiteDto + UTC day window helper; no portfolio KPIs.
+
+
 ## [3.2.9] - 2026-07-15T10:11:47-07:00
 
 ### Added
