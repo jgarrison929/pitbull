@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.6] - 2026-07-15T09:12:23-07:00
+
+### Changed
+
+- **PostHog session recording opt-out** - NEXT_PUBLIC_POSTHOG_SESSION_RECORDING=false disables new recordings only.
+
+
 ## [3.2.5] - 2026-07-15T08:44:03-07:00
 
 ### Changed
