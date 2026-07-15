@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.5] - 2026-07-15T08:44:03-07:00
+
+### Changed
+
+- **Plans open UX honesty** - cached vs not labels/disabled open helpers; never claims whole set offline.
+
+
 ## [3.2.4] - 2026-07-15T08:24:43-07:00
 
 ### Added
