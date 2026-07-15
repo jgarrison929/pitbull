@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.2] - 2026-07-15T11:08:08-07:00
+
+### Added
+
+- **Today on site client helpers** - empty copy + summary formatter (no health KPIs).
+
+
 ## [3.3.1] - 2026-07-15T10:48:09-07:00
 
 ### Added
