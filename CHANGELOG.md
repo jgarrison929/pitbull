@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.5] - 2026-07-15T12:05:48-07:00
+
+### Changed
+
+- **Today on site mobile copy** - honest empty labeled operational activity not health.
+
+
 ## [3.3.4] - 2026-07-15T11:47:26-07:00
 
 ### Changed
