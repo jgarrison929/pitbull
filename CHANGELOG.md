@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.4] - 2026-07-15T11:47:26-07:00
+
+### Changed
+
+- **Site walk today-on-site** - same DTO path; no second client aggregation.
+
+
 ## [3.3.3] - 2026-07-15T11:25:52-07:00
 
 ### Added
