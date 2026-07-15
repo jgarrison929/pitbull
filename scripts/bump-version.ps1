@@ -1,4 +1,4 @@
-﻿param(
+param(
   [Parameter(Mandatory=$true)][string]$From,
   [Parameter(Mandatory=$true)][string]$To
 )
@@ -24,3 +24,12 @@ Replace-InFile "src/Pitbull.Web/pitbull-web/Dockerfile" "ARG NEXT_PUBLIC_APP_VER
 Replace-InFile "docker-compose.prod.yml" "APP_VERSION:-$From" "APP_VERSION:-$To"
 Replace-InFile "src/Pitbull.Web/pitbull-web/src/lib/app-version.ts" "return `"$From`"" "return `"$To`""
 Write-Host "Bumped $From -> $To"
+
+# package-lock product version (first pitbull-web block)
+$lock = "src/Pitbull.Web/pitbull-web/package-lock.json"
+if (Test-Path $lock) {
+  $lc = [IO.File]::ReadAllText((Resolve-Path $lock))
+  $lc = [regex]::Replace($lc, '("name": "pitbull-web",\r?\n\s*"version": ")' + [regex]::Escape($From) + '(")', '${1}' + $To + '${2}', 1)
+  $lc = [regex]::Replace($lc, '("name": "pitbull-web",\r?\n\s*"version": ")' + [regex]::Escape($From) + '(")', '${1}' + $To + '${2}', 1)
+  [IO.File]::WriteAllText((Resolve-Path $lock), $lc)
+}
