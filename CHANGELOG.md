@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.8] - 2026-07-15T09:51:20-07:00
+
+### Changed
+
+- **Prod helper test coverage** - ensure vitest files for SW/fetch/deploy/pin/plans/posthog/help; SW CACHE_VERSION v3.2.8.
+
+
 ## [3.2.7] - 2026-07-15T09:32:38-07:00
 
 ### Added
