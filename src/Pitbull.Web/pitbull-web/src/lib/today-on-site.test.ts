@@ -1,9 +1,9 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 import { todayOnSiteEmptyCopy, formatTodayOnSiteSummary } from "./today-on-site";
 
 describe("today-on-site client (3.3.2)", () => {
   it("honest empty copy", () => {
-    expect(todayOnSiteEmptyCopy(false)).toMatch(/No field reports/i);
+    expect(todayOnSiteEmptyCopy(false)).toMatch(/No field activity/i);
     expect(todayOnSiteEmptyCopy(true)).toBe("");
   });
   it("formats summary without health language", () => {

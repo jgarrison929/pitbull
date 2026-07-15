@@ -1,4 +1,4 @@
-﻿import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vitest";
 
 /** Client mirror of TodayOnSiteDto field names for UI (3.3.2) */
 export type TodayOnSiteView = {
@@ -12,7 +12,7 @@ export type TodayOnSiteView = {
 
 export function todayOnSiteEmptyCopy(hasAny: boolean): string {
   if (hasAny) return "";
-  return "No field reports filed today for this job yet.";
+  return "No field activity filed today for this job yet (empty is honest).";
 }
 
 export function formatTodayOnSiteSummary(v: TodayOnSiteView): string {
