@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.9] - 2026-07-15T10:11:47-07:00
+
+### Added
+
+- **3.2.9 checkpoint** - docs/ci/mobile-3.2-prod-notes.md; band 3.2 marked shipped.
+
+
 ## [3.2.8] - 2026-07-15T09:51:20-07:00
 
 ### Changed
