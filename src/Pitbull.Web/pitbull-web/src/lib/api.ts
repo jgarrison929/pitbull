@@ -8,6 +8,7 @@ import {
   removeRefreshToken,
 } from "./auth";
 import { reportError } from "./error-reporter";
+import { shouldRetryTransient, sleep } from "./fetch-retry";
 
 const ACTIVE_COMPANY_KEY = "pitbull_active_company_id";
 
@@ -91,11 +92,41 @@ async function api<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
     }
   }
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...rest,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  // 3.2.2: retry only idempotent GETs on transient network / gateway failures
+  let response: Response | undefined;
+  let lastFetchError: unknown;
+  const maxAttempts = 3;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...rest,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      lastFetchError = undefined;
+      if (
+        response.ok ||
+        response.status === 401 ||
+        response.status === 204 ||
+        !shouldRetryTransient({ method, attempt, status: response.status }).retry
+      ) {
+        break;
+      }
+      const decision = shouldRetryTransient({ method, attempt, status: response.status });
+      if (!decision.retry) break;
+      await sleep(decision.delayMs);
+    } catch (err) {
+      lastFetchError = err;
+      const decision = shouldRetryTransient({ method, attempt, error: err });
+      if (!decision.retry) throw err;
+      await sleep(decision.delayMs);
+    }
+  }
+  if (!response) {
+    throw lastFetchError instanceof Error
+      ? lastFetchError
+      : new Error("Network request failed");
+  }
 
   if (response.status === 401) {
     // Try to refresh the token (shared promise deduplicates concurrent 401s)
