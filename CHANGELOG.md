@@ -8,6 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.7] - 2026-07-15T09:32:38-07:00
+
+### Added
+
+- **Help Center** - deploy refresh, offline pin queue, and network retry honesty cards.
+
+
 ## [3.2.6] - 2026-07-15T09:12:23-07:00
 
 ### Changed

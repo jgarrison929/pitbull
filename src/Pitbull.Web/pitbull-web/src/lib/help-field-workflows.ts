@@ -1,5 +1,6 @@
+import { HELP_DEPLOY_OFFLINE_CARDS } from "./help-deploy-offline";
 /**
- * Help Center — Field & mobile workflows card data (2.12.7+ / 3.1.x).
+ * Help Center â€” Field & mobile workflows card data (2.12.7+ / 3.1.x).
  * Pure data for page + unit tests; routes must match real app paths.
  */
 
@@ -14,22 +15,22 @@ export type FieldWorkflowCard = {
 
 export const FIELD_WORKFLOWS_SECTION_TITLE = "Field & mobile workflows";
 
-/** Mobile FAQ copy — truthful offline photo / plan limits (3.1.x). */
+/** Mobile FAQ copy â€” truthful offline photo / plan limits (3.1.x). */
 export const mobileFaqItems: { question: string; answer: string }[] = [
   {
     question: "Can I use Pitbull on mobile devices?",
     answer:
-      "Yes for field capture and glance. Use phone bottom nav: Log → `/daily-reports/mobile?mode=quick` for a fast day log, or Report → `/daily-reports/mobile` for the full field report; Crew → `/time-tracking/mobile` for time. Desktop ledgers and portfolio aggregation stay on larger screens — the app is not a full desktop clone on a phone.",
+      "Yes for field capture and glance. Use phone bottom nav: Log â†’ `/daily-reports/mobile?mode=quick` for a fast day log, or Report â†’ `/daily-reports/mobile` for the full field report; Crew â†’ `/time-tracking/mobile` for time. Desktop ledgers and portfolio aggregation stay on larger screens â€” the app is not a full desktop clone on a phone.",
   },
   {
     question: "How does offline and PWA work on a phone?",
     answer:
-      "Install Pitbull when the PWA prompt appears above the bottom nav. Field report submit queues offline; large photos are downscaled when possible (up to 10). Photos still too large show as skipped — not silently saved. When you reconnect, the queue syncs. Watch the offline/queue indicator on field paths.",
+      "Install Pitbull when the PWA prompt appears above the bottom nav. Field report submit queues offline; large photos are downscaled when possible (up to 10). Photos still too large show as skipped â€” not silently saved. When you reconnect, the queue syncs. Watch the offline/queue indicator on field paths.",
   },
   {
     question: "Can I open drawings offline?",
     answer:
-      "On Plans & Specs (`/projects/{id}/plans-specs`), sheets you View or Save offline are stored on this device only. Sheets not cached show Not offline — we never claim the whole drawing set is available offline.",
+      "On Plans & Specs (`/projects/{id}/plans-specs`), sheets you View or Save offline are stored on this device only. Sheets not cached show Not offline â€” we never claim the whole drawing set is available offline.",
   },
   {
     question: "How do I pin an issue on a plan?",
@@ -44,12 +45,12 @@ export const mobileFaqItems: { question: string; answer: string }[] = [
   {
     question: "How does AI work on the mobile field report?",
     answer:
-      "On Field notes, use Suggest from notes (AI) when online — results are labeled “Suggestion — review before submit” and apply only after you confirm. Offline, AI is disabled with honest copy (enter narratives manually). Optional LLM end-of-day rewrite is off unless `NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD=true`. AI never auto-posts progress.",
+      "On Field notes, use Suggest from notes (AI) when online â€” results are labeled â€œSuggestion â€” review before submitâ€ and apply only after you confirm. Offline, AI is disabled with honest copy (enter narratives manually). Optional LLM end-of-day rewrite is off unless `NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD=true`. AI never auto-posts progress.",
   },
   {
     question: "Is AI photo safety a compliance finding?",
     answer:
-      "No. Photo assist safety notes are optional, labeled suggestions from caption heuristics only — not a site inspection or OSHA finding. Review before applying to the safety narrative.",
+      "No. Photo assist safety notes are optional, labeled suggestions from caption heuristics only â€” not a site inspection or OSHA finding. Review before applying to the safety narrative.",
   },
 ];
 
@@ -63,7 +64,7 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
       "On a phone, open bottom nav Log (quick) or full Field report.",
       "Last job/plan sheet may be remembered on this device.",
       "Add work + photos; offline photos downscale when possible.",
-      "Review and Submit (online or offline queue — same daily-report path).",
+      "Review and Submit (online or offline queue â€” same daily-report path).",
     ],
   },
   {
@@ -84,9 +85,9 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     href: "/projects",
     icon: "file-text",
     steps: [
-      "Open Plans & Specs (`/projects/{id}/plans-specs`) — viewer-first on phone.",
+      "Open Plans & Specs (`/projects/{id}/plans-specs`) â€” viewer-first on phone.",
       "View or Save offline individual sheets (not the whole set).",
-      "Pin a note on an open drawing → confirm draft RFI with sheet refs.",
+      "Pin a note on an open drawing â†’ confirm draft RFI with sheet refs.",
       "From Site Walk, use Plans for a filtered deep link into the same viewer.",
     ],
   },
@@ -98,8 +99,10 @@ export const fieldWorkflowCards: FieldWorkflowCard[] = [
     steps: [
       "Install Pitbull when the PWA install prompt appears above the bottom nav.",
       "Field report/quick log queue offline; photos downscale or show skipped honestly.",
-      "Only saved/viewed drawings open offline — others say Not offline.",
+      "Only saved/viewed drawings open offline â€” others say Not offline.",
       "When back online, queued daily reports sync automatically.",
     ],
   },
 ];
+
+export { HELP_DEPLOY_OFFLINE_CARDS };
