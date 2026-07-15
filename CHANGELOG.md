@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-07-15T13:37:27-07:00
+
+### Added
+
+- **3.4.0 release checkpoint** - bands 3.2 + 3.3 marked complete; VERSION/CHANGELOG/Docker stamps; deploy health notes.
+
 ## [3.3.9] - 2026-07-15T13:18:18-07:00
 
 ### Added
