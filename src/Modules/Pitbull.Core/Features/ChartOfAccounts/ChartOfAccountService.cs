@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Core.Features.ChartOfAccounts;
 
@@ -107,7 +108,7 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create chart of account {AccountNumber}", command.AccountNumber);
+            logger.LogError(ex, "Failed to create chart of account {AccountNumber}", LogSafe.Text(command.AccountNumber));
             return Result.Failure<ChartOfAccountDto>("Failed to create chart of account", "DATABASE_ERROR");
         }
     }

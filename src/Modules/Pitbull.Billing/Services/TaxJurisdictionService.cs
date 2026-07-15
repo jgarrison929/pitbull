@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Billing.Domain;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Billing.Services;
 
@@ -82,7 +83,7 @@ public class TaxJurisdictionService(
         db.Set<TaxJurisdiction>().Add(jurisdiction);
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Created tax jurisdiction {Code} ({Name})", jurisdiction.Code, jurisdiction.Name);
+        logger.LogInformation("Created tax jurisdiction {Code} ({Name})", LogSafe.Text(jurisdiction.Code), LogSafe.Text(jurisdiction.Name));
 
         return Result.Success(MapToDto(jurisdiction));
     }

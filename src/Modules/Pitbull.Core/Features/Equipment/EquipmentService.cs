@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Core.Features.Equipment;
 
@@ -130,7 +131,7 @@ public class EquipmentService : IEquipmentService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create equipment with code {Code}", command.Code);
+            _logger.LogError(ex, "Failed to create equipment with code {Code}", LogSafe.Text(command.Code));
             return Result.Failure<EquipmentDto>("Failed to create equipment", "DATABASE_ERROR");
         }
     }

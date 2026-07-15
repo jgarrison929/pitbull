@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Infrastructure;
 
@@ -98,7 +99,7 @@ public sealed class RoleSeeder(
 
         if (await userManager.IsInRoleAsync(user, tenantRoleName))
         {
-            logger.LogDebug("User {UserId} already has role {RoleName}", user.Id, roleName);
+            logger.LogDebug("User {UserId} already has role {RoleName}", user.Id, LogSafe.Text(roleName));
             return;
         }
 
@@ -106,13 +107,13 @@ public sealed class RoleSeeder(
         if (result.Succeeded)
         {
             logger.LogInformation("Assigned role {RoleName} to user {UserId} ({Email})",
-                roleName, user.Id, user.Email);
+                LogSafe.Text(roleName), user.Id, LogSafe.Email(user.Email));
         }
         else
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
             logger.LogWarning("Failed to assign role {RoleName} to user {UserId}: {Errors}",
-                roleName, user.Id, errors);
+                LogSafe.Text(roleName), user.Id, LogSafe.Text(errors));
         }
     }
 
@@ -238,7 +239,7 @@ public sealed class RoleSeeder(
 
         if (user is null)
         {
-            logger.LogInformation("Admin seed skipped: user {Email} not found", email);
+            logger.LogInformation("Admin seed skipped: user {Email} not found", LogSafe.Email(email));
             return;
         }
 
@@ -247,6 +248,6 @@ public sealed class RoleSeeder(
 
         logger.LogInformation(
             "Admin seed ensured role {RoleName} for user {UserId} ({Email}) in tenant {TenantId}",
-            Roles.Admin, user.Id, user.Email, user.TenantId);
+            Roles.Admin, user.Id, LogSafe.Email(user.Email), user.TenantId);
     }
 }

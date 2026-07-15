@@ -1,4 +1,5 @@
 using Resend;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Services;
 
@@ -65,11 +66,11 @@ public class ResendEmailService : IEmailService
             message.HtmlBody = htmlBody;
 
             await _resend.EmailSendAsync(message, ct);
-            _logger.LogInformation("Email sent via Resend to {Email} — Subject: {Subject}", toEmail, subject);
+            _logger.LogInformation("Email sent via Resend to {Email} - Subject: {Subject}", LogSafe.Email(toEmail), LogSafe.Text(subject));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email via Resend to {Email} — Subject: {Subject}", toEmail, subject);
+            _logger.LogError(ex, "Failed to send email via Resend to {Email} - Subject: {Subject}", LogSafe.Email(toEmail), LogSafe.Text(subject));
         }
     }
 }

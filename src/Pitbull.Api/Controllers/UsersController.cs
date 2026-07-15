@@ -10,6 +10,7 @@ using Pitbull.Api.Infrastructure;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Controllers;
 
@@ -179,7 +180,7 @@ public class UsersController(
 
         await roleSeeder.AssignRoleToUserAsync(user, request.Role, ct);
         logger.LogInformation("Admin {AdminId} assigned role {Role} to user {UserId}",
-            GetCurrentUserId(), request.Role, id);
+            GetCurrentUserId(), LogSafe.Text(request.Role), id);
 
         var roles = await roleSeeder.GetUserRolesAsync(user);
         return Ok(new { roles });
@@ -224,7 +225,7 @@ public class UsersController(
         }
 
         logger.LogInformation("Admin {AdminId} removed role {Role} from user {UserId}",
-            currentUserId, role, id);
+            currentUserId, LogSafe.Text(role), id);
 
         var roles = await roleSeeder.GetUserRolesAsync(user);
         return Ok(new { roles });

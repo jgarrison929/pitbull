@@ -4,6 +4,7 @@ using Pitbull.Billing.Features.Vendors;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Billing.Services;
 
@@ -98,7 +99,7 @@ public class VendorService(PitbullDbContext db, ILogger<VendorService> logger) :
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create vendor {VendorCode}", command.Code);
+            logger.LogError(ex, "Failed to create vendor {VendorCode}", LogSafe.Text(command.Code));
             return Result.Failure<VendorDto>("Failed to create vendor", "DATABASE_ERROR");
         }
     }

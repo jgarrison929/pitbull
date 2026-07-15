@@ -4,6 +4,7 @@ using Pitbull.Billing.Features.Customers;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Billing.Services;
 
@@ -93,7 +94,7 @@ public class CustomerService(PitbullDbContext db, ILogger<CustomerService> logge
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to create customer {CustomerCode}", command.Code);
+            logger.LogError(ex, "Failed to create customer {CustomerCode}", LogSafe.Text(command.Code));
             return Result.Failure<CustomerDto>("Failed to create customer", "DATABASE_ERROR");
         }
     }

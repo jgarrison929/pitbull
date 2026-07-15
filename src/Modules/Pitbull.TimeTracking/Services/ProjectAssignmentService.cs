@@ -5,6 +5,7 @@ using Pitbull.Core.Data;
 using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.TimeTracking.Services;
 
@@ -186,7 +187,7 @@ public class ProjectAssignmentService : IProjectAssignmentService
             await _db.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Removed assignment {AssignmentId} with end date {EndDate}",
-                assignmentId, assignment.EndDate);
+                assignmentId, LogSafe.Text(assignment.EndDate));
 
             return Result.Success();
         }

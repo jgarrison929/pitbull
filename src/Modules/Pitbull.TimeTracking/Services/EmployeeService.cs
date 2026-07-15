@@ -9,6 +9,7 @@ using Pitbull.TimeTracking.Features.GetEmployeeStats;
 using Pitbull.TimeTracking.Features.GetMyCrew;
 using Pitbull.TimeTracking.Features.ListEmployees;
 using Pitbull.TimeTracking.Features.UpdateEmployee;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.TimeTracking.Services;
 
@@ -287,7 +288,7 @@ public class EmployeeService : IEmployeeService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create employee {EmployeeNumber}", employeeNumber);
+            _logger.LogError(ex, "Failed to create employee {EmployeeNumber}", LogSafe.Text(employeeNumber));
             return Result.Failure<EmployeeDto>("Failed to create employee", "DATABASE_ERROR");
         }
     }

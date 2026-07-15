@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Core.Data;
 using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Core.Features.Feedback;
 
@@ -41,7 +42,7 @@ public sealed class FeedbackService(
         db.Set<Entities.Feedback>().Add(feedback);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Feedback created {FeedbackId} category={Category} type={Type}", feedback.Id, feedback.Category, feedback.Type);
+        logger.LogInformation("Feedback created {FeedbackId} category={Category} type={Type}", feedback.Id, LogSafe.Text(feedback.Category), LogSafe.Text(feedback.Type));
         return ToDto(feedback);
     }
 

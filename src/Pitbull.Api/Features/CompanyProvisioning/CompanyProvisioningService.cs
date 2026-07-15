@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Features.CompanyProvisioning;
 
@@ -85,7 +86,7 @@ public class CompanyProvisioningService(
 
         logger.LogInformation(
             "Created company {CompanyId} ({Code}: {Name}) for tenant {TenantId}",
-            company.Id, company.Code, company.Name, tenantId);
+            company.Id, LogSafe.Text(company.Code), LogSafe.Text(company.Name), tenantId);
 
         // ── Apply Chart of Accounts Template ─────────────────────────
         var accountsCreated = 0;
@@ -108,7 +109,7 @@ public class CompanyProvisioningService(
 
             logger.LogInformation(
                 "Applied COA template '{Template}' ({Count} accounts) to company {CompanyId}",
-                templateKey, accountsCreated, company.Id);
+                LogSafe.Text(templateKey), accountsCreated, company.Id);
         }
 
         // ── Create Accounting Periods ────────────────────────────────

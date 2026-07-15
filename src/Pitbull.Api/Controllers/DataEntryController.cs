@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.AI.Services;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Controllers;
 
@@ -36,7 +37,7 @@ public class DataEntryController(IDataEntryService service, ILogger<DataEntryCon
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Data entry execution failed for {EntityType}", request.EntityType);
+            logger.LogWarning(ex, "Data entry execution failed for {EntityType}", LogSafe.Text(request.EntityType));
             return BadRequest(new { error = ex.Message });
         }
     }
