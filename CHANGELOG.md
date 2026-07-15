@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.2.3] - 2026-07-15T08:05:08-07:00
+
+### Added
+
+- **Deploy recovery banner** - detect Server Action / chunk load failures and show honest refresh copy (no invented status).
+
 ## [3.2.2] - 2026-07-15T07:49:20-07:00
 
 ### Fixed
@@ -18,46 +24,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Service worker deploy freshness** â€” `CACHE_VERSION` bumped to `v3.2.1`; assert `skipWaiting` + `clients.claim` so new deploys take control and drop stale precache (Server Action hash mismatch mitigation).
+- **Service worker deploy freshness** - `CACHE_VERSION` bumped to `v3.2.1`; assert skipWaiting + clients.claim so new deploys take control and drop stale precache.
 
 ## [3.2.0] - 2026-07-15T07:00:00-07:00
 
 ### Security
 
-- **CodeQL hygiene** Ã¢â‚¬â€ `LogSafe` helper strips CR/LF from untrusted log args (log forging) and redacts emails (`***@domain`) across API/modules.
-- **Employee form drafts** Ã¢â‚¬â€ omit PII (employee number, email/phone, emergency contacts, certs) from `localStorage` autosave.
-- **CI** Ã¢â‚¬â€ default `permissions: contents: read` on `GITHUB_TOKEN` (workflow least privilege).
+- **CodeQL hygiene** - `LogSafe` helper strips CR/LF from untrusted log args and redacts emails (`***@domain`) across API/modules.
+- **Employee form drafts** - omit PII from localStorage autosave.
+- **CI** - default `permissions: contents: read` on GITHUB_TOKEN.
 
 ## [3.1.9] - 2026-07-13T17:15:00-07:00
 
 ### Added
 
-- **3.1.9 checkpoint** Ã¢â‚¬â€ Help field FAQ truthful for offline photos, selected plan offline, quick log, plan pin; `docs/ci/mobile-3.1-field-notes.md` band notes.
+- **3.1.9 checkpoint** ΓÇö Help field FAQ truthful for offline photos, selected plan offline, quick log, plan pin; `docs/ci/mobile-3.1-field-notes.md` band notes.
 
 ### Fixed
 
-- **Jobsite Twin overlays 500 (PostHog #395/#396)** Ã¢â‚¬â€ sequential zone-fuel loads on shared EF `DbContext` (was `Task.WhenAll` race).
-- **Time-entry audit trail 500 (PostHog #396)** Ã¢â‚¬â€ normalize `from`/`to` query dates to UTC day boundaries for Npgsql `timestamptz`.
-- **Frontend 500 reports** Ã¢â‚¬â€ `ApiError` carries `traceId`/`correlationId` from API for correlation with server exceptions.
-- **Spatial capture-quality integration assertion** Ã¢â‚¬â€ drop contradictory `DoesNotContain("executive KPI")` (substring of honest label).
+- **Jobsite Twin overlays 500 (PostHog #395/#396)** ΓÇö sequential zone-fuel loads on shared EF `DbContext` (was `Task.WhenAll` race).
+- **Time-entry audit trail 500 (PostHog #396)** ΓÇö normalize `from`/`to` query dates to UTC day boundaries for Npgsql `timestamptz`.
+- **Frontend 500 reports** ΓÇö `ApiError` carries `traceId`/`correlationId` from API for correlation with server exceptions.
+- **Spatial capture-quality integration assertion** ΓÇö drop contradictory `DoesNotContain("executive KPI")` (substring of honest label).
 
 ## [3.1.8] - 2026-07-13T17:14:00-07:00
 
 ### Added
 
-- **Plan pin Ã¢â€ â€™ draft RFI** Ã¢â‚¬â€ note + confirm dialog on Plans & Specs drawing view; `DrawingReferences` carry sheet/file identity; no auto-post; offline note stash when create fails.
+- **Plan pin ΓåÆ draft RFI** ΓÇö note + confirm dialog on Plans & Specs drawing view; `DrawingReferences` carry sheet/file identity; no auto-post; offline note stash when create fails.
 
 ## [3.1.7] - 2026-07-13T17:13:00-07:00
 
 ### Added
 
-- **Last project / plan sheet defaults** Ã¢â‚¬â€ device-local remember after field submit; applied on next field report open.
+- **Last project / plan sheet defaults** ΓÇö device-local remember after field submit; applied on next field report open.
 
 ## [3.1.6] - 2026-07-13T17:12:00-07:00
 
 ### Added
 
-- **Quick field log** Ã¢â‚¬â€ `/daily-reports/mobile?mode=quick` + field bottom-nav **Log**; same daily-report create/offline queue path as full wizard.
+- **Quick field log** ΓÇö `/daily-reports/mobile?mode=quick` + field bottom-nav **Log**; same daily-report create/offline queue path as full wizard.
 
 ## [3.1.5] - 2026-07-13T17:11:00-07:00
 
@@ -69,7 +75,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Plans offline honesty** Ã¢â‚¬â€ per-file cached vs not labels; unavailable open copy when not on device.
+- **Plans offline honesty** ΓÇö per-file cached vs not labels; unavailable open copy when not on device.
 
 ## [3.1.3] - 2026-07-13T17:09:00-07:00
 
@@ -93,13 +99,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **3.1 field mobile band** (`docs/specs/product-bands/band-3.1-field-mobile.md`) Ã¢â‚¬â€ offline photo **downscale-before-embed** helper + unit tests (2026 top field asks ladder through 3.1.9).
+- **3.1 field mobile band** (`docs/specs/product-bands/band-3.1-field-mobile.md`) ΓÇö offline photo **downscale-before-embed** helper + unit tests (2026 top field asks ladder through 3.1.9).
 
 ## [3.0.0] - 2026-07-12T18:32:02-07:00
 
 ### Added
 
-- **Major release 3.0.0** Ã¯Â¿Â½ product program through 2.22.2 plus runway verification to release candidate 2.24.2.
+- **Major release 3.0.0** ∩┐╜ product program through 2.22.2 plus runway verification to release candidate 2.24.2.
 
 ### Summary (Arc A-E + runway)
 
@@ -309,33 +315,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Runway opens** Ã¯Â¿Â½ docs/260712/runway-evidence.md checklist snapshot; no P0 regressions from 2.22.2 product close.
+- **Runway opens** ∩┐╜ docs/260712/runway-evidence.md checklist snapshot; no P0 regressions from 2.22.2 product close.
 
 ### Notes
 
-- Version **2.22.3**. Verification-only runway to 3.0.0. Next: Ã¯Â¿Â½1 mobile E2E evidence (2.22.4).
+- Version **2.22.3**. Verification-only runway to 3.0.0. Next: ∩┐╜1 mobile E2E evidence (2.22.4).
 
 ## [2.22.2] - 2026-07-12T17:59:52-07:00
 
 ### Added
 
-- **Last product PR (2.22.2)** Ã¯Â¿Â½ AP near-term aging filter (
+- **Last product PR (2.22.2)** ∩┐╜ AP near-term aging filter (
 earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo explore, honest drills); CI mobile/owner required-check notes (jobs optional with continue-on-error).
 
 ### Fixed
 
-- **apNearTerm orphan** Ã¯Â¿Â½ drill no longer opens full AP board only; filters Current + 1Ã¯Â¿Â½30 balances.
+- **apNearTerm orphan** ∩┐╜ drill no longer opens full AP board only; filters Current + 1∩┐╜30 balances.
 
 ### Notes
 
-- **Product band complete at 2.22.2.** Next is runway 2.22.3 (verification/fixes only Ã¯Â¿Â½ no new features).
+- **Product band complete at 2.22.2.** Next is runway 2.22.3 (verification/fixes only ∩┐╜ no new features).
 
 ## [2.22.1] - 2026-07-12T17:56:06-07:00
 
 ### Added
 
-- **KPI drill audit matrix** Ã¯Â¿Â½ persona ? KPI ? href ? filter contracts documented; low-severity orphan (pNearTerm proxy) listed for 2.22.2.
-- **Office help workflows** Ã¯Â¿Â½ CEO briefing, CFO WIP, PM approvals, Estimator pipeline cards on Help Center.
+- **KPI drill audit matrix** ∩┐╜ persona ? KPI ? href ? filter contracts documented; low-severity orphan (pNearTerm proxy) listed for 2.22.2.
+- **Office help workflows** ∩┐╜ CEO briefing, CFO WIP, PM approvals, Estimator pipeline cards on Help Center.
 
 ### Notes
 
@@ -345,7 +351,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Workflow approvals Phase 2 checkpoint** Ã¯Â¿Â½ Status Shipped through 2.22.0; DoD closed (pending aggregate, PM card, mobile time approve, transitions mirror, help, CI smokes).
+- **Workflow approvals Phase 2 checkpoint** ∩┐╜ Status Shipped through 2.22.0; DoD closed (pending aggregate, PM card, mobile time approve, transitions mirror, help, CI smokes).
 
 ### Notes
 
@@ -355,7 +361,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Help: approvals workflow** Ã¯Â¿Â½ Help Center cards for PM pending card, mobile time approve, and desktop review; FAQ freezes time-entries lifecycle.
+- **Help: approvals workflow** ∩┐╜ Help Center cards for PM pending card, mobile time approve, and desktop review; FAQ freezes time-entries lifecycle.
 
 ### Notes
 
@@ -365,7 +371,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Time entry transitions in workflow-transitions.ts** Ã¯Â¿Â½ mirrors C# IsValidTransition (Submitted?Approved/Rejected); vitest + integration tests for review queue / pending aggregate.
+- **Time entry transitions in workflow-transitions.ts** ∩┐╜ mirrors C# IsValidTransition (Submitted?Approved/Rejected); vitest + integration tests for review queue / pending aggregate.
 
 ### Notes
 
@@ -375,7 +381,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Mobile time entry approve/reject** Ã¯Â¿Â½ /time-tracking/approval/mobile uses existing review-queue + review APIs (Submitted lifecycle only); large touch targets; reject requires reason. Mobile-field-report already in CI (2.21.5).
+- **Mobile time entry approve/reject** ∩┐╜ /time-tracking/approval/mobile uses existing review-queue + review APIs (Submitted lifecycle only); large touch targets; reject requires reason. Mobile-field-report already in CI (2.21.5).
 
 ### Notes
 
@@ -385,8 +391,8 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **PM home pending approvals card** Ã¯Â¿Â½ live GET /api/approvals/pending totals (time entries + COs); honest empty copy.
-- **CI owner-signup-smoke** Ã¯Â¿Â½ Playwright owner-signup project (continue-on-error: true).
+- **PM home pending approvals card** ∩┐╜ live GET /api/approvals/pending totals (time entries + COs); honest empty copy.
+- **CI owner-signup-smoke** ∩┐╜ Playwright owner-signup project (continue-on-error: true).
 
 ### Notes
 
@@ -396,7 +402,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **CI job mobile-smoke** Ã¯Â¿Â½ Playwright mobile-field-report project; continue-on-error: true until branch-protection hardening.
+- **CI job mobile-smoke** ∩┐╜ Playwright mobile-field-report project; continue-on-error: true until branch-protection hardening.
 
 ### Notes
 
@@ -406,7 +412,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **GET /api/approvals/pending** Ã¯Â¿Â½ real DB counts for submitted time entries + pending change orders; company-scoped; honest zeros. Expanded lifecycle: timeEntries.
+- **GET /api/approvals/pending** ∩┐╜ real DB counts for submitted time entries + pending change orders; company-scoped; honest zeros. Expanded lifecycle: timeEntries.
 
 ### Notes
 
@@ -416,7 +422,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Workflow approvals Phase 2 freeze** Ã¯Â¿Â½ mobile approve lifecycle locked to **time entries**; aggregate route GET /api/approvals/pending planned; RFIs/POs deferred. Spec workflow-approvals-phase2.md.
+- **Workflow approvals Phase 2 freeze** ∩┐╜ mobile approve lifecycle locked to **time entries**; aggregate route GET /api/approvals/pending planned; RFIs/POs deferred. Spec workflow-approvals-phase2.md.
 
 ### Notes
 
@@ -426,7 +432,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Intelligence band checkpoint** Ã¯Â¿Â½ mobile-ai-intelligence Status **Shipped through 2.21.2**; DoD closed; notes updated.
+- **Intelligence band checkpoint** ∩┐╜ mobile-ai-intelligence Status **Shipped through 2.21.2**; DoD closed; notes updated.
 
 ### Notes
 
@@ -436,7 +442,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI trust boundary docs** Ã¯Â¿Â½ docs/ARCHITECTURE.md section + docs/architecture/AI-TRUST-BOUNDARY.md (confirm-to-apply, sanitizer, demo rate limits, offline honesty).
+- **AI trust boundary docs** ∩┐╜ docs/ARCHITECTURE.md section + docs/architecture/AI-TRUST-BOUNDARY.md (confirm-to-apply, sanitizer, demo rate limits, offline honesty).
 
 ### Notes
 
@@ -446,7 +452,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Vitest voice + AI merge helpers** Ã¯Â¿Â½ mergeVoiceAndAiSuggestions applies voice transcript then optional AI fill-empty only after confirm.
+- **Vitest voice + AI merge helpers** ∩┐╜ mergeVoiceAndAiSuggestions applies voice transcript then optional AI fill-empty only after confirm.
 
 ### Notes
 
@@ -456,7 +462,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Integration tests field AI endpoints** Ã¯Â¿Â½ auth required; suggestion DTO never AutoApplied (honest when AI unconfigured).
+- **Integration tests field AI endpoints** ∩┐╜ auth required; suggestion DTO never AutoApplied (honest when AI unconfigured).
 
 ### Notes
 
@@ -466,7 +472,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Error boundary on field AI panel** Ã¯Â¿Â½ AI suggestion UI fails soft with manual-entry copy; submit still works.
+- **Error boundary on field AI panel** ∩┐╜ AI suggestion UI fails soft with manual-entry copy; submit still works.
 
 ### Notes
 
@@ -476,7 +482,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **AI rate limits for demo users** Ã¯Â¿Â½ AiRateLimitPolicy applies stricter per-minute permits on i-chat / i-suggest / i-document when JWT is_demo_user=true.
+- **AI rate limits for demo users** ∩┐╜ AiRateLimitPolicy applies stricter per-minute permits on i-chat / i-suggest / i-document when JWT is_demo_user=true.
 
 ### Notes
 
@@ -486,7 +492,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Unit tests prompt sanitization** Ã¯Â¿Â½ expanded AiInputSanitizer coverage (injection strip, length/collection limits, context keys).
+- **Unit tests prompt sanitization** ∩┐╜ expanded AiInputSanitizer coverage (injection strip, length/collection limits, context keys).
 
 ### Notes
 
@@ -496,7 +502,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Help: AI on mobile FAQ** Ã¯Â¿Â½ mobile FAQ covers field AI confirm-to-apply, offline disabled, optional LLM EOD flag, and photo safety as non-compliance suggestion.
+- **Help: AI on mobile FAQ** ∩┐╜ mobile FAQ covers field AI confirm-to-apply, offline disabled, optional LLM EOD flag, and photo safety as non-compliance suggestion.
 
 ### Notes
 
@@ -506,7 +512,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **PostHog i_suggestion_applied** Ã¯Â¿Â½ diagnostic event when user confirms Apply on field voice or photo safety suggestions (not a vanity KPI).
+- **PostHog i_suggestion_applied** ∩┐╜ diagnostic event when user confirms Apply on field voice or photo safety suggestions (not a vanity KPI).
 
 ### Notes
 
@@ -516,7 +522,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Schedule slip risk flag (proxy labeled)** Ã¯Â¿Â½ field report shows Watch/Risk chip when linked activity plannedFinish is before report date; insufficient data when no plan date (not all-clear). No invented % complete.
+- **Schedule slip risk flag (proxy labeled)** ∩┐╜ field report shows Watch/Risk chip when linked activity plannedFinish is before report date; insufficient data when no plan date (not all-clear). No invented % complete.
 
 ### Notes
 
@@ -526,7 +532,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI MVP core checkpoint** Ã¯Â¿Â½ notes docs/ci/mobile-ai-mvp-notes.md; mobile-ai-intelligence status through 2.20.2 (voice ? EOD rule/flag paths).
+- **AI MVP core checkpoint** ∩┐╜ notes docs/ci/mobile-ai-mvp-notes.md; mobile-ai-intelligence status through 2.20.2 (voice ? EOD rule/flag paths).
 
 ### Notes
 
@@ -536,7 +542,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Optional LLM end-of-day summary behind flag** Ã¯Â¿Â½ NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD defaults **OFF** in prod; rule-based summary always available. When enabled, Review can request POST /api/ai/field-eod-summary as a labeled suggestion only.
+- **Optional LLM end-of-day summary behind flag** ∩┐╜ NEXT_PUBLIC_FEATURE_FIELD_LLM_EOD defaults **OFF** in prod; rule-based summary always available. When enabled, Review can request POST /api/ai/field-eod-summary as a labeled suggestion only.
 
 ### Notes
 
@@ -546,7 +552,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **End-of-day field summary (rule-based)** Ã¯Â¿Â½ Review step shows a form-derived bullet summary (activities, crew, delays, safety, photos/zone). No LLM; not an executive KPI; no invented %/cost/green.
+- **End-of-day field summary (rule-based)** ∩┐╜ Review step shows a form-derived bullet summary (activities, crew, delays, safety, photos/zone). No LLM; not an executive KPI; no invented %/cost/green.
 
 ### Notes
 
@@ -556,7 +562,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Offline AI disabled with honest copy** Ã¯Â¿Â½ field AI suggest is disabled offline; copy states narratives must be entered manually (no silent pretend success).
+- **Offline AI disabled with honest copy** ∩┐╜ field AI suggest is disabled offline; copy states narratives must be entered manually (no silent pretend success).
 
 ### Notes
 
@@ -566,7 +572,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **AI suggestion label on all field AI surfaces** Ã¯Â¿Â½ shared AI_SUGGESTION_REVIEW_LABEL (Ã¯Â¿Â½Suggestion Ã¯Â¿Â½ review before submitÃ¯Â¿Â½) on notes AI, photo safety, and Review step banner.
+- **AI suggestion label on all field AI surfaces** ∩┐╜ shared AI_SUGGESTION_REVIEW_LABEL (∩┐╜Suggestion ∩┐╜ review before submit∩┐╜) on notes AI, photo safety, and Review step banner.
 
 ### Notes
 
@@ -576,7 +582,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Photo assist optional safety suggestion (labeled)** Ã¯Â¿Â½ mobile Photos step can offer a caption-heuristic safety note; labeled Ã¯Â¿Â½Suggestion Ã¯Â¿Â½ review before submitÃ¯Â¿Â½; apply requires confirm; never auto-posts.
+- **Photo assist optional safety suggestion (labeled)** ∩┐╜ mobile Photos step can offer a caption-heuristic safety note; labeled ∩┐╜Suggestion ∩┐╜ review before submit∩┐╜; apply requires confirm; never auto-posts.
 
 ### Notes
 
@@ -586,7 +592,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI usage tracking per company** Ã¯Â¿Â½ AiUsageRecord.CompanyId + GetCompanyRequestCountAsync; field-voice-suggestion logs successful completions with active company for metering.
+- **AI usage tracking per company** ∩┐╜ AiUsageRecord.CompanyId + GetCompanyRequestCountAsync; field-voice-suggestion logs successful completions with active company for metering.
 
 ### Notes
 
@@ -596,7 +602,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Field report Apply AI suggestion chip** Ã¯Â¿Â½ mobile daily report can request structured AI suggestions from notes; chip shows Ã¯Â¿Â½Suggestion Ã¯Â¿Â½ review before submitÃ¯Â¿Â½; **Apply** only after user confirm (never auto-applies).
+- **Field report Apply AI suggestion chip** ∩┐╜ mobile daily report can request structured AI suggestions from notes; chip shows ∩┐╜Suggestion ∩┐╜ review before submit∩┐╜; **Apply** only after user confirm (never auto-applies).
 
 ### Notes
 
@@ -606,7 +612,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Construction jargon ? structured narratives prompt** Ã¯Â¿Â½ FieldVoicePrompts.ConstructionJargonSystemPrompt maps field slang (pour, strip forms, rain day, toolbox) into work/delays/safety suggestions; still forbids invented costs/% complete/green.
+- **Construction jargon ? structured narratives prompt** ∩┐╜ FieldVoicePrompts.ConstructionJargonSystemPrompt maps field slang (pour, strip forms, rain day, toolbox) into work/delays/safety suggestions; still forbids invented costs/% complete/green.
 
 ### Notes
 
@@ -616,7 +622,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **AI field voice suggestion scaffold** Ã¯Â¿Â½ POST /api/ai/field-voice-suggestion (auth + rate limit). Returns structured work/delays/safety suggestion DTO labeled Ã¯Â¿Â½Suggestion Ã¯Â¿Â½ review before submitÃ¯Â¿Â½; never auto-applies. When AI unconfigured, honest empty scaffold (no invented narratives).
+- **AI field voice suggestion scaffold** ∩┐╜ POST /api/ai/field-voice-suggestion (auth + rate limit). Returns structured work/delays/safety suggestion DTO labeled ∩┐╜Suggestion ∩┐╜ review before submit∩┐╜; never auto-applies. When AI unconfigured, honest empty scaffold (no invented narratives).
 
 ### Notes
 
@@ -626,7 +632,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Arc D checkpoint** Ã¯Â¿Â½ digital twin Phase 2 Status **Shipped through 2.19.2**; DoD checkboxes closed; twin-phase2 notes status final.
+- **Arc D checkpoint** ∩┐╜ digital twin Phase 2 Status **Shipped through 2.19.2**; DoD checkboxes closed; twin-phase2 notes status final.
 
 ### Notes
 
@@ -636,7 +642,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **docs/ci/twin-phase2-notes.md complete** Ã¯Â¿Â½ full Arc D version map (photo pins ? require spatial close), truth rules, demo skip, capture quality, E2E, integration commands.
+- **docs/ci/twin-phase2-notes.md complete** ∩┐╜ full Arc D version map (photo pins ? require spatial close), truth rules, demo skip, capture quality, E2E, integration commands.
 
 ### Notes
 
@@ -646,7 +652,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Arc D integration suite tidy** Ã¯Â¿Â½ SpatialEndpointsTests tagged Arc/TwinPhase2; added capture-quality + RequireSpatialOnProgress default integration cases.
+- **Arc D integration suite tidy** ∩┐╜ SpatialEndpointsTests tagged Arc/TwinPhase2; added capture-quality + RequireSpatialOnProgress default integration cases.
 
 ### Notes
 
@@ -656,7 +662,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **E2E twin zone round-trip (flag-gated)** Ã¯Â¿Â½ Playwright project 	win-zone-roundtrip covers field zone picker + twin shell + capture-quality when stack/auth available; self-skips honestly otherwise. Documented in twin-phase2 notes.
+- **E2E twin zone round-trip (flag-gated)** ∩┐╜ Playwright project 	win-zone-roundtrip covers field zone picker + twin shell + capture-quality when stack/auth available; self-skips honestly otherwise. Documented in twin-phase2 notes.
 
 ### Notes
 
@@ -666,7 +672,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Help: field zone picker + Digital Twin** Ã¯Â¿Â½ Help Center section on where the zone picker lives, optional vs required, demo skip, twin fuel, and capture-quality as labeled data quality (not a KPI).
+- **Help: field zone picker + Digital Twin** ∩┐╜ Help Center section on where the zone picker lives, optional vs required, demo skip, twin fuel, and capture-quality as labeled data quality (not a KPI).
 
 ### Notes
 
@@ -676,7 +682,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Spatial capture quality metric (labeled)** Ã¯Â¿Â½ GET /api/projects/{id}/spatial/capture-quality returns last-7d % of daily reports + progress entries with SpatialNodeId. Explicitly labeled data quality, not an executive KPI. Empty window ? null percent (honest). Unit tests for calculator.
+- **Spatial capture quality metric (labeled)** ∩┐╜ GET /api/projects/{id}/spatial/capture-quality returns last-7d % of daily reports + progress entries with SpatialNodeId. Explicitly labeled data quality, not an executive KPI. Empty window ? null percent (honest). Unit tests for calculator.
 
 ### Notes
 
@@ -686,7 +692,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Demo skip for RequireSpatialOnProgress** Ã¯Â¿Â½ demo JWT (is_demo_user) may submit field progress without a zone; production still enforces. Documented in docs/ci/twin-phase2-notes.md. Honest UI copy on mobile daily report.
+- **Demo skip for RequireSpatialOnProgress** ∩┐╜ demo JWT (is_demo_user) may submit field progress without a zone; production still enforces. Documented in docs/ci/twin-phase2-notes.md. Honest UI copy on mobile daily report.
 
 ### Notes
 
@@ -696,7 +702,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Field report zone prompt when required** Ã¯Â¿Â½ mobile daily report labels zone required when company RequireSpatialOnProgress is on and project has zones; blocks non-draft submit/offline queue with honest toast. Drafts still save without a zone. API submit returns SPATIAL_ZONE_REQUIRED as server-side guard.
+- **Field report zone prompt when required** ∩┐╜ mobile daily report labels zone required when company RequireSpatialOnProgress is on and project has zones; blocks non-draft submit/offline queue with honest toast. Drafts still save without a zone. API submit returns SPATIAL_ZONE_REQUIRED as server-side guard.
 
 ### Notes
 
@@ -706,7 +712,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **PM setting UI for RequireSpatialOnProgress** Ã¯Â¿Â½ Project Settings desktop card + company setup switch. Optional, default off; honest copy that enforcement lands next. Not an executive KPI.
+- **PM setting UI for RequireSpatialOnProgress** ∩┐╜ Project Settings desktop card + company setup switch. Optional, default off; honest copy that enforcement lands next. Not an executive KPI.
 
 ### Notes
 
@@ -716,7 +722,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **RequireSpatialOnProgress schema** Ã¢â‚¬â€ company `ProjectSettings` column `ProjRequireSpatialOnProgress` (default **false**). Exposed on project settings GET/PUT and module settings aggregate. Optional; field enforcement is later 2.18.x. Not an executive KPI.
+- **RequireSpatialOnProgress schema** ΓÇö company `ProjectSettings` column `ProjRequireSpatialOnProgress` (default **false**). Exposed on project settings GET/PUT and module settings aggregate. Optional; field enforcement is later 2.18.x. Not an executive KPI.
 
 ### Notes
 
@@ -784,7 +790,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Changed
 
-- **Mobile twin read-only polish** - stack controls on small screens; zone panel full-width under board; touch-friendly min heights preserved for 390Ãƒâ€”844.
+- **Mobile twin read-only polish** - stack controls on small screens; zone panel full-width under board; touch-friendly min heights preserved for 390├ù844.
 
 ### Notes
 
@@ -838,7 +844,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Model upload integration happy path** - register Ã¢â€ â€™ start conversion (Processing, not ready) Ã¢â€ â€™ fail with error Ã¢â€ â€™ retry; set-active rejected while not Succeeded.
+- **Model upload integration happy path** - register ΓåÆ start conversion (Processing, not ready) ΓåÆ fail with error ΓåÆ retry; set-active rejected while not Succeeded.
 
 ### Notes
 
@@ -856,7 +862,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Model conversion error + retry UX** - fail-conversion with clear error copy; retry-conversion FailedÃ¢â€ â€™Processing (still not ready). Twin UI shows error text + Retry button.
+- **Model conversion error + retry UX** - fail-conversion with clear error copy; retry-conversion FailedΓåÆProcessing (still not ready). Twin UI shows error text + Retry button.
 
 ### Notes
 
@@ -880,7 +886,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Model conversion job stub** - `POST .../model-assets/{id}/start-conversion` moves Pending Ã¢â€ â€™ Processing only; never marks Succeeded/ready.
+- **Model conversion job stub** - `POST .../model-assets/{id}/start-conversion` moves Pending ΓåÆ Processing only; never marks Succeeded/ready.
 
 ### Notes
 
@@ -898,7 +904,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **ModelAsset upload API scaffold** - entity + migration `pm_model_assets`; `GET/POST /api/projects/{id}/spatial/model-assets` (View list / Manage register). Register starts **Pending** Ã¢â‚¬â€ never ready until conversion Succeeded.
+- **ModelAsset upload API scaffold** - entity + migration `pm_model_assets`; `GET/POST /api/projects/{id}/spatial/model-assets` (View list / Manage register). Register starts **Pending** ΓÇö never ready until conversion Succeeded.
 
 ### Notes
 
@@ -911,7 +917,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Notes
 
-- Version **2.16.2** closes photo pins MVP (2.15.3Ã¢â‚¬â€œ2.16.2). Next: model upload 2.16.3+.
+- Version **2.16.2** closes photo pins MVP (2.15.3ΓÇô2.16.2). Next: model upload 2.16.3+.
 ## [2.16.1] - 2026-07-12T15:27:49-07:00
 
 ### Added
@@ -1063,7 +1069,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Sub status Ã¢â€ â€™ RFIs** - site walk sub cards deep-link to project RFIs with real `search=` filter (proxy status labels retained; no fake health scores).
+- **Sub status ΓåÆ RFIs** - site walk sub cards deep-link to project RFIs with real `search=` filter (proxy status labels retained; no fake health scores).
 
 ### Notes
 
@@ -1083,7 +1089,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Schedule look-ahead Ã¢â€ â€™ progress draft** - mobile schedule cards deep-link to progress with `activityId` / `activityName` preselect banner.
+- **Schedule look-ahead ΓåÆ progress draft** - mobile schedule cards deep-link to progress with `activityId` / `activityName` preselect banner.
 
 ### Notes
 
@@ -1137,7 +1143,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Notes
 
-- Version **2.13.9** Ã¢â‚¬â€ last patch of minor 13 before 2.14.0.
+- Version **2.13.9** ΓÇö last patch of minor 13 before 2.14.0.
 
 ## [2.13.8] - 2026-07-12T14:53:36-07:00
 
@@ -1163,7 +1169,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Site walk Ã¢â€ â€™ Plans deep link with filter** - Plans action uses `buildPlansSpecsHref` + `resolveSiteWalkPlansFilter` (sheet or look-ahead keyword `q`). Plans-specs seeds search from `?q=` / `?sheet=`.
+- **Site walk ΓåÆ Plans deep link with filter** - Plans action uses `buildPlansSpecsHref` + `resolveSiteWalkPlansFilter` (sheet or look-ahead keyword `q`). Plans-specs seeds search from `?q=` / `?sheet=`.
 
 ### Notes
 
@@ -1207,7 +1213,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Notes
 
-- Version **2.13.2** closes Arc A (2.12.3Ã¢â‚¬â€œ2.13.2). Next: Arc B plans viewer (2.13.3+).
+- Version **2.13.2** closes Arc A (2.12.3ΓÇô2.13.2). Next: Arc B plans viewer (2.13.3+).
 
 ## [2.13.1] - 2026-07-12T14:49:11-07:00
 
@@ -1237,7 +1243,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Notes
 
-- Version **2.12.9** Ã¢â‚¬â€ last patch of minor 12 before 2.13.0.
+- Version **2.12.9** ΓÇö last patch of minor 12 before 2.13.0.
 
 ## [2.12.8] - 2026-07-12T14:45:28-07:00
 
@@ -1253,7 +1259,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Help Center field workflows** - section "Field & mobile workflows" with Daily Field Report (/daily-reports/mobile), Site Walk (via Projects ? `/projects/{id}/site-walk`), and Offline/PWA cards (3Ã¯Â¿Â½5 steps + deep links). Shared data in `help-field-workflows.ts` with vitest coverage.
+- **Help Center field workflows** - section "Field & mobile workflows" with Daily Field Report (/daily-reports/mobile), Site Walk (via Projects ? `/projects/{id}/site-walk`), and Offline/PWA cards (3∩┐╜5 steps + deep links). Shared data in `help-field-workflows.ts` with vitest coverage.
 
 ### Notes
 
@@ -1268,7 +1274,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Playwright mobile field report E2E complete** - `fieldEng` at 390Ãƒâ€”844 drives Project Ã¢â€ â€™ Field Ã¢â€ â€™ Photos Ã¢â€ â€™ Review Ã¢â€ â€™ Submit with demo seed project and asserts daily-report create **200/201**. Wizard action buttons use `data-testid` hooks.
+- **Playwright mobile field report E2E complete** - `fieldEng` at 390├ù844 drives Project ΓåÆ Field ΓåÆ Photos ΓåÆ Review ΓåÆ Submit with demo seed project and asserts daily-report create **200/201**. Wizard action buttons use `data-testid` hooks.
 
 ### Notes
 
@@ -1278,7 +1284,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **Playwright mobile field-report scaffold** - `e2e/tests/mobile-field-report.spec.ts` with field persona (`field-eng@demo.local` / Foreman) auth via existing role fixtures, viewport **390Ãƒâ€”844**, project `mobile-field-report` in `playwright.config.ts`.
+- **Playwright mobile field-report scaffold** - `e2e/tests/mobile-field-report.spec.ts` with field persona (`field-eng@demo.local` / Foreman) auth via existing role fixtures, viewport **390├ù844**, project `mobile-field-report` in `playwright.config.ts`.
 - **npm scripts** - `test:mobile-field` / `test:mobile-field:list` under `e2e/package.json`.
 - **openAsPersona viewport option** - optional phone viewport on browser context for mobile E2E.
 
@@ -1295,17 +1301,17 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **`buildOfflineDailyReportSyncBody`** in `daily-report-offline.ts` Ã¢â‚¬â€ shared pure builder used by client sync; SW mirrors the same keys (plain JS cannot import TS). Vitest covers queue Ã¢â€ â€™ SW-shaped body with activities + spatial + plan.
+- **`buildOfflineDailyReportSyncBody`** in `daily-report-offline.ts` ΓÇö shared pure builder used by client sync; SW mirrors the same keys (plain JS cannot import TS). Vitest covers queue ΓåÆ SW-shaped body with activities + spatial + plan.
 
 ### Notes
 
-- Version **2.12.4** Ã¢â‚¬â€ daily-report offline path only; time-entry sync unchanged.
+- Version **2.12.4** ΓÇö daily-report offline path only; time-entry sync unchanged.
 
 ## [2.12.3] - 2026-07-12T08:30:00-07:00
 
 ### Fixed
 
-- **Field report mobile chrome** - hide `MobileBottomNav` and quick-action FAB on `/daily-reports/mobile` so the wizard owns a single bottom action bar (no double fixed bars at 390Ãƒâ€”844).
+- **Field report mobile chrome** - hide `MobileBottomNav` and quick-action FAB on `/daily-reports/mobile` so the wizard owns a single bottom action bar (no double fixed bars at 390├ù844).
 - **PWA install prompt** - position above bottom nav + `safe-area-inset-bottom` via shared `MOBILE_PWA_PROMPT_POSITION` (was raw `bottom-4` under the nav).
 
 ### Added
@@ -1321,26 +1327,26 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ### Added
 
-- **3.0.0 program firm path (Arc AÃ¢â‚¬â€œE)** - product ends at `2.22.2` (~101 PRs); runway `2.22.3`Ã¢â€ â€™`2.24.2` (20 PRs); major `2.24.2`Ã¢â€ â€™`3.0.0` (Ã¢â€°Ë†122 PRs total). Old 878-PR / 2.97Ã¢â‚¬â€œ2.99 ladder retired for 3.0.0.
-- **Agent-ready specs** under `docs/specs/` for mobile Phase 1Ã¢â‚¬â€œ3, twin Phase 2, AI, approvals, KPI drills, help, CI smoke.
+- **3.0.0 program firm path (Arc AΓÇôE)** - product ends at `2.22.2` (~101 PRs); runway `2.22.3`ΓåÆ`2.24.2` (20 PRs); major `2.24.2`ΓåÆ`3.0.0` (Γëê122 PRs total). Old 878-PR / 2.97ΓÇô2.99 ladder retired for 3.0.0.
+- **Agent-ready specs** under `docs/specs/` for mobile Phase 1ΓÇô3, twin Phase 2, AI, approvals, KPI drills, help, CI smoke.
 - **Copy-paste `/goal` prompts** for every version step in `docs/260712/goal-prompts.md`.
 - **Post-3.0 product band themes** parked in `docs/roadmap/post-3.0-product-bands.md` (do not block major).
-- **PR template** Ã¢â‚¬â€ spec link, version stamp checklist, preflight, help center.
+- **PR template** ΓÇö spec link, version stamp checklist, preflight, help center.
 
 ### Changed
 
-- **VERSION-WORKFLOW / plan1 / AGENTS** Ã¢â‚¬â€ single source of truth for Arc AÃ¢â‚¬â€œE Ã¢â€ â€™ 3.0.0 autonomous loop.
-- **AGENTS.md** Ã¢â‚¬â€ required reading by task type; mobile perf rule (no client ledger aggregation).
+- **VERSION-WORKFLOW / plan1 / AGENTS** ΓÇö single source of truth for Arc AΓÇôE ΓåÆ 3.0.0 autonomous loop.
+- **AGENTS.md** ΓÇö required reading by task type; mobile perf rule (no client ledger aggregation).
 
 ### Fixed
 
 - **MediatR license warnings in tests/CI** - resolve Lucky Penny community key from `MediatR:LicenseKey` / `MEDIATR_LICENSE_KEY` / `LUCKYPENNY_LICENSE_KEY`; apply in unit `ModuleInit` and on every `AddMediatR` registration; CI injects repo secret `MEDIATR_LICENSE_KEY`.
-- **Employees KPI not drillable** - restore Workforce/Employees home cards (executive + overview KPIs) linking to `/employees?isActive=true`; employees-page summary cards filter/scroll to the directory; project labor Ã¢â‚¬Å“EmployeesÃ¢â‚¬Â opens team on the job.
+- **Employees KPI not drillable** - restore Workforce/Employees home cards (executive + overview KPIs) linking to `/employees?isActive=true`; employees-page summary cards filter/scroll to the directory; project labor ΓÇ£EmployeesΓÇ¥ opens team on the job.
 
 ### Notes
 
-- **PostHog .NET SDK** - `PostHog` / `PostHog.AspNetCore` **2.2.2 Ã¢â€ â€™ 2.6.0** (server analytics client) carried from unreleased.
-- Version **2.12.2** Ã¢â‚¬â€ docs/agent infrastructure only; mobile chrome and SW parity start at 2.12.3.
+- **PostHog .NET SDK** - `PostHog` / `PostHog.AspNetCore` **2.2.2 ΓåÆ 2.6.0** (server analytics client) carried from unreleased.
+- Version **2.12.2** ΓÇö docs/agent infrastructure only; mobile chrome and SW parity start at 2.12.3.
 
 ## [2.12.1] - 2026-07-12T04:00:00-07:00
 
@@ -1499,7 +1505,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 ### Added
 
 - **Field / pour capture on mobile daily report** - short path Project -> Field -> Photos -> Review; work chips (Pour / Form / Rebar / Finish / Dirt); truck/material chips (too wet, too dry, rejected, held); crew counts; optional weather; voice notes
-- **Offline photos with report queue** - up to 5 images Ã¢â€°Â¤~1.2MB embedded as data URLs; sync uploads them after the report posts; oversized photos honestly skipped
+- **Offline photos with report queue** - up to 5 images Γëñ~1.2MB embedded as data URLs; sync uploads them after the report posts; oversized photos honestly skipped
 - **Plans drawing files** - plans-specs loads project documents (Plans/PDF/image), View iframe / Open full-screen for field use
 
 ### Changed
@@ -1633,7 +1639,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 - **Aging page applies `focus` / `overdue`** - AR/AP KPI drills no longer land on unfiltered dual boards; 31+ overdue lines filtered when `overdue=true`
 - **Hours This Week drill** - uses `view=entries&period=thisWeek` so list stays on entries with this-week date range (no silent redirect to crew entry)
-- **AR Ã¢Ë†â€™ AP Net drill** - lands on full aging board (both AR and AP + net), not `focus=ar` alone
+- **AR ΓêÆ AP Net drill** - lands on full aging board (both AR and AP + net), not `focus=ar` alone
 - **RFI drill parity** - Open RFIs KPI uses `status=notClosed` (Open+Answered) to match `Status != Closed` headline count
 - **Active projects drill** - `excludeCompleted=true` matches portfolio count (`Status != Completed`)
 - **Drill contract table** - `role-kpi-drill-contracts.ts` + parity tests tie each KPI href to its server predicate
@@ -1971,20 +1977,20 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.11.3] - 2026-02-15
 
-### Ã°Å¸Å¡â‚¬ Features
+### ≡ƒÜÇ Features
 
 - **Crew Timecard Settings** - Company-configurable time entry with daily or weekly modes, detailed or simple weekly entry, default project, and phase/equipment requirements (#67)
 - **Auto-Assign Labor Cost Codes** - Crew grid entries automatically receive the default labor cost code, eliminating manual selection for field workers (#68)
 - **Streamlined Crew Entry Grid** - Removed cost code column, added equipment hours column, and made crew entry the default time tracking view with navigation tabs (#69)
 - **Default Cost Code Seeding** - New tenants receive 7 standard cost codes (LAB, EQP, MAT, SUB-LAB, SUB-MAT, SUB-EQP, OVH) out of the box
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - **Nullable CostCodeId** - Time entry creation no longer requires an explicit cost code, supporting auto-assignment from crew grid
 - **Enum validation on timecard settings** - Invalid TimecardMode or WeeklyEntryMode values now return clear 400 errors instead of silently accepting bad data
 - **DefaultProjectId validation** - Settings endpoint verifies the referenced project exists before saving
 
-### Ã°Å¸Â§Âª Testing
+### ≡ƒº¬ Testing
 
 - **Controller unit test coverage expansion** - Added tests for 4 more controllers (13/22 total):
  - CostCodesController, DashboardController, EquipmentController, PayPeriodsController
@@ -1996,12 +2002,12 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.11.2] - 2026-02-15
 
-### Ã°Å¸â€â€™ Security
+### ≡ƒöÆ Security
 
 - **Bootstrap-admin privilege escalation fix** - Anonymous endpoint could promote any user to Admin; now guarded so only first-time setup allows unauthenticated access, existing tenants require authenticated Admin caller
 - **Rate limiting on admin and user controllers** - All administrative endpoints now enforce request rate limits to prevent enumeration and abuse
 
-### Ã°Å¸Â§Âª Testing
+### ≡ƒº¬ Testing
 
 - **Controller unit test coverage expansion** - Added comprehensive unit tests for 9 of 22 API controllers:
  - AuthController (37 tests) - login, register, change-password, profile, bootstrap-admin
@@ -2020,7 +2026,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [Unreleased] - Multi-Company Architecture (feature/multi-company)
 
-### Ã°Å¸Å¡â‚¬ Features
+### ≡ƒÜÇ Features
 
 - **Multi-Company Support** - Single tenant, multiple legal entities
  - Company entity with code, name, tax ID, address, fiscal year, branding
@@ -2031,7 +2037,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Auto-creates default company for existing tenants (zero-friction migration)
  - Single-company tenants see no UI changes - fully transparent
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Infrastructure
+### ≡ƒÅù∩╕Å Infrastructure
 
 - **1,184-line architecture design document** covering industry research (Vista, Sage 300, NetSuite), data model, RLS changes, migration strategy, and phased implementation plan
 - **ICompanyScoped interface** - clean separation between company-scoped and tenant-scoped entities
@@ -2043,7 +2049,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.11.1] - 2026-02-13
 
-### Ã°Å¸Å¡â‚¬ RFI Management
+### ≡ƒÜÇ RFI Management
 
 - **RFI Management UI** - Complete RFI workflow in the web interface
  - List view with search, status/priority filters, and result count
@@ -2072,7 +2078,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Automatically links CO back to originating RFI
  - Full traceability: RFI -> Change Order -> Cost Impact
 
-### Ã°Å¸â€œÅ  Dashboard Improvements
+### ≡ƒôè Dashboard Improvements
 
 - **Recently Viewed Section** - Quick access to your recent work
  - Shows last 5 projects, bids, and RFIs you've viewed
@@ -2090,7 +2096,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Dropdown panel with recent notifications
  - Mark as read/unread functionality
 
-### Ã¢Å¡Â¡ User Experience Improvements
+### ΓÜí User Experience Improvements
 
 - **Global Command Palette** - Keyboard-first navigation (Cmd/Ctrl+K)
  - Search projects, bids, RFIs, and employees
@@ -2140,7 +2146,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Helps new users discover functionality
  - ARIA labels for screen readers
 
-### Ã°Å¸â€œÂ± Mobile Improvements
+### ≡ƒô▒ Mobile Improvements
 
 - **Floating Action Button (FAB)** - Quick actions on mobile
  - Fixed position bottom-right on small screens
@@ -2148,7 +2154,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Create Project, Bid, RFI, Log Time
  - Smooth animations
 
-### Ã°Å¸â€œâ€ž Reporting & Export
+### ≡ƒôä Reporting & Export
 
 - **Printable Project Summary** - Professional reports
  - Print-optimized layout at `/projects/{id}/print`
@@ -2160,7 +2166,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Includes all fields and metadata
  - Compatible with Excel and other tools
 
-### Ã¢ÂÂ±Ã¯Â¸Â Time Tracking Improvements
+### ΓÅ▒∩╕Å Time Tracking Improvements
 
 - **Bulk Approve/Reject** - Faster supervisor workflow
  - Checkbox selection on individual entries
@@ -2174,7 +2180,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Real-time validation as you type
  - Clear error states with recovery hints
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - Fixed flaky health check integration test (non-serializable HealthReport)
 - **Role auto-assignment** - New users now automatically get roles on registration (Admin for first user, User for subsequent). Existing users without roles get backfilled on login.
@@ -2183,13 +2189,13 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 - **Dark mode consistency** - Improved text contrast and notification center styling in dark theme
 - **Database resilience** - Wrapped transactions in execution strategy for Npgsql retry support
 
-### Ã°Å¸Â§Âª Testing
+### ≡ƒº¬ Testing
 
 - 19 unit tests for RfisNeedingAttention endpoint
 - 8 integration tests for RFI cost impact endpoints
 - **Total: 683 unit tests, 198 integration tests (881 total)**
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Code Quality
+### ≡ƒÅù∩╕Å Code Quality
 
 - Formatted 138 files with `dotnet format`
 - Removed 5 stale "Known Issues" from documentation
@@ -2199,7 +2205,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.11.0] - 2026-02-13
 
-### Ã°Å¸Å¡â‚¬ Features
+### ≡ƒÜÇ Features
 
 - **RFI Cost Impact Tracking** - Track the full financial impact of RFIs through the project lifecycle
  - Link Change Orders to originating RFIs
@@ -2213,9 +2219,9 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - `GET /api/projects/{id}/rfi-cost-summary` - Project-level aggregates: total costs, delay days, top 5 costly RFIs
  - Enables dashboards and reports showing true RFI financial impact
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Infrastructure
+### ≡ƒÅù∩╕Å Infrastructure
 
-- **Architecture:** Ã°Å¸Å½â€° **MediatR removal COMPLETE** - Entire codebase is now MediatR-free!
+- **Architecture:** ≡ƒÄë **MediatR removal COMPLETE** - Entire codebase is now MediatR-free!
  - Removed MediatR from ALL 12 controllers (Issue #118)
  - Final batch: DashboardController, RfisController, TimeEntriesController, ProjectAssignmentsController, PayPeriodsController
  - TimeEntriesController: 9 handler usages consolidated into TimeEntryService
@@ -2233,7 +2239,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Self-hosted runners were offline 23+ hours
  - CI now completes in ~4 minutes (was stuck indefinitely)
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - **EF Core LINQ:** Fixed `StringComparison.CurrentCultureIgnoreCase` translation errors across 12 files
 - **Web UI:** Added missing `date-fns` package and `Switch` component for pay periods page
@@ -2253,7 +2259,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.17] - 2026-02-10
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Bids integration tests** (+2 tests)
  - Delete nonexistent bid returns 404
@@ -2268,12 +2274,12 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.16] - 2026-02-10
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - **fix(projects):** V2 service methods now filter by `!IsDeleted` - soft-deleted records were being returned
 - **fix(projects):** Stats endpoint SqlQueryRaw scalar mapping - added wrapper DTOs to fix EF Core mapping
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Contracts module validator tests** (+57 tests)
  - CreateSubcontractValidator (22 tests)
@@ -2290,13 +2296,13 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 - **Various module integration tests** (+10 tests)
  - Tenants, SeedData, TimeEntries, Dashboard
 
-**Total tests:** 1013 (834 unit + 179 integration) Ã°Å¸Å½â€° **Crossed 1000 tests milestone!**
+**Total tests:** 1013 (834 unit + 179 integration) ≡ƒÄë **Crossed 1000 tests milestone!**
 
 ---
 
 ## [0.10.15] - 2026-02-10
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Integration tests for PaymentApplications endpoints** (+6 tests)
  - Update payment application
@@ -2314,12 +2320,12 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 - **Integration tests for Users** (+6 tests)
  - Role assignment endpoints
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with accurate test counts (924 passing)
 - Updated Alpha 0 roadmap with module list
 
-### Ã°Å¸â€Â§ Infrastructure
+### ≡ƒöº Infrastructure
 
 - Fixed Testcontainers deprecation warning (CS0618)
 
@@ -2329,7 +2335,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.14] - 2026-02-10
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - **fix(employees):** Corrected `CreateEmployeeCommand` argument order in controller - was passing parameters in wrong order
 - **fix:** Corrected raw SQL column names in stats queries - changed from snake_case to PascalCase to match EF Core conventions
@@ -2339,19 +2345,19 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.13] - 2026-02-09
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Infrastructure
+### ≡ƒÅù∩╕Å Infrastructure
 
 - **Module cleanup complete**: Removed incomplete HR and Payroll modules that were blocking production deployments
 - **CI reliability improvements**: Added workspace cleanup to self-hosted runner to prevent stale file issues
 - **Database migration cleanup**: Removed orphaned migration files to ensure clean schema state
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - Fixed Railway deployment failures caused by incomplete module references
 - Fixed CI build failures from cached test files on self-hosted runner
 - Fixed EF Core migration warnings that were failing integration tests
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: ~900 (reduced from 1244 after removing HR/Payroll test suites)
 - Test count decreased as a result of module removal - actual coverage of active modules remains complete
@@ -2360,13 +2366,13 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.12] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage Milestone
+### ≡ƒôè Test Coverage Milestone
 
 - **Total tests**: 1244 (1000 unit + 244 integration)
 - **New integration tests**: +24
  - EmployeesEndpointsTests (+24): Comprehensive coverage including auth, CRUD, tenant isolation, filtering by department/employment status, search, soft-delete behavior
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Infrastructure
+### ≡ƒÅù∩╕Å Infrastructure
 
 - Added `.dockerignore` to optimize Docker builds and exclude incomplete modules
 - Commented out HR/Payroll project references until modules are production-ready
@@ -2376,13 +2382,13 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.11] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1220 (1000 unit + 220 integration)
 - **New integration tests**: +9
  - ProjectAssignmentsEndpointsTests (+9): Auth tests (4), CRUD tests (2), error handling tests (3)
 
-### Ã°Å¸Ââ€º Bug Fix
+### ≡ƒÉ¢ Bug Fix
 
 - Fixed `ProjectAssignmentsController` returning 400 instead of 404 for nonexistent assignments
  - Handler returned `ASSIGNMENT_NOT_FOUND` but controller only checked for `NOT_FOUND`
@@ -2391,13 +2397,13 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.10] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1211 (1000 unit + 211 integration)
 - **New integration tests**: +7
  - ProjectsEndpointsTests (+7): Update, delete, filter by type, search by name, stats 404, cannot update nonexistent, cannot delete nonexistent
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1211)
 - Updated recent wins section
@@ -2406,14 +2412,14 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.9] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1204 (1000 unit + 204 integration)
 - **New integration tests**: +9
  - SubcontractsEndpointsTests (+5): Update, delete, filter by project, search by name, nonexistent update
  - ChangeOrdersEndpointsTests (+4): Delete, filter by subcontract, filter by status, nonexistent delete
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1204)
 - Updated recent wins section - Contracts module test coverage expanded
@@ -2422,7 +2428,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.8] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1195 (1000 unit + 195 integration)
 - **New integration tests**: +18
@@ -2430,7 +2436,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - HREVerifyCasesEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint, needs-action endpoint, status updates (TNC, authorized, etc.)
 - **HR Module 100% Complete!** All 10 HR controllers now have integration test coverage
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1195)
 - Updated recent wins section - HR module test coverage complete!
@@ -2439,13 +2445,13 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.7] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1177 (1000 unit + 177 integration)
 - **New integration tests**: +9
  - HRUnionMembershipsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, union local filtering, by-employee endpoint, dispatch tracking, fringe rates
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1177)
 - Updated recent wins section
@@ -2454,7 +2460,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.6] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1168 (1000 unit + 168 integration)
 - **New integration tests**: +44
@@ -2465,7 +2471,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - HREmploymentEpisodesEndpointsTests (+9): Auth, list/get, tenant isolation, employee filtering, termination workflow, delete
  - HRI9RecordsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, eligibility verification workflow
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1168)
 - Updated recent wins section with comprehensive HR module coverage
@@ -2474,7 +2480,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.5] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1150 (1000 unit + 150 integration)
 - **New integration tests**: +35
@@ -2483,7 +2489,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - HREmergencyContactsEndpointsTests (+8): Auth, CRUD, tenant isolation, employee filtering, by-employee endpoint
  - HRDeductionsEndpointsTests (+9): Auth, CRUD, tenant isolation, garnishments, employee filtering, active deductions endpoint
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1150)
 - Updated recent wins section with full HR sub-module coverage
@@ -2492,14 +2498,14 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.4] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1133 (1000 unit + 133 integration)
 - **New integration tests**: +18
  - HRPayRatesEndpointsTests (+9): Auth, CRUD, tenant isolation, fringe benefits, employee filtering, active rates endpoint
  - HRCertificationsEndpointsTests (+9): Auth, CRUD, tenant isolation, employee filtering, type code filtering, expiring certs endpoint
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1133)
 - Updated recent wins section with HR module test coverage
@@ -2508,7 +2514,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.3] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1115 (1000 unit + 115 integration)
 - **New integration tests**: +18
@@ -2516,7 +2522,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - AdminCompanyEndpointsTests (+5): Auth, default settings, update, minimal update, persistence
  - UsersEndpointsTests (+7): Auth, listing, user details, roles, search, pagination
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1115)
 - Updated recent wins section with admin panel test coverage
@@ -2525,7 +2531,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.2] - 2026-02-09
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1097 (1000 unit + 97 integration)
 - **New integration tests**: +41 (from 56 to 97)
@@ -2537,7 +2543,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
  - Tenants endpoints (+5): Current tenant, access control, cross-tenant security
  - Admin Users endpoints (+6): List, get, roles, search
 
-### Ã°Å¸â€œÂ Documentation
+### ≡ƒô¥ Documentation
 
 - Updated README with current test counts (1097)
 - Updated recent wins section
@@ -2546,18 +2552,18 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.1] - 2026-02-08
 
-### Ã°Å¸â€â€™ Security
+### ≡ƒöÆ Security
 
 - **Payroll RLS Policies**: Multi-tenant isolation for pay_periods, payroll_batches, payroll_entries, payroll_deduction_lines
 - **HR RLS Policies**: Multi-tenant isolation for all 10 HR schema tables
 - All tenant-scoped tables now have database-level row security
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - Fixed BidNumber -> Number column reference in dashboard raw SQL query
 - Fixed Payroll module registration in Program.cs (was causing PendingModelChangesWarning)
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 1056 (1000 unit + 56 integration)
 - **New integration tests**: 18 (10 Payroll + 8 HR Employees)
@@ -2567,12 +2573,12 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 
 ## [0.10.0] - 2026-02-08
 
-### Ã°Å¸Å½â€° HR Module Complete!
+### ≡ƒÄë HR Module Complete!
 
 Full HR Core module with 10 entities, 10 controllers, 55+ endpoints.
 Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
-### Ã¢Å“Â¨ New Entities (this release)
+### Γ£¿ New Entities (this release)
 
 - **EmploymentEpisode CRUD**: Rehire tracking for construction's 60%+ turnover
  - Auto-incrementing episode numbers per employee
@@ -2610,7 +2616,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - TNC (Tentative Non-Confirmation) workflow
  - `/needs-action` endpoint for pending cases
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 991 unit tests passing
 - **Test growth**: +20 tests from 0.9.0
@@ -2619,7 +2625,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ## [0.9.0] - 2026-02-08
 
-### Ã¢Å“Â¨ New Features
+### Γ£¿ New Features
 
 - **HR Module Certification CRUD**: Full certification tracking for compliance
  - `POST /api/hr/certifications` - Create employee certification
@@ -2647,7 +2653,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - `DELETE /api/hr/employees/{id}`
  - 3 new tests
 
-### Ã°Å¸â€œÅ  Test Coverage
+### ≡ƒôè Test Coverage
 
 - **Total tests**: 971 (933 unit + 38 integration)
 - **Test growth**: +72 tests from 0.8.6
@@ -2656,7 +2662,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ## [0.8.6] - 2026-02-08
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - **TimeTracking Soft-Delete Filtering**: Completes consistency across ALL modules
  - `GetEmployeeHandler`, `ListEmployeesHandler` now filter deleted records
@@ -2667,7 +2673,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ## [0.8.5] - 2026-02-08
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - **Soft-Delete Filtering Consistency**: Fixed data integrity across all modules
  - **Bids**: `GetBidHandler`, `ListBidsHandler` now filter deleted records
@@ -2676,7 +2682,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - **RFIs**: `GetRfiHandler`, `ListRfisHandler` now filter deleted records
  - Ensures proper data lifecycle management across the platform
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Infrastructure
+### ≡ƒÅù∩╕Å Infrastructure
 
 - **Railway Deployment Fix**: Resolved multi-service deployment issues
  - Moved from root `railway.toml` to service-specific `railway.json` configs
@@ -2689,7 +2695,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - Detects `DROP TABLE`, `DROP COLUMN`, `DELETE FROM` without safeguards
  - Prevents accidental data loss in production deployments
 
-### Ã°Å¸Â§Âª Test Coverage
+### ≡ƒº¬ Test Coverage
 
 - **Integration Tests**: +24 new integration tests
  - Bids: +4 (CRUD, status workflow, soft-delete)
@@ -2701,7 +2707,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ## [0.8.4] - 2026-02-08
 
-### Ã°Å¸Â§Âª Test Coverage
+### ≡ƒº¬ Test Coverage
 
 - **RFI Handler Tests** (PR #147): +36 comprehensive handler tests for RFI module
  - CreateRfiHandler (14 tests): RFI creation, sequential numbering, ball-in-court defaults
@@ -2709,7 +2715,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - ListRfisHandler (14 tests): status/priority/user filtering, search, pagination
  - UpdateRfiHandler (18 tests): field updates, status transitions (Open->Answered->Closed), timestamp logic
 
-### Ã°Å¸â€œÅ  Test Stats
+### ≡ƒôè Test Stats
 
 - **Total tests:** 782 (768 unit + 14 integration)
 - All modules now have comprehensive handler test coverage
@@ -2718,7 +2724,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ## [0.8.3] - 2026-02-08
 
-### Ã°Å¸Â§Â¹ Quality Improvements
+### ≡ƒº╣ Quality Improvements
 
 - **EF Core Query Diagnostics** (PR #146): Development-only diagnostics to catch performance issues early
  - Enable detailed errors and sensitive data logging in dev
@@ -2729,19 +2735,19 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - Connection Idle Lifetime: 300s
  - Updated .env.example with pool documentation
 
-### Ã°Å¸â€œÅ  Quality Strategy
+### ≡ƒôè Quality Strategy
 
 - **v0.2.0 Checklist: 4/7 items complete**
- - Ã¢Å“â€¦ N+1 query detection in dev
- - Ã¢Å“â€¦ Missing database indexes
- - Ã¢Å“â€¦ Multi-SaveChanges transaction rule (documented + verified)
- - Ã¢Å“â€¦ DB connection pool configuration
+ - Γ£à N+1 query detection in dev
+ - Γ£à Missing database indexes
+ - Γ£à Multi-SaveChanges transaction rule (documented + verified)
+ - Γ£à DB connection pool configuration
 
 ---
 
 ## [0.8.2] - 2026-02-08
 
-### Ã°Å¸â€â€™ Security
+### ≡ƒöÆ Security
 
 - **Optimistic Concurrency for TimeTracking**: Added PostgreSQL `xmin` concurrency tokens to prevent "last write wins" data corruption
  - Employee entity: concurrent edit protection
@@ -2749,14 +2755,14 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - ProjectAssignment entity: concurrent edit protection
  - CostCode entity: concurrent edit protection
 
-### Ã°Å¸â€œÅ  Quality Milestone
+### ≡ƒôè Quality Milestone
 
-- **v0.1.0 Quality Checklist: 13/13 COMPLETE** Ã¢Å“â€¦
+- **v0.1.0 Quality Checklist: 13/13 COMPLETE** Γ£à
  - All P0 security items done
  - All P1 architecture items done
  - Foundation ready for Beta Demo phase
 
-### Ã°Å¸â€”â€žÃ¯Â¸Â Database
+### ≡ƒùä∩╕Å Database
 
 - Migration `20260208071202_AddOptimisticConcurrencyToTimeTracking`
 - Uses PostgreSQL system column `xmin` (no additional storage overhead)
@@ -2765,7 +2771,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ## [0.8.1] - 2026-02-08
 
-### Ã°Å¸Â§Âª Test Coverage
+### ≡ƒº¬ Test Coverage
 
 - **Contracts Handler Tests**: +45 comprehensive handler tests
  - GetChangeOrderHandler (4 tests): retrieve, not found, approval/rejection details
@@ -2775,13 +2781,13 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
  - ListPaymentApplicationsHandler (8 tests): filtering, pagination, ordering
  - UpdatePaymentApplicationHandler (9 tests): recalculation, status transitions, subcontract sync
 
-### Ã°Å¸â€œÅ¡ Documentation
+### ≡ƒôÜ Documentation
 
 - **README.md**: Updated test count (733), Contracts module status
 - **RfisController**: Added full OpenAPI documentation (ProducesResponseType, XML docs, examples)
 - 16/16 API controllers now have comprehensive Swagger documentation
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - **Test count: 733** (719 unit + 14 integration)
 - +45 handler tests from PR #141
@@ -2790,7 +2796,7 @@ Foundation for Payroll -> Job Costing -> Accounting pipeline.
 
 ## [0.8.0] - 2026-02-08
 
-### Ã¢Å“Â¨ New Module: Contracts Management
+### Γ£¿ New Module: Contracts Management
 
 The Contracts module provides comprehensive subcontract lifecycle management:
 
@@ -2818,13 +2824,13 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 - Automatic subcontract totals sync when marked Paid
 - 26 new validator tests for comprehensive coverage
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - **Test count: 688** (674 unit + 14 integration)
 - +137 tests from Contracts module
 - 3 new API controllers: SubcontractsController, ChangeOrdersController, PaymentApplicationsController
 
-### Ã°Å¸â€”â€žÃ¯Â¸Â Database
+### ≡ƒùä∩╕Å Database
 
 - Migration `20260208030543_AddContractsModule` - Subcontracts and ChangeOrders
 - Migration `20260208050611_AddPaymentApplications` - Payment Applications
@@ -2833,13 +2839,13 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 
 ## [0.7.8] - 2026-02-07
 
-### Ã°Å¸â€â€™ Security
+### ≡ƒöÆ Security
 
 - **RLS Policies for TimeTracking**: Added missing Row-Level Security policies for `employees`, `time_entries`, and `employee_project_assignments` tables
  - Migration `20260207120000_AddMissingRLSPolicies` ensures tenant isolation
  - Critical fix: tables added after initial RLS migration were unprotected
 
-### Ã°Å¸Â§Âª Test Coverage
+### ≡ƒº¬ Test Coverage
 
 - **TimeEntries Integration Tests**: 5 new integration tests for TimeTracking API
  - Authentication requirements
@@ -2847,7 +2853,7 @@ The Contracts module provides comprehensive subcontract lifecycle management:
  - Multi-tenant isolation
  - Duplicate employee number validation
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - **Test count: 551** (537 unit + 14 integration)
 - +5 integration tests for TimeTracking security verification
@@ -2856,7 +2862,7 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 
 ## [0.7.7] - 2026-02-07
 
-### Ã°Å¸Â§Âª Test Coverage
+### ≡ƒº¬ Test Coverage
 
 - **RFI Validators**: CreateRfiValidator (19 tests), UpdateRfiValidator (26 tests)
  - ProjectId, Subject, Question, Priority validation
@@ -2864,7 +2870,7 @@ The Contracts module provides comprehensive subcontract lifecycle management:
  - Status enum validation (Open/Answered/Closed)
  - All edge cases and workflow scenarios covered
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - **Test count: 546** (537 unit + 9 integration)
 - +45 tests from RFI validator coverage
@@ -2873,16 +2879,16 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 
 ## [0.7.6] - 2026-02-07
 
-### Ã°Å¸â€ºÂ Ã¯Â¸Â Infrastructure
+### ≡ƒ¢á∩╕Å Infrastructure
 
 - **CI Fix for Self-Hosted Runner**: Removed `setup-dotnet` step from `ci-self-hosted.yml` that was failing with permission denied errors when trying to write to `/usr/share/dotnet`. Self-hosted runner has .NET pre-installed.
 
-### Ã°Å¸Â§Âª Test Coverage
+### ≡ƒº¬ Test Coverage
 
 - **Auth Validators**: LoginRequest (12 tests), RegisterRequest (25 tests) 
 - **TimeTracking Handlers**: Complete coverage for ListTimeEntries, ListEmployees, ApproveTimeEntry, RejectTimeEntry, GetTimeEntry, CreateEmployee handlers
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - **Test count: 502** (493 unit + 9 integration)
 - All CI workflows passing
@@ -2891,7 +2897,7 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 
 ## [0.7.4] - 2026-02-07
 
-### Ã°Å¸â€Â§ Code Quality
+### ≡ƒöº Code Quality
 
 - **User Context for Soft Deletes**: `ProjectService` now captures actual user ID for `DeletedBy` field instead of hardcoded "system"
  - Injected `IHttpContextAccessor` into service
@@ -2900,7 +2906,7 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 
 - **Improved Error Logging**: Enhanced domain event error messages in `PitbullDbContext` to include exception type
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - **Test count: 413** (no change - code quality fix only)
 
@@ -2908,7 +2914,7 @@ The Contracts module provides comprehensive subcontract lifecycle management:
 
 ## [0.7.3] - 2026-02-07
 
-### Ã°Å¸â€â€™ Data Validation Sprint
+### ≡ƒöÆ Data Validation Sprint
 
 Comprehensive FluentValidation coverage for all command types across TimeTracking, Projects, and Bids modules.
 
@@ -2926,9 +2932,9 @@ Comprehensive FluentValidation coverage for all command types across TimeTrackin
 - `DeleteProjectValidator` - Project ID required (2 tests)
 - `DeleteBidValidator` - Bid ID required (2 tests)
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
-- **Test count: 413** (404 unit + 9 integration) Ã°Å¸Å½â€°
+- **Test count: 413** (404 unit + 9 integration) ≡ƒÄë
 - **Hit 400 unit tests milestone!**
 - +116 new tests in one overnight session
 - All Commands in TimeTracking, Projects, and Bids modules now have validators
@@ -2937,7 +2943,7 @@ Comprehensive FluentValidation coverage for all command types across TimeTrackin
 
 ## [0.7.2] - 2026-02-06
 
-### Ã°Å¸â€Â§ Code Quality
+### ≡ƒöº Code Quality
 
 - Fixed 5 compiler warnings across tests and API docs
 - Added 7 tests for `ConvertBidToProjectValidator`
@@ -2952,7 +2958,7 @@ Comprehensive FluentValidation coverage for all command types across TimeTrackin
 
 ## [0.7.1] - 2026-02-06
 
-### Ã°Å¸Â§Âª Test Coverage Sprint
+### ≡ƒº¬ Test Coverage Sprint
 
 Massive test coverage expansion with 58 new tests added in a focused sprint.
 
@@ -2968,7 +2974,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 - `UpdateProjectValidator` - 10 tests for update validation rules
 - `UpdateBidValidator` - 10 tests for bid update validation
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - **Test count: 281** (was 223 in v0.7.0, +58 tests)
 - **Test coverage increase: +26%** in one sprint session
@@ -2979,7 +2985,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 
 ## [0.7.0] - 2026-02-06
 
-### Ã°Å¸â€œÅ  Dashboard Analytics
+### ≡ƒôè Dashboard Analytics
 
 - **Weekly Hours Chart** - Visual labor trends on dashboard
  - Stacked bar chart showing regular/OT/DT hours by week
@@ -2995,26 +3001,26 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - Activity date range
  - Uses new GET `/api/projects/{id}/stats` endpoint
 
-### Ã°Å¸â€Å’ New API Endpoints
+### ≡ƒöî New API Endpoints
 
 - `GET /api/dashboard/weekly-hours` - Weekly hours aggregation for charts
 - `GET /api/projects/{id}/stats` - Fast project statistics (no AI)
 - `GET /api/employees/{id}/stats` - Fast employee statistics (hours, earnings, projects)
 
-### Ã°Å¸Â§Â© New Components
+### ≡ƒº⌐ New Components
 
 - `WeeklyHoursChart` - Dashboard chart component (integrated)
 - `ProjectLaborSummary` - Project detail labor card (integrated)
 - `EmployeeHoursSummary` - Employee detail hours card (integrated)
 
-### Ã°Å¸Â§Âª Tests
+### ≡ƒº¬ Tests
 
 - 10 new tests for GetWeeklyHoursHandler
 - 6 new tests for GetProjectStatsHandler
 - 6 new tests for GetEmployeeStatsHandler
 - Test count: 223 (was 201)
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - Dashboard now shows labor trend visualization
 - Project pages show real-time labor cost data
@@ -3023,7 +3029,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 
 ## [0.6.2] - 2026-02-06
 
-### Ã°Å¸â€ºÂ¡Ã¯Â¸Â Error Handling & Polish
+### ≡ƒ¢í∩╕Å Error Handling & Polish
 
 - **Error Boundaries** - Graceful error handling throughout the app
  - `error.tsx` - Route-level error catching with retry functionality
@@ -3040,7 +3046,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - robots.txt for search engine guidance
  - Construction management SEO keywords
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - Production ready for UAT
 - Error handling coverage: 100% of routes
@@ -3050,7 +3056,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 
 ## [0.6.1] - 2026-02-06
 
-### Ã°Å¸â€œÅ¡ API Documentation
+### ≡ƒôÜ API Documentation
 
 - **Complete OpenAPI Documentation** - All 13 API controllers now have comprehensive Swagger docs
  - TimeEntriesController: 9 endpoints with full request/response schemas
@@ -3065,7 +3071,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - Try-it-out functionality for all authenticated endpoints
  - Request/response examples for complex operations
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - All 13 controllers documented with OpenAPI specs
 - Swagger UI ready for investor demos and customer UAT
@@ -3075,7 +3081,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 
 ## [0.6.0] - 2026-02-06
 
-### Ã°Å¸â€œÂ¤ Vista Export Integration
+### ≡ƒôñ Vista Export Integration
 
 - **Vista Export API** - GET `/api/time-entries/export/vista`
  - Exports approved time entries in Vista/Viewpoint compatible CSV format
@@ -3094,7 +3100,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - Help section with Vista import instructions
  - Responsive design for desktop and mobile
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - Test count: 210 (201 unit + 9 integration)
 - Vista export completes Week 3 deliverable (Issue #122)
@@ -3103,7 +3109,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 
 ## [0.5.0] - 2026-02-06
 
-### Ã°Å¸â€œÅ  Job Costing & Reporting
+### ≡ƒôè Job Costing & Reporting
 
 - **Labor Cost Calculator** - Server-side job costing engine
  - Base wage calculation with OT (1.5x) and DT (2.0x) multipliers
@@ -3127,11 +3133,11 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - Badge indicators for cost type (Labor, Material, Equipment, Subcontract)
  - Desktop table and mobile card responsive layouts
 
-### Ã°Å¸Å½Â¨ UI Components
+### ≡ƒÄ¿ UI Components
 
 - **Collapsible** - New expandable/collapsible component using @radix-ui/react-collapsible
 
-### Ã°Å¸â€œË† Stats
+### ≡ƒôê Stats
 
 - Test count: 198 (189 unit + 9 integration)
 - Week 2 milestones (Issue #122) completed 4 days ahead of schedule
@@ -3140,7 +3146,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 
 ## [0.4.0] - 2026-02-05
 
-### Ã°Å¸Â¤â€“ AI Features
+### ≡ƒñû AI Features
 
 - **AI Project Health Insights** - Claude-powered analysis at `/api/projects/{id}/ai-summary`
  - Health score (0-100) with color-coded status
@@ -3153,7 +3159,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - Categorized insights cards (highlights, concerns, recommendations)
  - Loading skeleton with shimmer animations
 
-### Ã°Å¸â€â€™ Security & Access Control
+### ≡ƒöÆ Security & Access Control
 
 - **Role-Based Access Control (RBAC)** - Complete permission system
  - Four built-in roles: Admin, Manager, Supervisor, User
@@ -3170,7 +3176,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - `hasRole()`, `isAdmin`, `isManager` helper functions
  - Conditional rendering based on user roles
 
-### Ã°Å¸Å¡â‚¬ Features
+### ≡ƒÜÇ Features
 
 - **Enhanced Dashboard** - Real-time project insights
  - Personalized greeting with user name
@@ -3193,7 +3199,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - Progress tracking for first project, employee, bid, time entry
  - Dismissible with localStorage persistence
 
-### Ã¢Å¡Â¡ User Experience
+### ΓÜí User Experience
 
 - **Form Improvements**
  - Phone number auto-formatting `(XXX) XXX-XXXX`
@@ -3213,7 +3219,7 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
  - Tooltips for complex form fields
  - Help text for business concepts (Classification, Cost Code)
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Infrastructure
+### ≡ƒÅù∩╕Å Infrastructure
 
 - **Demo Data Seeder** - Investor-ready demonstration data
  - 60 standard construction cost codes (CSI divisions)
@@ -3229,34 +3235,34 @@ Massive test coverage expansion with 58 new tests added in a focused sprint.
 
 ## [0.3.0] - 2026-02-05
 
-### Ã°Å¸â€â€™ Security & Reliability
+### ≡ƒöÆ Security & Reliability
 
 - **Fixed critical Row-Level Security issues** - Resolved database tenant isolation failures affecting all create operations
 - **Enhanced database connection stability** - Added connection interceptor to ensure tenant context persists across connection pooling
 - **Improved API authentication** - Confirmed production API returns proper 401 status codes instead of redirects
 - **Added comprehensive integration testing** - All 9 integration test suites now passing consistently
 
-### Ã°Å¸Å¡â‚¬ Features 
+### ≡ƒÜÇ Features 
 
 - **Enhanced deployment monitoring** - Added database health scripts and deployment status tracking ([PR #135](https://github.com/jgarrison929/pitbull/pull/135))
 - **HTTP response caching** - Implemented read endpoint caching for improved performance ([PR #134](https://github.com/jgarrison929/pitbull/pull/134))
 - **Domain event dispatching** - Added MediatR-based event system for future module integration ([PR #132](https://github.com/jgarrison929/pitbull/pull/132))
 - **Cost code management** - Added foundation for job cost tracking and accounting ([PR #129](https://github.com/jgarrison929/pitbull/pull/129))
 
-### Ã°Å¸Ââ€º Bug Fixes
+### ≡ƒÉ¢ Bug Fixes
 
 - **Frontend build stability** - Resolved duplicate import errors in error boundary components
 - **Dashboard statistics** - Fixed SQL query compatibility issues with EF Core SqlQueryRaw
 - **Docker build reliability** - Added missing RFIs module to container build process
 - **Architecture test resilience** - Improved null safety in test failure reporting
 
-### Ã¢Å¡Â¡ Performance
+### ΓÜí Performance
 
 - **API security headers** - Comprehensive security header implementation with monitoring ([PR #133](https://github.com/jgarrison929/pitbull/pull/133))
 - **Request timeout protection** - Added configurable timeouts to prevent slow loris attacks
 - **Rate limiting enhancements** - Refined authentication endpoint rate limits for better UX
 
-### Ã°Å¸Ââ€”Ã¯Â¸Â Infrastructure
+### ≡ƒÅù∩╕Å Infrastructure
 
 - **CI/CD improvements** - Enhanced test reliability and failure diagnostics
 - **Documentation updates** - Added comprehensive design docs for cost codes and time tracking

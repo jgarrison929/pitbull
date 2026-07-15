@@ -11,6 +11,7 @@ import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { VersionUpdateGuard } from "@/components/version-update-guard";
+import { DeployRecoveryBanner } from "@/components/deploy-recovery-banner";
 import { PwaInstallPrompt } from "@/components/pwa-install-prompt";
 import { AppVersionBadge } from "@/components/layout/app-version-badge";
 import "./globals.css";
@@ -104,6 +105,7 @@ export default function RootLayout({
                   <TooltipProvider>
                     <ServiceWorkerRegister />
                     <VersionUpdateGuard />
+                    <DeployRecoveryBanner />
                     <PwaInstallPrompt />
                     {children}
                     <AppVersionBadge />
