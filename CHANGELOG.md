@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.6] - 2026-07-15T12:24:15-07:00
+
+### Added
+
+- **Help Center Today on site** - cards + FAQ for real-entity field activity glance (no health/portfolio KPIs).
+
 ## [3.3.5] - 2026-07-15T12:05:48-07:00
 
 ### Changed
