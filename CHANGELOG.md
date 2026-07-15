@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.3.7] - 2026-07-15T12:42:53-07:00
+
+### Added
+
+- **CI notes for Today on site** - persona smoke path (PM/super) + required-check policy in docs/ci/mobile-3.3-today-on-site-notes.md.
+
 ## [3.3.6] - 2026-07-15T12:24:15-07:00
 
 ### Added
