@@ -1,6 +1,6 @@
 # Spec: Product band 3.4 — Post-3.3 checkpoint (to 3.4.0)
 
-**Status:** Pending (single stamp after 3.3.9)  
+**Status:** Shipped **3.4.0**  
 **Version band:** `3.4.0` only (1 stamp)  
 **Theme:** Release checkpoint for security/prod + Today-on-site ladder  
 
@@ -35,3 +35,10 @@ Need a clean product checkpoint after 3.2/3.3 bands before further post-3.0 them
 
 - Starting financial mobile glance band  
 - Native app shell  
+
+## Shipped upstream bands
+
+| Band | Spec | CI notes | Status |
+|------|------|----------|--------|
+| 3.2 security/prod | `docs/specs/product-bands/band-3.2-security-prod.md` | `docs/ci/mobile-3.2-prod-notes.md` | Shipped through 3.2.9 |
+| 3.3 Today on site | `docs/specs/product-bands/band-3.3-today-on-site.md` | `docs/ci/mobile-3.3-today-on-site-notes.md` | Shipped through 3.3.9 |
