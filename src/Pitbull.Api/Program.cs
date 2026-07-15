@@ -88,7 +88,7 @@ PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.Notifications.Features.No
 PitbullDbContext.RegisterModuleAssembly(typeof(Pitbull.SystemAdmin.Features.SystemAdminModuleMarker).Assembly);
 PitbullDbContext.RegisterModuleAssembly(typeof(BillingModuleMarker).Assembly);
 
-// PostHog server-side analytics (optional — only if API key is configured)
+// PostHog server-side analytics (optional â€” only if API key is configured)
 if (!string.IsNullOrEmpty(builder.Configuration["PostHog:ProjectApiKey"]))
 {
     builder.AddPostHog();
@@ -124,7 +124,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     // Only trust the first hop (Railway's edge proxy).
-    // Do NOT clear KnownNetworks/KnownProxies — that trusts ALL X-Forwarded-For headers,
+    // Do NOT clear KnownNetworks/KnownProxies â€” that trusts ALL X-Forwarded-For headers,
     // allowing rate limit bypass via header spoofing.
     options.ForwardLimit = 1;
 });
@@ -241,12 +241,12 @@ builder.Services.AddScoped<Pitbull.ProjectManagement.Services.INarrativeService,
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IDocumentService, Pitbull.ProjectManagement.Services.DocumentService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IPunchListService, Pitbull.ProjectManagement.Services.PunchListService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ISpatialService, Pitbull.ProjectManagement.Services.SpatialService>();
-// Phase 1: Progress → Schedule → Cost Foundation
+// Phase 1: Progress â†’ Schedule â†’ Cost Foundation
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.ICostCodeActivityMappingService, Pitbull.ProjectManagement.Services.CostCodeActivityMappingService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IFieldProgressService, Pitbull.ProjectManagement.Services.FieldProgressService>();
 builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IEarnedValueService, Pitbull.ProjectManagement.Services.EarnedValueService>();
 
-// Blob storage — provider-based (local filesystem or S3/MinIO)
+// Blob storage â€” provider-based (local filesystem or S3/MinIO)
 {
     var blobSection = builder.Configuration.GetSection(Pitbull.Core.Services.BlobStorage.BlobStorageOptions.SectionName);
     builder.Services.Configure<Pitbull.Core.Services.BlobStorage.BlobStorageOptions>(blobSection);
@@ -301,7 +301,7 @@ builder.Services.AddScoped<Pitbull.ProjectManagement.Services.IEarnedValueServic
 builder.Services.AddSingleton<Pitbull.Documents.Services.IFileValidationService, Pitbull.Documents.Services.FileValidationService>();
 builder.Services.AddScoped<Pitbull.Documents.Services.IFileStorageService, Pitbull.Documents.Services.FileStorageService>();
 
-// Notifications module — decorator adds fire-and-forget email on notification creation
+// Notifications module â€” decorator adds fire-and-forget email on notification creation
 builder.Services.AddScoped<Pitbull.Notifications.Services.NotificationService>();
 builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService>(sp =>
     new Pitbull.Api.Services.EmailNotificationDecorator(
@@ -312,7 +312,7 @@ builder.Services.AddScoped<Pitbull.Notifications.Services.INotificationService>(
         sp.GetRequiredService<ILogger<Pitbull.Api.Services.EmailNotificationDecorator>>()));
 builder.Services.AddScoped<Pitbull.Api.Services.INotificationPreferenceService, Pitbull.Api.Services.NotificationPreferenceService>();
 
-// Deadline notification background service — checks RFI/Submittal deadlines hourly
+// Deadline notification background service â€” checks RFI/Submittal deadlines hourly
 builder.Services.Configure<Pitbull.Api.Services.DeadlineCheckOptions>(
     builder.Configuration.GetSection(Pitbull.Api.Services.DeadlineCheckOptions.SectionName));
 builder.Services.AddScoped<Pitbull.Api.Services.IDeadlineNotificationTracker, Pitbull.Api.Services.DeadlineNotificationTracker>();
@@ -452,7 +452,7 @@ builder.Services.Configure<KestrelServerOptions>(options =>
     options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
 });
 
-// CAP event bus — PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)
+// CAP event bus â€” PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)
 var redisConn = builder.Configuration.GetValue<string>("EventBus:Redis:ConnectionString");
 builder.Services.AddCap(x =>
 {
@@ -487,7 +487,7 @@ builder.Services.AddTransient<TenantCapFilter>();
 builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesSubmittedConsumer>();
 builder.Services.AddTransient<Pitbull.TimeTracking.Consumers.TimeEntriesDraftSavedConsumer>();
 
-// Hangfire background job processing — PostgreSQL storage (same DB, separate schema)
+// Hangfire background job processing â€” PostgreSQL storage (same DB, separate schema)
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
@@ -551,7 +551,7 @@ builder.Services.AddRequestTimeouts(options =>
 builder.Services.AddOpenApi("v1", options =>
 {
     // Microsoft.OpenApi 2.x (shipped with ASP.NET Core OpenAPI on .NET 10):
-    // types live in Microsoft.OpenApi (not Models), SecurityRequirements → Security,
+    // types live in Microsoft.OpenApi (not Models), SecurityRequirements â†’ Security,
     // and scheme refs use OpenApiSecuritySchemeReference.
     options.AddDocumentTransformer((document, context, cancellationToken) =>
     {
@@ -669,7 +669,7 @@ builder.Services.AddRateLimiter(options =>
                     "ai-chat",
                     Pitbull.Api.Configuration.AiRateLimitPolicy.IsDemoUser(context)))));
 
-    // 2.20.7 — demo users get tighter AI permit ceilings (AiRateLimitPolicy)
+    // 2.20.7 â€” demo users get tighter AI permit ceilings (AiRateLimitPolicy)
     options.AddPolicy("ai-document", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: Pitbull.Api.Configuration.AiRateLimitPolicy.PartitionKey(context)
@@ -736,6 +736,7 @@ builder.Services.AddResponseCompression(options =>
     options.Providers.Add<Microsoft.AspNetCore.ResponseCompression.GzipCompressionProvider>();
 });
 
+builder.Services.AddScoped<Pitbull.Api.Features.TodayOnSite.ITodayOnSiteService, Pitbull.Api.Features.TodayOnSite.TodayOnSiteService>();
 var app = builder.Build();
 
 // Log CAP transport selection for operational visibility
@@ -771,7 +772,7 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     catch (Exception schemaEx)
     {
         var startupLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        startupLogger.LogWarning(schemaEx, "Optional pm_daily_reports.Title ensure failed — continuing");
+        startupLogger.LogWarning(schemaEx, "Optional pm_daily_reports.Title ensure failed â€” continuing");
     }
 
     // Optional: bootstrap the public demo tenant + seed data
@@ -783,7 +784,7 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     catch (Exception ex)
     {
         var startupLogger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
-        startupLogger.LogWarning(ex, "DemoBootstrapper failed — skipping seed refresh. App continues normally.");
+        startupLogger.LogWarning(ex, "DemoBootstrapper failed â€” skipping seed refresh. App continues normally.");
     }
 
     // Development-only: ensure dev admin has Admin role (set DEV_ADMIN_EMAIL in .env or DevAdmin:Email in appsettings)
@@ -796,7 +797,7 @@ if (!string.Equals(app.Configuration["SkipMigrations"], "true", StringComparison
     }
 }
 
-// Correlation IDs (outermost — so all downstream logs and responses include it)
+// Correlation IDs (outermost â€” so all downstream logs and responses include it)
 app.UseMiddleware<CorrelationIdMiddleware>();
 
 // Security headers (before exception handler so error responses also get CSP, HSTS, X-Frame-Options)
@@ -806,7 +807,7 @@ app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<RequestMetricsMiddleware>();
 
-// Request performance tracking (slow requests, N+1 detection — sends to PostHog)
+// Request performance tracking (slow requests, N+1 detection â€” sends to PostHog)
 app.UseMiddleware<RequestPerformanceMiddleware>();
 
 // Request size limits (before body-reading middleware to reject oversized payloads early)
@@ -825,13 +826,13 @@ else
     app.UseCors("Production");
 }
 
-// API Documentation — available in all environments, gated by ApiDocs:Enabled + ApiDocs:RequireAuth
+// API Documentation â€” available in all environments, gated by ApiDocs:Enabled + ApiDocs:RequireAuth
 app.UseMiddleware<Pitbull.Api.Middleware.SwaggerAuthMiddleware>();
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {
     options
-        .WithTitle("Pitbull Construction Solutions — API Reference")
+        .WithTitle("Pitbull Construction Solutions â€” API Reference")
         .WithDefaultHttpClient(ScalarTarget.CSharp, ScalarClient.HttpClient);
 });
 
@@ -847,11 +848,11 @@ if (app.Configuration.GetValue<bool>("Demo:Enabled"))
 app.UseAuthorization();
 app.UseRateLimiter();
 
-// Hangfire dashboard — admin-only, after auth/authz
+// Hangfire dashboard â€” admin-only, after auth/authz
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = new[] { new HangfireDashboardAuthFilter() },
-    DashboardTitle = "Pitbull — Background Jobs",
+    DashboardTitle = "Pitbull â€” Background Jobs",
 });
 
 // Register recurring jobs
@@ -870,13 +871,13 @@ app.MapControllers();
 app.UseMiddleware<ApiNotFoundMiddleware>();
 
 // Health check endpoints
-// /health/live is unauthenticated (k8s liveness probe) — minimal output, no infrastructure details
+// /health/live is unauthenticated (k8s liveness probe) â€” minimal output, no infrastructure details
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("live"),
 });
 
-// /health and /health/ready expose component details — require auth
+// /health and /health/ready expose component details â€” require auth
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse

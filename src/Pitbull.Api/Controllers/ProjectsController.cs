@@ -29,7 +29,8 @@ namespace Pitbull.Api.Controllers;
 public class ProjectsController(
     IProjectService projectService,
     IAiInsightsService aiInsightsService,
-    ICacheService cacheService) : ControllerBase
+    ICacheService cacheService,
+    Pitbull.Api.Features.TodayOnSite.ITodayOnSiteService todayOnSiteService) : ControllerBase
 {
     /// <summary>
     /// Create a new project
@@ -173,12 +174,12 @@ public class ProjectsController(
         [FromQuery] bool excludeCompleted = false,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
-        // view=mobile → ProjectMobileListItemDto (id, name, number, status only)
+        // view=mobile â†’ ProjectMobileListItemDto (id, name, number, status only)
         [FromQuery] string? view = null)
     {
         var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
 
-        // Cache only unfiltered default queries (dropdown-style "get all") — never for mobile view shape.
+        // Cache only unfiltered default queries (dropdown-style "get all") â€” never for mobile view shape.
         var isDefaultQuery = status is null && type is null
             && string.IsNullOrEmpty(search)
             && !unbilled && !budgetAlert && !excludeCompleted
@@ -428,5 +429,16 @@ public class ProjectsController(
         }
 
         return Ok(result.Value);
+    }
+
+    /// <summary>Today's field activity for a project (real counts only).</summary>
+    [HttpGet("{id:guid}/today-on-site")]
+    [ProducesResponseType(typeof(Pitbull.Api.Features.TodayOnSite.TodayOnSiteDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTodayOnSite(Guid id, CancellationToken ct)
+    {
+        var dto = await todayOnSiteService.GetForProjectAsync(id, ct);
+        if (dto is null) return NotFound(new { error = "Project not found" });
+        return Ok(dto);
     }
 }

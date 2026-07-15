@@ -12,6 +12,7 @@ using Pitbull.Projects.Features.GetProjectStats;
 using Pitbull.Projects.Features.ListProjects;
 using Pitbull.Projects.Features.UpdateProject;
 using Pitbull.Projects.Services;
+using Pitbull.Api.Features.TodayOnSite;
 
 namespace Pitbull.Tests.Unit.Api;
 
@@ -29,10 +30,11 @@ public class ProjectsControllerTests
         _projectServiceMock = new Mock<IProjectService>();
         _aiServiceMock = new Mock<IAiInsightsService>();
         var cacheServiceMock = new Mock<ICacheService>();
+        var todayOnSiteMock = new Mock<ITodayOnSiteService>();
         // Default mock: always pass through to factory
         cacheServiceMock.Setup(c => c.GetOrCreateAsync(It.IsAny<string>(), It.IsAny<Func<Task<Result<PagedResult<ProjectDto>>>>>(), It.IsAny<TimeSpan>()))
             .Returns<string, Func<Task<Result<PagedResult<ProjectDto>>>>, TimeSpan>((_, factory, _) => factory());
-        _controller = new ProjectsController(_projectServiceMock.Object, _aiServiceMock.Object, cacheServiceMock.Object);
+        _controller = new ProjectsController(_projectServiceMock.Object, _aiServiceMock.Object, cacheServiceMock.Object, todayOnSiteMock.Object);
         _controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()
