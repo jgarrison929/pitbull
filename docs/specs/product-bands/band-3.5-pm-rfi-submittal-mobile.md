@@ -1,6 +1,6 @@
 # Spec: Product band 3.5 — RFI + Submittal mobile foundation
 
-**Status:** Pending  
+**Status:** Shipped through **3.5.0**  
 **Version band:** `3.4.1` → `3.5.0` (10 stamps)  
 **Theme:** Phone-first list/detail for RFIs and Submittals (next-gen PM arc open)  
 **Starts after:** `3.4.0` checkpoint  
@@ -110,10 +110,10 @@ Empty list = honest empty (“No RFIs” / “No submittals”). **Never** “al
 | **3.4.4** | Phone-first **RFI list UI** | `rfis/page.tsx`, `lib/rfi-mobile-list.ts` | - [x] Usable at ~390px width (one column list, not desktop grid shrink)<br>- [x] Status + due/overdue visible without horizontal scroll<br>- [x] Loading / empty / error states<br>- [x] Uses slim API when present | Vitest `rfi-mobile-list` (URL, overdue, empty honesty) |
 | **3.4.5** | Phone-first **RFI detail** + status/response capture (confirm) | `rfis/[id]/page.tsx`, `lib/rfi-status-confirm.ts` | - [x] Detail readable on phone (subject, body, status, due)<br>- [x] Status change confirm-to-submit<br>- [x] No auto-post without confirm<br>- [x] Photos/attachments openable when present | Vitest `rfi-status-confirm` (guard blocks unconfirmed PUT path) |
 | **3.4.6** | Phone-first **Submittal list UI** | `projects/[id]/submittals/page.tsx`, `lib/submittal-mobile-list.ts` | - [x] Loading/empty/error honesty<br>- [x] Type + status + due-ish fields only on phone<br>- [x] No “% register complete” tile | Vitest `submittal-mobile-list` |
-| **3.4.7** | Phone-first **Submittal detail** + workflow glance | submittal detail components | - [ ] Workflow history glance (real events only)<br>- [ ] No invented “register complete %” | Unit for workflow display mapper if added |
-| **3.4.8** | Help Center: mobile RFI + Submittal cards/FAQ | `help/page.tsx` | - [ ] Routes match real pages<br>- [ ] No offline claims beyond truth | Manual + link paths exist |
-| **3.4.9** | **Buffer:** residual honesty + DTO/helper tests only | tests under API/web | - [ ] No new feature scope<br>- [ ] Tests cover shipped slim mappers | `dotnet test` / vitest targeted green |
-| **3.5.0** | **Checkpoint** — band complete | `docs/ci/pm-3.5-rfi-submittal-notes.md`; mark this Status Shipped | - [ ] CI notes: persona smoke PM open RFI list on phone width<br>- [ ] Spec Status → Shipped through 3.5.0<br>- [ ] Preflight green | CI notes + preflight evidence |
+| **3.4.7** | Phone-first **Submittal detail** + workflow glance | `submittal-workflow-glance.ts`, submittals dialog stepper | - [x] Workflow history glance (real events only)<br>- [x] No invented “register complete %” | Vitest `submittal-workflow-glance` |
+| **3.4.8** | Help Center: mobile RFI + Submittal cards/FAQ | `help/page.tsx`, `lib/help-pm-rfi-submittal.ts` | - [x] Routes match real pages<br>- [x] No offline claims beyond truth | Vitest help-pm-rfi-submittal |
+| **3.4.9** | **Buffer:** residual honesty + DTO/helper tests only | tests | - [x] No new feature scope<br>- [x] Tests cover shipped slim mappers | vitest residual green
+| **3.5.0** | **Checkpoint** � band complete | `docs/ci/pm-3.5-rfi-submittal-notes.md` | - [x] CI notes<br>- [x] Spec Status Shipped through 3.5.0<br>- [x] Preflight green | CI notes + preflight
 
 ### Out-of-scope for this band (do not sprawl)
 

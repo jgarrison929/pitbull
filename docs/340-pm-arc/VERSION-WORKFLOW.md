@@ -34,4 +34,4 @@ This file **extends** root CONTRIBUTING + historical `docs/260712/VERSION-WORKFL
 
 ## Next stamp
 
-After `3.4.6`: **`3.4.7`** — phone-first Submittal detail + workflow glance (band 3.5).
+After `3.7.5`: **`3.7.6`** — CPM recalculate action honesty (band 3.8 remainder; stop was intentional at 3.7.5 for prior goal).

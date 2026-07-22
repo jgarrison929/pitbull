@@ -46,6 +46,11 @@ import {
   approvalsHelpCards,
 } from "@/lib/help-approvals";
 import {
+  HELP_PM_RFI_SUBMITTAL_CARDS,
+  PM_RFI_SUBMITTAL_HELP_SECTION_TITLE,
+  pmRfiSubmittalFaqItems,
+} from "@/lib/help-pm-rfi-submittal";
+import {
   OFFICE_WORKFLOWS_SECTION_TITLE,
   officeFaqItems,
   officeHelpCards,
@@ -304,6 +309,54 @@ export default function HelpPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* RFIs + Submittals on phone (3.4.8) */}
+      <div data-testid="help-pm-rfi-submittal">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <Smartphone className="h-5 w-5 text-amber-500" />
+          {PM_RFI_SUBMITTAL_HELP_SECTION_TITLE}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Phone-first RFI and submittal flows. Status and due only — never register health
+          percentages or invented offline logs.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-4">
+          {HELP_PM_RFI_SUBMITTAL_CARDS.map((card) => (
+            <Card key={card.id} data-testid={`help-pm-card-${card.id}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{card.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {card.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+                <Link
+                  href={card.href}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                >
+                  Open {card.title}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">FAQ</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pmRfiSubmittalFaqItems.map((item) => (
+              <div key={item.question}>
+                <p className="text-sm font-medium">{item.question}</p>
+                <p className="text-sm text-muted-foreground">{item.answer}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Today on site (3.3.6) — real entities only, no health scores */}

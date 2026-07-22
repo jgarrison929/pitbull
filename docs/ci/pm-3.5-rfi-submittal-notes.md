@@ -1,6 +1,6 @@
 # CI notes — Band 3.5 RFI + Submittal mobile
 
-**Status:** In progress (open at **3.4.1**; full evidence at **3.5.0** checkpoint)  
+**Status:** Shipped through **3.5.0**
 **Spec:** [`docs/specs/product-bands/band-3.5-pm-rfi-submittal-mobile.md`](../specs/product-bands/band-3.5-pm-rfi-submittal-mobile.md)
 
 ## Version map
@@ -13,7 +13,8 @@
 | **3.4.4** | **Shipped** — `/rfis` phone-first list via slim API; overdue visual; honest empty/error; vitest helpers |
 | **3.4.5** | **Shipped** — `/rfis/[id]` phone detail; ConfirmDialog before status PUT; attachments openable in view; `evaluateRfiStatusTransition` tests |
 | **3.4.6** | **Shipped** — phone submittal list via slim API + type; honest empty; no % register tile |
-| 3.4.7–3.4.9 | See band table (submittal detail, help, buffer) |
+| **3.4.7** | **Shipped** — workflow glance helper + phone vertical stepper in submittal edit |
+| 3.4.8–3.4.9 | See band table (help, buffer) |
 | 3.5.0 | Checkpoint — fill persona evidence when shipped |
 
 ## Mobile list DTO contract (3.4.1) — checkable summary

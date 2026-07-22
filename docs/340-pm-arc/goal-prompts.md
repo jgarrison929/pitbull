@@ -65,4 +65,16 @@ Copy-paste one `/goal` per PR. Always: full version stamp set + preflight before
 /goal Ship Pitbull 3.5.0: band 3.5 checkpoint — CI notes docs/ci/pm-3.5-rfi-submittal-notes.md; mark band Shipped through 3.5.0. Bump 3.4.9→3.5.0. Preflight + health check notes.
 ```
 
+### Goal → 3.5.1 … 3.6.0
+
+See `band-3.6-pm-co-contracts-mobile.md` version table. Open with CO list contract; slim APIs; phone UI; help; buffer; checkpoint.
+
+### Goal → 3.6.1 … 3.7.0
+
+See `band-3.7-pm-schedule-gantt-kanban.md`.
+
+### Goal → 3.7.1 … 3.7.5 (partial band 3.8)
+
+See `band-3.8-pm-cpm-practices.md` rows 3.7.1–3.7.5 only.
+
 Later bands: expand stub → add prompts before first stamp of that band.

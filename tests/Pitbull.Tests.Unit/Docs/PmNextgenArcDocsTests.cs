@@ -116,13 +116,14 @@ public class PmNextgenArcDocsTests
     {
         var band = Read("docs/specs/product-bands/band-3.5-pm-rfi-submittal-mobile.md");
 
-        band.Should().Contain("**Status:** Pending");
+        // Pending until checkpoint; Shipped through 3.5.0 after band complete
+        band.Should().MatchRegex(@"\*\*Status:\*\*\s*(Pending|Shipped)");
         band.Should().Contain("## Problem");
         band.Should().Contain("## Personas");
         band.Should().Contain("## Version table");
         band.Should().Contain("**3.4.1**");
         band.Should().Contain("**3.5.0**");
-        band.Should().Contain("- [ ]");
+        band.Should().MatchRegex(@"- \[[ x]\]");
         band.Should().Contain("## Test plan");
         band.Should().Contain("## Help center");
         band.Should().Contain("## Truth rules");

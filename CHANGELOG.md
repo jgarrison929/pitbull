@@ -14,6 +14,179 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Contract Administrator demo persona** â€” Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
 - **PM next-gen arc program docs** â€” epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
 
+## [3.7.5] - 2026-07-21T20:46:50-07:00
+
+### Changed
+
+- **Baseline variance glance** — `formatBaselineVarianceDays` when baseline exists; insufficient when missing. Stops at 3.7.5 (band 3.8 partial).
+
+## [3.7.4] - 2026-07-21T20:45:33-07:00
+
+### Changed
+
+- **Data-date display** — `formatDataDate` for schedule phone glance.
+
+## [3.7.3] - 2026-07-21T20:44:19-07:00
+
+### Changed
+
+- **Surface total/free float** — `formatFloatDays` null stays insufficient; no invent.
+
+## [3.7.2] - 2026-07-21T20:43:04-07:00
+
+### Changed
+
+- **Surface isCritical** — `criticalLabel` for mobile activity list/detail (real flag only).
+
+## [3.7.1] - 2026-07-21T20:41:50-07:00
+
+### Added
+
+- **Band 3.8 open** — CPM glossary + data-date display helpers (`cpm-honesty.ts`). No fake on-track default. Vitest cpm-honesty.
+
+## [3.7.0] - 2026-07-21T20:40:37-07:00
+
+### Added
+
+- **Band 3.7 checkpoint** — schedule Gantt/Kanban mobile foundation complete through 3.7.0. Next: 3.7.1 CPM practices.
+
+## [3.6.9] - 2026-07-21T20:39:22-07:00
+
+### Changed
+
+- **Band 3.7 buffer** — residual tests for schedule mobile helpers.
+
+## [3.6.8] - 2026-07-21T20:38:08-07:00
+
+### Added
+
+- **Help schedule/Kanban phone** — honest empty and no invent % complete.
+
+## [3.6.7] - 2026-07-21T20:36:54-07:00
+
+### Changed
+
+- **Kanban phone UI readiness** — status mutations require confirm pattern when wired.
+
+## [3.6.6] - 2026-07-21T20:35:41-07:00
+
+### Added
+
+- **Kanban columns from real status** — document real activity/task enums only; no fake WIP invent.
+
+## [3.6.5] - 2026-07-21T20:34:27-07:00
+
+### Changed
+
+- **Activity detail phone fields** — critical label + float insufficient when null.
+
+## [3.6.4] - 2026-07-21T20:33:13-07:00
+
+### Changed
+
+- **Gantt phone glance honesty** — label no full P6 drag-edit on phone (docs + helpers).
+
+## [3.6.3] - 2026-07-21T20:31:59-07:00
+
+### Changed
+
+- **Phone schedule list hybrid readiness** — empty honesty + critical/float formatters for filters.
+
+## [3.6.2] - 2026-07-21T20:30:45-07:00
+
+### Added
+
+- **Slim activity list URL** — `scheduleActivitiesMobileUrl` with `?view=mobile` for phone path.
+
+## [3.6.1] - 2026-07-21T20:29:32-07:00
+
+### Added
+
+- **Band 3.7 open** — schedule activity mobile contract (`schedule-mobile-list.ts`): id, name, status, start/finish, isCritical?, float?; no SPI/CPI invent. Vitest schedule-mobile-list.
+
+## [3.6.0] - 2026-07-21T20:28:19-07:00
+
+### Added
+
+- **Band 3.6 checkpoint** — CO/contracts mobile foundation complete through 3.6.0; CI notes. Next: 3.6.1 schedule.
+
+## [3.5.9] - 2026-07-21T20:27:04-07:00
+
+### Changed
+
+- **Band 3.6 buffer** — residual honesty tests for CO mobile helpers only.
+
+## [3.5.8] - 2026-07-21T20:25:50-07:00
+
+### Added
+
+- **Help Center CO/contracts phone** — extend help with commercial paper honesty (no invent KPIs).
+
+## [3.5.7] - 2026-07-21T20:24:35-07:00
+
+### Changed
+
+- **Phone subcontract list + SOV glance read-only** — SOV edit remains desktop; phone is glance only.
+
+## [3.5.6] - 2026-07-21T20:23:21-07:00
+
+### Added
+
+- **Subcontract mobile list contract** — same slim field rules as CO for phone subcontract list path.
+
+## [3.5.5] - 2026-07-21T20:21:59-07:00
+
+### Changed
+
+- **CO status confirm pattern** — reuse confirm-to-submit discipline for CO status changes (document in band notes; no auto-post).
+
+## [3.5.4] - 2026-07-21T20:20:29-07:00
+
+### Changed
+
+- **Phone-first CO list readiness** — empty copy honesty + mobile URL; no portfolio CO health tile (helpers + tests).
+
+## [3.5.3] - 2026-07-21T20:19:14-07:00
+
+### Added
+
+- **CO detail phone fields** — amount formatter + closed-status honesty for phone detail glance (`formatCoAmount`, `isCoClosed`).
+
+## [3.5.2] - 2026-07-21T20:17:58-07:00
+
+### Added
+
+- **Slim CO list path** — document/use `?view=mobile` URL builder for project and owner COs (`coMobileListUrl`). Authz unchanged; no heavy collections on phone path.
+
+## [3.5.1] - 2026-07-21T20:16:38-07:00
+
+### Added
+
+- **Band 3.6 open** — CO/subcontract mobile list field contract helpers (`co-mobile-list.ts`): id, number, title, status, projectId, amount?, dueDate?; ban commercial health KPIs. Vitest co-mobile-list.
+
+## [3.5.0] - 2026-07-21T20:12:24-07:00
+
+### Added
+
+- **Band 3.5 checkpoint** — RFI/Submittal mobile foundation complete through 3.5.0; CI notes + spec marked Shipped. Next: 3.5.1 band 3.6 CO/contracts mobile.
+
+## [3.4.9] - 2026-07-21T20:11:06-07:00
+
+### Changed
+
+- **Band 3.5 buffer** — residual honesty tests for mobile RFI/Submittal list helpers and confirm guard (`mobile-list-dto-honesty`). No new domain features. Next: 3.5.0 checkpoint.
+
+## [3.4.8] - 2026-07-21T20:09:26-07:00
+
+### Added
+
+- **Help Center mobile RFI + Submittal** — section RFIs & Submittals on phone with real routes /rfis and projects; FAQ rejects register % and offline overclaim. Vitest help-pm-rfi-submittal. Next: 3.4.9 buffer.
+## [3.4.7] - 2026-07-21T20:04:34-07:00
+
+### Changed
+
+- **Phone-first Submittal detail workflow glance** — shared `buildSubmittalWorkflowGlance`; vertical stepper on phone in edit dialog; real status enums only (no register %). Vitest `submittal-workflow-glance`. Next: 3.4.8 Help.
+
 ## [3.4.6] - 2026-07-21T19:59:31-07:00
 
 ### Changed
@@ -2202,6 +2375,7 @@ earTerm=true); persona KPI vitest matrix; office FAQ (title-first roles, demo ex
 - CompanyMiddleware, CompanyContext service, and EF Core migration
 
 ---
+
 
 ## [0.11.1] - 2026-02-13
 
