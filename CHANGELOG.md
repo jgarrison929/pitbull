@@ -14,10 +14,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Contract Administrator demo persona** — Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
 - **PM next-gen arc program docs** — epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
 
-### Fixed
+## [3.7.6] - 2026-07-22T06:31:53-07:00
 
-- **Bands 3.6–3.8 product catch-up at tip 3.7.5** — real `?view=mobile` APIs for change orders (`ChangeOrderMobileListItemDto`), subcontracts (`SubcontractMobileListItemDto` includes **PaidToDate**), and schedule activities (`ActivityMobileListItemDto`); phone CO/subcontract lists + SOV read-only glance; pure money mapper never invents paid=$0 / remaining=full committed; schedule look-ahead + **Kanban** tab from real activity statuses; CPM variance only when baseline and current finish both exist; Help Center CO/contracts + schedule cards; band 3.6/3.7 Status Shipped (3.8 partial through 3.7.5).
-- **CI security pins** — `System.Security.Cryptography.Xml` 10.0.9 → **10.0.10** (NU1903); npm prod audit: override `sharp` 0.35.3 + `dompurify` 3.4.12 (high CVEs without downgrading Next 16).
+### Changed
+
+- **Dependency audit** — NuGet: EF/Identity/JwtBearer/OpenApi/DataProtection **10.0.9 → 10.0.10**, Npgsql.EF **10.0.2 → 10.0.3**, MediatR **14.2.0**, JWT **8.20.0**, PostHog **2.12.0** / PostHog.AspNetCore **2.8.0**, Scalar.AspNetCore **2.16.16**, AWSSDK.S3 **4.0.101.3**, Testcontainers **4.13.0**, FluentAssertions **8.10.0**, Test SDK **18.8.1**. npm: Next **16.2.11**, React **19.2.8**, posthog-js / radix / recharts / vitest / eslint-config-next within current majors; `npm audit` clean (0 prod + 0 all after brace-expansion fix). Held majors: Mapster 7.x, OpenApi 2.x, ESLint 9, TypeScript 6, jest-dom 6.
+
+### Security
+
+- Confirmed **no NuGet vulnerable packages** after restore; npm **0 vulnerabilities** (prod and full).
 
 ## [3.7.5] - 2026-07-21T20:46:50-07:00
 
