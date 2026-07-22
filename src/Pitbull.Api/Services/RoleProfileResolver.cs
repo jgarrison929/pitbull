@@ -51,6 +51,13 @@ public static class RoleProfileResolver
         if (MatchesAny(t, "Field Engineer", "Field Superintendent", "Foreman", "Commissioning"))
             return TourProfile.Field;
 
+        // Before PM / Executive: title keywords that would otherwise hit "Manager" / "Admin" loosely
+        if (MatchesAny(t,
+                "Contract Administrator", "Contracts Administrator", "Contract Admin", "Contracts Admin",
+                "Contract Manager", "Contracts Manager", "Subcontract Administrator", "Subcontracts Administrator",
+                "Subcontract Manager", "Contracts Coordinator", "Contract Coordinator"))
+            return TourProfile.ContractAdministrator;
+
         if (MatchesAny(t, "Project Manager", "Sr Project Manager", "Project Engineer", "Sr Project Engineer", "Project Coordinator", "PM"))
             return TourProfile.ProjectManager;
 
@@ -80,6 +87,7 @@ public static class RoleProfileResolver
         TourProfile.Hr => "HR",
         TourProfile.ItAdmin => "Admin",
         TourProfile.ProjectManager => "PM",
+        TourProfile.ContractAdministrator => "Contracts",
         _ => "PM",
     };
 
@@ -94,6 +102,7 @@ public static class RoleProfileResolver
         TourProfile.Field => "field",
         TourProfile.Estimator => "estimator",
         TourProfile.Clerk => "controller",
+        TourProfile.ContractAdministrator => "contracts",
         _ => "default",
     };
 
@@ -110,6 +119,7 @@ public static class RoleProfileResolver
         TourProfile.Hr => "hr",
         TourProfile.Estimator => "estimator",
         TourProfile.ItAdmin => "itAdmin",
+        TourProfile.ContractAdministrator => "contractAdministrator",
         _ => "general",
     };
 

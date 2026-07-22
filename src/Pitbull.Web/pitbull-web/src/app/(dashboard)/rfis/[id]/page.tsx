@@ -41,6 +41,16 @@ import {
   parseRfiStatus,
   rfiStatusLabel,
 } from "@/lib/workflow-transitions";
+import {
+  evaluateRfiStatusTransition,
+  rfiWorkflowActionLabel,
+} from "@/lib/rfi-status-confirm";
+import {
+  formatRfiDueLabel,
+  rfiStatusBadgeClass,
+  normalizeRfiStatus,
+} from "@/lib/rfi-mobile-list";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 import { Download, Paperclip } from "lucide-react";
 
@@ -119,6 +129,8 @@ export default function RfiDetailPage({
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  /** Pending workflow target after user taps action — PUT only after ConfirmDialog */
+  const [pendingStatus, setPendingStatus] = useState<RfiStatus | null>(null);
 
   // Edit form state
   const [editSubject, setEditSubject] = useState("");
@@ -211,12 +223,45 @@ export default function RfiDetailPage({
     fetchRfi();
   }, [id, projectId, addRecentItem]);
 
-  async function handleWorkflowTransition(nextStatus: RfiStatus, label: string) {
-    if (!rfi || !projectId) return;
-
-    if (nextStatus === RfiStatus.Answered && !rfi.answer?.trim() && !editAnswer.trim()) {
-      toast.error("An answer is required before marking as Answered");
+  /** First tap: open confirm dialog (no PUT). Never auto-post. */
+  function requestWorkflowTransition(nextStatus: RfiStatus) {
+    if (!rfi) return;
+    const hasAnswer = Boolean(rfi.answer?.trim() || editAnswer.trim());
+    // Pre-check answer without confirm so we can open edit mode early
+    const pre = evaluateRfiStatusTransition({
+      confirmed: true,
+      currentStatus: rfi.status,
+      nextStatus,
+      hasAnswer,
+    });
+    if (!pre.mayPost && pre.reason === "answer_required") {
+      toast.error(pre.message);
       setIsEditing(true);
+      return;
+    }
+    if (!pre.mayPost && pre.reason === "invalid_transition") {
+      toast.error(pre.message);
+      return;
+    }
+    setPendingStatus(nextStatus);
+  }
+
+  /** Confirm dialog only — runs real guard then PUT. */
+  async function confirmWorkflowTransition() {
+    if (!rfi || !projectId || pendingStatus === null) return;
+
+    const hasAnswer = Boolean(rfi.answer?.trim() || editAnswer.trim());
+    const gate = evaluateRfiStatusTransition({
+      confirmed: true,
+      currentStatus: rfi.status,
+      nextStatus: pendingStatus,
+      hasAnswer,
+    });
+
+    if (!gate.mayPost) {
+      toast.error(gate.message);
+      if (gate.reason === "answer_required") setIsEditing(true);
+      setPendingStatus(null);
       return;
     }
 
@@ -225,17 +270,25 @@ export default function RfiDetailPage({
       const command: UpdateRfiCommand = {
         subject: rfi.subject,
         question: rfi.question,
-        answer: rfi.answer || null,
-        status: nextStatus,
+        answer: rfi.answer || editAnswer || null,
+        status: gate.next,
         priority: rfi.priority,
       };
       const updated = await api<Rfi>(
         `/api/projects/${projectId}/rfis/${id}`,
         { method: "PUT", body: command }
       );
-      setRfi(updated);
-      setEditStatus(updated.status);
-      toast.success(label);
+      const normalized = {
+        ...updated,
+        status: parseRfiStatus(updated.status),
+        drawingReferences: Array.isArray(updated.drawingReferences)
+          ? updated.drawingReferences
+          : [],
+      };
+      setRfi(normalized);
+      setEditStatus(normalized.status);
+      toast.success(`RFI ${gate.label.toLowerCase()}`);
+      setPendingStatus(null);
     } catch (err) {
       toast.error("Workflow action failed", {
         description: err instanceof Error ? err.message : undefined,
@@ -335,15 +388,17 @@ export default function RfiDetailPage({
         ]}
       />
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight">{rfi.subject}</h1>
+      {/* Header — phone-first: subject, status, due stack without horizontal scroll */}
+      <div className="flex flex-col gap-4">
+        <div className="min-w-0 space-y-2">
+          <div className="flex items-start gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight break-words flex-1 min-w-0">
+              {rfi.subject}
+            </h1>
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-10 w-10 shrink-0 min-h-[44px] min-w-[44px]"
               onClick={() => {
                 navigator.clipboard.writeText(window.location.href);
                 toast.success("Link copied to clipboard");
@@ -353,32 +408,56 @@ export default function RfiDetailPage({
             >
               <Link2 className="h-4 w-4" />
             </Button>
-            <StatusBadge entityType="RFI" status={rfi.status} />
           </div>
-          <p className="text-muted-foreground font-mono text-sm">
-            RFI-{String(rfi.number).padStart(3, "0")}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-muted-foreground font-mono text-sm">
+              RFI-{String(rfi.number).padStart(3, "0")}
+            </p>
+            <Badge
+              variant="secondary"
+              className={rfiStatusBadgeClass(rfi.status)}
+            >
+              {normalizeRfiStatus(rfi.status)}
+            </Badge>
+            <StatusBadge entityType="RFI" status={rfi.status} className="hidden sm:inline-flex" />
+          </div>
+          {(() => {
+            const due = formatRfiDueLabel(rfi.dueDate, rfi.status);
+            return (
+              <p
+                className={`text-sm font-medium ${
+                  due.overdue
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {due.text}
+              </p>
+            );
+          })()}
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-2 w-full sm:w-auto">
           {!isEditing && rfi.status !== RfiStatus.Closed && (
             <>
               {getNextRfiStatuses(rfi.status).map((next) => (
                 <Button
                   key={next}
                   variant={next === RfiStatus.Closed ? "outline" : "default"}
-                  className={next !== RfiStatus.Closed ? "bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]" : "min-h-[44px]"}
-                  disabled={isSaving}
-                  onClick={() => handleWorkflowTransition(next, `RFI ${rfiStatusLabel(next).toLowerCase()}`)}
+                  className={
+                    next !== RfiStatus.Closed
+                      ? "bg-amber-500 hover:bg-amber-600 text-white min-h-[44px] w-full sm:w-auto"
+                      : "min-h-[44px] w-full sm:w-auto"
+                  }
+                  disabled={isSaving || pendingStatus !== null}
+                  onClick={() => requestWorkflowTransition(next)}
                 >
-                  {next === RfiStatus.Answered && "Mark Answered"}
-                  {next === RfiStatus.Closed && "Close RFI"}
-                  {next === RfiStatus.Open && "Reopen"}
+                  {rfiWorkflowActionLabel(next)}
                 </Button>
               ))}
               <Button
                 onClick={() => setIsEditing(true)}
                 variant="outline"
-                className="min-h-[44px]"
+                className="min-h-[44px] w-full sm:w-auto"
               >
                 Edit RFI
               </Button>
@@ -389,6 +468,30 @@ export default function RfiDetailPage({
           )}
         </div>
       </div>
+
+      {/* Confirm-to-submit — no status PUT without this dialog */}
+      <ConfirmDialog
+        open={pendingStatus !== null}
+        onOpenChange={(open) => {
+          if (!open && !isSaving) setPendingStatus(null);
+        }}
+        title={
+          pendingStatus !== null
+            ? `Confirm: ${rfiWorkflowActionLabel(pendingStatus)}`
+            : "Confirm status change"
+        }
+        description={
+          pendingStatus !== null
+            ? `Change this RFI from ${rfiStatusLabel(parseRfiStatus(rfi.status))} to ${rfiStatusLabel(pendingStatus)}? This will save to the server.`
+            : "Confirm this status change."
+        }
+        confirmLabel="Confirm & submit"
+        cancelLabel="Cancel"
+        variant={pendingStatus === RfiStatus.Closed ? "warning" : "info"}
+        isLoading={isSaving}
+        loadingText="Saving..."
+        onConfirm={confirmWorkflowTransition}
+      />
 
       {/* Workflow Progress */}
       <WorkflowStepper
@@ -677,13 +780,53 @@ export default function RfiDetailPage({
           </TabsList>
 
           <TabsContent value="details" className="space-y-4">
+            {/* Primary phone fields first: status, due, question body */}
+            <Card className="sm:hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">At a glance</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Status</span>
+                  <Badge variant="secondary" className={rfiStatusBadgeClass(rfi.status)}>
+                    {normalizeRfiStatus(rfi.status)}
+                  </Badge>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground shrink-0">Due</span>
+                  <span
+                    className={`font-medium text-right ${
+                      formatRfiDueLabel(rfi.dueDate, rfi.status).overdue
+                        ? "text-red-600 dark:text-red-400"
+                        : ""
+                    }`}
+                  >
+                    {formatRfiDueLabel(rfi.dueDate, rfi.status).text}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Question</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm sm:text-base text-foreground leading-relaxed whitespace-pre-wrap break-words">
+                  {rfi.question}
+                </p>
+              </CardContent>
+            </Card>
+
             <div className="grid gap-4 md:grid-cols-2">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">RFI Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className="font-medium">{normalizeRfiStatus(rfi.status)}</span>
                     <span className="text-muted-foreground">Priority</span>
                     <span>
                       <Badge variant="secondary" className={priorityColor(rfi.priority)}>
@@ -691,15 +834,21 @@ export default function RfiDetailPage({
                       </Badge>
                     </span>
                     <span className="text-muted-foreground">Due Date</span>
-                    <span className="font-medium">
-                      {rfi.dueDate ? new Date(rfi.dueDate).toLocaleDateString() : "Not set"}
+                    <span
+                      className={`font-medium ${
+                        formatRfiDueLabel(rfi.dueDate, rfi.status).overdue
+                          ? "text-red-600 dark:text-red-400"
+                          : ""
+                      }`}
+                    >
+                      {formatRfiDueLabel(rfi.dueDate, rfi.status).text}
                     </span>
                     <span className="text-muted-foreground">Ball In Court</span>
-                    <span className="font-medium">{rfi.ballInCourtName || "—"}</span>
+                    <span className="font-medium break-words">{rfi.ballInCourtName || "—"}</span>
                     <span className="text-muted-foreground">Assigned To</span>
-                    <span className="font-medium">{rfi.assignedToName || "—"}</span>
+                    <span className="font-medium break-words">{rfi.assignedToName || "—"}</span>
                     <span className="text-muted-foreground">Created By</span>
-                    <span className="font-medium">{rfi.createdByName || "—"}</span>
+                    <span className="font-medium break-words">{rfi.createdByName || "—"}</span>
                     <span className="text-muted-foreground">Created</span>
                     <span className="font-medium">{new Date(rfi.createdAt).toLocaleDateString()}</span>
                   </div>
@@ -711,7 +860,7 @@ export default function RfiDetailPage({
                   <CardTitle className="text-base">Timeline</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                     <span className="text-muted-foreground">Answered At</span>
                     <span className="font-medium">
                       {rfi.answeredAt ? new Date(rfi.answeredAt).toLocaleDateString() : "Not yet answered"}
@@ -727,22 +876,11 @@ export default function RfiDetailPage({
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Question</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                  {rfi.question}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
                 <CardTitle className="text-base">Answer</CardTitle>
               </CardHeader>
               <CardContent>
                 {rfi.answer ? (
-                  <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm sm:text-base text-foreground leading-relaxed whitespace-pre-wrap break-words">
                     {rfi.answer}
                   </p>
                 ) : (
@@ -752,6 +890,54 @@ export default function RfiDetailPage({
                 )}
               </CardContent>
             </Card>
+
+            {/* Attachments openable in view mode (same path as edit) */}
+            {existingAttachments.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Paperclip className="h-4 w-4" />
+                    Attachments
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {existingAttachments.map((f) => (
+                    <div
+                      key={f.id}
+                      className="flex items-center gap-2 text-sm rounded border px-3 py-2 min-h-[44px]"
+                    >
+                      <Paperclip className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="flex-1 truncate min-w-0">{f.fileName}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 min-h-[44px] min-w-[44px] shrink-0"
+                        aria-label={`Download ${f.fileName}`}
+                        onClick={() => {
+                          const url = getDownloadUrl(f.id);
+                          const token = getToken();
+                          if (token) {
+                            fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+                              .then((r) => r.blob())
+                              .then((blob) => {
+                                const u = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = u;
+                                a.download = f.fileName;
+                                a.click();
+                                URL.revokeObjectURL(u);
+                              })
+                              .catch(() => toast.error("Download failed"));
+                          }
+                        }}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid gap-4 md:grid-cols-2">
               <Card>

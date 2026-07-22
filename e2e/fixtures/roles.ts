@@ -9,6 +9,7 @@ export type PersonaKey =
   | 'pm'
   | 'fieldEng'
   | 'estimator'
+  | 'contractAdmin'
   | 'arClerk'
   | 'apClerk'
   | 'payrollManager';
@@ -51,6 +52,14 @@ export const PERSONAS: Record<PersonaKey, Persona> = {
     appRole: 'User',
     rbacRole: 'Estimator',
     lifecycles: [1],
+  },
+  contractAdmin: {
+    key: 'contractAdmin',
+    email: 'contract-admin@demo.local',
+    appRole: 'Manager',
+    /** Title-first: Contract Administrator → role_profile contractAdministrator */
+    rbacRole: 'Manager',
+    lifecycles: [2, 5, 9],
   },
   arClerk: {
     key: 'arClerk',

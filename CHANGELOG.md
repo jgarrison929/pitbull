@@ -8,6 +8,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **PM arc research note** — CM/CPM workflows + ranked 2024–2026 mobile/field complaints mapped to bands 3.5–4.0 (`docs/roadmap/pm-mobile-workflows-and-complaints-2026.md`); epic + band 3.5 + stubs updated (docs only).
+- **Contract Administrator demo persona** — Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
+- **PM next-gen arc program docs** — epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
+
+## [3.4.6] - 2026-07-21T19:59:31-07:00
+
+### Changed
+
+- **Phone-first Submittal list** — project submittals prefer slim `?view=mobile` (includes type); phone cards = type + status + due/overdue; honest empty/error; summary cards hidden on phone (no register % health). Vitest `submittal-mobile-list`. Next: 3.4.7 submittal detail.
+
+## [3.4.5] - 2026-07-21T19:40:48-07:00
+
+### Changed
+
+- **Phone-first RFI detail + confirm-to-submit** — `/rfis/[id]` stacks subject, status, due/overdue for ~390px; question/answer body readable without horizontal scroll; workflow Mark Answered / Close / Reopen opens **ConfirmDialog** before PUT (no single-tap auto-post). Attachments openable in view mode. Pure guard `evaluateRfiStatusTransition` unit-tested. Next: 3.4.6 phone Submittal list.
+
+## [3.4.4] - 2026-07-21T19:19:55-07:00
+
+### Changed
+
+- **Phone-first RFI list** — `/rfis` loads slim `?view=mobile` rows; one-column cards with status + overdue due (red), 44px taps; honest empty/error copy (not health); desktop table slimmed to # / subject / status / due. Vitest: `rfi-mobile-list`. Next: 3.4.5 RFI detail + confirm status.
+
+## [3.4.3] - 2026-07-21T19:13:56-07:00
+
+### Added
+
+- **Slim mobile Submittal list API** — `GET /api/projects/{projectId}/submittals?view=mobile` returns paginated `SubmittalMobileListItemDto` (id, number, title, status string, projectId, dueDate from RequiredBy/FinalDue, updatedAt). No description bag, no register-complete % / health fields. Next: 3.4.4 phone-first RFI list UI.
+
+## [3.4.2] - 2026-07-21T19:09:15-07:00
+
+### Added
+
+- **Slim mobile RFI list API** — `GET /api/projects/{projectId}/rfis?view=mobile` returns paginated `RfiMobileListItemDto` (id, number, subject, status, projectId, dueDate, updatedAt). Omits question/answer bodies, drawings, cost impact, and any health/KPI fields. Same authz as full list. Next: 3.4.3 slim Submittal list.
+
+## [3.4.1] - 2026-07-21T07:02:13-07:00
+
+### Added
+
+- **Band 3.5 open (3.4.1)** — mobile RFI/Submittal **list DTO field contract** only: required `id`, `number`, `subject`/`title`, `status`, `projectId`; optional `projectName`, `dueDate`, `updatedAt`. Explicit ban on health/KPI/portfolio fields and heavy collections on list DTOs; empty-list honesty. Spec § contract + CI notes; no slim API or phone UI rewrite on this stamp. Ladder continues `3.4.2` → `3.12.9` / `4.0.0`.
+
 ## [3.4.0] - 2026-07-15T13:37:27-07:00
 
 ### Added

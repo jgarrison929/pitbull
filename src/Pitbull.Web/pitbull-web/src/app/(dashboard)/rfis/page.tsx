@@ -27,65 +27,20 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Download, HelpCircle, Search } from "lucide-react";
 import api from "@/lib/api";
-import type { PagedResult, Rfi, Project, RfiStatus, RfiPriority } from "@/lib/types";
+import type { PagedResult, Project } from "@/lib/types";
+import {
+  formatRfiDueLabel,
+  normalizeRfiStatus,
+  rfiMobileListUrl,
+  rfiStatusBadgeClass,
+  type RfiMobileListItem,
+  RFI_LIST_EMPTY_DESCRIPTION,
+  RFI_LIST_EMPTY_TITLE,
+  RFI_LIST_ERROR_DESCRIPTION,
+  RFI_LIST_ERROR_TITLE,
+} from "@/lib/rfi-mobile-list";
 import { toast } from "sonner";
 import { useCompany } from "@/contexts/company-context";
-
-function statusColor(status: RfiStatus) {
-  switch (status) {
-    case 0: // Open
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100";
-    case 1: // Answered
-      return "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-100";
-    case 2: // Closed
-      return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
-    default:
-      return "";
-  }
-}
-
-function statusLabel(status: RfiStatus) {
-  switch (status) {
-    case 0:
-      return "Open";
-    case 1:
-      return "Answered";
-    case 2:
-      return "Closed";
-    default:
-      return "Unknown";
-  }
-}
-
-function priorityColor(priority: RfiPriority) {
-  switch (priority) {
-    case 0: // Low
-      return "bg-neutral-100 text-neutral-600 hover:bg-neutral-100";
-    case 1: // Normal
-      return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 hover:bg-blue-100";
-    case 2: // High
-      return "bg-orange-100 text-orange-700 hover:bg-orange-100";
-    case 3: // Urgent
-      return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 hover:bg-red-100";
-    default:
-      return "";
-  }
-}
-
-function priorityLabel(priority: RfiPriority) {
-  switch (priority) {
-    case 0:
-      return "Low";
-    case 1:
-      return "Normal";
-    case 2:
-      return "High";
-    case 3:
-      return "Urgent";
-    default:
-      return "Unknown";
-  }
-}
 
 const RFI_STATUS_NAME_MAP: Record<string, string> = {
   open: "0",
@@ -109,19 +64,20 @@ export default function RfisPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { activeCompany } = useCompany();
-  const [rfis, setRfis] = useState<Rfi[]>([]);
+  const [rfis, setRfis] = useState<RfiMobileListItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingRfis, setIsLoadingRfis] = useState(false);
+  const [listError, setListError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const initialStatusFromUrl = useRef(resolveRfiStatusParam(searchParams.get("status")));
 
-  // Filter states
+  // Filter states (status only on slim list — priority lives on full DTO / detail)
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFromUrl.current);
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
 
   // Register keyboard shortcuts
   const handleNew = useCallback(() => {
@@ -173,111 +129,82 @@ export default function RfisPage() {
 
     async function fetchRfis() {
       setIsLoadingRfis(true);
+      setListError(false);
       try {
-        const result = await api<PagedResult<Rfi>>(
-          `/api/projects/${selectedProjectId}/rfis?pageSize=50`
+        // Band 3.4.4: slim mobile list DTO (id, number, subject, status, dueDate, …)
+        const result = await api<PagedResult<RfiMobileListItem>>(
+          rfiMobileListUrl(selectedProjectId, 50)
         );
         setRfis(result.items);
       } catch {
-        toast.error("Failed to load RFIs");
+        setRfis([]);
+        setListError(true);
+        toast.error(RFI_LIST_ERROR_TITLE);
       } finally {
         setIsLoadingRfis(false);
       }
     }
     fetchRfis();
-  }, [selectedProjectId]);
+  }, [selectedProjectId, reloadToken]);
 
-  // Filter RFIs based on search and filters
+  // Filter RFIs based on search and status (slim list has no priority / question body)
   const filteredRfis = useMemo(() => {
     return rfis.filter((rfi) => {
-      // Search filter - check subject and question
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const matchesSubject = rfi.subject.toLowerCase().includes(query);
-        const matchesQuestion = rfi.question?.toLowerCase().includes(query);
-        if (!matchesSubject && !matchesQuestion) {
+        if (!rfi.subject.toLowerCase().includes(query)) {
           return false;
         }
       }
 
-      // Status filter — notClosed = Open(0) + Answered(1), matches executive KPI
+      // Status filter — notClosed = Open + Answered; numeric URL codes map via normalize
       if (statusFilter !== "all") {
+        const label = normalizeRfiStatus(rfi.status).toLowerCase();
         if (statusFilter === "notClosed") {
-          if (rfi.status === 2) return false; // exclude Closed only
-        } else if (rfi.status !== parseInt(statusFilter)) {
-          return false;
-        }
-      }
-
-      // Priority filter
-      if (priorityFilter !== "all") {
-        if (rfi.priority !== parseInt(priorityFilter)) {
-          return false;
+          if (label === "closed") return false;
+        } else {
+          const wanted = normalizeRfiStatus(statusFilter).toLowerCase();
+          if (label !== wanted) return false;
         }
       }
 
       return true;
     });
-  }, [rfis, searchQuery, statusFilter, priorityFilter]);
+  }, [rfis, searchQuery, statusFilter]);
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
-  // Export filtered RFIs to CSV
+  // Export filtered RFIs to CSV (slim list fields only)
   const exportToCsv = useCallback(() => {
     if (!filteredRfis.length || !selectedProject) return;
 
-    // CSV header
-    const headers = [
-      "RFI Number",
-      "Subject",
-      "Status",
-      "Priority",
-      "Due Date",
-      "Created Date",
-      "Has Cost Impact",
-      "Estimated Cost",
-    ];
+    const headers = ["RFI Number", "Subject", "Status", "Due Date"];
 
-    // Helper to escape CSV values
     const escapeCSV = (value: string | number | boolean | null | undefined): string => {
       if (value === null || value === undefined) return "";
       const str = String(value);
-      // Escape quotes and wrap in quotes if contains comma, quote, or newline
       if (str.includes(",") || str.includes('"') || str.includes("\n")) {
         return `"${str.replace(/"/g, '""')}"`;
       }
       return str;
     };
 
-    // Build CSV rows
     const rows = filteredRfis.map((rfi) => [
       `RFI-${String(rfi.number).padStart(3, "0")}`,
       escapeCSV(rfi.subject),
-      statusLabel(rfi.status),
-      priorityLabel(rfi.priority),
+      normalizeRfiStatus(rfi.status),
       rfi.dueDate ? new Date(rfi.dueDate).toLocaleDateString() : "",
-      rfi.createdAt ? new Date(rfi.createdAt).toLocaleDateString() : "",
-      rfi.hasCostImpact ? "Yes" : "No",
-      rfi.estimatedCostImpact != null ? rfi.estimatedCostImpact.toFixed(2) : "",
     ]);
 
-    // Combine header and rows
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.join(",")),
-    ].join("\n");
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
 
-    // Create blob and download
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    
-    // Generate filename with project name and date
     const projectName = selectedProject.name.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
     const date = new Date().toISOString().split("T")[0];
     link.setAttribute("download", `rfis-${projectName}-${date}.csv`);
     link.setAttribute("href", url);
-    
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -292,7 +219,6 @@ export default function RfisPage() {
   const hasAppliedUrlFilter = useRef(false);
   useEffect(() => {
     setSearchQuery("");
-    setPriorityFilter("all");
     if (hasAppliedUrlFilter.current) {
       setStatusFilter("all");
     } else {
@@ -306,15 +232,15 @@ export default function RfisPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">RFIs</h1>
           <p className="text-muted-foreground">
-            Track Requests for Information
+            Job RFIs — status and due date first (phone-friendly list)
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col xs:flex-row gap-3 w-full sm:w-auto">
           <Select
             value={selectedProjectId}
             onValueChange={setSelectedProjectId}
           >
-            <SelectTrigger className="w-[250px]">
+            <SelectTrigger className="w-full sm:w-[250px] min-h-[44px]">
               <SelectValue placeholder="Select a project" />
             </SelectTrigger>
             <SelectContent>
@@ -355,18 +281,18 @@ export default function RfisPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   ref={searchInputRef}
-                  placeholder="Search by subject or question..."
+                  placeholder="Search by subject..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
+                  className="pl-9 min-h-[44px]"
                 />
               </div>
               
-              {/* Filter dropdowns */}
+              {/* Status filter only — slim list omits priority (see detail for full row) */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 sm:max-w-[200px]">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger>
+                    <SelectTrigger className="min-h-[44px]">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -378,22 +304,7 @@ export default function RfisPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex-1 sm:max-w-[200px]">
-                  <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Filter by priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      <SelectItem value="0">Low</SelectItem>
-                      <SelectItem value="1">Normal</SelectItem>
-                      <SelectItem value="2">High</SelectItem>
-                      <SelectItem value="3">Urgent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {/* Show result count when filters are active */}
-                {(searchQuery || statusFilter !== "all" || priorityFilter !== "all") && (
+                {(searchQuery || statusFilter !== "all") && (
                   <div className="flex items-center text-sm text-muted-foreground">
                     Showing {filteredRfis.length} of {rfis.length} RFIs
                   </div>
@@ -420,14 +331,7 @@ export default function RfisPage() {
               <CardListSkeleton rows={5} />
               <div className="hidden sm:block">
                 <TableSkeleton
-                  headers={[
-                    "RFI #",
-                    "Subject",
-                    "Status",
-                    "Priority",
-                    "Ball In Court",
-                    "Due Date",
-                  ]}
+                  headers={["RFI #", "Subject", "Status", "Due Date"]}
                   rows={5}
                 />
               </div>
@@ -438,11 +342,22 @@ export default function RfisPage() {
                 Please select a project to view RFIs
               </p>
             </div>
+          ) : listError ? (
+            <EmptyState
+              icon={HelpCircle}
+              title={RFI_LIST_ERROR_TITLE}
+              description={RFI_LIST_ERROR_DESCRIPTION}
+              actionLabel="Retry"
+              onAction={() => {
+                setListError(false);
+                setReloadToken((n) => n + 1);
+              }}
+            />
           ) : rfis.length === 0 ? (
             <EmptyState
               icon={HelpCircle}
-              title="No RFIs yet"
-              description="Create your first RFI to track questions about construction documents, specifications, or drawings."
+              title={RFI_LIST_EMPTY_TITLE}
+              description={RFI_LIST_EMPTY_DESCRIPTION}
               actionLabel="+ Create First RFI"
               actionHref={`/rfis/new?projectId=${selectedProjectId}`}
             />
@@ -456,7 +371,6 @@ export default function RfisPage() {
                 onClick={() => {
                   setSearchQuery("");
                   setStatusFilter("all");
-                  setPriorityFilter("all");
                 }}
                 className="mt-2"
               >
@@ -465,115 +379,97 @@ export default function RfisPage() {
             </div>
           ) : (
             <>
-              {/* Mobile card layout */}
+              {/* Phone card layout — one column, status + due/overdue, large tap targets */}
               <div className="sm:hidden space-y-3">
-                {filteredRfis.map((rfi) => (
-                  <div key={rfi.id} className="border rounded-lg p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <Link
-                          href={`/rfis/${rfi.id}?projectId=${selectedProjectId}`}
-                          className="font-medium text-amber-700 hover:underline text-sm"
-                        >
-                          {rfi.subject}
-                        </Link>
-                        <p className="text-xs text-muted-foreground font-mono mt-1">
-                          RFI-{String(rfi.number).padStart(3, "0")}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className={`${statusColor(rfi.status)} text-xs shrink-0`}
-                      >
-                        {statusLabel(rfi.status)}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground text-xs">
-                          Priority
-                        </span>
-                        <div>
-                          <Badge
-                            variant="secondary"
-                            className={`${priorityColor(rfi.priority)} text-xs`}
-                          >
-                            {priorityLabel(rfi.priority)}
-                          </Badge>
+                {filteredRfis.map((rfi) => {
+                  const due = formatRfiDueLabel(rfi.dueDate, rfi.status);
+                  return (
+                    <Link
+                      key={rfi.id}
+                      href={`/rfis/${rfi.id}?projectId=${selectedProjectId}`}
+                      className="block border rounded-lg p-4 space-y-2 min-h-[72px] active:bg-muted/50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-amber-700 text-base leading-snug break-words">
+                            {rfi.subject}
+                          </p>
+                          <p className="text-xs text-muted-foreground font-mono mt-1">
+                            RFI-{String(rfi.number).padStart(3, "0")}
+                          </p>
                         </div>
+                        <Badge
+                          variant="secondary"
+                          className={`${rfiStatusBadgeClass(rfi.status)} text-xs shrink-0`}
+                        >
+                          {normalizeRfiStatus(rfi.status)}
+                        </Badge>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-xs">
-                          Ball In Court
-                        </span>
-                        <p className="font-medium">
-                          {rfi.ballInCourtName || "—"}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Due{" "}
-                      {rfi.dueDate
-                        ? new Date(rfi.dueDate).toLocaleDateString()
-                        : "—"}
-                    </div>
-                  </div>
-                ))}
+                      <p
+                        className={`text-sm font-medium ${
+                          due.overdue
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {due.text}
+                      </p>
+                    </Link>
+                  );
+                })}
               </div>
 
-              {/* Desktop table layout */}
+              {/* Desktop table — slim columns only (no horizontal priority/BIC clutter) */}
               <div className="hidden sm:block">
-                <div className="overflow-x-auto"><Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>RFI #</TableHead>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Ball In Court</TableHead>
-                      <TableHead>Due Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredRfis.map((rfi) => (
-                      <TableRow key={rfi.id}>
-                        <TableCell className="font-mono text-sm">
-                          RFI-{String(rfi.number).padStart(3, "0")}
-                        </TableCell>
-                        <TableCell>
-                          <Link
-                            href={`/rfis/${rfi.id}?projectId=${selectedProjectId}`}
-                            className="font-medium text-amber-700 hover:underline"
-                          >
-                            {rfi.subject}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={statusColor(rfi.status)}
-                          >
-                            {statusLabel(rfi.status)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={priorityColor(rfi.priority)}
-                          >
-                            {priorityLabel(rfi.priority)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{rfi.ballInCourtName || "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {rfi.dueDate
-                            ? new Date(rfi.dueDate).toLocaleDateString()
-                            : "—"}
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>RFI #</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Due Date</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table></div>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredRfis.map((rfi) => {
+                        const due = formatRfiDueLabel(rfi.dueDate, rfi.status);
+                        return (
+                          <TableRow key={rfi.id}>
+                            <TableCell className="font-mono text-sm">
+                              RFI-{String(rfi.number).padStart(3, "0")}
+                            </TableCell>
+                            <TableCell>
+                              <Link
+                                href={`/rfis/${rfi.id}?projectId=${selectedProjectId}`}
+                                className="font-medium text-amber-700 hover:underline"
+                              >
+                                {rfi.subject}
+                              </Link>
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={rfiStatusBadgeClass(rfi.status)}
+                              >
+                                {normalizeRfiStatus(rfi.status)}
+                              </Badge>
+                            </TableCell>
+                            <TableCell
+                              className={
+                                due.overdue
+                                  ? "text-red-600 dark:text-red-400 font-medium"
+                                  : "text-muted-foreground"
+                              }
+                            >
+                              {due.text}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </>
           )}

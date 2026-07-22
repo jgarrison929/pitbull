@@ -17,6 +17,7 @@ import {
   HardHat,
   Landmark,
   Loader2,
+  FileText,
   UsersRound,
 } from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
@@ -60,6 +61,12 @@ const FALLBACK_DEMO_ROLES: DemoRole[] = [
     description: "Precon focus — bids, pipeline value, cost codes",
     email: "estimator@demo.local",
   },
+  {
+    key: "contractadmin",
+    label: "Contract Admin",
+    description: "Main contracts, sub pay apps, insurance & compliance",
+    email: "contract-admin@demo.local",
+  },
 ];
 
 const ROLE_ICONS: Record<string, ReactNode> = {
@@ -69,6 +76,8 @@ const ROLE_ICONS: Record<string, ReactNode> = {
   superintendent: <UsersRound className="h-5 w-5" />,
   foreman: <UsersRound className="h-5 w-5" />,
   estimator: <Calculator className="h-5 w-5" />,
+  contractadmin: <FileText className="h-5 w-5" />,
+  ca: <FileText className="h-5 w-5" />,
 };
 
 function safeRedirect(raw: string | null): string {

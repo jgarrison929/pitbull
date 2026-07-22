@@ -357,7 +357,7 @@ public class AuthController(
     ///     POST /api/auth/demo-role-login
     ///     { "role": "ceo" }
     ///
-    /// Supported roles: ceo, cfo, pm, estimator, superintendent (alias: foreman)
+    /// Supported roles: ceo, cfo, pm, estimator, superintendent (alias: foreman), contractadmin (alias: ca)
     /// </remarks>
     [HttpPost("demo-role-login")]
     [EnableRateLimiting("demo-register")]
@@ -457,6 +457,14 @@ public class AuthController(
         ["foreman"] = new("foreman", "Foreman",
             "Field leadership — crew time, daily reports, equipment, punch lists",
             "superintendent@demo.local", RoleSeeder.Roles.Supervisor),
+        // Contracts — title "Contract Administrator" → role_profile=contractAdministrator
+        // Day job: main/owner contracts, subcontracts, sub pay apps, insurance & project compliance
+        ["contractadmin"] = new("contractadmin", "Contract Admin",
+            "Main contracts, sub pay apps, insurance & project compliance — negotiate and administer agreements",
+            "contract-admin@demo.local", RoleSeeder.Roles.Manager),
+        ["ca"] = new("ca", "Contract Admin",
+            "Main contracts, sub pay apps, insurance & project compliance — negotiate and administer agreements",
+            "contract-admin@demo.local", RoleSeeder.Roles.Manager),
     };
 
     private sealed record DemoRolePersona(

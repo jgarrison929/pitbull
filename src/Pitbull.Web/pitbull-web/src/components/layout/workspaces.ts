@@ -533,6 +533,50 @@ export const roleDefaults: Record<string, RoleDefaults> = {
       { label: "Codes", href: "/cost-codes", icon: "🏷️", matchPaths: ["/cost-codes"] },
     ],
   },
+  /**
+   * Contract Administrator — main/owner contracts, subcontracts, sub pay apps,
+   * subcontractor + project insurance/compliance (negotiate & administer).
+   * JWT role_profile from RoleProfileResolver.ToApiName(ContractAdministrator).
+   */
+  contractAdministrator: {
+    defaultWorkspace: "operations",
+    workspaces: ["my-work", "operations", "finance", "projects", "reports"],
+    favorites: [
+      "/",
+      "/billing/contracts",
+      "/contracts",
+      "/payment-applications",
+      "/reports/compliance",
+    ],
+    quickActions: [
+      { label: "Owner Contracts", href: "/billing/contracts", icon: "📑" },
+      { label: "Subcontracts", href: "/contracts", icon: "📄" },
+      { label: "Sub Pay Apps", href: "/payment-applications", icon: "💵" },
+      { label: "Compliance", href: "/reports/compliance", icon: "✅" },
+      { label: "Change Orders", href: "/change-orders", icon: "📝" },
+    ],
+    mobileTabs: [
+      { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
+      {
+        label: "Subs",
+        href: "/contracts",
+        icon: "📄",
+        matchPaths: ["/contracts", "/change-orders"],
+      },
+      {
+        label: "Pay Apps",
+        href: "/payment-applications",
+        icon: "💵",
+        matchPaths: ["/payment-applications"],
+      },
+      {
+        label: "Compliance",
+        href: "/reports/compliance",
+        icon: "✅",
+        matchPaths: ["/reports/compliance", "/admin/compliance"],
+      },
+    ],
+  },
   itAdmin: {
     defaultWorkspace: "admin",
     workspaces: ALL_WORKSPACE_IDS,

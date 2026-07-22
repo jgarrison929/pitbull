@@ -12,7 +12,7 @@ Construction ERP (modular monolith). Prefer **truth over polish**: label metric 
 
 ## Demo personas (Explore as a role)
 
-When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator via `POST /api/auth/demo-role-login`.
+When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator / Contract Admin via `POST /api/auth/demo-role-login`.
 
 | Key | Email | Title drives home UX |
 |-----|--------|----------------------|
@@ -21,6 +21,7 @@ When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator via `POST 
 | pm | pm@demo.local | Project Manager → **pm** layout |
 | superintendent | superintendent@demo.local | Field Superintendent → **field** layout (alias key: `foreman`) |
 | estimator | estimator@demo.local | Estimator → **estimator** layout |
+| contractadmin | contract-admin@demo.local | Contract Administrator → **contracts** layout (alias: `ca`) — main/owner contracts, sub pay apps, insurance & project compliance |
 
 **Persona resolution** is title-first via `RoleProfileResolver` (briefing, dashboard prefs, welcome tour). JWT includes `job_title` + `role_profile`. Identity role alone is **not** enough (Manager ≠ Executive).
 
@@ -30,7 +31,7 @@ When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator via `POST 
 |-----------------|-----------|
 | `src/`, tests, `CHANGELOG.md`, `docs/ARCHITECTURE.md`, `docs/ROLE-EXPERIENCE.md` | Historical design notes under `docs/architecture/` (see its README) |
 | Live Railway: `deploy/RAILWAY-*.md` | Older multi-env notes in `docs/deployment/*` |
-| Session program: `docs/260712/*` | Post-3.0 themes: `docs/roadmap/post-3.0-product-bands.md` |
+| Session program: `docs/260712/*` (historical 3.0) | **Live arc:** `docs/roadmap/pm-nextgen-3.4-to-4.0.md` + `docs/340-pm-arc/*` · parking lot: `docs/roadmap/post-3.0-product-bands.md` |
 
 ## Required reading by task type
 
@@ -51,6 +52,18 @@ Per `CONTRIBUTING.md`: update `VERSION`, web `package.json`, API csproj Version 
 **This program (to 3.0.0):** product ends **`2.22.2`**; runway **`2.22.3`→`2.24.2`**; major **`2.24.2`→`3.0.0`**. One bump per PR. Never skip. See `VERSION-WORKFLOW.md`.
 
 ## Session workflow (canonical — do not re-derive in chat)
+
+### Live: PM next-gen (3.4 → 4.0.0)
+
+| Doc | Purpose |
+|-----|---------|
+| [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](docs/roadmap/pm-nextgen-3.4-to-4.0.md) | Epic: domains, inventory, ladder, Railway gates |
+| [`docs/340-pm-arc/VERSION-WORKFLOW.md`](docs/340-pm-arc/VERSION-WORKFLOW.md) | Version rules for this arc |
+| [`docs/340-pm-arc/goal-prompts.md`](docs/340-pm-arc/goal-prompts.md) | Copy-paste `/goal` prompts |
+| [`docs/specs/product-bands/band-3.5-pm-rfi-submittal-mobile.md`](docs/specs/product-bands/band-3.5-pm-rfi-submittal-mobile.md) | First band (next stamp **3.4.1**) |
+| [`docs/ci/pm-arc-deploy-safety.md`](docs/ci/pm-arc-deploy-safety.md) | Preflight + stamp + health gates |
+
+### Historical: 3.0.0 program (complete — do not reopen)
 
 | Doc | Purpose |
 |-----|---------|

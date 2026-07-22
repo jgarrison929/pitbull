@@ -1,8 +1,9 @@
 # Product specs (`docs/specs/`)
 
 **Status:** Living template — ship stamp with 2.12.2  
-**Workload index:** [`docs/260712/spec-workload.md`](../260712/spec-workload.md)  
-**Version rules:** [`docs/260712/VERSION-WORKFLOW.md`](../260712/VERSION-WORKFLOW.md)
+**Active product arc:** PM next-gen **3.4 → 4.0.0** — [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md) · [`docs/340-pm-arc/`](../340-pm-arc/)  
+**Historical 3.0 workload:** [`docs/260712/spec-workload.md`](../260712/spec-workload.md)  
+**Version rules (PM arc):** [`docs/340-pm-arc/VERSION-WORKFLOW.md`](../340-pm-arc/VERSION-WORKFLOW.md) · historical [`docs/260712/VERSION-WORKFLOW.md`](../260712/VERSION-WORKFLOW.md)
 
 ## When to write a spec
 
@@ -76,4 +77,8 @@ A `/goal` may start only when the target version row has:
 
 ## Post-3.0 product bands
 
-See [`product-bands/README.md`](./product-bands/README.md) and [`docs/roadmap/post-3.0-product-bands.md`](../roadmap/post-3.0-product-bands.md).
+See [`product-bands/README.md`](./product-bands/README.md).
+
+**PM next-gen (live ladder):** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md) — first agent-ready band [`product-bands/band-3.5-pm-rfi-submittal-mobile.md`](./product-bands/band-3.5-pm-rfi-submittal-mobile.md) (next stamp **`3.4.1`**).
+
+Older theme parking lot: [`docs/roadmap/post-3.0-product-bands.md`](../roadmap/post-3.0-product-bands.md).

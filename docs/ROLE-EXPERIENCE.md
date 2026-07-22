@@ -21,6 +21,7 @@ How demo and real users land in the product after login. All personas use shell 
 | executive | My Work, Projects, Finance, Reports |
 | cfo | My Work, Finance, Operations, Reports |
 | projectManager | My Work, Projects, People, Reports |
+| contractAdministrator | My Work, Operations, Projects, Finance |
 | estimator / field | My Work, Projects |
 | payroll / hr | My Work, People |
 | Admin | all |
@@ -49,6 +50,7 @@ Frontend nav defaults: `getRoleDefaults(roles, roleProfile)` in `workspaces.ts`.
 | **CFO** | controller | Controller | True AR/AP from aging, AR−AP net, owner billing progress, WIP / journal / P&L actions |
 | **PM** | pm | PM | Active jobs, RFIs, time approvals, deadlines |
 | **Estimator** | estimator | Estimator | Open bids, due this week, pipeline $ |
+| **Contract Admin** | contracts | Contracts | Active owner contracts, subcontracts, pending sub pay apps, open COs, expiring/expired sub+project insurance/compliance docs (real entities only) |
 
 ## Truth rules
 

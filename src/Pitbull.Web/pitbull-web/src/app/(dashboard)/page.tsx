@@ -27,6 +27,7 @@ import { ControllerDashboard } from "@/components/dashboard/role-views/controlle
 import { FieldDashboard } from "@/components/dashboard/role-views/field-dashboard";
 import { ExecutiveDashboard } from "@/components/dashboard/role-views/executive-dashboard";
 import { EstimatorDashboard } from "@/components/dashboard/role-views/estimator-dashboard";
+import { ContractsDashboard } from "@/components/dashboard/role-views/contracts-dashboard";
 import { WidgetGrid } from "@/components/dashboard/widget-grid";
 import { CustomizeDialog } from "@/components/dashboard/customize-dialog";
 import {
@@ -85,6 +86,7 @@ const LAYOUT_LABELS: Record<string, string> = {
   field: "Field",
   executive: "Executive",
   estimator: "Estimator",
+  contracts: "Contracts",
 };
 
 export default function DashboardPage() {
@@ -279,9 +281,14 @@ export default function DashboardPage() {
   }, [dashboardLayout]);
 
   // Check if layout uses a role-specific view (legacy rendering)
-  const usesRoleView = ["pm", "controller", "field", "executive", "estimator"].includes(
-    dashboardLayout
-  );
+  const usesRoleView = [
+    "pm",
+    "controller",
+    "field",
+    "executive",
+    "estimator",
+    "contracts",
+  ].includes(dashboardLayout);
 
   return (
     <div className="space-y-6">
@@ -357,6 +364,9 @@ export default function DashboardPage() {
               <DropdownMenuItem onClick={() => switchLayout("estimator")}>
                 Estimator
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => switchLayout("contracts")}>
+                Contract Admin
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -428,6 +438,10 @@ export default function DashboardPage() {
       )}
       {dashboardLayout === "estimator" && (
         <EstimatorDashboard data={data} isLoading={isLoading} />
+      )}
+
+      {dashboardLayout === "contracts" && (
+        <ContractsDashboard data={data} isLoading={isLoading} />
       )}
 
       {/* Widget-based customizable dashboard */}

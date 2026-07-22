@@ -5,6 +5,7 @@ using Pitbull.Billing.Features.Aging;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.ProjectManagement.Domain;
 using Pitbull.Projects.Domain;
@@ -24,7 +25,20 @@ public sealed record MorningBriefingDto(
     BriefingControllerSection? Controller,
     BriefingForemanSection? Foreman,
     BriefingExecutiveSection? Executive,
-    BriefingEstimatorSection? Estimator = null);
+    BriefingEstimatorSection? Estimator = null,
+    BriefingContractsSection? Contracts = null);
+
+/// <summary>
+/// Real entity counts for contract administrators — main contracts, subs, pay apps, insurance/compliance.
+/// No invented commercial “health” scores.
+/// </summary>
+public sealed record BriefingContractsSection(
+    int ActiveOwnerContractCount,
+    int ActiveSubcontractCount,
+    int OpenChangeOrderCount,
+    int PendingPayAppCount,
+    int ExpiringComplianceDocCount,
+    int ExpiredComplianceDocCount);
 
 public sealed record BriefingEstimatorSection(
     int OpenBidCount,
@@ -105,6 +119,7 @@ public sealed class BriefingService(
         BriefingForemanSection? foreman = null;
         BriefingExecutiveSection? executive = null;
         BriefingEstimatorSection? estimator = null;
+        BriefingContractsSection? contracts = null;
 
         switch (primaryRole)
         {
@@ -120,6 +135,9 @@ public sealed class BriefingService(
             case "Estimator":
                 estimator = await BuildEstimatorSectionAsync(ct);
                 break;
+            case "Contracts":
+                contracts = await BuildContractsSectionAsync(ct);
+                break;
             default: // PM is the fallback
                 pm = await BuildPmSectionAsync(ct);
                 break;
@@ -134,7 +152,8 @@ public sealed class BriefingService(
             Controller: controller,
             Foreman: foreman,
             Executive: executive,
-            Estimator: estimator);
+            Estimator: estimator,
+            Contracts: contracts);
     }
 
     private async Task<BriefingCoreSection> BuildCoreSectionAsync(Guid userId, CancellationToken ct)
@@ -327,6 +346,57 @@ public sealed class BriefingService(
                     && b.DueDate.Value.Date <= weekEnd, ct), 0);
 
         return new BriefingEstimatorSection(openBidCount, dueThisWeek, pipelineValue ?? 0m);
+    }
+
+    private async Task<BriefingContractsSection> BuildContractsSectionAsync(CancellationToken ct)
+    {
+        var activeOwner = await SafeAsync("ActiveOwnerContracts",
+            () => db.Set<OwnerContract>().AsNoTracking()
+                .CountAsync(c => c.Status == OwnerContractStatus.Active, ct), 0);
+
+        var activeSubs = await SafeAsync("ActiveSubcontracts",
+            () => db.Set<Subcontract>().AsNoTracking()
+                .CountAsync(s =>
+                    s.Status == SubcontractStatus.Issued
+                    || s.Status == SubcontractStatus.Executed
+                    || s.Status == SubcontractStatus.InProgress
+                    || s.Status == SubcontractStatus.Complete
+                    || s.Status == SubcontractStatus.OnHold, ct), 0);
+
+        var openCos = await SafeAsync("OpenChangeOrdersContracts",
+            () => db.Set<ChangeOrder>().AsNoTracking()
+                .CountAsync(co => co.Status == ChangeOrderStatus.Pending
+                    || co.Status == ChangeOrderStatus.UnderReview, ct), 0);
+
+        var pendingPayApps = await SafeAsync("PendingPayAppsContracts",
+            () => db.Set<PaymentApplication>().AsNoTracking()
+                .CountAsync(pa => pa.Status == PaymentApplicationStatus.Submitted
+                    || pa.Status == PaymentApplicationStatus.Reviewed, ct), 0);
+
+        // Sub + company (project) compliance — insurance / COI / licenses, not employee training
+        var today = DateTime.UtcNow.Date;
+        var expiringThreshold = today.AddDays(30);
+        var expiringCompliance = await SafeAsync("ExpiringSubCompliance",
+            () => db.Set<ComplianceDocument>().AsNoTracking()
+                .CountAsync(d =>
+                    d.Status != "Revoked"
+                    && (d.EntityType == "Subcontractor" || d.EntityType == "Company")
+                    && d.ExpirationDate.HasValue
+                    && d.ExpirationDate.Value.Date >= today
+                    && d.ExpirationDate.Value.Date <= expiringThreshold, ct), 0);
+
+        var expiredCompliance = await SafeAsync("ExpiredSubCompliance",
+            () => db.Set<ComplianceDocument>().AsNoTracking()
+                .CountAsync(d =>
+                    d.Status != "Revoked"
+                    && (d.EntityType == "Subcontractor" || d.EntityType == "Company")
+                    && (
+                        d.Status == "Expired"
+                        || (d.ExpirationDate.HasValue && d.ExpirationDate.Value.Date < today)
+                    ), ct), 0);
+
+        return new BriefingContractsSection(
+            activeOwner, activeSubs, openCos, pendingPayApps, expiringCompliance, expiredCompliance);
     }
 
     /// <summary>

@@ -74,6 +74,15 @@ interface BriefingEstimatorSection {
   pipelineValue: number;
 }
 
+interface BriefingContractsSection {
+  activeOwnerContractCount: number;
+  activeSubcontractCount: number;
+  openChangeOrderCount: number;
+  pendingPayAppCount: number;
+  expiringComplianceDocCount: number;
+  expiredComplianceDocCount: number;
+}
+
 interface MorningBriefingDto {
   greeting: string;
   role: string;
@@ -84,6 +93,7 @@ interface MorningBriefingDto {
   foreman: BriefingForemanSection | null;
   executive: BriefingExecutiveSection | null;
   estimator?: BriefingEstimatorSection | null;
+  contracts?: BriefingContractsSection | null;
 }
 
 function getDismissKey(): string {
@@ -441,6 +451,63 @@ export function MorningBriefing() {
             value={formatCurrency(data.estimator.pipelineValue)}
             accent="green"
             href={roleKpiDrillHref("bidPipeline")}
+          />
+        </div>
+      )}
+
+      {data.contracts && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <MetricCard
+            icon={Briefcase}
+            label="Owner contracts"
+            value={data.contracts.activeOwnerContractCount}
+            accent="blue"
+            href="/billing/contracts"
+          />
+          <MetricCard
+            icon={FileCheck}
+            label="Active subcontracts"
+            value={data.contracts.activeSubcontractCount}
+            accent="blue"
+            href="/contracts"
+          />
+          <MetricCard
+            icon={Receipt}
+            label="Sub pay apps"
+            value={data.contracts.pendingPayAppCount}
+            accent={
+              data.contracts.pendingPayAppCount > 0 ? "amber" : undefined
+            }
+            href="/payment-applications"
+          />
+          <MetricCard
+            icon={GitPullRequestDraft}
+            label="Open change orders"
+            value={data.contracts.openChangeOrderCount}
+            accent={
+              data.contracts.openChangeOrderCount > 0 ? "amber" : undefined
+            }
+            href="/change-orders"
+          />
+          <MetricCard
+            icon={AlertTriangle}
+            label="Insurance expiring (30d)"
+            value={data.contracts.expiringComplianceDocCount}
+            accent={
+              data.contracts.expiringComplianceDocCount > 0
+                ? "amber"
+                : undefined
+            }
+            href="/reports/compliance"
+          />
+          <MetricCard
+            icon={AlertTriangle}
+            label="Insurance / compliance expired"
+            value={data.contracts.expiredComplianceDocCount}
+            accent={
+              data.contracts.expiredComplianceDocCount > 0 ? "red" : undefined
+            }
+            href="/reports/compliance"
           />
         </div>
       )}

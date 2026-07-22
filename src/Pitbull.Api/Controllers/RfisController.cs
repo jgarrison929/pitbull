@@ -145,6 +145,10 @@ public class RfisController(IRfiService rfiService) : ControllerBase
     /// <param name="search">Search text in subject and question fields</param>
     /// <param name="page">Page number (1-based, default: 1)</param>
     /// <param name="pageSize">Items per page (1-100, default: 25)</param>
+    /// <param name="view">
+    /// Optional shape: <c>mobile</c> returns <see cref="RfiMobileListItemDto"/> rows
+    /// (id, number, subject, status, projectId, dueDate, updatedAt only — no question body, drawings, or cost fields).
+    /// </param>
     /// <returns>Paginated list of RFIs</returns>
     /// <response code="200">RFI list returned</response>
     /// <response code="400">Invalid filter parameters</response>
@@ -152,6 +156,7 @@ public class RfisController(IRfiService rfiService) : ControllerBase
     /// <response code="429">Rate limit exceeded</response>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<RfiDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<RfiMobileListItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
@@ -162,7 +167,9 @@ public class RfisController(IRfiService rfiService) : ControllerBase
         [FromQuery] Guid? ballInCourtUserId,
         [FromQuery] string? search,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 25)
+        [FromQuery] int pageSize = 25,
+        // view=mobile → RfiMobileListItemDto (band 3.5 contract; no health/KPI fields)
+        [FromQuery] string? view = null)
     {
         var query = new ListRfisQuery(projectId, status, priority, ballInCourtUserId, search)
         {
@@ -175,6 +182,17 @@ public class RfisController(IRfiService rfiService) : ControllerBase
             return result.ErrorCode == "FORBIDDEN"
                 ? StatusCode(StatusCodes.Status403Forbidden, new { error = result.Error, code = result.ErrorCode })
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(RfiListViewMapper.ToMobileListItem)
+                .ToArray();
+            return Ok(new PagedResult<RfiMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
 
         return Ok(result.Value);
     }

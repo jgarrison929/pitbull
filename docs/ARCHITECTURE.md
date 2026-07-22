@@ -69,8 +69,8 @@ Each module is a separate .NET project under `src/Modules/`.
 | **Bids** | Bid tracking, items, conversion to project |
 | **Contracts** | Subcontracts, SOV, change orders |
 | **TimeTracking** | TimeEntry, crew timecards, pay periods, payroll workflow, employees |
-| **ProjectManagement** | Schedule, RFIs, submittals, daily reports, punch lists, meetings, tasks; **Jobsite Twin** zones-first spatial graph (`SpatialGraph`/`SpatialNode`), overlays, plan links (`SpatialPlanLink`) |
-| **Billing** | Vendors, customers, payment apps (AIA G702/G703), GL/journal, WIP, AP/AR, retention, lien waivers, POs/invoices, bank rec |
+| **ProjectManagement** | Schedule, RFIs, submittals, daily reports, punch lists, meetings, tasks; **Jobsite Twin** zones-first spatial graph (`SpatialGraph`/`SpatialNode`), overlays, plan links (`SpatialPlanLink`). **Next-gen mobile PM arc:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](roadmap/pm-nextgen-3.4-to-4.0.md) |
+| **Billing** | Vendors, customers, payment apps (AIA G702/G703), GL/journal, WIP, AP/AR, retention, lien waivers, POs/invoices, bank rec (money SoT for PM arc vendor/pay-app surfaces) |
 | **Reports** | Labor cost, profitability, exports (PDF/CSV), financial statements (trial balance etc.) |
 | **AI** | Provider abstraction (Anthropic + OpenAI), orchestrator, usage tracking, extraction handlers (invoice, delivery ticket) |
 | **SystemAdmin** | Users/roles/RBAC, API keys, secrets vault, settings, health |

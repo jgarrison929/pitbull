@@ -8,6 +8,7 @@ using Moq;
 using Pitbull.Contracts.Domain;
 using Pitbull.Core.Services;
 using Pitbull.RFIs.Domain;
+using Pitbull.RFIs.Features;
 using Pitbull.RFIs.Features.CreateRfi;
 using Pitbull.RFIs.Features.ListRfis;
 using Pitbull.RFIs.Features.UpdateRfi;
@@ -212,6 +213,75 @@ public class RfiServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.Items.Should().HaveCount(1);
         result.Value.Items[0].Subject.Should().Be("Concrete Specs");
+    }
+
+    [Fact]
+    public async Task GetRfisAsync_EmptyProject_ReturnsEmptyPage()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var query = new ListRfisQuery(ProjectId: Guid.NewGuid()) { Page = 1, PageSize = 25 };
+
+        var result = await service.GetRfisAsync(query);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().BeEmpty();
+        result.Value.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetRfisAsync_Unauthorized_ReturnsForbidden()
+    {
+        using var db = TestDbContextFactory.Create();
+        _projectAccessServiceMock
+            .Setup(s => s.HasProjectAccessAsync(It.IsAny<Guid>(), It.IsAny<ClaimsPrincipal?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        var service = CreateService(db);
+        var query = new ListRfisQuery(ProjectId: Guid.NewGuid()) { Page = 1, PageSize = 25 };
+
+        var result = await service.GetRfisAsync(query);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    [Fact]
+    public async Task GetRfisAsync_OneItem_MapsToMobileContractFields()
+    {
+        using var db = TestDbContextFactory.Create();
+        var projectId = Guid.NewGuid();
+        var rfiId = Guid.NewGuid();
+        var due = DateTime.UtcNow.Date.AddDays(3);
+        db.Set<Rfi>().Add(new Rfi
+        {
+            Id = rfiId,
+            Number = 7,
+            Subject = "Jobsite status check",
+            Question = "Long question body",
+            Status = RfiStatus.Open,
+            Priority = RfiPriority.Normal,
+            ProjectId = projectId,
+            DueDate = due,
+            CreatedAt = DateTime.UtcNow,
+            DrawingReferences = "[\"S-1\"]",
+            HasCostImpact = true,
+            EstimatedCostImpact = 1000m
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateService(db);
+        var result = await service.GetRfisAsync(new ListRfisQuery(projectId) { Page = 1, PageSize = 25 });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Items.Should().HaveCount(1);
+        var full = result.Value.Items[0];
+        var slim = RfiListViewMapper.ToMobileListItem(full);
+        slim.Id.Should().Be(rfiId);
+        slim.Number.Should().Be(7);
+        slim.Subject.Should().Be("Jobsite status check");
+        slim.Status.Should().Be(RfiStatus.Open);
+        slim.ProjectId.Should().Be(projectId);
+        slim.DueDate.Should().Be(due);
     }
 
     #endregion

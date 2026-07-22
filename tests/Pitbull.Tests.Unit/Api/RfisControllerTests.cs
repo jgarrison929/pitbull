@@ -367,6 +367,60 @@ public class RfisControllerTests
         paged.TotalCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task List_ViewMobile_ReturnsSlimDtoWithoutHeavyFields()
+    {
+        var full = CreateTestDto(TestRfiId, TestProjectId);
+        var pagedResult = new PagedResult<RfiDto>(new[] { full }, 1, 1, 25);
+        _serviceMock
+            .Setup(s => s.GetRfisAsync(It.IsAny<ListRfisQuery>(), default))
+            .ReturnsAsync(Result.Success(pagedResult));
+
+        var result = await _controller.List(TestProjectId, null, null, null, null, 1, 25, "mobile");
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var paged = ok.Value.Should().BeOfType<PagedResult<RfiMobileListItemDto>>().Subject;
+        paged.TotalCount.Should().Be(1);
+        paged.Items.Should().HaveCount(1);
+        var row = paged.Items[0];
+        row.Id.Should().Be(TestRfiId);
+        row.ProjectId.Should().Be(TestProjectId);
+        row.Subject.Should().Be(full.Subject);
+        row.Number.Should().Be(full.Number);
+        row.Status.Should().Be(full.Status);
+        // Same authz path — service still called
+        _serviceMock.Verify(s => s.GetRfisAsync(It.IsAny<ListRfisQuery>(), default), Times.Once);
+    }
+
+    [Fact]
+    public async Task List_ViewMobile_Empty_ReturnsHonestEmptyPage()
+    {
+        var pagedResult = new PagedResult<RfiDto>(Array.Empty<RfiDto>(), 0, 1, 25);
+        _serviceMock
+            .Setup(s => s.GetRfisAsync(It.IsAny<ListRfisQuery>(), default))
+            .ReturnsAsync(Result.Success(pagedResult));
+
+        var result = await _controller.List(TestProjectId, null, null, null, null, 1, 25, "mobile");
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var paged = ok.Value.Should().BeOfType<PagedResult<RfiMobileListItemDto>>().Subject;
+        paged.Items.Should().BeEmpty();
+        paged.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task List_ViewMobile_Forbidden_Returns403()
+    {
+        _serviceMock
+            .Setup(s => s.GetRfisAsync(It.IsAny<ListRfisQuery>(), default))
+            .ReturnsAsync(Result.Failure<PagedResult<RfiDto>>("Not authorized to access this project", "FORBIDDEN"));
+
+        var result = await _controller.List(TestProjectId, null, null, null, null, 1, 25, "mobile");
+
+        result.Should().BeOfType<ObjectResult>()
+            .Which.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
     #endregion
 
     #region Update

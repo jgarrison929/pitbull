@@ -55,6 +55,17 @@ import { FileDropZone } from "@/components/ui/file-drop-zone";
 import { Pencil, Trash2, Download, Paperclip, FileDown } from "lucide-react";
 import { API_BASE_URL } from "@/lib/config";
 import { getAllowedSubmittalStatuses, parseSubmittalStatus } from "@/lib/workflow-transitions";
+import {
+  formatSubmittalDueLabel,
+  submittalMobileListUrl,
+  submittalStatusLabel,
+  submittalTypeLabel,
+  SUBMITTAL_LIST_EMPTY_DESCRIPTION,
+  SUBMITTAL_LIST_EMPTY_TITLE,
+  SUBMITTAL_LIST_ERROR_DESCRIPTION,
+  SUBMITTAL_LIST_ERROR_TITLE,
+  type SubmittalMobileListItem,
+} from "@/lib/submittal-mobile-list";
 
 interface FileAttachment {
   id: string;
@@ -215,7 +226,9 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
   useListPageShortcuts({ searchInputRef });
 
   const [submittals, setSubmittals] = useState<PmEntityDto[]>([]);
+  const [mobileItems, setMobileItems] = useState<SubmittalMobileListItem[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -279,14 +292,26 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setListError(false);
     try {
+      // Phone-first: prefer slim mobile DTO (3.4.3/3.4.6); fall back to full list for desktop forms
+      try {
+        const mobile = await api<{ items: SubmittalMobileListItem[]; totalCount: number }>(
+          submittalMobileListUrl(projectId, 200)
+        );
+        setMobileItems(mobile.items ?? []);
+      } catch {
+        setMobileItems(null);
+      }
       const result = await api<PmPagedResult>(
         `/api/projects/${projectId}/submittals?page=1&pageSize=500`
       );
       setSubmittals(result.items ?? []);
     } catch (error) {
-      toast.error("Failed to load submittals", {
-        description: error instanceof Error ? error.message : "Unknown error",
+      setListError(true);
+      setSubmittals([]);
+      toast.error(SUBMITTAL_LIST_ERROR_TITLE, {
+        description: error instanceof Error ? error.message : SUBMITTAL_LIST_ERROR_DESCRIPTION,
       });
     } finally {
       setLoading(false);
@@ -302,24 +327,42 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
   }, [isProjectIdValid, load]);
 
   const rows = useMemo(() => {
-    const mapped = submittals.map<SubmittalRow>((sub) => {
-      const data = asDataMap(sub.data);
-      return {
-        id: sub.id,
-        submittalNumber: asNumber(data.SubmittalNumber),
-        title: sub.title || asString(data.Title) || "Untitled submittal",
-        specSectionCode: asString(data.SpecSectionCode),
-        specSectionTitle: asString(data.SpecSectionTitle),
-        submittalType: asString(data.SubmittalType) || "Other",
-        status: parseSubmittalStatus(sub.status),
-        requiredByDate: asString(data.RequiredByDate) || null,
-        submittedDate: asString(data.SubmittedDate) || null,
-        revisionNumber: asNumber(data.RevisionNumber),
-        isSubstitutionRequest: asBool(data.IsSubstitutionRequest),
-        ballInCourt: asString(data.BallInCourt ?? data.ballInCourt),
-        createdAt: sub.createdAt,
-      };
-    });
+    // Prefer slim mobile items for list glance when present; merge full row fields when available
+    const mapped: SubmittalRow[] =
+      mobileItems && mobileItems.length >= 0 && submittals.length === 0 && mobileItems
+        ? mobileItems.map((m) => ({
+            id: m.id,
+            submittalNumber: m.number,
+            title: m.title || "Untitled submittal",
+            specSectionCode: "",
+            specSectionTitle: "",
+            submittalType: m.type || "Other",
+            status: parseSubmittalStatus(m.status),
+            requiredByDate: m.dueDate ?? null,
+            submittedDate: null,
+            revisionNumber: 0,
+            isSubstitutionRequest: false,
+            ballInCourt: "",
+            createdAt: m.updatedAt || "",
+          }))
+        : submittals.map<SubmittalRow>((sub) => {
+            const data = asDataMap(sub.data);
+            return {
+              id: sub.id,
+              submittalNumber: asNumber(data.SubmittalNumber),
+              title: sub.title || asString(data.Title) || "Untitled submittal",
+              specSectionCode: asString(data.SpecSectionCode),
+              specSectionTitle: asString(data.SpecSectionTitle),
+              submittalType: asString(data.SubmittalType) || "Other",
+              status: parseSubmittalStatus(sub.status),
+              requiredByDate: asString(data.RequiredByDate) || null,
+              submittedDate: asString(data.SubmittedDate) || null,
+              revisionNumber: asNumber(data.RevisionNumber),
+              isSubstitutionRequest: asBool(data.IsSubstitutionRequest),
+              ballInCourt: asString(data.BallInCourt ?? data.ballInCourt),
+              createdAt: sub.createdAt,
+            };
+          });
 
     const q = search.trim().toLowerCase();
     return mapped.filter((row) => {
@@ -333,7 +376,7 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
         row.specSectionTitle.toLowerCase().includes(q)
       );
     });
-  }, [submittals, search, statusFilter, typeFilter]);
+  }, [submittals, mobileItems, search, statusFilter, typeFilter]);
 
   // Summary stats
   const stats = useMemo(() => {
@@ -508,8 +551,8 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+      {/* Summary cards — desktop only; not a % register health tile */}
+      <div className="hidden sm:grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total Submittals</CardDescription>
@@ -590,61 +633,59 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
             </>
           ) : (
             <>
-              {/* Mobile card layout */}
+              {/* Mobile card layout — type + status + due only (no % register complete) */}
               <div className="space-y-3 sm:hidden">
-                {rows.length === 0 ? (
+                {listError ? (
+                  <div className="rounded-lg border border-dashed p-4 text-center space-y-2">
+                    <p className="font-medium">{SUBMITTAL_LIST_ERROR_TITLE}</p>
+                    <p className="text-sm text-muted-foreground">{SUBMITTAL_LIST_ERROR_DESCRIPTION}</p>
+                    <Button className="mt-2 min-h-[44px]" variant="outline" onClick={() => void load()}>
+                      Retry
+                    </Button>
+                  </div>
+                ) : rows.length === 0 ? (
                   <div className="rounded-lg border border-dashed p-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      No submittals yet. Create your first submittal to begin routing reviews.
+                    <p className="font-medium">{SUBMITTAL_LIST_EMPTY_TITLE}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {SUBMITTAL_LIST_EMPTY_DESCRIPTION}
                     </p>
-                    <Button className="mt-3 bg-amber-500 hover:bg-amber-600 text-white" size="sm" onClick={openCreate}>
+                    <Button className="mt-3 bg-amber-500 hover:bg-amber-600 text-white min-h-[44px]" size="sm" onClick={openCreate}>
                       Create Submittal
                     </Button>
                   </div>
                 ) : (
-                  rows.map((row) => (
-                    <div key={row.id} className="rounded-lg border p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-sm font-medium">
-                          #{row.submittalNumber}
-                          {row.revisionNumber > 0 && <span className="text-muted-foreground"> Rev {row.revisionNumber}</span>}
-                        </span>
+                  rows.map((row) => {
+                    const due = formatSubmittalDueLabel(row.requiredByDate, row.status);
+                    return (
+                    <button
+                      type="button"
+                      key={row.id}
+                      className="w-full text-left rounded-lg border p-4 space-y-2 min-h-[72px] active:bg-muted/50"
+                      onClick={() => openEdit(row)}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-base leading-snug break-words">{row.title}</p>
+                          <p className="font-mono text-xs text-muted-foreground mt-1">
+                            #{row.submittalNumber}
+                          </p>
+                        </div>
                         <StatusBadge entityType="Submittal" status={row.status} />
                       </div>
-                      <p className="font-medium">{row.title}</p>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                        {row.specSectionCode && <span>Spec: {row.specSectionCode}</span>}
-                        <span>{TYPE_LABELS[row.submittalType] || row.submittalType}</span>
-                        {row.isSubstitutionRequest && (
-                          <Badge variant="outline" className="text-xs">Substitution</Badge>
-                        )}
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <Badge variant="outline" className="text-xs">
+                          {submittalTypeLabel(row.submittalType)}
+                        </Badge>
+                        <span className="sr-only">{submittalStatusLabel(row.status)}</span>
                       </div>
-                      {row.revisionNumber > 0 && (
-                        <p className="text-sm text-muted-foreground">
-                          Review cycle: {row.revisionNumber}
-                        </p>
-                      )}
-                      {row.requiredByDate && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <span>Required by: {formatDate(row.requiredByDate)}</span>
-                          {(() => {
-                            const days = daysUntil(row.requiredByDate);
-                            if (days === null) return null;
-                            return (
-                              <Badge className={leadTimeBadgeClass(days) + " text-xs"}>
-                                {days < 0 ? `${Math.abs(days)}d overdue` : days === 0 ? "Today" : `${days}d left`}
-                              </Badge>
-                            );
-                          })()}
-                        </div>
-                      )}
-                      {row.ballInCourt && (
-                        <div className="flex items-center gap-1.5 text-sm">
-                          <span className="text-muted-foreground">Ball in court:</span>
-                          <Badge variant="secondary" className="text-xs">{row.ballInCourt}</Badge>
-                        </div>
-                      )}
-                      <div className="flex gap-2 pt-1">
+                      <p
+                        className={`text-sm font-medium ${
+                          due.overdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
+                        }`}
+                      >
+                        {due.text}
+                      </p>
+                      <div className="flex gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -667,8 +708,9 @@ function SubmittalsContent({ params }: { params: Promise<{ id: string }> }) {
                           <span className="sr-only">Delete</span>
                         </Button>
                       </div>
-                    </div>
-                  ))
+                    </button>
+                    );
+                  })
                 )}
               </div>
 
