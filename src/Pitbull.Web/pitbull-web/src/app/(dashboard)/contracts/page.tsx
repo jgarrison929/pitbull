@@ -18,39 +18,71 @@ import { TableSkeleton, CardListSkeleton } from "@/components/skeletons";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText, Wallet, HandCoins, Landmark, Scale } from "lucide-react";
 import api from "@/lib/api";
-import type { PagedResult, Subcontract } from "@/lib/types";
+import type { PagedResult } from "@/lib/types";
 import { SubcontractStatus } from "@/lib/types";
 import {
   subcontractStatusBadgeClass,
   subcontractStatusLabel,
   formatCurrency,
 } from "@/lib/contracts";
+import {
+  SOV_PHONE_GLANCE_NOTE,
+  SUBCONTRACT_LIST_EMPTY_DESCRIPTION,
+  SUBCONTRACT_LIST_EMPTY_TITLE,
+  formatMoneyOrInsufficient,
+  mapSubcontractMobileRow,
+  subcontractMobileListUrl,
+  subcontractSovHref,
+  summarizeSubcontractListMoney,
+  type SubcontractMobileListItem,
+} from "@/lib/subcontract-mobile-list";
+import { toast } from "sonner";
+import { ChangeOrderDialog } from "@/components/contracts/change-order-dialog";
+import { useCompany } from "@/contexts/company-context";
 
 // "active" contracts = Executed or InProgress
 const ACTIVE_STATUSES = new Set([
   SubcontractStatus.Executed,
   SubcontractStatus.InProgress,
 ]);
-import { toast } from "sonner";
-import { ChangeOrderDialog } from "@/components/contracts/change-order-dialog";
-import { useCompany } from "@/contexts/company-context";
+
+function statusToEnum(status: string | number): SubcontractStatus {
+  if (typeof status === "number") return status as SubcontractStatus;
+  const map: Record<string, SubcontractStatus> = {
+    Draft: SubcontractStatus.Draft,
+    PendingApproval: SubcontractStatus.PendingApproval,
+    Issued: SubcontractStatus.Issued,
+    Executed: SubcontractStatus.Executed,
+    InProgress: SubcontractStatus.InProgress,
+    Complete: SubcontractStatus.Complete,
+    ClosedOut: SubcontractStatus.ClosedOut,
+    Terminated: SubcontractStatus.Terminated,
+    OnHold: SubcontractStatus.OnHold,
+  };
+  return map[String(status)] ?? SubcontractStatus.Draft;
+}
+
+/** List row for UI: mobile money fields stay nullable; never invent paid=0. */
+type ContractListRow = SubcontractMobileListItem & {
+  statusEnum: SubcontractStatus;
+};
 
 export default function ContractsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { activeCompany } = useCompany();
-  const [subcontracts, setSubcontracts] = useState<Subcontract[]>([]);
+  const [rows, setRows] = useState<ContractListRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Read status filter from URL (e.g. /contracts?status=active)
   const statusParam = searchParams.get("status");
-  const filteredSubcontracts = useMemo(() => {
-    if (!statusParam) return subcontracts;
+  const filteredRows = useMemo(() => {
+    if (!statusParam) return rows;
     if (statusParam.toLowerCase() === "active") {
-      return subcontracts.filter((s) => ACTIVE_STATUSES.has(s.status));
+      return rows.filter((s) => ACTIVE_STATUSES.has(s.statusEnum));
     }
-    return subcontracts;
-  }, [subcontracts, statusParam]);
+    return rows;
+  }, [rows, statusParam]);
 
   // Check for fromRfi query param to auto-open change order dialog
   const fromRfiId = searchParams.get("fromRfi");
@@ -77,10 +109,19 @@ export default function ContractsPage() {
     async function fetchSubcontracts() {
       setIsLoading(true);
       try {
-        const result = await api<PagedResult<Subcontract>>(
-          "/api/subcontracts?pageSize=50"
+        // Band 3.6: slim mobile list — money only from DTO (includes paidToDate)
+        const result = await api<PagedResult<Record<string, unknown>>>(
+          subcontractMobileListUrl(undefined, 50)
         );
-        setSubcontracts(result.items);
+        setRows(
+          (result.items ?? []).map((raw) => {
+            const mobile = mapSubcontractMobileRow(raw);
+            return {
+              ...mobile,
+              statusEnum: statusToEnum(mobile.status),
+            };
+          })
+        );
       } catch {
         toast.error("Failed to load subcontracts");
       } finally {
@@ -88,27 +129,23 @@ export default function ContractsPage() {
       }
     }
     fetchSubcontracts();
-    // Re-fetch when the active company changes
   }, [activeCompany?.id]);
 
   function handleDialogClose(open: boolean) {
     setShowChangeOrderDialog(open);
     if (!open && fromRfiId) {
-      // Clear the query params when dialog closes
       router.replace("/contracts", { scroll: false });
     }
   }
 
   function handleChangeOrderCreated() {
-    // Optionally refresh data or navigate somewhere
-    // For now, just show the toast (already handled in dialog)
+    // toast handled in dialog
   }
 
-  const displayedSubcontracts = filteredSubcontracts;
-  const totalCommitted = displayedSubcontracts.reduce((sum, sub) => sum + sub.currentValue, 0);
-  const totalPaidToDate = displayedSubcontracts.reduce((sum, sub) => sum + sub.paidToDate, 0);
-  const totalRetentionHeld = displayedSubcontracts.reduce((sum, sub) => sum + sub.retainageHeld, 0);
-  const totalRemaining = Math.max(0, totalCommitted - totalPaidToDate);
+  const money = useMemo(
+    () => summarizeSubcontractListMoney(filteredRows),
+    [filteredRows]
+  );
 
   return (
     <div className="space-y-6">
@@ -142,14 +179,16 @@ export default function ContractsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 grid gap-4 md:grid-cols-4">
+          <div className="mb-6 grid gap-4 md:grid-cols-4" data-testid="contracts-money-summary">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Total Committed</CardTitle>
                 <Landmark className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalCommitted)}</div>
+                <div className="text-2xl font-bold">
+                  {formatMoneyOrInsufficient(money.totalCommitted, formatCurrency)}
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -158,7 +197,9 @@ export default function ContractsPage() {
                 <HandCoins className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalPaidToDate)}</div>
+                <div className="text-2xl font-bold" data-testid="contracts-paid-to-date">
+                  {formatMoneyOrInsufficient(money.totalPaidToDate, formatCurrency)}
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -167,7 +208,9 @@ export default function ContractsPage() {
                 <Wallet className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalRetentionHeld)}</div>
+                <div className="text-2xl font-bold">
+                  {formatMoneyOrInsufficient(money.totalRetentionHeld, formatCurrency)}
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -176,7 +219,9 @@ export default function ContractsPage() {
                 <Scale className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(totalRemaining)}</div>
+                <div className="text-2xl font-bold" data-testid="contracts-remaining">
+                  {formatMoneyOrInsufficient(money.totalRemaining, formatCurrency)}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -200,7 +245,7 @@ export default function ContractsPage() {
                 />
               </div>
             </>
-          ) : displayedSubcontracts.length === 0 ? (
+          ) : filteredRows.length === 0 ? (
             statusParam ? (
               <div className="py-12 text-center">
                 <p className="text-muted-foreground">
@@ -213,17 +258,17 @@ export default function ContractsPage() {
             ) : (
               <EmptyState
                 icon={FileText}
-                title="No subcontracts yet"
-                description="Create your first subcontract to start tracking vendors, change orders, and payment applications."
+                title={SUBCONTRACT_LIST_EMPTY_TITLE}
+                description={SUBCONTRACT_LIST_EMPTY_DESCRIPTION}
                 actionLabel="+ Create Your First Subcontract"
                 actionHref="/contracts/new"
               />
             )
           ) : (
             <>
-              {/* Mobile card layout */}
-              <div className="sm:hidden space-y-3">
-                {displayedSubcontracts.map((sub) => (
+              {/* Mobile card layout — band 3.6 slim glance + SOV read-only note */}
+              <div className="sm:hidden space-y-3" data-testid="subcontract-mobile-list">
+                {filteredRows.map((sub) => (
                   <div
                     key={sub.id}
                     className="border rounded-lg p-4 space-y-3"
@@ -234,17 +279,17 @@ export default function ContractsPage() {
                           href={`/contracts/${sub.id}`}
                           className="font-medium text-amber-700 hover:underline text-sm"
                         >
-                          {sub.subcontractorName}
+                          {sub.title}
                         </Link>
                         <p className="text-xs text-muted-foreground font-mono mt-1">
-                          {sub.subcontractNumber}
+                          {sub.number}
                         </p>
                       </div>
                       <Badge
                         variant="secondary"
-                        className={`${subcontractStatusBadgeClass(sub.status)} text-xs shrink-0`}
+                        className={`${subcontractStatusBadgeClass(sub.statusEnum)} text-xs shrink-0`}
                       >
-                        {subcontractStatusLabel(sub.status)}
+                        {subcontractStatusLabel(sub.statusEnum)}
                       </Badge>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -259,25 +304,34 @@ export default function ContractsPage() {
                           Contract Value
                         </span>
                         <p className="font-medium font-mono">
-                          {formatCurrency(sub.currentValue)}
+                          {formatMoneyOrInsufficient(sub.amount, formatCurrency)}
                         </p>
                       </div>
                     </div>
+                    <p className="text-[11px] text-muted-foreground" data-testid="sov-phone-glance">
+                      {SOV_PHONE_GLANCE_NOTE}{" "}
+                      <Link
+                        href={subcontractSovHref(sub.id)}
+                        className="text-amber-700 hover:underline font-medium"
+                      >
+                        Open SOV glance
+                      </Link>
+                    </p>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground text-xs">
                           Billed to Date
                         </span>
                         <p className="font-medium font-mono">
-                          {formatCurrency(sub.billedToDate)}
+                          {formatMoneyOrInsufficient(sub.billedToDate, formatCurrency)}
                         </p>
                       </div>
                       <div>
                         <span className="text-muted-foreground text-xs">
-                          Retainage Held
+                          Paid to Date
                         </span>
                         <p className="font-medium font-mono">
-                          {formatCurrency(sub.retainageHeld)}
+                          {formatMoneyOrInsufficient(sub.paidToDate, formatCurrency)}
                         </p>
                       </div>
                     </div>
@@ -295,38 +349,42 @@ export default function ContractsPage() {
                       <TableHead>Trade</TableHead>
                       <TableHead className="text-right">Contract Value</TableHead>
                       <TableHead className="text-right">Billed</TableHead>
+                      <TableHead className="text-right">Paid</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {displayedSubcontracts.map((sub) => (
+                    {filteredRows.map((sub) => (
                       <TableRow key={sub.id}>
                         <TableCell className="font-mono text-sm">
-                          {sub.subcontractNumber}
+                          {sub.number}
                         </TableCell>
                         <TableCell>
                           <Link
                             href={`/contracts/${sub.id}`}
                             className="font-medium text-amber-700 hover:underline"
                           >
-                            {sub.subcontractorName}
+                            {sub.title}
                           </Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {sub.tradeCode || "—"}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(sub.currentValue)}
+                          {formatMoneyOrInsufficient(sub.amount, formatCurrency)}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {formatCurrency(sub.billedToDate)}
+                          {formatMoneyOrInsufficient(sub.billedToDate, formatCurrency)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {formatMoneyOrInsufficient(sub.paidToDate, formatCurrency)}
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="secondary"
-                            className={subcontractStatusBadgeClass(sub.status)}
+                            className={subcontractStatusBadgeClass(sub.statusEnum)}
                           >
-                            {subcontractStatusLabel(sub.status)}
+                            {subcontractStatusLabel(sub.statusEnum)}
                           </Badge>
                         </TableCell>
                       </TableRow>

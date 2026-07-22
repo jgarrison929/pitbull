@@ -52,7 +52,7 @@ interface JwtPayload {
   isDemoUser?: boolean;
   /** Job title from seed/profile (e.g. Chief Executive Officer) */
   jobTitle?: string;
-  /** Persona key: executive | cfo | projectManager | field | estimator | … */
+  /** Persona key: executive | cfo | projectManager | field | estimator | contractAdministrator | … */
   roleProfile?: string;
   exp: number;
   [key: string]: unknown;

@@ -792,6 +792,12 @@ public sealed class DemoBootstrapper(
         new("superintendent@demo.local", "Demo", "User50", "Field Superintendent",
             RoleSeeder.Roles.Supervisor, "DEMO-SUP", EmployeeClassification.Supervisor, 65.00m,
             MidMarketCode, [MidMarketCode, HighwayCode, HvacCode]),
+
+        // Contract administrator — Explore-as-role "Contract Admin" (alias ca)
+        // Title must resolve RoleProfileResolver → contractAdministrator / contracts layout
+        new("contract-admin@demo.local", "Demo", "User51", "Contract Administrator",
+            RoleSeeder.Roles.Manager, "DEMO-CA", EmployeeClassification.Salaried, 75.00m,
+            MidMarketCode, [MidMarketCode, HighwayCode, HvacCode]),
     ];
 
     /// <summary>

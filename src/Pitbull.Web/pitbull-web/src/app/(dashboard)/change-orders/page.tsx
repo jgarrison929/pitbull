@@ -32,6 +32,12 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { toast } from "sonner";
 import { ChangeOrderDialog } from "@/components/contracts/change-order-dialog";
 import { useCompany } from "@/contexts/company-context";
+import {
+  CO_LIST_EMPTY_DESCRIPTION,
+  CO_LIST_EMPTY_TITLE,
+  coMobileListUrl,
+  formatCoAmount,
+} from "@/lib/co-mobile-list";
 
 const ALL_VALUE = "__all__";
 
@@ -82,16 +88,59 @@ export default function ChangeOrdersPage() {
   const fetchChangeOrders = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.set("pageSize", "50");
-      if (subcontractFilter !== ALL_VALUE) params.set("subcontractId", subcontractFilter);
-      if (statusFilter !== ALL_VALUE) params.set("status", statusFilter);
-      if (search.trim()) params.set("search", search.trim());
+      // Band 3.6: slim mobile list (id, number, title, status, amount) — no KPI bags
+      const url = new URL(coMobileListUrl(undefined, 50), "http://local");
+      if (subcontractFilter !== ALL_VALUE) url.searchParams.set("subcontractId", subcontractFilter);
+      if (statusFilter !== ALL_VALUE) url.searchParams.set("status", statusFilter);
+      if (search.trim()) url.searchParams.set("search", search.trim());
 
-      const result = await api<PagedResult<ChangeOrder>>(
-        `/api/changeorders?${params.toString()}`
+      type MobileCo = {
+        id: string;
+        number?: string;
+        changeOrderNumber?: string;
+        title: string;
+        status: string | number;
+        amount?: number | null;
+        dueDate?: string | null;
+        subcontractId?: string | null;
+      };
+
+      const result = await api<PagedResult<MobileCo>>(
+        `/api/changeorders?${url.searchParams.toString()}`
       );
-      let items = result.items;
+
+      const statusNameToEnum: Record<string, ChangeOrderStatus> = {
+        Pending: ChangeOrderStatus.Pending,
+        UnderReview: ChangeOrderStatus.UnderReview,
+        Approved: ChangeOrderStatus.Approved,
+        Rejected: ChangeOrderStatus.Rejected,
+        Withdrawn: ChangeOrderStatus.Withdrawn,
+        Void: ChangeOrderStatus.Void,
+      };
+
+      let items: ChangeOrder[] = (result.items ?? []).map((row) => {
+        const statusRaw = row.status;
+        const status: ChangeOrderStatus =
+          typeof statusRaw === "number"
+            ? (statusRaw as ChangeOrderStatus)
+            : (statusNameToEnum[String(statusRaw)] ?? ChangeOrderStatus.Pending);
+        const num = row.number ?? row.changeOrderNumber ?? "";
+        return {
+          id: row.id,
+          subcontractId: row.subcontractId ?? "",
+          number: num,
+          changeOrderNumber: num,
+          title: row.title,
+          description: "",
+          reason: null,
+          amount: row.amount ?? 0,
+          daysExtension: null,
+          status,
+          submittedDate: row.dueDate ?? null,
+          createdAt: row.dueDate ?? new Date().toISOString(),
+        } as ChangeOrder;
+      });
+
       if (openOnly) {
         items = items.filter(
           (co) =>
@@ -260,15 +309,15 @@ export default function ChangeOrdersPage() {
           ) : changeOrders.length === 0 ? (
             <EmptyState
               icon={FileText}
-              title="No change orders"
-              description="Create your first change order to start tracking scope modifications."
+              title={CO_LIST_EMPTY_TITLE}
+              description={CO_LIST_EMPTY_DESCRIPTION}
               actionLabel="+ Create Change Order"
               onAction={() => setCreateOpen(true)}
             />
           ) : (
             <>
-              {/* Mobile cards */}
-              <div className="sm:hidden space-y-3">
+              {/* Mobile cards — band 3.6 slim glance: number, title, status, amount */}
+              <div className="sm:hidden space-y-3" data-testid="co-mobile-list">
                 {changeOrders.map((co) => (
                   <div key={co.id} className="border rounded-lg p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
@@ -288,21 +337,16 @@ export default function ChangeOrdersPage() {
                       <div>
                         <span className="text-muted-foreground text-xs">Amount</span>
                         <p className={`font-medium font-mono ${co.amount >= 0 ? "text-red-600" : "text-green-600"}`}>
-                          {co.amount >= 0 ? "+" : ""}{formatCurrency(co.amount)}
+                          {formatCoAmount(co.amount)}
                         </p>
                       </div>
                       <div>
-                        <span className="text-muted-foreground text-xs">Days</span>
-                        <p className="font-medium">
-                          {co.daysExtension ? `+${co.daysExtension}` : "\u2014"}
+                        <span className="text-muted-foreground text-xs">Submitted</span>
+                        <p className="font-medium text-xs">
+                          {formatDate(co.submittedDate)}
                         </p>
                       </div>
                     </div>
-                    {co.reason && (
-                      <p className="text-xs text-muted-foreground">
-                        Reason: {co.reason}
-                      </p>
-                    )}
                   </div>
                 ))}
               </div>

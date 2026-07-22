@@ -37,6 +37,17 @@ const DEMO_PERSONAS = [
     homeLayout: "estimator",
     mustReach: ["/", "/bids", "/projects", "/cost-codes"],
   },
+  {
+    key: "contractadmin",
+    profile: "contractAdministrator",
+    homeLayout: "contracts",
+    mustReach: [
+      "/",
+      "/contracts",
+      "/payment-applications",
+      "/reports/compliance",
+    ],
+  },
 ] as const;
 
 describe("demo role mobile bottom-nav matrix", () => {

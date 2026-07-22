@@ -108,6 +108,7 @@ public class WelcomeService(
         TourProfile.Hr => HrSteps,
         TourProfile.Estimator => EstimatorSteps,
         TourProfile.ItAdmin => ItAdminSteps,
+        TourProfile.ContractAdministrator => ContractAdministratorSteps,
         _ => GeneralSteps,
     };
 
@@ -175,6 +176,16 @@ public class WelcomeService(
         new("est-projects", "Cost History", "Review completed project costs to improve future estimates. Actual cost data by cost code is the best estimating reference you have.", "projects", 2),
         new("est-costcodes", "Cost Codes", "Browse the CSI MasterFormat cost code library. These codes structure every estimate and tie directly into job cost tracking.", "cost-codes", 3),
         new("est-reports", "Estimating Reports", "Run bid-hit ratios, estimate vs. actual comparisons, and pipeline value reports to track your estimating department's performance.", "reports", 4),
+    ];
+
+    private static readonly WelcomeTourStep[] ContractAdministratorSteps =
+    [
+        new("ca-welcome", "Contracts home", "You own commercial paper: main owner contracts, subcontracts, pay apps, and insurance/compliance — not field crew time or full GL. Counts are real entities only.", "dashboard", 1),
+        new("ca-owner", "Main / owner contracts", "Prime contracts with the owner (AIA-style). Track active agreements, SOV, and owner billing context from the owner contracts register.", "billing/contracts", 2),
+        new("ca-subs", "Subcontracts", "Negotiate and administer subcontracts for each project — status, values, and parties. Drill in for SOV and related COs.", "contracts", 3),
+        new("ca-pay", "Subcontractor pay apps", "Review sub pay applications (G702/G703). Real workflow states only — draft, submitted, reviewed, approved.", "payment-applications", 4),
+        new("ca-compliance", "Insurance & compliance", "Review subcontractor and project (company) insurance certificates and licenses. Watch expiring and expired compliance docs before work or payment.", "reports/compliance", 5),
+        new("ca-co", "Change orders", "Support negotiation with pending and under-review change orders on contracts — confirm real status, no invented risk scores.", "change-orders", 6),
     ];
 
     private static readonly WelcomeTourStep[] ItAdminSteps =
@@ -245,6 +256,8 @@ public enum TourProfile
     Hr,
     Estimator,
     ItAdmin,
+    /// <summary>Contract / subcontract administrator — COs, pay apps, compliance.</summary>
+    ContractAdministrator,
     General,
 }
 

@@ -1,9 +1,10 @@
 # Post-3.0.0 product band themes
 
-**Status:** Post-3.0.0 — **does not block** major `3.0.0`  
-**3.0.0 product ends at:** Arc A–E (`2.22.2`) + runway (`2.22.3`→`2.24.2`)  
+**Status:** Superseded for sequencing by the **PM next-gen arc**  
+**Live ladder:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](./pm-nextgen-3.4-to-4.0.md) (`3.4.0` → `4.0.0`)  
+**3.0.0 product ended at:** Arc A–E (`2.22.2`) + runway (`2.22.3`→`2.24.2`)  
 
-These themes were the old “G band” expansion (formerly planned as 2.23→2.97). After 3.0.0 ships, product may resume with a **new** version ladder (e.g. 3.0.1+) using `docs/specs/product-bands/` templates.
+These themes were the old “G band” expansion (formerly planned as 2.23→2.97). They remain a **parking lot** for ideas not on the PM arc. **Do not** start a parallel version ladder without updating the PM epic.
 
 ## Theme rotation (draft)
 

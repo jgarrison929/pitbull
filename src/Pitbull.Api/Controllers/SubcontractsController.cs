@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
 using Pitbull.Contracts.Domain;
+using Pitbull.Contracts.Features;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Contracts.Features.ListSubcontracts;
 using Pitbull.Contracts.Features.UpdateSubcontract;
@@ -111,6 +112,10 @@ public class SubcontractsController(IContractsService contractsService) : Contro
     /// <param name="search">Free-text search across subcontractor name and number</param>
     /// <param name="page">Page number (default: 1)</param>
     /// <param name="pageSize">Items per page (default: 20, max: 100)</param>
+    /// <param name="view">
+    /// Optional shape: <c>mobile</c> returns <see cref="SubcontractMobileListItemDto"/> rows
+    /// (id, number, title, status, projectId, amount — no SOV line bags / health scores).
+    /// </param>
     /// <returns>Paginated list of subcontracts</returns>
     /// <response code="200">Returns paginated subcontract list</response>
     /// <response code="401">Not authenticated</response>
@@ -118,6 +123,7 @@ public class SubcontractsController(IContractsService contractsService) : Contro
     [HttpGet]
     [Cacheable(DurationSeconds = 120)]
     [ProducesResponseType(typeof(PagedResult<SubcontractDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<SubcontractMobileListItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> List(
@@ -125,13 +131,26 @@ public class SubcontractsController(IContractsService contractsService) : Contro
         [FromQuery] SubcontractStatus? status,
         [FromQuery] string? search,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        // view=mobile → SubcontractMobileListItemDto (band 3.6 / 3.5.6)
+        [FromQuery] string? view = null)
     {
         var query = new ListSubcontractsQuery(projectId, status, search, page, pageSize);
         var result = await contractsService.ListSubcontractsAsync(query);
 
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
+
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(SubcontractListViewMapper.ToMobileListItem)
+                .ToArray();
+            return Ok(new PagedResult<SubcontractMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
 
         return Ok(result.Value);
     }

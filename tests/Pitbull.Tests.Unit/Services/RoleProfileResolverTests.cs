@@ -10,6 +10,8 @@ public class RoleProfileResolverTests
     [InlineData("Project Manager", "Supervisor", TourProfile.ProjectManager, "PM", "pm")]
     [InlineData("Estimator", "User", TourProfile.Estimator, "Estimator", "estimator")]
     [InlineData("Field Engineer", "User", TourProfile.Field, "Foreman", "field")]
+    [InlineData("Contract Administrator", "Manager", TourProfile.ContractAdministrator, "Contracts", "contracts")]
+    [InlineData("Contracts Manager", "Manager", TourProfile.ContractAdministrator, "Contracts", "contracts")]
     public void Detect_DemoPersonas_MapsCorrectly(
         string title,
         string identityRole,
@@ -57,5 +59,15 @@ public class RoleProfileResolverTests
         var tenantId = Guid.NewGuid();
         var profile = RoleProfileResolver.Detect(null, new[] { $"{tenantId}:Admin" });
         Assert.Equal(TourProfile.Executive, profile);
+    }
+
+    [Fact]
+    public void Detect_ContractAdministrator_ApiNameAndLayout()
+    {
+        var profile = RoleProfileResolver.Detect("Contract Administrator", new[] { "Manager" });
+        Assert.Equal(TourProfile.ContractAdministrator, profile);
+        Assert.Equal("contractAdministrator", RoleProfileResolver.ToApiName(profile));
+        Assert.Equal("contracts", RoleProfileResolver.ToDashboardLayout(profile));
+        Assert.Equal("Contracts", RoleProfileResolver.ToBriefingRole(profile));
     }
 }

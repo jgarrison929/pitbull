@@ -144,7 +144,14 @@ export function getWidgetDefinition(type: string): WidgetDefinition | undefined 
   return WIDGET_DEFINITIONS.find((w) => w.type === type);
 }
 
-export type DashboardTemplate = "default" | "pm" | "controller" | "executive" | "field" | "estimator";
+export type DashboardTemplate =
+  | "default"
+  | "pm"
+  | "controller"
+  | "executive"
+  | "field"
+  | "estimator"
+  | "contracts";
 
 export const ROLE_TEMPLATES: Record<DashboardTemplate, WidgetConfig[]> = {
   default: [
@@ -184,6 +191,12 @@ export const ROLE_TEMPLATES: Record<DashboardTemplate, WidgetConfig[]> = {
     { id: "w-4", type: "equipment-utilization", row: 2, col: 2, width: 2, height: 2, visible: true, config: null },
   ],
   estimator: [
+    { id: "w-1", type: "kpi-cards", row: 0, col: 0, width: 4, height: 1, visible: true, config: null },
+    { id: "w-2", type: "quick-actions", row: 1, col: 0, width: 4, height: 1, visible: true, config: null },
+    { id: "w-3", type: "upcoming-deadlines", row: 2, col: 0, width: 2, height: 2, visible: true, config: null },
+    { id: "w-4", type: "recent-activity", row: 2, col: 2, width: 2, height: 2, visible: true, config: null },
+  ],
+  contracts: [
     { id: "w-1", type: "kpi-cards", row: 0, col: 0, width: 4, height: 1, visible: true, config: null },
     { id: "w-2", type: "quick-actions", row: 1, col: 0, width: 4, height: 1, visible: true, config: null },
     { id: "w-3", type: "upcoming-deadlines", row: 2, col: 0, width: 2, height: 2, visible: true, config: null },

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
 using Pitbull.Contracts.Domain;
+using Pitbull.Contracts.Features;
 using Pitbull.Contracts.Features.OwnerChangeOrders;
 using Pitbull.Contracts.Services;
 using Pitbull.Core.CQRS;
@@ -73,9 +74,14 @@ public class OwnerChangeOrdersController(IContractsService contractsService) : C
         return this.HandleResult(result);
     }
 
+    /// <param name="view">
+    /// Optional shape: <c>mobile</c> returns <see cref="ChangeOrderMobileListItemDto"/> rows
+    /// (id, number, title, status, projectId, amount, dueDate — no description/KPI).
+    /// </param>
     [HttpGet]
     [Cacheable(DurationSeconds = 120)]
     [ProducesResponseType(typeof(PagedResult<OwnerChangeOrderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<ChangeOrderMobileListItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> List(
@@ -83,13 +89,26 @@ public class OwnerChangeOrdersController(IContractsService contractsService) : C
         [FromQuery] ChangeOrderStatus? status,
         [FromQuery] string? search,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        // view=mobile → ChangeOrderMobileListItemDto (band 3.6)
+        [FromQuery] string? view = null)
     {
         var query = new ListOwnerChangeOrdersQuery(projectId, status, search, page, pageSize);
         var result = await contractsService.ListOwnerChangeOrdersAsync(query);
 
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
+
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(ChangeOrderListViewMapper.ToMobileListItem)
+                .ToArray();
+            return Ok(new PagedResult<ChangeOrderMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
 
         return Ok(result.Value);
     }

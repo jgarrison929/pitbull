@@ -60,6 +60,10 @@ const statusLabel: Record<number, string> = {
   2: "Closed",
 };
 
+/** Phone SOV is glance / review only — mutations stay desktop-first (band 3.5.7). */
+export const SOV_PHONE_READONLY_BANNER =
+  "On phone: SOV is a read-only glance. Add or edit line items on a larger screen.";
+
 export default function SOVPage() {
   const params = useParams();
   const contractId = params.id as string;
@@ -323,6 +327,13 @@ export default function SOVPage() {
           { label: "Schedule of Values" },
         ]}
       />
+
+      <p
+        className="sm:hidden text-xs text-muted-foreground rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 px-3 py-2"
+        data-testid="sov-phone-readonly-banner"
+      >
+        {SOV_PHONE_READONLY_BANNER}
+      </p>
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">

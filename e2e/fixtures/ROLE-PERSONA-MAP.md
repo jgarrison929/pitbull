@@ -8,6 +8,7 @@ Source: `DemoBootstrapper.DemoUsers` + `PermissionConstants.RoleTemplates` + `do
 | Project Manager | pm@demo.local | Supervisor | ProjectManager | 2, 6, 7, 8, 10 |
 | Field Engineer (Foreman) | field-eng@demo.local | User | Foreman | 3, 10 |
 | Estimator | estimator@demo.local | User | Estimator | 1 |
+| Contract Administrator | contract-admin@demo.local | Manager | (title → contractAdministrator) | 2, 5, 9 |
 | AR Clerk | ar-clerk@demo.local | User | Controller | 4 |
 | AP Clerk | ap-clerk@demo.local | User | Controller | 5, 9 |
 | Payroll Manager | mgr-payroll@demo.local | Manager | PayrollSpecialist | 3 |

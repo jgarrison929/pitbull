@@ -105,12 +105,39 @@ public class ProjectSchedulesController(IScheduleService scheduleService) : Proj
     /// <summary>
     /// Lists schedule activities for the specified schedule (site walk / Gantt).
     /// </summary>
+    /// <param name="view">
+    /// Optional shape: <c>mobile</c> returns <see cref="ActivityMobileListItemDto"/> rows
+    /// (id, name, status, start, finish, isCritical, float — no SPI/CPI invent).
+    /// </param>
     [HttpGet("{scheduleId:guid}/activities")]
     [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<ActivityMobileListItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ListActivities(Guid projectId, Guid scheduleId, [FromQuery] PmListQuery query)
-        => HandleResult(await scheduleService.ListActivitiesAsync(projectId, scheduleId, query));
+    public async Task<IActionResult> ListActivities(
+        Guid projectId,
+        Guid scheduleId,
+        [FromQuery] PmListQuery query,
+        // view=mobile → ActivityMobileListItemDto (band 3.7 contract)
+        [FromQuery] string? view = null)
+    {
+        var result = await scheduleService.ListActivitiesAsync(projectId, scheduleId, query);
+        if (!result.IsSuccess)
+            return HandleResult(result);
+
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(ActivityListViewMapper.ToMobileListItem)
+                .ToArray();
+            return Ok(new PagedResult<ActivityMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
+
+        return HandleResult(result);
+    }
 
     /// <summary>
     /// Adds a schedule activity to the specified schedule.
@@ -521,16 +548,42 @@ public class SubmittalsController(ISubmittalService submittalService, Pitbull.Ap
     /// </summary>
     /// <param name="projectId">Project identifier.</param>
     /// <param name="query">Paging and filtering options.</param>
+    /// <param name="view">
+    /// Optional shape: <c>mobile</c> returns <see cref="SubmittalMobileListItemDto"/> rows
+    /// (id, number, title, status, projectId, dueDate, updatedAt — no description bag / KPI %).
+    /// </param>
     /// <returns>A paged list of submittals.</returns>
     /// <response code="200">Submittals returned successfully.</response>
     /// <response code="400">Invalid query parameters.</response>
     /// <response code="404">Project not found.</response>
     [HttpGet]
     [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<SubmittalMobileListItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> List(Guid projectId, [FromQuery] PmListQuery query)
-        => HandleResult(await submittalService.ListSubmittalsAsync(projectId, query));
+    public async Task<IActionResult> List(
+        Guid projectId,
+        [FromQuery] PmListQuery query,
+        // view=mobile → SubmittalMobileListItemDto (band 3.5 contract)
+        [FromQuery] string? view = null)
+    {
+        var result = await submittalService.ListSubmittalsAsync(projectId, query);
+        if (!result.IsSuccess)
+            return HandleResult(result);
+
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(SubmittalListViewMapper.ToMobileListItem)
+                .ToArray();
+            return Ok(new PagedResult<SubmittalMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
+
+        return HandleResult(result);
+    }
 
     /// <summary>
     /// Updates an existing submittal.

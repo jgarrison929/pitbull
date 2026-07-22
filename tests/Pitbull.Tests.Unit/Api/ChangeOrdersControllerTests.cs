@@ -345,6 +345,26 @@ public class ChangeOrdersControllerTests
     }
 
     [Fact]
+    public async Task List_ViewMobile_ReturnsSlimMobileDto()
+    {
+        var pagedResult = new PagedResult<ChangeOrderDto>(
+            new[] { CreateTestDto() }, TotalCount: 1, Page: 1, PageSize: 20);
+        _serviceMock
+            .Setup(s => s.ListChangeOrdersAsync(It.IsAny<ListChangeOrdersQuery>(), default))
+            .ReturnsAsync(Result.Success(pagedResult));
+
+        var projectId = Guid.NewGuid();
+        var result = await _controller.List(null, null, null, 1, 20, projectId, view: "mobile");
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var paged = ok.Value.Should().BeOfType<PagedResult<Pitbull.Contracts.Features.ChangeOrderMobileListItemDto>>().Subject;
+        paged.Items.Should().HaveCount(1);
+        paged.Items[0].Number.Should().Be("CO-001");
+        paged.Items[0].ProjectId.Should().Be(projectId);
+        paged.Items[0].GetType().GetProperty("Description").Should().BeNull();
+    }
+
+    [Fact]
     public async Task List_WithFilters_PassesToService()
     {
         var pagedResult = new PagedResult<ChangeOrderDto>(
