@@ -16,8 +16,12 @@ describe("cpm-honesty (band 3.8 through 3.7.5)", () => {
     expect(formatDataDate(null)).toMatch(/not set/i);
   });
 
-  it("baseline variance requires both dates", () => {
+  it("baseline variance requires both dates — never invent on-baseline from missing actual", () => {
     expect(formatBaselineVarianceDays(null, "2026-01-01")).toMatch(/insufficient/i);
+    expect(formatBaselineVarianceDays("2026-01-01", null)).toMatch(/insufficient/i);
+    expect(formatBaselineVarianceDays(undefined, undefined)).toMatch(/insufficient/i);
+    // Same day is only valid when both real values are present
+    expect(formatBaselineVarianceDays("2026-01-01", "2026-01-01")).toMatch(/on baseline/i);
     expect(formatBaselineVarianceDays("2026-01-01", "2026-01-11")).toMatch(/behind|ahead|baseline/i);
   });
 

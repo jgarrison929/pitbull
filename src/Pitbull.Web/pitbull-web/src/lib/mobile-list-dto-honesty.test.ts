@@ -12,16 +12,22 @@ import {
   SCHEDULE_MOBILE_EMPTY,
   scheduleActivitiesMobileUrl,
 } from "./schedule-mobile-list";
+import {
+  SUBCONTRACT_LIST_EMPTY_DESCRIPTION,
+  subcontractMobileListUrl,
+} from "./subcontract-mobile-list";
+import { SCHEDULE_KANBAN_EMPTY } from "./schedule-kanban";
 import { evaluateRfiStatusTransition } from "./rfi-status-confirm";
 import { RfiStatus } from "./types";
 import { buildSubmittalWorkflowGlance } from "./submittal-workflow-glance";
 import { cpmOnTrackClaimAllowed } from "./cpm-honesty";
 
 describe("mobile list DTO honesty residual (3.4.9+)", () => {
-  it("RFI, Submittal, CO, and activity list URLs request view=mobile", () => {
+  it("RFI, Submittal, CO, subcontract, and activity list URLs request view=mobile", () => {
     expect(rfiMobileListUrl("a")).toContain("view=mobile");
     expect(submittalMobileListUrl("b")).toContain("view=mobile");
     expect(coMobileListUrl("c")).toContain("view=mobile");
+    expect(subcontractMobileListUrl("d")).toContain("view=mobile");
     expect(scheduleActivitiesMobileUrl("p", "s")).toContain("view=mobile");
   });
 
@@ -30,7 +36,9 @@ describe("mobile list DTO honesty residual (3.4.9+)", () => {
       RFI_LIST_EMPTY_DESCRIPTION,
       SUBMITTAL_LIST_EMPTY_DESCRIPTION,
       CO_LIST_EMPTY_DESCRIPTION,
+      SUBCONTRACT_LIST_EMPTY_DESCRIPTION,
       SCHEDULE_MOBILE_EMPTY,
+      SCHEDULE_KANBAN_EMPTY,
     ]) {
       const lower = s.toLowerCase();
       // May mention "health" only to reject it — must not claim all-clear / % complete

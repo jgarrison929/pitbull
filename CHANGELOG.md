@@ -16,7 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **Bands 3.6–3.8 product catch-up at tip 3.7.5** — real `?view=mobile` APIs for change orders (`ChangeOrderMobileListItemDto`) and schedule activities (`ActivityMobileListItemDto`); `/change-orders` fetches slim CO list with honest empty copy; schedule look-ahead uses mobile activity URL + CPM honesty labels (critical, float, data-date, baseline variance); Help Center CO/contracts + schedule cards; band 3.6/3.7 Status Shipped with CI evidence notes (3.8 partial through 3.7.5).
+- **Bands 3.6–3.8 product catch-up at tip 3.7.5** — real `?view=mobile` APIs for change orders (`ChangeOrderMobileListItemDto`), subcontracts (`SubcontractMobileListItemDto`), and schedule activities (`ActivityMobileListItemDto`); phone CO/subcontract lists + SOV read-only glance; schedule look-ahead + **Kanban** tab from real activity statuses; CPM variance only when baseline and current finish both exist (no invent on-baseline); Help Center CO/contracts + schedule cards; band 3.6/3.7 Status Shipped with CI evidence (3.8 partial through 3.7.5).
 
 ## [3.7.5] - 2026-07-21T20:46:50-07:00
 

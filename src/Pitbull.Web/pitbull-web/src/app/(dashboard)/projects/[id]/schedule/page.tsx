@@ -67,6 +67,12 @@ import {
   formatBaselineVarianceDays,
   CPM_GLOSSARY,
 } from "@/lib/cpm-honesty";
+import {
+  SCHEDULE_KANBAN_COLUMNS,
+  SCHEDULE_KANBAN_EMPTY,
+  groupActivitiesByKanbanColumn,
+  kanbanStatusChangeRequiresConfirm,
+} from "@/lib/schedule-kanban";
 import Link from "next/link";
 import { Pencil, Trash2, CalendarDays } from "lucide-react";
 
@@ -387,6 +393,20 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
     return filterLookAheadTasks(tasks, new Date(), 7);
   }, [ganttActivities]);
 
+  // Band 3.7 / 3.6.6: Kanban columns from real activity status enums only
+  const kanbanGroups = useMemo(
+    () =>
+      groupActivitiesByKanbanColumn(
+        ganttActivities.map((a) => ({
+          id: a.id,
+          name: a.name,
+          status: a.status,
+          isCritical: a.isCritical,
+        }))
+      ),
+    [ganttActivities]
+  );
+
   function openCreate() {
     setEditing(false);
     setForm({
@@ -589,14 +609,13 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
                       <span>Finish {task.plannedFinish.slice(0, 10)}</span>
                     )}
                     <span title={CPM_GLOSSARY.totalFloat}>{floatLabel}</span>
-                    {gantt?.plannedFinish && (
-                      <span title={CPM_GLOSSARY.dataDate}>
-                        {formatBaselineVarianceDays(
-                          gantt.plannedFinish,
-                          gantt.actualFinish ?? gantt.plannedFinish
-                        )}
-                      </span>
-                    )}
+                    {/* Band 3.7.5: variance only when both baseline and current exist — never invent on-baseline */}
+                    <span title={CPM_GLOSSARY.dataDate}>
+                      {formatBaselineVarianceDays(
+                        gantt?.plannedFinish ?? null,
+                        gantt?.actualFinish ?? null
+                      )}
+                    </span>
                     <span className="text-amber-700">Tap for progress draft</span>
                   </div>
                 </Link>
@@ -635,9 +654,12 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="list">List</TabsTrigger>
           <TabsTrigger value="gantt">Gantt Chart</TabsTrigger>
+          <TabsTrigger value="kanban" data-testid="schedule-kanban-tab">
+            Kanban
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="mt-4">
@@ -811,6 +833,92 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="kanban" className="mt-4">
+          <Card data-testid="schedule-kanban-board">
+            <CardHeader>
+              <CardTitle className="text-base">Activity Kanban</CardTitle>
+              <CardDescription>
+                Columns match real activity status enums only. Drag is not auto-posted —
+                {kanbanStatusChangeRequiresConfirm()
+                  ? " status changes require confirm when editing."
+                  : ""}{" "}
+                Empty columns mean none, not a WIP health score.
+              </CardDescription>
+              {rows.length > 0 && (
+                <Select
+                  value={ganttScheduleId ?? ""}
+                  onValueChange={(value) => setGanttScheduleId(value)}
+                >
+                  <SelectTrigger className="w-full sm:w-[240px] mt-2">
+                    <SelectValue placeholder="Select schedule" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {rows.map((row) => (
+                      <SelectItem key={row.id} value={row.id}>
+                        {row.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </CardHeader>
+            <CardContent>
+              {ganttLoading ? (
+                <CardListSkeleton rows={3} />
+              ) : ganttActivities.length === 0 ? (
+                <p className="text-sm text-muted-foreground" data-testid="schedule-kanban-empty">
+                  {SCHEDULE_KANBAN_EMPTY}
+                </p>
+              ) : (
+                <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
+                  {SCHEDULE_KANBAN_COLUMNS.map((col) => {
+                    const cards = kanbanGroups[col.id];
+                    return (
+                      <div
+                        key={col.id}
+                        className="min-w-[220px] max-w-[260px] flex-shrink-0 snap-start rounded-lg border bg-muted/30 p-2 space-y-2"
+                        data-testid={`schedule-kanban-col-${col.id}`}
+                      >
+                        <div className="flex items-center justify-between px-1 py-1">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {col.label}
+                          </span>
+                          <Badge variant="secondary" className="text-[10px]">
+                            {cards.length}
+                          </Badge>
+                        </div>
+                        {cards.length === 0 ? (
+                          <p className="text-xs text-muted-foreground px-1 py-4 text-center">
+                            {SCHEDULE_KANBAN_EMPTY}
+                          </p>
+                        ) : (
+                          cards.map((card) => (
+                            <div
+                              key={card.id}
+                              className="rounded-md border bg-background p-3 space-y-1 shadow-sm"
+                              data-testid="schedule-kanban-card"
+                            >
+                              <p className="text-sm font-medium leading-snug">{card.name}</p>
+                              <div className="flex flex-wrap gap-1 text-[10px] text-muted-foreground">
+                                <span>{card.status}</span>
+                                {card.isCritical && (
+                                  <Badge variant="destructive" className="text-[9px] h-4">
+                                    Critical
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="gantt" className="mt-4">

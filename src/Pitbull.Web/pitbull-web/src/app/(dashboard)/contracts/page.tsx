@@ -25,6 +25,13 @@ import {
   subcontractStatusLabel,
   formatCurrency,
 } from "@/lib/contracts";
+import {
+  SOV_PHONE_GLANCE_NOTE,
+  SUBCONTRACT_LIST_EMPTY_DESCRIPTION,
+  SUBCONTRACT_LIST_EMPTY_TITLE,
+  subcontractMobileListUrl,
+  subcontractSovHref,
+} from "@/lib/subcontract-mobile-list";
 
 // "active" contracts = Executed or InProgress
 const ACTIVE_STATUSES = new Set([
@@ -77,10 +84,60 @@ export default function ContractsPage() {
     async function fetchSubcontracts() {
       setIsLoading(true);
       try {
-        const result = await api<PagedResult<Subcontract>>(
-          "/api/subcontracts?pageSize=50"
+        // Band 3.6 / 3.5.6: slim mobile list (id, number, title, status, amount)
+        type MobileSub = {
+          id: string;
+          number?: string;
+          subcontractNumber?: string;
+          title?: string;
+          subcontractorName?: string;
+          status: string | number;
+          projectId?: string;
+          amount?: number | null;
+          currentValue?: number;
+          billedToDate?: number | null;
+          retainageHeld?: number | null;
+          tradeCode?: string | null;
+        };
+        const result = await api<PagedResult<MobileSub>>(subcontractMobileListUrl(undefined, 50));
+        const statusNameToEnum: Record<string, SubcontractStatus> = {
+          Draft: SubcontractStatus.Draft,
+          PendingApproval: SubcontractStatus.PendingApproval,
+          Issued: SubcontractStatus.Issued,
+          Executed: SubcontractStatus.Executed,
+          InProgress: SubcontractStatus.InProgress,
+          Complete: SubcontractStatus.Complete,
+          ClosedOut: SubcontractStatus.ClosedOut,
+          Terminated: SubcontractStatus.Terminated,
+          OnHold: SubcontractStatus.OnHold,
+        };
+        setSubcontracts(
+          (result.items ?? []).map((row) => {
+            const statusRaw = row.status;
+            const status: SubcontractStatus =
+              typeof statusRaw === "number"
+                ? (statusRaw as SubcontractStatus)
+                : (statusNameToEnum[String(statusRaw)] ?? SubcontractStatus.Draft);
+            const num = row.number ?? row.subcontractNumber ?? "";
+            const name = row.title ?? row.subcontractorName ?? "";
+            return {
+              id: row.id,
+              projectId: row.projectId ?? "",
+              subcontractNumber: num,
+              subcontractorName: name,
+              status,
+              currentValue: row.amount ?? row.currentValue ?? 0,
+              originalValue: row.amount ?? row.currentValue ?? 0,
+              billedToDate: row.billedToDate ?? 0,
+              paidToDate: 0,
+              retainageHeld: row.retainageHeld ?? 0,
+              retainagePercent: 0,
+              tradeCode: row.tradeCode ?? null,
+              scopeOfWork: "",
+              createdAt: new Date().toISOString(),
+            } as Subcontract;
+          })
         );
-        setSubcontracts(result.items);
       } catch {
         toast.error("Failed to load subcontracts");
       } finally {
@@ -213,16 +270,16 @@ export default function ContractsPage() {
             ) : (
               <EmptyState
                 icon={FileText}
-                title="No subcontracts yet"
-                description="Create your first subcontract to start tracking vendors, change orders, and payment applications."
+                title={SUBCONTRACT_LIST_EMPTY_TITLE}
+                description={SUBCONTRACT_LIST_EMPTY_DESCRIPTION}
                 actionLabel="+ Create Your First Subcontract"
                 actionHref="/contracts/new"
               />
             )
           ) : (
             <>
-              {/* Mobile card layout */}
-              <div className="sm:hidden space-y-3">
+              {/* Mobile card layout — band 3.6 slim glance + SOV read-only note */}
+              <div className="sm:hidden space-y-3" data-testid="subcontract-mobile-list">
                 {displayedSubcontracts.map((sub) => (
                   <div
                     key={sub.id}
@@ -263,6 +320,15 @@ export default function ContractsPage() {
                         </p>
                       </div>
                     </div>
+                    <p className="text-[11px] text-muted-foreground" data-testid="sov-phone-glance">
+                      {SOV_PHONE_GLANCE_NOTE}{" "}
+                      <Link
+                        href={subcontractSovHref(sub.id)}
+                        className="text-amber-700 hover:underline font-medium"
+                      >
+                        Open SOV glance
+                      </Link>
+                    </p>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground text-xs">
