@@ -4,7 +4,8 @@ namespace Pitbull.Contracts.Features;
 
 /// <summary>
 /// Slim subcontract row for phone lists (GET /api/subcontracts?view=mobile).
-/// Band 3.6 / 3.5.6: id, number, title (subcontractor), status, projectId, amount?.
+/// Band 3.6 / 3.5.6: id, number, title (subcontractor), status, projectId, amount?,
+/// billed/paid/retainage from server only — no invent when missing.
 /// No portfolio commercial health scores; SOV line bags omitted.
 /// </summary>
 public record SubcontractMobileListItemDto(
@@ -15,6 +16,7 @@ public record SubcontractMobileListItemDto(
     Guid ProjectId,
     decimal? Amount,
     decimal? BilledToDate = null,
+    decimal? PaidToDate = null,
     decimal? RetainageHeld = null,
     string? TradeCode = null
 );
@@ -31,6 +33,7 @@ public static class SubcontractListViewMapper
             ProjectId: dto.ProjectId,
             Amount: dto.CurrentValue,
             BilledToDate: dto.BilledToDate,
+            PaidToDate: dto.PaidToDate,
             RetainageHeld: dto.RetainageHeld,
             TradeCode: dto.TradeCode
         );

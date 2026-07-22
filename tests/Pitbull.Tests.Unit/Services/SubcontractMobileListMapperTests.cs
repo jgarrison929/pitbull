@@ -55,12 +55,49 @@ public class SubcontractMobileListMapperTests
         slim.ProjectId.Should().Be(projectId);
         slim.Amount.Should().Be(110_000m);
         slim.BilledToDate.Should().Be(20_000m);
+        slim.PaidToDate.Should().Be(15_000m);
         slim.TradeCode.Should().Be("03");
 
         slim.GetType().GetProperty("ScopeOfWork").Should().BeNull();
         slim.GetType().GetProperty("Notes").Should().BeNull();
         slim.GetType().GetProperty("HealthScore").Should().BeNull();
         slim.GetType().GetProperty("LineItems").Should().BeNull();
+    }
+
+    [Fact]
+    public void ToMobileListItem_IncludesPaidToDateFromServer()
+    {
+        var dto = new SubcontractDto(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            SubcontractNumber: "SC-PAID",
+            SubcontractorName: "Paid Sub",
+            SubcontractorContact: null,
+            SubcontractorEmail: null,
+            SubcontractorPhone: null,
+            SubcontractorAddress: null,
+            ScopeOfWork: "scope",
+            TradeCode: null,
+            OriginalValue: 50_000m,
+            CurrentValue: 50_000m,
+            BilledToDate: 10_000m,
+            PaidToDate: 8_000m,
+            RetainagePercent: 10m,
+            RetainageHeld: 1_000m,
+            ExecutionDate: null,
+            StartDate: null,
+            CompletionDate: null,
+            ActualCompletionDate: null,
+            Status: SubcontractStatus.InProgress,
+            InsuranceExpirationDate: null,
+            InsuranceCurrent: true,
+            LicenseNumber: null,
+            Notes: null,
+            CreatedAt: DateTime.UtcNow
+        );
+
+        var slim = SubcontractListViewMapper.ToMobileListItem(dto);
+        slim.PaidToDate.Should().Be(8_000m);
     }
 
     [Fact]

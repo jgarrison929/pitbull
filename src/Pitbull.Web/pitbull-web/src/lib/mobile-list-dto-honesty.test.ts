@@ -14,7 +14,9 @@ import {
 } from "./schedule-mobile-list";
 import {
   SUBCONTRACT_LIST_EMPTY_DESCRIPTION,
+  mapSubcontractMobileRow,
   subcontractMobileListUrl,
+  summarizeSubcontractListMoney,
 } from "./subcontract-mobile-list";
 import { SCHEDULE_KANBAN_EMPTY } from "./schedule-kanban";
 import { evaluateRfiStatusTransition } from "./rfi-status-confirm";
@@ -66,5 +68,21 @@ describe("mobile list DTO honesty residual (3.4.9+)", () => {
     const steps = buildSubmittalWorkflowGlance("Submitted");
     expect(steps.every((s) => !("%" in s))).toBe(true);
     expect(JSON.stringify(steps)).not.toMatch(/health|percent/i);
+  });
+
+  it("subcontract money summary does not invent paid=$0 or remaining=full committed", () => {
+    const summary = summarizeSubcontractListMoney([
+      mapSubcontractMobileRow({
+        id: "1",
+        number: "SC",
+        title: "T",
+        status: "InProgress",
+        amount: 10_000,
+        // paidToDate omitted on purpose
+      }),
+    ]);
+    expect(summary.totalPaidToDate).toBeNull();
+    expect(summary.totalRemaining).toBeNull();
+    expect(summary.totalRemaining).not.toBe(10_000);
   });
 });
