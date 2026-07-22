@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Attributes;
 using Pitbull.Api.Extensions;
 using Pitbull.Contracts.Domain;
+using Pitbull.Contracts.Features;
 using Pitbull.Contracts.Features.CreateChangeOrder;
 using Pitbull.Contracts.Features.ListChangeOrders;
 using Pitbull.Contracts.Features.UpdateChangeOrder;
@@ -158,6 +159,10 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     /// <param name="page">Page number (default: 1)</param>
     /// <param name="pageSize">Items per page (default: 20, max: 100)</param>
     /// <param name="projectId">Filter by project ID (joins through subcontract)</param>
+    /// <param name="view">
+    /// Optional shape: <c>mobile</c> returns <see cref="ChangeOrderMobileListItemDto"/> rows
+    /// (id, number, title, status, projectId, amount, dueDate — no description/KPI).
+    /// </param>
     /// <returns>Paginated list of change orders</returns>
     /// <response code="200">Returns paginated change order list</response>
     /// <response code="401">Not authenticated</response>
@@ -165,6 +170,7 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     [HttpGet]
     [Cacheable(DurationSeconds = 120)]
     [ProducesResponseType(typeof(PagedResult<ChangeOrderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<ChangeOrderMobileListItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> List(
@@ -173,13 +179,26 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
         [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] Guid? projectId = null)
+        [FromQuery] Guid? projectId = null,
+        // view=mobile → ChangeOrderMobileListItemDto (band 3.6 contract; no health/KPI fields)
+        [FromQuery] string? view = null)
     {
         var query = new ListChangeOrdersQuery(subcontractId, status, search, page, pageSize, projectId);
         var result = await contractsService.ListChangeOrdersAsync(query);
 
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
+
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(co => ChangeOrderListViewMapper.ToMobileListItem(co, projectId))
+                .ToArray();
+            return Ok(new PagedResult<ChangeOrderMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
 
         return Ok(result.Value);
     }

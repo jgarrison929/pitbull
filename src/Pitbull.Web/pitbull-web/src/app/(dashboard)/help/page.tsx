@@ -51,6 +51,16 @@ import {
   pmRfiSubmittalFaqItems,
 } from "@/lib/help-pm-rfi-submittal";
 import {
+  HELP_PM_CO_CONTRACTS_CARDS,
+  PM_CO_CONTRACTS_HELP_SECTION_TITLE,
+  pmCoContractsFaqItems,
+} from "@/lib/help-pm-co-contracts";
+import {
+  HELP_PM_SCHEDULE_CARDS,
+  PM_SCHEDULE_HELP_SECTION_TITLE,
+  pmScheduleFaqItems,
+} from "@/lib/help-pm-schedule";
+import {
   OFFICE_WORKFLOWS_SECTION_TITLE,
   officeFaqItems,
   officeHelpCards,
@@ -350,6 +360,102 @@ export default function HelpPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {pmRfiSubmittalFaqItems.map((item) => (
+              <div key={item.question}>
+                <p className="text-sm font-medium">{item.question}</p>
+                <p className="text-sm text-muted-foreground">{item.answer}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Change orders + contracts on phone (3.5.8 / band 3.6) */}
+      <div data-testid="help-pm-co-contracts">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <FileText className="h-5 w-5 text-amber-500" />
+          {PM_CO_CONTRACTS_HELP_SECTION_TITLE}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Phone-first change order status and amount glance. Empty is honest — never a
+          commercial health score.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-4">
+          {HELP_PM_CO_CONTRACTS_CARDS.map((card) => (
+            <Card key={card.id} data-testid={`help-pm-card-${card.id}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{card.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {card.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+                <Link
+                  href={card.href}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                >
+                  Open {card.title}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">FAQ</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pmCoContractsFaqItems.map((item) => (
+              <div key={item.question}>
+                <p className="text-sm font-medium">{item.question}</p>
+                <p className="text-sm text-muted-foreground">{item.answer}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Schedule + look-ahead on phone (3.6.8 / band 3.7–3.8 partial) */}
+      <div data-testid="help-pm-schedule">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2">
+          <BarChart3 className="h-5 w-5 text-amber-500" />
+          {PM_SCHEDULE_HELP_SECTION_TITLE}
+        </h2>
+        <p className="text-sm text-muted-foreground mb-4">
+          Phone look-ahead with real critical flags and float when the server has them.
+          Never invented SPI/CPI or default on-track green.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-4">
+          {HELP_PM_SCHEDULE_CARDS.map((card) => (
+            <Card key={card.id} data-testid={`help-pm-card-${card.id}`}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">{card.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ol className="list-decimal list-inside space-y-1 text-sm text-muted-foreground">
+                  {card.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
+                <Link
+                  href={card.href}
+                  className="inline-flex items-center gap-1 text-sm font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                >
+                  Open {card.title}
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </Link>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">FAQ</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pmScheduleFaqItems.map((item) => (
               <div key={item.question}>
                 <p className="text-sm font-medium">{item.question}</p>
                 <p className="text-sm text-muted-foreground">{item.answer}</p>

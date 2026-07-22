@@ -1,6 +1,6 @@
 # Spec: Product band 3.7 — Schedule Gantt phone + Kanban
 
-**Status:** Pending (agent-ready)  
+**Status:** Shipped  
 **Version band:** `3.6.1` → `3.7.0` (10 stamps)  
 **Theme:** Phone-usable schedule Gantt glance + Kanban for activity/task flow  
 **Epic:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../../roadmap/pm-nextgen-3.4-to-4.0.md)  

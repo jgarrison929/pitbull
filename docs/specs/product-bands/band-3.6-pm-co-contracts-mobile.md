@@ -1,6 +1,6 @@
 # Spec: Product band 3.6 — Change orders + Contracts mobile
 
-**Status:** Pending (agent-ready)  
+**Status:** Shipped  
 **Version band:** `3.5.1` → `3.6.0` (10 stamps)  
 **Theme:** Mobile-friendly change orders and contract (subcontract) glance/detail  
 **Epic:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../../roadmap/pm-nextgen-3.4-to-4.0.md)  

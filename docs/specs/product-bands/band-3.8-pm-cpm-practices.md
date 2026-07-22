@@ -1,6 +1,6 @@
 # Spec: Product band 3.8 — CPM practices honesty
 
-**Status:** Pending (agent-ready)  
+**Status:** Pending (partial through 3.7.5 — glossary, critical, float, data-date, baseline variance; 3.7.6–3.8.0 remaining)  
 **Version band:** `3.7.1` → `3.8.0` (10 stamps)  
 **Theme:** Critical path, float, data-date, baseline variance — labeled and mobile-glanceable  
 **Epic:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../../roadmap/pm-nextgen-3.4-to-4.0.md)  

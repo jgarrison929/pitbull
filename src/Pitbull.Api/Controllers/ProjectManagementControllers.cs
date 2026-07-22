@@ -105,12 +105,39 @@ public class ProjectSchedulesController(IScheduleService scheduleService) : Proj
     /// <summary>
     /// Lists schedule activities for the specified schedule (site walk / Gantt).
     /// </summary>
+    /// <param name="view">
+    /// Optional shape: <c>mobile</c> returns <see cref="ActivityMobileListItemDto"/> rows
+    /// (id, name, status, start, finish, isCritical, float — no SPI/CPI invent).
+    /// </param>
     [HttpGet("{scheduleId:guid}/activities")]
     [ProducesResponseType(typeof(PagedResult<PmEntityDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PagedResult<ActivityMobileListItemDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ListActivities(Guid projectId, Guid scheduleId, [FromQuery] PmListQuery query)
-        => HandleResult(await scheduleService.ListActivitiesAsync(projectId, scheduleId, query));
+    public async Task<IActionResult> ListActivities(
+        Guid projectId,
+        Guid scheduleId,
+        [FromQuery] PmListQuery query,
+        // view=mobile → ActivityMobileListItemDto (band 3.7 contract)
+        [FromQuery] string? view = null)
+    {
+        var result = await scheduleService.ListActivitiesAsync(projectId, scheduleId, query);
+        if (!result.IsSuccess)
+            return HandleResult(result);
+
+        var mobileView = string.Equals(view, "mobile", StringComparison.OrdinalIgnoreCase);
+        if (mobileView)
+        {
+            var full = result.Value!;
+            var slimItems = full.Items
+                .Select(ActivityListViewMapper.ToMobileListItem)
+                .ToArray();
+            return Ok(new PagedResult<ActivityMobileListItemDto>(
+                slimItems, full.TotalCount, full.Page, full.PageSize));
+        }
+
+        return HandleResult(result);
+    }
 
     /// <summary>
     /// Adds a schedule activity to the specified schedule.

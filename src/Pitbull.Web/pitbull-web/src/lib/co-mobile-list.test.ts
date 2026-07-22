@@ -4,12 +4,20 @@ import {
   coMobileListUrl,
   formatCoAmount,
   isCoClosed,
+  ownerCoMobileListUrl,
 } from "./co-mobile-list";
 
 describe("co-mobile-list (band 3.6)", () => {
-  it("builds mobile list URL", () => {
+  it("builds subcontract CO mobile list URL with view=mobile", () => {
     expect(coMobileListUrl("p1")).toContain("view=mobile");
-    expect(coMobileListUrl()).toContain("owner-change-orders");
+    expect(coMobileListUrl("p1")).toContain("/api/changeorders");
+    expect(coMobileListUrl("p1")).toContain("projectId=p1");
+    expect(coMobileListUrl()).toContain("/api/changeorders");
+  });
+
+  it("builds owner CO mobile list URL", () => {
+    expect(ownerCoMobileListUrl("p1")).toContain("owner-change-orders");
+    expect(ownerCoMobileListUrl("p1")).toContain("view=mobile");
   });
 
   it("formats amount or em dash", () => {

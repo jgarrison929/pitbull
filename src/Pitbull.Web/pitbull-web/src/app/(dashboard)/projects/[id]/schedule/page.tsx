@@ -56,6 +56,17 @@ import {
   SCHEDULE_EMPTY_CRITICAL_ONLY,
   SCHEDULE_EMPTY_NO_ACTIVITIES,
 } from "@/lib/schedule-empty-copy";
+import {
+  SCHEDULE_MOBILE_EMPTY,
+  scheduleActivitiesMobileUrl,
+  formatFloatDays,
+  criticalLabel,
+} from "@/lib/schedule-mobile-list";
+import {
+  formatDataDate,
+  formatBaselineVarianceDays,
+  CPM_GLOSSARY,
+} from "@/lib/cpm-honesty";
 import Link from "next/link";
 import { Pencil, Trash2, CalendarDays } from "lucide-react";
 
@@ -182,7 +193,24 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
   const loadGanttData = useCallback(async (scheduleId: string) => {
     setGanttLoading(true);
     try {
-      const [actResult, depResult] = await Promise.all([
+      // Band 3.7: phone look-ahead uses slim activities?view=mobile.
+      // Full bag still loaded for desktop Gantt (WBS/parent/deps).
+      type MobileAct = {
+        id: string;
+        name?: string;
+        status?: string;
+        start?: string | null;
+        finish?: string | null;
+        isCritical?: boolean | null;
+        totalFloatDays?: number | null;
+        freeFloatDays?: number | null;
+        percentComplete?: number | null;
+      };
+
+      const [mobileResult, actResult, depResult] = await Promise.all([
+        api<{ items: MobileAct[]; totalCount: number }>(
+          scheduleActivitiesMobileUrl(projectId, scheduleId, 1000)
+        ).catch(() => ({ items: [] as MobileAct[], totalCount: 0 })),
         api<PmPagedResult>(
           `/api/projects/${projectId}/schedules/${scheduleId}/activities?page=1&pageSize=1000`
         ).catch(() => ({ items: [] as PmEntityDto[], totalCount: 0, page: 1, pageSize: 1000 })),
@@ -191,7 +219,8 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
         ).catch(() => ({ items: [] as PmEntityDto[], totalCount: 0, page: 1, pageSize: 1000 })),
       ]);
 
-      const activities: GanttActivity[] = (actResult.items ?? []).map((item) => {
+      // Prefer full bag for Gantt when present; fall back to mobile rows
+      let activities: GanttActivity[] = (actResult.items ?? []).map((item) => {
         const data = asDataMap(item.data);
         return {
           id: item.id,
@@ -210,6 +239,40 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
           sortOrder: asNumber(data.SortOrder),
         };
       });
+
+      if (activities.length === 0 && (mobileResult.items?.length ?? 0) > 0) {
+        activities = mobileResult.items.map((m) => ({
+          id: m.id,
+          name: m.name || "Untitled",
+          wbsCode: "",
+          activityType: "Task" as GanttActivity["activityType"],
+          status: (m.status || "NotStarted") as GanttActivity["status"],
+          plannedStart: m.start ?? null,
+          plannedFinish: m.finish ?? null,
+          actualStart: null,
+          actualFinish: null,
+          percentComplete: m.percentComplete ?? 0,
+          isCritical: m.isCritical === true,
+          totalFloatDays: m.totalFloatDays ?? null,
+          parentActivityId: null,
+          sortOrder: 0,
+        }));
+      }
+
+      // Overlay mobile float/critical honesty when full bag omitted nulls
+      if (mobileResult.items?.length) {
+        const byId = new Map(mobileResult.items.map((m) => [m.id, m]));
+        activities = activities.map((a) => {
+          const m = byId.get(a.id);
+          if (!m) return a;
+          return {
+            ...a,
+            isCritical: m.isCritical === true || a.isCritical,
+            totalFloatDays:
+              m.totalFloatDays != null ? m.totalFloatDays : a.totalFloatDays,
+          };
+        });
+      }
 
       const dependencies: GanttDependency[] = (depResult.items ?? []).map((item) => {
         const data = asDataMap(item.data);
@@ -474,7 +537,11 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
             Look-ahead (7 days)
           </CardTitle>
           <CardDescription>
-            Near-term tasks for walking the job — critical path first.
+            Near-term tasks for walking the job — critical path first.{" "}
+            {formatDataDate(
+              rows.find((s) => s.id === ganttScheduleId)?.dataDate ?? null
+            )}
+            . {CPM_GLOSSARY.critical}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -484,37 +551,57 @@ function ScheduleContent({ params }: { params: Promise<{ id: string }> }) {
             <p className="text-sm text-muted-foreground" data-testid="schedule-critical-empty">
               {criticalOnly
                 ? SCHEDULE_EMPTY_CRITICAL_ONLY
-                : SCHEDULE_EMPTY_NO_ACTIVITIES}
+                : ganttActivities.length === 0
+                  ? SCHEDULE_MOBILE_EMPTY
+                  : SCHEDULE_EMPTY_NO_ACTIVITIES}
             </p>
           ) : (
-            filterCriticalPathTasks(lookAheadCards, criticalOnly).slice(0, 15).map((task) => (
-              <Link
-                key={task.id}
-                href={buildProgressDraftHref(projectId, {
-                  activityId: task.id,
-                  activityName: task.name,
-                })}
-                className="block rounded-lg border p-3 space-y-1 touch-manipulation hover:border-amber-400"
-                data-testid="schedule-look-ahead-card"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-sm">{task.name}</p>
-                  {task.isCritical && (
-                    <Badge variant="destructive" className="text-[10px] shrink-0">
-                      Critical
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span>{task.status}</span>
-                  <span>{task.percentComplete}%</span>
-                  {task.plannedFinish && (
-                    <span>Finish {task.plannedFinish.slice(0, 10)}</span>
-                  )}
-                  <span className="text-amber-700">Tap for progress draft</span>
-                </div>
-              </Link>
-            ))
+            filterCriticalPathTasks(lookAheadCards, criticalOnly).slice(0, 15).map((task) => {
+              const gantt = ganttActivities.find((a) => a.id === task.id);
+              const floatLabel = formatFloatDays(gantt?.totalFloatDays ?? null);
+              const crit = criticalLabel(task.isCritical);
+              return (
+                <Link
+                  key={task.id}
+                  href={buildProgressDraftHref(projectId, {
+                    activityId: task.id,
+                    activityName: task.name,
+                  })}
+                  className="block rounded-lg border p-3 space-y-1 touch-manipulation hover:border-amber-400"
+                  data-testid="schedule-look-ahead-card"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-sm">{task.name}</p>
+                    {task.isCritical && (
+                      <Badge variant="destructive" className="text-[10px] shrink-0">
+                        {crit}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                    <span>{task.status}</span>
+                    {task.percentComplete != null && (
+                      <span title="Server percent complete only — not a health score">
+                        {task.percentComplete}% complete
+                      </span>
+                    )}
+                    {task.plannedFinish && (
+                      <span>Finish {task.plannedFinish.slice(0, 10)}</span>
+                    )}
+                    <span title={CPM_GLOSSARY.totalFloat}>{floatLabel}</span>
+                    {gantt?.plannedFinish && (
+                      <span title={CPM_GLOSSARY.dataDate}>
+                        {formatBaselineVarianceDays(
+                          gantt.plannedFinish,
+                          gantt.actualFinish ?? gantt.plannedFinish
+                        )}
+                      </span>
+                    )}
+                    <span className="text-amber-700">Tap for progress draft</span>
+                  </div>
+                </Link>
+              );
+            })
           )}
         </CardContent>
       </Card>
