@@ -45,10 +45,24 @@ public class WipCalculationService(PitbullDbContext db) : IWipCalculationService
             BillingApplicationStatus.Paid,
         };
 
-        billedToDate = await db.Set<BillingApplication>()
+        // G702 TotalEarnedLessRetainage is cumulative per application. Summing all apps double-counts.
+        // Match dashboard pattern: latest ApplicationNumber per owner contract, then sum contracts.
+        var billableApps = await db.Set<BillingApplication>()
             .AsNoTracking()
             .Where(ba => ba.ProjectId == project.Id && billableStatuses.Contains(ba.Status))
-            .SumAsync(ba => (decimal?)ba.TotalEarnedLessRetainage, cancellationToken) ?? 0m;
+            .Select(ba => new
+            {
+                ba.OwnerContractId,
+                ba.ApplicationNumber,
+                ba.TotalEarnedLessRetainage
+            })
+            .ToListAsync(cancellationToken);
+
+        billedToDate = billableApps
+            .GroupBy(a => a.OwnerContractId)
+            .Select(g => g.OrderByDescending(x => x.ApplicationNumber).First().TotalEarnedLessRetainage)
+            .DefaultIfEmpty(0m)
+            .Sum();
 
         decimal totalCostToDate = await db.Set<TimeEntry>()
             .AsNoTracking()

@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Contract Administrator demo persona** — Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
 - **PM next-gen arc program docs** — epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
 
+## [3.7.7] - 2026-07-25T23:04:05-07:00
+
+### Fixed
+
+- **WIP BilledToDate multi-app double-count (B0)** — `WipCalculationService` now uses latest billable application’s cumulative `TotalEarnedLessRetainage` per owner contract (dashboard pattern), not a sum of every app’s cumulative G702 Line 6. Unit tests + financial-math arc inventory (`docs/roadmap/financial-math-wip-arc.md`).
+
+### Security
+
+- npm overrides: **postcss 8.5.23**, **brace-expansion 5.0.8** (residual advisory cleanup without forced major bumps). NuGet vulnerable list remains clean.
+
 ## [3.7.6] - 2026-07-22T06:31:53-07:00
 
 ### Changed
