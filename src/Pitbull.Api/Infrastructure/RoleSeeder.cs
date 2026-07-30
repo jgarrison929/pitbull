@@ -64,16 +64,16 @@ public sealed class RoleSeeder(
             var result = await roleManager.CreateAsync(role);
             if (result.Succeeded)
             {
-                logger.LogInformation("Created role {RoleName} for tenant {TenantId}", roleName, tenantId);
+                logger.LogInformation("Created role {RoleName} for tenant {TenantId}", LogSafe.Text(roleName), tenantId);
             }
             else if (IsDuplicateRoleResult(result))
             {
-                logger.LogDebug("Role {RoleName} already exists for tenant {TenantId}", roleName, tenantId);
+                logger.LogDebug("Role {RoleName} already exists for tenant {TenantId}", LogSafe.Text(roleName), tenantId);
             }
             else
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                logger.LogWarning("Failed to create role {RoleName}: {Errors}", roleName, errors);
+                logger.LogWarning("Failed to create role {RoleName}: {Errors}", LogSafe.Text(roleName), LogSafe.Text(errors));
             }
         }
     }
@@ -131,13 +131,13 @@ public sealed class RoleSeeder(
         if (result.Succeeded)
         {
             logger.LogInformation("Removed role {RoleName} from user {UserId} ({Email})",
-                roleName, user.Id, user.Email);
+                LogSafe.Text(roleName), user.Id, LogSafe.Email(user.Email));
         }
         else
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
             logger.LogWarning("Failed to remove role {RoleName} from user {UserId}: {Errors}",
-                roleName, user.Id, errors);
+                LogSafe.Text(roleName), user.Id, LogSafe.Text(errors));
         }
     }
 
@@ -220,7 +220,7 @@ public sealed class RoleSeeder(
 
         await AssignRoleToUserAsync(firstUser, Roles.Admin, ct);
         logger.LogInformation("Auto-promoted first user {UserId} ({Email}) to Admin for tenant {TenantId}",
-            firstUser.Id, firstUser.Email, tenantId);
+            firstUser.Id, LogSafe.Email(firstUser.Email), tenantId);
     }
 
     /// <summary>

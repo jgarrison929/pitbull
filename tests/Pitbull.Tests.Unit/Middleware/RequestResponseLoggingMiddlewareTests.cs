@@ -266,6 +266,178 @@ public class RequestResponseLoggingMiddlewareTests
         Assert.DoesNotContain("my-super-secret-jwt", loggedMessage);
     }
 
+    // ── Sanitizes Cookie header ──────────────────────────────
+
+    [Fact]
+    public async Task InvokeAsync_SanitizesCookieHeader()
+    {
+        string? loggedMessage = null;
+        _loggerMock.Setup(x => x.Log(
+            LogLevel.Information,
+            It.IsAny<EventId>(),
+            It.IsAny<It.IsAnyType>(),
+            It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback<LogLevel, EventId, object, Exception?, Delegate>((_, _, state, _, _) =>
+            {
+                loggedMessage = state.ToString();
+            });
+
+        var middleware = CreateMiddleware(ctx =>
+        {
+            ctx.Response.StatusCode = 200;
+            return Task.CompletedTask;
+        });
+
+        var context = CreateApiContext(path: "/api/projects");
+        context.Request.Headers["Cookie"] = "session=super-secret-session-id; other=value";
+
+        await middleware.InvokeAsync(context);
+
+        Assert.NotNull(loggedMessage);
+        Assert.DoesNotContain("super-secret-session-id", loggedMessage);
+    }
+
+    // ── Redacts email JSON fields ────────────────────────────
+
+    [Fact]
+    public async Task InvokeAsync_RedactsEmailFields_InJsonBody()
+    {
+        string? loggedMessage = null;
+        _loggerMock.Setup(x => x.Log(
+            LogLevel.Information,
+            It.IsAny<EventId>(),
+            It.IsAny<It.IsAnyType>(),
+            It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback<LogLevel, EventId, object, Exception?, Delegate>((_, _, state, _, _) =>
+            {
+                loggedMessage = state.ToString();
+            });
+
+        var jsonBody = "{\"email\": \"user@example.com\", \"password\": \"secret123\"}";
+        var middleware = CreateMiddleware(ctx =>
+        {
+            ctx.Response.StatusCode = 200;
+            return Task.CompletedTask;
+        });
+
+        var context = CreateApiContext(
+            method: "POST",
+            path: "/api/auth/login",
+            requestBody: jsonBody);
+
+        await middleware.InvokeAsync(context);
+
+        Assert.NotNull(loggedMessage);
+        Assert.DoesNotContain("user@example.com", loggedMessage);
+        Assert.DoesNotContain("secret123", loggedMessage);
+        Assert.Contains("REDACTED", loggedMessage);
+    }
+
+    // ── Redacts portal / invitation secret path segments ─────
+
+    [Theory]
+    [InlineData("/api/vendor-portal/secret-portal-token-abc/validate")]
+    [InlineData("/api/Invitation/token/secret-invite-token-xyz")]
+    [InlineData("/api/Invitation/token/secret-invite-token-xyz/accept")]
+    public async Task InvokeAsync_RedactsSecretTokens_InPath(string path)
+    {
+        string? loggedMessage = null;
+        _loggerMock.Setup(x => x.Log(
+            LogLevel.Information,
+            It.IsAny<EventId>(),
+            It.IsAny<It.IsAnyType>(),
+            It.IsAny<Exception?>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback<LogLevel, EventId, object, Exception?, Delegate>((_, _, state, _, _) =>
+            {
+                loggedMessage = state.ToString();
+            });
+
+        var middleware = CreateMiddleware(ctx =>
+        {
+            ctx.Response.StatusCode = 200;
+            return Task.CompletedTask;
+        });
+
+        var context = CreateApiContext(path: path);
+        await middleware.InvokeAsync(context);
+
+        Assert.NotNull(loggedMessage);
+        Assert.DoesNotContain("secret-portal-token-abc", loggedMessage);
+        Assert.DoesNotContain("secret-invite-token-xyz", loggedMessage);
+        Assert.Contains("REDACTED", loggedMessage);
+    }
+
+    [Fact]
+    public void SanitizePath_PreservesVendorPortalTokensAdminRoute()
+    {
+        var result = RequestResponseLoggingMiddleware.SanitizePath("/api/vendor-portal/tokens");
+        Assert.Equal("/api/vendor-portal/tokens", result);
+        Assert.DoesNotContain("REDACTED", result);
+    }
+
+    [Fact]
+    public void SanitizePath_RedactsVendorPortalSecretSegment()
+    {
+        var result = RequestResponseLoggingMiddleware.SanitizePath("/api/vendor-portal/abc123token/lien-waivers");
+        Assert.Equal("/api/vendor-portal/[REDACTED]/lien-waivers", result);
+    }
+
+    [Fact]
+    public void SanitizePath_RedactsInvitationTokenSegment()
+    {
+        var result = RequestResponseLoggingMiddleware.SanitizePath("/api/Invitation/token/super-secret-token/accept");
+        Assert.Equal("/api/Invitation/token/[REDACTED]/accept", result);
+    }
+
+    [Fact]
+    public void SanitizeRequestPathForLogging_RedactsVendorPortalToken()
+    {
+        var result = RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(
+            "/api/vendor-portal/abc123token/lien-waivers");
+        Assert.Equal("/api/vendor-portal/[REDACTED]/lien-waivers", result);
+        Assert.DoesNotContain("abc123token", result);
+    }
+
+    [Fact]
+    public void SanitizeRequestPathForLogging_RedactsQueryTokenAndStripsNewlines()
+    {
+        var result = RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(
+            "/api/projects?token=secret-value&q=hello\r\nWORLD");
+        Assert.DoesNotContain("secret-value", result);
+        Assert.Contains("token=[REDACTED]", result);
+        Assert.DoesNotContain("\r", result);
+        Assert.DoesNotContain("\n", result);
+        Assert.Contains("helloWORLD", result);
+    }
+
+    [Fact]
+    public void SanitizeRequestPathForLogging_NullOrEmpty_ReturnsEmpty()
+    {
+        Assert.Equal(string.Empty, RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(null));
+        Assert.Equal(string.Empty, RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(""));
+    }
+
+    [Fact]
+    public void SanitizeQueryString_RedactsTokenParams()
+    {
+        var result = RequestResponseLoggingMiddleware.SanitizeQueryString("?token=secret-value&page=1");
+        Assert.DoesNotContain("secret-value", result);
+        Assert.Contains("token=[REDACTED]", result);
+        Assert.Contains("page=1", result);
+    }
+
+    [Fact]
+    public void SanitizeQueryString_StripsNewlines()
+    {
+        var result = RequestResponseLoggingMiddleware.SanitizeQueryString("?q=hello\r\nWORLD");
+        Assert.DoesNotContain("\r", result);
+        Assert.DoesNotContain("\n", result);
+        Assert.Contains("helloWORLD", result);
+    }
+
     // ── Handles non-JSON content types ───────────────────────
 
     [Fact]

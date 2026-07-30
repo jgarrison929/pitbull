@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
+using Pitbull.Core.Logging;
 using Pitbull.Projects.Domain;
 using Pitbull.TimeTracking.Domain;
 
@@ -210,7 +211,11 @@ public class AiInsightsService : IAiInsightsService
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogError("Anthropic API error: {StatusCode} - {Response}", response.StatusCode, responseContent);
+            var snippet = responseContent.Length > 200 ? responseContent[..200] : responseContent;
+            _logger.LogError(
+                "Anthropic API error: {StatusCode} - {Response}",
+                response.StatusCode,
+                LogSafe.Text(snippet));
             return new AiProjectSummaryResult
             {
                 Success = false,
@@ -343,7 +348,8 @@ public class AiInsightsService : IAiInsightsService
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to parse Claude response: {Response}", responseContent);
+            var snippet = responseContent.Length > 200 ? responseContent[..200] : responseContent;
+            _logger.LogError(ex, "Failed to parse Claude response: {Response}", LogSafe.Text(snippet));
             return new AiProjectSummaryResult
             {
                 Success = false,

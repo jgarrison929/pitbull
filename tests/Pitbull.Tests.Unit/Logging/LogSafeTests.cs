@@ -27,9 +27,15 @@ public class LogSafeTests
     }
 
     [Fact]
-    public void Email_redacts_local_part()
+    public void Email_returns_stable_fingerprint_without_address()
     {
-        Assert.Equal("***@demo.local", LogSafe.Email("ceo@demo.local"));
+        var a = LogSafe.Email("ceo@demo.local");
+        var b = LogSafe.Email("ceo@demo.local");
+        Assert.Equal(a, b);
+        Assert.StartsWith("email#", a);
+        Assert.DoesNotContain("ceo", a, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("@", a);
+        Assert.DoesNotContain("demo.local", a);
     }
 
     [Fact]
@@ -40,10 +46,18 @@ public class LogSafeTests
     }
 
     [Fact]
-    public void Email_strips_newlines_in_domain()
+    public void Email_strips_newlines_and_does_not_echo_input()
     {
         var result = LogSafe.Email("user@ex\nample.com");
         Assert.DoesNotContain("\n", result);
-        Assert.StartsWith("***@", result);
+        Assert.DoesNotContain("user", result, StringComparison.OrdinalIgnoreCase);
+        Assert.StartsWith("email#", result);
+    }
+
+    [Fact]
+    public void Text_always_strips_cr_lf_even_when_mixed_with_controls()
+    {
+        var result = LogSafe.Text("a\0b\rc\nd");
+        Assert.Equal("abcd", result);
     }
 }

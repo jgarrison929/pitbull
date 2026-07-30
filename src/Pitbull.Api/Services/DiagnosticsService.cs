@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Services;
 
@@ -15,6 +16,21 @@ public interface IDiagnosticsService
 
 public class DiagnosticsService(PitbullDbContext db) : IDiagnosticsService
 {
+    // Length bounds for client-influenced fields (align with column max lengths where set).
+    private const int MaxShort = 20;
+    private const int MaxMethod = 10;
+    private const int MaxPath = 2048;
+    private const int MaxMessage = 4000;
+    private const int MaxExceptionType = 500;
+    private const int MaxStackTrace = 8000;
+    private const int MaxUserId = 200;
+    private const int MaxCorrelation = 100;
+    private const int MaxIp = 50;
+    private const int MaxUserAgent = 1024;
+    private const int MaxComponentStack = 4000;
+    private const int MaxBrowserInfo = 1000;
+    private const int MaxMetadata = 4000;
+
     public async Task<DiagnosticErrorListResult> ListAsync(DiagnosticErrorFilter filter, CancellationToken ct = default)
     {
         var query = db.Set<DiagnosticError>().AsNoTracking().AsQueryable();
@@ -54,34 +70,48 @@ public class DiagnosticsService(PitbullDbContext db) : IDiagnosticsService
 
     public async Task<DiagnosticError> CreateAsync(CreateDiagnosticErrorRequest request, CancellationToken ct = default)
     {
+        // Never store raw emails; fingerprint for correlation only.
+        var emailFingerprint = string.IsNullOrWhiteSpace(request.UserEmail)
+            ? null
+            : LogSafe.Email(request.UserEmail);
+
         var error = new DiagnosticError
         {
-            Source = request.Source,
-            Level = request.Level ?? "error",
+            Source = Bound(LogSafe.Text(request.Source), MaxShort) ?? "unknown",
+            Level = Bound(LogSafe.Text(request.Level ?? "error"), MaxShort) ?? "error",
             HttpStatusCode = request.HttpStatusCode,
-            RequestMethod = request.RequestMethod,
-            RequestPath = request.RequestPath,
-            QueryString = request.QueryString,
-            Message = request.Message,
-            ExceptionType = request.ExceptionType,
-            StackTrace = request.StackTrace,
+            RequestMethod = Bound(LogSafe.Text(request.RequestMethod), MaxMethod),
+            RequestPath = Bound(LogSafe.Text(request.RequestPath), MaxPath),
+            QueryString = Bound(LogSafe.Text(request.QueryString), MaxPath),
+            Message = Bound(LogSafe.Text(request.Message), MaxMessage) ?? string.Empty,
+            ExceptionType = Bound(LogSafe.Text(request.ExceptionType), MaxExceptionType),
+            StackTrace = Bound(LogSafe.Text(request.StackTrace), MaxStackTrace),
+            // TenantId / UserId are only trusted when set by server-side callers after auth;
+            // anonymous frontend reports should null these before calling CreateAsync.
             TenantId = request.TenantId,
-            UserId = request.UserId,
-            UserEmail = request.UserEmail,
-            CorrelationId = request.CorrelationId,
-            TraceId = request.TraceId,
-            UserAgent = request.UserAgent,
-            IpAddress = request.IpAddress,
-            ComponentStack = request.ComponentStack,
-            BrowserInfo = request.BrowserInfo,
-            PageUrl = request.PageUrl,
-            Metadata = request.Metadata
+            UserId = Bound(LogSafe.Text(request.UserId), MaxUserId),
+            UserEmail = emailFingerprint,
+            CorrelationId = Bound(LogSafe.Text(request.CorrelationId), MaxCorrelation),
+            TraceId = Bound(LogSafe.Text(request.TraceId), MaxCorrelation),
+            UserAgent = Bound(LogSafe.Text(request.UserAgent), MaxUserAgent),
+            IpAddress = Bound(LogSafe.Text(request.IpAddress), MaxIp),
+            ComponentStack = Bound(LogSafe.Text(request.ComponentStack), MaxComponentStack),
+            BrowserInfo = Bound(LogSafe.Text(request.BrowserInfo), MaxBrowserInfo),
+            PageUrl = Bound(LogSafe.Text(request.PageUrl), MaxPath),
+            Metadata = Bound(LogSafe.Text(request.Metadata), MaxMetadata)
         };
 
         db.Set<DiagnosticError>().Add(error);
         await db.SaveChangesAsync(ct);
 
         return error;
+    }
+
+    private static string? Bound(string? value, int maxLength)
+    {
+        if (string.IsNullOrEmpty(value))
+            return null;
+        return value.Length <= maxLength ? value : value[..maxLength];
     }
 
     public async Task<DiagnosticError?> AcknowledgeAsync(Guid id, string acknowledgedBy, string? resolution, CancellationToken ct = default)

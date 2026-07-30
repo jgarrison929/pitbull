@@ -40,7 +40,9 @@ using Hangfire;
 using Hangfire.PostgreSql;
 using Pitbull.Api.Jobs;
 using Savorboard.CAP.InMemoryMessageQueue;
+using Pitbull.Core.Logging;
 using Serilog;
+using Serilog.Events;
 using Serilog.Formatting.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -748,7 +750,19 @@ PitbullDbContext.RegisterEncryptionService(
 
 // Handle forwarded headers from reverse proxy (must be very early)
 app.UseForwardedHeaders();
-app.UseSerilogRequestLogging();
+// Always-on request completion logs — redact vendor-portal / invitation tokens and CR/LF
+// (same rules as RequestResponseLoggingMiddleware; raw RequestPath must never hit sinks).
+app.UseSerilogRequestLogging(options =>
+{
+    options.GetMessageTemplateProperties = (httpContext, requestPath, elapsedMs, statusCode) =>
+    [
+        new LogEventProperty("RequestMethod", new ScalarValue(LogSafe.Text(httpContext.Request.Method))),
+        new LogEventProperty("RequestPath", new ScalarValue(
+            RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(requestPath))),
+        new LogEventProperty("StatusCode", new ScalarValue(statusCode)),
+        new LogEventProperty("Elapsed", new ScalarValue(elapsedMs))
+    ];
+});
 
 // Auto-migrate database on startup (skipped in integration tests where
 // PostgresFixture applies migrations once to avoid parallel race conditions).

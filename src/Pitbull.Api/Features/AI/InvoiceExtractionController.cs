@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Features.AI;
 
@@ -40,7 +41,7 @@ public class InvoiceExtractionController(
         if (result.OverallConfidence == 0 && result.Warnings.Count > 0)
         {
             logger.LogInformation("Invoice extraction returned warnings for {FileName}: {Warnings}",
-                file.FileName, string.Join("; ", result.Warnings));
+                LogSafe.Text(file.FileName), LogSafe.Text(string.Join("; ", result.Warnings)));
         }
 
         return Ok(result);

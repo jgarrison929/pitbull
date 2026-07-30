@@ -286,7 +286,7 @@ public class VendorInvoiceService(
             logger.LogWarning(
                 "Failed to create accrual journal entry for vendor invoice {VendorInvoiceId}: {Error}",
                 invoice.Id,
-                jeResult.Error);
+                LogSafe.Text(jeResult.Error));
             return;
         }
 
@@ -296,7 +296,7 @@ public class VendorInvoiceService(
             logger.LogWarning(
                 "Failed to post accrual journal entry for vendor invoice {VendorInvoiceId}: {Error}",
                 invoice.Id,
-                postResult.Error);
+                LogSafe.Text(postResult.Error));
             return;
         }
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Core.Services.BlobStorage;
 
@@ -21,7 +22,7 @@ public class LocalFileSystemBlobService : IBlobStorageService
     {
         try
         {
-            var ext = Path.GetExtension(fileName);
+            var ext = SanitizeExtension(fileName);
             var blobKey = $"{tenantId:N}/{SanitizeName(containerName)}/{Guid.NewGuid():N}{ext}";
 
             var fullPath = GetFullPath(blobKey);
@@ -74,7 +75,7 @@ public class LocalFileSystemBlobService : IBlobStorageService
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            _logger.LogError(ex, "Failed to delete blob {BlobKey}", blobKey);
+            _logger.LogError(ex, "Failed to delete blob {BlobKey}", LogSafe.Text(blobKey));
             return Task.FromResult(Result.Failure<bool>("Failed to delete file", "STORAGE_ERROR"));
         }
     }
@@ -108,5 +109,19 @@ public class LocalFileSystemBlobService : IBlobStorageService
     private static string SanitizeName(string name)
     {
         return System.Text.RegularExpressions.Regex.Replace(name, @"[^a-zA-Z0-9_\-]", "");
+    }
+
+    /// <summary>
+    /// Allowlist file extension characters so client-controlled names cannot inject
+    /// control chars into blob keys (and subsequently into error logs).
+    /// </summary>
+    private static string SanitizeExtension(string fileName)
+    {
+        var ext = Path.GetExtension(fileName);
+        if (string.IsNullOrEmpty(ext))
+            return string.Empty;
+
+        var sanitized = System.Text.RegularExpressions.Regex.Replace(ext, @"[^a-zA-Z0-9.]", "");
+        return sanitized is "." or "" ? string.Empty : sanitized;
     }
 }

@@ -244,7 +244,7 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
             await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Imported {Count} bank transactions for account {AccountName} ({Skipped} duplicates skipped)",
-            imported, account.AccountName, skipped);
+            imported, LogSafe.Text(account.AccountName), skipped);
 
         return Result.Success(new ImportBankTransactionsResult(imported, skipped));
     }
@@ -459,7 +459,7 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation("Bank reconciliation completed for {AccountName}, statement date {StatementDate}",
-            rec.BankAccount.AccountName, rec.StatementDate);
+            LogSafe.Text(rec.BankAccount.AccountName), rec.StatementDate);
 
         return Result.Success(MapReconciliationDto(rec));
     }

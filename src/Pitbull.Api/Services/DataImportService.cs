@@ -869,9 +869,10 @@ internal static class CsvParser
 
         var rows = new List<Dictionary<string, string>>();
 
-        while (!reader.EndOfStream)
+        // Prefer ReadLineAsync over EndOfStream in async methods (CA2024).
+        string? line;
+        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)
         {
-            var line = await reader.ReadLineAsync(cancellationToken) ?? string.Empty;
             if (string.IsNullOrWhiteSpace(line))
                 continue;
 

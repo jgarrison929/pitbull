@@ -57,6 +57,7 @@ public class InvoiceExtractionServiceTests
 
         result.OverallConfidence.Should().Be(0);
         result.Warnings.Should().Contain(w => w.Contains("AI extraction failed"));
+        result.Warnings.Should().NotContain(w => w.Contains("Service unavailable"));
         result.RawText.Should().Be("Some invoice text");
     }
 

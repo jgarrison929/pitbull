@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
-using Pitbull.Core.MultiTenancy;
 using Pitbull.Core.Logging;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Features.CompanyProvisioning;
 
@@ -25,7 +25,6 @@ public interface ICompanyProvisioningService
 public class CompanyProvisioningService(
     PitbullDbContext db,
     ITenantContext tenantContext,
-    ICompanyContext companyContext,
     ILogger<CompanyProvisioningService> logger) : ICompanyProvisioningService
 {
     public async Task<CompanyProvisioningResult> ProvisionAsync(

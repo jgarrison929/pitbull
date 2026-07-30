@@ -3,6 +3,7 @@ using Amazon.S3.Model;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Logging;
 using Pitbull.Core.Services.BlobStorage;
 
 namespace Pitbull.Storage;
@@ -28,7 +29,7 @@ public class S3BlobService : IBlobStorageService
     {
         try
         {
-            var ext = Path.GetExtension(fileName);
+            var ext = SanitizeExtension(fileName);
             var key = $"{tenantId:N}/{SanitizeName(containerName)}/{Guid.NewGuid():N}{ext}";
 
             var request = new PutObjectRequest
@@ -69,7 +70,7 @@ public class S3BlobService : IBlobStorageService
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "S3 download failed for key {Key}", blobKey);
+            _logger.LogError(ex, "S3 download failed for key {Key}", LogSafe.Text(blobKey));
             return Result.Failure<Stream>("Failed to download file from S3", "STORAGE_ERROR");
         }
     }
@@ -83,7 +84,7 @@ public class S3BlobService : IBlobStorageService
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "S3 delete failed for key {Key}", blobKey);
+            _logger.LogError(ex, "S3 delete failed for key {Key}", LogSafe.Text(blobKey));
             return Result.Failure<bool>("Failed to delete file from S3", "STORAGE_ERROR");
         }
     }
@@ -105,7 +106,7 @@ public class S3BlobService : IBlobStorageService
         }
         catch (AmazonS3Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate presigned URL for key {Key}", blobKey);
+            _logger.LogError(ex, "Failed to generate presigned URL for key {Key}", LogSafe.Text(blobKey));
             return Task.FromResult(Result.Failure<string>("Failed to generate download URL", "STORAGE_ERROR"));
         }
     }
@@ -113,5 +114,19 @@ public class S3BlobService : IBlobStorageService
     private static string SanitizeName(string name)
     {
         return System.Text.RegularExpressions.Regex.Replace(name, @"[^a-zA-Z0-9_\-]", "");
+    }
+
+    /// <summary>
+    /// Allowlist file extension characters so client-controlled names cannot inject
+    /// control chars into blob keys (and subsequently into error logs).
+    /// </summary>
+    private static string SanitizeExtension(string fileName)
+    {
+        var ext = Path.GetExtension(fileName);
+        if (string.IsNullOrEmpty(ext))
+            return string.Empty;
+
+        var sanitized = System.Text.RegularExpressions.Regex.Replace(ext, @"[^a-zA-Z0-9.]", "");
+        return sanitized is "." or "" ? string.Empty : sanitized;
     }
 }

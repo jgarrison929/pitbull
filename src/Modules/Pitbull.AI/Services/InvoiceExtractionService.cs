@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.AI.Providers;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.AI.Services;
@@ -123,7 +124,7 @@ public sealed class InvoiceExtractionService(
 
         if (!aiResult.IsSuccess)
         {
-            logger.LogWarning("AI invoice extraction failed: {Error}", aiResult.Error);
+            logger.LogWarning("AI invoice extraction failed: {Error}", LogSafe.Text(aiResult.Error));
 
             // Log usage even on failure
             await TryLogUsageAsync(Guid.Empty, "unknown", "unknown", 0, 0, 0, sw.ElapsedMilliseconds, 0, ct);
@@ -132,7 +133,8 @@ public sealed class InvoiceExtractionService(
             {
                 RawText = invoiceText,
                 OverallConfidence = 0,
-                Warnings = [$"AI extraction failed: {aiResult.Error}"]
+                // Client-facing: keep generic — do not echo provider/exception text
+                Warnings = ["AI extraction failed"]
             };
         }
 

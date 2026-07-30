@@ -64,6 +64,24 @@ public sealed class S3BlobServiceTests
         result.ErrorCode.Should().Be("STORAGE_ERROR");
     }
 
+    [Fact]
+    public async Task UploadAsync_SanitizesMaliciousExtension()
+    {
+        PutObjectRequest? captured = null;
+        _s3Mock.Setup(s => s.PutObjectAsync(It.IsAny<PutObjectRequest>(), It.IsAny<CancellationToken>()))
+            .Callback<PutObjectRequest, CancellationToken>((r, _) => captured = r)
+            .ReturnsAsync(new PutObjectResponse());
+
+        using var stream = new MemoryStream("data"u8.ToArray());
+        var result = await _service.UploadAsync(stream, "file.\r\nexe", "application/octet-stream", _tenantId, "files");
+
+        result.IsSuccess.Should().BeTrue();
+        captured.Should().NotBeNull();
+        captured!.Key.Should().NotContain("\r");
+        captured.Key.Should().NotContain("\n");
+        captured.Key.Should().EndWith(".exe");
+    }
+
     #endregion
 
     #region DownloadAsync

@@ -23,17 +23,20 @@ public class ConsoleEmailService(ILogger<ConsoleEmailService> logger) : IEmailSe
 {
     public Task SendInvitationEmailAsync(string toEmail, string inviterName, string companyName, string inviteToken, CancellationToken ct = default)
     {
+        // Never log any token material (substring or full); tokens are secrets.
+        _ = inviteToken;
         logger.LogInformation(
-            "[EMAIL STUB] Team Invitation sent to {Email} | From: {Inviter} | Company: {Company} | Token: {TokenPrefix}...",
-            LogSafe.Email(toEmail), LogSafe.Text(inviterName), LogSafe.Text(companyName), LogSafe.Text(inviteToken[..Math.Min(8, inviteToken.Length)]));
+            "[EMAIL STUB] Team Invitation sent to {Email} | From: {Inviter} | Company: {Company}",
+            LogSafe.Email(toEmail), LogSafe.Text(inviterName), LogSafe.Text(companyName));
         return Task.CompletedTask;
     }
 
     public Task SendEmailVerificationAsync(string toEmail, string userName, string verificationToken, CancellationToken ct = default)
     {
+        _ = verificationToken;
         logger.LogInformation(
-            "[EMAIL STUB] Email Verification sent to {Email} | User: {User} | Token: {TokenPrefix}...",
-            LogSafe.Email(toEmail), LogSafe.Text(userName), LogSafe.Text(verificationToken[..Math.Min(8, verificationToken.Length)]));
+            "[EMAIL STUB] Email Verification sent to {Email} | User: {User}",
+            LogSafe.Email(toEmail), LogSafe.Text(userName));
         return Task.CompletedTask;
     }
 
@@ -47,9 +50,10 @@ public class ConsoleEmailService(ILogger<ConsoleEmailService> logger) : IEmailSe
 
     public Task SendPasswordResetAsync(string toEmail, string userName, string resetToken, CancellationToken ct = default)
     {
+        _ = resetToken;
         logger.LogInformation(
-            "[EMAIL STUB] Password reset sent to {Email} | User: {User} | Token: {TokenPrefix}...",
-            LogSafe.Email(toEmail), LogSafe.Text(userName), LogSafe.Text(resetToken[..Math.Min(8, resetToken.Length)]));
+            "[EMAIL STUB] Password reset sent to {Email} | User: {User}",
+            LogSafe.Email(toEmail), LogSafe.Text(userName));
         return Task.CompletedTask;
     }
 

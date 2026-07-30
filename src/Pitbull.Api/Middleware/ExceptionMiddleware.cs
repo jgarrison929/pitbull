@@ -1,9 +1,8 @@
 using System.Net;
 using System.Text.Json;
-using Pitbull.Core.Data;
-using Pitbull.Core.Domain;
-using PostHog;
+using Pitbull.Api.Services;
 using Pitbull.Core.Logging;
+using PostHog;
 
 namespace Pitbull.Api.Middleware;
 
@@ -30,25 +29,30 @@ public class ExceptionMiddleware(
 
             // Save diagnostic error to database using a fresh scope to avoid
             // re-saving failed entities from the request's DbContext.
+            // Field sanitization (LogSafe + path redaction + email fingerprint) is applied in DiagnosticsService.CreateAsync.
             try
             {
                 var scopeFactory = context.RequestServices.GetService<IServiceScopeFactory>();
                 if (scopeFactory != null)
                 {
                     await using var scope = scopeFactory.CreateAsyncScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
+                    var diagnosticsService = scope.ServiceProvider.GetRequiredService<IDiagnosticsService>();
 
                     var tenantIdClaim = context.User?.FindFirst("tenant_id")?.Value;
                     Guid? tenantId = Guid.TryParse(tenantIdClaim, out var tid) ? tid : null;
 
-                    var diagnosticError = new DiagnosticError
+                    // Pre-sanitize path/query so token segments never reach storage even before LogSafe bounds.
+                    var safePath = RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(context.Request.Path.Value);
+                    var safeQuery = RequestResponseLoggingMiddleware.SanitizeQueryString(context.Request.QueryString.ToString());
+
+                    await diagnosticsService.CreateAsync(new CreateDiagnosticErrorRequest
                     {
                         Source = "backend",
                         Level = "error",
                         HttpStatusCode = 500,
                         RequestMethod = context.Request.Method,
-                        RequestPath = context.Request.Path,
-                        QueryString = context.Request.QueryString.ToString(),
+                        RequestPath = safePath,
+                        QueryString = safeQuery,
                         Message = ex.Message,
                         ExceptionType = ex.GetType().FullName,
                         StackTrace = ex.ToString(),
@@ -59,10 +63,7 @@ public class ExceptionMiddleware(
                         TraceId = traceId,
                         UserAgent = context.Request.Headers.UserAgent.ToString(),
                         IpAddress = context.Connection.RemoteIpAddress?.ToString()
-                    };
-
-                    dbContext.Set<DiagnosticError>().Add(diagnosticError);
-                    await dbContext.SaveChangesAsync();
+                    });
                 }
             }
             catch (Exception saveEx)
@@ -83,7 +84,7 @@ public class ExceptionMiddleware(
                         ["$exception_message"] = ex.Message,
                         ["$exception_stack_trace_raw"] = exceptionString[..Math.Min(8000, exceptionString.Length)],
                         ["$exception_source"] = "dotnet_middleware",
-                        ["endpoint"] = context.Request.Path.Value ?? "unknown",
+                        ["endpoint"] = RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(context.Request.Path.Value),
                         ["method"] = context.Request.Method,
                         ["status_code"] = 500,
                     });

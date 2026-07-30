@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Jobs;
+using Pitbull.Core.Logging;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Core.Services.Weather;
 
@@ -58,14 +59,15 @@ public sealed class WeatherUpdateJob : BackgroundJobBase
             if (result.IsSuccess)
             {
                 successCount++;
-                Logger.LogDebug("Weather updated for project {ProjectName}: {Summary}, {Temp}°C",
-                    project.Name, result.Value!.WeatherSummary, result.Value.CurrentTemperature);
+                Logger.LogDebug("Weather updated for project {ProjectName} ({ProjectId}): {Summary}, {Temp}°C",
+                    LogSafe.Text(project.Name), project.Id,
+                    LogSafe.Text(result.Value!.WeatherSummary), result.Value.CurrentTemperature);
             }
             else
             {
                 failureCount++;
-                Logger.LogWarning("Failed to fetch weather for project {ProjectName} ({ProjectId}): {Error}",
-                    project.Name, project.Id, result.Error);
+                Logger.LogWarning("Failed to fetch weather for project {ProjectId}: {Error}",
+                    project.Id, LogSafe.Text(result.Error));
             }
         }
 

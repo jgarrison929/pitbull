@@ -313,6 +313,10 @@ public class AuthController(
         if (!result.Succeeded)
             return this.UnauthorizedError("Invalid credentials");
 
+        // Deactivated / locked accounts must not obtain tokens even if password still matches.
+        if (user.Status != UserStatus.Active)
+            return this.UnauthorizedError("Invalid credentials");
+
         user.LastLoginAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
 
@@ -410,7 +414,7 @@ public class AuthController(
         var token = await GenerateJwtTokenAsync(user);
 
         logger.LogInformation("Demo role login: role={Role} email={Email} isDemoUser={IsDemo}",
-            persona.Key, persona.Email, user.IsDemoUser);
+            LogSafe.Text(persona.Key), LogSafe.Email(persona.Email), user.IsDemoUser);
 
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
     }
@@ -517,10 +521,14 @@ public class AuthController(
             return this.UnauthorizedError("Invalid access token");
 
         var user = await userManager.FindByIdAsync(userId);
+        var storedRefresh = Encoding.UTF8.GetBytes(user?.RefreshToken ?? "");
+        var providedRefresh = Encoding.UTF8.GetBytes(request.RefreshToken ?? "");
+        // FixedTimeEquals requires equal lengths; length mismatch must be a clean 401.
         if (user is null ||
-            !CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(user.RefreshToken ?? ""),
-                Encoding.UTF8.GetBytes(request.RefreshToken ?? "")) ||
+            user.Status != UserStatus.Active ||
+            storedRefresh.Length == 0 ||
+            storedRefresh.Length != providedRefresh.Length ||
+            !CryptographicOperations.FixedTimeEquals(storedRefresh, providedRefresh) ||
             user.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             return this.UnauthorizedError("Invalid or expired refresh token");
@@ -754,8 +762,15 @@ public class AuthController(
         {
             if (existingUser.IsDemoUser)
             {
-                // Handle retry scenario: user was created but response was lost.
-                // Generate a fresh JWT and log them in instead of showing an error.
+                // Retry only after verifying credentials — never mint tokens without a password.
+                var retrySignIn = await signInManager.CheckPasswordSignInAsync(
+                    existingUser, request.Password, lockoutOnFailure: true);
+                if (!retrySignIn.Succeeded)
+                    return this.UnauthorizedError("Invalid credentials");
+
+                if (existingUser.Status != UserStatus.Active)
+                    return this.UnauthorizedError("Invalid credentials");
+
                 var existingRoles = await roleSeeder.GetUserRolesAsync(existingUser);
                 var existingToken = await GenerateJwtTokenAsync(existingUser);
                 var existingRefresh = GenerateRefreshToken();
@@ -1074,7 +1089,7 @@ public class AuthController(
             using var scope = scopeFactory.CreateScope();
             var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
             try { await email.SendPasswordResetAsync(user.Email!, user.FullName, plaintext); }
-            catch (Exception ex) { logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email); }
+            catch (Exception ex) { logger.LogError(ex, "Failed to send password reset email to {Email}", LogSafe.Email(user.Email)); }
         });
 
         return Ok(new { message = successMessage });

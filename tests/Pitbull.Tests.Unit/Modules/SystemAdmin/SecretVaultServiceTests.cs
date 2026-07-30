@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.SystemAdmin.Domain;
@@ -15,16 +17,23 @@ public sealed class SecretVaultServiceTests
         return new SecretVaultService(db);
     }
 
+    private static string ExpectedFingerprint(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(hash.AsSpan(0, 4)).ToLowerInvariant();
+    }
+
     [Fact]
     public async Task Create_ValidCommand_ReturnsSuccess()
     {
         var service = CreateService(out var db);
         using var _ = db;
 
+        const string secret = "REDACTED";
         var result = await service.CreateAsync(new CreateSecretVaultCommand(
             Key: "RESEND_API_KEY",
             DisplayName: "Resend API Key",
-            Value: "REDACTED",
+            Value: secret,
             Category: "API",
             Description: "Email service key"));
 
@@ -32,7 +41,10 @@ public sealed class SecretVaultServiceTests
         result.Value.Should().NotBeNull();
         result.Value!.Key.Should().Be("RESEND_API_KEY");
         result.Value.Category.Should().Be("API");
-        result.Value.KeyFingerprint.Should().Be("REDA");
+        result.Value.KeyFingerprint.Should().Be(ExpectedFingerprint(secret));
+        result.Value.KeyFingerprint.Should().NotContain("REDA");
+        result.Value.MaskedValue.Should().Be($"***[{secret.Length}]");
+        result.Value.MaskedValue.Should().NotContain("REDA");
     }
 
     [Fact]
@@ -116,12 +128,15 @@ public sealed class SecretVaultServiceTests
         // Small delay to ensure timestamp differs
         await Task.Delay(10);
 
+        const string newValue = "new_value_87654321";
         var updated = await service.UpdateAsync(created.Value.Id, new UpdateSecretVaultCommand(
-            DisplayName: null, Value: "new_value_87654321", Category: null, Description: null));
+            DisplayName: null, Value: newValue, Category: null, Description: null));
 
         updated.IsSuccess.Should().BeTrue();
         updated.Value!.LastRotated.Should().BeAfter(originalRotated);
-        updated.Value.KeyFingerprint.Should().Be("new_");
+        updated.Value.KeyFingerprint.Should().Be(ExpectedFingerprint(newValue));
+        updated.Value.KeyFingerprint.Should().NotContain("new_");
+        updated.Value.MaskedValue.Should().Be($"***[{newValue.Length}]");
     }
 
     [Fact]
@@ -218,16 +233,38 @@ public sealed class SecretVaultServiceTests
     }
 
     [Fact]
-    public async Task Create_ShortValue_MasksCompletely()
+    public async Task Create_ShortValue_MasksWithoutPlaintextAndFingerprintsWithHash()
     {
         var service = CreateService(out var db);
         using var _ = db;
 
+        const string secret = "abc";
         var result = await service.CreateAsync(new CreateSecretVaultCommand(
-            "SHORT_KEY", "Short Test", "abc", "API", null));
+            "SHORT_KEY", "Short Test", secret, "API", null));
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.MaskedValue.Should().Be("***");
-        result.Value.KeyFingerprint.Should().Be("***");
+        result.Value!.MaskedValue.Should().Be($"***[{secret.Length}]");
+        result.Value.MaskedValue.Should().NotContain("abc");
+        result.Value.KeyFingerprint.Should().Be(ExpectedFingerprint(secret));
+        result.Value.KeyFingerprint.Should().HaveLength(8);
+        result.Value.KeyFingerprint.Should().NotContain("abc");
+    }
+
+    [Fact]
+    public async Task Create_SameValue_ProducesStableFingerprint()
+    {
+        var service = CreateService(out var db);
+        using var _ = db;
+
+        const string secret = "stable-secret-value-xyz";
+        var a = await service.CreateAsync(new CreateSecretVaultCommand(
+            "STABLE_A", "A", secret, "API", null));
+        var b = await service.CreateAsync(new CreateSecretVaultCommand(
+            "STABLE_B", "B", secret, "API", null));
+
+        a.IsSuccess.Should().BeTrue();
+        b.IsSuccess.Should().BeTrue();
+        a.Value!.KeyFingerprint.Should().Be(b.Value!.KeyFingerprint);
+        a.Value.KeyFingerprint.Should().Be(ExpectedFingerprint(secret));
     }
 }
