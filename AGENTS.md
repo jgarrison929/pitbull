@@ -2,6 +2,8 @@
 
 Construction ERP (modular monolith). Prefer **truth over polish**: label metric proxies honestly; never invent executive KPIs.
 
+Deeper orientation (settled decisions, patterns, domain glossary, anti-patterns): [`CLAUDE.md`](CLAUDE.md). Session/version rules in **this** file win on conflict.
+
 ## Stack (current)
 
 - **API:** .NET 10, ASP.NET Core, EF Core 10, PostgreSQL 17 + RLS  
