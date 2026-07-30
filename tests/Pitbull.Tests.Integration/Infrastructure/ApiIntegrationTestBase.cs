@@ -1,10 +1,16 @@
-using System.IdentityModel.Tokens.Jwt;
+﻿using System.IdentityModel.Tokens.Jwt;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Pitbull.Api.Controllers;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Tests.Integration.Infrastructure;
 
@@ -33,33 +39,72 @@ public abstract class ApiIntegrationTestBase(PostgresFixture db) : IAsyncLifetim
     protected Task<(HttpClient Client, AuthResponse Auth, Guid TenantId)> CreateAuthenticatedClientAsync()
         => Factory.CreateAuthenticatedClientAsync();
 
+    /// <summary>
+    /// Seeds a user into an existing tenant via UserManager and returns a logged-in client.
+    /// Open register cannot join by TenantId (security: invitation-only).
+    /// </summary>
     protected async Task<HttpClient> CreateUserClientInTenantAsync(Guid tenantId, string? email = null)
     {
-        var client = Factory.CreateClient();
         email ??= $"tenant-user-{Guid.NewGuid():N}@example.com";
+        const string password = "SecurePass123!";
 
-        var registerResp = await client.PostAsJsonAsync("/api/auth/register", new RegisterRequest(
-            Email: email,
-            Password: "SecurePass123",
-            FirstName: "Tenant",
-            LastName: "User",
-            TenantId: tenantId,
-            CompanyName: null));
-
-        if (registerResp.StatusCode != HttpStatusCode.Created)
+        Guid companyId;
+        using (var scope = Factory.Services.CreateScope())
         {
-            var body = await registerResp.Content.ReadAsStringAsync();
-            Assert.Fail($"Expected 201 Created from register but got {(int)registerResp.StatusCode}. Body: {body}");
+            var dbContext = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
+            var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
+            tenantContext.TenantId = tenantId;
+            await dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, false)");
+
+            var company = await dbContext.Set<Company>()
+                .IgnoreQueryFilters()
+                .Where(c => c.TenantId == tenantId && !c.IsDeleted)
+                .OrderByDescending(c => c.IsDefault)
+                .FirstOrDefaultAsync();
+            if (company is null)
+                Assert.Fail($"No company found for tenant {tenantId}");
+            companyId = company.Id;
+
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+            var user = new AppUser
+            {
+                UserName = email,
+                Email = email,
+                FirstName = "Tenant",
+                LastName = "User",
+                TenantId = tenantId,
+                Status = UserStatus.Active,
+                EmailConfirmed = true
+            };
+            var create = await userManager.CreateAsync(user, password);
+            if (!create.Succeeded)
+                Assert.Fail("Failed to seed user: " + string.Join(", ", create.Errors.Select(e => e.Description)));
+
+            dbContext.Set<UserCompanyAccess>().Add(new UserCompanyAccess
+            {
+                TenantId = tenantId,
+                UserId = user.Id,
+                CompanyId = companyId,
+                IsDefault = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            await dbContext.SaveChangesAsync();
         }
 
-        var auth = await registerResp.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
-        Assert.NotNull(auth);
+        var client = Factory.CreateClient();
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(email, password));
+        if (!login.IsSuccessStatusCode)
+        {
+            var body = await login.Content.ReadAsStringAsync();
+            Assert.Fail($"Login after seed failed: {(int)login.StatusCode} {body}");
+        }
 
-        var token = auth!.Token;
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var auth = await login.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default);
+        Assert.NotNull(auth);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.Token);
         client.DefaultRequestHeaders.Remove("X-Tenant-Id");
         client.DefaultRequestHeaders.Add("X-Tenant-Id", tenantId.ToString());
-
         return client;
     }
 
