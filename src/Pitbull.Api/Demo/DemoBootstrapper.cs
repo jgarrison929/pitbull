@@ -367,12 +367,12 @@ public sealed class DemoBootstrapper(
                 return;
             }
 
-            logger.LogInformation("Created demo user {Email}", demo.UserEmail);
+            logger.LogInformation("Created demo user {Email}", LogSafe.Email(demo.UserEmail));
         }
         else
         {
             logger.LogInformation("Demo user {Email} already exists (ID: {UserId}, TenantId: {TenantId})",
-                demo.UserEmail, user.Id, user.TenantId);
+                LogSafe.Email(demo.UserEmail), user.Id, user.TenantId);
 
             // Ensure demo user password stays in sync with config
             if (!string.IsNullOrWhiteSpace(demo.UserPassword))
@@ -387,7 +387,7 @@ public sealed class DemoBootstrapper(
                         logger.LogInformation("Demo user password reset successfully");
                     else
                         logger.LogWarning("Failed to reset demo user password: {Errors}",
-                            string.Join(", ", resetResult.Errors.Select(e => e.Description)));
+                            LogSafe.Text(string.Join(", ", resetResult.Errors.Select(e => e.Description))));
                 }
             }
 
@@ -395,7 +395,7 @@ public sealed class DemoBootstrapper(
             {
                 user.IsDemoUser = true;
                 await userManager.UpdateAsync(user);
-                logger.LogInformation("Flagged primary demo user as IsDemoUser: {Email}", demo.UserEmail);
+                logger.LogInformation("Flagged primary demo user as IsDemoUser: {Email}", LogSafe.Email(demo.UserEmail));
             }
         }
 
@@ -404,18 +404,18 @@ public sealed class DemoBootstrapper(
 
         // Always ensure demo user has Admin role (even if user already existed)
         logger.LogInformation("Assigning Admin role to demo user {Email} (TenantId: {TenantId})",
-            demo.UserEmail, user.TenantId);
+            LogSafe.Email(demo.UserEmail), user.TenantId);
         await roleSeeder.AssignRoleToUserAsync(user, RoleSeeder.Roles.Admin, ct);
 
         // Verify the role was actually assigned
         var hasAdminRole = await roleSeeder.UserHasRoleAsync(user, RoleSeeder.Roles.Admin);
         if (hasAdminRole)
         {
-            logger.LogInformation("Demo user {Email} confirmed to have Admin role", demo.UserEmail);
+            logger.LogInformation("Demo user {Email} confirmed to have Admin role", LogSafe.Email(demo.UserEmail));
         }
         else
         {
-            logger.LogError("Demo user {Email} FAILED to get Admin role - check RoleSeeder logs", demo.UserEmail);
+            logger.LogError("Demo user {Email} FAILED to get Admin role - check RoleSeeder logs", LogSafe.Email(demo.UserEmail));
         }
 
         // The demo.UserEmail user was already handled above. If additional
@@ -919,7 +919,7 @@ public sealed class DemoBootstrapper(
                 if (!result.Succeeded)
                 {
                     logger.LogWarning("Failed to create demo user {Email}: {Errors}",
-                        def.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+                        LogSafe.Email(def.Email), LogSafe.Text(string.Join(", ", result.Errors.Select(e => e.Description))));
                     continue;
                 }
                 created++;
@@ -932,7 +932,7 @@ public sealed class DemoBootstrapper(
                 {
                     user.IsDemoUser = true;
                     await userManager.UpdateAsync(user);
-                    logger.LogInformation("Flagged existing demo persona as IsDemoUser: {Email}", def.Email);
+                    logger.LogInformation("Flagged existing demo persona as IsDemoUser: {Email}", LogSafe.Email(def.Email));
                 }
             }
 
@@ -995,7 +995,7 @@ public sealed class DemoBootstrapper(
                     var updateResult = await userManager.UpdateAsync(user);
                     if (!updateResult.Succeeded)
                         logger.LogWarning("Failed to link EmployeeId for {Email}: {Errors}",
-                            def.Email, string.Join(", ", updateResult.Errors.Select(e => e.Description)));
+                            LogSafe.Email(def.Email), LogSafe.Text(string.Join(", ", updateResult.Errors.Select(e => e.Description))));
                 }
                 continue;
             }
@@ -1030,7 +1030,7 @@ public sealed class DemoBootstrapper(
                 var linkResult = await userManager.UpdateAsync(appUser);
                 if (!linkResult.Succeeded)
                     logger.LogWarning("Failed to link EmployeeId for {Email}: {Errors}",
-                        def.Email, string.Join(", ", linkResult.Errors.Select(e => e.Description)));
+                        LogSafe.Email(def.Email), LogSafe.Text(string.Join(", ", linkResult.Errors.Select(e => e.Description))));
             }
 
             created++;
@@ -1222,7 +1222,7 @@ public sealed class DemoBootstrapper(
             var rbacRoleName = ResolveDemoRbacRoleName(def);
             if (!rbacRoles.TryGetValue(rbacRoleName, out var roleId))
             {
-                logger.LogWarning("RBAC role {RoleName} not found for demo user {Email}", rbacRoleName, def.Email);
+                logger.LogWarning("RBAC role {RoleName} not found for demo user {Email}", LogSafe.Text(rbacRoleName), LogSafe.Email(def.Email));
                 continue;
             }
 

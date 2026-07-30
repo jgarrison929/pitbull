@@ -254,7 +254,7 @@ public class TeamInvitationService(
         invitation.Status = InvitationStatus.Revoked;
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Revoked invitation {InvitationId} for {Email}", invitationId, invitation.Email);
+        logger.LogInformation("Revoked invitation {InvitationId} for {Email}", invitationId, LogSafe.Email(invitation.Email));
     }
 
     public async Task<List<TeamInvitationDto>> ListInvitationsAsync(Guid companyId, CancellationToken ct = default)
@@ -299,10 +299,10 @@ public class TeamInvitationService(
                     invitation.Company?.Name ?? "your company",
                     plaintextToken);
             }
-            catch (Exception ex) { logger.LogError(ex, "Failed to resend invitation email to {Email}", invitation.Email); }
+            catch (Exception ex) { logger.LogError(ex, "Failed to resend invitation email to {Email}", LogSafe.Email(invitation.Email)); }
         });
 
-        logger.LogInformation("Resent invitation {InvitationId} to {Email}", invitationId, invitation.Email);
+        logger.LogInformation("Resent invitation {InvitationId} to {Email}", invitationId, LogSafe.Email(invitation.Email));
     }
 
     private static bool IsValidEmail(string email)

@@ -410,7 +410,7 @@ public class AuthController(
         var token = await GenerateJwtTokenAsync(user);
 
         logger.LogInformation("Demo role login: role={Role} email={Email} isDemoUser={IsDemo}",
-            persona.Key, persona.Email, user.IsDemoUser);
+            LogSafe.Text(persona.Key), LogSafe.Email(persona.Email), user.IsDemoUser);
 
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
     }
@@ -1074,7 +1074,7 @@ public class AuthController(
             using var scope = scopeFactory.CreateScope();
             var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
             try { await email.SendPasswordResetAsync(user.Email!, user.FullName, plaintext); }
-            catch (Exception ex) { logger.LogError(ex, "Failed to send password reset email to {Email}", user.Email); }
+            catch (Exception ex) { logger.LogError(ex, "Failed to send password reset email to {Email}", LogSafe.Email(user.Email)); }
         });
 
         return Ok(new { message = successMessage });

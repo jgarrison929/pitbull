@@ -242,7 +242,7 @@ public class ProjectService : IProjectService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
-            _logger.LogWarning("Project creation validation failed: {Errors}", errors);
+            _logger.LogWarning("Project creation validation failed: {Errors}", LogSafe.Text(errors));
             return Result.Failure<ProjectDto>(errors, "VALIDATION_ERROR");
         }
 
@@ -408,7 +408,7 @@ public class ProjectService : IProjectService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Activated project {ProjectId} '{ProjectName}'", project.Id, project.Name);
+            _logger.LogInformation("Activated project {ProjectId} '{ProjectName}'", project.Id, LogSafe.Text(project.Name));
             return Result.Success(MapToDto(project));
         }
         catch (DbUpdateConcurrencyException)
