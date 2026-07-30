@@ -62,6 +62,15 @@ public class AiChatController(IAiService aiService, PitbullDbContext db, IOption
             }
         }
 
+        // Cap client-supplied context payloads (prompt-injection / cost surface)
+        if (!string.IsNullOrWhiteSpace(request.SystemContext) &&
+            AiInputSanitizer.ValidateLength(request.SystemContext, 2000, "systemContext") is { } sysErr)
+            return BadRequest(new { error = sysErr, code = "VALIDATION_ERROR" });
+
+        if (!string.IsNullOrWhiteSpace(request.PageContext) &&
+            AiInputSanitizer.ValidateLength(request.PageContext, 8000, "pageContext") is { } pageErr)
+            return BadRequest(new { error = pageErr, code = "VALIDATION_ERROR" });
+
         var sanitizedMessage = AiInputSanitizer.Sanitize(request.Message);
         if (string.IsNullOrWhiteSpace(sanitizedMessage))
             return BadRequest(new { error = "message is required", code = "VALIDATION_ERROR" });

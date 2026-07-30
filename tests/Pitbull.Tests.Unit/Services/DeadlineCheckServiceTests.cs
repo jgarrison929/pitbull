@@ -48,6 +48,8 @@ public class DeadlineCheckServiceTests
 
         var services = new ServiceCollection();
         services.AddScoped<PitbullDbContext>(_ => new PitbullDbContext(dbOptions, tenantCtx, companyCtx));
+        // Scoped tenant so DeadlineCheckService can bind per-entity TenantId before CreateAsync.
+        services.AddScoped(_ => tenantCtx);
         services.AddScoped<INotificationService>(_ => notifMock.Object);
         services.AddScoped<IDeadlineNotificationTracker, DeadlineNotificationTracker>();
         services.AddScoped<INotificationPreferenceService>(_ => prefMock.Object);

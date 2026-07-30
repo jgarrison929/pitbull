@@ -23,11 +23,31 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
 
     /// <summary>
     /// Fully blocked even for GET (sensitive material not appropriate for public demos).
+    /// Includes real admin secret routes (not only legacy /api/secrets paths).
     /// </summary>
     private static readonly string[] FullyBlockedPrefixes =
     [
         "/api/secrets",
         "/api/secret-vault",
+        "/api/admin/secrets",
+        "/api/admin/secret-vault",
+        "/api/admin/api-keys",
+        "/api/ai/settings",
+        "/api/auth/bootstrap-admin",
+        "/api/auth/change-password",
+    ];
+
+    /// <summary>
+    /// Financial / payroll write surfaces: demo users may browse (GET) but not mutate.
+    /// Complements RBAC permissions=* granted for demo UX exploration.
+    /// </summary>
+    private static readonly string[] WriteBlockedPrefixes =
+    [
+        "/api/bank-accounts",
+        "/api/bank-reconciliations",
+        "/api/payroll",
+        "/api/vendor-payments",
+        "/api/integrations/export",
     ];
 
     /// <summary>
@@ -99,12 +119,12 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
             return;
         }
 
-        // Secrets & vault: no access
+        // Secrets, vault, API keys, AI key store, privilege endpoints: no access
         foreach (var prefix in FullyBlockedPrefixes)
         {
             if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             {
-                await WriteForbidden(context, "Demo users cannot access secrets or vault material.");
+                await WriteForbidden(context, "Demo users cannot access secrets, keys, or privilege endpoints.");
                 return;
             }
         }
@@ -114,6 +134,23 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         {
             await WriteForbidden(context, "Demo users cannot delete data.");
             return;
+        }
+
+        // Payroll / banking / vendor payments: read-only for demo (still have permissions=* in JWT)
+        foreach (var prefix in WriteBlockedPrefixes)
+        {
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                if (SafeMethods.Contains(method))
+                {
+                    await next(context);
+                    return;
+                }
+
+                await WriteForbidden(context,
+                    "Demo financial and payroll APIs are read-only. Sign up for a full account to make changes.");
+                return;
+            }
         }
 
         // Admin / system: read-only

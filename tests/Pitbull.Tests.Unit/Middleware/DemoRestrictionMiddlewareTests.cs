@@ -122,6 +122,44 @@ public class DemoRestrictionMiddlewareTests
         Assert.Equal(403, statusCode);
     }
 
+    [Theory]
+    [InlineData("/api/admin/secrets")]
+    [InlineData("/api/admin/secret-vault")]
+    [InlineData("/api/admin/api-keys")]
+    [InlineData("/api/ai/settings")]
+    [InlineData("/api/auth/bootstrap-admin")]
+    [InlineData("/api/auth/change-password")]
+    public async Task DemoUser_IsFullyBlocked_FromSensitivePrivilegePaths(string path)
+    {
+        var context = CreateDemoContext(path, "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.False(nextCalled);
+        Assert.Equal(403, statusCode);
+    }
+
+    [Theory]
+    [InlineData("/api/payroll/runs", "POST")]
+    [InlineData("/api/bank-accounts", "POST")]
+    [InlineData("/api/bank-reconciliations", "POST")]
+    [InlineData("/api/vendor-payments", "PUT")]
+    [InlineData("/api/integrations/export", "POST")]
+    public async Task DemoUser_CannotMutate_FinancialPaths(string path, string method)
+    {
+        var context = CreateDemoContext(path, method);
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.False(nextCalled);
+        Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_CanRead_PayrollExports()
+    {
+        var context = CreateDemoContext("/api/payroll/exports", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.True(nextCalled);
+        Assert.NotEqual(403, statusCode);
+    }
+
     [Fact]
     public async Task DemoUser_IsBlocked_FromDeleteRequests()
     {

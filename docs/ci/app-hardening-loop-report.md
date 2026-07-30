@@ -103,3 +103,22 @@ Findings discovered (unique): 256
 - Dependabot cadence / Docker digests / packages.lock still open.
 - Savorboard.CAP.InMemoryMessageQueue has no 10.0.1 on nuget (leave 10.0.0).
 
+
+## Hourly appendix — 2026-07-30 17:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073017`
+
+### Merged this hour
+- No open hardening PRs (**#424** already MERGED).
+
+### Shipped this hour
+- **demo auth:** Expanded DemoRestrictionMiddleware — full block on admin secrets/vault/api-keys, AI settings keys, bootstrap-admin, change-password; write-block payroll/bank/vendor-payments/export (GET still allowed).
+- **data:** DeadlineCheckService binds TenantContext (+ PG session when relational) per entity before CreateNotification (avoids Guid.Empty TenantId).
+- **validation:** AiChat caps SystemContext/PageContext lengths.
+- **deps:** Dependabot weekly for nuget/npm/e2e/docker/github-actions; higher PR limits.
+
+### Residual high items
+- Demo JWT still grants `permissions=*` (middleware enforces sensitive write boundaries; full persona RBAC mapping still open).
+- packages.lock.json / Docker image digests still open (Dependabot docker now watches Dockerfiles).
+- LogSafe backlog largely addressed in prior rounds — re-scan before re-fixing listed log-safe items.
+
