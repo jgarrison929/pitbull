@@ -42,34 +42,55 @@ public sealed class AuthRbacJwtTests(PostgresFixture db) : IAsyncLifetime
         var email = $"pm-rbac-{Guid.NewGuid():N}@test.local";
         const string password = "SecurePass123!";
 
-        var (adminClient, _, tenantId) = await _factory.CreateAuthenticatedClientAsync();
+        // Open register creates a new tenant (admin). Join same-tenant PM via identity seed — not TenantId on register.
+        var (adminClient, adminAuth, tenantId) = await _factory.CreateAuthenticatedClientAsync();
+        var companyId = PitbullApiFactory.ExtractCompanyId(adminAuth.Token)
+            ?? throw new InvalidOperationException("Admin JWT missing company_id");
 
+        Guid pmUserId;
         using (var scope = _factory.Services.CreateScope())
         {
             var roleService = scope.ServiceProvider.GetRequiredService<IRoleService>();
             var context = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
             var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
             tenantContext.TenantId = tenantId;
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, false)");
 
             await roleService.ListRolesAsync(CancellationToken.None);
 
             var pmRole = await context.RbacRoles
                 .FirstAsync(r => r.TenantId == tenantId && r.Name == PermissionConstants.RoleTemplates.ProjectManager);
 
-            var register = await adminClient.PostAsJsonAsync("/api/auth/register", new RegisterRequest(
-                Email: email,
-                Password: password,
-                FirstName: "PM",
-                LastName: "Rbac",
-                TenantId: tenantId,
-                CompanyName: null));
+            var userManager = scope.ServiceProvider.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<Pitbull.Core.Domain.AppUser>>();
+            var user = new Pitbull.Core.Domain.AppUser
+            {
+                UserName = email,
+                Email = email,
+                FirstName = "PM",
+                LastName = "Rbac",
+                TenantId = tenantId,
+                Status = Pitbull.Core.Domain.UserStatus.Active,
+                EmailConfirmed = true
+            };
+            var created = await userManager.CreateAsync(user, password);
+            Assert.True(created.Succeeded, string.Join(", ", created.Errors.Select(e => e.Description)));
+            pmUserId = user.Id;
 
-            register.EnsureSuccessStatusCode();
-            var registered = await register.Content.ReadFromJsonAsync<AuthResponse>(TestJsonOptions.Default)
-                ?? throw new InvalidOperationException("Empty register body");
+            context.Set<Pitbull.Core.Domain.UserCompanyAccess>().Add(new Pitbull.Core.Domain.UserCompanyAccess
+            {
+                TenantId = tenantId,
+                UserId = user.Id,
+                CompanyId = companyId,
+                IsDefault = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            await context.SaveChangesAsync();
 
-            await roleService.AssignUserRoleAsync(registered.UserId, pmRole.Id, CancellationToken.None);
+            await roleService.AssignUserRoleAsync(pmUserId, pmRole.Id, CancellationToken.None);
         }
+
+        _ = adminClient; // ensure admin client lifetime not optimized away
 
         var loginClient = _factory.CreateClient();
         var login = await loginClient.PostAsJsonAsync("/api/auth/login", new LoginRequest(email, password));
