@@ -43,6 +43,21 @@ public static class RbacJwtPermissionResolver
         IList<string> identityRoles,
         CancellationToken ct = default)
     {
+        // Login/refresh often run before TenantMiddleware. Bind RLS session var when we know the user tenant
+        // so permission joins work even if rbac_* tables later gain FORCE RLS.
+        if (user.TenantId != Guid.Empty && db.Database.IsRelational())
+        {
+            try
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT set_config('app.current_tenant', {user.TenantId.ToString()}, false)", ct);
+            }
+            catch
+            {
+                // In-memory / test providers may not support set_config.
+            }
+        }
+
         var adminRoleId = await db.RbacRoles
             .AsNoTracking()
             .IgnoreQueryFilters()
