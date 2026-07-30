@@ -111,9 +111,10 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
             List<TimeEntry> employeeEntries = entries.Where(x => x.EmployeeId == line.EmployeeId).ToList();
             if (employeeEntries.Count == 0)
             {
+                // Log IDs only — avoid PII / log-forging via employee names.
                 logger.LogWarning(
-                    "Payroll run line for employee {EmployeeId} ({EmployeeName}) has no approved time entries — cannot export",
-                    line.EmployeeId, employee.FullName);
+                    "Payroll run line for employee {EmployeeId} has no approved time entries — cannot export",
+                    line.EmployeeId);
                 skippedEmployees.Add(new SkippedEmployeeDto(
                     line.EmployeeId, employee.FullName, "No approved time entries for pay period"));
                 continue;
@@ -173,9 +174,11 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
         if (skippedEmployees.Count > 0)
         {
             string names = string.Join(", ", skippedEmployees.Select(s => s.EmployeeName));
+            // API error may include names for the operator; logs use IDs only (no PII / CR-LF risk).
             logger.LogError(
-                "Payroll export aborted: {Count} employee(s) have no approved time entries: {Names}",
-                skippedEmployees.Count, names);
+                "Payroll export aborted: {Count} employee(s) have no approved time entries: {EmployeeIds}",
+                skippedEmployees.Count,
+                string.Join(", ", skippedEmployees.Select(s => s.EmployeeId.ToString())));
             return Result.Failure<PayrollExportDto>(
                 $"Cannot export: {skippedEmployees.Count} employee(s) have no approved time entries ({names}). " +
                 "Resolve missing time entries before exporting.",

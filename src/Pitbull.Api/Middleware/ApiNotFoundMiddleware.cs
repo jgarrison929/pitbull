@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
-using Pitbull.Core.Data;
-using Pitbull.Core.Domain;
+using Pitbull.Api.Services;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Middleware;
 
@@ -29,14 +29,14 @@ public class ApiNotFoundMiddleware(RequestDelegate next, ILogger<ApiNotFoundMidd
             var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             if (!TryConsume(ip))
             {
-                logger.LogDebug("API 404 logging rate limit exceeded for {IpAddress}", ip);
+                logger.LogDebug("API 404 logging rate limit exceeded for {IpAddress}", LogSafe.Text(ip));
                 return;
             }
 
             try
             {
-                var dbContext = context.RequestServices.GetService<PitbullDbContext>();
-                if (dbContext != null)
+                var diagnosticsService = context.RequestServices.GetService<IDiagnosticsService>();
+                if (diagnosticsService != null)
                 {
                     var traceId = context.TraceIdentifier;
                     var correlationId = context.Items.TryGetValue(CorrelationIdMiddleware.CorrelationIdItemName, out var cid)
@@ -46,15 +46,20 @@ public class ApiNotFoundMiddleware(RequestDelegate next, ILogger<ApiNotFoundMidd
                     var tenantIdClaim = context.User?.FindFirst("tenant_id")?.Value;
                     Guid? tenantId = Guid.TryParse(tenantIdClaim, out var tid) ? tid : null;
 
-                    var diagnosticError = new DiagnosticError
+                    // Pre-sanitize path/query so token segments never reach storage; CreateAsync applies LogSafe + bounds + email fingerprint.
+                    var safePath = RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(context.Request.Path.Value);
+                    var safeQuery = RequestResponseLoggingMiddleware.SanitizeQueryString(context.Request.QueryString.ToString());
+                    var safeMethod = LogSafe.Text(context.Request.Method);
+
+                    await diagnosticsService.CreateAsync(new CreateDiagnosticErrorRequest
                     {
                         Source = "backend",
                         Level = "warning",
                         HttpStatusCode = 404,
                         RequestMethod = context.Request.Method,
-                        RequestPath = context.Request.Path,
-                        QueryString = context.Request.QueryString.ToString(),
-                        Message = $"API 404: {context.Request.Method} {context.Request.Path}",
+                        RequestPath = safePath,
+                        QueryString = safeQuery,
+                        Message = $"API 404: {safeMethod} {safePath}",
                         TenantId = tenantId,
                         UserId = context.User?.FindFirst("sub")?.Value,
                         UserEmail = context.User?.FindFirst("email")?.Value,
@@ -62,10 +67,7 @@ public class ApiNotFoundMiddleware(RequestDelegate next, ILogger<ApiNotFoundMidd
                         TraceId = traceId,
                         UserAgent = context.Request.Headers.UserAgent.ToString(),
                         IpAddress = ip
-                    };
-
-                    dbContext.Set<DiagnosticError>().Add(diagnosticError);
-                    await dbContext.SaveChangesAsync();
+                    });
                 }
             }
             catch (Exception ex)

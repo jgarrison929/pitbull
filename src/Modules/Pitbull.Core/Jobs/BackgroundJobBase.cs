@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
+using Pitbull.Core.Logging;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Core.Jobs;
@@ -78,7 +79,7 @@ public abstract class BackgroundJobBase : IBackgroundJob
             if (result.IsSuccess)
                 Logger.LogInformation("Background job {JobType} completed successfully", GetType().Name);
             else
-                Logger.LogWarning("Background job {JobType} failed: {Error}", GetType().Name, result.Error);
+                Logger.LogWarning("Background job {JobType} failed: {Error}", GetType().Name, LogSafe.Text(result.Error));
 
             return result;
         }

@@ -5,6 +5,7 @@ using Pitbull.Billing.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Billing.Features.VendorPayments;
 
@@ -380,7 +381,7 @@ public class VendorPaymentService(
 
             if (!reverseResult.IsSuccess)
                 logger.LogWarning("Failed to reverse journal entry {JeId} for voided payment {PaymentId}: {Error}",
-                    payment.JournalEntryId, payment.Id, reverseResult.Error);
+                    payment.JournalEntryId, payment.Id, LogSafe.Text(reverseResult.Error));
         }
 
         payment.Status = VendorPaymentStatus.Voided;

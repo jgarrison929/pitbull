@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
@@ -127,17 +129,24 @@ public class SecretVaultService(PitbullDbContext db) : ISecretVaultService
         return entity?.EncryptedValue;
     }
 
+    /// <summary>
+    /// Length-only redaction for list/get DTOs — never expose prefix/suffix of the secret.
+    /// </summary>
     private static string MaskValue(string value)
     {
         if (string.IsNullOrEmpty(value)) return "***";
-        if (value.Length <= 8) return "***";
-        return value[..4] + "..." + value[^4..];
+        return $"***[{value.Length}]";
     }
 
+    /// <summary>
+    /// Truncated SHA-256 of the secret (8 hex chars). Never stores plaintext slices.
+    /// Fits <c>KeyFingerprint</c> column max length of 10.
+    /// </summary>
     private static string ComputeFingerprint(string value)
     {
-        if (string.IsNullOrEmpty(value) || value.Length < 4) return "***";
-        return value[..4];
+        if (string.IsNullOrEmpty(value)) return "empty";
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return Convert.ToHexString(hash.AsSpan(0, 4)).ToLowerInvariant();
     }
 
     private static SecretVaultDto MapToDto(SecretVault s) => new(

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Controllers;
 
@@ -71,7 +72,7 @@ public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<Admi
         var result = await roleManager.CreateAsync(role);
         if (!result.Succeeded)
         {
-            logger.LogWarning("Role creation failed: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+            logger.LogWarning("Role creation failed: {Errors}", LogSafe.Text(string.Join(", ", result.Errors.Select(e => e.Description))));
             return BadRequest(new { error = "Failed to create role", code = "ROLE_ERROR" });
         }
 
@@ -104,7 +105,7 @@ public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<Admi
 
         if (!result.Succeeded)
         {
-            logger.LogWarning("Role update failed: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+            logger.LogWarning("Role update failed: {Errors}", LogSafe.Text(string.Join(", ", result.Errors.Select(e => e.Description))));
             return BadRequest(new { error = "Failed to update role", code = "ROLE_ERROR" });
         }
 
@@ -135,7 +136,7 @@ public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<Admi
         var result = await roleManager.DeleteAsync(role);
         if (!result.Succeeded)
         {
-            logger.LogWarning("Role deletion failed: {Errors}", string.Join(", ", result.Errors.Select(e => e.Description)));
+            logger.LogWarning("Role deletion failed: {Errors}", LogSafe.Text(string.Join(", ", result.Errors.Select(e => e.Description))));
             return BadRequest(new { error = "Failed to delete role", code = "ROLE_ERROR" });
         }
 

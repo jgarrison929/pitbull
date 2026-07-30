@@ -313,6 +313,10 @@ public class AuthController(
         if (!result.Succeeded)
             return this.UnauthorizedError("Invalid credentials");
 
+        // Deactivated / locked accounts must not obtain tokens even if password still matches.
+        if (user.Status != UserStatus.Active)
+            return this.UnauthorizedError("Invalid credentials");
+
         user.LastLoginAt = DateTime.UtcNow;
         await userManager.UpdateAsync(user);
 
@@ -517,10 +521,14 @@ public class AuthController(
             return this.UnauthorizedError("Invalid access token");
 
         var user = await userManager.FindByIdAsync(userId);
+        var storedRefresh = Encoding.UTF8.GetBytes(user?.RefreshToken ?? "");
+        var providedRefresh = Encoding.UTF8.GetBytes(request.RefreshToken ?? "");
+        // FixedTimeEquals requires equal lengths; length mismatch must be a clean 401.
         if (user is null ||
-            !CryptographicOperations.FixedTimeEquals(
-                Encoding.UTF8.GetBytes(user.RefreshToken ?? ""),
-                Encoding.UTF8.GetBytes(request.RefreshToken ?? "")) ||
+            user.Status != UserStatus.Active ||
+            storedRefresh.Length == 0 ||
+            storedRefresh.Length != providedRefresh.Length ||
+            !CryptographicOperations.FixedTimeEquals(storedRefresh, providedRefresh) ||
             user.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             return this.UnauthorizedError("Invalid or expired refresh token");
@@ -754,8 +762,15 @@ public class AuthController(
         {
             if (existingUser.IsDemoUser)
             {
-                // Handle retry scenario: user was created but response was lost.
-                // Generate a fresh JWT and log them in instead of showing an error.
+                // Retry only after verifying credentials — never mint tokens without a password.
+                var retrySignIn = await signInManager.CheckPasswordSignInAsync(
+                    existingUser, request.Password, lockoutOnFailure: true);
+                if (!retrySignIn.Succeeded)
+                    return this.UnauthorizedError("Invalid credentials");
+
+                if (existingUser.Status != UserStatus.Active)
+                    return this.UnauthorizedError("Invalid credentials");
+
                 var existingRoles = await roleSeeder.GetUserRolesAsync(existingUser);
                 var existingToken = await GenerateJwtTokenAsync(existingUser);
                 var existingRefresh = GenerateRefreshToken();

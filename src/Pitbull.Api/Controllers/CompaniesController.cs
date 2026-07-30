@@ -154,6 +154,8 @@ public class CompaniesController(
             Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        var roleProfile = RoleProfileResolver.Detect(user.Title, roles);
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
@@ -163,7 +165,15 @@ public class CompaniesController(
             new("user_type", user.Type.ToString()),
             new("company_id", activeCompanyId.ToString()),
             new("company_ids", string.Join(",", companyIds)),
+            new("role_profile", RoleProfileResolver.ToApiName(roleProfile)),
         };
+
+        if (!string.IsNullOrWhiteSpace(user.Title))
+            claims.Add(new Claim("job_title", user.Title));
+
+        // Must match AuthController — company switch must not drop demo / persona claims.
+        if (user.IsDemoUser)
+            claims.Add(new Claim("is_demo_user", "true"));
 
         foreach (var role in roles)
         {

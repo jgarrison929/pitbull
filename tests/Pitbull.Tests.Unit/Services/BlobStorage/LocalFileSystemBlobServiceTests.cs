@@ -64,6 +64,19 @@ public sealed class LocalFileSystemBlobServiceTests : IDisposable
         result.Value!.Key.Should().Contain("someweirdpath");
     }
 
+    [Fact]
+    public async Task UploadAsync_SanitizesMaliciousExtension()
+    {
+        using var stream = CreateStream("data");
+
+        var result = await _service.UploadAsync(stream, "file.\r\nexe", "application/octet-stream", _tenantId, "files");
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Key.Should().NotContain("\r");
+        result.Value.Key.Should().NotContain("\n");
+        result.Value.Key.Should().EndWith(".exe");
+    }
+
     #endregion
 
     #region DownloadAsync

@@ -10,7 +10,8 @@ public class SecretVault : BaseEntity
     [Encrypted]
     public string EncryptedValue { get; set; } = string.Empty;
 
-    public string KeyFingerprint { get; set; } = string.Empty; // First 4 chars for identification
+    /// <summary>Truncated SHA-256 of the secret value for correlation only (never plaintext slices).</summary>
+    public string KeyFingerprint { get; set; } = string.Empty;
     public SecretCategory Category { get; set; } = SecretCategory.Integration;
     public DateTime LastRotated { get; set; }
     public string? Description { get; set; }

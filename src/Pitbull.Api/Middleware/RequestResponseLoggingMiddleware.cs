@@ -1,11 +1,30 @@
 using System.Text;
 using System.Text.Json;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Middleware;
 
 public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<RequestResponseLoggingMiddleware> logger)
 {
-    private static readonly string[] SensitiveFields = { "password", "token", "secret", "key" };
+    /// <summary>
+    /// JSON property / header name fragments treated as secrets (case-insensitive contains match).
+    /// Includes email so login/register addresses are not written to sinks.
+    /// </summary>
+    private static readonly string[] SensitiveFields =
+    {
+        "password", "token", "secret", "key", "email", "cookie", "authorization", "bearer"
+    };
+
+    private static readonly HashSet<string> SensitiveHeaderNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Authorization",
+        "Cookie",
+        "Set-Cookie",
+        "X-Api-Key",
+        "X-Auth-Token"
+    };
+
+    private const int MaxLoggedBodyChars = 4096;
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -18,8 +37,12 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
             return;
         }
 
-        // Log request details
-        await LogRequestAsync(context, correlationId);
+        // Full body/headers only in Development. When IHostEnvironment is missing
+        // (unit tests with empty RequestServices), include details so redaction is exercised.
+        var env = context.RequestServices?.GetService(typeof(IHostEnvironment)) as IHostEnvironment;
+        var includeDetails = env is null || env.IsDevelopment();
+
+        await LogRequestAsync(context, correlationId, includeDetails);
 
         // Capture response for error logging
         var originalResponseBodyStream = context.Response.Body;
@@ -32,15 +55,16 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Request failed with exception. CorrelationId: {CorrelationId}", correlationId);
+            logger.LogError(ex, "Request failed with exception. CorrelationId: {CorrelationId}",
+                LogSafe.Text(correlationId));
             throw;
         }
         finally
         {
-            // Log response for errors or when explicitly requested
+            // Log response for errors (body only when details enabled)
             if (context.Response.StatusCode >= 400)
             {
-                await LogResponseAsync(context, correlationId);
+                await LogResponseAsync(context, correlationId, includeDetails);
             }
 
             // Copy response back to original stream
@@ -50,35 +74,151 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         }
     }
 
-    private async Task LogRequestAsync(HttpContext context, string? correlationId)
+    private async Task LogRequestAsync(HttpContext context, string? correlationId, bool includeDetails)
     {
         var request = context.Request;
+        var safePath = SanitizePath(request.Path);
+        var safeQuery = SanitizeQueryString(request.QueryString.ToString());
+
+        if (!includeDetails)
+        {
+            logger.LogInformation(
+                "API Request. CorrelationId: {CorrelationId}, Method: {Method}, Path: {Path}, Query: {Query}",
+                LogSafe.Text(correlationId),
+                LogSafe.Text(request.Method),
+                LogSafe.Text(safePath),
+                LogSafe.Text(safeQuery));
+            return;
+        }
+
         var logData = new
         {
-            Method = request.Method,
-            Path = request.Path,
-            QueryString = request.QueryString.ToString(),
+            Method = LogSafe.Text(request.Method),
+            Path = LogSafe.Text(safePath),
+            QueryString = LogSafe.Text(safeQuery),
             Headers = GetSafeHeaders(request.Headers),
             Body = await GetSafeRequestBodyAsync(request)
         };
 
-        logger.LogInformation("API Request. CorrelationId: {CorrelationId}, Request: {@Request}", correlationId, logData);
+        logger.LogInformation(
+            "API Request. CorrelationId: {CorrelationId}, Request: {@Request}",
+            LogSafe.Text(correlationId),
+            logData);
     }
 
-    private async Task LogResponseAsync(HttpContext context, string? correlationId)
+    private async Task LogResponseAsync(HttpContext context, string? correlationId, bool includeBody)
     {
-        context.Response.Body.Seek(0, SeekOrigin.Begin);
-        var responseBody = await new StreamReader(context.Response.Body).ReadToEndAsync();
-        context.Response.Body.Seek(0, SeekOrigin.Begin);
+        string? safeBody = null;
+        if (includeBody)
+        {
+            context.Response.Body.Seek(0, SeekOrigin.Begin);
+            var responseBody = await new StreamReader(context.Response.Body).ReadToEndAsync();
+            context.Response.Body.Seek(0, SeekOrigin.Begin);
+            safeBody = SanitizeJsonBody(responseBody);
+        }
 
         var logData = new
         {
             StatusCode = context.Response.StatusCode,
-            Headers = GetSafeHeaders(context.Response.Headers),
-            Body = SanitizeJsonBody(responseBody)
+            Headers = includeBody ? GetSafeHeaders(context.Response.Headers) : null,
+            Body = safeBody
         };
 
-        logger.LogWarning("API Error Response. CorrelationId: {CorrelationId}, Response: {@Response}", correlationId, logData);
+        logger.LogWarning(
+            "API Error Response. CorrelationId: {CorrelationId}, Response: {@Response}",
+            LogSafe.Text(correlationId),
+            logData);
+    }
+
+    /// <summary>
+    /// Redact secret path segments (vendor-portal tokens, invitation tokens) before logging.
+    /// </summary>
+    internal static string SanitizePath(PathString path)
+    {
+        var value = path.Value;
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        var segments = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        for (var i = 0; i < segments.Length; i++)
+        {
+            // /api/vendor-portal/{token}/... — keep admin "tokens" collection routes
+            if (segments[i].Equals("vendor-portal", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < segments.Length
+                && !segments[i + 1].Equals("tokens", StringComparison.OrdinalIgnoreCase))
+            {
+                segments[i + 1] = "[REDACTED]";
+            }
+
+            // /api/Invitation/token/{token}[/accept]
+            if (segments[i].Equals("token", StringComparison.OrdinalIgnoreCase)
+                && i + 1 < segments.Length)
+            {
+                segments[i + 1] = "[REDACTED]";
+            }
+        }
+
+        return "/" + string.Join('/', segments);
+    }
+
+    /// <summary>
+    /// Sanitize a raw request path (optionally including <c>?query</c>) for Serilog request logging
+    /// and other completion events. Applies <see cref="SanitizePath"/> + <see cref="SanitizeQueryString"/>
+    /// then <see cref="LogSafe"/> so tokens and CR/LF never land in sinks.
+    /// </summary>
+    internal static string SanitizeRequestPathForLogging(string? requestPath)
+    {
+        if (string.IsNullOrEmpty(requestPath))
+            return string.Empty;
+
+        var pathPart = requestPath;
+        string? queryPart = null;
+        var q = requestPath.IndexOf('?', StringComparison.Ordinal);
+        if (q >= 0)
+        {
+            pathPart = requestPath[..q];
+            queryPart = requestPath[q..];
+        }
+
+        // SanitizePath returns a rooted path; LogSafe strips control chars from segments.
+        var safe = LogSafe.Text(SanitizePath(pathPart));
+        if (queryPart is not null)
+            safe += SanitizeQueryString(queryPart);
+        return safe;
+    }
+
+    /// <summary>
+    /// Redact query values whose keys look sensitive; always run through LogSafe for CR/LF.
+    /// </summary>
+    internal static string SanitizeQueryString(string? query)
+    {
+        if (string.IsNullOrEmpty(query))
+            return string.Empty;
+
+        // Drop leading '?'
+        var raw = query.StartsWith('?') ? query[1..] : query;
+        if (string.IsNullOrEmpty(raw))
+            return string.Empty;
+
+        var parts = raw.Split('&', StringSplitOptions.RemoveEmptyEntries);
+        var rebuilt = new List<string>(parts.Length);
+        foreach (var part in parts)
+        {
+            var eq = part.IndexOf('=');
+            if (eq <= 0)
+            {
+                rebuilt.Add(LogSafe.Text(part));
+                continue;
+            }
+
+            var key = part[..eq];
+            var isSensitive = SensitiveFields.Any(f => key.Contains(f, StringComparison.OrdinalIgnoreCase));
+            rebuilt.Add(isSensitive
+                ? $"{LogSafe.Text(key)}=[REDACTED]"
+                : $"{LogSafe.Text(key)}={LogSafe.Text(part[(eq + 1)..])}");
+        }
+
+        return "?" + string.Join('&', rebuilt);
     }
 
     private async Task<string?> GetSafeRequestBodyAsync(HttpRequest request)
@@ -87,7 +227,7 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
             return null;
 
         if (!request.ContentType?.Contains("application/json") == true)
-            return $"[{request.ContentType}]";
+            return LogSafe.Text($"[{request.ContentType}]");
 
         try
         {
@@ -112,7 +252,10 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         {
             var json = JsonDocument.Parse(jsonBody);
             var sanitized = SanitizeJsonElement(json.RootElement);
-            return JsonSerializer.Serialize(sanitized);
+            var serialized = JsonSerializer.Serialize(sanitized);
+            if (serialized.Length > MaxLoggedBodyChars)
+                return LogSafe.Text(serialized[..MaxLoggedBodyChars]) + "…[truncated]";
+            return LogSafe.Text(serialized);
         }
         catch
         {
@@ -122,11 +265,13 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
             {
                 if (sanitized.Contains($"\"{field}\"", StringComparison.OrdinalIgnoreCase))
                 {
-                    sanitized = $"[Contains sensitive field: {field}]";
-                    break;
+                    return $"[Contains sensitive field: {field}]";
                 }
             }
-            return sanitized;
+
+            if (sanitized.Length > MaxLoggedBodyChars)
+                sanitized = sanitized[..MaxLoggedBodyChars] + "…[truncated]";
+            return LogSafe.Text(sanitized);
         }
     }
 
@@ -136,12 +281,12 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         {
             JsonValueKind.Object => SanitizeJsonObject(element),
             JsonValueKind.Array => element.EnumerateArray().Select(SanitizeJsonElement).ToArray(),
-            JsonValueKind.String => element.GetString() ?? string.Empty,
+            JsonValueKind.String => LogSafe.Text(element.GetString()),
             JsonValueKind.Number => element.GetRawText(),
             JsonValueKind.True => true,
             JsonValueKind.False => false,
             JsonValueKind.Null => null!,
-            _ => element.GetRawText()
+            _ => LogSafe.Text(element.GetRawText())
         };
     }
 
@@ -164,10 +309,10 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
         foreach (var header in headers)
         {
             var key = header.Key;
-            var isSensitive = SensitiveFields.Any(field => key.Contains(field, StringComparison.OrdinalIgnoreCase))
-                             || key.Equals("Authorization", StringComparison.OrdinalIgnoreCase);
+            var isSensitive = SensitiveHeaderNames.Contains(key)
+                             || SensitiveFields.Any(field => key.Contains(field, StringComparison.OrdinalIgnoreCase));
 
-            result[key] = isSensitive ? "[REDACTED]" : header.Value.ToString();
+            result[key] = isSensitive ? "[REDACTED]" : LogSafe.Text(header.Value.ToString());
         }
         return result;
     }

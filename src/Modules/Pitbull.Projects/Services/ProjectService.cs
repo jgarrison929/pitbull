@@ -432,7 +432,7 @@ public class ProjectService : IProjectService
         if (!validationResult.IsValid)
         {
             var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
-            _logger.LogWarning("Project update validation failed for {ProjectId}: {Errors}", command.Id, errors);
+            _logger.LogWarning("Project update validation failed for {ProjectId}: {Errors}", command.Id, LogSafe.Text(errors));
             return Result.Failure<ProjectDto>(errors, "VALIDATION_ERROR");
         }
 
@@ -505,7 +505,7 @@ public class ProjectService : IProjectService
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            _logger.LogInformation("Soft deleted project {ProjectId} '{ProjectName}'", project.Id, project.Name);
+            _logger.LogInformation("Soft deleted project {ProjectId} '{ProjectName}'", project.Id, LogSafe.Text(project.Name));
             return Result.Success();
         }
         catch (Exception ex)

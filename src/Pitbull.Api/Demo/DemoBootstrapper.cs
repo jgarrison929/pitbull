@@ -363,7 +363,7 @@ public sealed class DemoBootstrapper(
             if (!result.Succeeded)
             {
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                logger.LogWarning("Failed to create demo user: {Errors}", errors);
+                logger.LogWarning("Failed to create demo user: {Errors}", LogSafe.Text(errors));
                 return;
             }
 

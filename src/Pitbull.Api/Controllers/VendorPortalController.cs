@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Billing.Services;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Controllers;
 
@@ -60,7 +61,7 @@ public class VendorPortalController(
         var result = await portalService.ValidateTokenAsync(token, ct);
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Portal token validation failed: {ErrorCode} — {Error}", result.ErrorCode, result.Error);
+            logger.LogWarning("Portal token validation failed: {ErrorCode}", LogSafe.Text(result.ErrorCode));
             return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
         }
         return Ok(result.Value);
@@ -74,7 +75,7 @@ public class VendorPortalController(
         var result = await portalService.GetLienWaiversAsync(token, ct);
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Portal lien waivers access failed: {ErrorCode} — {Error}", result.ErrorCode, result.Error);
+            logger.LogWarning("Portal lien waivers access failed: {ErrorCode}", LogSafe.Text(result.ErrorCode));
             return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
         }
         return Ok(result.Value);
@@ -90,7 +91,7 @@ public class VendorPortalController(
         {
             if (result.ErrorCode is "INVALID_TOKEN" or "TOKEN_REVOKED" or "TOKEN_EXPIRED")
             {
-                logger.LogWarning("Portal lien waiver submission auth failed: {ErrorCode} — {Error}", result.ErrorCode, result.Error);
+                logger.LogWarning("Portal lien waiver submission auth failed: {ErrorCode}", LogSafe.Text(result.ErrorCode));
                 return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
             }
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
@@ -106,7 +107,7 @@ public class VendorPortalController(
         var result = await portalService.GetPaymentHistoryAsync(token, ct);
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Portal payment history access failed: {ErrorCode} — {Error}", result.ErrorCode, result.Error);
+            logger.LogWarning("Portal payment history access failed: {ErrorCode}", LogSafe.Text(result.ErrorCode));
             return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
         }
         return Ok(result.Value);

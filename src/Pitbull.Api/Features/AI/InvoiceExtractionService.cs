@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Pitbull.AI.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.Logging;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.Projects.Domain;
 
@@ -97,7 +98,7 @@ public sealed class InvoiceVisionExtractionService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "OpenAI Vision API call failed for file {FileName}", fileName);
+            logger.LogWarning(ex, "OpenAI Vision API call failed for file {FileName}", LogSafe.Text(fileName));
             return EmptyResult("AI extraction failed. Please try again.");
         }
 
@@ -108,7 +109,7 @@ public sealed class InvoiceVisionExtractionService(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to parse AI extraction response for {FileName}", fileName);
+            logger.LogWarning(ex, "Failed to parse AI extraction response for {FileName}", LogSafe.Text(fileName));
             return EmptyResult("AI returned an unparseable response.");
         }
 
@@ -154,8 +155,9 @@ public sealed class InvoiceVisionExtractionService(
 
         if (!response.IsSuccessStatusCode)
         {
+            var snippet = body.Length > 500 ? body[..500] : body;
             logger.LogWarning("OpenAI Vision API returned {Status}: {Body}",
-                (int)response.StatusCode, body.Length > 500 ? body[..500] : body);
+                (int)response.StatusCode, LogSafe.Text(snippet));
             throw new HttpRequestException($"OpenAI Vision API returned {(int)response.StatusCode}");
         }
 

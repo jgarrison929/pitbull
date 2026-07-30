@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Jobs;
+using Pitbull.Core.Logging;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Jobs;
@@ -78,7 +79,7 @@ public sealed class AiBatchProcessingJob : BackgroundJobBase
         foreach (var project in projects)
         {
             Logger.LogDebug("Cost-to-complete recalc queued for project {ProjectName} ({ProjectId})",
-                project.Name, project.Id);
+                LogSafe.Text(project.Name), project.Id);
         }
 
         return Result.Success();
