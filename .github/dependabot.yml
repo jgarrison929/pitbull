@@ -3,8 +3,9 @@ updates:
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 8
     labels: ["dependencies"]
     commit-message:
       prefix: "deps"
@@ -17,17 +18,49 @@ updates:
   - package-ecosystem: "npm"
     directory: "/src/Pitbull.Web/pitbull-web"
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 3
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 8
     labels: ["dependencies", "frontend"]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "npm"
+    directory: "/e2e"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 4
+    labels: ["dependencies", "e2e"]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "docker"
+    directory: "/src/Pitbull.Api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "docker"
+    directory: "/src/Pitbull.Web/pitbull-web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "docker"]
     commit-message:
       prefix: "deps"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
-    open-pull-requests-limit: 2
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 4
     labels: ["dependencies"]
     commit-message:
       prefix: "ci"

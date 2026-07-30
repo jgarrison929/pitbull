@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Pitbull.Core.Data;
+using Pitbull.Core.MultiTenancy;
 using Pitbull.Notifications.Domain;
 using Pitbull.Notifications.Services;
 using Pitbull.ProjectManagement.Domain;
@@ -54,6 +55,7 @@ public class DeadlineCheckService(
             logger.LogInformation("Running deadline check...");
             using var scope = scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<PitbullDbContext>();
+            var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
             var tracker = scope.ServiceProvider.GetRequiredService<IDeadlineNotificationTracker>();
             var notifSvc = scope.ServiceProvider.GetRequiredService<INotificationService>();
             var prefSvc = scope.ServiceProvider.GetRequiredService<INotificationPreferenceService>();
@@ -61,9 +63,9 @@ public class DeadlineCheckService(
             var now = DateTime.UtcNow;
             var tomorrow = now.AddHours(24);
 
-            await CheckRfiDeadlinesAsync(db, tracker, notifSvc, prefSvc, now, tomorrow, ct);
-            await CheckSubmittalDeadlinesAsync(db, tracker, notifSvc, prefSvc, now, tomorrow, ct);
-            await CheckSubmittalReviewStalenessAsync(db, tracker, notifSvc, prefSvc, now, ct);
+            await CheckRfiDeadlinesAsync(db, tenantContext, tracker, notifSvc, prefSvc, now, tomorrow, ct);
+            await CheckSubmittalDeadlinesAsync(db, tenantContext, tracker, notifSvc, prefSvc, now, tomorrow, ct);
+            await CheckSubmittalReviewStalenessAsync(db, tenantContext, tracker, notifSvc, prefSvc, now, ct);
 
             logger.LogInformation("Deadline check complete.");
         }
@@ -74,7 +76,8 @@ public class DeadlineCheckService(
         }
     }
 
-    private async Task CheckRfiDeadlinesAsync(PitbullDbContext db, IDeadlineNotificationTracker tracker,
+    private async Task CheckRfiDeadlinesAsync(PitbullDbContext db, TenantContext tenantContext,
+        IDeadlineNotificationTracker tracker,
         INotificationService notifSvc, INotificationPreferenceService prefSvc, DateTime now, DateTime tomorrow, CancellationToken ct)
     {
         var openRfis = await db.Set<Rfi>()
@@ -94,6 +97,7 @@ public class DeadlineCheckService(
                 if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "overdue_rfi", ct))
                     continue;
 
+                await BindTenantAsync(db, tenantContext, rfi.TenantId, ct);
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId.Value, Title: $"RFI #{rfi.Number} is overdue",
                     Message: $"RFI #{rfi.Number} was due on {dueDate:MMM d, yyyy} and is still open.",
@@ -106,6 +110,7 @@ public class DeadlineCheckService(
                 if (!await prefSvc.IsNotificationEnabledAsync(userId.Value, rfi.TenantId, "rfi_deadline_approaching", ct))
                     continue;
 
+                await BindTenantAsync(db, tenantContext, rfi.TenantId, ct);
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId.Value, Title: $"RFI #{rfi.Number} due tomorrow",
                     Message: $"RFI #{rfi.Number} is due on {dueDate:MMM d, yyyy}. Please respond before the deadline.",
@@ -119,7 +124,8 @@ public class DeadlineCheckService(
     private static readonly SubmittalStatus[] TerminalStatuses =
         [SubmittalStatus.Approved, SubmittalStatus.ApprovedAsNoted, SubmittalStatus.Rejected, SubmittalStatus.Closed];
 
-    private async Task CheckSubmittalDeadlinesAsync(PitbullDbContext db, IDeadlineNotificationTracker tracker,
+    private async Task CheckSubmittalDeadlinesAsync(PitbullDbContext db, TenantContext tenantContext,
+        IDeadlineNotificationTracker tracker,
         INotificationService notifSvc, INotificationPreferenceService prefSvc, DateTime now, DateTime tomorrow, CancellationToken ct)
     {
         var submittals = await db.Set<PmSubmittal>()
@@ -140,6 +146,7 @@ public class DeadlineCheckService(
                 if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "overdue_submittal", ct))
                     continue;
 
+                await BindTenantAsync(db, tenantContext, sub.TenantId, ct);
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId, Title: $"Submittal #{sub.SubmittalNumber} is overdue",
                     Message: $"Submittal #{sub.SubmittalNumber} was due on {dueDate.Value:MMM d, yyyy} and is still outstanding.",
@@ -152,6 +159,7 @@ public class DeadlineCheckService(
                 if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_deadline_approaching", ct))
                     continue;
 
+                await BindTenantAsync(db, tenantContext, sub.TenantId, ct);
                 await notifSvc.CreateAsync(new CreateNotificationCommand(
                     UserId: userId, Title: $"Submittal #{sub.SubmittalNumber} due tomorrow",
                     Message: $"Submittal #{sub.SubmittalNumber} is due on {dueDate.Value:MMM d, yyyy}. Please ensure it's submitted on time.",
@@ -173,7 +181,8 @@ public class DeadlineCheckService(
     /// generate daily reminder notifications until resolved — this is intentional to keep
     /// the submitter informed while awaiting review.
     /// </summary>
-    private async Task CheckSubmittalReviewStalenessAsync(PitbullDbContext db, IDeadlineNotificationTracker tracker,
+    private async Task CheckSubmittalReviewStalenessAsync(PitbullDbContext db, TenantContext tenantContext,
+        IDeadlineNotificationTracker tracker,
         INotificationService notifSvc, INotificationPreferenceService prefSvc, DateTime now, CancellationToken ct)
     {
         var staleThreshold = now.AddHours(-48);
@@ -194,6 +203,7 @@ public class DeadlineCheckService(
             if (!await prefSvc.IsNotificationEnabledAsync(userId, sub.TenantId, "submittal_review_stale", ct)) continue;
 
             var daysSince = (int)(now - sub.SubmittedDate!.Value).TotalDays;
+            await BindTenantAsync(db, tenantContext, sub.TenantId, ct);
             await notifSvc.CreateAsync(new CreateNotificationCommand(
                 UserId: userId,
                 Title: $"Submittal #{sub.SubmittalNumber} awaiting review for {daysSince} days",
@@ -204,6 +214,24 @@ public class DeadlineCheckService(
             await tracker.RecordNotificationAsync("Submittal", sub.Id, "ReviewStale", ct);
             logger.LogInformation("Sent stale review notification for Submittal #{Number} ({Days} days)", sub.SubmittalNumber, daysSince);
         }
+    }
+
+    /// <summary>
+    /// Cross-tenant job: set scoped tenant (and PG RLS) from the entity before SaveChanges stamps TenantId.
+    /// </summary>
+    private static async Task BindTenantAsync(
+        PitbullDbContext db, TenantContext tenantContext, Guid tenantId, CancellationToken ct)
+    {
+        if (tenantId == Guid.Empty)
+            return;
+
+        tenantContext.TenantId = tenantId;
+        if (!db.Database.IsRelational())
+            return;
+
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_tenant', {tenantId.ToString()}, false)",
+            ct);
     }
 
     public void Dispose()
