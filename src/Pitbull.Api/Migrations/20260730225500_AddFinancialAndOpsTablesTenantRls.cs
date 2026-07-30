@@ -74,10 +74,8 @@ namespace Pitbull.Api.Migrations
             "api_keys",
             "secret_vault",
             "audit_logs",
-            "rbac_permissions",
-            "rbac_roles",
-            "rbac_role_permissions",
-            "rbac_user_roles",
+            // rbac_* tables intentionally omitted: login/JWT permission resolution often runs
+            // before app.current_tenant is set; EF IgnoreQueryFilters does not bypass RLS.
             // Supporting
             "equipment",
             "file_attachments",
