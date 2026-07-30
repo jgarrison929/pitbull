@@ -533,49 +533,52 @@ public class ProjectService : IProjectService
                     "PROJECT_NOT_FOUND");
             }
 
-            // Get time entry stats using raw SQL for performance
-            var statsSql = $@"
+            // Get time entry stats using raw SQL for performance (parameterized — never interpolate Guids)
+            const string statsSql = """
                 SELECT 
-                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
-                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
-                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours"",
-                    COUNT(*) as ""EntryCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 1) as ""ApprovedCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 0) as ""PendingCount"",
-                    MIN(""Date"") as ""FirstDate"",
-                    MAX(""Date"") as ""LastDate""
+                    COALESCE(SUM("RegularHours"), 0) as "RegularHours",
+                    COALESCE(SUM("OvertimeHours"), 0) as "OvertimeHours",
+                    COALESCE(SUM("DoubletimeHours"), 0) as "DoubleTimeHours",
+                    COUNT(*) as "EntryCount",
+                    COUNT(*) FILTER (WHERE "Status" = 1) as "ApprovedCount",
+                    COUNT(*) FILTER (WHERE "Status" = 0) as "PendingCount",
+                    MIN("Date") as "FirstDate",
+                    MAX("Date") as "LastDate"
                 FROM time_entries
-                WHERE ""ProjectId"" = '{id}'
-                  AND ""IsDeleted"" = false";
+                WHERE "ProjectId" = {0}
+                  AND "IsDeleted" = false
+                """;
 
-            var stats = await _db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql)
+            var stats = await _db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql, id)
                 .FirstAsync(cancellationToken);
 
             // Get assigned employee count
-            var employeeCountSql = $@"
-                SELECT COUNT(DISTINCT ""EmployeeId"") as ""Value""
+            const string employeeCountSql = """
+                SELECT COUNT(DISTINCT "EmployeeId") as "Value"
                 FROM project_assignments
-                WHERE ""ProjectId"" = '{id}'
-                  AND ""IsActive"" = true";
+                WHERE "ProjectId" = {0}
+                  AND "IsActive" = true
+                """;
 
-            var employeeCountResult = await _db.Database.SqlQueryRaw<ScalarInt>(employeeCountSql)
+            var employeeCountResult = await _db.Database.SqlQueryRaw<ScalarInt>(employeeCountSql, id)
                 .FirstAsync(cancellationToken);
             var employeeCount = employeeCountResult.Value;
 
             // Calculate labor cost
-            var laborCostSql = $@"
+            const string laborCostSql = """
                 SELECT COALESCE(SUM(
-                    (te.""RegularHours"" * e.""BaseHourlyRate"") +
-                    (te.""OvertimeHours"" * e.""BaseHourlyRate"" * 1.5) +
-                    (te.""DoubletimeHours"" * e.""BaseHourlyRate"" * 2.0)
-                ), 0) as ""Value""
+                    (te."RegularHours" * e."BaseHourlyRate") +
+                    (te."OvertimeHours" * e."BaseHourlyRate" * 1.5) +
+                    (te."DoubletimeHours" * e."BaseHourlyRate" * 2.0)
+                ), 0) as "Value"
                 FROM time_entries te
-                JOIN employees e ON te.""EmployeeId"" = e.""Id""
-                WHERE te.""ProjectId"" = '{id}'
-                  AND te.""IsDeleted"" = false
-                  AND te.""Status"" = 1";
+                JOIN employees e ON te."EmployeeId" = e."Id"
+                WHERE te."ProjectId" = {0}
+                  AND te."IsDeleted" = false
+                  AND te."Status" = 1
+                """;
 
-            var laborCostResult = await _db.Database.SqlQueryRaw<ScalarDecimal>(laborCostSql)
+            var laborCostResult = await _db.Database.SqlQueryRaw<ScalarDecimal>(laborCostSql, id)
                 .FirstAsync(cancellationToken);
             var laborCost = laborCostResult.Value;
 

@@ -14,9 +14,11 @@ public class CreateBidValidator : AbstractValidator<CreateBidCommand>
             .NotEmpty().WithMessage("Bid number is required")
             .MaximumLength(50).WithMessage("Bid number cannot exceed 50 characters");
 
+        // Create always forces Draft in BidService; still reject Converted if clients send it.
         RuleFor(x => x.Status)
             .IsInEnum().WithMessage("Invalid bid status")
-            .NotEqual(Domain.BidStatus.Converted).WithMessage("Converted status is set automatically during bid-to-project conversion");
+            .Must(s => s is Domain.BidStatus.Draft or Domain.BidStatus.Submitted)
+            .WithMessage("New bids must be Draft or Submitted (service forces Draft); other statuses use update transitions");
 
         RuleFor(x => x.EstimatedValue)
             .GreaterThanOrEqualTo(0).WithMessage("Estimated value cannot be negative");

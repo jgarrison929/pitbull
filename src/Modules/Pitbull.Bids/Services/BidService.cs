@@ -86,12 +86,13 @@ public class BidService : IBidService
             return Result.Failure<BidDto>(errors, "VALIDATION_ERROR");
         }
 
+        // Always start lifecycle at Draft — ignore client Status on create (Won/Lost/etc. skip transitions).
         var bid = new Bid
         {
             Id = Guid.NewGuid(),
             Name = command.Name,
             Number = command.Number,
-            Status = command.Status,
+            Status = BidStatus.Draft,
             EstimatedValue = command.EstimatedValue,
             BidDate = command.BidDate,
             DueDate = command.DueDate,

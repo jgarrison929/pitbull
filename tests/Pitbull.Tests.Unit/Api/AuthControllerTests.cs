@@ -212,6 +212,34 @@ public class AuthControllerTests
 
     #endregion
 
+    #region Register - Reject open TenantId join
+
+    [Fact]
+    public async Task Register_WithClientTenantId_ReturnsBadRequest()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var demoOptions = CreateDemoOptions(enabled: false);
+
+        var controller = CreateController(db, userManager, demoOptions: demoOptions);
+
+        var result = await controller.Register(new RegisterRequest(
+            Email: "join@test.com",
+            Password: "SecurePass123",
+            FirstName: "Join",
+            LastName: "Attempt",
+            TenantId: TestTenantId,
+            CompanyName: "Should Not Join"));
+
+        result.Should().BeAssignableTo<ObjectResult>();
+        var objectResult = (ObjectResult)result;
+        (objectResult.StatusCode ?? StatusCodes.Status400BadRequest)
+            .Should().Be(StatusCodes.Status400BadRequest);
+        userManager.Verify(u => u.CreateAsync(It.IsAny<AppUser>(), It.IsAny<string>()), Times.Never);
+    }
+
+    #endregion
+
     #region Register - Demo Mode Disabled
 
     [Fact]
@@ -777,6 +805,30 @@ public class AuthControllerTests
         result.Should().BeOfType<OkObjectResult>();
     }
 
+    [Fact]
+    public async Task ChangePassword_WhenDemoUser_ReturnsForbidden()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var userId = Guid.NewGuid();
+
+        var user = CreateTestUser(id: userId, email: "ceo@demo.local");
+        user.IsDemoUser = true;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        userManager.Setup(u => u.FindByIdAsync(userId.ToString())).ReturnsAsync(user);
+
+        var controller = CreateController(db, userManager, authenticatedUserId: userId);
+
+        var result = await controller.ChangePassword(
+            new ChangePasswordRequest("OldPass123", "NewPass456!"));
+
+        result.Should().BeOfType<ObjectResult>();
+        ((ObjectResult)result).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+        userManager.Verify(u => u.ChangePasswordAsync(It.IsAny<AppUser>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
     #endregion
 
     #region ChangePassword - Missing Fields
@@ -1166,15 +1218,14 @@ public class AuthControllerTests
 
     #endregion
 
-    #region BootstrapAdmin - Blank Demo Email Allows Any User
+    #region BootstrapAdmin - Blank Demo Email Refuses Escalation
 
     [Fact]
-    public async Task BootstrapAdmin_WhenDemoEmailBlank_AllowsAnyAuthenticatedUser()
+    public async Task BootstrapAdmin_WhenDemoEmailBlank_ReturnsForbidden()
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
         var userManager = CreateMockUserManager();
-        var roleManager = CreateMockRoleManager();
         var userId = Guid.NewGuid();
         var demoOptions = CreateDemoOptions(enabled: true, userEmail: "");
 
@@ -1184,27 +1235,16 @@ public class AuthControllerTests
 
         userManager.Setup(u => u.FindByIdAsync(userId.ToString())).ReturnsAsync(user);
 
-        roleManager.Setup(r => r.FindByNameAsync(It.IsAny<string>()))
-            .ReturnsAsync((AppRole?)null);
-        roleManager.Setup(r => r.CreateAsync(It.IsAny<AppRole>()))
-            .ReturnsAsync(IdentityResult.Success);
-        userManager.Setup(u => u.IsInRoleAsync(user, It.IsAny<string>()))
-            .ReturnsAsync(false);
-        userManager.Setup(u => u.AddToRoleAsync(user, It.IsAny<string>()))
-            .ReturnsAsync(IdentityResult.Success);
-        userManager.Setup(u => u.GetRolesAsync(user))
-            .ReturnsAsync(new List<string> { $"{TestTenantId}:Admin" });
-
         var controller = CreateController(db, userManager,
-            roleManager: roleManager,
             demoOptions: demoOptions,
             authenticatedUserId: userId);
 
         // Act
         var result = await controller.BootstrapAdmin();
 
-        // Assert - should succeed since demo email is blank (no restriction)
-        result.Should().BeOfType<OkObjectResult>();
+        // Assert — blank Demo:UserEmail must not open privilege escalation
+        result.Should().BeOfType<ObjectResult>();
+        ((ObjectResult)result).StatusCode.Should().Be(StatusCodes.Status403Forbidden);
     }
 
     #endregion

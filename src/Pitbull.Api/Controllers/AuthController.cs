@@ -89,6 +89,15 @@ public class AuthController(
         var validationResult = await registerValidator.ValidateAsync(request);
         if (!validationResult.IsValid)
             return this.ValidationError(validationResult);
+
+        // Open registration always creates a new tenant. Joining an existing tenant
+        // requires invitation acceptance (TeamInvitationService) — never TenantId knowledge alone.
+        if (request.TenantId != Guid.Empty && request.TenantId != default)
+        {
+            return this.BadRequestError(
+                "Open registration cannot join an existing organization. Use an invitation link, or omit TenantId to create a new organization.");
+        }
+
         // Use explicit transaction so tenant + user creation are atomic.
         // The execution strategy requires us to wrap the whole transaction block.
         var strategy = db.Database.CreateExecutionStrategy();
@@ -101,9 +110,7 @@ public class AuthController(
 
             try
             {
-                // Auto-create tenant if none provided
                 Guid tenantId;
-                if (request.TenantId == Guid.Empty || request.TenantId == default)
                 {
                     var companyName = request.CompanyName ?? $"{request.FirstName}'s Company";
                     var slug = companyName.ToLowerInvariant().Replace(" ", "-").Replace("'", "");
@@ -125,17 +132,6 @@ public class AuthController(
                     db.Set<Tenant>().Add(tenant);
                     await db.SaveChangesAsync();
                     tenantId = tenant.Id;
-                }
-                else
-                {
-                    var tenantExists = await db.Set<Tenant>().AnyAsync(t => t.Id == request.TenantId);
-                    if (!tenantExists)
-                    {
-                        await transaction.RollbackAsync();
-                        actionResult = this.BadRequestError("Invalid tenant ID");
-                        return;
-                    }
-                    tenantId = request.TenantId;
                 }
 
                 // Set the tenant context for this request scope so that:
@@ -596,6 +592,15 @@ public class AuthController(
         if (user is null)
             return this.UnauthorizedError("User not found");
 
+        // Shared demo personas and self-service demo accounts must not change passwords
+        // (breaks one-click demo-role-login and other explorers on the shared tenant).
+        if (user.IsDemoUser ||
+            (user.Email is not null &&
+             user.Email.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase)))
+        {
+            return this.ForbiddenError("Password changes are disabled for demo accounts");
+        }
+
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
         {
@@ -678,12 +683,14 @@ public class AuthController(
         if (user is null)
             return this.UnauthorizedError("User not found");
 
-        // Only allow for demo user email (if configured)
-        if (!string.IsNullOrWhiteSpace(demoOptions.Value.UserEmail) && 
-            !string.Equals(user.Email, demoOptions.Value.UserEmail, StringComparison.OrdinalIgnoreCase))
-        {
-            return this.ForbiddenError("This endpoint is only available for the demo user");
-        }
+        // Privilege escalation path: require an explicit configured demo email and an exact match.
+        // Blank Demo:UserEmail must never open this to any authenticated principal.
+        var demoEmail = demoOptions.Value.UserEmail;
+        if (string.IsNullOrWhiteSpace(demoEmail))
+            return this.ForbiddenError("Bootstrap admin is not configured (Demo:UserEmail is required)");
+
+        if (!string.Equals(user.Email, demoEmail, StringComparison.OrdinalIgnoreCase))
+            return this.ForbiddenError("This endpoint is only available for the configured demo user");
 
         // Ensure roles exist and assign Admin
         await roleSeeder.EnsureRolesForTenantAsync(user.TenantId);
@@ -1338,7 +1345,7 @@ public record CompanyBriefResponse(
 /// <param name="Password">Password (min 8 chars, requires uppercase, lowercase, and digit)</param>
 /// <param name="FirstName">User's first name</param>
 /// <param name="LastName">User's last name</param>
-/// <param name="TenantId">Optional existing tenant ID to join. If omitted, a new tenant is created.</param>
+/// <param name="TenantId">Must be empty. Open registration always creates a new tenant; use invitations to join existing orgs.</param>
 /// <param name="CompanyName">Company name for the auto-created tenant. Defaults to "{FirstName}'s Company".</param>
 /// <param name="IndustryType">Optional industry type slug (e.g., "general-contractor", "specialty-contractor").</param>
 /// <param name="EmployeeRange">Optional employee range label (e.g., "1-10", "11-50", "500+").</param>

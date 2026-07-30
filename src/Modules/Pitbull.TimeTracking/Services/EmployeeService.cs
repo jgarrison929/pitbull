@@ -111,23 +111,24 @@ public class EmployeeService : IEmployeeService
             if (employee == null)
                 return Result.Failure<EmployeeStatsResponse>("Employee not found", "EMPLOYEE_NOT_FOUND");
 
-            // Get time entry stats using raw SQL for aggregations
-            var statsSql = $@"
+            // Get time entry stats using raw SQL for aggregations (parameterized — never interpolate Guids)
+            const string statsSql = """
                 SELECT 
-                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
-                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
-                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours"",
-                    COUNT(*) as ""EntryCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 1) as ""ApprovedCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 0) as ""PendingCount"",
-                    COUNT(DISTINCT ""ProjectId"") as ""ProjectCount"",
-                    MIN(""Date"") as ""FirstDate"",
-                    MAX(""Date"") as ""LastDate""
+                    COALESCE(SUM("RegularHours"), 0) as "RegularHours",
+                    COALESCE(SUM("OvertimeHours"), 0) as "OvertimeHours",
+                    COALESCE(SUM("DoubletimeHours"), 0) as "DoubleTimeHours",
+                    COUNT(*) as "EntryCount",
+                    COUNT(*) FILTER (WHERE "Status" = 1) as "ApprovedCount",
+                    COUNT(*) FILTER (WHERE "Status" = 0) as "PendingCount",
+                    COUNT(DISTINCT "ProjectId") as "ProjectCount",
+                    MIN("Date") as "FirstDate",
+                    MAX("Date") as "LastDate"
                 FROM time_entries
-                WHERE ""EmployeeId"" = '{id}'
-                  AND ""IsDeleted"" = false";
+                WHERE "EmployeeId" = {0}
+                  AND "IsDeleted" = false
+                """;
 
-            var stats = await _db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql)
+            var stats = await _db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql, id)
                 .FirstAsync(cancellationToken);
 
             var totalHours = stats.RegularHours + stats.OvertimeHours + stats.DoubleTimeHours;

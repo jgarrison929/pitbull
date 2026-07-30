@@ -106,6 +106,13 @@ public class AiSuggestController(IAiService aiService, PitbullDbContext db) : Co
         if (string.IsNullOrWhiteSpace(request.Subject))
             return BadRequest(new { error = "subject is required", code = "VALIDATION_ERROR" });
 
+        if (AiInputSanitizer.ValidateLength(request.Subject, 500, "subject") is { } subjectErr)
+            return BadRequest(new { error = subjectErr, code = "VALIDATION_ERROR" });
+
+        if (!string.IsNullOrWhiteSpace(request.Description) &&
+            AiInputSanitizer.ValidateLength(request.Description, 4000, "description") is { } descErr)
+            return BadRequest(new { error = descErr, code = "VALIDATION_ERROR" });
+
         // Query recent RFIs from the same tenant
         var recentRfis = await db.Set<Rfi>()
             .AsNoTracking()
