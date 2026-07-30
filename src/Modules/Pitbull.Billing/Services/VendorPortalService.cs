@@ -5,10 +5,19 @@ using Pitbull.Billing.Features.LienWaivers;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Billing.Services;
 
-public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalService> logger) : IVendorPortalService
+/// <summary>
+/// Public portal access is token-bound: lookup ignores tenant filters, then binds
+/// TenantContext / CompanyContext + PostgreSQL session vars from the token (never from client headers).
+/// </summary>
+public class VendorPortalService(
+    PitbullDbContext db,
+    ILogger<VendorPortalService> logger,
+    TenantContext tenantContext,
+    CompanyContext companyContext) : IVendorPortalService
 {
     public async Task<Result<VendorPortalTokenDto>> GenerateTokenAsync(Guid vendorId, Guid projectId, int expirationDays, CancellationToken ct = default)
     {
@@ -99,24 +108,11 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
 
     public async Task<Result<VendorPortalContextDto>> ValidateTokenAsync(string token, CancellationToken ct = default)
     {
-        var tokenHash = HashToken(token);
-        var portalToken = await db.VendorPortalTokens
-            .Include(t => t.Vendor)
-            .FirstOrDefaultAsync(t => t.Token == tokenHash, ct);
+        var portalTokenResult = await LoadAndBindPortalTokenAsync(token, includeVendor: true, ct);
+        if (!portalTokenResult.IsSuccess)
+            return Result.Failure<VendorPortalContextDto>(portalTokenResult.Error!, portalTokenResult.ErrorCode);
 
-        if (portalToken is null)
-            return Result.Failure<VendorPortalContextDto>("Invalid token", "INVALID_TOKEN");
-
-        if (portalToken.IsRevoked)
-            return Result.Failure<VendorPortalContextDto>("Token has been revoked", "TOKEN_REVOKED");
-
-        if (portalToken.ExpiresAt < DateTime.UtcNow)
-            return Result.Failure<VendorPortalContextDto>("Token has expired", "TOKEN_EXPIRED");
-
-        // Update access tracking
-        portalToken.LastAccessedAt = DateTime.UtcNow;
-        portalToken.AccessCount++;
-        await db.SaveChangesAsync(ct);
+        var portalToken = portalTokenResult.Value!;
 
         var projectName = await db.Set<Pitbull.Projects.Domain.Project>()
             .AsNoTracking()
@@ -218,10 +214,23 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
     }
 
     private async Task<Result<VendorPortalToken>> ValidateTokenInternalAsync(string token, CancellationToken ct)
+        => await LoadAndBindPortalTokenAsync(token, includeVendor: false, ct);
+
+    /// <summary>
+    /// Lookup portal token without tenant filters, then bind request tenant/company from the token.
+    /// Isolation must not depend on client-supplied X-Tenant-Id / X-Company-Id.
+    /// </summary>
+    private async Task<Result<VendorPortalToken>> LoadAndBindPortalTokenAsync(
+        string token,
+        bool includeVendor,
+        CancellationToken ct)
     {
         var tokenHash = HashToken(token);
-        var portalToken = await db.VendorPortalTokens
-            .FirstOrDefaultAsync(t => t.Token == tokenHash, ct);
+        var query = db.VendorPortalTokens.IgnoreQueryFilters().AsQueryable();
+        if (includeVendor)
+            query = query.Include(t => t.Vendor);
+
+        var portalToken = await query.FirstOrDefaultAsync(t => t.Token == tokenHash && !t.IsDeleted, ct);
 
         if (portalToken is null)
             return Result.Failure<VendorPortalToken>("Invalid token", "INVALID_TOKEN");
@@ -232,12 +241,35 @@ public class VendorPortalService(PitbullDbContext db, ILogger<VendorPortalServic
         if (portalToken.ExpiresAt < DateTime.UtcNow)
             return Result.Failure<VendorPortalToken>("Token has expired", "TOKEN_EXPIRED");
 
-        // Update access tracking
+        await BindPortalContextAsync(portalToken, ct);
+
+        // Update access tracking under the bound tenant context
         portalToken.LastAccessedAt = DateTime.UtcNow;
         portalToken.AccessCount++;
         await db.SaveChangesAsync(ct);
 
         return Result.Success(portalToken);
+    }
+
+    private async Task BindPortalContextAsync(VendorPortalToken portalToken, CancellationToken ct)
+    {
+        tenantContext.TenantId = portalToken.TenantId;
+        companyContext.CompanyId = portalToken.CompanyId;
+
+        // PostgreSQL RLS session vars — skip on non-relational providers (in-memory unit tests).
+        if (!db.Database.IsRelational())
+            return;
+
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT set_config('app.current_tenant', {portalToken.TenantId.ToString()}, false)",
+            ct);
+
+        if (portalToken.CompanyId != Guid.Empty)
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_company', {portalToken.CompanyId.ToString()}, false)",
+                ct);
+        }
     }
 
     private static VendorPortalTokenDto MapToDto(VendorPortalToken t, string vendorName) => new(

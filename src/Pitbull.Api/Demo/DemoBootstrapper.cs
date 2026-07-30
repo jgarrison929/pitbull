@@ -110,14 +110,14 @@ public sealed class DemoBootstrapper(
                 await tx.CommitAsync(cancellationToken);
 
                 if (result.IsSuccess)
-                    logger.LogInformation("Demo seed complete: {Summary}", result.Value!.Summary);
+                    logger.LogInformation("Demo seed complete: {Summary}", LogSafe.Text(result.Value!.Summary));
                 else
-                    logger.LogInformation("Demo seed skipped: {Message}", result.Error);
+                    logger.LogInformation("Demo seed skipped: {Message}", LogSafe.Text(result.Error));
 
                 return;
             }
 
-            logger.LogWarning("Demo seed failed: {Code} {Message}", result.ErrorCode, result.Error);
+            logger.LogWarning("Demo seed failed: {Code} {Message}", LogSafe.Text(result.ErrorCode), LogSafe.Text(result.Error));
         });
 
         // HR + project assignments must survive domain seed rollbacks (e.g. duplicate cost-code keys).
@@ -252,7 +252,7 @@ public sealed class DemoBootstrapper(
 
         if (company is not null)
         {
-            logger.LogInformation("Default company already exists for tenant {TenantId}: {CompanyName}", tenantId, company.Name);
+            logger.LogInformation("Default company already exists for tenant {TenantId}: {CompanyName}", tenantId, LogSafe.Text(company.Name));
             return company;
         }
 
@@ -296,7 +296,7 @@ public sealed class DemoBootstrapper(
                 db.Tenants.Add(tenant);
                 await db.SaveChangesAsync(ct);
 
-                logger.LogInformation("Created demo tenant {TenantId} ({Slug})", tenant.Id, tenant.Slug);
+                logger.LogInformation("Created demo tenant {TenantId} ({Slug})", tenant.Id, LogSafe.Text(tenant.Slug));
             }
 
             return tenant;
@@ -319,7 +319,7 @@ public sealed class DemoBootstrapper(
         db.Tenants.Add(tenant);
         await db.SaveChangesAsync(ct);
 
-        logger.LogInformation("Created demo tenant {TenantId} ({Slug})", tenant.Id, tenant.Slug);
+        logger.LogInformation("Created demo tenant {TenantId} ({Slug})", tenant.Id, LogSafe.Text(tenant.Slug));
         return tenant;
     }
 

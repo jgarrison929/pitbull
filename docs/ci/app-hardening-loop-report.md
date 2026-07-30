@@ -84,3 +84,22 @@ Findings discovered (unique): 256
 - Anonymous diagnostics DTO slim + length caps (partially addressed in prior rounds — verify).
 - LogSafe backlog may be stale vs r1–r4 fixes — re-scan before re-fixing.
 
+
+## Hourly appendix — 2026-07-30 16:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073016`
+
+### Merged this hour
+- No open hardening PRs (prior **#423** already on main).
+
+### Shipped this hour
+- **logging:** Shared `RequestLogSanitizer` in Core; RequestResponseLoggingMiddleware delegates; PostHog + RequestPerformance path redaction; TenantMiddleware uses sanitizer; DiagnosticsService path/query/pageUrl scrub; anonymous diagnostics force `UserEmail=null`; DemoBootstrapper LogSafe on seed messages.
+- **rls/auth:** Vendor portal token lookup uses `IgnoreQueryFilters` then binds Tenant/Company context + PG session vars from the token (not client headers).
+- **company isolation:** CompanyMiddleware fail-closed on failed company resolve for authenticated API; empty access list no longer means all-companies for authenticated users.
+
+### Residual high items
+- Demo users still get RBAC `permissions=*` (DemoRestrictionMiddleware write boundary).
+- Open registration TenantId join fixed in #423; re-verify after deploys.
+- Dependabot cadence / Docker digests / packages.lock still open.
+- Savorboard.CAP.InMemoryMessageQueue has no 10.0.1 on nuget (leave 10.0.0).
+

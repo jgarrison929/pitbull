@@ -65,7 +65,7 @@ public class CompanyMiddleware(RequestDelegate next, ILogger<CompanyMiddleware> 
         }
 
         // Resolve active company (validates against accessible companies with fallback)
-        var companyId = ResolveCompanyId(context, companyContext);
+        var companyId = ResolveCompanyId(context, companyContext, userId.HasValue);
         if (companyId.HasValue)
         {
             // Query must include IsActive check (P2: block inactive companies)
@@ -92,20 +92,49 @@ public class CompanyMiddleware(RequestDelegate next, ILogger<CompanyMiddleware> 
             }
             else
             {
+                // Fail closed: do not leave CompanyId=Empty (tenant-wide filter) after a failed resolve.
                 logger.LogWarning("Company {CompanyId} not found, inactive, or not in tenant", companyId.Value);
+                if (userId.HasValue && context.Request.Path.StartsWithSegments("/api"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    await context.Response.WriteAsJsonAsync(new
+                    {
+                        error = "Company context could not be resolved.",
+                        code = "COMPANY_NOT_RESOLVED"
+                    });
+                    return;
+                }
             }
+        }
+        else if (userId.HasValue
+                 && context.Request.Path.StartsWithSegments("/api")
+                 && companyContext.AccessibleCompanyIds.Count == 0)
+        {
+            // Authenticated user with no company membership: deny rather than Empty=all-companies.
+            logger.LogWarning("Authenticated user has no accessible companies for tenant {TenantId}", tenantContext.TenantId);
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await context.Response.WriteAsJsonAsync(new
+            {
+                error = "No company access for this account.",
+                code = "COMPANY_ACCESS_REQUIRED"
+            });
+            return;
         }
 
         await next(context);
     }
 
-    private static Guid? ResolveCompanyId(HttpContext context, CompanyContext companyContext)
+    private static Guid? ResolveCompanyId(HttpContext context, CompanyContext companyContext, bool authenticatedUser)
     {
         var accessibleIds = companyContext.AccessibleCompanyIds;
         var hasAccessList = accessibleIds.Count > 0;
 
-        // Helper to check if a company ID is accessible
-        bool IsAccessible(Guid id) => !hasAccessList || accessibleIds.Contains(id);
+        // Authenticated users must be on an allowlist. Empty list means no company access
+        // (do not treat as "all companies"). Anonymous/system paths may lack a list.
+        bool IsAccessible(Guid id) =>
+            authenticatedUser
+                ? hasAccessList && accessibleIds.Contains(id)
+                : !hasAccessList || accessibleIds.Contains(id);
 
         // 1. Try X-Company-Id header (explicit per-request override)
         // P1 fix: Only accept if user has access, otherwise fall through to next option
@@ -117,8 +146,7 @@ public class CompanyMiddleware(RequestDelegate next, ILogger<CompanyMiddleware> 
         }
 
         // 2. User's default company (parent/subsidiary marked default — finance workflows)
-        if (companyContext is CompanyContext ctx
-            && ctx.DefaultCompanyId is Guid defaultId
+        if (companyContext.DefaultCompanyId is Guid defaultId
             && IsAccessible(defaultId))
         {
             return defaultId;

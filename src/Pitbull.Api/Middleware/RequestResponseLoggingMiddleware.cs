@@ -132,94 +132,23 @@ public class RequestResponseLoggingMiddleware(RequestDelegate next, ILogger<Requ
 
     /// <summary>
     /// Redact secret path segments (vendor-portal tokens, invitation tokens) before logging.
+    /// Delegates to <see cref="RequestLogSanitizer"/> (shared with Core middleware and diagnostics).
     /// </summary>
     internal static string SanitizePath(PathString path)
-    {
-        var value = path.Value;
-        if (string.IsNullOrEmpty(value))
-            return string.Empty;
-
-        var segments = value.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        for (var i = 0; i < segments.Length; i++)
-        {
-            // /api/vendor-portal/{token}/... — keep admin "tokens" collection routes
-            if (segments[i].Equals("vendor-portal", StringComparison.OrdinalIgnoreCase)
-                && i + 1 < segments.Length
-                && !segments[i + 1].Equals("tokens", StringComparison.OrdinalIgnoreCase))
-            {
-                segments[i + 1] = "[REDACTED]";
-            }
-
-            // /api/Invitation/token/{token}[/accept]
-            if (segments[i].Equals("token", StringComparison.OrdinalIgnoreCase)
-                && i + 1 < segments.Length)
-            {
-                segments[i + 1] = "[REDACTED]";
-            }
-        }
-
-        return "/" + string.Join('/', segments);
-    }
+        => RequestLogSanitizer.SanitizePath(path.Value);
 
     /// <summary>
     /// Sanitize a raw request path (optionally including <c>?query</c>) for Serilog request logging
-    /// and other completion events. Applies <see cref="SanitizePath"/> + <see cref="SanitizeQueryString"/>
-    /// then <see cref="LogSafe"/> so tokens and CR/LF never land in sinks.
+    /// and other completion events. Delegates to <see cref="RequestLogSanitizer"/>.
     /// </summary>
     internal static string SanitizeRequestPathForLogging(string? requestPath)
-    {
-        if (string.IsNullOrEmpty(requestPath))
-            return string.Empty;
-
-        var pathPart = requestPath;
-        string? queryPart = null;
-        var q = requestPath.IndexOf('?', StringComparison.Ordinal);
-        if (q >= 0)
-        {
-            pathPart = requestPath[..q];
-            queryPart = requestPath[q..];
-        }
-
-        // SanitizePath returns a rooted path; LogSafe strips control chars from segments.
-        var safe = LogSafe.Text(SanitizePath(pathPart));
-        if (queryPart is not null)
-            safe += SanitizeQueryString(queryPart);
-        return safe;
-    }
+        => RequestLogSanitizer.SanitizeRequestPathForLogging(requestPath);
 
     /// <summary>
     /// Redact query values whose keys look sensitive; always run through LogSafe for CR/LF.
     /// </summary>
     internal static string SanitizeQueryString(string? query)
-    {
-        if (string.IsNullOrEmpty(query))
-            return string.Empty;
-
-        // Drop leading '?'
-        var raw = query.StartsWith('?') ? query[1..] : query;
-        if (string.IsNullOrEmpty(raw))
-            return string.Empty;
-
-        var parts = raw.Split('&', StringSplitOptions.RemoveEmptyEntries);
-        var rebuilt = new List<string>(parts.Length);
-        foreach (var part in parts)
-        {
-            var eq = part.IndexOf('=');
-            if (eq <= 0)
-            {
-                rebuilt.Add(LogSafe.Text(part));
-                continue;
-            }
-
-            var key = part[..eq];
-            var isSensitive = SensitiveFields.Any(f => key.Contains(f, StringComparison.OrdinalIgnoreCase));
-            rebuilt.Add(isSensitive
-                ? $"{LogSafe.Text(key)}=[REDACTED]"
-                : $"{LogSafe.Text(key)}={LogSafe.Text(part[(eq + 1)..])}");
-        }
-
-        return "?" + string.Join('&', rebuilt);
-    }
+        => RequestLogSanitizer.SanitizeQueryString(query);
 
     private async Task<string?> GetSafeRequestBodyAsync(HttpRequest request)
     {
