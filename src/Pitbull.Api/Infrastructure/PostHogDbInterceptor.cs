@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Pitbull.Core.Logging;
 using PostHog;
 
 namespace Pitbull.Api.Infrastructure;
@@ -196,10 +197,18 @@ public class PostHogDbInterceptor(
         if (httpContext is null) return "unknown";
 
         var endpoint = httpContext.GetEndpoint();
-        if (endpoint is not null)
-            return endpoint.DisplayName ?? httpContext.Request.Path.Value ?? "unknown";
+        if (endpoint is not null && !string.IsNullOrEmpty(endpoint.DisplayName))
+            return endpoint.DisplayName;
 
-        return $"{httpContext.Request.Method} {httpContext.Request.Path.Value}";
+        // Prefer route DisplayName; when falling back to Path, redact token-bearing segments
+        // (vendor-portal / invitation tokens) before PostHog Capture.
+        var safePath = RequestLogSanitizer.SanitizeRequestPathForLogging(httpContext.Request.Path.Value);
+        if (endpoint is not null)
+            return string.IsNullOrEmpty(safePath) ? "unknown" : safePath;
+
+        return string.IsNullOrEmpty(safePath)
+            ? httpContext.Request.Method
+            : $"{httpContext.Request.Method} {safePath}";
     }
 
     /// <summary>

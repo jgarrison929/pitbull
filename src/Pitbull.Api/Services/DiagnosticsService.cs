@@ -75,14 +75,20 @@ public class DiagnosticsService(PitbullDbContext db) : IDiagnosticsService
             ? null
             : LogSafe.Email(request.UserEmail);
 
+        // Token-bearing path/query segments (vendor-portal, invitation) are redacted before bounds.
+        // Callers may pre-sanitize; this is the central scrub so anonymous client reports stay safe.
+        var safePath = RequestLogSanitizer.SanitizeRequestPathForLogging(request.RequestPath);
+        var safeQuery = RequestLogSanitizer.SanitizeQueryString(request.QueryString);
+        var safePageUrl = RequestLogSanitizer.SanitizeRequestPathForLogging(request.PageUrl);
+
         var error = new DiagnosticError
         {
             Source = Bound(LogSafe.Text(request.Source), MaxShort) ?? "unknown",
             Level = Bound(LogSafe.Text(request.Level ?? "error"), MaxShort) ?? "error",
             HttpStatusCode = request.HttpStatusCode,
             RequestMethod = Bound(LogSafe.Text(request.RequestMethod), MaxMethod),
-            RequestPath = Bound(LogSafe.Text(request.RequestPath), MaxPath),
-            QueryString = Bound(LogSafe.Text(request.QueryString), MaxPath),
+            RequestPath = Bound(safePath, MaxPath),
+            QueryString = Bound(safeQuery, MaxPath),
             Message = Bound(LogSafe.Text(request.Message), MaxMessage) ?? string.Empty,
             ExceptionType = Bound(LogSafe.Text(request.ExceptionType), MaxExceptionType),
             StackTrace = Bound(LogSafe.Text(request.StackTrace), MaxStackTrace),
@@ -97,7 +103,7 @@ public class DiagnosticsService(PitbullDbContext db) : IDiagnosticsService
             IpAddress = Bound(LogSafe.Text(request.IpAddress), MaxIp),
             ComponentStack = Bound(LogSafe.Text(request.ComponentStack), MaxComponentStack),
             BrowserInfo = Bound(LogSafe.Text(request.BrowserInfo), MaxBrowserInfo),
-            PageUrl = Bound(LogSafe.Text(request.PageUrl), MaxPath),
+            PageUrl = Bound(safePageUrl, MaxPath),
             Metadata = Bound(LogSafe.Text(request.Metadata), MaxMetadata)
         };
 

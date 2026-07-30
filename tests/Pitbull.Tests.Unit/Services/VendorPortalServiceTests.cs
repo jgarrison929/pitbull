@@ -16,12 +16,14 @@ public class VendorPortalServiceTests : IDisposable
     private static readonly Guid TestVendorId = Guid.NewGuid();
     private static readonly Guid TestProjectId = Guid.NewGuid();
     private readonly PitbullDbContext _db;
+    private readonly TenantContext _tenantContext;
+    private readonly CompanyContext _companyContext;
     private readonly VendorPortalService _service;
 
     public VendorPortalServiceTests()
     {
-        var tenantContext = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
-        var companyContext = new CompanyContext
+        _tenantContext = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
+        _companyContext = new CompanyContext
         {
             CompanyId = TestCompanyId,
             CompanyCode = "01",
@@ -32,9 +34,10 @@ public class VendorPortalServiceTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        _db = new PitbullDbContext(options, tenantContext, companyContext);
+        _db = new PitbullDbContext(options, _tenantContext, _companyContext);
         _db.Database.EnsureCreated();
-        _service = new VendorPortalService(_db, NullLogger<VendorPortalService>.Instance);
+        _service = new VendorPortalService(
+            _db, NullLogger<VendorPortalService>.Instance, _tenantContext, _companyContext);
 
         SeedTestData().GetAwaiter().GetResult();
     }

@@ -89,9 +89,16 @@ public class RequestPerformanceMiddleware(
     private static string GetEndpoint(HttpContext context)
     {
         var endpoint = context.GetEndpoint();
-        if (endpoint is not null)
-            return endpoint.DisplayName ?? context.Request.Path.Value ?? "unknown";
+        if (endpoint is not null && !string.IsNullOrEmpty(endpoint.DisplayName))
+            return endpoint.DisplayName;
 
-        return $"{context.Request.Method} {context.Request.Path.Value}";
+        // Prefer route DisplayName; when falling back to Path, redact token-bearing segments.
+        var safePath = RequestLogSanitizer.SanitizeRequestPathForLogging(context.Request.Path.Value);
+        if (endpoint is not null)
+            return string.IsNullOrEmpty(safePath) ? "unknown" : safePath;
+
+        return string.IsNullOrEmpty(safePath)
+            ? context.Request.Method
+            : $"{context.Request.Method} {safePath}";
     }
 }

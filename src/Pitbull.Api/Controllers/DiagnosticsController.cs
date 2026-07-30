@@ -72,14 +72,16 @@ public class DiagnosticsController(IDiagnosticsService diagnosticsService) : Con
             return StatusCode(429, new { error = "Too many error reports. Try again later." });
 
         // Anonymous reports: force source, capture IP/UA, never trust client tenant/user claims.
-        // Field sanitization (LogSafe + length bounds + email fingerprint) is applied in DiagnosticsService.CreateAsync.
+        // Path/query/pageUrl token scrub + LogSafe + bounds + email fingerprint run in CreateAsync.
         var sanitizedRequest = request with
         {
             Source = "frontend",
             IpAddress = ip,
             UserAgent = request.UserAgent ?? Request.Headers.UserAgent.ToString(),
             TenantId = null,
-            UserId = null
+            UserId = null,
+            // Do not persist unauthenticated identity claims as a stable fingerprint.
+            UserEmail = null
         };
 
         var error = await diagnosticsService.CreateAsync(sanitizedRequest);

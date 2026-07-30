@@ -25,11 +25,13 @@ public sealed class MediumFixesTests : IDisposable
     private static readonly Guid TestTenantId = Guid.NewGuid();
     private static readonly Guid TestCompanyId = Guid.NewGuid();
     private readonly PitbullDbContext _db;
+    private readonly TenantContext _tenantCtx;
+    private readonly CompanyContext _companyCtx;
 
     public MediumFixesTests()
     {
-        var tenantCtx = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
-        var companyCtx = new CompanyContext
+        _tenantCtx = new TenantContext { TenantId = TestTenantId, TenantName = "Test" };
+        _companyCtx = new CompanyContext
         {
             CompanyId = TestCompanyId,
             CompanyCode = "01",
@@ -40,7 +42,7 @@ public sealed class MediumFixesTests : IDisposable
             .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
 
-        _db = new PitbullDbContext(options, tenantCtx, companyCtx);
+        _db = new PitbullDbContext(options, _tenantCtx, _companyCtx);
         _db.Database.EnsureCreated();
     }
 
@@ -423,7 +425,8 @@ public sealed class MediumFixesTests : IDisposable
     [Fact]
     public async Task VendorPortalToken_InvalidProjectId_ReturnsNotFound()
     {
-        var service = new VendorPortalService(_db, NullLogger<VendorPortalService>.Instance);
+        var service = new VendorPortalService(
+            _db, NullLogger<VendorPortalService>.Instance, _tenantCtx, _companyCtx);
 
         var vendorId = Guid.NewGuid();
         _db.Vendors.Add(new Vendor
@@ -443,7 +446,8 @@ public sealed class MediumFixesTests : IDisposable
     [Fact]
     public async Task VendorPortalToken_ValidProjectId_Succeeds()
     {
-        var service = new VendorPortalService(_db, NullLogger<VendorPortalService>.Instance);
+        var service = new VendorPortalService(
+            _db, NullLogger<VendorPortalService>.Instance, _tenantCtx, _companyCtx);
 
         var vendorId = Guid.NewGuid();
         _db.Vendors.Add(new Vendor
