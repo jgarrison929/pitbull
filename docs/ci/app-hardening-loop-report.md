@@ -190,3 +190,25 @@ Findings discovered (unique): 256
 - PM tables FORCE RLS still long-running.
 - Mobile/owner Playwright smoke flakiness.
 
+
+## Hourly appendix — 2026-07-30 21:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073021`
+
+### CI status (step 1)
+- **main green** — #452 CI + Push success; Dependabot metadata workflows green.
+- No new main failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges. Majors still open: #447 Resend, #446 QuestPDF, #443 Mapster 10, #439 OpenApi/Identity, #438 eslint 10, #436 types/node 26, #434 TS 7, #432 jsdom 30, #431 jest-dom 7, #429 node 26-alpine.
+
+### Shipped this hour
+- **rls:** Migration `AddPmTablesTenantRls` — ENABLE+FORCE RLS + tenant isolation policies on **68** `pm_*` Project Management tables (were EF-filter only).
+- **deps:** `System.Security.Cryptography.Xml` pin uses PrivateAssets to reduce NU1510 prune noise while keeping security pin.
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment (#439 OpenApi break).
+- Company-scoped RLS for pm_* (tenant-only this hour; CompanyId compound later).
+- Mobile/owner Playwright smoke flakiness.
+
