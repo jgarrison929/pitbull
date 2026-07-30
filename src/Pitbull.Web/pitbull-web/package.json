@@ -1,6 +1,6 @@
 {
   "name": "pitbull-web",
-  "version": "3.7.6",
+  "version": "3.7.7",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -57,8 +57,10 @@
   },
   "overrides": {
     "next": {
-      "postcss": "8.5.13"
+      "postcss": "8.5.23"
     },
+    "postcss": "8.5.23",
+    "brace-expansion": "5.0.8",
     "sharp": "0.35.3",
     "dompurify": "3.4.12"
   }
