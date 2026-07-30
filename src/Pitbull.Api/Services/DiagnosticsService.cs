@@ -187,6 +187,10 @@ public record DiagnosticErrorListResult(
     int PageSize
 );
 
+/// <summary>
+/// Full diagnostic create payload for server-side callers (middleware, services).
+/// Anonymous frontend reports must use <see cref="PublicDiagnosticErrorRequest"/> instead.
+/// </summary>
 public record CreateDiagnosticErrorRequest
 {
     public string Source { get; init; } = string.Empty;
@@ -209,6 +213,25 @@ public record CreateDiagnosticErrorRequest
     public string? BrowserInfo { get; init; }
     public string? PageUrl { get; init; }
     public string? Metadata { get; init; }
+}
+
+/// <summary>
+/// Slim public DTO for anonymous POST /api/diagnostics/errors.
+/// Omits TenantId/UserId/UserEmail and other attribution fields clients must not set.
+/// </summary>
+public record PublicDiagnosticErrorRequest
+{
+    public string? Level { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public string? ExceptionType { get; init; }
+    public string? StackTrace { get; init; }
+    public string? ComponentStack { get; init; }
+    public string? BrowserInfo { get; init; }
+    public string? PageUrl { get; init; }
+    public string? Metadata { get; init; }
+    public string? CorrelationId { get; init; }
+    public string? TraceId { get; init; }
+    public string? UserAgent { get; init; }
 }
 
 public record AcknowledgeRequest

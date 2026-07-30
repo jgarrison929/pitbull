@@ -33,7 +33,7 @@ public static class RoleProfileResolver
 
         // Title-based detection (first match wins, most specific first)
         if (MatchesAny(t, "CIO", "CTO", "CISO", "Information Officer", "Technology Officer", "Information Security",
-            "IT Manager", "IT Director", "VP of IT", "Director of IT"))
+            "IT Manager", "IT Director", "IT Administrator", "IT Admin", "VP of IT", "Director of IT"))
             return TourProfile.ItAdmin;
 
         if (MatchesAny(t, "HR", "Human Resources", "People Officer", "People Manager", "HR Coordinator", "HR Director"))

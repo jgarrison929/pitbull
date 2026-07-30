@@ -1193,44 +1193,10 @@ public class AuthController(
     /// <summary>
     /// Resolves RBAC permission claim values for JWT/profile.
     /// Uses IgnoreQueryFilters because login runs before tenant middleware sets context.
+    /// Demo users never receive permissions=* solely for being demo.
     /// </summary>
-    private async Task<string[]> ResolveRbacPermissionClaimsAsync(AppUser user, IList<string> identityRoles)
-    {
-        var adminRoleId = await db.RbacRoles
-            .AsNoTracking()
-            .IgnoreQueryFilters()
-            .Where(r => r.TenantId == user.TenantId && r.Name == PermissionConstants.RoleTemplates.Admin)
-            .Select(r => r.Id)
-            .FirstOrDefaultAsync();
-
-        var isRbacAdmin = adminRoleId != Guid.Empty
-            && await db.UserRolesMap
-                .AsNoTracking()
-                .IgnoreQueryFilters()
-                .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == adminRoleId);
-
-        if (!isRbacAdmin)
-            isRbacAdmin = identityRoles.Contains(RoleSeeder.Roles.Admin);
-
-        if (user.IsDemoUser || isRbacAdmin)
-            return [PermissionConstants.Wildcard];
-
-        return await db.RolePermissions
-            .AsNoTracking()
-            .IgnoreQueryFilters()
-            .Where(rp => rp.TenantId == user.TenantId
-                && db.UserRolesMap
-                    .IgnoreQueryFilters()
-                    .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
-            .Join(
-                db.Permissions.AsNoTracking().IgnoreQueryFilters(),
-                rp => rp.PermissionId,
-                p => p.Id,
-                (rp, p) => p.Name)
-            .Distinct()
-            .OrderBy(n => n)
-            .ToArrayAsync();
-    }
+    private Task<string[]> ResolveRbacPermissionClaimsAsync(AppUser user, IList<string> identityRoles) =>
+        RbacJwtPermissionResolver.ResolveAsync(db, user, identityRoles);
 
     private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {

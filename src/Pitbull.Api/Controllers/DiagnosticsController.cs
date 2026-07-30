@@ -60,27 +60,36 @@ public class DiagnosticsController(IDiagnosticsService diagnosticsService) : Con
     }
 
     /// <summary>
-    /// Report a frontend error (anonymous, rate-limited to 10/min/IP)
+    /// Report a frontend error (anonymous, rate-limited to 10/min/IP).
+    /// Accepts a slim public DTO only — TenantId/UserId/UserEmail and other attribution fields are ignored.
     /// </summary>
     [HttpPost("errors")]
     [AllowAnonymous]
-    public async Task<IActionResult> ReportError([FromBody] CreateDiagnosticErrorRequest request)
+    public async Task<IActionResult> ReportError([FromBody] PublicDiagnosticErrorRequest request)
     {
         // Rate limiting: 10 requests per minute per IP
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         if (!CheckRateLimit(ip))
             return StatusCode(429, new { error = "Too many error reports. Try again later." });
 
-        // Anonymous reports: force source, capture IP/UA, never trust client tenant/user claims.
-        // Path/query/pageUrl token scrub + LogSafe + bounds + email fingerprint run in CreateAsync.
-        var sanitizedRequest = request with
+        // Slim DTO only: never accept client TenantId/UserId/UserEmail/StackTrace forgery surface.
+        var sanitizedRequest = new CreateDiagnosticErrorRequest
         {
             Source = "frontend",
+            Level = request.Level,
+            Message = request.Message ?? string.Empty,
+            ExceptionType = request.ExceptionType,
+            StackTrace = request.StackTrace,
+            ComponentStack = request.ComponentStack,
+            BrowserInfo = request.BrowserInfo,
+            PageUrl = request.PageUrl,
+            Metadata = request.Metadata,
+            CorrelationId = request.CorrelationId,
+            TraceId = request.TraceId,
             IpAddress = ip,
             UserAgent = request.UserAgent ?? Request.Headers.UserAgent.ToString(),
             TenantId = null,
             UserId = null,
-            // Do not persist unauthenticated identity claims as a stable fingerprint.
             UserEmail = null
         };
 

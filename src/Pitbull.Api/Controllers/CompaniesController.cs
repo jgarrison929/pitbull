@@ -180,35 +180,9 @@ public class CompaniesController(
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Add RBAC permission claims (must match AuthController.GenerateJwtTokenAsync)
-        var isAdmin = await db.Set<UserRole>()
-            .AsNoTracking()
-            .AnyAsync(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId
-                && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
-
-        if (!isAdmin)
-            isAdmin = roles.Contains("Admin");
-
-        // Demo users and admins get wildcard — DemoRestrictionMiddleware enforces the real
-        // security boundary, so granting * here is safe for demo accounts.
-        if (user.IsDemoUser || isAdmin)
-        {
-            claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
-        }
-        else
-        {
-            var userPermissions = await db.Set<RolePermission>()
-                .AsNoTracking()
-                .Where(rp => rp.TenantId == user.TenantId
-                    && db.Set<UserRole>()
-                        .Any(ur => ur.UserId == user.Id && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
-                .Select(rp => rp.Permission.Name)
-                .Distinct()
-                .ToListAsync();
-
-            foreach (var perm in userPermissions)
-                claims.Add(new Claim("permissions", perm));
-        }
+        // Must match AuthController: demo users never get permissions=* solely for being demo.
+        foreach (var perm in await RbacJwtPermissionResolver.ResolveAsync(db, user, roles))
+            claims.Add(new Claim("permissions", perm));
 
         var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");
 

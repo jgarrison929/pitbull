@@ -60,7 +60,7 @@ Findings discovered (unique): 256
 - C# CodeQL default setup is weekly; force a scan after merges that touch C#.
 - Never reintroduce gstack.
 
-## Hourly appendix — 2026-07-30 15:58 UTC
+## Hourly appendix ï¿½ 2026-07-30 15:58 UTC
 
 **Branch:** `chore/app-hardening-hourly-2026073015` (PR pending)
 
@@ -81,11 +81,11 @@ Findings discovered (unique): 256
 - Demo users still get RBAC `permissions=*` (DemoRestrictionMiddleware is the write boundary; narrow allowlist if needed).
 - Vendor portal token lookup / RLS from token (IgnoreQueryFilters + set tenant).
 - CompanyMiddleware empty `CompanyId` ? tenant-wide visibility.
-- Anonymous diagnostics DTO slim + length caps (partially addressed in prior rounds — verify).
-- LogSafe backlog may be stale vs r1–r4 fixes — re-scan before re-fixing.
+- Anonymous diagnostics DTO slim + length caps (partially addressed in prior rounds ï¿½ verify).
+- LogSafe backlog may be stale vs r1ï¿½r4 fixes ï¿½ re-scan before re-fixing.
 
 
-## Hourly appendix — 2026-07-30 16:xx UTC
+## Hourly appendix ï¿½ 2026-07-30 16:xx UTC
 
 **Branch:** `chore/app-hardening-hourly-2026073016`
 
@@ -104,7 +104,7 @@ Findings discovered (unique): 256
 - Savorboard.CAP.InMemoryMessageQueue has no 10.0.1 on nuget (leave 10.0.0).
 
 
-## Hourly appendix — 2026-07-30 17:xx UTC
+## Hourly appendix ï¿½ 2026-07-30 17:xx UTC
 
 **Branch:** `chore/app-hardening-hourly-2026073017`
 
@@ -112,7 +112,7 @@ Findings discovered (unique): 256
 - No open hardening PRs (**#424** already MERGED).
 
 ### Shipped this hour
-- **demo auth:** Expanded DemoRestrictionMiddleware — full block on admin secrets/vault/api-keys, AI settings keys, bootstrap-admin, change-password; write-block payroll/bank/vendor-payments/export (GET still allowed).
+- **demo auth:** Expanded DemoRestrictionMiddleware ï¿½ full block on admin secrets/vault/api-keys, AI settings keys, bootstrap-admin, change-password; write-block payroll/bank/vendor-payments/export (GET still allowed).
 - **data:** DeadlineCheckService binds TenantContext (+ PG session when relational) per entity before CreateNotification (avoids Guid.Empty TenantId).
 - **validation:** AiChat caps SystemContext/PageContext lengths.
 - **deps:** Dependabot weekly for nuget/npm/e2e/docker/github-actions; higher PR limits.
@@ -120,10 +120,10 @@ Findings discovered (unique): 256
 ### Residual high items
 - Demo JWT still grants `permissions=*` (middleware enforces sensitive write boundaries; full persona RBAC mapping still open).
 - packages.lock.json / Docker image digests still open (Dependabot docker now watches Dockerfiles).
-- LogSafe backlog largely addressed in prior rounds — re-scan before re-fixing listed log-safe items.
+- LogSafe backlog largely addressed in prior rounds ï¿½ re-scan before re-fixing listed log-safe items.
 
 
-## Hourly appendix — 2026-07-30 18:xx UTC
+## Hourly appendix ï¿½ 2026-07-30 18:xx UTC
 
 **Branch:** `chore/app-hardening-hourly-2026073018`
 
@@ -140,5 +140,31 @@ Findings discovered (unique): 256
 - Demo JWT `permissions=*` still (middleware write boundary remains primary control).
 - packages.lock.json still not committed (optional follow-up).
 - Major Dependabot PRs need human judgment before merge (breaking majors).
-- Mobile/owner Playwright smokes failing on many deps PRs — likely env flakiness, not package-specific.
+- Mobile/owner Playwright smokes failing on many deps PRs ï¿½ likely env flakiness, not package-specific.
+
+
+## Hourly appendix â€” 2026-07-30 19:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073019`
+
+### CI status (step 1)
+- **main green** after #449 (PostHog 2.12.1 NU1605) + #450 (hardening-loop CI-first).
+- Historical red on #448 merge was NU1605 PostHog unit vs Api â€” fixed; no new main red to ship this hour.
+- Open Dependabot majors all red or major-risk â€” **not merged**: #447 Resend 0.8, #446 QuestPDF, #443 Mapster 10, #439 Identity/OpenApi (OpenApi Example readonly break), #438 eslint 10, #436 types/node 26, #434 TS 7, #432 jsdom 30, #431 jest-dom 7, #429 node 26-alpine.
+
+### Merged this hour
+- (shipping below)
+
+### Shipped this hour
+- **auth/demo:** Stop granting JWT `permissions=*` to demo users. Shared `RbacJwtPermissionResolver` for Auth + company-switch; real admins only get `*`; demo uses assigned RBAC roles or titleâ†’template fallback (never Admin template).
+- **rls:** `TenantConnectionInterceptor` always `set_config` tenant/company (empty sentinel when unresolved) so pooled connections cannot retain prior GUCs.
+- **validation:** Anonymous diagnostics POST uses slim `PublicDiagnosticErrorRequest` (no client TenantId/UserId/UserEmail).
+- **persona:** RoleProfileResolver recognizes "IT Administrator" / "IT Admin".
+- **tests:** `RbacJwtPermissionResolverTests` for template mapping.
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment (#439 OpenApi break; Resend/QuestPDF/Mapster majors).
+- PM tables still lack FORCE RLS in migrations (long-running).
+- Mobile/owner Playwright smokes still flaky on many dep PRs.
 

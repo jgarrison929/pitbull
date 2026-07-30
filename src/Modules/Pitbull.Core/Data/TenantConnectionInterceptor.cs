@@ -20,21 +20,25 @@ public class TenantConnectionInterceptor(ITenantContext tenantContext, ICompanyC
 
     private async Task EnsureTenantContextSet(DbConnection? connection, CancellationToken cancellationToken)
     {
-        // Skip if no tenant context or not PostgreSQL
-        if (tenantContext.TenantId == Guid.Empty || connection is not NpgsqlConnection npgsqlConn)
+        // Always apply on PostgreSQL so pooled connections never retain a prior request's GUCs.
+        // Empty tenant/company sentinels clear session state for login/bootstrap/system paths.
+        if (connection is not NpgsqlConnection npgsqlConn)
             return;
 
         try
         {
-            // Set tenant session variable
+            var tenantIdStr = tenantContext.TenantId == Guid.Empty
+                ? ""
+                : tenantContext.TenantId.ToString();
             await using var tenantCmd = new NpgsqlCommand(
                 "SELECT set_config('app.current_tenant', @tenantId, false);",
                 npgsqlConn);
-            tenantCmd.Parameters.AddWithValue("tenantId", tenantContext.TenantId.ToString());
+            tenantCmd.Parameters.AddWithValue("tenantId", tenantIdStr);
             await tenantCmd.ExecuteScalarAsync(cancellationToken);
 
-            // Set company session variable (empty string = all companies in tenant)
+            // Empty string = unresolved / all-companies depending on policy; always set.
             var companyIdStr = companyContext?.IsResolved == true
+                && companyContext.CompanyId != Guid.Empty
                 ? companyContext.CompanyId.ToString()
                 : "";
             await using var companyCmd = new NpgsqlCommand(
