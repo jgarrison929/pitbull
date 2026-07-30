@@ -41,15 +41,16 @@ public sealed class GetEmployeeStatsHandler(PitbullDbContext db)
     {
         try
         {
-            // Verify employee exists and get basic info
-            var employeeSql = $@"
-                SELECT ""Id"", ""FirstName"", ""LastName"", ""EmployeeNumber"", ""BaseHourlyRate""
+            // Verify employee exists and get basic info (parameterized — never interpolate Guids)
+            const string employeeSql = """
+                SELECT "Id", "FirstName", "LastName", "EmployeeNumber", "BaseHourlyRate"
                 FROM employees
-                WHERE ""Id"" = '{request.EmployeeId}'
-                  AND ""IsDeleted"" = false
-                LIMIT 1";
+                WHERE "Id" = {0}
+                  AND "IsDeleted" = false
+                LIMIT 1
+                """;
 
-            var employee = await db.Database.SqlQueryRaw<EmployeeRow>(employeeSql)
+            var employee = await db.Database.SqlQueryRaw<EmployeeRow>(employeeSql, request.EmployeeId)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (employee == null)
@@ -62,22 +63,23 @@ public sealed class GetEmployeeStatsHandler(PitbullDbContext db)
             // Get time entry stats
             // Note: Column name is "DoubletimeHours" (lowercase 't') per migration
             // Note: Aliases must match DTO property names exactly (EF Core raw SQL mapping)
-            var statsSql = $@"
+            const string statsSql = """
                 SELECT 
-                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
-                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
-                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours"",
-                    COUNT(*) as ""EntryCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 1) as ""ApprovedCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 0) as ""PendingCount"",
-                    COUNT(DISTINCT ""ProjectId"") as ""ProjectCount"",
-                    MIN(""Date"") as ""FirstDate"",
-                    MAX(""Date"") as ""LastDate""
+                    COALESCE(SUM("RegularHours"), 0) as "RegularHours",
+                    COALESCE(SUM("OvertimeHours"), 0) as "OvertimeHours",
+                    COALESCE(SUM("DoubletimeHours"), 0) as "DoubleTimeHours",
+                    COUNT(*) as "EntryCount",
+                    COUNT(*) FILTER (WHERE "Status" = 1) as "ApprovedCount",
+                    COUNT(*) FILTER (WHERE "Status" = 0) as "PendingCount",
+                    COUNT(DISTINCT "ProjectId") as "ProjectCount",
+                    MIN("Date") as "FirstDate",
+                    MAX("Date") as "LastDate"
                 FROM time_entries
-                WHERE ""EmployeeId"" = '{request.EmployeeId}'
-                  AND ""IsDeleted"" = false";
+                WHERE "EmployeeId" = {0}
+                  AND "IsDeleted" = false
+                """;
 
-            var stats = await db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql)
+            var stats = await db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql, request.EmployeeId)
                 .FirstAsync(cancellationToken);
 
             var totalHours = stats.RegularHours + stats.OvertimeHours + stats.DoubleTimeHours;

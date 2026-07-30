@@ -80,9 +80,29 @@ const ROLE_ICONS: Record<string, ReactNode> = {
   ca: <FileText className="h-5 w-5" />,
 };
 
+/** Allow only same-app relative paths; block protocol-relative and open-redirect shapes. */
 function safeRedirect(raw: string | null): string {
   if (!raw) return "/";
-  return raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  let path = raw;
+  try {
+    path = decodeURIComponent(raw);
+  } catch {
+    return "/";
+  }
+  // Reject absolute URLs, protocol-relative, backslash tricks, and credential-style paths.
+  if (
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.includes("\\") ||
+    path.includes("@") ||
+    path.includes("://") ||
+    /[\x00-\x1f]/.test(path)
+  ) {
+    return "/";
+  }
+  // Single leading slash only (no // after normalize).
+  if (path.slice(1).includes("//")) return "/";
+  return path;
 }
 
 function LoginForm() {

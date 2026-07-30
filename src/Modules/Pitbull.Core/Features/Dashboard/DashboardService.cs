@@ -75,23 +75,24 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
             var endDate = DateOnly.FromDateTime(DateTime.Today);
             var startDate = endDate.AddDays(-7 * weeks);
 
-            // Get weekly aggregated hours using raw SQL
+            // Get weekly aggregated hours using raw SQL (parameterized dates)
             // Note: Column name is "DoubletimeHours" (lowercase 't') per migration
             // Note: Aliases must match DTO property names exactly (EF Core raw SQL mapping)
-            var sql = $@"
+            const string sql = """
                 SELECT 
-                    DATE_TRUNC('week', ""Date""::timestamp)::date as ""WeekStart"",
-                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
-                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
-                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours""
+                    DATE_TRUNC('week', "Date"::timestamp)::date as "WeekStart",
+                    COALESCE(SUM("RegularHours"), 0) as "RegularHours",
+                    COALESCE(SUM("OvertimeHours"), 0) as "OvertimeHours",
+                    COALESCE(SUM("DoubletimeHours"), 0) as "DoubleTimeHours"
                 FROM time_entries
-                WHERE ""IsDeleted"" = false
-                  AND ""Date"" >= '{startDate:yyyy-MM-dd}'
-                  AND ""Date"" <= '{endDate:yyyy-MM-dd}'
-                GROUP BY DATE_TRUNC('week', ""Date""::timestamp)
-                ORDER BY ""WeekStart""";
+                WHERE "IsDeleted" = false
+                  AND "Date" >= {0}
+                  AND "Date" <= {1}
+                GROUP BY DATE_TRUNC('week', "Date"::timestamp)
+                ORDER BY "WeekStart"
+                """;
 
-            var rawData = await db.Database.SqlQueryRaw<WeeklyHoursRow>(sql)
+            var rawData = await db.Database.SqlQueryRaw<WeeklyHoursRow>(sql, startDate, endDate)
                 .ToListAsync(cancellationToken);
 
             // Build complete week list (fill in zeros for missing weeks)
@@ -443,42 +444,41 @@ public sealed class DashboardService(PitbullDbContext db) : IDashboardService
     {
         try
         {
-            // Build the SQL query to get RFIs needing attention
-            // Status = 'Open' (0) - only open RFIs need attention
+            // Status = 'Open' - only open RFIs need attention
             // Either overdue (DueDate < today) or ball-in-court = current user
-            var userFilter = userId.HasValue
-                ? $@"OR ""BallInCourtUserId"" = '{userId.Value}'"
-                : "";
-
-            var sql = $@"
+            // Parameterized: {0}=today, {1}=userId (null skips ball-in-court), {2}=limit
+            const string sql = """
                 SELECT 
-                    r.""Id"",
-                    r.""Number"",
-                    r.""Subject"",
-                    r.""ProjectId"",
-                    p.""Name"" as ""ProjectName"",
-                    p.""Number"" as ""ProjectNumber"",
-                    r.""Priority"",
-                    r.""DueDate"",
-                    r.""BallInCourtUserId"",
-                    r.""BallInCourtName""
+                    r."Id",
+                    r."Number",
+                    r."Subject",
+                    r."ProjectId",
+                    p."Name" as "ProjectName",
+                    p."Number" as "ProjectNumber",
+                    r."Priority",
+                    r."DueDate",
+                    r."BallInCourtUserId",
+                    r."BallInCourtName"
                 FROM rfis r
-                INNER JOIN projects p ON r.""ProjectId"" = p.""Id""
-                WHERE r.""IsDeleted"" = false
-                  AND p.""IsDeleted"" = false
-                  AND r.""Status"" = 'Open'
+                INNER JOIN projects p ON r."ProjectId" = p."Id"
+                WHERE r."IsDeleted" = false
+                  AND p."IsDeleted" = false
+                  AND r."Status" = 'Open'
                   AND (
-                      (r.""DueDate"" IS NOT NULL AND r.""DueDate"" < '{today:yyyy-MM-dd}'::timestamp)
-                      {userFilter}
+                      (r."DueDate" IS NOT NULL AND r."DueDate" < {0}::timestamp)
+                      OR ({1}::uuid IS NOT NULL AND r."BallInCourtUserId" = {1})
                   )
                 ORDER BY 
-                    CASE WHEN r.""DueDate"" IS NOT NULL AND r.""DueDate"" < '{today:yyyy-MM-dd}'::timestamp THEN 0 ELSE 1 END,
-                    r.""DueDate"" ASC NULLS LAST,
-                    r.""Priority"" DESC,
-                    r.""CreatedAt"" DESC
-                LIMIT {limit}";
+                    CASE WHEN r."DueDate" IS NOT NULL AND r."DueDate" < {0}::timestamp THEN 0 ELSE 1 END,
+                    r."DueDate" ASC NULLS LAST,
+                    r."Priority" DESC,
+                    r."CreatedAt" DESC
+                LIMIT {2}
+                """;
 
-            var rawData = await db.Database.SqlQueryRaw<RfiAttentionRow>(sql)
+            // DBNull so the {1}::uuid IS NOT NULL branch is false when no user filter is requested.
+            object userIdParam = userId.HasValue ? userId.Value : DBNull.Value;
+            var rawData = await db.Database.SqlQueryRaw<RfiAttentionRow>(sql, today, userIdParam, limit)
                 .ToListAsync(cancellationToken);
 
             return rawData.Select(r =>

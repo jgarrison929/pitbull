@@ -41,15 +41,16 @@ public sealed class GetProjectStatsHandler(PitbullDbContext db)
     {
         try
         {
-            // Verify project exists
-            var projectSql = $@"
-                SELECT ""Id"", ""Name"", ""Number""
+            // Verify project exists (parameterized — never interpolate Guids)
+            const string projectSql = """
+                SELECT "Id", "Name", "Number"
                 FROM projects
-                WHERE ""Id"" = '{request.ProjectId}'
-                  AND ""IsDeleted"" = false
-                LIMIT 1";
+                WHERE "Id" = {0}
+                  AND "IsDeleted" = false
+                LIMIT 1
+                """;
 
-            var project = await db.Database.SqlQueryRaw<ProjectRow>(projectSql)
+            var project = await db.Database.SqlQueryRaw<ProjectRow>(projectSql, request.ProjectId)
                 .FirstOrDefaultAsync(cancellationToken);
 
             if (project == null)
@@ -62,49 +63,52 @@ public sealed class GetProjectStatsHandler(PitbullDbContext db)
             // Get time entry stats
             // Note: Column name is "DoubletimeHours" (lowercase 't') per migration
             // Note: Aliases must match DTO property names exactly (EF Core raw SQL mapping)
-            var statsSql = $@"
+            const string statsSql = """
                 SELECT 
-                    COALESCE(SUM(""RegularHours""), 0) as ""RegularHours"",
-                    COALESCE(SUM(""OvertimeHours""), 0) as ""OvertimeHours"",
-                    COALESCE(SUM(""DoubletimeHours""), 0) as ""DoubleTimeHours"",
-                    COUNT(*) as ""EntryCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 1) as ""ApprovedCount"",
-                    COUNT(*) FILTER (WHERE ""Status"" = 0) as ""PendingCount"",
-                    MIN(""Date"") as ""FirstDate"",
-                    MAX(""Date"") as ""LastDate""
+                    COALESCE(SUM("RegularHours"), 0) as "RegularHours",
+                    COALESCE(SUM("OvertimeHours"), 0) as "OvertimeHours",
+                    COALESCE(SUM("DoubletimeHours"), 0) as "DoubleTimeHours",
+                    COUNT(*) as "EntryCount",
+                    COUNT(*) FILTER (WHERE "Status" = 1) as "ApprovedCount",
+                    COUNT(*) FILTER (WHERE "Status" = 0) as "PendingCount",
+                    MIN("Date") as "FirstDate",
+                    MAX("Date") as "LastDate"
                 FROM time_entries
-                WHERE ""ProjectId"" = '{request.ProjectId}'
-                  AND ""IsDeleted"" = false";
+                WHERE "ProjectId" = {0}
+                  AND "IsDeleted" = false
+                """;
 
-            var stats = await db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql)
+            var stats = await db.Database.SqlQueryRaw<TimeEntryStatsRow>(statsSql, request.ProjectId)
                 .FirstAsync(cancellationToken);
 
             // Get assigned employee count
-            var employeeCountSql = $@"
-                SELECT COUNT(DISTINCT ""EmployeeId"") as ""Value""
+            const string employeeCountSql = """
+                SELECT COUNT(DISTINCT "EmployeeId") as "Value"
                 FROM project_assignments
-                WHERE ""ProjectId"" = '{request.ProjectId}'
-                  AND ""IsActive"" = true";
+                WHERE "ProjectId" = {0}
+                  AND "IsActive" = true
+                """;
 
-            var employeeCountResult = await db.Database.SqlQueryRaw<ScalarInt>(employeeCountSql)
+            var employeeCountResult = await db.Database.SqlQueryRaw<ScalarInt>(employeeCountSql, request.ProjectId)
                 .FirstAsync(cancellationToken);
             var employeeCount = employeeCountResult.Value;
 
             // Calculate labor cost (simple: hours * average rate)
             // For more accurate costing, use the full LaborCostCalculator
-            var laborCostSql = $@"
+            const string laborCostSql = """
                 SELECT COALESCE(SUM(
-                    (te.""RegularHours"" * e.""BaseHourlyRate"") +
-                    (te.""OvertimeHours"" * e.""BaseHourlyRate"" * 1.5) +
-                    (te.""DoubletimeHours"" * e.""BaseHourlyRate"" * 2.0)
-                ), 0) as ""Value""
+                    (te."RegularHours" * e."BaseHourlyRate") +
+                    (te."OvertimeHours" * e."BaseHourlyRate" * 1.5) +
+                    (te."DoubletimeHours" * e."BaseHourlyRate" * 2.0)
+                ), 0) as "Value"
                 FROM time_entries te
-                JOIN employees e ON te.""EmployeeId"" = e.""Id""
-                WHERE te.""ProjectId"" = '{request.ProjectId}'
-                  AND te.""IsDeleted"" = false
-                  AND te.""Status"" = 1";
+                JOIN employees e ON te."EmployeeId" = e."Id"
+                WHERE te."ProjectId" = {0}
+                  AND te."IsDeleted" = false
+                  AND te."Status" = 1
+                """;
 
-            var laborCostResult = await db.Database.SqlQueryRaw<ScalarDecimal>(laborCostSql)
+            var laborCostResult = await db.Database.SqlQueryRaw<ScalarDecimal>(laborCostSql, request.ProjectId)
                 .FirstAsync(cancellationToken);
             var laborCost = laborCostResult.Value;
 

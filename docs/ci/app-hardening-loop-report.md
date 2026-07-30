@@ -59,3 +59,28 @@ Findings discovered (unique): 256
 - Open GitHub issues and Dependabot alerts were empty at planning time; prioritize CodeQL C# residuals and code quality.
 - C# CodeQL default setup is weekly; force a scan after merges that touch C#.
 - Never reintroduce gstack.
+
+## Hourly appendix — 2026-07-30 15:58 UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073015` (PR pending)
+
+### Merged this hour
+- No open hardening PRs; **#422** already MERGED.
+- Workflow `app-hardening-loop` launched in parallel.
+
+### Shipped this hour
+- **critical/auth:** `POST /api/auth/register` rejects client `TenantId` (no open tenant join by GUID; invitations only).
+- **auth:** `ChangePassword` forbidden for `IsDemoUser` / `@demo.local`.
+- **auth:** `bootstrap-admin` requires non-blank `Demo:UserEmail` + exact email match (blank no longer escalates any principal).
+- **api:** Bid create always `Draft`; create validator allows only Draft/Submitted.
+- **validation:** `SimilarRfis` length caps (500/4000).
+- **frontend:** `safeRedirect` hardened (decode, block `\`, `@`, `//`, control chars).
+- **data/CodeQL:** Parameterized `SqlQueryRaw` in EmployeeService, GetEmployeeStats, ProjectService stats, GetProjectStats, Dashboard weekly hours + RFI attention.
+
+### Residual high items (next hours)
+- Demo users still get RBAC `permissions=*` (DemoRestrictionMiddleware is the write boundary; narrow allowlist if needed).
+- Vendor portal token lookup / RLS from token (IgnoreQueryFilters + set tenant).
+- CompanyMiddleware empty `CompanyId` ? tenant-wide visibility.
+- Anonymous diagnostics DTO slim + length caps (partially addressed in prior rounds — verify).
+- LogSafe backlog may be stale vs r1–r4 fixes — re-scan before re-fixing.
+
