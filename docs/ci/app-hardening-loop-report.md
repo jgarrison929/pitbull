@@ -122,3 +122,23 @@ Findings discovered (unique): 256
 - packages.lock.json / Docker image digests still open (Dependabot docker now watches Dockerfiles).
 - LogSafe backlog largely addressed in prior rounds — re-scan before re-fixing listed log-safe items.
 
+
+## Hourly appendix — 2026-07-30 18:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073018`
+
+### Merged this hour (Dependabot backlog)
+- Merged: **#427** setup-dotnet, **#428** setup-node, **#430** Playwright e2e, **#433** lucide-react, **#435** posthog-js, **#437** vite plugin-react, **#440** AWSSDK.S3, **#441** Hangfire.AspNetCore 1.8.24 (plus earlier pulls on main).
+- Closed conflicting **#442** Hangfire.Core (superseded by pin below).
+- Left open (major/risk): TS 7, eslint 10, node 26, Mapster 10, QuestPDF major, Resend 0.8, jest-dom 7, jsdom 30, types/node 26, microsoft group.
+
+### Shipped this hour
+- **deps:** Align Hangfire.Core to **1.8.24** with Hangfire.AspNetCore (remove version skew).
+- **validation:** Expand AiInputSanitizer patterns (disregard/forget, act as, jailbreak, developer mode, developer:); unit tests.
+
+### Residual high items
+- Demo JWT `permissions=*` still (middleware write boundary remains primary control).
+- packages.lock.json still not committed (optional follow-up).
+- Major Dependabot PRs need human judgment before merge (breaking majors).
+- Mobile/owner Playwright smokes failing on many deps PRs — likely env flakiness, not package-specific.
+

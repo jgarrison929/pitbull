@@ -124,16 +124,21 @@ public static partial class AiInputSanitizer
     [GeneratedRegex(@"[`""'\\\n\r{}\[\]]")]
     private static partial Regex PromptDelimiters();
 
-    // Matches common prompt injection patterns (case-insensitive):
-    //  - "ignore previous/above/all instructions/prompts"
-    //  - "system:" or "SYSTEM:" at line start
-    //  - "you are now..." role reassignment
-    //  - "new instructions:" / "override:" directives
-    //  - Markdown-style system blocks ```system
+    // Matches common prompt injection patterns (case-insensitive). Defense-in-depth only —
+    // length limits remain the primary control. Keep construction field language intact.
+    //  - ignore/disregard/forget previous/above/all/prior instructions
+    //  - system: / developer: at line start
+    //  - you are now / act as / jailbreak / developer mode
+    //  - new instructions / override
+    //  - Markdown-style ```system blocks
     [GeneratedRegex(
-        @"(?i)(?:ignore\s+(?:previous|above|all|prior)\s+(?:instructions|prompts|directives))|" +
+        @"(?i)(?:(?:ignore|disregard|forget)\s+(?:previous|above|all|prior)\s+(?:instructions|prompts|directives|rules))|" +
         @"(?:^system\s*:)|" +
+        @"(?:^developer\s*:)|" +
         @"(?:you\s+are\s+now\b)|" +
+        @"(?:act\s+as\s+(?:if|a|an|the)\b)|" +
+        @"(?:\bjailbreak\b)|" +
+        @"(?:developer\s+mode)|" +
         @"(?:new\s+instructions?\s*:)|" +
         @"(?:override\s*:)|" +
         @"(?:```\s*system)",
