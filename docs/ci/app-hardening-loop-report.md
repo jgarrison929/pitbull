@@ -212,3 +212,24 @@ Findings discovered (unique): 256
 - Company-scoped RLS for pm_* (tenant-only this hour; CompanyId compound later).
 - Mobile/owner Playwright smoke flakiness.
 
+
+## Hourly appendix — 2026-07-30 22:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073022`
+
+### CI status (step 1)
+- **main green** — #453 CI + Push success.
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges. Majors left open: #447 Resend, #446 QuestPDF, #443 Mapster 10, #439 OpenApi/Identity, #438 eslint 10, #436 types/node 26, #434 TS 7, #432 jsdom, #431 jest-dom 7, #429 node 26-alpine.
+
+### Shipped this hour
+- **rls:** Migration `AddFinancialAndOpsTablesTenantRls` — ENABLE+FORCE RLS + tenant isolation on **~70** residual high-value tables (owner contracts/billing, lien waivers, notifications, vendors/customers, payroll, banking/GL, AI keys, secret vault, RBAC, vendor portal tokens, etc.).
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- Company-scoped compound RLS for multi-company tables (beyond original CompanyTables set).
+- Mobile/owner Playwright smoke flakiness.
+
