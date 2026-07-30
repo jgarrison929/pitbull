@@ -109,6 +109,81 @@ public class TenantMiddlewareTests
         Assert.True(nextCalled, "Non-API paths should pass through");
     }
 
-    // NOTE: Tenant resolution from JWT claim and X-Tenant-Id header tests require a real
-    // relational DB (for ExecuteSqlInterpolatedAsync RLS setup) — tested in integration tests.
+    // ── Authenticated: X-Tenant-Id must not supply tenant when JWT lacks tenant_id ──
+
+    [Fact]
+    public async Task InvokeAsync_Returns401_ForAuthenticatedApi_WithHeaderOnly_NoJwtTenant()
+    {
+        var nextCalled = false;
+        var middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/api/projects";
+        context.Request.Headers["X-Tenant-Id"] = TestTenantId.ToString();
+        context.Response.Body = new MemoryStream();
+
+        var identity = new ClaimsIdentity(
+            new[] { new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()) },
+            "Bearer");
+        context.User = new ClaimsPrincipal(identity);
+
+        using var db = TestDbContextFactory.Create();
+        var tenantContext = new TenantContext();
+
+        await middleware.InvokeAsync(context, tenantContext, db);
+
+        Assert.False(nextCalled, "Header must not establish tenant for JWT principals without tenant_id");
+        Assert.Equal(401, context.Response.StatusCode);
+        Assert.False(tenantContext.IsResolved);
+    }
+
+    // ── Authenticated: mismatched X-Tenant-Id vs JWT tenant_id is rejected ──
+
+    [Fact]
+    public async Task InvokeAsync_Returns401_WhenAuthenticatedHeaderMismatchesJwtTenant()
+    {
+        var nextCalled = false;
+        var middleware = CreateMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        var jwtTenant = TestTenantId;
+        var forgedTenant = Guid.NewGuid();
+
+        var context = new DefaultHttpContext();
+        context.Request.Path = "/api/projects";
+        context.Request.Headers["X-Tenant-Id"] = forgedTenant.ToString();
+        context.Response.Body = new MemoryStream();
+
+        var identity = new ClaimsIdentity(
+            new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
+                new Claim("tenant_id", jwtTenant.ToString()),
+            },
+            "Bearer");
+        context.User = new ClaimsPrincipal(identity);
+
+        using var db = TestDbContextFactory.Create();
+        var tenantContext = new TenantContext();
+
+        await middleware.InvokeAsync(context, tenantContext, db);
+
+        Assert.False(nextCalled, "Mismatched X-Tenant-Id must not reach handlers");
+        Assert.Equal(401, context.Response.StatusCode);
+        Assert.False(tenantContext.IsResolved);
+
+        context.Response.Body.Seek(0, SeekOrigin.Begin);
+        var body = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        Assert.Contains("does not match", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // NOTE: Successful JWT tenant resolution (set_config) requires a relational DB —
+    // covered in integration tests. Matching header + claim is allowed and uses claim.
 }

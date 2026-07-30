@@ -168,3 +168,25 @@ Findings discovered (unique): 256
 - PM tables still lack FORCE RLS in migrations (long-running).
 - Mobile/owner Playwright smokes still flaky on many dep PRs.
 
+
+## Hourly appendix — 2026-07-30 20:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073020`
+
+### CI status (step 1)
+- **main green** — #451 CI + Push on main success.
+- No new main failures to fix; historical #448 NU1605 remains fixed via #449.
+
+### Dependabot (step 2)
+- No safe patch/minor merges. Open majors left alone: #447 Resend, #446 QuestPDF, #443 Mapster 10, #439 Identity/OpenApi, #438 eslint 10, #436 types/node 26, #434 TS 7, #432 jsdom 30, #431 jest-dom 7, #429 node 26-alpine.
+
+### Shipped this hour
+- **auth/rls:** TenantMiddleware — authenticated principals use JWT `tenant_id` only; `X-Tenant-Id` cannot supply tenant without claim; mismatched header vs claim → 401. Unit tests for header-only and mismatch.
+- **deps/frontend:** Removed unused `patch-package` + empty postinstall (no patches/).
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- PM tables FORCE RLS still long-running.
+- Mobile/owner Playwright smoke flakiness.
+
