@@ -3,14 +3,14 @@
 // Fix agents write into the shared workspace (no worktree isolation).
 let meta = #{
     name: "app-hardening-loop",
-    description: "Loop discover→fix→verify over CodeQL residuals, dependency risk, data integrity, and code quality until dry or budget floor",
+    description: "CI-first then discover→fix→verify over security, deps, data integrity, and code quality until dry or budget floor",
     phases: [
-        #{ title: "Inventory", detail: "Read-only scan of security, data, quality surfaces" },
-        #{ title: "Loop", detail: "Prioritize and fix highest-value issues each round" },
-        #{ title: "Verify", detail: "Build/tests and adversarial confirmation" },
+        #{ title: "Inventory", detail: "Read-only scan of CI failures, security, data, quality surfaces" },
+        #{ title: "Loop", detail: "Prioritize CI reds then highest-value issues each round" },
+        #{ title: "Verify", detail: "Restore/build/tests and adversarial confirmation" },
         #{ title: "Synthesize", detail: "Write durable hardening report" },
     ],
-    when_to_use: "When Dependabot/issues are quiet but CodeQL, logging hygiene, data integrity, or code quality still need continuous improvement",
+    when_to_use: "Hourly hardening and when main CI is red or CodeQL/deps/quality need continuous improvement",
 };
 
 let findings_schema = #{
@@ -63,15 +63,17 @@ if args != () && args.focus != () {
 
 let max_rounds = 4;
 // Fixed deterministic domain shards (no discovery-agent scope leak).
+// CI / package alignment is first so fix rounds prefer red main over polish.
 let domains = [
+    "CI and failed GitHub Actions: NU1605 package downgrades across csproj (Api vs Tests.Unit/Integration), Hangfire/PostHog/IdentityModel version skew, ESLint brace-expansion/minimatch overrides, broken integration tests from security merges; inspect package.json overrides and all PackageReference pins",
     "CodeQL log-forging and sensitive log data: LogSafe usage, raw emails/tokens in ILogger calls under src/Pitbull.Api and src/Modules",
     "AuthN/Z and demo safety: AuthController, DemoRestrictionMiddleware, IsDemoUser, JWT claims, RBAC permissions",
     "Multi-tenant data isolation: TenantMiddleware, RLS session config, ICompanyScoped, IgnoreQueryFilters misuse",
     "Input validation and injection: SQL raw queries, AiInputSanitizer, open redirects, mass assignment",
-    "Dependency and supply chain: package.json, csproj PackageReference versions, obsolete packages, NU warnings",
+    "Dependency and supply chain: package.json, csproj PackageReference versions, obsolete packages, NU warnings — never leave sibling projects on older package versions",
     "Data integrity: SaveChanges UTC, soft-delete filters, money decimal precision, WIP/billing consistency",
     "API error handling quality: ExceptionMiddleware, Result failures, nullability, empty catch blocks",
-    "Frontend quality: raw fetch without api.ts, localStorage secrets, XSS sinks, dead routes, TypeScript any abuse",
+    "Frontend quality: raw fetch without api.ts, localStorage secrets, XSS sinks, dead routes, TypeScript any abuse, npm run lint must not crash",
 ];
 
 fn finding_key(f) {
@@ -137,8 +139,9 @@ fn build_fix_prompt(findings_blob, focus) {
     p += "(2) Do not add MediatR to controllers or reintroduce gstack. ";
     p += "(3) Keep changes small and correct; add/adjust unit tests when behavior changes. ";
     p += "(4) Do not commit secrets. Do not force-push. Do not amend published commits. ";
-    p += "(5) Run targeted tests: dotnet test tests/Pitbull.Tests.Unit --filter LogSafe when touching LogSafe. ";
-    p += "(6) If blocked (needs secrets, external systems), set blocked=true and explain. ";
+    p += "(5) After ANY package or csproj change run: dotnet restore Pitbull.sln and ensure zero NU1605. ";
+    p += "(6) Run targeted tests: dotnet test tests/Pitbull.Tests.Unit --filter LogSafe when touching LogSafe; npm run lint for web. ";
+    p += "(7) If blocked (needs secrets, external systems), set blocked=true and explain. ";
     p += "Return changed_files, summary, tests_run. ";
     p
 }
@@ -247,11 +250,12 @@ while round < max_rounds {
         phase("Verify");
         let verify_prompt = "";
         verify_prompt += "Adversarially verify the latest hardening edits in the Pitbull repo. ";
-        verify_prompt += "Use read_file/grep/run_terminal_command. Prefer: ";
-        verify_prompt += "dotnet test tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj --filter FullyQualifiedName~LogSafe --no-restore 2>&1 | tail or Select-Object; ";
-        verify_prompt += "or dotnet build src/Pitbull.Api/Pitbull.Api.csproj if restore already done. ";
-        verify_prompt += "Set ok=true only if build/tests look healthy for touched surfaces and LogSafe/email logging is not regressing. ";
-        verify_prompt += "List residual_risks briefly.";
+        verify_prompt += "Use read_file/grep/run_terminal_command. MUST: ";
+        verify_prompt += "dotnet restore Pitbull.sln (fail if NU1605 or restore errors); ";
+        verify_prompt += "dotnet build src/Pitbull.Api/Pitbull.Api.csproj; ";
+        verify_prompt += "and targeted unit tests for touched surfaces (LogSafe/Auth/DemoRestriction as relevant). ";
+        verify_prompt += "If package.json or eslint changed, run npm run lint in src/Pitbull.Web/pitbull-web. ";
+        verify_prompt += "Set ok=true only if restore+build(+lint) are healthy. List residual_risks briefly.";
         let v = agent(verify_prompt, #{
             label: "verify-r" + round.to_string(),
             capability_mode: "execute",
