@@ -65,7 +65,7 @@ namespace Pitbull.Api.Migrations
             // Notifications / prefs
             "notifications",
             "notification_preferences",
-            "deadline_notifications",
+            // deadline_notifications has no TenantId (global dedup tracker) — skip
             "email_digest_settings",
             "dashboard_preferences",
             // AI / admin secrets / RBAC
@@ -86,7 +86,7 @@ namespace Pitbull.Api.Migrations
             "import_batches",
             "field_mappings",
             "feedback",
-            "password_reset_tokens",
+            // password_reset_tokens has no TenantId — skip
         ];
 
         /// <inheritdoc />
