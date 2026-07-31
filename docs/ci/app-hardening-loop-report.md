@@ -257,3 +257,25 @@ Findings discovered (unique): 256
 - Company-scoped compound RLS incomplete.
 - Mobile/owner Playwright smoke flakiness.
 
+
+## Hourly appendix — 2026-07-31 00:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073100`
+
+### CI status (step 1)
+- **main green** — #455 CI + Push success.
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors still open).
+
+### Shipped this hour
+- **e2e:** Fix owner-signup smoke — login h1 is `Welcome` / `Try the demo`, not `Welcome back` (was hard-failing on main/deps PRs).
+- **auth:** TeamInvitationService binds TenantContext + PG session vars after pre-tenant token hash lookup (mirror vendor portal); company GUC when present; Tenant load uses IgnoreQueryFilters.
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- Mobile field-report smoke still flaky (Playwright Network.getResponseBody).
+- rbac_*/roles still without FORCE RLS; company-scoped compound RLS incomplete.
+

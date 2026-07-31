@@ -37,7 +37,11 @@ test.describe("Owner signup public flow", () => {
     await page.goto("/login");
     await page.waitForLoadState("networkidle");
 
-    await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible();
+    // Login h1 is "Welcome" (or "Try the demo" when demo roles are shown) — not "Welcome back"
+    // (toast copy only). Match either so CI works with Demo:Enabled on or off.
+    await expect(
+      page.getByRole("heading", { name: /^(Welcome|Try the demo)$/i })
+    ).toBeVisible({ timeout: 20_000 });
 
     const signupLink = page.getByRole("link", { name: /create an account/i });
     await expect(signupLink).toBeVisible();
