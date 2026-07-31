@@ -503,9 +503,10 @@ public class AuthController(
     /// <response code="200">Token refreshed successfully</response>
     /// <response code="401">Invalid or expired refresh token</response>
     [HttpPost("refresh")]
-    [EnableRateLimiting("api")]
+    [EnableRateLimiting("refresh")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.RefreshToken))
@@ -575,7 +576,7 @@ public class AuthController(
     /// <response code="401">Not authenticated or current password incorrect</response>
     [HttpPost("change-password")]
     [Microsoft.AspNetCore.Authorization.Authorize]
-    [EnableRateLimiting("api")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -667,7 +668,7 @@ public class AuthController(
     /// <response code="404">Demo mode not enabled</response>
     [HttpPost("bootstrap-admin")]
     [Microsoft.AspNetCore.Authorization.Authorize]
-    [EnableRateLimiting("api")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

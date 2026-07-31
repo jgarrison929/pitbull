@@ -523,3 +523,23 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment (Resend/QuestPDF/Mapster/node/eslint/TS).
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 13:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073113`
+
+### CI status (step 1)
+- **main green** — #472 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **rate-limit:** dedicated `refresh` limiter (30/min prod, 120/min dev); `change-password` + `bootstrap-admin` use stricter `auth` (5/min).
+- **jwt:** ClockSkew 1m; MapInboundClaims=false; explicit Name/Role claim types.
+- **cookies:** Identity cookie HttpOnly + Secure + SameSite=Strict (defense in depth; JWT remains primary).
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

@@ -384,9 +384,16 @@ builder.Services.AddIdentity<AppUser, AppRole>(options =>
 // Role seeder for RBAC
 builder.Services.AddScoped<RoleSeeder>();
 
-// Prevent Identity cookie auth from redirecting API requests
+// Prevent Identity cookie auth from redirecting API requests.
+// Harden cookie flags even though JWT is the primary scheme (defense in depth).
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.Name = "Pitbull.Identity";
+    options.SlidingExpiration = true;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.Events.OnRedirectToLogin = context =>
     {
         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -408,17 +415,23 @@ builder.Services.AddAuthentication(options =>
 })
     .AddJwtBearer(options =>
     {
+        // Keep JWT claim types as issued (e.g. "role" / custom names) rather than long URI claim types.
+        options.MapInboundClaims = false;
         options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
         {
             ValidateIssuer = true,
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            // Default clock skew is 5 minutes; keep a small window for clock drift without long token afterlife.
+            ClockSkew = TimeSpan.FromMinutes(1),
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
                 System.Text.Encoding.UTF8.GetBytes(
-                    builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured")))
+                    builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured"))),
+            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
+            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
         };
     });
 
@@ -638,7 +651,16 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueLimit = 0;
     });
 
-    // General auth fallback (currently unused but could be applied broadly)
+    // Refresh: slightly higher than login in prod (multi-tab) but far below generic API limits.
+    var refreshPermitLimit = builder.Environment.IsDevelopment() ? 120 : 30;
+    options.AddFixedWindowLimiter("refresh", opt =>
+    {
+        opt.PermitLimit = refreshPermitLimit;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+
+    // Sensitive auth mutations (change-password, bootstrap-admin, etc.)
     options.AddFixedWindowLimiter("auth", opt =>
     {
         opt.PermitLimit = 5;
