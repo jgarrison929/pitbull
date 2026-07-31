@@ -279,3 +279,27 @@ Findings discovered (unique): 256
 - Mobile field-report smoke still flaky (Playwright Network.getResponseBody).
 - rbac_*/roles still without FORCE RLS; company-scoped compound RLS incomplete.
 
+
+## Hourly appendix — 2026-07-31 01:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073101`
+
+### CI status (step 1)
+- **main green** — #456 CI + Push success.
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors still open).
+
+### Shipped this hour
+- **e2e:** Mobile field-report smoke —
+  1) stop `response.text()` after post-submit navigation (Playwright body protocol error);
+  2) wait for non-401 create response so token-refresh retry is not mistaken for failure;
+  3) persist **refreshToken** in persona storageState (was always missing → refresh after 401 always failed);
+  4) inject fresh field JWT before submit path.
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles still without FORCE RLS; company-scoped compound RLS incomplete.
+
