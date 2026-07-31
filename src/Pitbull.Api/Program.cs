@@ -433,6 +433,8 @@ builder.Services.AddAuthentication(options =>
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            // Reject "none" / asymmetric algorithm confusion; we only mint HMAC-SHA256.
+            ValidAlgorithms = new[] { Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256 },
             // Default clock skew is 5 minutes; keep a small window for clock drift without long token afterlife.
             ClockSkew = TimeSpan.FromMinutes(1),
             ValidIssuer = builder.Configuration["Jwt:Issuer"],

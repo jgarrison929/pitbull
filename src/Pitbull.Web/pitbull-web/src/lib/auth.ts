@@ -25,7 +25,10 @@ export function setToken(token: string): void {
 export function removeToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
-  document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
+  // Match set attributes so browsers clear the Strict/Secure cookie reliably.
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:";
+  document.cookie = `${TOKEN_KEY}=; path=/; max-age=0; SameSite=Strict${secure ? "; Secure" : ""}`;
 }
 
 export function getRefreshToken(): string | null {

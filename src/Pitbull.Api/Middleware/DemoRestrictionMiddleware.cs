@@ -40,6 +40,8 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/export",
         // Cross-tenant job UI — platform operators only (also gated by HangfireDashboardAuthFilter).
         "/hangfire",
+        // CAP bus dashboard is Development-only; block demo principals if ever enabled.
+        "/cap",
     ];
 
     /// <summary>

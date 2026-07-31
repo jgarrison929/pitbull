@@ -202,7 +202,8 @@ public class InvitationController(
     /// </summary>
     [HttpGet("token/{token}")]
     [AllowAnonymous]
-    [EnableRateLimiting("api")]
+    // Stricter than generic API: token is a secret capability (enumeration / spray resistance).
+    [EnableRateLimiting("register")]
     [ProducesResponseType(typeof(TeamInvitationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetInvitationByToken(string token, CancellationToken ct)

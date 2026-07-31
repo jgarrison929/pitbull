@@ -52,9 +52,40 @@ public class JwtTokenServiceTests
         jwt.Claims.Should().Contain(c => c.Type == "job_title" && c.Value == "Chief Executive Officer");
         jwt.Claims.Should().Contain(c => c.Type == "role_profile");
         jwt.Claims.Should().Contain(c => c.Type == "tenant_id" && c.Value == TestTenantId.ToString());
+        jwt.Claims.Should().Contain(c => c.Type == JwtRegisteredClaimNames.Jti && !string.IsNullOrEmpty(c.Value));
         // Demo users must not get wildcard solely for being demo (no Admin RBAC).
         jwt.Claims.Where(c => c.Type == "permissions").Select(c => c.Value)
             .Should().NotContain("*");
+    }
+
+    [Fact]
+    public async Task CreateAccessToken_IssuesUniqueJtiPerToken()
+    {
+        using var db = TestDbContextFactory.Create();
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "jti@test.com",
+            NormalizedEmail = "JTI@TEST.COM",
+            UserName = "jti@test.com",
+            NormalizedUserName = "JTI@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "J",
+            LastName = "Ti",
+            Status = UserStatus.Active
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var svc = new JwtTokenService(db, CreateConfiguration());
+        var a = await svc.CreateAccessTokenAsync(user, new List<string>());
+        var b = await svc.CreateAccessTokenAsync(user, new List<string>());
+        var jtiA = new JwtSecurityTokenHandler().ReadJwtToken(a).Id;
+        var jtiB = new JwtSecurityTokenHandler().ReadJwtToken(b).Id;
+        // JwtSecurityToken.Id maps to jti when present
+        jtiA.Should().NotBeNullOrEmpty();
+        jtiB.Should().NotBeNullOrEmpty();
+        jtiA.Should().NotBe(jtiB);
     }
 
     [Fact]

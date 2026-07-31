@@ -1,12 +1,14 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Pitbull.Api.Controllers;
 
 [ApiController]
 [Route("api/version")]
 [AllowAnonymous]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("System")]
 public class VersionController : ControllerBase
