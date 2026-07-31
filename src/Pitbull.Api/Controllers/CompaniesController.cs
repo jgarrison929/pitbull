@@ -35,7 +35,7 @@ public class CompaniesController(
     ICompanyContext companyContext,
     UserManager<AppUser> userManager,
     RoleSeeder roleSeeder,
-    IConfiguration configuration,
+    IJwtTokenService jwtTokenService,
     ICacheService cacheService) : ControllerBase
 {
     // Suppress unused parameter warning - tenantContext reserved for future use
@@ -143,61 +143,17 @@ public class CompaniesController(
         if (user.Status != UserStatus.Active)
             return this.UnauthorizedError("User is not active");
 
-        // Generate new JWT with updated company_id
+        // Shared issuer — company switch must not drop demo / persona / permission claims.
         var roles = await roleSeeder.GetUserRolesAsync(user);
-        var token = await GenerateJwtTokenAsync(user, companyId, companyContext.AccessibleCompanyIds, roles);
+        var token = await jwtTokenService.CreateAccessTokenAsync(
+            user,
+            roles,
+            activeCompanyId: companyId,
+            companyIds: companyContext.AccessibleCompanyIds);
 
         return Ok(new CompanySwitchResponse(
             Token: token,
             Company: MapToResponse(company)));
-    }
-
-    private async Task<string> GenerateJwtTokenAsync(AppUser user, Guid activeCompanyId, IReadOnlyList<Guid> companyIds, IList<string> roles)
-    {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var roleProfile = RoleProfileResolver.Detect(user.Title, roles);
-
-        var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email!),
-            new("tenant_id", user.TenantId.ToString()),
-            new("full_name", user.FullName),
-            new("user_type", user.Type.ToString()),
-            new("company_id", activeCompanyId.ToString()),
-            new("company_ids", string.Join(",", companyIds)),
-            new("role_profile", RoleProfileResolver.ToApiName(roleProfile)),
-        };
-
-        if (!string.IsNullOrWhiteSpace(user.Title))
-            claims.Add(new Claim("job_title", user.Title));
-
-        // Must match AuthController — company switch must not drop demo / persona claims.
-        if (user.IsDemoUser)
-            claims.Add(new Claim("is_demo_user", "true"));
-
-        foreach (var role in roles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
-        }
-
-        // Must match AuthController: demo users never get permissions=* solely for being demo.
-        foreach (var perm in await RbacJwtPermissionResolver.ResolveAsync(db, user, roles))
-            claims.Add(new Claim("permissions", perm));
-
-        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");
-
-        var token = new JwtSecurityToken(
-            issuer: configuration["Jwt:Issuer"],
-            audience: configuration["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expiration),
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     private static CompanyResponse MapToResponse(Company c) => new(

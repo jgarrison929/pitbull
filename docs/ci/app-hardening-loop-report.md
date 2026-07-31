@@ -434,3 +434,26 @@ Findings discovered (unique): 256
 - Dependabot NuGet PRs under locked-mode need full-graph lock updates (watch for NU1004).
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 09:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073109`
+
+### CI status (step 1)
+- **main green** — #468 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe NuGet patch/minor open (only majors).
+- **jsdom 30** (#464) fully green on prior base but 2 commits behind main — rebased bump shipped here (devDependency).
+- Left open: #447 Resend, #446 QuestPDF, #443 Mapster, #463 node 25, #438 eslint 10, #436 types/node 26, #434 TS 7, #431 jest-dom 7.
+
+### Shipped this hour
+- **auth:** Shared `IJwtTokenService` / `JwtTokenService` for login, company switch, invitation accept (single claim set: is_demo_user, job_title, role_profile, permissions via RbacJwtPermissionResolver).
+- **deps:** jsdom **29.1.1 → 30.0.0** (devDependency; CI was green on #464).
+- **tests:** `JwtTokenServiceTests` for demo claims + company switch company_id.
+
+### Residual high items
+- Close #464 after merge (superseded).
+- Major Dependabot PRs need human judgment (Resend/QuestPDF/Mapster/node/eslint/TS).
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

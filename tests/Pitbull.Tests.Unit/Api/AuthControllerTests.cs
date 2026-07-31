@@ -151,6 +151,8 @@ public class AuthControllerTests
         scopeMock.Setup(s => s.ServiceProvider).Returns(spMock.Object);
         scopeFactoryMock.Setup(f => f.CreateScope()).Returns(scopeMock.Object);
 
+        var jwtTokenService = new Pitbull.Api.Services.JwtTokenService(db, config);
+
         var controller = new AuthController(
             umMock.Object,
             smMock.Object,
@@ -163,6 +165,7 @@ public class AuthControllerTests
             tc,
             tenantProvisioning,
             scopeFactoryMock.Object,
+            jwtTokenService,
             Mock.Of<ILogger<AuthController>>());
 
         // Set up HttpContext with claims
