@@ -34,6 +34,7 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/admin/api-keys",
         "/api/ai/settings",
         "/api/auth/bootstrap-admin",
+        "/api/admin/users/bootstrap-admin",
         "/api/auth/change-password",
         // Export downloads are sensitive (GET is the data-exfiltration path).
         "/api/export",

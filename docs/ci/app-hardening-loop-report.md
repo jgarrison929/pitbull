@@ -676,3 +676,25 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 20:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073120`
+
+### CI status (step 1)
+- **main green** — #479 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **critical/auth:** `POST /api/admin/users/bootstrap-admin` now requires **email + password** (`CheckPasswordSignInAsync`); no longer elevates by email alone.
+- **authz:** Bootstrap grants **Admin only** (removed bulk Manager/Supervisor/User grant).
+- **auth:** Inactive users cannot bootstrap; generic 400 on all failures (no enumeration).
+- **demo:** Full-block `/api/admin/users/bootstrap-admin`.
+- **tests:** password required / wrong password / Admin-only assignment.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

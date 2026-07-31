@@ -128,6 +128,7 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/api/admin/api-keys")]
     [InlineData("/api/ai/settings")]
     [InlineData("/api/auth/bootstrap-admin")]
+    [InlineData("/api/admin/users/bootstrap-admin")]
     [InlineData("/api/auth/change-password")]
     [InlineData("/hangfire")]
     [InlineData("/hangfire/recurring")]
