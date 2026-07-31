@@ -148,6 +148,12 @@ public class AdminUsersController(
             if (!Enum.TryParse<UserStatus>(request.Status, out var status))
                 return BadRequest(new { error = "Invalid user status value" });
             user.Status = status;
+            // Leaving Active invalidates refresh so the account cannot rotate tokens until reactivated.
+            if (status != UserStatus.Active)
+            {
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
+            }
         }
 
         // Update employee link — validate it belongs to the same tenant

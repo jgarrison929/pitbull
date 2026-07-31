@@ -570,6 +570,32 @@ public class AuthControllerTests
     }
 
     [Fact]
+    public async Task DemoRoleLogin_WhenPersonaInactive_ReturnsUnauthorized()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var signInManager = CreateMockSignInManager(userManager);
+
+        var user = CreateTestUser(email: "ceo@demo.local", firstName: "Demo", lastName: "CEO");
+        user.Status = UserStatus.Inactive;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var password = "PitbullDemo2026!";
+        userManager.Setup(u => u.FindByEmailAsync("ceo@demo.local")).ReturnsAsync(user);
+        signInManager.Setup(s => s.CheckPasswordSignInAsync(user, password, false))
+            .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
+
+        var controller = CreateController(db, userManager,
+            signInManager: signInManager,
+            demoOptions: CreateDemoOptions(enabled: true, userPassword: password));
+
+        var result = await controller.DemoRoleLogin(new DemoRoleLoginRequest("ceo"));
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+    }
+
+    [Fact]
     public void ListDemoRoles_WhenDemoEnabled_ReturnsSixPersonas()
     {
         using var db = TestDbContextFactory.Create();

@@ -389,6 +389,10 @@ public class AuthController(
         if (!passwordOk.Succeeded)
             return this.UnauthorizedError("Demo persona credentials are invalid. Contact the operator.");
 
+        // Deactivated personas must not mint tokens even when the shared demo password still matches.
+        if (user.Status != UserStatus.Active)
+            return this.UnauthorizedError("Demo persona is not active");
+
         // Ensure demo flag so JWT includes is_demo_user and admin APIs stay read-only
         user.LastLoginAt = DateTime.UtcNow;
         if (!user.IsDemoUser)

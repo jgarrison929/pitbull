@@ -5,14 +5,16 @@
 # =============================================================================
 
 # --- Stage 1: Dependencies ---
-FROM node:22-alpine AS deps
+# Pin by digest for supply-chain integrity (tag kept for human readability).
+# Digest resolved 2026-07-31 from Docker Hub multi-arch index for node:22-alpine.
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS deps
 WORKDIR /app
 
 COPY src/Pitbull.Web/pitbull-web/package.json src/Pitbull.Web/pitbull-web/package-lock.json* ./
 RUN npm ci --production=false
 
 # --- Stage 2: Build ---
-FROM node:22-alpine AS build
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS build
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -34,7 +36,7 @@ ENV NEXT_PUBLIC_COMMIT_HASH=${COMMIT_HASH}
 RUN npm run build
 
 # --- Stage 3: Runtime ---
-FROM node:22-alpine AS runtime
+FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production

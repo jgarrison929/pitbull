@@ -139,6 +139,10 @@ public class CompaniesController(
         if (user is null)
             return this.UnauthorizedError("User not found");
 
+        // Deactivated / locked accounts must not reissue JWTs via company switch.
+        if (user.Status != UserStatus.Active)
+            return this.UnauthorizedError("User is not active");
+
         // Generate new JWT with updated company_id
         var roles = await roleSeeder.GetUserRolesAsync(user);
         var token = await GenerateJwtTokenAsync(user, companyId, companyContext.AccessibleCompanyIds, roles);
