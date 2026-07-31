@@ -303,3 +303,24 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles still without FORCE RLS; company-scoped compound RLS incomplete.
 
+
+## Hourly appendix — 2026-07-31 03:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073103`
+
+### CI status (step 1)
+- **main green** — #457 CI fully green (including mobile + owner smokes).
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges. Majors left open (Resend/QuestPDF/Mapster/OpenApi/eslint/TS/node). Mapster #443 has green .NET/FE/role but is a major.
+
+### Shipped this hour
+- **rls:** Migration `UpgradeCompanyScopedRlsPolicies` — replace tenant-only policies with compound **tenant + company** isolation (empty company GUC = all companies in tenant) on **41** ICompanyScoped tables (owner/billing, AP/AR, payroll, banking/GL, WIP, key pm_*).
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles still without FORCE RLS (login pre-tenant).
+- Remaining pm_* tables still tenant-only RLS (not full compound set).
+
