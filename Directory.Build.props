@@ -13,6 +13,6 @@
     <!-- GHSA-v5pm-xwqc-g5wc: Microsoft.OpenApi &lt;= 2.7.4 / &lt;= 3.5.3 stack-overflow on circular refs.
          Stay on 2.x: Microsoft.OpenApi 3.x makes IOpenApiMediaType.Example read-only and breaks
          Microsoft.AspNetCore.OpenApi 10.0.x XmlCommentGenerator (CS0200). Do not bump to 3.x until ASP.NET Core OpenAPI supports it. -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
   </ItemGroup>
 </Project>
