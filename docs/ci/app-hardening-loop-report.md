@@ -545,3 +545,25 @@ Findings discovered (unique): 256
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 - Role E2E / mobile smokes can flake (Docker Hub timeouts; Next navigation ERR_ABORTED).
 
+
+## Hourly appendix — 2026-07-31 14:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073114`
+
+### CI status (step 1)
+- **main green** — #473 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe major merges. posthog-js patch shipped.
+
+### Shipped this hour
+- **authz:** PermissionAuthorizationHandler ignores `permissions=*` for demo principals (`is_demo_user` / `@demo.local`) — defense in depth for old tokens.
+- **rate-limit:** 429 responses include `Retry-After: 60` + `code: RATE_LIMITED`.
+- **ci:** capture-workflow-evidence.ps1 uses Path.GetTempPath() (Linux TEMP null).
+- **deps:** posthog-js **1.409.5** (npm audit 0).
+- **tests:** demo wildcard ignored / exact permission still works.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
