@@ -1,5 +1,5 @@
 param(
-    [string]$ScratchDir = "$env:TEMP\grok-goal-evidence",
+    [string]$ScratchDir = "",
     [switch]$SkipPlaywright,
     [string]$ApiUrl = "http://localhost:5081",
     [string]$WebUrl = "http://localhost:3000"
@@ -7,6 +7,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = Split-Path -Parent $PSScriptRoot
+# Linux CI pwsh often has empty $env:TEMP; Path.GetTempPath() is cross-platform.
+if ([string]::IsNullOrWhiteSpace($ScratchDir)) {
+    $ScratchDir = Join-Path ([System.IO.Path]::GetTempPath()) "grok-goal-evidence"
+}
 New-Item -ItemType Directory -Force -Path $ScratchDir | Out-Null
 
 $unitLog = Join-Path $ScratchDir "unit-workflow-evidence.log"

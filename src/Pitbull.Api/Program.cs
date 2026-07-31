@@ -735,8 +735,10 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (context, token) =>
     {
         context.HttpContext.Response.StatusCode = 429;
+        // Hint clients to back off; windows are typically 60s for login/refresh/api policies.
+        context.HttpContext.Response.Headers.RetryAfter = "60";
         await context.HttpContext.Response.WriteAsJsonAsync(
-            new { error = "Too many requests. Try again later." }, token);
+            new { error = "Too many requests. Try again later.", code = "RATE_LIMITED" }, token);
     };
 });
 

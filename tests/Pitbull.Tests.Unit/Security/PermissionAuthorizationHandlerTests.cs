@@ -218,4 +218,53 @@ public class PermissionAuthorizationHandlerTests
         context.HasSucceeded.Should().BeFalse(
             "empty permission claim should not match anything");
     }
+
+    [Fact]
+    public async Task DemoUser_WildcardIsIgnored_FailsWithoutExactPermission()
+    {
+        var claims = new[]
+        {
+            new Claim("is_demo_user", "true"),
+            new Claim("permissions", "*"),
+        };
+        var context = CreateContext("Admin.Users", claims);
+
+        await _handler.HandleAsync(context);
+
+        context.HasSucceeded.Should().BeFalse(
+            "demo principals must not escalate via permissions=*");
+    }
+
+    [Fact]
+    public async Task DemoUser_ExactPermissionStillSucceeds()
+    {
+        var claims = new[]
+        {
+            new Claim("is_demo_user", "true"),
+            new Claim("permissions", "*"),
+            new Claim("permissions", "Projects.View"),
+        };
+        var context = CreateContext("Projects.View", claims);
+
+        await _handler.HandleAsync(context);
+
+        context.HasSucceeded.Should().BeTrue(
+            "demo users keep exact RBAC permissions for explore UX");
+    }
+
+    [Fact]
+    public async Task DemoLocalEmail_WildcardIsIgnored()
+    {
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Email, "ceo@demo.local"),
+            new Claim("permissions", "*"),
+        };
+        var context = CreateContext("Payroll.Process", claims);
+
+        await _handler.HandleAsync(context);
+
+        context.HasSucceeded.Should().BeFalse(
+            "@demo.local email fallback must ignore wildcard");
+    }
 }

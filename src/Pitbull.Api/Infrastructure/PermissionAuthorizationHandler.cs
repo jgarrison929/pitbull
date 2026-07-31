@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Pitbull.Core.Constants;
 
@@ -14,7 +15,7 @@ public sealed class PermissionRequirement(string permission) : IAuthorizationReq
 /// <summary>
 /// Evaluates whether the current user has the required permission.
 /// Checks JWT "permissions" claims for:
-///   1. Wildcard "*" — immediate success (Admin role)
+///   1. Wildcard "*" — immediate success for real admins only (never for demo principals)
 ///   2. Exact match — the user has the specific permission
 /// If neither matches, the handler does NOT call context.Succeed(),
 /// which causes ASP.NET Core to deny by default.
@@ -31,13 +32,22 @@ public sealed class PermissionAuthorizationHandler : AuthorizationHandler<Permis
         if (user.Identity is not { IsAuthenticated: true })
             return Task.CompletedTask;
 
+        // Defense in depth: demo JWTs must never escalate via permissions=*, even if an
+        // old token still carries wildcard (mint path no longer grants * for demo).
+        var isDemoPrincipal = user.HasClaim("is_demo_user", "true")
+            || user.FindAll(ClaimTypes.Email)
+                .Any(c => c.Value.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase));
+
         var permissionClaims = user.FindAll(PermissionClaimType);
 
         foreach (var claim in permissionClaims)
         {
-            // Wildcard: Admin has all permissions
+            // Wildcard: real Admin only
             if (claim.Value == PermissionConstants.Wildcard)
             {
+                if (isDemoPrincipal)
+                    continue;
+
                 context.Succeed(requirement);
                 return Task.CompletedTask;
             }
