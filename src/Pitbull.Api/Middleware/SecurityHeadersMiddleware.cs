@@ -25,12 +25,15 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
         // Content-Security-Policy: For API, we want to prevent any content execution
         context.Response.Headers.Append("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none';");
 
-        // Permissions-Policy: Disable all browser features for API endpoints
+        // Permissions-Policy: disable powerful browser features (API does not use them).
         context.Response.Headers.Append("Permissions-Policy",
-            "geolocation=(self), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()");
+            "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()");
 
         // Cross-Origin-Resource-Policy: keep API responses same-origin by default (CORS still gates browsers).
         context.Response.Headers.Append("Cross-Origin-Resource-Policy", "same-origin");
+
+        // Cross-Origin-Opener-Policy: isolate any accidental document navigations from cross-origin openers.
+        context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin");
 
         // Never cache API responses (JWTs, PII, financial DTOs must not land in shared caches).
         context.Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate");
