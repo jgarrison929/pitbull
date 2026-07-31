@@ -4,9 +4,9 @@
     "net10.0": {
       "Microsoft.OpenApi": {
         "type": "Direct",
-        "requested": "[2.7.5, )",
-        "resolved": "2.7.5",
-        "contentHash": "0FA67RSnRM4tcBKqiqVu/HPdZ9+QOKbmeRjxRUGTCjPU4C0bmUhd97Dso7Yild5P7nOV6GxJ2xrK0Kv/O9xp0w=="
+        "requested": "[3.9.0, )",
+        "resolved": "3.9.0",
+        "contentHash": "2sDK6AFY1L/Xg8JvwlaDoPwzGqCftjUgHG2NhCy8gNV/1v4eXziYoH39e/pwC7oTBJInuYUUJqfkRpIMPQ/Fyw=="
       },
       "System.Security.Cryptography.Xml": {
         "type": "Direct",
@@ -371,7 +371,7 @@
       "pitbull.contracts": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[3.9.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
@@ -386,14 +386,14 @@
           "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore": "[10.0.10, )",
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.10, )",
           "Microsoft.EntityFrameworkCore": "[10.0.10, )",
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[3.9.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )"
         }
       },
       "pitbull.projects": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[3.9.0, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.RFIs": "[1.0.0, )"
@@ -402,7 +402,7 @@
       "pitbull.rfis": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[3.9.0, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }

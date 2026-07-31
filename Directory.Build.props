@@ -11,6 +11,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
     <!-- GHSA-v5pm-xwqc-g5wc: Microsoft.OpenApi &lt;= 2.7.4 / &lt;= 3.5.3 stack-overflow on circular refs -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
+    <PackageReference Include="Microsoft.OpenApi" Version="3.9.0" />
   </ItemGroup>
 </Project>
