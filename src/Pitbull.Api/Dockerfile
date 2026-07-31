@@ -12,32 +12,32 @@ WORKDIR /app
 COPY Directory.Build.props ./
 COPY Pitbull.sln ./
 
-# Copy all .csproj files (for layer caching)
-COPY src/Pitbull.Api/Pitbull.Api.csproj src/Pitbull.Api/
-COPY src/Modules/Pitbull.Core/Pitbull.Core.csproj src/Modules/Pitbull.Core/
-COPY src/Modules/Pitbull.Projects/Pitbull.Projects.csproj src/Modules/Pitbull.Projects/
-COPY src/Modules/Pitbull.Bids/Pitbull.Bids.csproj src/Modules/Pitbull.Bids/
-COPY src/Modules/Pitbull.RFIs/Pitbull.RFIs.csproj src/Modules/Pitbull.RFIs/
-COPY src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj src/Modules/Pitbull.Contracts/
-COPY src/Modules/Pitbull.Documents/Pitbull.Documents.csproj src/Modules/Pitbull.Documents/
-COPY src/Modules/Pitbull.Portal/Pitbull.Portal.csproj src/Modules/Pitbull.Portal/
-COPY src/Modules/Pitbull.Billing/Pitbull.Billing.csproj src/Modules/Pitbull.Billing/
-COPY src/Modules/Pitbull.TimeTracking/Pitbull.TimeTracking.csproj src/Modules/Pitbull.TimeTracking/
-COPY src/Modules/Pitbull.ProjectManagement/Pitbull.ProjectManagement.csproj src/Modules/Pitbull.ProjectManagement/
-COPY src/Modules/Pitbull.AI/Pitbull.AI.csproj src/Modules/Pitbull.AI/
-COPY src/Modules/Pitbull.Notifications/Pitbull.Notifications.csproj src/Modules/Pitbull.Notifications/
-COPY src/Modules/Pitbull.SystemAdmin/Pitbull.SystemAdmin.csproj src/Modules/Pitbull.SystemAdmin/
-COPY src/Modules/Pitbull.Reports/Pitbull.Reports.csproj src/Modules/Pitbull.Reports/
-COPY src/Infrastructure/Pitbull.Email/Pitbull.Email.csproj src/Infrastructure/Pitbull.Email/
-COPY src/Infrastructure/Pitbull.Storage/Pitbull.Storage.csproj src/Infrastructure/Pitbull.Storage/
-COPY src/Infrastructure/Pitbull.Messaging/Pitbull.Messaging.csproj src/Infrastructure/Pitbull.Messaging/
+# Copy all .csproj + packages.lock.json (for layer caching + locked restore)
+COPY src/Pitbull.Api/Pitbull.Api.csproj src/Pitbull.Api/packages.lock.json src/Pitbull.Api/
+COPY src/Modules/Pitbull.Core/Pitbull.Core.csproj src/Modules/Pitbull.Core/packages.lock.json src/Modules/Pitbull.Core/
+COPY src/Modules/Pitbull.Projects/Pitbull.Projects.csproj src/Modules/Pitbull.Projects/packages.lock.json src/Modules/Pitbull.Projects/
+COPY src/Modules/Pitbull.Bids/Pitbull.Bids.csproj src/Modules/Pitbull.Bids/packages.lock.json src/Modules/Pitbull.Bids/
+COPY src/Modules/Pitbull.RFIs/Pitbull.RFIs.csproj src/Modules/Pitbull.RFIs/packages.lock.json src/Modules/Pitbull.RFIs/
+COPY src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj src/Modules/Pitbull.Contracts/packages.lock.json src/Modules/Pitbull.Contracts/
+COPY src/Modules/Pitbull.Documents/Pitbull.Documents.csproj src/Modules/Pitbull.Documents/packages.lock.json src/Modules/Pitbull.Documents/
+COPY src/Modules/Pitbull.Portal/Pitbull.Portal.csproj src/Modules/Pitbull.Portal/packages.lock.json src/Modules/Pitbull.Portal/
+COPY src/Modules/Pitbull.Billing/Pitbull.Billing.csproj src/Modules/Pitbull.Billing/packages.lock.json src/Modules/Pitbull.Billing/
+COPY src/Modules/Pitbull.TimeTracking/Pitbull.TimeTracking.csproj src/Modules/Pitbull.TimeTracking/packages.lock.json src/Modules/Pitbull.TimeTracking/
+COPY src/Modules/Pitbull.ProjectManagement/Pitbull.ProjectManagement.csproj src/Modules/Pitbull.ProjectManagement/packages.lock.json src/Modules/Pitbull.ProjectManagement/
+COPY src/Modules/Pitbull.AI/Pitbull.AI.csproj src/Modules/Pitbull.AI/packages.lock.json src/Modules/Pitbull.AI/
+COPY src/Modules/Pitbull.Notifications/Pitbull.Notifications.csproj src/Modules/Pitbull.Notifications/packages.lock.json src/Modules/Pitbull.Notifications/
+COPY src/Modules/Pitbull.SystemAdmin/Pitbull.SystemAdmin.csproj src/Modules/Pitbull.SystemAdmin/packages.lock.json src/Modules/Pitbull.SystemAdmin/
+COPY src/Modules/Pitbull.Reports/Pitbull.Reports.csproj src/Modules/Pitbull.Reports/packages.lock.json src/Modules/Pitbull.Reports/
+COPY src/Infrastructure/Pitbull.Email/Pitbull.Email.csproj src/Infrastructure/Pitbull.Email/packages.lock.json src/Infrastructure/Pitbull.Email/
+COPY src/Infrastructure/Pitbull.Storage/Pitbull.Storage.csproj src/Infrastructure/Pitbull.Storage/packages.lock.json src/Infrastructure/Pitbull.Storage/
+COPY src/Infrastructure/Pitbull.Messaging/Pitbull.Messaging.csproj src/Infrastructure/Pitbull.Messaging/packages.lock.json src/Infrastructure/Pitbull.Messaging/
 
-# Test projects are in Pitbull.sln — copy csproj only for restore graph
-COPY tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj tests/Pitbull.Tests.Unit/
-COPY tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj tests/Pitbull.Tests.Integration/
+# Test projects are in Pitbull.sln — copy csproj + locks for restore graph
+COPY tests/Pitbull.Tests.Unit/Pitbull.Tests.Unit.csproj tests/Pitbull.Tests.Unit/packages.lock.json tests/Pitbull.Tests.Unit/
+COPY tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj tests/Pitbull.Tests.Integration/packages.lock.json tests/Pitbull.Tests.Integration/
 
-# Restore dependencies (now all .csproj and .sln files are present)
-RUN dotnet restore Pitbull.sln
+# Restore with lock files for reproducible supply chain (matches CI --locked-mode)
+RUN dotnet restore Pitbull.sln --locked-mode
 
 # Build args for version info (keep in sync with root VERSION / package.json / csproj)
 ARG VERSION=3.7.7
