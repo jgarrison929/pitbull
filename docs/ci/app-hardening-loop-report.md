@@ -457,3 +457,26 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment (Resend/QuestPDF/Mapster/node/eslint/TS).
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 10:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073110`
+
+### CI status (step 1)
+- **main green** — #469 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe NuGet patch/minor open (only majors: Resend/QuestPDF/Mapster NU1004 or API risk).
+- eslint 10 (#438) fails FE build; node 25 (#463) fully green but major runtime (skip — stay on 22-alpine digests).
+- jest-dom 7 / TS 7 / types/node 26 still majors.
+
+### Shipped this hour
+- **deps/npm:** Override `minimatch` → **10.2.5** (pulls brace-expansion **5.0.9**) for eslint/eslint-plugins — **npm audit 0** (was 9 high GHSA-mh99-v99m-4gvg). Lint OK.
+- **logging:** LogSafe.Text on IntegrationExport EntityType/Format and DataImport preview type.
+- Full package-lock refresh after clean install.
+
+### Residual high items
+- Major Dependabot PRs need human judgment (Resend/QuestPDF/Mapster/node/eslint/TS).
+- jsdom 30.0.1 engine wants Node ≥22.22.2 (CI Node 22 OK; local NVM 24 shows EBADENGINE warn only).
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
