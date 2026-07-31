@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Services;
 using Pitbull.Core.Entities;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Controllers;
 
@@ -148,7 +149,7 @@ public class DataImportController(
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
-            logger.LogWarning(ex, "Import preview failed for type {Type}", type);
+            logger.LogWarning(ex, "Import preview failed for type {Type}", LogSafe.Text(type));
             return BadRequest(new { error = "Import preview failed. Please check the file format.", code = "IMPORT_ERROR" });
         }
     }

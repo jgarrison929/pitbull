@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Services;
+using Pitbull.Core.Logging;
 
 namespace Pitbull.Api.Controllers;
 
@@ -42,7 +43,8 @@ public class IntegrationExportController(
         }
         catch (ArgumentException ex)
         {
-            logger.LogWarning(ex, "Integration export failed for {EntityType} in {Format}", request.EntityType, request.Format);
+            logger.LogWarning(ex, "Integration export failed for {EntityType} in {Format}",
+                LogSafe.Text(request.EntityType), LogSafe.Text(request.Format));
             return BadRequest(new { error = ex.Message });
         }
     }
