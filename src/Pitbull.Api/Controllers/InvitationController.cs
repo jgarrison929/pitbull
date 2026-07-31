@@ -1,18 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Infrastructure;
 using Pitbull.Api.Services;
-using Pitbull.Core.Constants;
 using Pitbull.Core.Data;
-using Pitbull.Core.Domain;
-using Pitbull.Core.Entities;
 using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Api.Controllers;

@@ -600,16 +600,19 @@ builder.Services.AddOpenApi("v1", options =>
     });
 });
 
-// CORS
+// CORS — Production uses credentials; require explicit non-wildcard origins outside Development.
+var corsOrigins = Pitbull.Api.Configuration.CorsOriginGuard.Normalize(
+    builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>());
+Pitbull.Api.Configuration.CorsOriginGuard.ValidateForEnvironment(
+    corsOrigins, builder.Environment.IsDevelopment());
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Dev", policy =>
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 
     options.AddPolicy("Production", policy =>
-        policy.WithOrigins(
-                builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                ?? Array.Empty<string>())
+        policy.WithOrigins(corsOrigins.Length > 0 ? corsOrigins : new[] { "https://invalid.invalid" })
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());
