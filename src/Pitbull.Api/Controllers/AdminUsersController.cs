@@ -24,7 +24,8 @@ public class AdminUsersController(
     UserManager<AppUser> userManager,
     RoleManager<AppRole> roleManager,
     RoleSeeder roleSeeder,
-    ITenantContext tenantContext) : ControllerBase
+    ITenantContext tenantContext,
+    SignInManager<AppUser> signInManager) : ControllerBase
 {
     /// <summary>
     /// List all users in the tenant with their roles
@@ -241,31 +242,38 @@ public class AdminUsersController(
     }
 
     /// <summary>
-    /// Bootstrap: Make current user an Admin (one-time setup)
-    /// Only works if no admin exists in the tenant yet. Once an admin exists,
-    /// this endpoint is permanently disabled — use the normal user management
-    /// endpoints to grant admin roles.
+    /// Bootstrap: promote a user to Admin when the tenant has no admin yet (one-time setup).
+    /// Requires email + password (not email alone) so knowing a GUID/email cannot escalate.
+    /// Once any admin exists, this endpoint is permanently disabled for that tenant.
     /// </summary>
     [HttpPost("bootstrap-admin")]
-    [AllowAnonymous] // Allow first-time setup
+    [AllowAnonymous] // First user may lack Admin.Users policy; password is the gate.
     [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> BootstrapAdmin([FromBody] BootstrapAdminRequest request)
     {
-        // All non-success branches return the same generic 400 response to prevent
-        // email enumeration and tenant state leakage on this [AllowAnonymous] endpoint.
-        const string genericError = "Bootstrap failed. Verify the email address and try again.";
+        // All non-success branches return the same generic 400 to prevent email/tenant enumeration.
+        const string genericError = "Bootstrap failed. Verify credentials and try again.";
 
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-        if (user == null)
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { error = genericError });
+
+        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        if (user is null || user.Status != UserStatus.Active)
+            return BadRequest(new { error = genericError });
+
+        // Password proof required — never promote by email alone.
+        var passwordOk = await signInManager.CheckPasswordSignInAsync(
+            user, request.Password, lockoutOnFailure: true);
+        if (!passwordOk.Succeeded)
             return BadRequest(new { error = genericError });
 
         var tenantId = user.TenantId;
+        var adminRoleName = $"{tenantId}:Admin";
 
         // Guard: once an admin exists for this tenant, bootstrap is permanently disabled.
-        var adminRoleNameForCheck = $"{tenantId}:Admin";
-        var existingAdminRole = await roleManager.FindByNameAsync(adminRoleNameForCheck);
+        var existingAdminRole = await roleManager.FindByNameAsync(adminRoleName);
         if (existingAdminRole != null)
         {
             var adminExists = await db.UserRoles
@@ -274,13 +282,10 @@ public class AdminUsersController(
             if (adminExists)
                 return BadRequest(new { error = genericError });
         }
-        var adminRoleName = $"{tenantId}:Admin";
 
-        // Check if admin role exists
-        var adminRole = await roleManager.FindByNameAsync(adminRoleName);
-        if (adminRole == null)
+        var adminRole = existingAdminRole;
+        if (adminRole is null)
         {
-            // Create admin role for this tenant
             adminRole = new AppRole
             {
                 Id = Guid.NewGuid(),
@@ -293,44 +298,18 @@ public class AdminUsersController(
             await roleManager.CreateAsync(adminRole);
         }
 
-        // Check if user already has admin role — same generic error
         if (await userManager.IsInRoleAsync(user, adminRoleName))
             return BadRequest(new { error = genericError });
 
-        // Add user to admin role
+        // Least privilege: Admin only (do not auto-grant Manager/Supervisor/User).
         var result = await userManager.AddToRoleAsync(user, adminRoleName);
         if (!result.Succeeded)
-        {
-            return BadRequest(new { error = "Failed to assign admin role" });
-        }
-
-        // Also add all other roles for full access
-        foreach (var roleName in new[] { "Manager", "Supervisor", "User" })
-        {
-            var fullRoleName = $"{tenantId}:{roleName}";
-            var role = await roleManager.FindByNameAsync(fullRoleName);
-            if (role == null)
-            {
-                role = new AppRole
-                {
-                    Id = Guid.NewGuid(),
-                    Name = fullRoleName,
-                    NormalizedName = fullRoleName.ToUpperInvariant(),
-                    TenantId = tenantId,
-                    Description = roleName,
-                    IsSystemRole = true
-                };
-                await roleManager.CreateAsync(role);
-            }
-
-            if (!await userManager.IsInRoleAsync(user, fullRoleName))
-                await userManager.AddToRoleAsync(user, fullRoleName);
-        }
+            return BadRequest(new { error = genericError });
 
         return Ok(new
         {
-            message = $"User {request.Email} is now an Admin with full access",
-            roles = new[] { "Admin", "Manager", "Supervisor", "User" }
+            message = "User is now an Admin for this tenant",
+            roles = new[] { "Admin" }
         });
     }
 
@@ -384,6 +363,8 @@ public class AdminUsersController(
 public record BootstrapAdminRequest
 {
     public string Email { get; init; } = string.Empty;
+    /// <summary>Required. Password proof for the account being elevated.</summary>
+    public string Password { get; init; } = string.Empty;
 }
 
 public record AdminUserDto

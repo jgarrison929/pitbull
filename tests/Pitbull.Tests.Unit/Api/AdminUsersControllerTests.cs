@@ -33,10 +33,20 @@ public class AdminUsersControllerTests
             store.Object, null!, null!, null!, null!);
     }
 
+    private static Mock<SignInManager<AppUser>> CreateMockSignInManager(Mock<UserManager<AppUser>> userManager)
+    {
+        return new Mock<SignInManager<AppUser>>(
+            userManager.Object,
+            Mock.Of<IHttpContextAccessor>(),
+            Mock.Of<IUserClaimsPrincipalFactory<AppUser>>(),
+            null!, null!, null!, null!);
+    }
+
     private static AdminUsersController CreateController(
         PitbullDbContext db,
         Mock<UserManager<AppUser>> userManager,
         Mock<RoleManager<AppRole>> roleManager,
+        Mock<SignInManager<AppUser>>? signInManager = null,
         bool isAuthenticated = false,
         string? authenticatedRole = null)
     {
@@ -47,12 +57,14 @@ public class AdminUsersControllerTests
             NullLogger<RoleSeeder>.Instance);
         var tenantContext = new Mock<ITenantContext>();
         tenantContext.SetupGet(t => t.TenantId).Returns(TestTenantId);
+        var sm = signInManager ?? CreateMockSignInManager(userManager);
         var controller = new AdminUsersController(
             db,
             userManager.Object,
             roleManager.Object,
             roleSeeder,
-            tenantContext.Object);
+            tenantContext.Object,
+            sm.Object);
 
         var claims = new List<Claim>();
         if (isAuthenticated)
@@ -76,12 +88,13 @@ public class AdminUsersControllerTests
     #region BootstrapAdmin - Guard Tests
 
     [Fact]
-    public async Task BootstrapAdmin_WhenNoAdminExists_ShouldSucceed()
+    public async Task BootstrapAdmin_WhenNoAdminExists_AndPasswordValid_ShouldSucceed()
     {
         // Arrange
         using var db = TestDbContextFactory.Create();
         var userManagerMock = CreateMockUserManager();
         var roleManagerMock = CreateMockRoleManager();
+        var signInMock = CreateMockSignInManager(userManagerMock);
 
         var user = new AppUser
         {
@@ -92,10 +105,19 @@ public class AdminUsersControllerTests
             NormalizedUserName = "NEWADMIN@TEST.COM",
             TenantId = TestTenantId,
             FirstName = "New",
-            LastName = "Admin"
+            LastName = "Admin",
+            Status = UserStatus.Active
         };
         db.Users.Add(user);
         await db.SaveChangesAsync();
+
+        userManagerMock
+            .Setup(u => u.FindByEmailAsync("newadmin@test.com"))
+            .ReturnsAsync(user);
+
+        signInMock
+            .Setup(s => s.CheckPasswordSignInAsync(user, "ValidPass1!", true))
+            .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
 
         // No admin role exists yet -> FindByNameAsync returns null
         roleManagerMock
@@ -117,24 +139,71 @@ public class AdminUsersControllerTests
             .Setup(u => u.AddToRoleAsync(user, It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Success);
 
-        // FindByNameAsync for other roles (Manager, Supervisor, User) returns null
-        roleManagerMock
-            .Setup(r => r.FindByNameAsync(It.Is<string>(s => s != $"{TestTenantId}:Admin")))
-            .ReturnsAsync((AppRole?)null);
-
-        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: false);
+        var controller = CreateController(db, userManagerMock, roleManagerMock, signInMock, isAuthenticated: false);
 
         // Act
-        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "newadmin@test.com" });
+        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest
+        {
+            Email = "newadmin@test.com",
+            Password = "ValidPass1!"
+        });
 
         // Assert
         result.Should().BeOfType<OkObjectResult>();
-        var okResult = (OkObjectResult)result;
-        var value = okResult.Value;
-        value.Should().NotBeNull();
 
-        // Verify the user was added to admin role
+        // Verify Admin only (not Manager/Supervisor/User bulk grant)
         userManagerMock.Verify(u => u.AddToRoleAsync(user, $"{TestTenantId}:Admin"), Times.Once);
+        userManagerMock.Verify(u => u.AddToRoleAsync(user, It.Is<string>(s => s.Contains(":Manager"))), Times.Never);
+    }
+
+    [Fact]
+    public async Task BootstrapAdmin_WhenPasswordMissing_ShouldReturnGenericBadRequest()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        var controller = CreateController(db, userManagerMock, roleManagerMock);
+
+        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest
+        {
+            Email = "newadmin@test.com",
+            Password = ""
+        });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        userManagerMock.Verify(u => u.AddToRoleAsync(It.IsAny<AppUser>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BootstrapAdmin_WhenPasswordWrong_ShouldReturnGenericBadRequest()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        var signInMock = CreateMockSignInManager(userManagerMock);
+
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "newadmin@test.com",
+            TenantId = TestTenantId,
+            Status = UserStatus.Active
+        };
+        userManagerMock.Setup(u => u.FindByEmailAsync("newadmin@test.com")).ReturnsAsync(user);
+        signInMock
+            .Setup(s => s.CheckPasswordSignInAsync(user, "wrong", true))
+            .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Failed);
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, signInMock);
+
+        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest
+        {
+            Email = "newadmin@test.com",
+            Password = "wrong"
+        });
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+        userManagerMock.Verify(u => u.AddToRoleAsync(It.IsAny<AppUser>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -199,11 +268,22 @@ public class AdminUsersControllerTests
             .Setup(r => r.FindByNameAsync($"{TestTenantId}:Admin"))
             .ReturnsAsync(adminRole);
 
-        // Controller is NOT authenticated (anonymous request)
-        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: false);
+        targetUser.Status = UserStatus.Active;
+        userManagerMock
+            .Setup(u => u.FindByEmailAsync("victim@test.com"))
+            .ReturnsAsync(targetUser);
+        var signInMock = CreateMockSignInManager(userManagerMock);
+        signInMock
+            .Setup(s => s.CheckPasswordSignInAsync(targetUser, "ValidPass1!", true))
+            .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
 
-        // Act
-        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "victim@test.com" });
+        // Act — password valid but admin already exists
+        var controller = CreateController(db, userManagerMock, roleManagerMock, signInMock, isAuthenticated: false);
+        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest
+        {
+            Email = "victim@test.com",
+            Password = "ValidPass1!"
+        });
 
         // Assert — same generic 400 as "user not found" (indistinguishable)
         result.Should().BeOfType<BadRequestObjectResult>();
@@ -272,12 +352,25 @@ public class AdminUsersControllerTests
             .Setup(r => r.FindByNameAsync($"{TestTenantId}:Admin"))
             .ReturnsAsync(adminRole);
 
-        // Controller IS authenticated as Admin — should still be denied
-        var controller = CreateController(db, userManagerMock, roleManagerMock,
+        targetUser.Status = UserStatus.Active;
+        userManagerMock
+            .Setup(u => u.FindByEmailAsync("promote@test.com"))
+            .ReturnsAsync(targetUser);
+        var signInMock = CreateMockSignInManager(userManagerMock);
+        signInMock
+            .Setup(s => s.CheckPasswordSignInAsync(targetUser, "ValidPass1!", true))
+            .ReturnsAsync(Microsoft.AspNetCore.Identity.SignInResult.Success);
+
+        // Controller IS authenticated as Admin — should still be denied once admin exists
+        var controller = CreateController(db, userManagerMock, roleManagerMock, signInMock,
             isAuthenticated: true, authenticatedRole: $"{TestTenantId}:Admin");
 
         // Act
-        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "promote@test.com" });
+        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest
+        {
+            Email = "promote@test.com",
+            Password = "ValidPass1!"
+        });
 
         // Assert — same generic 400 as all other failures (indistinguishable)
         result.Should().BeOfType<BadRequestObjectResult>();
@@ -294,10 +387,18 @@ public class AdminUsersControllerTests
         var userManagerMock = CreateMockUserManager();
         var roleManagerMock = CreateMockRoleManager();
 
+        userManagerMock
+            .Setup(u => u.FindByEmailAsync("nobody@test.com"))
+            .ReturnsAsync((AppUser?)null);
+
         var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: false);
 
         // Act
-        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest { Email = "nobody@test.com" });
+        var result = await controller.BootstrapAdmin(new BootstrapAdminRequest
+        {
+            Email = "nobody@test.com",
+            Password = "ValidPass1!"
+        });
 
         // Assert — BadRequest, not NotFound (prevents email enumeration)
         result.Should().BeOfType<BadRequestObjectResult>();
