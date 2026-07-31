@@ -21,8 +21,10 @@ $RoleEmailMap = @{
     Estimator = "estimator@demo.local"
 }
 
+# Linux CI pwsh often has empty $env:TEMP; Path.GetTempPath() is cross-platform.
+$TempRoot = [System.IO.Path]::GetTempPath()
 if ([string]::IsNullOrWhiteSpace($AuthCacheFile)) {
-    $AuthCacheFile = Join-Path $env:TEMP "pitbull-workflow-smoke-auth.json"
+    $AuthCacheFile = Join-Path $TempRoot "pitbull-workflow-smoke-auth.json"
 }
 
 $ErrorActionPreference = "Stop"
@@ -235,7 +237,7 @@ if ($UseDemoUsers -or $RoleProfile) {
     }
     $password = $DemoPassword
     if ($RoleProfile) {
-        $AuthCacheFile = Join-Path $env:TEMP "pitbull-role-smoke-$RoleProfile.json"
+        $AuthCacheFile = Join-Path $TempRoot "pitbull-role-smoke-$RoleProfile.json"
     }
     Write-SmokeLog "Using demo persona: $email (RoleProfile=$RoleProfile)"
 }
