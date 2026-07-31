@@ -262,6 +262,12 @@ public class InvitationController(
             Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        // Load AppUser for title / demo flag / shared permission resolution (claim parity with AuthController).
+        var appUser = await db.Users
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == user.UserId);
+
         // Get user's company access
         var companyAccess = await db.Set<UserCompanyAccess>()
             .IgnoreQueryFilters()
@@ -277,6 +283,10 @@ public class InvitationController(
         if (companyIds.Count == 0 && user.CompanyId != Guid.Empty)
             companyIds.Add(user.CompanyId);
 
+        var roles = user.Roles.ToList();
+        var title = appUser?.Title;
+        var roleProfile = RoleProfileResolver.Detect(title, roles);
+
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
@@ -284,7 +294,14 @@ public class InvitationController(
             new("tenant_id", user.TenantId.ToString()),
             new("full_name", user.FullName),
             new("user_type", user.UserType),
+            new("role_profile", RoleProfileResolver.ToApiName(roleProfile)),
         };
+
+        if (!string.IsNullOrWhiteSpace(title))
+            claims.Add(new Claim("job_title", title));
+
+        if (appUser?.IsDemoUser == true)
+            claims.Add(new Claim("is_demo_user", "true"));
 
         // Add company claims
         if (defaultCompanyId != Guid.Empty)
@@ -293,35 +310,13 @@ public class InvitationController(
             claims.Add(new Claim("company_ids", string.Join(",", companyIds)));
         }
 
-        foreach (var role in user.Roles)
+        foreach (var role in roles)
             claims.Add(new Claim(ClaimTypes.Role, role));
 
-        // Add RBAC permission claims
-        var isAdmin = user.Roles.Contains("Admin");
-        if (!isAdmin)
+        // Shared resolver — never grant permissions=* via Identity Admin alone for demo accounts.
+        if (appUser is not null)
         {
-            isAdmin = await db.Set<UserRole>()
-                .AsNoTracking()
-                .AnyAsync(ur => ur.UserId == user.UserId && ur.TenantId == user.TenantId
-                    && ur.Role.Name == PermissionConstants.RoleTemplates.Admin);
-        }
-
-        if (isAdmin)
-        {
-            claims.Add(new Claim("permissions", PermissionConstants.Wildcard));
-        }
-        else
-        {
-            var userPermissions = await db.Set<RolePermission>()
-                .AsNoTracking()
-                .Where(rp => rp.TenantId == user.TenantId
-                    && db.Set<UserRole>()
-                        .Any(ur => ur.UserId == user.UserId && ur.TenantId == user.TenantId && ur.RoleId == rp.RoleId))
-                .Select(rp => rp.Permission.Name)
-                .Distinct()
-                .ToListAsync();
-
-            foreach (var perm in userPermissions)
+            foreach (var perm in await RbacJwtPermissionResolver.ResolveAsync(db, appUser, roles))
                 claims.Add(new Claim("permissions", perm));
         }
 

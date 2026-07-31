@@ -411,3 +411,26 @@ Findings discovered (unique): 256
 - Major Dependabot PRs still need human judgment (Resend/QuestPDF/Mapster/node/eslint/TS).
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 08:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073108`
+
+### CI status (step 1)
+- **main green** — #462 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- Safe bumps were red on Dependabot branches due to **NU1004** incomplete lock propagation (#465 S3, #467 Scalar only updated one lock).
+- #466 OpenApi 2.11.0 passed .NET; Role E2E failed on Docker Hub timeout (infra flake).
+- Majors left open: #447 Resend, #446 QuestPDF, #443 Mapster, #464 jsdom 30, #463 node 25, #438 eslint 10, #436 types/node 26, #434 TS 7, #431 jest-dom 7.
+
+### Shipped this hour
+- **deps:** Scalar.AspNetCore **2.16.16→2.16.17**, AWSSDK.S3 **4.0.101.5→4.0.101.6**, Microsoft.OpenApi **2.7.5→2.11.0** (still 2.x) + full solution `packages.lock.json` regenerate.
+- **auth:** Invitation accept JWT uses `RbacJwtPermissionResolver` + emits `job_title` / `role_profile` / `is_demo_user` (parity with Auth/Companies).
+
+### Residual high items
+- Close #465/#466/#467 as superseded after merge.
+- Major Dependabot PRs need human judgment.
+- Dependabot NuGet PRs under locked-mode need full-graph lock updates (watch for NU1004).
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
