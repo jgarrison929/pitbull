@@ -71,6 +71,7 @@ public sealed class JwtTokenService(
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new("tenant_id", user.TenantId.ToString()),
             new("full_name", user.FullName),

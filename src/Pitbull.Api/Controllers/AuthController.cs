@@ -1191,6 +1191,7 @@ public class AuthController(
             ValidIssuer = configuration["Jwt:Issuer"],
             ValidAudience = configuration["Jwt:Audience"],
             ValidateIssuerSigningKey = true,
+            ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
             IssuerSigningKey = key,
             ValidateLifetime = false // Allow expired tokens
         };
@@ -1199,6 +1200,7 @@ public class AuthController(
         {
             var principal = new JwtSecurityTokenHandler()
                 .ValidateToken(token, validationParameters, out var securityToken);
+            // Defense in depth: reject non-HMAC tokens even if ValidAlgorithms is ignored by a library.
             if (securityToken is not JwtSecurityToken jwtToken ||
                 !jwtToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
                 return null;

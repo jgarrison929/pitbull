@@ -698,3 +698,25 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 21:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073121`
+
+### CI status (step 1)
+- **main green** — #480 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **jwt:** `ValidAlgorithms = HmacSha256` on bearer, Swagger auth, and refresh principal path (algorithm confusion defense).
+- **jwt:** Unique `jti` claim on every access token.
+- **rate-limit:** Invitation token GET uses `register` limiter (secret capability); version endpoint gets `api` limiter.
+- **demo:** Full-block `/cap` (CAP dashboard is Dev-only; defense in depth).
+- **web:** Logout cookie clear uses SameSite=Strict (+ Secure on HTTPS).
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
