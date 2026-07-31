@@ -183,11 +183,12 @@ test.describe('Mobile field report', () => {
 
       await page.getByTestId('field-report-submit').click();
       const createResp = await createRespPromise;
+      // status() is safe after navigation; text()/json() throw Protocol error
+      // (Network.getResponseBody) when the page has already navigated away.
       const createStatus = createResp.status();
-      const createBodyText = await createResp.text();
       expect(
         createStatus === 201 || createStatus === 200,
-        `daily-report create status ${createStatus}: ${createBodyText}`
+        `daily-report create status ${createStatus} (body skipped — post-submit navigation)`
       ).toBeTruthy();
 
       // Toast is best-effort (sonner may portal/dismiss); API 201/200 is the acceptance gate.

@@ -279,3 +279,23 @@ Findings discovered (unique): 256
 - Mobile field-report smoke still flaky (Playwright Network.getResponseBody).
 - rbac_*/roles still without FORCE RLS; company-scoped compound RLS incomplete.
 
+
+## Hourly appendix — 2026-07-31 01:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073101`
+
+### CI status (step 1)
+- **main green** — #456 CI + Push success.
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors still open).
+
+### Shipped this hour
+- **e2e:** Mobile field-report smoke — stop calling `response.text()` after post-submit navigation (Playwright `Network.getResponseBody` protocol error). Gate on HTTP status only (201/200).
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles still without FORCE RLS; company-scoped compound RLS incomplete.
+
