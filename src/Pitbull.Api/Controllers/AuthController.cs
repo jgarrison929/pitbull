@@ -241,10 +241,10 @@ public class AuthController(
                 // Get user's roles for JWT
                 var roles = await roleSeeder.GetUserRolesAsync(user);
 
-                // Generate and store refresh token
-                var refreshToken = GenerateRefreshToken();
-                user.RefreshToken = refreshToken;
-                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
+                // Generate refresh token (store hash only; return plaintext once)
+                var (refreshToken, refreshHash, refreshExpiry) = IssueRefreshToken();
+                user.RefreshToken = refreshHash;
+                user.RefreshTokenExpiryTime = refreshExpiry;
                 await userManager.UpdateAsync(user);
 
                 // Seed defaults before commit — registration fails if provisioning fails
@@ -338,10 +338,10 @@ public class AuthController(
 
         var token = await GenerateJwtTokenAsync(user);
 
-        // Generate and store refresh token
-        var refreshToken = GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
+        // Generate refresh token (store hash only; return plaintext once)
+        var (refreshToken, refreshHash, refreshExpiry) = IssueRefreshToken();
+        user.RefreshToken = refreshHash;
+        user.RefreshTokenExpiryTime = refreshExpiry;
         await userManager.UpdateAsync(user);
 
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
@@ -407,9 +407,9 @@ public class AuthController(
             roles = await roleSeeder.GetUserRolesAsync(user);
         }
 
-        var refreshToken = GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        var (refreshToken, refreshHash, refreshExpiry) = IssueRefreshToken();
+        user.RefreshToken = refreshHash;
+        user.RefreshTokenExpiryTime = refreshExpiry;
         await userManager.UpdateAsync(user);
 
         var token = await GenerateJwtTokenAsync(user);
@@ -523,25 +523,21 @@ public class AuthController(
             return this.UnauthorizedError("Invalid access token");
 
         var user = await userManager.FindByIdAsync(userId);
-        var storedRefresh = Encoding.UTF8.GetBytes(user?.RefreshToken ?? "");
-        var providedRefresh = Encoding.UTF8.GetBytes(request.RefreshToken ?? "");
-        // FixedTimeEquals requires equal lengths; length mismatch must be a clean 401.
+        // Stored value is SHA-256 hash of the refresh token (never plaintext).
         if (user is null ||
             user.Status != UserStatus.Active ||
-            storedRefresh.Length == 0 ||
-            storedRefresh.Length != providedRefresh.Length ||
-            !CryptographicOperations.FixedTimeEquals(storedRefresh, providedRefresh) ||
+            !RefreshTokenProtector.Matches(user.RefreshToken, request.RefreshToken) ||
             user.RefreshTokenExpiryTime <= DateTime.UtcNow)
         {
             return this.UnauthorizedError("Invalid or expired refresh token");
         }
 
-        // Generate new token pair and rotate refresh token
+        // Generate new token pair and rotate refresh token (hash at rest)
         var newAccessToken = await GenerateJwtTokenAsync(user);
-        var newRefreshToken = GenerateRefreshToken();
+        var (newRefreshToken, newRefreshHash, newRefreshExpiry) = IssueRefreshToken();
 
-        user.RefreshToken = newRefreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
+        user.RefreshToken = newRefreshHash;
+        user.RefreshTokenExpiryTime = newRefreshExpiry;
         var updateResult = await userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
             return StatusCode(500, new { error = "Failed to persist token rotation", code = "INTERNAL_ERROR" });
@@ -704,9 +700,9 @@ public class AuthController(
         var roles = await roleSeeder.GetUserRolesAsync(user);
         var token = await GenerateJwtTokenAsync(user);
 
-        var refreshToken = GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
+        var (refreshToken, refreshHash, refreshExpiry) = IssueRefreshToken();
+        user.RefreshToken = refreshHash;
+        user.RefreshTokenExpiryTime = refreshExpiry;
         await userManager.UpdateAsync(user);
 
         return Ok(new AuthResponse(token, user.Id, user.FullName, user.Email!, roles.ToArray(), refreshToken));
@@ -784,9 +780,9 @@ public class AuthController(
 
                 var existingRoles = await roleSeeder.GetUserRolesAsync(existingUser);
                 var existingToken = await GenerateJwtTokenAsync(existingUser);
-                var existingRefresh = GenerateRefreshToken();
-                existingUser.RefreshToken = existingRefresh;
-                existingUser.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                var (existingRefresh, existingRefreshHash, existingRefreshExpiry) = IssueRefreshToken();
+                existingUser.RefreshToken = existingRefreshHash;
+                existingUser.RefreshTokenExpiryTime = existingRefreshExpiry;
                 await userManager.UpdateAsync(existingUser);
 
                 logger.LogInformation("Demo user re-login via registration retry: {Email}", LogSafe.Email(request.Email));
@@ -863,12 +859,12 @@ public class AuthController(
         // type mismatch (string vs integer column). Demo users don't need employee records
         // to experience the platform — they can view all seed data through their role.
 
-        // Generate JWT + refresh token (auto-login)
+        // Generate JWT + refresh token (auto-login; store hash only)
         var roles = await roleSeeder.GetUserRolesAsync(user);
         var token = await GenerateJwtTokenAsync(user);
-        var refreshToken = GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(30);
+        var (refreshToken, refreshHash, refreshExpiry) = IssueRefreshToken();
+        user.RefreshToken = refreshHash;
+        user.RefreshTokenExpiryTime = refreshExpiry;
         await userManager.UpdateAsync(user);
 
         logger.LogInformation("Demo user registered: {Email} as {Role} in company {CompanyCode}", LogSafe.Email(request.Email), LogSafe.Text(request.Role), LogSafe.Text(companyCode));
@@ -1173,10 +1169,16 @@ public class AuthController(
         (user.Email is not null &&
          user.Email.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase));
 
-    private static string GenerateRefreshToken()
+    /// <summary>
+    /// Issue a new refresh token: plaintext for the client, SHA-256 hash for storage, config-driven expiry.
+    /// </summary>
+    private (string Plaintext, string Hash, DateTime ExpiryUtc) IssueRefreshToken()
     {
-        var randomBytes = RandomNumberGenerator.GetBytes(64);
-        return Convert.ToBase64String(randomBytes);
+        var plaintext = RefreshTokenProtector.GeneratePlaintext();
+        return (
+            plaintext,
+            RefreshTokenProtector.Hash(plaintext),
+            RefreshTokenProtector.RefreshExpiryUtc(configuration));
     }
 
     private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)

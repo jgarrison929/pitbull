@@ -653,3 +653,26 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 19:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073119`
+
+### CI status (step 1)
+- **main green** — #478 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **auth:** Refresh tokens stored as **SHA-256 hash** only (`RefreshTokenProtector`); plaintext returned once to client.
+- **auth:** Honor `Jwt:RefreshExpirationDays` (default 7, was hardcoded 30 in most paths); access token uses protector caps.
+- **config:** `Jwt:ExpirationMinutes` **1440 → 60** (access token lifetime).
+- **invitation accept** uses same hash + config expiry.
+- **tests:** `RefreshTokenProtectorTests`.
+- **note:** Existing refresh sessions invalidate after deploy until re-login (expected).
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
