@@ -126,10 +126,18 @@ builder.Services.AddSingleton<Pitbull.Api.Services.IChangelogService, Pitbull.Ap
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    // Only trust the first hop (Railway's edge proxy).
-    // Do NOT clear KnownNetworks/KnownProxies â€” that trusts ALL X-Forwarded-For headers,
+    // Only trust the first hop (platform edge proxy).
+    // Do NOT clear KnownNetworks/KnownProxies — that trusts ALL X-Forwarded-For headers,
     // allowing rate limit bypass via header spoofing.
     options.ForwardLimit = 1;
+    // Trust RFC1918 private ranges so platform reverse proxies (not public internet)
+    // can supply client IP / proto for rate limiting and HSTS.
+    options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(
+        System.Net.IPAddress.Parse("10.0.0.0"), 8));
+    options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(
+        System.Net.IPAddress.Parse("172.16.0.0"), 12));
+    options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(
+        System.Net.IPAddress.Parse("192.168.0.0"), 16));
 });
 
 // Module registrations (MediatR handlers + FluentValidation)
