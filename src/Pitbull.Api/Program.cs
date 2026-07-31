@@ -415,8 +415,6 @@ builder.Services.AddAuthentication(options =>
 })
     .AddJwtBearer(options =>
     {
-        // Keep JWT claim types as issued (e.g. "role" / custom names) rather than long URI claim types.
-        options.MapInboundClaims = false;
         options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -430,8 +428,6 @@ builder.Services.AddAuthentication(options =>
             IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
                 System.Text.Encoding.UTF8.GetBytes(
                     builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT key not configured"))),
-            NameClaimType = System.Security.Claims.ClaimTypes.NameIdentifier,
-            RoleClaimType = System.Security.Claims.ClaimTypes.Role,
         };
     });
 

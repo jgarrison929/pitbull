@@ -536,10 +536,12 @@ Findings discovered (unique): 256
 
 ### Shipped this hour
 - **rate-limit:** dedicated `refresh` limiter (30/min prod, 120/min dev); `change-password` + `bootstrap-admin` use stricter `auth` (5/min).
-- **jwt:** ClockSkew 1m; MapInboundClaims=false; explicit Name/Role claim types.
+- **jwt:** ClockSkew 1m (kept default claim inbound mapping after Role E2E risk).
 - **cookies:** Identity cookie HttpOnly + Secure + SameSite=Strict (defense in depth; JWT remains primary).
+- **ci:** `workflow-api-smoke.ps1` uses `Path.GetTempPath()` (Linux pwsh `$env:TEMP` was null → Join-Path failures).
 
 ### Residual high items
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E / mobile smokes can flake (Docker Hub timeouts; Next navigation ERR_ABORTED).
 
