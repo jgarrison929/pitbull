@@ -96,7 +96,7 @@ public sealed class JwtTokenService(
         foreach (var perm in await RbacJwtPermissionResolver.ResolveAsync(db, user, identityRoles, ct))
             claims.Add(new Claim("permissions", perm));
 
-        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");
+        var expiration = RefreshTokenProtector.GetAccessExpirationMinutes(configuration);
 
         var token = new JwtSecurityToken(
             issuer: configuration["Jwt:Issuer"],

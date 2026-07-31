@@ -27,6 +27,7 @@ public class TeamInvitationService(
     RoleSeeder roleSeeder,
     TenantContext tenantContext,
     IServiceScopeFactory scopeFactory,
+    IConfiguration configuration,
     ILogger<TeamInvitationService> logger) : ITeamInvitationService
 {
     private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase)
@@ -225,10 +226,10 @@ public class TeamInvitationService(
         };
         db.Set<UserCompanyAccess>().Add(access);
 
-        // Generate refresh token so the new user can maintain their session
-        var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+        // Generate refresh token so the new user can maintain their session (hash at rest)
+        var refreshToken = RefreshTokenProtector.GeneratePlaintext();
+        user.RefreshToken = RefreshTokenProtector.Hash(refreshToken);
+        user.RefreshTokenExpiryTime = RefreshTokenProtector.RefreshExpiryUtc(configuration);
 
         // Mark invitation as accepted
         invitation.Status = InvitationStatus.Accepted;
