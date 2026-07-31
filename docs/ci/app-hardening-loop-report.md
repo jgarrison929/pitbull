@@ -324,3 +324,23 @@ Findings discovered (unique): 256
 - rbac_*/roles still without FORCE RLS (login pre-tenant).
 - Remaining pm_* tables still tenant-only RLS (not full compound set).
 
+
+## Hourly appendix — 2026-07-31 04:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073104`
+
+### CI status (step 1)
+- **main green** — #458 CI fully green.
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors still open).
+
+### Shipped this hour
+- **rls:** Migration `UpgradeRemainingPmCompanyRls` — compound tenant+company FORCE RLS on **59** remaining `pm_*` tables with required CompanyId (completes PM surface after #458’s 9 key pm tables).
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles still without FORCE RLS (login pre-tenant).
+
