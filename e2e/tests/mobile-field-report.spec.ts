@@ -18,7 +18,9 @@ import { PERSONAS, DEMO_PASSWORD } from '../fixtures/roles';
 import {
   authHeaders,
   loginApi,
-  getActiveCompanyId,
+  getDefaultCompanyId,
+  getFirstActiveProjectId,
+  ensurePmProjectAssignment,
 } from '../fixtures/api-helpers';
 
 /** Phone shell used for field capture (matches mobile-phase1 acceptance). */
@@ -87,30 +89,21 @@ test.describe('Mobile field report', () => {
     browser,
     request,
   }) => {
-    // Resolve a demo seed project the field persona can report on (API, not UI guess).
-    const session = await loginApi(request, PERSONAS.fieldEng.email, DEMO_PASSWORD);
-    const companyId = await getActiveCompanyId(request, session);
-    const headers = authHeaders(session, companyId);
-    const projectsResp = await request.get(
-      `${API_BASE}/api/projects?page=1&pageSize=20`,
-      { headers }
+    // PM picks a default-company project and assigns field eng (HasCurrentUserProjectAccessAsync).
+    const pmSession = await loginApi(request, PERSONAS.pm.email, DEMO_PASSWORD);
+    const companyId = await getDefaultCompanyId(request, pmSession);
+    expect(companyId, 'PM must have a default company').toBeTruthy();
+    const projectId = await getFirstActiveProjectId(
+      request,
+      pmSession,
+      companyId!
     );
-    expect(
-      projectsResp.ok(),
-      `projects list failed: ${projectsResp.status()} ${await projectsResp.text()}`
-    ).toBeTruthy();
-    const projectsBody = await projectsResp.json();
-    const items = Array.isArray(projectsBody)
-      ? projectsBody
-      : projectsBody.items ?? projectsBody.Items ?? [];
-    const active = items.find((p: { status?: string; Status?: string }) => {
-      const s = String(p.status ?? p.Status ?? '');
-      return /active|inprogress|in progress/i.test(s) || s === '1' || s === 'Active';
+    await ensurePmProjectAssignment(request, pmSession, projectId, companyId!, {
+      fieldEmail: PERSONAS.fieldEng.email,
     });
-    const project = active ?? items[0];
-    expect(project, 'demo seed must include at least one project for fieldEng').toBeTruthy();
-    const projectId = String(project.id ?? project.Id);
-    expect(projectId).toMatch(/^[0-9a-f-]{36}$/i);
+
+    const session = await loginApi(request, PERSONAS.fieldEng.email, DEMO_PASSWORD);
+    const headers = authHeaders(session, companyId);
 
     // Unique date avoids DUPLICATE_REPORT (server key: date + reportType).
     const dayOffset = 1 + (Date.now() % 180);
@@ -118,8 +111,7 @@ test.describe('Mobile field report', () => {
       .toISOString()
       .slice(0, 10);
 
-    // Primary gate: field persona can create a daily report via API (auth + RLS + RBAC).
-    // UI network POST has been flaky under CI (401/refresh races, offline queue, navigation).
+    // Primary gate: field persona can create a daily report via API (auth + RLS + project access).
     const createApi = await request.post(
       `${API_BASE}/api/projects/${projectId}/daily-reports`,
       {
