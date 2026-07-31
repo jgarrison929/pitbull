@@ -25,7 +25,7 @@ public class TeamInvitationService(
     PitbullDbContext db,
     UserManager<AppUser> userManager,
     RoleSeeder roleSeeder,
-    ITenantContext tenantContext,
+    TenantContext tenantContext,
     IServiceScopeFactory scopeFactory,
     ILogger<TeamInvitationService> logger) : ITeamInvitationService
 {
@@ -133,6 +133,8 @@ public class TeamInvitationService(
     {
         var tokenHash = TeamInvitation.HashToken(token);
 
+        // Pre-tenant token lookup (team_invitations intentionally has no FORCE RLS —
+        // same class as vendor_portal_tokens: hash lookup must work before GUC is known).
         var invitation = await db.Set<TeamInvitation>()
             .IgnoreQueryFilters()
             .Include(i => i.Company)
@@ -140,8 +142,13 @@ public class TeamInvitationService(
 
         if (invitation is null) return null;
 
-        // Get tenant name
-        var tenant = await db.Set<Tenant>().FindAsync([invitation.TenantId], ct);
+        // Bind tenant after resolve so follow-on reads (tenant name, company) respect RLS.
+        await BindInvitationTenantContextAsync(invitation, ct);
+
+        var tenant = await db.Set<Tenant>()
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(t => t.Id == invitation.TenantId, ct);
 
         return new TeamInvitationDto(
             Id: invitation.Id,
@@ -180,9 +187,8 @@ public class TeamInvitationService(
         var normalizedLastName = request.LastName.Trim();
         var normalizedEmail = invitation.Email.Trim().ToLowerInvariant();
 
-        // Set tenant context for RLS
-        await db.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT set_config('app.current_tenant', {invitation.TenantId.ToString()}, false)");
+        // Bind tenant (and company when present) before user/UCA writes under RLS.
+        await BindInvitationTenantContextAsync(invitation, ct);
 
         // Create user account
         var user = new AppUser
@@ -303,6 +309,34 @@ public class TeamInvitationService(
         });
 
         logger.LogInformation("Resent invitation {InvitationId} to {Email}", invitationId, LogSafe.Email(invitation.Email));
+    }
+
+    /// <summary>
+    /// After pre-tenant token hash lookup, bind ITenantContext + PostgreSQL session vars
+    /// so subsequent EF work runs under the invitation's tenant (mirrors VendorPortalService).
+    /// </summary>
+    private async Task BindInvitationTenantContextAsync(TeamInvitation invitation, CancellationToken ct)
+    {
+        tenantContext.TenantId = invitation.TenantId;
+
+        if (!db.Database.IsRelational())
+            return;
+
+        try
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync(
+                $"SELECT set_config('app.current_tenant', {invitation.TenantId.ToString()}, false)", ct);
+
+            if (invitation.CompanyId != Guid.Empty)
+            {
+                await db.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT set_config('app.current_company', {invitation.CompanyId.ToString()}, false)", ct);
+            }
+        }
+        catch
+        {
+            // Non-PG providers / tests may not support set_config.
+        }
     }
 
     private static bool IsValidEmail(string email)
