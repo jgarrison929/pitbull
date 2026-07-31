@@ -501,3 +501,25 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 12:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073112`
+
+### CI status (step 1)
+- **main green** — #471 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe NuGet patch/minor (OpenApi 3 / QuestPDF / Resend majors only).
+- npm: posthog-js patch **1.409.3→1.409.4** shipped; other outdated are majors (eslint 10, TS 7, jest-dom 7, types/node 26).
+
+### Shipped this hour
+- **cors:** `CorsOriginGuard` — fail-closed in non-Development when `Cors:AllowedOrigins` empty; reject wildcards with credentials; normalize trim/dedupe.
+- **deps:** posthog-js **1.409.4** (npm audit still 0).
+- **cleanup:** InvitationController unused usings after JWT consolidation.
+- **tests:** CorsOriginGuard unit tests.
+
+### Residual high items
+- Major Dependabot PRs need human judgment (Resend/QuestPDF/Mapster/node/eslint/TS).
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
