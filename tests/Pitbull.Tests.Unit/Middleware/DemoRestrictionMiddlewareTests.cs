@@ -143,12 +143,31 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/api/bank-reconciliations", "POST")]
     [InlineData("/api/vendor-payments", "PUT")]
     [InlineData("/api/integrations/export", "POST")]
+    [InlineData("/api/import/employees", "POST")]
     public async Task DemoUser_CannotMutate_FinancialPaths(string path, string method)
     {
         var context = CreateDemoContext(path, method);
         var (statusCode, nextCalled) = await InvokeAsync(context);
         Assert.False(nextCalled);
         Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_IsFullyBlocked_FromExportDownloads()
+    {
+        var context = CreateDemoContext("/api/export/time-entries", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.False(nextCalled);
+        Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_CanRead_ImportHistory()
+    {
+        var context = CreateDemoContext("/api/import/history", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.True(nextCalled);
+        Assert.NotEqual(403, statusCode);
     }
 
     [Fact]

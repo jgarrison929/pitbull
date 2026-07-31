@@ -122,5 +122,29 @@ public class SecurityHeadersMiddlewareTests
         Assert.True(headers.ContainsKey("Referrer-Policy"));
         Assert.True(headers.ContainsKey("Content-Security-Policy"));
         Assert.True(headers.ContainsKey("Permissions-Policy"));
+        Assert.True(headers.ContainsKey("Cache-Control"));
+        Assert.True(headers.ContainsKey("Pragma"));
+        Assert.True(headers.ContainsKey("Cross-Origin-Resource-Policy"));
+    }
+
+    [Fact]
+    public async Task Adds_CacheControl_no_store_header()
+    {
+        var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
+
+        var context = await ExecuteMiddlewareAsync(middleware);
+
+        Assert.Equal("no-store, no-cache, must-revalidate", context.Response.Headers["Cache-Control"]);
+        Assert.Equal("no-cache", context.Response.Headers["Pragma"]);
+    }
+
+    [Fact]
+    public async Task Adds_CrossOriginResourcePolicy_same_origin()
+    {
+        var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
+
+        var context = await ExecuteMiddlewareAsync(middleware);
+
+        Assert.Equal("same-origin", context.Response.Headers["Cross-Origin-Resource-Policy"]);
     }
 }

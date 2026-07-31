@@ -35,6 +35,8 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/ai/settings",
         "/api/auth/bootstrap-admin",
         "/api/auth/change-password",
+        // Export downloads are sensitive (GET is the data-exfiltration path).
+        "/api/export",
     ];
 
     /// <summary>
@@ -48,6 +50,8 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/payroll",
         "/api/vendor-payments",
         "/api/integrations/export",
+        // Bulk import can mutate tenant ledgers and employee rosters (GET history still allowed).
+        "/api/import",
     ];
 
     /// <summary>
