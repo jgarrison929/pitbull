@@ -344,3 +344,23 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles still without FORCE RLS (login pre-tenant).
 
+
+## Hourly appendix — 2026-07-31 05:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073105`
+
+### CI status (step 1)
+- **main green** — #459 CI fully green.
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors still open).
+
+### Shipped this hour
+- **deps:** Enable `RestorePackagesWithLockFile`; commit `packages.lock.json` for all 20 projects; CI + API Dockerfile use `dotnet restore --locked-mode`.
+
+### Residual high items
+- Docker base image digests still floating (`sdk:10.0`, `aspnet:10.0`, `node:22-alpine`).
+- Major Dependabot PRs need human judgment (refresh lock files when packages change).
+- rbac_*/roles still without FORCE RLS (login pre-tenant).
+
