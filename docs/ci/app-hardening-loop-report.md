@@ -480,3 +480,24 @@ Findings discovered (unique): 256
 - jsdom 30.0.1 engine wants Node ≥22.22.2 (CI Node 22 OK; local NVM 24 shows EBADENGINE warn only).
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 11:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073111`
+
+### CI status (step 1)
+- **main green** — #470 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe NuGet patch/minor. Majors: Resend/QuestPDF/Mapster NU1004; eslint 10 FE red; TS 7 FE red; node 25 green (skip major runtime); @types/node 26 fully green (types major — skip).
+- jest-dom 7 smokes red on old base.
+
+### Shipped this hour
+- **headers:** API `Cache-Control: no-store, no-cache, must-revalidate` + `Pragma: no-cache` + `Cross-Origin-Resource-Policy: same-origin`.
+- **demo:** Full-block `/api/export` (GET downloads); write-block `/api/import` mutations (GET history still allowed).
+- **tests:** SecurityHeaders + DemoRestriction coverage.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
