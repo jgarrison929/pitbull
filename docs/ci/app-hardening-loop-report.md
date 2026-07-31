@@ -609,3 +609,24 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 17:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073117`
+
+### CI status (step 1)
+- **main green** — #476 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **rate-limit:** Convert login/register/refresh/auth/api from global `AddFixedWindowLimiter` to **per-IP / per-user** `AddPolicy` partitions (`AuthRateLimitPolicy`) so one client cannot exhaust the shared budget.
+- **identity:** Explicit lockout — 5 failed attempts → 15 min; `AllowedForNewUsers=true`.
+- **swagger:** Token validation ClockSkew aligned to 1 minute.
+- **tests:** `AuthRateLimitPolicyTests` for partition keys.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
