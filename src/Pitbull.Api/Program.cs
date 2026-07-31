@@ -110,7 +110,9 @@ builder.Services.AddScoped<IHealthDashboardService, HealthDashboardService>();
 // Persist DataProtection keys to PostgreSQL so encrypted data survives redeploys.
 builder.Services.AddDataProtection()
     .PersistKeysToDbContext<PitbullDbContext>()
-    .SetApplicationName("Pitbull");
+    .SetApplicationName("Pitbull")
+    // Rotate data-protection keys on a fixed lifetime (encrypted fields remain readable via key ring).
+    .SetDefaultKeyLifetime(TimeSpan.FromDays(90));
 
 // Field-level encryption for [Encrypted] attribute (uses DataProtection)
 builder.Services.AddSingleton<Pitbull.Core.Services.IFieldEncryptionService, Pitbull.Core.Services.FieldEncryptionService>();
@@ -382,6 +384,7 @@ builder.Services.AddIdentity<AppUser, AppRole>(options =>
     options.Password.RequireUppercase = true;
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 8;
+    options.Password.RequiredUniqueChars = 1;
     options.User.RequireUniqueEmail = true;
     // Explicit lockout (CheckPasswordSignInAsync uses lockoutOnFailure: true on login paths).
     options.Lockout.AllowedForNewUsers = true;

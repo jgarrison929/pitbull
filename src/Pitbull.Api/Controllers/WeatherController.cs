@@ -33,6 +33,9 @@ public class WeatherController(IWeatherService weatherService) : ControllerBase
         [FromQuery] decimal longitude,
         [FromQuery] DateTime? date = null)
     {
+        if (latitude is < -90m or > 90m || longitude is < -180m or > 180m)
+            return BadRequest(new { error = "Latitude must be -90..90 and longitude -180..180", code = "VALIDATION_ERROR" });
+
         var result = await weatherService.GetWeatherAsync(latitude, longitude, date);
 
         if (!result.IsSuccess)

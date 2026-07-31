@@ -12,9 +12,10 @@ public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
             .EmailAddress().WithMessage("Invalid email format")
             .MaximumLength(256).WithMessage("Email cannot exceed 256 characters");
 
+        // Align with Identity options (RequiredLength=8 + digit/upper/lower) so clients fail early.
         RuleFor(x => x.Password)
             .NotEmpty().WithMessage("Password is required")
-            .MinimumLength(6).WithMessage("Password must be at least 6 characters")
+            .MinimumLength(8).WithMessage("Password must be at least 8 characters")
             .MaximumLength(100).WithMessage("Password cannot exceed 100 characters")
             .Matches(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)")
             .WithMessage("Password must contain at least one lowercase letter, one uppercase letter, and one number");

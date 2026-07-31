@@ -743,3 +743,27 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 23:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073123`
+
+### CI status (step 1)
+- **main green** — #482 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **password:** Register validator min length **6 → 8** (align Identity RequiredLength).
+- **identity:** `RequiredUniqueChars = 1`.
+- **dataprotection:** `SetDefaultKeyLifetime(90 days)`.
+- **search:** Cap query term at 100 chars.
+- **weather:** Validate lat/long ranges.
+- **demo:** Full-block `/api/seed` and `/api/seeddata`.
+- **web:** Minimal CSP (`frame-ancestors`, `base-uri`, `form-action`, `object-src`, `upgrade-insecure-requests`).
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

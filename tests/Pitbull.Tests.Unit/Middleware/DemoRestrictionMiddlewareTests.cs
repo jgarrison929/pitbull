@@ -133,6 +133,8 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/hangfire")]
     [InlineData("/hangfire/recurring")]
     [InlineData("/cap")]
+    [InlineData("/api/seed")]
+    [InlineData("/api/seeddata")]
     public async Task DemoUser_IsFullyBlocked_FromSensitivePrivilegePaths(string path)
     {
         var context = CreateDemoContext(path, "GET");
