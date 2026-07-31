@@ -132,12 +132,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.ForwardLimit = 1;
     // Trust RFC1918 private ranges so platform reverse proxies (not public internet)
     // can supply client IP / proto for rate limiting and HSTS.
-    options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(
-        System.Net.IPAddress.Parse("10.0.0.0"), 8));
-    options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(
-        System.Net.IPAddress.Parse("172.16.0.0"), 12));
-    options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(
-        System.Net.IPAddress.Parse("192.168.0.0"), 16));
+    // Prefer KnownIPNetworks + System.Net.IPNetwork (ASPDEPR005 — KnownNetworks obsolete in .NET 10).
+    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("10.0.0.0/8"));
+    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("172.16.0.0/12"));
+    options.KnownIPNetworks.Add(System.Net.IPNetwork.Parse("192.168.0.0/16"));
 });
 
 // Module registrations (MediatR handlers + FluentValidation)

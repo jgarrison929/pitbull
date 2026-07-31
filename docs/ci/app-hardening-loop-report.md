@@ -586,3 +586,26 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 16:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073116`
+
+### CI status (step 1)
+- **main green** — #475 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only: Resend/QuestPDF/Mapster/node 25/eslint 10/TS 7/types-node 26/jest-dom 7).
+
+### Shipped this hour
+- **auth:** Block demo password reset — `forgot-password` does not mint tokens/emails for `IsDemoUser` / `@demo.local` (still 200 to avoid enumeration); `reset-password` rejects demo accounts with generic 400.
+- **auth:** Shared `IsDemoAccount` helper for change-password / forgot / reset.
+- **headers/API:** Permissions-Policy geolocation disabled; add `Cross-Origin-Opener-Policy: same-origin`.
+- **headers/web:** COOP + CORP + `X-Permitted-Cross-Domain-Policies: none` on Next.js.
+- **proxy:** Migrate ForwardedHeaders to `KnownIPNetworks` + `System.Net.IPNetwork` (clear ASPDEPR005).
+- **tests:** Demo forgot/reset coverage; SecurityHeaders COOP + geolocation=().
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

@@ -70,7 +70,8 @@ public class SecurityHeadersMiddlewareTests
         var context = await ExecuteMiddlewareAsync(middleware);
 
         var permissionsPolicy = context.Response.Headers["Permissions-Policy"].ToString();
-        Assert.Contains("geolocation=(self)", permissionsPolicy);
+        Assert.Contains("geolocation=()", permissionsPolicy);
+        Assert.DoesNotContain("geolocation=(self)", permissionsPolicy);
         Assert.Contains("microphone=()", permissionsPolicy);
         Assert.Contains("camera=()", permissionsPolicy);
         Assert.Contains("payment=()", permissionsPolicy);
@@ -125,6 +126,17 @@ public class SecurityHeadersMiddlewareTests
         Assert.True(headers.ContainsKey("Cache-Control"));
         Assert.True(headers.ContainsKey("Pragma"));
         Assert.True(headers.ContainsKey("Cross-Origin-Resource-Policy"));
+        Assert.True(headers.ContainsKey("Cross-Origin-Opener-Policy"));
+    }
+
+    [Fact]
+    public async Task Adds_CrossOriginOpenerPolicy_same_origin()
+    {
+        var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
+
+        var context = await ExecuteMiddlewareAsync(middleware);
+
+        Assert.Equal("same-origin", context.Response.Headers["Cross-Origin-Opener-Policy"]);
     }
 
     [Fact]

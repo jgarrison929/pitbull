@@ -860,6 +860,67 @@ public class AuthControllerTests
 
     #endregion
 
+    #region ForgotPassword / ResetPassword - Demo accounts
+
+    [Fact]
+    public async Task ForgotPassword_WhenDemoUser_ReturnsOkWithoutCreatingToken()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var userId = Guid.NewGuid();
+
+        var user = CreateTestUser(id: userId, email: "ceo@demo.local");
+        user.IsDemoUser = true;
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        userManager.Setup(u => u.FindByEmailAsync("ceo@demo.local")).ReturnsAsync(user);
+
+        var controller = CreateController(db, userManager);
+
+        var result = await controller.ForgotPassword(new ForgotPasswordRequest("ceo@demo.local"));
+
+        result.Should().BeOfType<OkObjectResult>();
+        db.PasswordResetTokens.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ResetPassword_WhenDemoUser_ReturnsBadRequestAndDoesNotReset()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManager = CreateMockUserManager();
+        var userId = Guid.NewGuid();
+
+        var user = CreateTestUser(id: userId, email: "cfo@demo.local");
+        user.IsDemoUser = true;
+        db.Users.Add(user);
+
+        var (plaintext, hash) = PasswordResetToken.GenerateToken();
+        db.PasswordResetTokens.Add(new PasswordResetToken
+        {
+            UserId = userId,
+            TokenHash = hash,
+            ExpiresAt = DateTime.UtcNow.AddHours(1),
+            IsUsed = false
+        });
+        await db.SaveChangesAsync();
+
+        userManager.Setup(u => u.FindByIdAsync(userId.ToString())).ReturnsAsync(user);
+
+        var controller = CreateController(db, userManager);
+
+        var result = await controller.ResetPassword(
+            new ResetPasswordRequest(plaintext, "NewPass456!"));
+
+        result.Should().BeAssignableTo<ObjectResult>();
+        ((ObjectResult)result).StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        userManager.Verify(
+            u => u.ResetPasswordAsync(It.IsAny<AppUser>(), It.IsAny<string>(), It.IsAny<string>()),
+            Times.Never);
+    }
+
+    #endregion
+
     #region ChangePassword - Missing Fields
 
     [Fact]

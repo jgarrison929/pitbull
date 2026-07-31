@@ -600,9 +600,7 @@ public class AuthController(
 
         // Shared demo personas and self-service demo accounts must not change passwords
         // (breaks one-click demo-role-login and other explorers on the shared tenant).
-        if (user.IsDemoUser ||
-            (user.Email is not null &&
-             user.Email.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase)))
+        if (IsDemoAccount(user))
         {
             return this.ForbiddenError("Password changes are disabled for demo accounts");
         }
@@ -1072,7 +1070,9 @@ public class AuthController(
         var (plaintext, hash) = PasswordResetToken.GenerateToken();
 
         var user = await userManager.FindByEmailAsync(request.Email.Trim());
-        if (user is null)
+        // Demo / shared-persona accounts: do not issue reset tokens or emails (same as change-password).
+        // Still return 200 so response shape does not enumerate demo vs non-demo accounts.
+        if (user is null || IsDemoAccount(user))
         {
             // Simulate roughly the same latency as the real path
             await Task.Delay(Random.Shared.Next(50, 150));
@@ -1126,21 +1126,24 @@ public class AuthController(
 
         var hash = PasswordResetToken.HashToken(request.Token);
 
-        // Atomic claim: mark the token as used in a single UPDATE WHERE.
-        // If two requests race, only one gets rowsAffected == 1.
+        var resetToken = await db.PasswordResetTokens
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.TokenHash == hash && !t.IsUsed && t.ExpiresAt > DateTime.UtcNow);
+
+        if (resetToken is null)
+            return this.BadRequestError("Invalid or expired reset token");
+
+        var user = await userManager.FindByIdAsync(resetToken.UserId.ToString());
+        // Refuse password change for demo accounts without leaking why (token left unused).
+        if (user is null || IsDemoAccount(user))
+            return this.BadRequestError("Invalid or expired reset token");
+
+        // Atomic claim after demo/user checks: only one concurrent non-demo request wins.
         var rowsAffected = await db.PasswordResetTokens
             .Where(t => t.TokenHash == hash && !t.IsUsed && t.ExpiresAt > DateTime.UtcNow)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.IsUsed, true));
 
         if (rowsAffected == 0)
-            return this.BadRequestError("Invalid or expired reset token");
-
-        var resetToken = await db.PasswordResetTokens
-            .AsNoTracking()
-            .FirstAsync(t => t.TokenHash == hash);
-
-        var user = await userManager.FindByIdAsync(resetToken.UserId.ToString());
-        if (user is null)
             return this.BadRequestError("Invalid or expired reset token");
 
         // Reset the password using Identity's token-based flow
@@ -1160,6 +1163,15 @@ public class AuthController(
 
         return Ok(new { message = "Password has been reset successfully" });
     }
+
+    /// <summary>
+    /// Shared demo personas and self-service demo signups must not change passwords
+    /// via change-password or forgot/reset (breaks shared explorers / one-click role login).
+    /// </summary>
+    private static bool IsDemoAccount(AppUser user) =>
+        user.IsDemoUser ||
+        (user.Email is not null &&
+         user.Email.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase));
 
     private static string GenerateRefreshToken()
     {
