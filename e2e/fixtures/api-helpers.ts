@@ -4,6 +4,7 @@ const API_BASE = process.env.API_BASE_URL ?? 'http://localhost:5081';
 
 export interface AuthSession {
   token: string;
+  refreshToken?: string;
   tenantId: string;
   userId: string;
   email: string;
@@ -41,8 +42,9 @@ export async function loginApi(
   if (!tenantId) throw new Error(`No tenant_id in JWT for ${email}`);
   const session: AuthSession = {
     token: body.token,
+    refreshToken: body.refreshToken ?? body.RefreshToken ?? undefined,
     tenantId,
-    userId: body.userId,
+    userId: body.userId ?? body.UserId,
     email,
   };
   sessionCache.set(email.toLowerCase(), session);

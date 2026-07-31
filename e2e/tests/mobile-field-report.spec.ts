@@ -118,6 +118,20 @@ test.describe('Mobile field report', () => {
     });
 
     try {
+      // Ensure browser has the same fresh JWT we used for the projects API call
+      // (setup storageState may omit refresh token; inject access token + company).
+      const origin =
+        process.env.DEMO_BASE_URL ?? 'http://localhost:3000';
+      await page.goto(origin);
+      await page.evaluate(
+        ({ token, company }) => {
+          localStorage.setItem('pitbull_token', token);
+          document.cookie = `pitbull_token=${token}; path=/; max-age=${60 * 60 * 24}; SameSite=Lax`;
+          if (company) localStorage.setItem('pitbull_active_company_id', company);
+        },
+        { token: session.token, company: companyId }
+      );
+
       // Deep-link applies demo seed project and jumps to Field when eligible.
       await page.goto(
         `${FIELD_REPORT_PATH}?projectId=${encodeURIComponent(projectId)}`

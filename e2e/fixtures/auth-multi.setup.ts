@@ -41,7 +41,11 @@ for (const persona of Object.values(PERSONAS)) {
         if (defaultCo?.id) activeCompanyId = defaultCo.id;
       }
     }
-    const state = buildStorageState(session.token, undefined, activeCompanyId);
+    const state = buildStorageState(
+      session.token,
+      session.refreshToken,
+      activeCompanyId
+    );
     fs.writeFileSync(authFile, JSON.stringify(state, null, 2));
   });
 }
