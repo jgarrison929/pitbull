@@ -37,12 +37,14 @@ describe("auth cookie handoff", () => {
     installBrowserShim("http:");
     const cookie = buildAuthCookie("jwt-token");
     expect(cookie).toContain("pitbull_token=jwt-token");
+    expect(cookie).toContain("SameSite=Strict");
     expect(cookie).not.toContain("Secure");
   });
 
   it("buildAuthCookie includes Secure on https", () => {
     installBrowserShim("https:");
     const cookie = buildAuthCookie("jwt-token");
+    expect(cookie).toContain("SameSite=Strict");
     expect(cookie).toContain("; Secure");
   });
 

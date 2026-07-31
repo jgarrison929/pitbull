@@ -16,7 +16,9 @@ namespace Pitbull.Api.Controllers;
 [EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("Monitoring")]
-public class MonitoringController(HealthCheckService healthCheckService) : ControllerBase
+public class MonitoringController(
+    HealthCheckService healthCheckService,
+    IHostEnvironment hostEnvironment) : ControllerBase
 {
     /// <summary>
     /// Get API version and build information
@@ -40,7 +42,8 @@ public class MonitoringController(HealthCheckService healthCheckService) : Contr
             BuildTime: buildTime,
             Environment: Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production",
             FrameworkVersion: Environment.Version.ToString(),
-            MachineName: Environment.MachineName
+            // Avoid leaking host/container names into admin UI / logs / screenshots.
+            MachineName: hostEnvironment.IsDevelopment() ? Environment.MachineName : "redacted"
         ));
     }
 

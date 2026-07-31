@@ -425,6 +425,8 @@ builder.Services.AddAuthentication(options =>
 })
     .AddJwtBearer(options =>
     {
+        // In non-dev, refuse metadata over plain HTTP (defense in depth for token services).
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
         {
             ValidateIssuer = true,
@@ -472,6 +474,8 @@ builder.Services.Configure<IISServerOptions>(options =>
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
     options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
+    // Do not advertise the server stack in the Server response header.
+    options.AddServerHeader = false;
 });
 
 // CAP event bus â€” PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)
@@ -893,11 +897,13 @@ if (app.Configuration.GetValue<bool>("Demo:Enabled"))
 app.UseAuthorization();
 app.UseRateLimiter();
 
-// Hangfire dashboard â€” admin-only, after auth/authz
+// Hangfire dashboard â€” SystemAdmin-only, after auth/authz (never expose storage connection string)
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = new[] { new HangfireDashboardAuthFilter() },
     DashboardTitle = "Pitbull â€” Background Jobs",
+    DisplayStorageConnectionString = false,
+    // IgnoreAntiforgeryToken defaults false; keep CSRF protection on dashboard posts.
 });
 
 // Register recurring jobs

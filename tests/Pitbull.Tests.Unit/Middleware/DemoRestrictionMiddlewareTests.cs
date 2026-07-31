@@ -129,6 +129,8 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/api/ai/settings")]
     [InlineData("/api/auth/bootstrap-admin")]
     [InlineData("/api/auth/change-password")]
+    [InlineData("/hangfire")]
+    [InlineData("/hangfire/recurring")]
     public async Task DemoUser_IsFullyBlocked_FromSensitivePrivilegePaths(string path)
     {
         var context = CreateDemoContext(path, "GET");

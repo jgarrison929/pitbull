@@ -1,9 +1,12 @@
 using System.Security.Claims;
 using FluentAssertions;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Hosting;
 using Moq;
 using Pitbull.Api.Controllers;
 
@@ -11,6 +14,14 @@ namespace Pitbull.Tests.Unit.Api;
 
 public class MonitoringControllerTests
 {
+    private sealed class TestHostEnvironment : IHostEnvironment
+    {
+        public required string EnvironmentName { get; set; }
+        public string ApplicationName { get; set; } = "Test";
+        public string ContentRootPath { get; set; } = ".";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+    }
+
     private static Mock<HealthCheckService> CreateHealthCheckMock(HealthStatus status = HealthStatus.Healthy)
     {
         var entries = new Dictionary<string, HealthReportEntry>
@@ -35,7 +46,10 @@ public class MonitoringControllerTests
         return mock;
     }
 
-    private static MonitoringController CreateController(Mock<HealthCheckService> healthMock, bool authenticated = false)
+    private static MonitoringController CreateController(
+        Mock<HealthCheckService> healthMock,
+        bool authenticated = false,
+        string environmentName = "Production")
     {
         var services = new ServiceCollection();
         var serviceProvider = services.BuildServiceProvider();
@@ -52,7 +66,8 @@ public class MonitoringControllerTests
             httpContext.User = new ClaimsPrincipal(identity);
         }
 
-        var controller = new MonitoringController(healthMock.Object);
+        var hostEnv = new TestHostEnvironment { EnvironmentName = environmentName };
+        var controller = new MonitoringController(healthMock.Object, hostEnv);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = httpContext
@@ -72,6 +87,20 @@ public class MonitoringControllerTests
         var version = okResult.Value.Should().BeOfType<VersionInfo>().Subject;
         version.Version.Should().NotBeNullOrEmpty();
         version.FrameworkVersion.Should().NotBeNullOrEmpty();
+        version.MachineName.Should().Be("redacted");
+    }
+
+    [Fact]
+    public void GetVersion_InDevelopment_IncludesMachineName()
+    {
+        var healthMock = CreateHealthCheckMock();
+        var controller = CreateController(healthMock, environmentName: "Development");
+
+        var result = controller.GetVersion();
+
+        var okResult = result.Should().BeOfType<OkObjectResult>().Subject;
+        var version = okResult.Value.Should().BeOfType<VersionInfo>().Subject;
+        version.MachineName.Should().Be(Environment.MachineName);
     }
 
     [Fact]

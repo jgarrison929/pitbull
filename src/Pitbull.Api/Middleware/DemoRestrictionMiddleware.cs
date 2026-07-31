@@ -37,6 +37,8 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/auth/change-password",
         // Export downloads are sensitive (GET is the data-exfiltration path).
         "/api/export",
+        // Cross-tenant job UI — platform operators only (also gated by HangfireDashboardAuthFilter).
+        "/hangfire",
     ];
 
     /// <summary>
