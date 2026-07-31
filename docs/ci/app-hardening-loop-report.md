@@ -567,3 +567,22 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 15:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073115`
+
+### CI status (step 1)
+- **main green** — #474 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **proxy:** ForwardedHeaders trusts RFC1918 private networks only (rate-limit / HSTS client IP behind platform proxy; still no public-internet trust).
+- **diagnostics:** Anonymous POST validates message required + max lengths; 429 includes Retry-After + RATE_LIMITED code.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
