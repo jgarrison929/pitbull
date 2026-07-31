@@ -630,3 +630,26 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-07-31 18:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073118`
+
+### CI status (step 1)
+- **main green** — #477 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only). npm audit 0; no vulnerable NuGet packages.
+
+### Shipped this hour
+- **kestrel:** `AddServerHeader = false` (no Server stack banner).
+- **jwt:** `RequireHttpsMetadata` true outside Development.
+- **hangfire:** `DisplayStorageConnectionString = false`; demo middleware full-blocks `/hangfire`.
+- **web auth cookie:** `SameSite=Strict` (was Lax).
+- **monitoring:** non-dev `MachineName` redacted.
+- **tests:** monitoring machine redaction; hangfire demo block; auth cookie Strict.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

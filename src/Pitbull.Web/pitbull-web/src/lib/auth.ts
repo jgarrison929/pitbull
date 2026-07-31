@@ -10,7 +10,10 @@ export function getToken(): string | null {
 export function buildAuthCookie(token: string): string {
   const secure =
     typeof window !== "undefined" && window.location.protocol === "https:";
-  return `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax${secure ? "; Secure" : ""}`;
+  // SameSite=Strict: middleware cookie is same-site only (reduces CSRF handoff risk).
+  // Not HttpOnly: Next middleware reads it server-side from Cookie header; client also
+  // keeps the JWT in localStorage for API Authorization headers.
+  return `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Strict${secure ? "; Secure" : ""}`;
 }
 
 export function setToken(token: string): void {
