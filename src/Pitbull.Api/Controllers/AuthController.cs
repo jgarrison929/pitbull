@@ -42,6 +42,7 @@ public class AuthController(
     Pitbull.Core.MultiTenancy.TenantContext tenantContext,
     ITenantProvisioningService tenantProvisioning,
     IServiceScopeFactory scopeFactory,
+    IJwtTokenService jwtTokenService,
     ILogger<AuthController> logger) : ControllerBase
 {
     /// <summary>
@@ -984,7 +985,7 @@ public class AuthController(
             .Select(x => new CompanyBriefResponse(x.c.Id, x.c.Code, x.c.Name))
             .ToList();
 
-        var permissions = await ResolveRbacPermissionClaimsAsync(user, roles);
+        var permissions = await RbacJwtPermissionResolver.ResolveAsync(db, user, roles);
         var roleProfile = RoleProfileResolver.Detect(user.Title, roles);
 
         return Ok(new UserProfileResponse(
@@ -1194,82 +1195,10 @@ public class AuthController(
         }
     }
 
-    /// <summary>
-    /// Resolves RBAC permission claim values for JWT/profile.
-    /// Uses IgnoreQueryFilters because login runs before tenant middleware sets context.
-    /// Demo users never receive permissions=* solely for being demo.
-    /// </summary>
-    private Task<string[]> ResolveRbacPermissionClaimsAsync(AppUser user, IList<string> identityRoles) =>
-        RbacJwtPermissionResolver.ResolveAsync(db, user, identityRoles);
-
     private async Task<string> GenerateJwtTokenAsync(AppUser user)
     {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
         var roles = await roleSeeder.GetUserRolesAsync(user);
-
-        // Get user's company access
-        var companyAccess = await db.Set<Pitbull.Core.Domain.UserCompanyAccess>()
-            .IgnoreQueryFilters()
-            .Where(uca => uca.TenantId == user.TenantId && uca.UserId == user.Id && !uca.IsDeleted)
-            .Select(uca => new { uca.CompanyId, uca.IsDefault })
-            .ToListAsync();
-
-        // Determine active company: default company, or first available
-        var defaultCompanyId = companyAccess.FirstOrDefault(c => c.IsDefault)?.CompanyId
-                               ?? companyAccess.FirstOrDefault()?.CompanyId
-                               ?? Guid.Empty;
-
-        var companyIds = companyAccess.Select(c => c.CompanyId).ToList();
-
-        var roleProfile = RoleProfileResolver.Detect(user.Title, roles);
-
-        var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email!),
-            new("tenant_id", user.TenantId.ToString()),
-            new("full_name", user.FullName),
-            new("user_type", user.Type.ToString()),
-            new("role_profile", RoleProfileResolver.ToApiName(roleProfile)),
-        };
-
-        if (!string.IsNullOrWhiteSpace(user.Title))
-            claims.Add(new Claim("job_title", user.Title));
-
-        if (user.IsDemoUser)
-            claims.Add(new Claim("is_demo_user", "true"));
-
-        // Add company claims if available
-        if (defaultCompanyId != Guid.Empty)
-        {
-            claims.Add(new Claim("company_id", defaultCompanyId.ToString()));
-            claims.Add(new Claim("company_ids", string.Join(",", companyIds)));
-        }
-
-        // Add role claims - use ClaimTypes.Role for ASP.NET Core authorization
-        foreach (var role in roles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
-        }
-
-        foreach (var perm in await ResolveRbacPermissionClaimsAsync(user, roles))
-        {
-            claims.Add(new Claim("permissions", perm));
-        }
-
-        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");
-
-        var token = new JwtSecurityToken(
-            issuer: configuration["Jwt:Issuer"],
-            audience: configuration["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expiration),
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
+        return await jwtTokenService.CreateAccessTokenAsync(user, roles);
     }
 }
 

@@ -99,6 +99,7 @@ if (!string.IsNullOrEmpty(builder.Configuration["PostHog:ProjectApiKey"]))
 // In-memory caching for reference data (chart of accounts, cost codes, etc.)
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<Pitbull.Api.Services.ICacheService, Pitbull.Api.Services.CacheService>();
+builder.Services.AddScoped<Pitbull.Api.Services.IJwtTokenService, Pitbull.Api.Services.JwtTokenService>();
 
 // Core services (DbContext, MediatR, validation, multi-tenancy)
 builder.Services.AddPitbullCore(builder.Configuration, builder.Environment);

@@ -29,7 +29,7 @@ public class InvitationController(
     ITeamInvitationService invitationService,
     IOnboardingService onboardingService,
     ICompanyContext companyContext,
-    IConfiguration configuration,
+    IJwtTokenService jwtTokenService,
     PitbullDbContext db) : ControllerBase
 {
     private static readonly HashSet<string> AllowedRoles = new(StringComparer.OrdinalIgnoreCase)
@@ -251,85 +251,14 @@ public class InvitationController(
         }
 
         var user = result.UserInfo!;
-        var jwtToken = await GenerateJwtTokenAsync(user);
+        var appUser = await db.Users
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(u => u.Id == user.UserId, ct)
+            ?? throw new InvalidOperationException("Invitation accepted but user row was not found.");
+
+        var jwtToken = await jwtTokenService.CreateAccessTokenAsync(appUser, user.Roles, ct: ct);
 
         return Ok(new AuthResponse(jwtToken, user.UserId, user.FullName, user.Email, user.Roles, result.RefreshToken));
-    }
-
-    private async Task<string> GenerateJwtTokenAsync(AcceptInvitationUserInfo user)
-    {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        // Load AppUser for title / demo flag / shared permission resolution (claim parity with AuthController).
-        var appUser = await db.Users
-            .AsNoTracking()
-            .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(u => u.Id == user.UserId);
-
-        // Get user's company access
-        var companyAccess = await db.Set<UserCompanyAccess>()
-            .IgnoreQueryFilters()
-            .Where(uca => uca.TenantId == user.TenantId && uca.UserId == user.UserId && !uca.IsDeleted)
-            .Select(uca => new { uca.CompanyId, uca.IsDefault })
-            .ToListAsync();
-
-        var defaultCompanyId = companyAccess.FirstOrDefault(c => c.IsDefault)?.CompanyId
-                               ?? companyAccess.FirstOrDefault()?.CompanyId
-                               ?? user.CompanyId;
-
-        var companyIds = companyAccess.Select(c => c.CompanyId).ToList();
-        if (companyIds.Count == 0 && user.CompanyId != Guid.Empty)
-            companyIds.Add(user.CompanyId);
-
-        var roles = user.Roles.ToList();
-        var title = appUser?.Title;
-        var roleProfile = RoleProfileResolver.Detect(title, roles);
-
-        var claims = new List<Claim>
-        {
-            new(JwtRegisteredClaimNames.Sub, user.UserId.ToString()),
-            new(JwtRegisteredClaimNames.Email, user.Email),
-            new("tenant_id", user.TenantId.ToString()),
-            new("full_name", user.FullName),
-            new("user_type", user.UserType),
-            new("role_profile", RoleProfileResolver.ToApiName(roleProfile)),
-        };
-
-        if (!string.IsNullOrWhiteSpace(title))
-            claims.Add(new Claim("job_title", title));
-
-        if (appUser?.IsDemoUser == true)
-            claims.Add(new Claim("is_demo_user", "true"));
-
-        // Add company claims
-        if (defaultCompanyId != Guid.Empty)
-        {
-            claims.Add(new Claim("company_id", defaultCompanyId.ToString()));
-            claims.Add(new Claim("company_ids", string.Join(",", companyIds)));
-        }
-
-        foreach (var role in roles)
-            claims.Add(new Claim(ClaimTypes.Role, role));
-
-        // Shared resolver — never grant permissions=* via Identity Admin alone for demo accounts.
-        if (appUser is not null)
-        {
-            foreach (var perm in await RbacJwtPermissionResolver.ResolveAsync(db, appUser, roles))
-                claims.Add(new Claim("permissions", perm));
-        }
-
-        var expiration = int.Parse(configuration["Jwt:ExpirationMinutes"] ?? "30");
-
-        var token = new JwtSecurityToken(
-            issuer: configuration["Jwt:Issuer"],
-            audience: configuration["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(expiration),
-            signingCredentials: credentials);
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     private Guid? GetUserId()

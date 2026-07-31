@@ -93,8 +93,9 @@ public class CompaniesControllerTests : IDisposable
 
     private CompaniesController CreateCompaniesController(Guid? authenticatedUserId = null)
     {
+        var jwtTokenService = new JwtTokenService(_db, _configuration);
         var controller = new CompaniesController(
-            _db, _tenantContext, _companyContext, _userManager.Object, _roleSeeder, _configuration, _cacheService.Object);
+            _db, _tenantContext, _companyContext, _userManager.Object, _roleSeeder, jwtTokenService, _cacheService.Object);
 
         var claims = new List<Claim>();
         if (authenticatedUserId.HasValue)
