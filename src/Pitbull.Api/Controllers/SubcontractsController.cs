@@ -105,7 +105,7 @@ public class SubcontractsController(IContractsService contractsService) : Contro
     /// Returns a paginated list of subcontracts for the current tenant.
     /// Supports filtering by project, status, and free-text search (matches subcontractor name and number).
     ///
-    /// Example: `GET /api/subcontracts?projectId=xxx&amp;status=InProgress&amp;search=concrete&amp;page=1&amp;pageSize=25`
+    /// Sample request: `GET /api/subcontracts?projectId=xxx&amp;status=InProgress&amp;search=concrete&amp;page=1&amp;pageSize=25`
     /// </remarks>
     /// <param name="projectId">Filter by project ID</param>
     /// <param name="status">Filter by subcontract status (e.g., Draft, Executed, InProgress)</param>

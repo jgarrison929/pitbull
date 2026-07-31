@@ -105,7 +105,7 @@ public class PaymentApplicationsController(
     /// Returns a paginated list of payment applications ordered by application number (descending).
     /// Supports filtering by subcontract and status.
     ///
-    /// Example: `GET /api/paymentapplications?subcontractId=xxx&amp;status=Submitted&amp;page=1&amp;pageSize=25`
+    /// Sample request: `GET /api/paymentapplications?subcontractId=xxx&amp;status=Submitted&amp;page=1&amp;pageSize=25`
     /// </remarks>
     /// <param name="subcontractId">Filter by subcontract ID</param>
     /// <param name="status">Filter by status (e.g., Draft, Submitted, Approved, Paid)</param>

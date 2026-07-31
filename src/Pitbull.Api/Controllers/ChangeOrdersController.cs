@@ -151,7 +151,7 @@ public class ChangeOrdersController(IContractsService contractsService) : Contro
     /// Returns a paginated list of change orders.
     /// Supports filtering by subcontract, status, and free-text search (matches title and CO number).
     ///
-    /// Example: `GET /api/changeorders?subcontractId=xxx&amp;status=Pending&amp;page=1&amp;pageSize=25`
+    /// Sample request: `GET /api/changeorders?subcontractId=xxx&amp;status=Pending&amp;page=1&amp;pageSize=25`
     /// </remarks>
     /// <param name="subcontractId">Filter by subcontract ID</param>
     /// <param name="status">Filter by status (e.g., Pending, Approved, Rejected)</param>

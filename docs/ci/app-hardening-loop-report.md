@@ -387,3 +387,27 @@ Findings discovered (unique): 256
 - rbac_*/roles still without FORCE RLS (login pre-tenant by design).
 - Docker digests will need periodic refresh (Dependabot docker already watches Dockerfiles).
 
+
+## Hourly appendix — 2026-07-31 07:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073107`
+
+### CI status (step 1)
+- **main green** — #461 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe full merges of open majors. **#439** red: Microsoft.OpenApi **3.9.0** breaks ASP.NET Core 10 XmlCommentGenerator (`IOpenApiMediaType.Example` read-only CS0200).
+- IdentityModel portion of #439 shipped here as 8.22.0 (OpenApi left on 2.7.5).
+- Dependabot: ignore Microsoft.OpenApi ≥3; exclude from `microsoft` group so Identity/System updates are not blocked by OpenApi majors.
+- Left open: #447 Resend, #446 QuestPDF, #443 Mapster 10, #438 eslint 10, #436 types/node 26, #434 TS 7, #432 jsdom, #431 jest-dom 7, #429 node alpine major.
+
+### Shipped this hour
+- **deps:** IdentityModel stack **8.20.0 → 8.22.0** (Protocols, OpenIdConnect, Jwt) + lockfiles; Microsoft.OpenApi stays **2.7.5**.
+- **deps/policy:** Document OpenApi 2.x pin; Dependabot ignore OpenApi 3.x + exclude from microsoft group.
+- **openapi/xml:** Rename `/// Example:` sample request lines to `Sample request:` so XmlCommentGenerator does not treat them as media-type examples.
+
+### Residual high items
+- Close/supersede #439 after this lands (OpenApi 3.x still blocked).
+- Major Dependabot PRs still need human judgment (Resend/QuestPDF/Mapster/node/eslint/TS).
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

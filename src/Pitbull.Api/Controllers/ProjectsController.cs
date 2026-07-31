@@ -148,7 +148,7 @@ public class ProjectsController(
     /// Returns a paginated list of projects for the current tenant.
     /// Supports filtering by status, type, and free-text search (matches name and number).
     ///
-    /// Example: `GET /api/projects?status=Active&amp;search=bridge&amp;page=1&amp;pageSize=25`
+    /// Sample request: `GET /api/projects?status=Active&amp;search=bridge&amp;page=1&amp;pageSize=25`
     /// </remarks>
     /// <param name="status">Filter by project status (e.g., Active, Completed, OnHold)</param>
     /// <param name="type">Filter by project type (e.g., Commercial, Residential, Industrial)</param>
