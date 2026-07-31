@@ -166,25 +166,29 @@ test.describe('Mobile field report', () => {
         timeout: 15_000,
       });
 
+      // api() may 401 once then refresh+retry; wait for the non-401 create response.
+      // Also avoid response.text() after client navigation (Playwright body protocol error).
       const createRespPromise = page.waitForResponse(
         (r) => {
           if (r.request().method() !== 'POST') return false;
           const u = r.url();
-          return (
-            u.includes(`/api/projects/`) &&
-            u.includes(`/daily-reports`) &&
-            !u.includes('/submit') &&
-            !u.includes('/approve') &&
-            !u.includes('/lock')
-          );
+          if (
+            !u.includes('/api/projects/') ||
+            !u.includes('/daily-reports') ||
+            u.includes('/submit') ||
+            u.includes('/approve') ||
+            u.includes('/lock')
+          ) {
+            return false;
+          }
+          // Skip the transient 401 that precedes token refresh retry.
+          return r.status() !== 401;
         },
-        { timeout: 30_000 }
+        { timeout: 45_000 }
       );
 
       await page.getByTestId('field-report-submit').click();
       const createResp = await createRespPromise;
-      // status() is safe after navigation; text()/json() throw Protocol error
-      // (Network.getResponseBody) when the page has already navigated away.
       const createStatus = createResp.status();
       expect(
         createStatus === 201 || createStatus === 200,

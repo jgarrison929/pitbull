@@ -292,7 +292,9 @@ Findings discovered (unique): 256
 - No safe patch/minor merges (majors still open).
 
 ### Shipped this hour
-- **e2e:** Mobile field-report smoke — stop calling `response.text()` after post-submit navigation (Playwright `Network.getResponseBody` protocol error). Gate on HTTP status only (201/200).
+- **e2e:** Mobile field-report smoke —
+  1) stop `response.text()` after post-submit navigation (Playwright body protocol error);
+  2) wait for non-401 create response so token-refresh retry is not mistaken for failure.
 
 ### Residual high items
 - packages.lock.json / Docker digests still open.
