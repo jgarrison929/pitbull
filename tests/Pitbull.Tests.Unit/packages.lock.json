@@ -48,9 +48,9 @@
       },
       "Microsoft.OpenApi": {
         "type": "Direct",
-        "requested": "[2.7.5, )",
-        "resolved": "2.7.5",
-        "contentHash": "0FA67RSnRM4tcBKqiqVu/HPdZ9+QOKbmeRjxRUGTCjPU4C0bmUhd97Dso7Yild5P7nOV6GxJ2xrK0Kv/O9xp0w=="
+        "requested": "[2.11.0, )",
+        "resolved": "2.11.0",
+        "contentHash": "/ignjfdeKT2SGLIR7QEv19KnI0rvoxRG/TYDOZdK9EsWLjKK9IK8i1Mo5NRm9PRV3i64DzlTqnIflWvoyfljLg=="
       },
       "Moq": {
         "type": "Direct",
@@ -158,8 +158,8 @@
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "4.0.101.5",
-        "contentHash": "GJX493Zi6Q5vJumy597q4IQizx35Z7gzn7cobwAqhU/GT7rFaH92uSrWfVVBl+kXBUawZdu8EETZ2mKJJSGP7A==",
+        "resolved": "4.0.101.6",
+        "contentHash": "LsVXGc3lyJuUJe+EbGubkFeR0cVmtmj4YdMChqsqSIsjZtCMzPg2BXR7cJqcrIBGoHab3q3RS6K8T9QD2tbhhQ==",
         "dependencies": {
           "AWSSDK.Core": "[4.0.100.9, 5.0.0)"
         }
@@ -754,8 +754,8 @@
       },
       "Scalar.AspNetCore": {
         "type": "Transitive",
-        "resolved": "2.16.16",
-        "contentHash": "Ax0e0bIh+Upf92k1+pTBUom3e/kbpu20qsrDYmmS1NM721Eq2xF8c789x6IbiNrvW8WwySRzPv/icYYhb6idSg=="
+        "resolved": "2.16.17",
+        "contentHash": "J5FyUxdZE/QbS/s3NSE6XWoBIJwta1eOUBuDbieHm2HSfFELH8hOnxSsoEBreckoekfZ7STsMCMGmmUNPVVosg=="
       },
       "Serilog": {
         "type": "Transitive",
@@ -910,7 +910,7 @@
       "pitbull.ai": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.ProjectManagement": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )",
@@ -937,7 +937,7 @@
           "Microsoft.AspNetCore.OpenApi": "[10.0.10, )",
           "Microsoft.IdentityModel.Protocols": "[8.22.0, )",
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "[8.22.0, )",
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.AI": "[1.0.0, )",
           "Pitbull.Bids": "[1.0.0, )",
           "Pitbull.Billing": "[1.0.0, )",
@@ -960,7 +960,7 @@
           "QuestPDF": "[2026.2.1, )",
           "Resend": "[0.2.1, )",
           "Savorboard.CAP.InMemoryMessageQueue": "[10.0.0, )",
-          "Scalar.AspNetCore": "[2.16.16, )",
+          "Scalar.AspNetCore": "[2.16.17, )",
           "Serilog.AspNetCore": "[10.0.0, )",
           "Serilog.Sinks.Console": "[6.1.1, )",
           "System.IdentityModel.Tokens.Jwt": "[8.22.0, )"
@@ -969,7 +969,7 @@
       "pitbull.bids": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )"
         }
@@ -977,7 +977,7 @@
       "pitbull.billing": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )",
@@ -987,7 +987,7 @@
       "pitbull.contracts": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
@@ -1002,49 +1002,49 @@
           "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore": "[10.0.10, )",
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.10, )",
           "Microsoft.EntityFrameworkCore": "[10.0.10, )",
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )"
         }
       },
       "pitbull.documents": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
       "pitbull.email": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
       "pitbull.messaging": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
       "pitbull.notifications": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
       "pitbull.portal": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
       "pitbull.projectmanagement": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )",
@@ -1055,7 +1055,7 @@
       "pitbull.projects": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.RFIs": "[1.0.0, )"
@@ -1064,7 +1064,7 @@
       "pitbull.reports": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )",
           "Pitbull.TimeTracking": "[1.0.0, )"
@@ -1073,7 +1073,7 @@
       "pitbull.rfis": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
@@ -1081,22 +1081,22 @@
       "pitbull.storage": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[4.0.101.5, )",
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "AWSSDK.S3": "[4.0.101.6, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
       "pitbull.systemadmin": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
       "pitbull.timetracking": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.7.5, )",
+          "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )"
         }
