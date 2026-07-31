@@ -23,10 +23,37 @@ function decodeTokenPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-function hasAdminRole(payload: Record<string, unknown>): boolean {
+/** True for logical Admin or tenant-prefixed `{tenantId}:Admin` role claim values. */
+export function hasAdminRole(payload: Record<string, unknown>): boolean {
   const roles = payload[ROLE_CLAIM];
-  if (Array.isArray(roles)) return roles.includes("Admin");
-  return roles === "Admin";
+  const list = Array.isArray(roles) ? roles : roles != null ? [roles] : [];
+  return list.some(
+    (r) => typeof r === "string" && (r === "Admin" || r.endsWith(":Admin"))
+  );
+}
+
+/**
+ * Same-app relative paths only for post-login redirects (blocks open-redirect shapes).
+ * Exported for unit tests.
+ */
+export function safeMiddlewareRedirect(pathname: string): string {
+  let path = pathname;
+  try {
+    path = decodeURIComponent(pathname);
+  } catch {
+    return "/";
+  }
+  if (
+    !path.startsWith("/") ||
+    path.startsWith("//") ||
+    path.includes("\\") ||
+    path.includes("@") ||
+    path.includes("://") ||
+    /[\x00-\x1f]/.test(path)
+  ) {
+    return "/";
+  }
+  return path;
 }
 
 export function middleware(request: NextRequest) {
@@ -49,7 +76,7 @@ export function middleware(request: NextRequest) {
   // No token → redirect to login
   if (!token && pathname !== "/login" && pathname !== "/register") {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
+    loginUrl.searchParams.set("redirect", safeMiddlewareRedirect(pathname));
     return NextResponse.redirect(loginUrl);
   }
 
@@ -60,7 +87,7 @@ export function middleware(request: NextRequest) {
     // Expired or malformed token → redirect to login
     if (!payload) {
       const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("redirect", pathname);
+      loginUrl.searchParams.set("redirect", safeMiddlewareRedirect(pathname));
       return NextResponse.redirect(loginUrl);
     }
 

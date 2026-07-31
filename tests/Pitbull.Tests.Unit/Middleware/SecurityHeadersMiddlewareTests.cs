@@ -127,6 +127,8 @@ public class SecurityHeadersMiddlewareTests
         Assert.True(headers.ContainsKey("Pragma"));
         Assert.True(headers.ContainsKey("Cross-Origin-Resource-Policy"));
         Assert.True(headers.ContainsKey("Cross-Origin-Opener-Policy"));
+        Assert.True(headers.ContainsKey("X-Permitted-Cross-Domain-Policies"));
+        Assert.Equal("none", headers["X-Permitted-Cross-Domain-Policies"].ToString());
     }
 
     [Fact]

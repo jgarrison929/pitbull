@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Services;
 
 namespace Pitbull.Api.Controllers;
@@ -10,6 +11,7 @@ namespace Pitbull.Api.Controllers;
 [ApiController]
 [Route("api/changelog")]
 [AllowAnonymous]
+[EnableRateLimiting("api")]
 [Produces("application/json")]
 [Tags("System")]
 public class ChangelogController(IChangelogService changelogService) : ControllerBase
