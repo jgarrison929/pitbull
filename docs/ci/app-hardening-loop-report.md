@@ -233,3 +233,27 @@ Findings discovered (unique): 256
 - Company-scoped compound RLS for multi-company tables (beyond original CompanyTables set).
 - Mobile/owner Playwright smoke flakiness.
 
+
+## Hourly appendix — 2026-07-30 23:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073023`
+
+### CI status (step 1)
+- **main green** — #454 CI + Push success.
+- No new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges. Majors left open (Resend/QuestPDF/Mapster/OpenApi/eslint/TS/node).
+
+### Shipped this hour
+- **rls fix:** DISABLE RLS on `vendor_portal_tokens` (pre-tenant token hash lookup cannot use FORCE tenant RLS; IgnoreQueryFilters does not bypass RLS).
+- **rls:** FORCE RLS + tenant isolation on residual tables: vendor invoices/pay apps, WIP, wage determinations, work classifications, tax rates, tenant_settings, migration_projects, workflow_*.
+- **skipped (by design):** rbac_*, roles, diagnostic_errors, team_invitations (pre-tenant or nullable TenantId).
+
+### Residual high items
+- packages.lock.json / Docker digests still open.
+- Major Dependabot PRs need human judgment.
+- Pre-tenant token tables need security-definer lookup or non-RLS design (documented for vendor_portal_tokens).
+- Company-scoped compound RLS incomplete.
+- Mobile/owner Playwright smoke flakiness.
+
