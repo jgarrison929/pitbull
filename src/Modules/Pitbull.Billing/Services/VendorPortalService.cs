@@ -21,8 +21,9 @@ public class VendorPortalService(
 {
     public async Task<Result<VendorPortalTokenDto>> GenerateTokenAsync(Guid vendorId, Guid projectId, int expirationDays, CancellationToken ct = default)
     {
-        if (expirationDays < 1 || expirationDays > 365)
-            return Result.Failure<VendorPortalTokenDto>("Expiration must be between 1 and 365 days", "VALIDATION_ERROR");
+        // Cap at 90 days so long-lived public capability tokens cannot linger for a year.
+        if (expirationDays < 1 || expirationDays > 90)
+            return Result.Failure<VendorPortalTokenDto>("Expiration must be between 1 and 90 days", "VALIDATION_ERROR");
 
         var vendor = await db.Vendors.AsNoTracking()
             .FirstOrDefaultAsync(v => v.Id == vendorId, ct);

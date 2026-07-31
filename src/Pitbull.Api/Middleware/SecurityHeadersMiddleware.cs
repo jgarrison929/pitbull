@@ -35,6 +35,9 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
         // Cross-Origin-Opener-Policy: isolate any accidental document navigations from cross-origin openers.
         context.Response.Headers.Append("Cross-Origin-Opener-Policy", "same-origin");
 
+        // Adobe/Flash legacy cross-domain policy file requests.
+        context.Response.Headers.Append("X-Permitted-Cross-Domain-Policies", "none");
+
         // Never cache API responses (JWTs, PII, financial DTOs must not land in shared caches).
         context.Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate");
         context.Response.Headers.Append("Pragma", "no-cache");

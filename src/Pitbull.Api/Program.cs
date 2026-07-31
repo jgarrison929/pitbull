@@ -478,6 +478,10 @@ builder.Services.Configure<KestrelServerOptions>(options =>
     options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
     // Do not advertise the server stack in the Server response header.
     options.AddServerHeader = false;
+    // Bound request line / headers to reduce header-smuggling and slow-header abuse surface.
+    options.Limits.MaxRequestLineSize = 8 * 1024;
+    options.Limits.MaxRequestHeadersTotalSize = 32 * 1024;
+    options.Limits.MaxRequestHeaderCount = 100;
 });
 
 // CAP event bus â€” PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)
