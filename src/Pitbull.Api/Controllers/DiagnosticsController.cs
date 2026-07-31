@@ -70,14 +70,30 @@ public class DiagnosticsController(IDiagnosticsService diagnosticsService) : Con
         // Rate limiting: 10 requests per minute per IP
         var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         if (!CheckRateLimit(ip))
-            return StatusCode(429, new { error = "Too many error reports. Try again later." });
+        {
+            Response.Headers.RetryAfter = "60";
+            return StatusCode(429, new { error = "Too many error reports. Try again later.", code = "RATE_LIMITED" });
+        }
+
+        // Reject empty / oversized payloads early (service also bounds + LogSafe).
+        var message = request.Message ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(message))
+            return BadRequest(new { error = "Message is required", code = "VALIDATION_ERROR" });
+        if (message.Length > 4000)
+            return BadRequest(new { error = "Message exceeds 4000 characters", code = "VALIDATION_ERROR" });
+        if (request.StackTrace is { Length: > 16_000 })
+            return BadRequest(new { error = "StackTrace exceeds 16000 characters", code = "VALIDATION_ERROR" });
+        if (request.Metadata is { Length: > 4000 })
+            return BadRequest(new { error = "Metadata exceeds 4000 characters", code = "VALIDATION_ERROR" });
+        if (request.PageUrl is { Length: > 2048 })
+            return BadRequest(new { error = "PageUrl exceeds 2048 characters", code = "VALIDATION_ERROR" });
 
         // Slim DTO only: never accept client TenantId/UserId/UserEmail/StackTrace forgery surface.
         var sanitizedRequest = new CreateDiagnosticErrorRequest
         {
             Source = "frontend",
             Level = request.Level,
-            Message = request.Message ?? string.Empty,
+            Message = message,
             ExceptionType = request.ExceptionType,
             StackTrace = request.StackTrace,
             ComponentStack = request.ComponentStack,
