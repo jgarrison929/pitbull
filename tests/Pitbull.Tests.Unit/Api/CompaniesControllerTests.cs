@@ -405,6 +405,25 @@ public class CompaniesControllerTests : IDisposable
         result.Should().BeOfType<UnauthorizedObjectResult>();
     }
 
+    [Fact]
+    public async Task SwitchCompany_Returns401_WhenUserInactive()
+    {
+        var userId = Guid.NewGuid();
+        var company = await SeedCompany(code: "01", name: "Target Co", isActive: true);
+        var user = await SeedUser(id: userId, email: "inactive@test.com", firstName: "In", lastName: "Active");
+        user.Status = UserStatus.Inactive;
+        await _db.SaveChangesAsync();
+
+        _companyContext.SetAccessibleCompanies(new[] { company.Id });
+        _userManager.Setup(u => u.FindByIdAsync(userId.ToString())).ReturnsAsync(user);
+
+        var controller = CreateCompaniesController(authenticatedUserId: userId);
+
+        var result = await controller.SwitchCompany(company.Id);
+
+        result.Should().BeOfType<UnauthorizedObjectResult>();
+    }
+
     #endregion
 
     // =====================================================================

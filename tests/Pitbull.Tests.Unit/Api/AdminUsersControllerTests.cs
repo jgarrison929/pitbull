@@ -305,6 +305,49 @@ public class AdminUsersControllerTests
 
     #endregion
 
+    #region UpdateUser - Status / refresh revocation
+
+    [Fact]
+    public async Task UpdateUser_WhenStatusLeavesActive_ClearsRefreshToken()
+    {
+        using var db = TestDbContextFactory.Create();
+        var userManagerMock = CreateMockUserManager();
+        var roleManagerMock = CreateMockRoleManager();
+        SetupUserManagerForUpdateTests(userManagerMock);
+
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            Email = "status@test.com",
+            NormalizedEmail = "STATUS@TEST.COM",
+            UserName = "status@test.com",
+            NormalizedUserName = "STATUS@TEST.COM",
+            TenantId = TestTenantId,
+            FirstName = "Status",
+            LastName = "User",
+            Status = UserStatus.Active,
+            RefreshToken = "existing-refresh-token",
+            RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7)
+        };
+        db.Users.Add(user);
+        await db.SaveChangesAsync();
+
+        var controller = CreateController(db, userManagerMock, roleManagerMock, isAuthenticated: true, authenticatedRole: "Admin");
+
+        var result = await controller.UpdateUser(user.Id, new UpdateUserRequest
+        {
+            Status = "Inactive"
+        });
+
+        result.Should().BeOfType<OkObjectResult>();
+        var updated = await db.Users.FindAsync(user.Id);
+        updated!.Status.Should().Be(UserStatus.Inactive);
+        updated.RefreshToken.Should().BeNull();
+        updated.RefreshTokenExpiryTime.Should().BeNull();
+    }
+
+    #endregion
+
     #region UpdateUser - Employee/Company Linking Tests
 
     private static void SetupUserManagerForUpdateTests(Mock<UserManager<AppUser>> userManagerMock)

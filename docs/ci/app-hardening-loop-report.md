@@ -364,3 +364,26 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment (refresh lock files when packages change).
 - rbac_*/roles still without FORCE RLS (login pre-tenant).
 
+
+## Hourly appendix — 2026-07-31 06:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026073106`
+
+### CI status (step 1)
+- **main green** — #460 CI + Push on main success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges. Majors still open / red or major-risk: #447 Resend 0.8, #446 QuestPDF, #443 Mapster 10, #439 Identity/OpenApi (Build & Test red), #438 eslint 10, #436 types/node 26, #434 TS 7, #432 jsdom 30, #431 jest-dom 7, #429 node 26-alpine.
+
+### Shipped this hour
+- **deps/docker:** Pin API `sdk:10.0` + `aspnet:10.0` and web `node:22-alpine` (all stages) to multi-arch **content digests** (resolved 2026-07-31).
+- **auth:** Demo role-login rejects non-`Active` personas after password check.
+- **auth:** Company switch refuses JWT reissue when `user.Status != Active`.
+- **auth:** Admin user status leave-`Active` clears refresh token + expiry (blocks refresh rotation).
+- **tests:** Unit coverage for inactive demo login, inactive company switch, status→refresh revoke.
+
+### Residual high items
+- Major Dependabot PRs need human judgment (#439 OpenApi break; Resend/QuestPDF/Mapster majors).
+- rbac_*/roles still without FORCE RLS (login pre-tenant by design).
+- Docker digests will need periodic refresh (Dependabot docker already watches Dockerfiles).
+
