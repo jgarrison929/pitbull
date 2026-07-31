@@ -9,11 +9,18 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "deps"
+    # Microsoft.OpenApi 3.x breaks ASP.NET Core 10 OpenAPI source generators (CS0200 on Example).
+    # Keep 2.7.5 pin in Directory.Build.props until Microsoft.AspNetCore.OpenApi supports 3.x.
+    ignore:
+      - dependency-name: "Microsoft.OpenApi"
+        versions: [">=3.0.0"]
     groups:
       microsoft:
         patterns:
           - "Microsoft.*"
           - "System.*"
+        exclude-patterns:
+          - "Microsoft.OpenApi"
 
   - package-ecosystem: "npm"
     directory: "/src/Pitbull.Web/pitbull-web"

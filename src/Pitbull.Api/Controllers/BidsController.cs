@@ -110,7 +110,7 @@ public class BidsController(IBidService bidService) : ControllerBase
     /// Returns a paginated list of bids for the current tenant.
     /// Supports filtering by status and free-text search (matches name and number).
     ///
-    /// Example: `GET /api/bids?status=Submitted&amp;search=highway&amp;page=1&amp;pageSize=25`
+    /// Sample request: `GET /api/bids?status=Submitted&amp;search=highway&amp;page=1&amp;pageSize=25`
     /// </remarks>
     /// <param name="status">Filter by bid status (e.g., Draft, Submitted, Won, Lost)</param>
     /// <param name="search">Free-text search across bid name and number</param>
