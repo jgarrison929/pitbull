@@ -383,6 +383,10 @@ builder.Services.AddIdentity<AppUser, AppRole>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 8;
     options.User.RequireUniqueEmail = true;
+    // Explicit lockout (CheckPasswordSignInAsync uses lockoutOnFailure: true on login paths).
+    options.Lockout.AllowedForNewUsers = true;
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
 })
 .AddEntityFrameworkStores<PitbullDbContext>()
 .AddDefaultTokenProviders();
@@ -634,60 +638,60 @@ builder.Services.AddCors(options =>
 });
 
 // Rate limiting
+// NOTE: AddFixedWindowLimiter partitions by policy name only (global). Auth/API policies
+// use AddPolicy + per-IP or per-user keys so one client cannot exhaust the shared budget.
 builder.Services.AddRateLimiter(options =>
 {
-    // Registration: 5 requests per hour (stricter for account creation)
-    options.AddFixedWindowLimiter("register", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromHours(1);
-        opt.QueueLimit = 0;
-    });
+    // Registration / forgot-password / invitation accept: 5 per hour per IP
+    options.AddPolicy("register", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: Pitbull.Api.Configuration.AuthRateLimitPolicy.ClientIpKey(context),
+            factory: _ => Pitbull.Api.Configuration.AuthRateLimitPolicy.WindowOptions(
+                permitLimit: 5,
+                window: TimeSpan.FromHours(1))));
 
     // Login: relaxed in Development so role E2E / multi-persona smoke does not hit 429
     var loginPermitLimit = builder.Environment.IsDevelopment() ? 120 : 10;
-    options.AddFixedWindowLimiter("login", opt =>
-    {
-        opt.PermitLimit = loginPermitLimit;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
+    options.AddPolicy("login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: Pitbull.Api.Configuration.AuthRateLimitPolicy.ClientIpKey(context),
+            factory: _ => Pitbull.Api.Configuration.AuthRateLimitPolicy.WindowOptions(
+                permitLimit: loginPermitLimit,
+                window: TimeSpan.FromMinutes(1))));
 
     // Refresh: slightly higher than login in prod (multi-tab) but far below generic API limits.
     var refreshPermitLimit = builder.Environment.IsDevelopment() ? 120 : 30;
-    options.AddFixedWindowLimiter("refresh", opt =>
-    {
-        opt.PermitLimit = refreshPermitLimit;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
+    options.AddPolicy("refresh", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: Pitbull.Api.Configuration.AuthRateLimitPolicy.ClientIpKey(context),
+            factory: _ => Pitbull.Api.Configuration.AuthRateLimitPolicy.WindowOptions(
+                permitLimit: refreshPermitLimit,
+                window: TimeSpan.FromMinutes(1))));
 
     // Sensitive auth mutations (change-password, bootstrap-admin, etc.)
-    options.AddFixedWindowLimiter("auth", opt =>
-    {
-        opt.PermitLimit = 5;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 0;
-    });
+    options.AddPolicy("auth", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: Pitbull.Api.Configuration.AuthRateLimitPolicy.AuthenticatedOrIpKey(context),
+            factory: _ => Pitbull.Api.Configuration.AuthRateLimitPolicy.WindowOptions(
+                permitLimit: 5,
+                window: TimeSpan.FromMinutes(1))));
 
-    // API endpoints: 200 requests per minute
-    options.AddFixedWindowLimiter("api", opt =>
-    {
-        opt.PermitLimit = 200;
-        opt.Window = TimeSpan.FromMinutes(1);
-        opt.QueueLimit = 5;
-    });
+    // API endpoints: 200 requests per minute per user (or IP when anonymous)
+    options.AddPolicy("api", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: Pitbull.Api.Configuration.AuthRateLimitPolicy.AuthenticatedOrIpKey(context),
+            factory: _ => Pitbull.Api.Configuration.AuthRateLimitPolicy.WindowOptions(
+                permitLimit: 200,
+                window: TimeSpan.FromMinutes(1),
+                queueLimit: 5)));
 
     // Demo registration: 10 signups per hour per IP
     options.AddPolicy("demo-register", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 10,
-                Window = TimeSpan.FromHours(1),
-                QueueLimit = 0
-            }));
+            partitionKey: Pitbull.Api.Configuration.AuthRateLimitPolicy.ClientIpKey(context),
+            factory: _ => Pitbull.Api.Configuration.AuthRateLimitPolicy.WindowOptions(
+                permitLimit: 10,
+                window: TimeSpan.FromHours(1))));
 
     // AI endpoints: per-user rate limits; demo users tighter (2.20.7 AiRateLimitPolicy)
     options.AddPolicy("ai-chat", context =>
@@ -730,13 +734,10 @@ builder.Services.AddRateLimiter(options =>
     // Vendor portal: 30 requests per minute per IP (public, anonymous)
     options.AddPolicy("portal", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
-            factory: _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 30,
-                Window = TimeSpan.FromMinutes(1),
-                QueueLimit = 0
-            }));
+            partitionKey: Pitbull.Api.Configuration.AuthRateLimitPolicy.ClientIpKey(context),
+            factory: _ => Pitbull.Api.Configuration.AuthRateLimitPolicy.WindowOptions(
+                permitLimit: 30,
+                window: TimeSpan.FromMinutes(1))));
 
     options.OnRejected = async (context, token) =>
     {

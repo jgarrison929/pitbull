@@ -67,6 +67,8 @@ public class SwaggerAuthMiddleware(RequestDelegate next, IConfiguration configur
                 ValidateAudience = true,
                 ValidateLifetime = true,
                 ValidateIssuerSigningKey = true,
+                // Align with JWT bearer ClockSkew in Program.cs (1 minute).
+                ClockSkew = TimeSpan.FromMinutes(1),
                 ValidIssuer = configuration["Jwt:Issuer"],
                 ValidAudience = configuration["Jwt:Audience"],
                 IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
