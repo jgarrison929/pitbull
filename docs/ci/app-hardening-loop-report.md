@@ -1077,7 +1077,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 13:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080113`
+**Branch:** `chore/app-hardening-hourly-2026080113` → **merged #498**
 
 ### CI status (step 1)
 - **main green** after #497 (`84f48dba`) — CI + Push success. No failures to fix.
@@ -1091,6 +1091,30 @@ Findings discovered (unique): 256
 - **projects/bids:** ContractAmount/EstimatedValue max 1e9; bid items max 500 + qty/unit cost caps; list search cap 200; budget alert % clamp; phase take clamp.
 - **notifications:** Create validates title/message/type/related entity lengths (EF max).
 - Unit tests for owner contract, project/bid money max, notification create.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 14:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080114`
+
+### CI status (step 1)
+- **main green** after #498 (`c2749a6c`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **chart of accounts:** pageSize clamp 100; search cap 200; account number/name/description EF bounds.
+- **cost codes:** list pageSize clamp 100 + search cap 200.
+- **retention:** policy name max 200; max amount/release threshold bounds; hold amount max 1e9; description max 500.
+- **wage determinations:** determination number/agency lengths; rate count max 200; hourly rate caps.
+- **tax jurisdictions:** name/code/geo lengths; rates 0–100%; category rate count max 50.
+- **bank accounts:** field lengths (name/bank/last4/routing); opening balance |max| 1e9; search cap.
+- Unit tests for retention + chart bounds/page clamp.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

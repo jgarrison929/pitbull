@@ -10,6 +10,9 @@ namespace Pitbull.Billing.Features.BankReconciliation;
 
 public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconciliationService> logger) : IBankReconciliationService
 {
+    private const decimal MaxMoney = 1_000_000_000m;
+    private const int MaxSearchLength = 200;
+
     // ─── Bank Accounts ───────────────────────────────────────────
 
     public async Task<Result<ListBankAccountsResult>> ListBankAccountsAsync(ListBankAccountsQuery query, CancellationToken ct = default)
@@ -21,7 +24,10 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            string term = query.Search.Trim().ToLower();
+            string term = query.Search.Trim();
+            if (term.Length > MaxSearchLength)
+                term = term[..MaxSearchLength];
+            term = term.ToLower();
             q = q.Where(a => a.AccountName.ToLower().Contains(term) || a.BankName.ToLower().Contains(term));
         }
 
@@ -67,9 +73,21 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
     {
         if (string.IsNullOrWhiteSpace(command.AccountName))
             return Result.Failure<BankAccountDto>("Account name is required", "VALIDATION_ERROR");
+        if (command.AccountName.Trim().Length > 200)
+            return Result.Failure<BankAccountDto>("Account name cannot exceed 200 characters", "VALIDATION_ERROR");
 
         if (string.IsNullOrWhiteSpace(command.BankName))
             return Result.Failure<BankAccountDto>("Bank name is required", "VALIDATION_ERROR");
+        if (command.BankName.Trim().Length > 200)
+            return Result.Failure<BankAccountDto>("Bank name cannot exceed 200 characters", "VALIDATION_ERROR");
+
+        var last4 = command.AccountNumberLast4?.Trim() ?? "";
+        if (last4.Length > 4)
+            return Result.Failure<BankAccountDto>("Account number last 4 cannot exceed 4 characters", "VALIDATION_ERROR");
+        if (command.RoutingNumber is { Length: > 9 })
+            return Result.Failure<BankAccountDto>("Routing number cannot exceed 9 characters", "VALIDATION_ERROR");
+        if (Math.Abs(command.OpeningBalance) > MaxMoney)
+            return Result.Failure<BankAccountDto>("Opening balance absolute value cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
         // Verify GL account exists and is an Asset account (cash accounts are assets)
         var glAccount = await db.Set<ChartOfAccount>().AsNoTracking()
@@ -89,7 +107,7 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
         {
             AccountName = command.AccountName.Trim(),
             BankName = command.BankName.Trim(),
-            AccountNumberLast4 = command.AccountNumberLast4?.Trim() ?? "",
+            AccountNumberLast4 = last4,
             RoutingNumber = command.RoutingNumber?.Trim(),
             GlAccountId = command.GlAccountId,
             AccountType = command.AccountType,
@@ -110,10 +128,30 @@ public class BankReconciliationService(PitbullDbContext db, ILogger<BankReconcil
         if (account is null)
             return Result.Failure<BankAccountDto>("Bank account not found", "NOT_FOUND");
 
-        if (command.AccountName is not null) account.AccountName = command.AccountName.Trim();
-        if (command.BankName is not null) account.BankName = command.BankName.Trim();
-        if (command.AccountNumberLast4 is not null) account.AccountNumberLast4 = command.AccountNumberLast4.Trim();
-        if (command.RoutingNumber is not null) account.RoutingNumber = command.RoutingNumber.Trim();
+        if (command.AccountName is not null)
+        {
+            if (string.IsNullOrWhiteSpace(command.AccountName) || command.AccountName.Trim().Length > 200)
+                return Result.Failure<BankAccountDto>("Account name is required and cannot exceed 200 characters", "VALIDATION_ERROR");
+            account.AccountName = command.AccountName.Trim();
+        }
+        if (command.BankName is not null)
+        {
+            if (string.IsNullOrWhiteSpace(command.BankName) || command.BankName.Trim().Length > 200)
+                return Result.Failure<BankAccountDto>("Bank name is required and cannot exceed 200 characters", "VALIDATION_ERROR");
+            account.BankName = command.BankName.Trim();
+        }
+        if (command.AccountNumberLast4 is not null)
+        {
+            if (command.AccountNumberLast4.Trim().Length > 4)
+                return Result.Failure<BankAccountDto>("Account number last 4 cannot exceed 4 characters", "VALIDATION_ERROR");
+            account.AccountNumberLast4 = command.AccountNumberLast4.Trim();
+        }
+        if (command.RoutingNumber is not null)
+        {
+            if (command.RoutingNumber.Trim().Length > 9)
+                return Result.Failure<BankAccountDto>("Routing number cannot exceed 9 characters", "VALIDATION_ERROR");
+            account.RoutingNumber = command.RoutingNumber.Trim();
+        }
         if (command.IsActive.HasValue) account.IsActive = command.IsActive.Value;
 
         if (command.GlAccountId.HasValue)

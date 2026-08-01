@@ -46,17 +46,31 @@ public class TaxJurisdictionService(
     {
         if (string.IsNullOrWhiteSpace(cmd.Name))
             return Result.Failure<TaxJurisdictionDto>("Name is required", "VALIDATION_ERROR");
-
+        if (cmd.Name.Trim().Length > 200)
+            return Result.Failure<TaxJurisdictionDto>("Name cannot exceed 200 characters", "VALIDATION_ERROR");
         if (string.IsNullOrWhiteSpace(cmd.Code))
             return Result.Failure<TaxJurisdictionDto>("Code is required", "VALIDATION_ERROR");
+        if (cmd.Code.Trim().Length > 50)
+            return Result.Failure<TaxJurisdictionDto>("Code cannot exceed 50 characters", "VALIDATION_ERROR");
+        if (cmd.State is { Length: > 50 })
+            return Result.Failure<TaxJurisdictionDto>("State cannot exceed 50 characters", "VALIDATION_ERROR");
+        if (cmd.County is { Length: > 100 })
+            return Result.Failure<TaxJurisdictionDto>("County cannot exceed 100 characters", "VALIDATION_ERROR");
+        if (cmd.City is { Length: > 100 })
+            return Result.Failure<TaxJurisdictionDto>("City cannot exceed 100 characters", "VALIDATION_ERROR");
+        // Rates are stored as percent points (e.g. 7.25 for 7.25%), not fractions.
+        if (cmd.StateRate is < 0 or > 100 || cmd.CountyRate is < 0 or > 100 || cmd.CityRate is < 0 or > 100)
+            return Result.Failure<TaxJurisdictionDto>("Tax rates must be between 0 and 100 percent", "VALIDATION_ERROR");
+        if (cmd.Rates is { Count: > 50 })
+            return Result.Failure<TaxJurisdictionDto>("Cannot have more than 50 category rates", "VALIDATION_ERROR");
 
         var jurisdiction = new TaxJurisdiction
         {
-            Name = cmd.Name,
-            Code = cmd.Code,
-            State = cmd.State,
-            County = cmd.County,
-            City = cmd.City,
+            Name = cmd.Name.Trim(),
+            Code = cmd.Code.Trim(),
+            State = cmd.State?.Trim(),
+            County = cmd.County?.Trim(),
+            City = cmd.City?.Trim(),
             StateRate = cmd.StateRate,
             CountyRate = cmd.CountyRate,
             CityRate = cmd.CityRate,
@@ -69,6 +83,8 @@ public class TaxJurisdictionService(
         {
             foreach (var rate in cmd.Rates)
             {
+                if (rate.Rate is < 0 or > 100)
+                    return Result.Failure<TaxJurisdictionDto>("Category tax rates must be between 0 and 100 percent", "VALIDATION_ERROR");
                 jurisdiction.Rates.Add(new TaxRate
                 {
                     TaxJurisdictionId = jurisdiction.Id,
@@ -97,18 +113,58 @@ public class TaxJurisdictionService(
         if (jurisdiction is null)
             return Result.Failure<TaxJurisdictionDto>("Tax jurisdiction not found", "NOT_FOUND");
 
-        if (cmd.Name is not null) jurisdiction.Name = cmd.Name;
-        if (cmd.Code is not null) jurisdiction.Code = cmd.Code;
-        if (cmd.State is not null) jurisdiction.State = cmd.State;
-        if (cmd.County is not null) jurisdiction.County = cmd.County;
-        if (cmd.City is not null) jurisdiction.City = cmd.City;
+        if (cmd.Name is not null)
+        {
+            if (string.IsNullOrWhiteSpace(cmd.Name) || cmd.Name.Trim().Length > 200)
+                return Result.Failure<TaxJurisdictionDto>("Name is required and cannot exceed 200 characters", "VALIDATION_ERROR");
+            jurisdiction.Name = cmd.Name.Trim();
+        }
+        if (cmd.Code is not null)
+        {
+            if (string.IsNullOrWhiteSpace(cmd.Code) || cmd.Code.Trim().Length > 50)
+                return Result.Failure<TaxJurisdictionDto>("Code is required and cannot exceed 50 characters", "VALIDATION_ERROR");
+            jurisdiction.Code = cmd.Code.Trim();
+        }
+        if (cmd.State is not null)
+        {
+            if (cmd.State.Length > 50)
+                return Result.Failure<TaxJurisdictionDto>("State cannot exceed 50 characters", "VALIDATION_ERROR");
+            jurisdiction.State = cmd.State.Trim();
+        }
+        if (cmd.County is not null)
+        {
+            if (cmd.County.Length > 100)
+                return Result.Failure<TaxJurisdictionDto>("County cannot exceed 100 characters", "VALIDATION_ERROR");
+            jurisdiction.County = cmd.County.Trim();
+        }
+        if (cmd.City is not null)
+        {
+            if (cmd.City.Length > 100)
+                return Result.Failure<TaxJurisdictionDto>("City cannot exceed 100 characters", "VALIDATION_ERROR");
+            jurisdiction.City = cmd.City.Trim();
+        }
         if (cmd.IsActive.HasValue) jurisdiction.IsActive = cmd.IsActive.Value;
         if (cmd.EffectiveDate.HasValue) jurisdiction.EffectiveDate = cmd.EffectiveDate.Value;
         if (cmd.ExpirationDate.HasValue) jurisdiction.ExpirationDate = cmd.ExpirationDate.Value;
 
-        if (cmd.StateRate.HasValue) jurisdiction.StateRate = cmd.StateRate.Value;
-        if (cmd.CountyRate.HasValue) jurisdiction.CountyRate = cmd.CountyRate.Value;
-        if (cmd.CityRate.HasValue) jurisdiction.CityRate = cmd.CityRate.Value;
+        if (cmd.StateRate.HasValue)
+        {
+            if (cmd.StateRate.Value is < 0 or > 100)
+                return Result.Failure<TaxJurisdictionDto>("Tax rates must be between 0 and 100 percent", "VALIDATION_ERROR");
+            jurisdiction.StateRate = cmd.StateRate.Value;
+        }
+        if (cmd.CountyRate.HasValue)
+        {
+            if (cmd.CountyRate.Value is < 0 or > 100)
+                return Result.Failure<TaxJurisdictionDto>("Tax rates must be between 0 and 100 percent", "VALIDATION_ERROR");
+            jurisdiction.CountyRate = cmd.CountyRate.Value;
+        }
+        if (cmd.CityRate.HasValue)
+        {
+            if (cmd.CityRate.Value is < 0 or > 100)
+                return Result.Failure<TaxJurisdictionDto>("Tax rates must be between 0 and 100 percent", "VALIDATION_ERROR");
+            jurisdiction.CityRate = cmd.CityRate.Value;
+        }
 
         jurisdiction.CombinedRate = jurisdiction.StateRate + jurisdiction.CountyRate + jurisdiction.CityRate;
 
