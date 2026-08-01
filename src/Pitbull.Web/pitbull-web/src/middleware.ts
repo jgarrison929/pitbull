@@ -72,17 +72,20 @@ export function middleware(request: NextRequest) {
   }
 
   const token = request.cookies.get("pitbull_token")?.value;
+  // Bound cookie size before base64 decode (JWTs are typically < 4 KB; multi-KB cookies are abuse).
+  const usableToken =
+    token && token.length > 0 && token.length <= 8192 ? token : undefined;
 
   // No token → redirect to login
-  if (!token && pathname !== "/login" && pathname !== "/register") {
+  if (!usableToken && pathname !== "/login" && pathname !== "/register") {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", safeMiddlewareRedirect(pathname));
     return NextResponse.redirect(loginUrl);
   }
 
   // Admin route guard: decode token and check role claim
-  if (token && pathname.startsWith("/admin")) {
-    const payload = decodeTokenPayload(token);
+  if (usableToken && pathname.startsWith("/admin")) {
+    const payload = decodeTokenPayload(usableToken);
 
     // Expired or malformed token → redirect to login
     if (!payload) {

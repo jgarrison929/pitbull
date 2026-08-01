@@ -32,6 +32,27 @@ public class FeedbackController(
         if (request.Message.Length > 4000)
             return this.BadRequestError("Message cannot exceed 4000 characters");
 
+        if (request.Page is { Length: > 500 })
+            return this.BadRequestError("Page cannot exceed 500 characters");
+        if (request.Category.Length > 100)
+            return this.BadRequestError("Category cannot exceed 100 characters");
+        if (request.UserRole is { Length: > 100 })
+            return this.BadRequestError("UserRole cannot exceed 100 characters");
+        if (request.ContactEmail is { Length: > 254 })
+            return this.BadRequestError("ContactEmail cannot exceed 254 characters");
+        if (request.ScreenshotUrl is { Length: > 2000 })
+            return this.BadRequestError("ScreenshotUrl cannot exceed 2000 characters");
+        if (request.BrowserInfo is { Length: > 1000 })
+            return this.BadRequestError("BrowserInfo cannot exceed 1000 characters");
+        // Reject javascript:/data: screenshot URLs (stored XSS / phishing vector if rendered).
+        if (request.ScreenshotUrl is { Length: > 0 } &&
+            !request.ScreenshotUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+            !request.ScreenshotUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+            !request.ScreenshotUrl.StartsWith("/", StringComparison.Ordinal))
+        {
+            return this.BadRequestError("ScreenshotUrl must be an http(s) or relative URL");
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
         var userRole = !string.IsNullOrWhiteSpace(request.UserRole)
             ? request.UserRole

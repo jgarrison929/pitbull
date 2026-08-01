@@ -62,6 +62,12 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/import",
         // Migration accelerator can bulk-write ERP imports (GET project status still allowed).
         "/api/migration",
+        // GL / books: demo may browse chart/periods/entries but not post or restructure.
+        "/api/journal-entries",
+        "/api/chart-of-accounts",
+        "/api/accounting-periods",
+        "/api/tax-jurisdictions",
+        "/api/purchase-orders",
     ];
 
     /// <summary>
