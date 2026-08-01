@@ -12,26 +12,62 @@ public sealed class FeedbackService(
     ITenantContext tenantContext,
     ILogger<FeedbackService> logger) : IFeedbackService
 {
+    // Align with EF HasMaxLength on feedback table (see model snapshot).
+    private const int MaxPageLength = 1000;
+    private const int MaxUserRoleLength = 100;
+    private const int MaxCategoryLength = 50;
+    private const int MaxMessageLength = 4000;
+    private const int MaxContactEmailLength = 256;
+    private const int MaxScreenshotUrlLength = 2000;
+    private const int MaxBrowserInfoLength = 500;
+    private const int MaxBulkIds = 100;
+
     public async Task<FeedbackDto> CreateAsync(CreateFeedbackRequest request, string createdBy, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Page))
+            throw new ArgumentException("Page is required");
+        if (string.IsNullOrWhiteSpace(request.Category))
+            throw new ArgumentException("Category is required");
+        if (string.IsNullOrWhiteSpace(request.Message))
+            throw new ArgumentException("Message is required");
+
+        var page = request.Page.Trim();
+        var userRole = (request.UserRole ?? string.Empty).Trim();
+        var category = request.Category.Trim();
+        var message = request.Message.Trim();
+        var contactEmail = string.IsNullOrWhiteSpace(request.ContactEmail) ? null : request.ContactEmail.Trim();
+        var screenshotUrl = string.IsNullOrWhiteSpace(request.ScreenshotUrl) ? null : request.ScreenshotUrl.Trim();
+        var browserInfo = string.IsNullOrWhiteSpace(request.BrowserInfo) ? null : request.BrowserInfo.Trim();
+
+        if (page.Length > MaxPageLength)
+            throw new ArgumentException($"Page cannot exceed {MaxPageLength} characters");
+        if (userRole.Length > MaxUserRoleLength)
+            throw new ArgumentException($"UserRole cannot exceed {MaxUserRoleLength} characters");
+        if (category.Length > MaxCategoryLength)
+            throw new ArgumentException($"Category cannot exceed {MaxCategoryLength} characters");
+        if (message.Length > MaxMessageLength)
+            throw new ArgumentException($"Message cannot exceed {MaxMessageLength} characters");
+        if (contactEmail is { Length: > MaxContactEmailLength })
+            throw new ArgumentException($"ContactEmail cannot exceed {MaxContactEmailLength} characters");
+        if (screenshotUrl is { Length: > MaxScreenshotUrlLength })
+            throw new ArgumentException($"ScreenshotUrl cannot exceed {MaxScreenshotUrlLength} characters");
+        if (browserInfo is { Length: > MaxBrowserInfoLength })
+            throw new ArgumentException($"BrowserInfo cannot exceed {MaxBrowserInfoLength} characters");
+        if (!Enum.IsDefined(typeof(FeedbackType), request.Type))
+            throw new ArgumentException("Invalid feedback type");
+
         var feedback = new Entities.Feedback
         {
-            Page = request.Page.Trim(),
-            UserRole = request.UserRole.Trim(),
-            Category = request.Category.Trim(),
-            Message = request.Message.Trim(),
-            ContactEmail = string.IsNullOrWhiteSpace(request.ContactEmail)
-                ? null
-                : request.ContactEmail.Trim(),
+            Page = page,
+            UserRole = userRole,
+            Category = category,
+            Message = message,
+            ContactEmail = contactEmail,
             Type = request.Type,
-            ScreenshotUrl = string.IsNullOrWhiteSpace(request.ScreenshotUrl)
-                ? null
-                : request.ScreenshotUrl.Trim(),
-            BrowserInfo = string.IsNullOrWhiteSpace(request.BrowserInfo)
-                ? null
-                : request.BrowserInfo.Trim(),
+            ScreenshotUrl = screenshotUrl,
+            BrowserInfo = browserInfo,
             CreatedAt = DateTime.UtcNow,
-            CreatedBy = string.IsNullOrWhiteSpace(createdBy) ? "unknown" : createdBy,
+            CreatedBy = string.IsNullOrWhiteSpace(createdBy) ? "unknown" : createdBy.Trim(),
             Status = FeedbackStatus.New
         };
 
@@ -107,6 +143,10 @@ public sealed class FeedbackService(
     {
         if (feedbackIds.Count == 0)
             return 0;
+        if (feedbackIds.Count > MaxBulkIds)
+            throw new ArgumentException($"Cannot bulk-update more than {MaxBulkIds} feedback items at once");
+        if (!Enum.IsDefined(typeof(FeedbackStatus), status))
+            throw new ArgumentException("Invalid feedback status");
 
         var items = await db.Set<Entities.Feedback>()
             .Where(x => feedbackIds.Contains(x.Id))

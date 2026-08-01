@@ -19,6 +19,11 @@ public class VendorPortalService(
     TenantContext tenantContext,
     CompanyContext companyContext) : IVendorPortalService
 {
+    private const decimal MaxWaiverAmount = 1_000_000_000m;
+    private const int MaxDescriptionLength = 500;
+    private const int MaxListTake = 100;
+    private const int MaxRawTokenLength = 200;
+
     public async Task<Result<VendorPortalTokenDto>> GenerateTokenAsync(Guid vendorId, Guid projectId, int expirationDays, CancellationToken ct = default)
     {
         // Cap at 90 days so long-lived public capability tokens cannot linger for a year.
@@ -77,6 +82,7 @@ public class VendorPortalService(
             .Include(t => t.Vendor)
             .Where(t => t.VendorId == vendorId)
             .OrderByDescending(t => t.CreatedAt)
+            .Take(MaxListTake)
             .ToListAsync(ct);
 
         return Result.Success(tokens.Select(t => MapToSummaryDto(t, t.Vendor?.Name ?? "")).ToList());
@@ -148,6 +154,7 @@ public class VendorPortalService(
             .Where(w => w.VendorId == portalToken.VendorId && w.ProjectId == portalToken.ProjectId)
             .OrderByDescending(w => w.ThroughDate)
             .ThenByDescending(w => w.CreatedAt)
+            .Take(MaxListTake)
             .ToListAsync(ct);
 
         return Result.Success(waivers.Select(MapToPortalLienWaiverDto).ToList());
@@ -163,6 +170,12 @@ public class VendorPortalService(
 
         if (dto.Amount <= 0)
             return Result.Failure<VendorPortalLienWaiverDto>("Amount must be positive", "VALIDATION_ERROR");
+        if (dto.Amount > MaxWaiverAmount)
+            return Result.Failure<VendorPortalLienWaiverDto>("Amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
+        if (dto.Description is { Length: > MaxDescriptionLength })
+            return Result.Failure<VendorPortalLienWaiverDto>($"Description cannot exceed {MaxDescriptionLength} characters", "VALIDATION_ERROR");
+        if (!Enum.IsDefined(typeof(LienWaiverType), dto.WaiverType))
+            return Result.Failure<VendorPortalLienWaiverDto>("Invalid waiver type", "VALIDATION_ERROR");
 
         var waiver = new LienWaiver
         {
@@ -172,7 +185,7 @@ public class VendorPortalService(
             WaiverType = dto.WaiverType,
             Amount = dto.Amount,
             ThroughDate = dto.ThroughDate,
-            Description = dto.Description,
+            Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
             Status = LienWaiverStatus.Received
         };
 
@@ -204,6 +217,7 @@ public class VendorPortalService(
                      && w.ProjectId == portalToken.ProjectId
                      && w.Status == LienWaiverStatus.Approved)
             .OrderByDescending(w => w.ThroughDate)
+            .Take(MaxListTake)
             .ToListAsync(ct);
 
         return Result.Success(waivers.Select(w => new PaymentHistoryDto(
@@ -226,6 +240,9 @@ public class VendorPortalService(
         bool includeVendor,
         CancellationToken ct)
     {
+        if (string.IsNullOrWhiteSpace(token) || token.Length > MaxRawTokenLength)
+            return Result.Failure<VendorPortalToken>("Invalid token", "INVALID_TOKEN");
+
         var tokenHash = HashToken(token);
         var query = db.VendorPortalTokens.IgnoreQueryFilters().AsQueryable();
         if (includeVendor)

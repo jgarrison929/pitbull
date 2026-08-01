@@ -113,6 +113,49 @@ public class FeedbackServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_RejectsOversizedMessage()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var act = async () => await service.CreateAsync(
+            new CreateFeedbackRequest(
+                Page: "/home",
+                UserRole: "User",
+                Category: "Bug",
+                Message: new string('m', 4001),
+                ContactEmail: null),
+            "user1");
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*4000*");
+    }
+
+    [Fact]
+    public async Task CreateAsync_RejectsEmptyPage()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var act = async () => await service.CreateAsync(
+            new CreateFeedbackRequest("  ", "User", "Bug", "msg", null),
+            "user1");
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*Page*");
+    }
+
+    [Fact]
+    public async Task BulkUpdateStatus_RejectsMoreThan100Ids()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var ids = Enumerable.Range(0, 101).Select(_ => Guid.NewGuid()).ToList();
+
+        var act = async () => await service.BulkUpdateStatusAsync(ids, FeedbackStatus.Resolved);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*100*");
+    }
+
+    [Fact]
     public async Task CreateAsync_PersistsScreenshotUrl()
     {
         using var db = TestDbContextFactory.Create();

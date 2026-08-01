@@ -76,6 +76,9 @@ public sealed class NotificationPreferenceService(PitbullDbContext db) : INotifi
     {
         await EnsureDefaultPreferencesAsync(userId, tenantId, ct);
 
+        if (updates.Count > 50)
+            throw new ArgumentException("Cannot update more than 50 notification preferences at once");
+
         var invalidCategory = updates.FirstOrDefault(u => !Categories.Contains(u.Category));
         if (invalidCategory is not null)
         {
