@@ -12,6 +12,9 @@ namespace Pitbull.Core.Features.Equipment;
 /// </summary>
 public class EquipmentService : IEquipmentService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+
     private readonly PitbullDbContext _db;
     private readonly IValidator<CreateEquipmentCommand> _createValidator;
     private readonly IValidator<UpdateEquipmentCommand> _updateValidator;
@@ -60,7 +63,10 @@ public class EquipmentService : IEquipmentService
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            var search = query.SearchTerm.ToLower();
+            var search = query.SearchTerm.Trim();
+            if (search.Length > MaxSearchLength)
+                search = search[..MaxSearchLength];
+            search = search.ToLower();
             dbQuery = dbQuery.Where(e =>
                 e.Code.ToLower().Contains(search) ||
                 e.Name.ToLower().Contains(search) ||
@@ -69,21 +75,23 @@ public class EquipmentService : IEquipmentService
 
         // Get total count
         var totalCount = await dbQuery.CountAsync(cancellationToken);
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize < 1 ? 25 : Math.Min(query.PageSize, MaxPageSize);
 
         // Apply ordering and pagination
         var items = await dbQuery
             .OrderBy(e => e.Code)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var totalPages = (int)Math.Ceiling((double)totalCount / query.PageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
         return Result.Success(new ListEquipmentResult(
             Items: EquipmentMapper.ToDto(items),
             TotalCount: totalCount,
-            Page: query.Page,
-            PageSize: query.PageSize,
+            Page: page,
+            PageSize: pageSize,
             TotalPages: totalPages
         ));
     }

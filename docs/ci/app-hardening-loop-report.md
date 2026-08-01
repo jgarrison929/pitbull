@@ -1146,7 +1146,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 16:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080116`
+**Branch:** `chore/app-hardening-hourly-2026080116` → **merged #501**
 
 ### CI status (step 1)
 - **main green** after #500 (`5c2bc389`) — CI + Push success. No failures to fix.
@@ -1160,6 +1160,29 @@ Findings discovered (unique): 256
 - **data entry AI:** parse text max 4000; entity type max 100.
 - **workflow definitions:** name/description/status/entity lengths; steps max 50; step name/role lengths; amount threshold max 1e9; priority 0–1000.
 - Unit tests for tenant settings bounds.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 17:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080117`
+
+### CI status (step 1)
+- **main green** after #501 (`201a4336`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **equipment list:** pageSize clamp 100 + search cap 200; hourly/billing rate max 1e6 (negative message kept for tests).
+- **diagnostics list:** page/pageSize clamp (1–100).
+- **feedback list:** take cap 500; category filter cap 100.
+- **project assignments:** notes max 500; assignment role enum check.
+- **PM lists:** search term cap 200 (shared ListAsync + punch list).
+- Unit tests for equipment list clamp and rate max.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

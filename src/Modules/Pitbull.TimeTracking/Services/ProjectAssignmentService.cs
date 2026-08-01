@@ -76,6 +76,11 @@ public class ProjectAssignmentService : IProjectAssignmentService
                 "End date must be after start date",
                 "INVALID_DATE_RANGE");
 
+        if (!Enum.IsDefined(role))
+            return Result.Failure<ProjectAssignmentDto>("Invalid assignment role", "VALIDATION_ERROR");
+        if (notes is { Length: > 500 })
+            return Result.Failure<ProjectAssignmentDto>("Notes cannot exceed 500 characters", "VALIDATION_ERROR");
+
         var assignment = new ProjectAssignment
         {
             CompanyId = project.CompanyId,
@@ -85,7 +90,7 @@ public class ProjectAssignmentService : IProjectAssignmentService
             StartDate = effectiveStartDate,
             EndDate = endDate,
             IsActive = true,
-            Notes = notes
+            Notes = notes?.Trim()
         };
 
         _db.Set<ProjectAssignment>().Add(assignment);
