@@ -138,6 +138,15 @@ public class OnboardingController(
         var userId = GetUserId();
         if (userId is null) return this.UnauthorizedError();
 
+        // Bound free-text route segment (tour step ids are short tokens).
+        if (string.IsNullOrWhiteSpace(stepId) || stepId.Length > 100)
+            return this.BadRequestError("Invalid tour step");
+        foreach (var c in stepId)
+        {
+            if (!(char.IsAsciiLetterOrDigit(c) || c is '-' or '_' or '.'))
+                return this.BadRequestError("Invalid tour step");
+        }
+
         await welcomeService.MarkStepSeenAsync(userId.Value, stepId, ct);
         return NoContent();
     }
