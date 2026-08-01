@@ -126,4 +126,28 @@ public class VendorsControllerTests : IDisposable
         IActionResult getResult = await _controller.GetById(seeded.Id);
         getResult.Should().BeOfType<NotFoundObjectResult>();
     }
+
+    [Fact]
+    public async Task Create_NameTooLong_Returns400()
+    {
+        CreateVendorRequest request = new(
+            Name: new string('V', 201),
+            Code: "V-LONG");
+
+        IActionResult result = await _controller.Create(request);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task List_ClampsPageSize()
+    {
+        await SeedVendor();
+
+        IActionResult result = await _controller.List(null, null, page: 1, pageSize: 5000);
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        ListVendorsResult payload = ok.Value.Should().BeOfType<ListVendorsResult>().Subject;
+        payload.PageSize.Should().Be(100);
+    }
 }
