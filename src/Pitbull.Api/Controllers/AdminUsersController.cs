@@ -259,7 +259,12 @@ public class AdminUsersController(
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(new { error = genericError });
 
-        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        // Bound untrusted inputs before Identity lookup / password hash (same generic error).
+        var email = request.Email.Trim();
+        if (email.Length > 256 || request.Password.Length > 100)
+            return BadRequest(new { error = genericError });
+
+        var user = await userManager.FindByEmailAsync(email);
         if (user is null || user.Status != UserStatus.Active)
             return BadRequest(new { error = genericError });
 

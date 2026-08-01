@@ -25,6 +25,12 @@ public class GlossaryController : ControllerBase
         [FromQuery] string? category = null,
         [FromQuery] string? search = null)
     {
+        // Bound free-text filters (static in-memory list, but avoid huge client strings).
+        if (category is { Length: > 100 })
+            category = category[..100];
+        if (search is { Length: > 100 })
+            search = search[..100];
+
         var terms = GlossaryData.Terms.AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(category))
@@ -51,9 +57,12 @@ public class GlossaryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetById(string id)
     {
+        if (string.IsNullOrWhiteSpace(id) || id.Length > 100)
+            return NotFound(new { error = "Term not found" });
+
         var term = GlossaryData.Terms.FirstOrDefault(t => t.Id.Equals(id, StringComparison.OrdinalIgnoreCase));
         if (term is null)
-            return NotFound(new { error = $"Term '{id}' not found" });
+            return NotFound(new { error = "Term not found" });
 
         return Ok(term);
     }

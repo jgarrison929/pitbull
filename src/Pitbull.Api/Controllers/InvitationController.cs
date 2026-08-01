@@ -240,6 +240,9 @@ public class InvitationController(
 
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
+        // Align with login/register validators — hashing multi-KB passwords is a DoS vector.
+        if (request.Password.Length > 100)
+            return this.BadRequestError("Password cannot exceed 100 characters");
 
         var result = await invitationService.AcceptInvitationAsync(token, request, ct);
 

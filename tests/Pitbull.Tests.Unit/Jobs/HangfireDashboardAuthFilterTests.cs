@@ -68,4 +68,32 @@ public class HangfireDashboardAuthFilterTests
 
         _filter.Authorize(context).Should().BeTrue();
     }
+
+    [Fact]
+    public void Authorize_DemoClaim_EvenWithSystemAdmin_ReturnsFalse()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "demo-1"),
+                new Claim(ClaimTypes.Role, "SystemAdmin"),
+                new Claim("is_demo_user", "true")
+            ], "test"));
+        var context = CreateDashboardContext(user);
+
+        _filter.Authorize(context).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Authorize_DemoLocalEmail_ReturnsFalse()
+    {
+        var user = new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, "demo-2"),
+                new Claim(ClaimTypes.Role, "SystemAdmin"),
+                new Claim(ClaimTypes.Email, "ceo@demo.local")
+            ], "test"));
+        var context = CreateDashboardContext(user);
+
+        _filter.Authorize(context).Should().BeFalse();
+    }
 }

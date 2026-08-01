@@ -863,3 +863,28 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-08-01 04:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080104`
+
+### CI status (step 1)
+- **main green** after #487 (smokes green; merge CI was completing at start of hour).
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **kestrel:** Min request/response body data rates (slowloris body hold).
+- **auth:** Invitation accept password max 100; bootstrap-admin email/password bounds.
+- **glossary:** Cap search/category/id lengths; generic not-found for id.
+- **hangfire:** Deny demo claim / @demo.local even if SystemAdmin role present.
+- **pagination:** Clamp `page` to 1..10000 (pageSize already 1..100).
+- **web:** Reject null-byte path probes in Next middleware.
+- **tests:** Hangfire demo denial.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
