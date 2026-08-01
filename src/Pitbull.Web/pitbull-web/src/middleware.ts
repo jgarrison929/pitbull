@@ -59,6 +59,11 @@ export function safeMiddlewareRedirect(pathname: string): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Reject null-byte path probes before any auth/redirect work.
+  if (pathname.includes("\0") || pathname.includes("%00")) {
+    return new NextResponse("Bad Request", { status: 400 });
+  }
+
   // Public demo only: funnel registration through /demo when explicitly disabled.
   // Production and local dev leave /signup accessible for owner self-service.
   const registrationDisabled = process.env.NEXT_PUBLIC_DISABLE_REGISTRATION === "true";

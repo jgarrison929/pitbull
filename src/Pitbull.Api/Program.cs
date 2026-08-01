@@ -489,6 +489,11 @@ builder.Services.Configure<KestrelServerOptions>(options =>
     options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
     // Bound idle keep-alive so abandoned connections release sockets sooner.
     options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
+    // Minimum data rates reduce slow-body / slow-response connection holds.
+    options.Limits.MinRequestBodyDataRate = new Microsoft.AspNetCore.Server.Kestrel.Core.MinDataRate(
+        bytesPerSecond: 100, gracePeriod: TimeSpan.FromSeconds(10));
+    options.Limits.MinResponseDataRate = new Microsoft.AspNetCore.Server.Kestrel.Core.MinDataRate(
+        bytesPerSecond: 100, gracePeriod: TimeSpan.FromSeconds(10));
 });
 
 // CAP event bus â€” PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)

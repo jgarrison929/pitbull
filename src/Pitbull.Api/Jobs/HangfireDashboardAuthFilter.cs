@@ -18,6 +18,21 @@ public sealed class HangfireDashboardAuthFilter : IDashboardAuthorizationFilter
         if (httpContext.User.Identity?.IsAuthenticated != true)
             return false;
 
+        // Defense in depth: demo principals never reach Hangfire even if a role claim is wrong.
+        if (string.Equals(httpContext.User.FindFirst("is_demo_user")?.Value, "true", StringComparison.Ordinal)
+            || IsDemoEmail(httpContext.User))
+            return false;
+
         return httpContext.User.IsInRole("SystemAdmin");
+    }
+
+    private static bool IsDemoEmail(System.Security.Claims.ClaimsPrincipal user)
+    {
+        var email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+            ?? user.FindFirst("email")?.Value;
+        if (string.IsNullOrWhiteSpace(email))
+            return false;
+        return email.EndsWith("@demo.local", StringComparison.OrdinalIgnoreCase)
+            || email.Equals("demo@example.com", StringComparison.OrdinalIgnoreCase);
     }
 }
