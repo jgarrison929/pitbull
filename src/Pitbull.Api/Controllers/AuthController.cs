@@ -304,7 +304,11 @@ public class AuthController(
             return this.ValidationError(validationResult);
         var user = await userManager.FindByEmailAsync(request.Email);
         if (user is null)
+        {
+            // Roughly equalize latency with a failed password check (reduces email enumeration timing).
+            await Task.Delay(Random.Shared.Next(50, 150));
             return this.UnauthorizedError("Invalid credentials");
+        }
 
         var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
         if (!result.Succeeded)

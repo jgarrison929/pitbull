@@ -10,7 +10,9 @@ public class FileValidationService : IFileValidationService
     {
         ".exe", ".bat", ".cmd", ".ps1", ".dll", ".com", ".scr", ".msi",
         ".vbs", ".js", ".wsf", ".hta", ".cpl", ".inf", ".reg", ".pif",
-        ".sh", ".bash"
+        ".sh", ".bash",
+        // Scriptable / active content when opened or served inline
+        ".svg", ".html", ".htm", ".xhtml", ".shtml",
     };
 
     private static readonly string[] AllowedContentTypePrefixes =
@@ -43,6 +45,17 @@ public class FileValidationService : IFileValidationService
         if (string.IsNullOrWhiteSpace(fileName))
             return Result.Failure("File name is required", "INVALID_FILE");
 
+        // Reject path segments / traversal (storage keys must not embed relative paths).
+        var safeName = Path.GetFileName(fileName.Trim());
+        if (string.IsNullOrWhiteSpace(safeName) ||
+            safeName != fileName.Trim() ||
+            safeName.Contains("..", StringComparison.Ordinal) ||
+            safeName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            safeName.Length > 255)
+        {
+            return Result.Failure("File name is invalid", "INVALID_FILE");
+        }
+
         // Check file size
         if (fileSize <= 0)
             return Result.Failure("File is empty", "INVALID_FILE");
@@ -51,7 +64,7 @@ public class FileValidationService : IFileValidationService
             return Result.Failure($"File size exceeds the maximum allowed size of {MaxFileSize / (1024 * 1024)}MB", "INVALID_FILE");
 
         // Check all extensions (double-extension attack prevention)
-        var extensions = GetAllExtensions(fileName);
+        var extensions = GetAllExtensions(safeName);
 
         if (extensions.Count == 0)
             return Result.Failure("File must have an extension", "INVALID_FILE");
@@ -67,6 +80,14 @@ public class FileValidationService : IFileValidationService
             return Result.Failure("Content type is required", "INVALID_FILE");
 
         var normalizedContentType = contentType.Trim().ToLowerInvariant();
+        // Strip parameters: "image/png; charset=binary"
+        var semi = normalizedContentType.IndexOf(';');
+        if (semi >= 0)
+            normalizedContentType = normalizedContentType[..semi].Trim();
+
+        // SVG/HTML are scriptable in browsers even under image/* or text/* families.
+        if (normalizedContentType is "image/svg+xml" or "text/html" or "application/xhtml+xml" or "text/xml" or "application/xml")
+            return Result.Failure($"Content type '{contentType}' is not allowed", "INVALID_FILE");
 
         // Handle application/octet-stream separately — only allow for known safe extensions
         if (normalizedContentType == "application/octet-stream")

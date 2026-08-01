@@ -67,6 +67,12 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
         var userId = GetUserId();
         if (userId is null) return Unauthorized();
 
+        if (files is null || files.Count == 0)
+            return BadRequest(new { error = "No files provided", code = "VALIDATION_ERROR" });
+        // Cap batch size to limit abuse / memory pressure (per-file validation still applies).
+        if (files.Count > 20)
+            return BadRequest(new { error = "Maximum 20 files per upload", code = "VALIDATION_ERROR" });
+
         var results = new List<FileAttachmentDto>();
 
         foreach (var file in files)

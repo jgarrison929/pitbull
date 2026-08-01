@@ -767,3 +767,26 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-08-01 00:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080100`
+
+### CI status (step 1)
+- **main green** — #483 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **uploads:** Block SVG/HTML (scriptable) extensions + content types; reject path traversal in file names.
+- **uploads:** Multi-upload max **20** files per request.
+- **apidocs:** Default `ApiDocs:Enabled=false` in base appsettings (Dev still enables).
+- **auth:** Login unknown-email path uses short random delay (timing parity).
+- **demo:** Write-block `/api/migration`.
+- **tests:** `FileValidationServiceTests`.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
