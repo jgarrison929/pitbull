@@ -9,6 +9,9 @@ namespace Pitbull.Billing.Services;
 
 public class WageDeterminationService(PitbullDbContext db, ILogger<WageDeterminationService> logger) : IWageDeterminationService
 {
+    private const decimal MaxHourlyRate = 1_000_000m;
+    private const int MaxRates = 200;
+
     public async Task<Result<ListWageDeterminationsResult>> ListAsync(ListWageDeterminationsQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<WageDetermination> dbQuery = db.Set<WageDetermination>()
@@ -64,6 +67,12 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
 
         if (string.IsNullOrWhiteSpace(command.DeterminationNumber))
             return Result.Failure<WageDeterminationDto>("Determination number is required", "VALIDATION_ERROR");
+        if (command.DeterminationNumber.Trim().Length > 100)
+            return Result.Failure<WageDeterminationDto>("Determination number cannot exceed 100 characters", "VALIDATION_ERROR");
+        if (command.SourceAgency is { Length: > 200 })
+            return Result.Failure<WageDeterminationDto>("Source agency cannot exceed 200 characters", "VALIDATION_ERROR");
+        if (command.Rates.Count > MaxRates)
+            return Result.Failure<WageDeterminationDto>($"Cannot have more than {MaxRates} rates", "VALIDATION_ERROR");
 
         WageDetermination determination = new()
         {
@@ -81,14 +90,11 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
             if (rate.WorkClassificationId == Guid.Empty)
                 continue;
 
-            if (rate.BaseRate < 0)
-                return Result.Failure<WageDeterminationDto>("Base rate cannot be negative", "VALIDATION_ERROR");
-            if (rate.FringeRate < 0)
-                return Result.Failure<WageDeterminationDto>("Fringe rate cannot be negative", "VALIDATION_ERROR");
+            var rateError = ValidateRate(rate);
+            if (rateError is not null)
+                return Result.Failure<WageDeterminationDto>(rateError, "VALIDATION_ERROR");
 
             decimal totalRate = rate.TotalRate <= 0 ? rate.BaseRate + rate.FringeRate : rate.TotalRate;
-            if (totalRate < 0)
-                return Result.Failure<WageDeterminationDto>("Total rate cannot be negative", "VALIDATION_ERROR");
 
             determination.Rates.Add(new WageDeterminationRate
             {
@@ -123,10 +129,18 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
             return Result.Failure<WageDeterminationDto>("Wage determination not found", "NOT_FOUND");
 
         if (!string.IsNullOrWhiteSpace(command.DeterminationNumber))
+        {
+            if (command.DeterminationNumber.Trim().Length > 100)
+                return Result.Failure<WageDeterminationDto>("Determination number cannot exceed 100 characters", "VALIDATION_ERROR");
             determination.DeterminationNumber = command.DeterminationNumber.Trim();
+        }
 
         if (command.SourceAgency is not null)
+        {
+            if (command.SourceAgency.Length > 200)
+                return Result.Failure<WageDeterminationDto>("Source agency cannot exceed 200 characters", "VALIDATION_ERROR");
             determination.SourceAgency = string.IsNullOrWhiteSpace(command.SourceAgency) ? null : command.SourceAgency.Trim();
+        }
 
         if (command.EffectiveDate.HasValue)
             determination.EffectiveDate = command.EffectiveDate.Value;
@@ -139,6 +153,9 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
 
         if (command.Rates is not null)
         {
+            if (command.Rates.Count > MaxRates)
+                return Result.Failure<WageDeterminationDto>($"Cannot have more than {MaxRates} rates", "VALIDATION_ERROR");
+
             db.Set<WageDeterminationRate>().RemoveRange(determination.Rates);
             determination.Rates.Clear();
 
@@ -147,14 +164,11 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
                 if (rate.WorkClassificationId == Guid.Empty)
                     continue;
 
-                if (rate.BaseRate < 0)
-                    return Result.Failure<WageDeterminationDto>("Base rate cannot be negative", "VALIDATION_ERROR");
-                if (rate.FringeRate < 0)
-                    return Result.Failure<WageDeterminationDto>("Fringe rate cannot be negative", "VALIDATION_ERROR");
+                var rateError = ValidateRate(rate);
+                if (rateError is not null)
+                    return Result.Failure<WageDeterminationDto>(rateError, "VALIDATION_ERROR");
 
                 decimal totalRate = rate.TotalRate <= 0 ? rate.BaseRate + rate.FringeRate : rate.TotalRate;
-                if (totalRate < 0)
-                    return Result.Failure<WageDeterminationDto>("Total rate cannot be negative", "VALIDATION_ERROR");
 
                 determination.Rates.Add(new WageDeterminationRate
                 {
@@ -231,6 +245,22 @@ public class WageDeterminationService(PitbullDbContext db, ILogger<WageDetermina
             TotalRate: rate.TotalRate,
             EffectiveDate: rate.WageDetermination.EffectiveDate,
             ExpirationDate: rate.WageDetermination.ExpirationDate));
+    }
+
+    private string? ValidateRate(CreateWageDeterminationRateInput rate)
+    {
+        if (rate.BaseRate < 0)
+            return "Base rate cannot be negative";
+        if (rate.FringeRate < 0)
+            return "Fringe rate cannot be negative";
+        if (rate.BaseRate > MaxHourlyRate || rate.FringeRate > MaxHourlyRate)
+            return $"Base/fringe rate cannot exceed {MaxHourlyRate:N0}";
+        decimal totalRate = rate.TotalRate <= 0 ? rate.BaseRate + rate.FringeRate : rate.TotalRate;
+        if (totalRate < 0)
+            return "Total rate cannot be negative";
+        if (totalRate > MaxHourlyRate * 2)
+            return "Total rate is unreasonably large";
+        return null;
     }
 
     private async Task<WageDeterminationDto> LoadDtoAsync(Guid id, CancellationToken cancellationToken)

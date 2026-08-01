@@ -9,6 +9,8 @@ namespace Pitbull.Billing.Services;
 
 public class RetentionService(PitbullDbContext db, ILogger<RetentionService> logger) : IRetentionService
 {
+    private const decimal MaxMoney = 1_000_000_000m;
+
     // ── Policies ──
 
     public async Task<Result<ListRetentionPoliciesResult>> GetPoliciesAsync(ListRetentionPoliciesQuery query, CancellationToken cancellationToken = default)
@@ -53,9 +55,15 @@ public class RetentionService(PitbullDbContext db, ILogger<RetentionService> log
     {
         if (string.IsNullOrWhiteSpace(command.Name))
             return Result.Failure<RetentionPolicyDto>("Policy name is required", "VALIDATION_ERROR");
+        if (command.Name.Trim().Length > 200)
+            return Result.Failure<RetentionPolicyDto>("Policy name cannot exceed 200 characters", "VALIDATION_ERROR");
 
         if (command.PercentageRate <= 0 || command.PercentageRate > 100)
             return Result.Failure<RetentionPolicyDto>("Percentage rate must be between 0 and 100", "VALIDATION_ERROR");
+        if (command.MaxAmount is < 0 or > MaxMoney)
+            return Result.Failure<RetentionPolicyDto>("Max amount must be between 0 and 1,000,000,000", "VALIDATION_ERROR");
+        if (command.ReleaseThreshold is < 0 or > MaxMoney)
+            return Result.Failure<RetentionPolicyDto>("Release threshold must be between 0 and 1,000,000,000", "VALIDATION_ERROR");
 
         bool duplicate = await db.Set<RetentionPolicy>()
             .AnyAsync(p => p.Name == command.Name.Trim(), cancellationToken);
@@ -110,6 +118,8 @@ public class RetentionService(PitbullDbContext db, ILogger<RetentionService> log
         {
             if (string.IsNullOrWhiteSpace(command.Name))
                 return Result.Failure<RetentionPolicyDto>("Policy name cannot be empty", "VALIDATION_ERROR");
+            if (command.Name.Trim().Length > 200)
+                return Result.Failure<RetentionPolicyDto>("Policy name cannot exceed 200 characters", "VALIDATION_ERROR");
 
             bool duplicate = await db.Set<RetentionPolicy>()
                 .AnyAsync(p => p.Name == command.Name.Trim() && p.Id != command.PolicyId, cancellationToken);
@@ -128,10 +138,18 @@ public class RetentionService(PitbullDbContext db, ILogger<RetentionService> log
         }
 
         if (command.MaxAmount.HasValue)
+        {
+            if (command.MaxAmount.Value is < 0 or > MaxMoney)
+                return Result.Failure<RetentionPolicyDto>("Max amount must be between 0 and 1,000,000,000", "VALIDATION_ERROR");
             policy.MaxAmount = command.MaxAmount.Value;
+        }
 
         if (command.ReleaseThreshold.HasValue)
+        {
+            if (command.ReleaseThreshold.Value is < 0 or > MaxMoney)
+                return Result.Failure<RetentionPolicyDto>("Release threshold must be between 0 and 1,000,000,000", "VALIDATION_ERROR");
             policy.ReleaseThreshold = command.ReleaseThreshold.Value;
+        }
 
         if (command.AppliesTo.HasValue)
             policy.AppliesTo = command.AppliesTo.Value;
@@ -252,9 +270,13 @@ public class RetentionService(PitbullDbContext db, ILogger<RetentionService> log
     {
         if (command.OriginalAmount <= 0)
             return Result.Failure<RetentionHoldDto>("Original amount must be positive", "VALIDATION_ERROR");
+        if (command.OriginalAmount > MaxMoney)
+            return Result.Failure<RetentionHoldDto>("Original amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
         if (command.RetainagePercent <= 0 || command.RetainagePercent > 100)
             return Result.Failure<RetentionHoldDto>("Retainage percentage must be between 0 and 100", "VALIDATION_ERROR");
+        if (command.Description is { Length: > 500 })
+            return Result.Failure<RetentionHoldDto>("Description cannot exceed 500 characters", "VALIDATION_ERROR");
 
         decimal retainedAmount = Math.Round(command.OriginalAmount * command.RetainagePercent / 100m, 2);
 
@@ -316,6 +338,8 @@ public class RetentionService(PitbullDbContext db, ILogger<RetentionService> log
 
         if (command.ReleaseAmount <= 0)
             return Result.Failure<RetentionHoldDto>("Release amount must be positive", "VALIDATION_ERROR");
+        if (command.ReleaseAmount > MaxMoney)
+            return Result.Failure<RetentionHoldDto>("Release amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
         decimal remainingRetained = hold.RetainedAmount - hold.ReleasedAmount;
         if (command.ReleaseAmount > remainingRetained)

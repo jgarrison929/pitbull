@@ -9,6 +9,9 @@ namespace Pitbull.Core.Features.ChartOfAccounts;
 
 public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountService> logger) : IChartOfAccountService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+
     public async Task<Result<ChartOfAccountDto>> GetChartOfAccountAsync(Guid id, CancellationToken cancellationToken = default)
     {
         ChartOfAccount? account = await db.Set<ChartOfAccount>()
@@ -34,7 +37,10 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            string search = query.SearchTerm.Trim().ToLower();
+            string search = query.SearchTerm.Trim();
+            if (search.Length > MaxSearchLength)
+                search = search[..MaxSearchLength];
+            search = search.ToLower();
             dbQuery = dbQuery.Where(a =>
                 a.AccountNumber.ToLower().Contains(search) ||
                 a.AccountName.ToLower().Contains(search) ||
@@ -43,7 +49,7 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
 
         int totalCount = await dbQuery.CountAsync(cancellationToken);
         int page = query.Page < 1 ? 1 : query.Page;
-        int pageSize = query.PageSize < 1 ? 50 : query.PageSize;
+        int pageSize = query.PageSize < 1 ? 50 : Math.Min(query.PageSize, MaxPageSize);
 
         List<ChartOfAccount> accounts = await dbQuery
             .OrderBy(a => a.AccountNumber)
@@ -70,6 +76,15 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
             return Result.Failure<ChartOfAccountDto>("Account number and account name are required", "VALIDATION_ERROR");
 
         string normalizedNumber = command.AccountNumber.Trim();
+        string normalizedName = command.AccountName.Trim();
+        if (normalizedNumber.Length > 50)
+            return Result.Failure<ChartOfAccountDto>("Account number cannot exceed 50 characters", "VALIDATION_ERROR");
+        if (normalizedName.Length > 200)
+            return Result.Failure<ChartOfAccountDto>("Account name cannot exceed 200 characters", "VALIDATION_ERROR");
+        if (command.Description is { Length: > 1000 })
+            return Result.Failure<ChartOfAccountDto>("Description cannot exceed 1000 characters", "VALIDATION_ERROR");
+        if (!Enum.IsDefined(command.AccountType))
+            return Result.Failure<ChartOfAccountDto>("Invalid account type", "VALIDATION_ERROR");
 
         bool duplicate = await db.Set<ChartOfAccount>()
             .AnyAsync(a => a.AccountNumber == normalizedNumber, cancellationToken);
@@ -89,7 +104,7 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
         ChartOfAccount account = new()
         {
             AccountNumber = normalizedNumber,
-            AccountName = command.AccountName.Trim(),
+            AccountName = normalizedName,
             AccountType = command.AccountType,
             ParentAccountId = command.ParentAccountId,
             Description = command.Description?.Trim(),
@@ -126,6 +141,8 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
         if (!string.IsNullOrWhiteSpace(command.AccountNumber))
         {
             string normalizedNumber = command.AccountNumber.Trim();
+            if (normalizedNumber.Length > 50)
+                return Result.Failure<ChartOfAccountDto>("Account number cannot exceed 50 characters", "VALIDATION_ERROR");
             if (!string.Equals(account.AccountNumber, normalizedNumber, StringComparison.OrdinalIgnoreCase))
             {
                 bool duplicate = await db.Set<ChartOfAccount>()
@@ -139,10 +156,21 @@ public class ChartOfAccountService(PitbullDbContext db, ILogger<ChartOfAccountSe
         }
 
         if (!string.IsNullOrWhiteSpace(command.AccountName))
+        {
+            if (command.AccountName.Trim().Length > 200)
+                return Result.Failure<ChartOfAccountDto>("Account name cannot exceed 200 characters", "VALIDATION_ERROR");
             account.AccountName = command.AccountName.Trim();
+        }
+
+        if (command.Description is { Length: > 1000 })
+            return Result.Failure<ChartOfAccountDto>("Description cannot exceed 1000 characters", "VALIDATION_ERROR");
 
         if (command.AccountType.HasValue)
+        {
+            if (!Enum.IsDefined(command.AccountType.Value))
+                return Result.Failure<ChartOfAccountDto>("Invalid account type", "VALIDATION_ERROR");
             account.AccountType = command.AccountType.Value;
+        }
 
         Guid? targetParentId = command.ClearParentAccountId
             ? null

@@ -9,6 +9,9 @@ namespace Pitbull.Core.Features.CostCode;
 
 public class CostCodeService : ICostCodeService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+
     private readonly PitbullDbContext _db;
     private readonly IValidator<CreateCostCodeCommand> _createValidator;
     private readonly IValidator<UpdateCostCodeCommand> _updateValidator;
@@ -60,27 +63,32 @@ public class CostCodeService : ICostCodeService
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            var search = query.SearchTerm.ToLower();
+            var search = query.SearchTerm.Trim();
+            if (search.Length > MaxSearchLength)
+                search = search[..MaxSearchLength];
+            search = search.ToLower();
             dbQuery = dbQuery.Where(c =>
                 c.Code.ToLower().Contains(search) ||
                 c.Description.ToLower().Contains(search));
         }
 
         var totalCount = await dbQuery.CountAsync(cancellationToken);
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize < 1 ? 25 : Math.Min(query.PageSize, MaxPageSize);
 
         var items = await dbQuery
             .OrderBy(c => c.Code)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        var totalPages = (int)Math.Ceiling((double)totalCount / query.PageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
         return Result.Success(new ListCostCodesResult(
             Items: CostCodeMapper.ToDto(items),
             TotalCount: totalCount,
-            Page: query.Page,
-            PageSize: query.PageSize,
+            Page: page,
+            PageSize: pageSize,
             TotalPages: totalPages
         ));
     }
