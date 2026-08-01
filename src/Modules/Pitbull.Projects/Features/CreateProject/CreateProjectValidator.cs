@@ -18,7 +18,8 @@ public class CreateProjectValidator : AbstractValidator<CreateProjectCommand>
             .IsInEnum().WithMessage("Invalid project type");
 
         RuleFor(x => x.ContractAmount)
-            .GreaterThanOrEqualTo(0).WithMessage("Contract amount cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("Contract amount cannot be negative")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Contract amount cannot exceed 1,000,000,000");
 
         // Optional fields with length validation
         RuleFor(x => x.Description)

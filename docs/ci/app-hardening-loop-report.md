@@ -1053,7 +1053,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 12:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080112`
+**Branch:** `chore/app-hardening-hourly-2026080112` → **merged #497**
 
 ### CI status (step 1)
 - **main green** after #496 (`7f2577b1`) — CI + Push success. No failures to fix.
@@ -1069,6 +1069,28 @@ Findings discovered (unique): 256
 - **RFI validators:** BallInCourt/CreatedBy/SpecSection lengths; cost impact + delay days bounds; drawing ref count/item length.
 - **PM upsert:** Truncate Name/Title/Description/Data strings to EF-aligned max lengths in PmUpsertFieldMapper.
 - Unit tests for owner CO validator, CO amount/days caps, RFI optional field bounds.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 13:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080113`
+
+### CI status (step 1)
+- **main green** after #497 (`84f48dba`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **owner contracts:** EF-aligned field lengths; OriginalContractSum max 1e9; payment terms 0–365; SOV name/line item bounds.
+- **AIA billing lines:** work completed / materials stored non-negative + max 1e9 (single + bulk update).
+- **projects/bids:** ContractAmount/EstimatedValue max 1e9; bid items max 500 + qty/unit cost caps; list search cap 200; budget alert % clamp; phase take clamp.
+- **notifications:** Create validates title/message/type/related entity lengths (EF max).
+- Unit tests for owner contract, project/bid money max, notification create.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

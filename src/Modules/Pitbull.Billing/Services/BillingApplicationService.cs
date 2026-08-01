@@ -15,6 +15,7 @@ public class BillingApplicationService(
     IWorkflowTransitionService? workflowTransitions = null,
     IWorkflowApprovalService? workflowApprovals = null) : IBillingApplicationService
 {
+    private const decimal MaxMoney = 1_000_000_000m;
     private readonly ILogger<BillingApplicationService> _logger = logger;
     public async Task<Result<ListBillingApplicationsResult>> ListAsync(ListBillingApplicationsQuery query, CancellationToken ct = default)
     {
@@ -187,6 +188,12 @@ public class BillingApplicationService(
 
         if (cmd.WorkCompletedThisPeriod < 0)
             return Result.Failure<BillingApplicationLineItemDto>("Work completed this period cannot be negative", "VALIDATION_ERROR");
+        if (cmd.WorkCompletedThisPeriod > MaxMoney)
+            return Result.Failure<BillingApplicationLineItemDto>("Work completed this period cannot exceed 1,000,000,000", "VALIDATION_ERROR");
+        if (cmd.MaterialsStoredToDate < 0)
+            return Result.Failure<BillingApplicationLineItemDto>("Materials stored cannot be negative", "VALIDATION_ERROR");
+        if (cmd.MaterialsStoredToDate > MaxMoney)
+            return Result.Failure<BillingApplicationLineItemDto>("Materials stored cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
         line.WorkCompletedThisPeriod = cmd.WorkCompletedThisPeriod;
         line.MaterialsStoredToDate = cmd.MaterialsStoredToDate;
@@ -236,6 +243,12 @@ public class BillingApplicationService(
 
             if (update.WorkCompletedThisPeriod < 0)
                 return Result.Failure<BillingApplicationDto>($"Work completed cannot be negative on line {line.ItemNumber}", "VALIDATION_ERROR");
+            if (update.WorkCompletedThisPeriod > MaxMoney)
+                return Result.Failure<BillingApplicationDto>($"Work completed cannot exceed 1,000,000,000 on line {line.ItemNumber}", "VALIDATION_ERROR");
+            if (update.MaterialsStoredToDate < 0)
+                return Result.Failure<BillingApplicationDto>($"Materials stored cannot be negative on line {line.ItemNumber}", "VALIDATION_ERROR");
+            if (update.MaterialsStoredToDate > MaxMoney)
+                return Result.Failure<BillingApplicationDto>($"Materials stored cannot exceed 1,000,000,000 on line {line.ItemNumber}", "VALIDATION_ERROR");
 
             line.WorkCompletedThisPeriod = update.WorkCompletedThisPeriod;
             line.MaterialsStoredToDate = update.MaterialsStoredToDate;

@@ -9,14 +9,29 @@ public class NotificationService(PitbullDbContext db) : INotificationService
 {
     public async Task<Result<NotificationDto>> CreateAsync(CreateNotificationCommand command, CancellationToken ct = default)
     {
+        if (command.UserId == Guid.Empty)
+            return Result.Failure<NotificationDto>("User ID is required", "VALIDATION_ERROR");
+        if (string.IsNullOrWhiteSpace(command.Title))
+            return Result.Failure<NotificationDto>("Title is required", "VALIDATION_ERROR");
+        if (command.Title.Trim().Length > 200)
+            return Result.Failure<NotificationDto>("Title cannot exceed 200 characters", "VALIDATION_ERROR");
+        if (string.IsNullOrWhiteSpace(command.Message))
+            return Result.Failure<NotificationDto>("Message is required", "VALIDATION_ERROR");
+        if (command.Message.Trim().Length > 1000)
+            return Result.Failure<NotificationDto>("Message cannot exceed 1000 characters", "VALIDATION_ERROR");
+        if (command.RelatedEntityType is { Length: > 100 })
+            return Result.Failure<NotificationDto>("Related entity type cannot exceed 100 characters", "VALIDATION_ERROR");
+        if (!Enum.IsDefined(command.Type))
+            return Result.Failure<NotificationDto>("Invalid notification type", "VALIDATION_ERROR");
+
         var notification = new Notification
         {
             UserId = command.UserId,
-            Title = command.Title,
-            Message = command.Message,
+            Title = command.Title.Trim(),
+            Message = command.Message.Trim(),
             Type = command.Type,
             IsRead = false,
-            RelatedEntityType = command.RelatedEntityType,
+            RelatedEntityType = command.RelatedEntityType?.Trim(),
             RelatedEntityId = command.RelatedEntityId,
         };
 

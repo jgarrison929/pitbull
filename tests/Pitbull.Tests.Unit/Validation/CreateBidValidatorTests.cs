@@ -65,6 +65,30 @@ public sealed class CreateBidValidatorTests
     }
 
     [Fact]
+    public void Validate_WithEstimatedValueOverMax_ShouldHaveError()
+    {
+        var command = CreateValidCommand(estimatedValue: 1_000_000_000.01m);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.EstimatedValue)
+            .WithErrorMessage("Estimated value cannot exceed 1,000,000,000");
+    }
+
+    [Fact]
+    public void Validate_WithTooManyItems_ShouldHaveError()
+    {
+        var items = Enumerable.Range(0, 501)
+            .Select(i => new CreateBidItemDto(
+                Description: $"Item {i}",
+                Category: BidItemCategory.Labor,
+                Quantity: 1,
+                UnitCost: 10m))
+            .ToList();
+        var command = CreateValidCommand(items: items);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.Items);
+    }
+
+    [Fact]
     public void Validate_WithNameTooLong_ShouldHaveError()
     {
         var command = CreateValidCommand(name: new string('A', 201));

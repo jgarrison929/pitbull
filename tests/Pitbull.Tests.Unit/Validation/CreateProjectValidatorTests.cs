@@ -76,6 +76,15 @@ public sealed class CreateProjectValidatorTests
     }
 
     [Fact]
+    public void Validate_WithContractAmountOverMax_ShouldHaveError()
+    {
+        var command = CreateValidCommand(contractAmount: 1_000_000_000.01m);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.ContractAmount)
+            .WithErrorMessage("Contract amount cannot exceed 1,000,000,000");
+    }
+
+    [Fact]
     public void Validate_WithNameTooLong_ShouldHaveError()
     {
         var command = CreateValidCommand(name: new string('A', 201));

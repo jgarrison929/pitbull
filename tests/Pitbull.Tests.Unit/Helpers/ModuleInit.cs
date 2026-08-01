@@ -8,6 +8,7 @@ using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Core.Data;
 using Pitbull.Core.Extensions;
 using Pitbull.Core.Services;
+using Pitbull.Notifications.Features;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
@@ -40,6 +41,7 @@ internal static class ModuleInit
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(BillingModuleMarker).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(SystemAdminModuleMarker).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(NotificationsModuleMarker).Assembly);
 
         // Register field encryption service for [Encrypted] attribute auto-discovery
         var services = new ServiceCollection();
