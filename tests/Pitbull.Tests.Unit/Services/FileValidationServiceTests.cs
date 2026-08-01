@@ -256,6 +256,29 @@ public class FileValidationServiceTests
         result.ErrorCode.Should().Be("INVALID_FILE");
     }
 
+    [Theory]
+    [InlineData("shell.php")]
+    [InlineData("page.aspx")]
+    [InlineData("app.jar")]
+    [InlineData("package.apk")]
+    [InlineData("link.lnk")]
+    [InlineData("disk.iso")]
+    [InlineData("script.jse")]
+    public void ValidateFile_AdditionalBlockedExtensions_ReturnsFailure(string fileName)
+    {
+        var result = _sut.ValidateFile(fileName, "application/octet-stream", 1024);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_FILE");
+    }
+
+    [Fact]
+    public void ValidateFile_OverlongContentType_ReturnsFailure()
+    {
+        var result = _sut.ValidateFile("notes.txt", new string('a', 201), 1024);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_FILE");
+    }
+
     [Fact]
     public void ValidateFile_SvgContentType_EvenWithPngName_ReturnsFailure()
     {

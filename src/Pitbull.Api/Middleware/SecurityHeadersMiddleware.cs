@@ -56,6 +56,9 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
         context.Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate");
         context.Response.Headers.Append("Pragma", "no-cache");
 
+        // Discourage search engines / scrapers from indexing API surfaces if exposed publicly.
+        context.Response.Headers.Append("X-Robots-Tag", "noindex, nofollow");
+
         // Strict-Transport-Security (HSTS): Force HTTPS for 1 year
         // Note: Only send on HTTPS or when X-Forwarded-Proto indicates HTTPS (reverse proxy)
         var forwardedProto = context.Request.Headers["X-Forwarded-Proto"].FirstOrDefault();

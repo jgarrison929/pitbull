@@ -190,6 +190,16 @@ public class SecurityHeadersMiddlewareTests
     }
 
     [Fact]
+    public async Task Adds_XRobotsTag_noindex()
+    {
+        var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);
+
+        var context = await ExecuteMiddlewareAsync(middleware);
+
+        Assert.Equal("noindex, nofollow", context.Response.Headers["X-Robots-Tag"]);
+    }
+
+    [Fact]
     public async Task Adds_CrossOriginResourcePolicy_same_origin()
     {
         var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);

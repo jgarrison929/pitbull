@@ -135,6 +135,10 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/cap")]
     [InlineData("/api/seed")]
     [InlineData("/api/seeddata")]
+    [InlineData("/api/jobs")]
+    [InlineData("/api/jobs/enqueue")]
+    [InlineData("/api/monitoring")]
+    [InlineData("/api/monitoring/security")]
     public async Task DemoUser_IsFullyBlocked_FromSensitivePrivilegePaths(string path)
     {
         var context = CreateDemoContext(path, "GET");

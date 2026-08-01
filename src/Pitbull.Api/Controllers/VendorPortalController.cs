@@ -22,15 +22,19 @@ public class VendorPortalController(
     // --- Admin endpoints (Authorized) ---
 
     [HttpPost("tokens")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> GenerateToken([FromBody] GenerateTokenRequest request, CancellationToken ct)
     {
-        var result = await portalService.GenerateTokenAsync(request.VendorId, request.ProjectId, request.ExpirationDays, ct);
+        // Early clamp (service also enforces 1..90) so garbage values never hit DB.
+        var days = Math.Clamp(request.ExpirationDays, 1, 90);
+        var result = await portalService.GenerateTokenAsync(request.VendorId, request.ProjectId, days, ct);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error, code = result.ErrorCode });
         return Ok(result.Value);
     }
 
     [HttpGet("tokens")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> GetTokensForVendor([FromQuery] Guid vendorId, CancellationToken ct)
     {
         var result = await portalService.GetTokensForVendorAsync(vendorId, ct);
@@ -40,6 +44,7 @@ public class VendorPortalController(
     }
 
     [HttpDelete("tokens/{id:guid}")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> RevokeToken(Guid id, CancellationToken ct)
     {
         var result = await portalService.RevokeTokenAsync(id, ct);
@@ -94,6 +99,15 @@ public class VendorPortalController(
     {
         if (!IsPlausiblePortalToken(token))
             return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
+
+        // Public endpoint: bound untrusted body fields before service work.
+        if (dto.Amount is <= 0 or > 999_999_999.99m)
+            return BadRequest(new { error = "Amount must be between 0.01 and 999,999,999.99", code = "VALIDATION_ERROR" });
+        if (dto.Description is { Length: > 2000 })
+            return BadRequest(new { error = "Description cannot exceed 2000 characters", code = "VALIDATION_ERROR" });
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        if (dto.ThroughDate < today.AddYears(-10) || dto.ThroughDate > today.AddYears(2))
+            return BadRequest(new { error = "ThroughDate is out of allowed range", code = "VALIDATION_ERROR" });
 
         var result = await portalService.SubmitLienWaiverAsync(token, dto, ct);
         if (!result.IsSuccess)
