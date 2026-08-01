@@ -207,9 +207,9 @@
       },
       "Resend": {
         "type": "Direct",
-        "requested": "[0.2.1, )",
-        "resolved": "0.2.1",
-        "contentHash": "KE+irutvTpJsXUDSnYVlNVZuQb/MGrYGZ6IKVZ3FusRz64tlN0zHjWreAPE5UpqU/lLMg34n4WyoPdetTQCLHw=="
+        "requested": "[0.8.0, )",
+        "resolved": "0.8.0",
+        "contentHash": "xaG5Q19IbKQ/zEWZ2jviw7mvco6Irz6DuUgnU3YRrF2iCrLq2ADf6jkiGBVq/Xyuqk+2bWBuwGpQPeclfz0RWA=="
       },
       "Savorboard.CAP.InMemoryMessageQueue": {
         "type": "Direct",
