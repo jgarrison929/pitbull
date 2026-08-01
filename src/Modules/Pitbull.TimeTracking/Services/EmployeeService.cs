@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pitbull.Core.CQRS;
@@ -18,13 +19,24 @@ namespace Pitbull.TimeTracking.Services;
 /// </summary>
 public class EmployeeService : IEmployeeService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+
     private readonly PitbullDbContext _db;
     private readonly ILogger<EmployeeService> _logger;
+    private readonly IValidator<CreateEmployeeCommand> _createValidator;
+    private readonly IValidator<UpdateEmployeeCommand> _updateValidator;
 
-    public EmployeeService(PitbullDbContext db, ILogger<EmployeeService> logger)
+    public EmployeeService(
+        PitbullDbContext db,
+        ILogger<EmployeeService> logger,
+        IValidator<CreateEmployeeCommand> createValidator,
+        IValidator<UpdateEmployeeCommand> updateValidator)
     {
         _db = db;
         _logger = logger;
+        _createValidator = createValidator;
+        _updateValidator = updateValidator;
     }
 
     public async Task<Result<EmployeeDto>> GetEmployeeAsync(Guid id, CancellationToken cancellationToken = default)
@@ -55,7 +67,10 @@ public class EmployeeService : IEmployeeService
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var searchTerm = query.Search.ToLower();
+            var searchTerm = query.Search.Trim();
+            if (searchTerm.Length > MaxSearchLength)
+                searchTerm = searchTerm[..MaxSearchLength];
+            searchTerm = searchTerm.ToLower();
             dbQuery = dbQuery.Where(e =>
                 e.EmployeeNumber.ToLower().Contains(searchTerm) ||
                 e.FirstName.ToLower().Contains(searchTerm) ||
@@ -65,17 +80,19 @@ public class EmployeeService : IEmployeeService
 
         // Get total count before pagination
         var totalCount = await dbQuery.CountAsync(cancellationToken);
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize < 1 ? 50 : Math.Min(query.PageSize, MaxPageSize);
 
         // Apply ordering and pagination
         var items = await dbQuery
             .OrderBy(e => e.LastName)
             .ThenBy(e => e.FirstName)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(e => EmployeeMapper.ToDto(e))
             .ToListAsync(cancellationToken);
 
-        var result = new PagedResult<EmployeeDto>(items, totalCount, query.Page, query.PageSize);
+        var result = new PagedResult<EmployeeDto>(items, totalCount, page, pageSize);
         return Result.Success(result);
     }
 
@@ -223,6 +240,13 @@ public class EmployeeService : IEmployeeService
 
     public async Task<Result<EmployeeDto>> CreateEmployeeAsync(CreateEmployeeCommand command, CancellationToken cancellationToken = default)
     {
+        var validationResult = await _createValidator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
+            return Result.Failure<EmployeeDto>(errors, "VALIDATION_ERROR");
+        }
+
         // Auto-generate employee number if not provided
         string employeeNumber;
         if (string.IsNullOrWhiteSpace(command.EmployeeNumber))
@@ -296,6 +320,13 @@ public class EmployeeService : IEmployeeService
 
     public async Task<Result<EmployeeDto>> UpdateEmployeeAsync(UpdateEmployeeCommand command, CancellationToken cancellationToken = default)
     {
+        var validationResult = await _updateValidator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
+            return Result.Failure<EmployeeDto>(errors, "VALIDATION_ERROR");
+        }
+
         var employee = await _db.Set<Employee>()
             .Include(e => e.Supervisor)
             .FirstOrDefaultAsync(e => e.Id == command.EmployeeId && !e.IsDeleted, cancellationToken);

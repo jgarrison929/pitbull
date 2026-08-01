@@ -6,22 +6,23 @@ public class CreateEmployeeValidator : AbstractValidator<CreateEmployeeCommand>
 {
     public CreateEmployeeValidator()
     {
+        // Bounds match EF EmployeeConfiguration HasMaxLength (reject before SaveChanges).
         // EmployeeNumber is optional - auto-generated if not provided
         RuleFor(x => x.EmployeeNumber)
-            .MaximumLength(50).WithMessage("Employee number cannot exceed 50 characters")
+            .MaximumLength(20).WithMessage("Employee number cannot exceed 20 characters")
             .When(x => !string.IsNullOrEmpty(x.EmployeeNumber));
 
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("First name is required")
-            .MaximumLength(100).WithMessage("First name cannot exceed 100 characters");
+            .MaximumLength(50).WithMessage("First name cannot exceed 50 characters");
 
         RuleFor(x => x.LastName)
             .NotEmpty().WithMessage("Last name is required")
-            .MaximumLength(100).WithMessage("Last name cannot exceed 100 characters");
+            .MaximumLength(50).WithMessage("Last name cannot exceed 50 characters");
 
         RuleFor(x => x.Email)
             .EmailAddress().WithMessage("Invalid email format")
-            .MaximumLength(256).WithMessage("Email cannot exceed 256 characters")
+            .MaximumLength(255).WithMessage("Email cannot exceed 255 characters")
             .When(x => !string.IsNullOrEmpty(x.Email));
 
         RuleFor(x => x.Phone)
@@ -40,7 +41,7 @@ public class CreateEmployeeValidator : AbstractValidator<CreateEmployeeCommand>
             .LessThanOrEqualTo(1000).WithMessage("Base hourly rate cannot exceed 1000");
 
         RuleFor(x => x.Notes)
-            .MaximumLength(2000).WithMessage("Notes cannot exceed 2000 characters")
+            .MaximumLength(1000).WithMessage("Notes cannot exceed 1000 characters")
             .When(x => !string.IsNullOrEmpty(x.Notes));
 
         // HireDate in the future is allowed (for pre-hires)

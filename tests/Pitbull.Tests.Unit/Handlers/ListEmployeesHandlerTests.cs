@@ -158,6 +158,23 @@ public class ListEmployeesHandlerTests
     }
 
     [Fact]
+    public async Task Handle_PageSizeOverLimit_IsClampedTo100()
+    {
+        using var db = TestDbContextFactory.Create();
+        db.Set<Employee>().AddRange(CreateTestEmployees());
+        await db.SaveChangesAsync();
+
+        var handler = new ListEmployeesHandler(db);
+        var query = new ListEmployeesQuery { Page = 1, PageSize = 5000 };
+
+        var result = await handler.Handle(query, CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.PageSize.Should().Be(100);
+        result.Value.Items.Should().HaveCount(5);
+    }
+
+    [Fact]
     public async Task Handle_SearchByEmployeeNumber_ReturnsMatchingEmployee()
     {
         // Arrange
