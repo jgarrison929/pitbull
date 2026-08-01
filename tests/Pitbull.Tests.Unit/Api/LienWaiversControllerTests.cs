@@ -161,6 +161,34 @@ public class LienWaiversControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Create_DescriptionTooLong_ReturnsBadRequest()
+    {
+        CreateLienWaiverRequest request = new(
+            ProjectId: Guid.NewGuid(),
+            VendorId: Guid.NewGuid(),
+            WaiverType: LienWaiverType.Conditional,
+            Amount: 1000m,
+            ThroughDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            Description: new string('D', 501));
+
+        IActionResult result = await _controller.Create(request);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task Reject_ReasonTooLong_ReturnsBadRequest()
+    {
+        LienWaiver seeded = await SeedWaiver(status: LienWaiverStatus.Received);
+
+        IActionResult result = await _controller.Reject(
+            seeded.Id,
+            new RejectLienWaiverRequest(new string('R', 501)));
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public async Task Update_Found_ReturnsUpdated()
     {
         LienWaiver seeded = await SeedWaiver();

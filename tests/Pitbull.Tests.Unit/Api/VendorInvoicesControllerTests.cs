@@ -75,6 +75,21 @@ public class VendorInvoicesControllerTests : IDisposable
     }
 
     [Fact]
+    public async Task Create_InvoiceNumberTooLong_ReturnsBadRequest()
+    {
+        CreateVendorInvoiceRequest invoiceRequest = new(
+            VendorId: Guid.NewGuid(),
+            InvoiceNumber: new string('I', 101),
+            InvoiceDate: DateOnly.FromDateTime(DateTime.UtcNow),
+            DueDate: DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
+            TotalAmount: 100m);
+
+        IActionResult result = await _vendorInvoicesController.Create(invoiceRequest);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
     public async Task Match_TwoWay_WithinTolerance_AutoApproves()
     {
         Guid vendorId = Guid.NewGuid();

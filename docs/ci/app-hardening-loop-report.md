@@ -1010,7 +1010,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 10:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080110`
+**Branch:** `chore/app-hardening-hourly-2026080110` → **merged #495**
 
 ### CI status (step 1)
 - **main green** after #494 (`f6245126`) — CI + Push success. No failures to fix.
@@ -1023,6 +1023,28 @@ Findings discovered (unique): 256
 - **purchase orders:** Header/line field bounds; max 500 lines; qty/price caps; search cap.
 - **WIP reports:** list pageSize clamp 100.
 - Unit tests updated/added for employee validators, list clamp, PO description bounds.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 11:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080111`
+
+### CI status (step 1)
+- **main green** after #495 (`03f690c7`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **lien waivers:** Description/DocumentPath/rejection reason EF bounds; amount max 1e9.
+- **journal entries:** Description/source field bounds; line desc 500; max 500 lines; debit/credit sanity; search cap.
+- **vendor invoices:** InvoiceNumber/TaxExemptReason bounds; money/exchange caps; search cap; currency normalize.
+- **time entries:** List + by-project pageSize clamp 100.
+- Unit tests for lien waiver description/reject reason and vendor invoice number length.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.
