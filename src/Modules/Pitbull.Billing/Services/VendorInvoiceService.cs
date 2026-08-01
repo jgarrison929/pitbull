@@ -17,6 +17,8 @@ public class VendorInvoiceService(
     IWorkflowTransitionService? workflowTransitions = null) : IVendorInvoiceService
 {
     private const decimal DefaultTolerancePercent = 5m;
+    private const int MaxSearchLength = 200;
+    private const decimal MaxMoney = 1_000_000_000m;
 
     public async Task<Result<ListVendorInvoicesResult>> GetVendorInvoicesAsync(ListVendorInvoicesQuery query, CancellationToken cancellationToken = default)
     {
@@ -35,7 +37,10 @@ public class VendorInvoiceService(
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            string term = query.Search.Trim().ToLower();
+            string term = query.Search.Trim();
+            if (term.Length > MaxSearchLength)
+                term = term[..MaxSearchLength];
+            term = term.ToLower();
             dbQuery = dbQuery.Where(i => i.InvoiceNumber.ToLower().Contains(term));
         }
 
@@ -77,15 +82,22 @@ public class VendorInvoiceService(
     {
         if (command.VendorId == Guid.Empty || string.IsNullOrWhiteSpace(command.InvoiceNumber))
             return Result.Failure<VendorInvoiceDto>("VendorId and InvoiceNumber are required", "VALIDATION_ERROR");
+        if (command.InvoiceNumber.Length > 100)
+            return Result.Failure<VendorInvoiceDto>("InvoiceNumber cannot exceed 100 characters", "VALIDATION_ERROR");
 
         if (command.TotalAmount <= 0)
             return Result.Failure<VendorInvoiceDto>("Invoice total amount must be positive", "VALIDATION_ERROR");
+        if (command.TotalAmount > MaxMoney)
+            return Result.Failure<VendorInvoiceDto>("Invoice total amount is too large", "VALIDATION_ERROR");
 
-        if (command.ExchangeRate <= 0)
-            return Result.Failure<VendorInvoiceDto>("Exchange rate must be positive", "VALIDATION_ERROR");
+        if (command.ExchangeRate <= 0 || command.ExchangeRate > 1_000_000m)
+            return Result.Failure<VendorInvoiceDto>("Exchange rate must be greater than 0 and at most 1,000,000", "VALIDATION_ERROR");
 
-        if (string.IsNullOrWhiteSpace(command.CurrencyCode) || command.CurrencyCode.Length != 3)
+        if (string.IsNullOrWhiteSpace(command.CurrencyCode) || command.CurrencyCode.Trim().Length != 3)
             return Result.Failure<VendorInvoiceDto>("Currency code must be a 3-letter ISO code", "VALIDATION_ERROR");
+
+        if (command.TaxExemptReason is { Length: > 500 })
+            return Result.Failure<VendorInvoiceDto>("TaxExemptReason cannot exceed 500 characters", "VALIDATION_ERROR");
 
         decimal taxAmount = command.TaxAmount ?? 0m;
         if (taxAmount < 0)
@@ -107,7 +119,7 @@ public class VendorInvoiceService(
             TaxRate = command.TaxRate ?? 0m,
             TotalAmount = command.TotalAmount,
             TaxJurisdictionId = command.TaxJurisdictionId,
-            CurrencyCode = command.CurrencyCode,
+            CurrencyCode = command.CurrencyCode.Trim().ToUpperInvariant(),
             ExchangeRate = command.ExchangeRate,
             IsTaxExempt = command.IsTaxExempt,
             TaxExemptReason = command.TaxExemptReason?.Trim(),
@@ -141,7 +153,11 @@ public class VendorInvoiceService(
         if (command.VendorId.HasValue)
             invoice.VendorId = command.VendorId.Value;
         if (!string.IsNullOrWhiteSpace(command.InvoiceNumber))
+        {
+            if (command.InvoiceNumber.Length > 100)
+                return Result.Failure<VendorInvoiceDto>("InvoiceNumber cannot exceed 100 characters", "VALIDATION_ERROR");
             invoice.InvoiceNumber = command.InvoiceNumber.Trim();
+        }
         if (command.InvoiceDate.HasValue)
             invoice.InvoiceDate = command.InvoiceDate.Value;
         if (command.DueDate.HasValue)
@@ -150,8 +166,12 @@ public class VendorInvoiceService(
         {
             if (command.TotalAmount.Value <= 0)
                 return Result.Failure<VendorInvoiceDto>("Invoice total amount must be positive", "VALIDATION_ERROR");
+            if (command.TotalAmount.Value > MaxMoney)
+                return Result.Failure<VendorInvoiceDto>("Invoice total amount is too large", "VALIDATION_ERROR");
             invoice.TotalAmount = command.TotalAmount.Value;
         }
+        if (command.TaxExemptReason is { Length: > 500 })
+            return Result.Failure<VendorInvoiceDto>("TaxExemptReason cannot exceed 500 characters", "VALIDATION_ERROR");
         if (command.TaxAmount.HasValue)
         {
             if (command.TaxAmount.Value < 0)

@@ -9,6 +9,8 @@ namespace Pitbull.Billing.Services;
 
 public class LienWaiverService(PitbullDbContext db, ILogger<LienWaiverService> logger) : ILienWaiverService
 {
+    private const decimal MaxAmount = 1_000_000_000m;
+
     public async Task<Result<ListLienWaiversResult>> GetLienWaiversAsync(ListLienWaiversQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<LienWaiver> dbQuery = db.Set<LienWaiver>().AsNoTracking();
@@ -61,6 +63,10 @@ public class LienWaiverService(PitbullDbContext db, ILogger<LienWaiverService> l
     {
         if (command.Amount <= 0)
             return Result.Failure<LienWaiverDto>("Amount must be positive", "VALIDATION_ERROR");
+        if (command.Amount > MaxAmount)
+            return Result.Failure<LienWaiverDto>("Amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
+        if (command.Description is { Length: > 500 })
+            return Result.Failure<LienWaiverDto>("Description cannot exceed 500 characters", "VALIDATION_ERROR");
 
         LienWaiver waiver = new()
         {
@@ -69,7 +75,7 @@ public class LienWaiverService(PitbullDbContext db, ILogger<LienWaiverService> l
             WaiverType = command.WaiverType,
             Amount = command.Amount,
             ThroughDate = command.ThroughDate,
-            Description = command.Description,
+            Description = command.Description?.Trim(),
             Status = LienWaiverStatus.Requested
         };
 
@@ -102,6 +108,8 @@ public class LienWaiverService(PitbullDbContext db, ILogger<LienWaiverService> l
         {
             if (command.Amount.Value <= 0)
                 return Result.Failure<LienWaiverDto>("Amount must be positive", "VALIDATION_ERROR");
+            if (command.Amount.Value > MaxAmount)
+                return Result.Failure<LienWaiverDto>("Amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
             waiver.Amount = command.Amount.Value;
         }
 
@@ -109,10 +117,18 @@ public class LienWaiverService(PitbullDbContext db, ILogger<LienWaiverService> l
             waiver.ThroughDate = command.ThroughDate.Value;
 
         if (command.Description is not null)
-            waiver.Description = command.Description;
+        {
+            if (command.Description.Length > 500)
+                return Result.Failure<LienWaiverDto>("Description cannot exceed 500 characters", "VALIDATION_ERROR");
+            waiver.Description = command.Description.Trim();
+        }
 
         if (command.DocumentPath is not null)
-            waiver.DocumentPath = command.DocumentPath;
+        {
+            if (command.DocumentPath.Length > 1000)
+                return Result.Failure<LienWaiverDto>("DocumentPath cannot exceed 1000 characters", "VALIDATION_ERROR");
+            waiver.DocumentPath = command.DocumentPath.Trim();
+        }
 
         try
         {
@@ -196,6 +212,8 @@ public class LienWaiverService(PitbullDbContext db, ILogger<LienWaiverService> l
 
         if (string.IsNullOrWhiteSpace(reason))
             return Result.Failure<LienWaiverDto>("Rejection reason is required", "VALIDATION_ERROR");
+        if (reason.Length > 500)
+            return Result.Failure<LienWaiverDto>("Rejection reason cannot exceed 500 characters", "VALIDATION_ERROR");
 
         waiver.Status = LienWaiverStatus.Rejected;
         waiver.ReviewedByUserId = reviewedByUserId;

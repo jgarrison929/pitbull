@@ -159,20 +159,22 @@ public class TimeEntryService : ITimeEntryService
 
         // Get total count before pagination
         var totalCount = await query.CountAsync(cancellationToken);
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize < 1 ? 25 : Math.Min(pageSize, 100);
 
         // Apply ordering and pagination
         var entities = await query
             .OrderByDescending(te => te.Date)
             .ThenBy(te => te.Employee.LastName)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
             .ToListAsync(cancellationToken);
         var items = TimeEntryMapper.ToDto(entities);
 
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / safePageSize);
 
         return Result.Success(new ListTimeEntriesResult(
-            items, totalCount, page, pageSize, totalPages));
+            items, totalCount, safePage, safePageSize, totalPages));
     }
 
     public async Task<Result<YesterdayCrewEntriesResult>> GetYesterdayCrewEntriesAsync(
@@ -294,7 +296,9 @@ public class TimeEntryService : ITimeEntryService
 
         // Get total count before pagination
         var totalCount = await query.CountAsync(cancellationToken);
-        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+        var safePage = page < 1 ? 1 : page;
+        var safePageSize = pageSize < 1 ? 25 : Math.Min(pageSize, 100);
+        var totalPages = (int)Math.Ceiling((double)totalCount / safePageSize);
 
         // Calculate summary if requested
         ProjectTimeSummary? summary = null;
@@ -317,8 +321,8 @@ public class TimeEntryService : ITimeEntryService
         var entities = await query
             .OrderByDescending(te => te.Date)
             .ThenBy(te => te.Employee.LastName)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((safePage - 1) * safePageSize)
+            .Take(safePageSize)
             .ToListAsync(cancellationToken);
         var items = TimeEntryMapper.ToDto(entities);
 
@@ -328,8 +332,8 @@ public class TimeEntryService : ITimeEntryService
             ProjectNumber: project.Number,
             TimeEntries: items,
             TotalCount: totalCount,
-            Page: page,
-            PageSize: pageSize,
+            Page: safePage,
+            PageSize: safePageSize,
             TotalPages: totalPages,
             Summary: summary
         ));

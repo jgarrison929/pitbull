@@ -9,6 +9,10 @@ namespace Pitbull.Billing.Services;
 
 public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryService> logger) : IJournalEntryService
 {
+    private const int MaxSearchLength = 200;
+    private const int MaxLines = 500;
+    private const decimal MaxLineAmount = 1_000_000_000m;
+
     public async Task<Result<ListJournalEntriesResult>> GetJournalEntriesAsync(ListJournalEntriesQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<JournalEntry> dbQuery = db.Set<JournalEntry>().AsNoTracking().Include(j => j.Lines);
@@ -27,7 +31,10 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            string term = query.Search.Trim().ToLower();
+            string term = query.Search.Trim();
+            if (term.Length > MaxSearchLength)
+                term = term[..MaxSearchLength];
+            term = term.ToLower();
             dbQuery = dbQuery.Where(j =>
                 j.EntryNumber.ToLower().Contains(term) ||
                 j.Description.ToLower().Contains(term));
@@ -70,9 +77,29 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
     {
         if (string.IsNullOrWhiteSpace(command.Description))
             return Result.Failure<JournalEntryDto>("Description is required", "VALIDATION_ERROR");
+        if (command.Description.Length > 1000)
+            return Result.Failure<JournalEntryDto>("Description cannot exceed 1000 characters", "VALIDATION_ERROR");
+        if (command.SourceModule is { Length: > 100 })
+            return Result.Failure<JournalEntryDto>("SourceModule cannot exceed 100 characters", "VALIDATION_ERROR");
+        if (command.SourceDocumentRef is { Length: > 200 })
+            return Result.Failure<JournalEntryDto>("SourceDocumentRef cannot exceed 200 characters", "VALIDATION_ERROR");
 
         if (command.Lines is null || command.Lines.Count < 2)
             return Result.Failure<JournalEntryDto>("At least two lines are required", "VALIDATION_ERROR");
+        if (command.Lines.Count > MaxLines)
+            return Result.Failure<JournalEntryDto>($"Journal entry cannot exceed {MaxLines} lines", "VALIDATION_ERROR");
+
+        foreach (var line in command.Lines)
+        {
+            if (line.Description is { Length: > 500 })
+                return Result.Failure<JournalEntryDto>("Line description cannot exceed 500 characters", "VALIDATION_ERROR");
+            if (line.DebitAmount < 0 || line.CreditAmount < 0)
+                return Result.Failure<JournalEntryDto>("Line debit/credit amounts cannot be negative", "VALIDATION_ERROR");
+            if (line.DebitAmount > MaxLineAmount || line.CreditAmount > MaxLineAmount)
+                return Result.Failure<JournalEntryDto>("Line amount is too large", "VALIDATION_ERROR");
+            if (line.DebitAmount > 0 && line.CreditAmount > 0)
+                return Result.Failure<JournalEntryDto>("A line cannot have both debit and credit amounts", "VALIDATION_ERROR");
+        }
 
         decimal totalDebits = command.Lines.Sum(l => l.DebitAmount);
         decimal totalCredits = command.Lines.Sum(l => l.CreditAmount);
@@ -187,12 +214,30 @@ public class JournalEntryService(PitbullDbContext db, ILogger<JournalEntryServic
             entry.EntryDate = command.EntryDate.Value;
 
         if (!string.IsNullOrWhiteSpace(command.Description))
+        {
+            if (command.Description.Length > 1000)
+                return Result.Failure<JournalEntryDto>("Description cannot exceed 1000 characters", "VALIDATION_ERROR");
             entry.Description = command.Description.Trim();
+        }
 
         if (command.Lines is not null)
         {
             if (command.Lines.Count < 2)
                 return Result.Failure<JournalEntryDto>("At least two lines are required", "VALIDATION_ERROR");
+            if (command.Lines.Count > MaxLines)
+                return Result.Failure<JournalEntryDto>($"Journal entry cannot exceed {MaxLines} lines", "VALIDATION_ERROR");
+
+            foreach (var line in command.Lines)
+            {
+                if (line.Description is { Length: > 500 })
+                    return Result.Failure<JournalEntryDto>("Line description cannot exceed 500 characters", "VALIDATION_ERROR");
+                if (line.DebitAmount < 0 || line.CreditAmount < 0)
+                    return Result.Failure<JournalEntryDto>("Line debit/credit amounts cannot be negative", "VALIDATION_ERROR");
+                if (line.DebitAmount > MaxLineAmount || line.CreditAmount > MaxLineAmount)
+                    return Result.Failure<JournalEntryDto>("Line amount is too large", "VALIDATION_ERROR");
+                if (line.DebitAmount > 0 && line.CreditAmount > 0)
+                    return Result.Failure<JournalEntryDto>("A line cannot have both debit and credit amounts", "VALIDATION_ERROR");
+            }
 
             decimal totalDebits = command.Lines.Sum(l => l.DebitAmount);
             decimal totalCredits = command.Lines.Sum(l => l.CreditAmount);
