@@ -5,6 +5,7 @@ using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Features.CreateEmployee;
 using Pitbull.TimeTracking.Features.ListEmployees;
+using Pitbull.TimeTracking.Features.UpdateEmployee;
 using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.Tests.Unit.Modules.TimeTracking;
@@ -12,7 +13,7 @@ namespace Pitbull.Tests.Unit.Modules.TimeTracking;
 public sealed class EmployeeServiceTests
 {
     private static EmployeeService CreateService(Pitbull.Core.Data.PitbullDbContext db) =>
-        new(db, NullLogger<EmployeeService>.Instance);
+        new(db, NullLogger<EmployeeService>.Instance, new CreateEmployeeValidator(), new UpdateEmployeeValidator());
 
     [Fact]
     public async Task CreateEmployee_WithoutEmployeeNumber_AutoGeneratesNextNumber()

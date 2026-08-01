@@ -26,7 +26,7 @@ public class WipReportService(
 
         int totalCount = await dbQuery.CountAsync(cancellationToken);
         int page = query.Page < 1 ? 1 : query.Page;
-        int pageSize = query.PageSize < 1 ? 25 : query.PageSize;
+        int pageSize = query.PageSize < 1 ? 25 : Math.Min(query.PageSize, 100);
 
         List<WipReportListItemDto> items = await dbQuery
             .OrderByDescending(r => r.ReportDate)

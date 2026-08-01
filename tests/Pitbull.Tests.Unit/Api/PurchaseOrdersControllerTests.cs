@@ -96,4 +96,32 @@ public class PurchaseOrdersControllerTests : IDisposable
         receivedPo.Status.Should().Be(PurchaseOrderStatus.Received);
         receivedPo.Lines.All(line => line.ReceivedQuantity >= line.Quantity).Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Create_DescriptionTooLong_Returns400()
+    {
+        CreatePurchaseOrderRequest createRequest = new(
+            ProjectId: Guid.NewGuid(),
+            VendorId: Guid.NewGuid(),
+            Description: new string('D', 1001),
+            Lines: [new CreatePurchaseOrderLineRequest("Line", 1m, 10m)]);
+
+        IActionResult result = await _controller.Create(createRequest);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task Create_LineDescriptionTooLong_Returns400()
+    {
+        CreatePurchaseOrderRequest createRequest = new(
+            ProjectId: Guid.NewGuid(),
+            VendorId: Guid.NewGuid(),
+            Description: "OK",
+            Lines: [new CreatePurchaseOrderLineRequest(new string('L', 1001), 1m, 10m)]);
+
+        IActionResult result = await _controller.Create(createRequest);
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
 }

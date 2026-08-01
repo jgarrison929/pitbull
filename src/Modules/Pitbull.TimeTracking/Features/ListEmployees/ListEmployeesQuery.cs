@@ -44,29 +44,34 @@ public sealed class ListEmployeesHandler(PitbullDbContext db)
 
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
-            var searchTerm = request.Search.ToLower();
+            var searchTerm = request.Search.Trim();
+            if (searchTerm.Length > 200)
+                searchTerm = searchTerm[..200];
+            searchTerm = searchTerm.ToLower();
             query = query.Where(e =>
-                e.EmployeeNumber.ToLower().Contains(searchTerm.ToLower()) ||
+                e.EmployeeNumber.ToLower().Contains(searchTerm) ||
                 e.FirstName.ToLower().Contains(searchTerm) ||
-                e.LastName.ToLower().Contains(searchTerm.ToLower()) ||
-                (e.Email != null && e.Email.ToLower().Contains(searchTerm.ToLower())));
+                e.LastName.ToLower().Contains(searchTerm) ||
+                (e.Email != null && e.Email.ToLower().Contains(searchTerm)));
         }
 
         // Get total count before pagination
         var totalCount = await query.CountAsync(cancellationToken);
+        var page = request.Page < 1 ? 1 : request.Page;
+        var pageSize = request.PageSize < 1 ? 50 : Math.Min(request.PageSize, 100);
 
         // Apply ordering and pagination
         var items = await query
             .OrderBy(e => e.LastName)
             .ThenBy(e => e.FirstName)
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(e => EmployeeMapper.ToDto(e))
             .ToListAsync(cancellationToken);
 
-        var totalPages = (int)Math.Ceiling((double)totalCount / request.PageSize);
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
         return Result.Success(new ListEmployeesResult(
-            items, totalCount, request.Page, request.PageSize, totalPages));
+            items, totalCount, page, pageSize, totalPages));
     }
 }

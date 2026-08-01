@@ -9,17 +9,18 @@ public class UpdateEmployeeValidator : AbstractValidator<UpdateEmployeeCommand>
         RuleFor(x => x.EmployeeId)
             .NotEmpty().WithMessage("Employee ID is required");
 
+        // Bounds match EF EmployeeConfiguration HasMaxLength (reject before SaveChanges).
         RuleFor(x => x.FirstName)
             .NotEmpty().WithMessage("First name is required")
-            .MaximumLength(100).WithMessage("First name cannot exceed 100 characters");
+            .MaximumLength(50).WithMessage("First name cannot exceed 50 characters");
 
         RuleFor(x => x.LastName)
             .NotEmpty().WithMessage("Last name is required")
-            .MaximumLength(100).WithMessage("Last name cannot exceed 100 characters");
+            .MaximumLength(50).WithMessage("Last name cannot exceed 50 characters");
 
         RuleFor(x => x.Email)
             .EmailAddress().WithMessage("Invalid email format")
-            .MaximumLength(256).WithMessage("Email cannot exceed 256 characters")
+            .MaximumLength(255).WithMessage("Email cannot exceed 255 characters")
             .When(x => !string.IsNullOrEmpty(x.Email));
 
         RuleFor(x => x.Phone)
@@ -38,7 +39,7 @@ public class UpdateEmployeeValidator : AbstractValidator<UpdateEmployeeCommand>
             .LessThanOrEqualTo(1000).WithMessage("Base hourly rate cannot exceed 1000");
 
         RuleFor(x => x.Notes)
-            .MaximumLength(2000).WithMessage("Notes cannot exceed 2000 characters")
+            .MaximumLength(1000).WithMessage("Notes cannot exceed 1000 characters")
             .When(x => !string.IsNullOrEmpty(x.Notes));
 
         // TerminationDate must be after HireDate if both are provided

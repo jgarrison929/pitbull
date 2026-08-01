@@ -9,6 +9,11 @@ namespace Pitbull.Billing.Services;
 
 public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderService> logger) : IPurchaseOrderService
 {
+    private const int MaxSearchLength = 200;
+    private const int MaxLines = 500;
+    private const decimal MaxLineQuantity = 1_000_000m;
+    private const decimal MaxUnitPrice = 1_000_000_000m;
+
     public async Task<Result<ListPurchaseOrdersResult>> GetPurchaseOrdersAsync(ListPurchaseOrdersQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<PurchaseOrder> dbQuery = db.Set<PurchaseOrder>()
@@ -26,7 +31,10 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            string term = query.Search.Trim().ToLower();
+            string term = query.Search.Trim();
+            if (term.Length > MaxSearchLength)
+                term = term[..MaxSearchLength];
+            term = term.ToLower();
             dbQuery = dbQuery.Where(po =>
                 po.PONumber.ToLower().Contains(term) ||
                 (po.Description != null && po.Description.ToLower().Contains(term)));
@@ -74,6 +82,12 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         if (command.Lines is null || command.Lines.Count == 0)
             return Result.Failure<PurchaseOrderDto>("At least one line is required", "VALIDATION_ERROR");
 
+        if (command.Lines.Count > MaxLines)
+            return Result.Failure<PurchaseOrderDto>($"Purchase order cannot exceed {MaxLines} lines", "VALIDATION_ERROR");
+
+        if (ValidatePurchaseOrderFields(command.Description, command.CurrencyCode, command.TaxExemptReason, command.ExchangeRate) is { } headerErr)
+            return Result.Failure<PurchaseOrderDto>(headerErr, "VALIDATION_ERROR");
+
         string poNumber = await GeneratePoNumberAsync(cancellationToken);
 
         PurchaseOrder purchaseOrder = new()
@@ -84,7 +98,7 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             Description = command.Description?.Trim(),
             Status = PurchaseOrderStatus.Draft,
             TaxJurisdictionId = command.TaxJurisdictionId,
-            CurrencyCode = command.CurrencyCode,
+            CurrencyCode = string.IsNullOrWhiteSpace(command.CurrencyCode) ? "USD" : command.CurrencyCode.Trim().ToUpperInvariant(),
             ExchangeRate = command.ExchangeRate,
             IsTaxExempt = command.IsTaxExempt,
             TaxExemptReason = command.TaxExemptReason?.Trim()
@@ -92,8 +106,8 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
 
         foreach (CreatePurchaseOrderLineCommand line in command.Lines)
         {
-            if (string.IsNullOrWhiteSpace(line.Description) || line.Quantity <= 0 || line.UnitPrice < 0)
-                return Result.Failure<PurchaseOrderDto>("Line description, quantity, and unit price are required", "VALIDATION_ERROR");
+            if (ValidateLine(line) is { } lineErr)
+                return Result.Failure<PurchaseOrderDto>(lineErr, "VALIDATION_ERROR");
 
             decimal amount = decimal.Round(line.Quantity * line.UnitPrice, 2, MidpointRounding.AwayFromZero);
 
@@ -150,6 +164,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         if (purchaseOrder.Status != PurchaseOrderStatus.Draft)
             return Result.Failure<PurchaseOrderDto>("Only draft purchase orders can be edited", "INVALID_STATUS");
 
+        if (ValidatePurchaseOrderFields(command.Description, command.CurrencyCode, command.TaxExemptReason, command.ExchangeRate) is { } headerErr)
+            return Result.Failure<PurchaseOrderDto>(headerErr, "VALIDATION_ERROR");
+
         if (command.ProjectId.HasValue)
             purchaseOrder.ProjectId = command.ProjectId.Value;
         if (command.VendorId.HasValue)
@@ -162,7 +179,9 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
         else if (command.TaxJurisdictionId.HasValue)
             purchaseOrder.TaxJurisdictionId = command.TaxJurisdictionId.Value;
         if (command.CurrencyCode != null)
-            purchaseOrder.CurrencyCode = command.CurrencyCode;
+            purchaseOrder.CurrencyCode = string.IsNullOrWhiteSpace(command.CurrencyCode)
+                ? "USD"
+                : command.CurrencyCode.Trim().ToUpperInvariant();
         if (command.ExchangeRate.HasValue)
             purchaseOrder.ExchangeRate = command.ExchangeRate.Value;
         if (command.IsTaxExempt.HasValue)
@@ -172,13 +191,18 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
 
         if (command.Lines is not null)
         {
+            if (command.Lines.Count == 0)
+                return Result.Failure<PurchaseOrderDto>("At least one line is required", "VALIDATION_ERROR");
+            if (command.Lines.Count > MaxLines)
+                return Result.Failure<PurchaseOrderDto>($"Purchase order cannot exceed {MaxLines} lines", "VALIDATION_ERROR");
+
             db.Set<PurchaseOrderLine>().RemoveRange(purchaseOrder.Lines);
             purchaseOrder.Lines.Clear();
 
             foreach (CreatePurchaseOrderLineCommand line in command.Lines)
             {
-                if (string.IsNullOrWhiteSpace(line.Description) || line.Quantity <= 0 || line.UnitPrice < 0)
-                    return Result.Failure<PurchaseOrderDto>("Line description, quantity, and unit price are required", "VALIDATION_ERROR");
+                if (ValidateLine(line) is { } lineErr)
+                    return Result.Failure<PurchaseOrderDto>(lineErr, "VALIDATION_ERROR");
 
                 decimal amount = decimal.Round(line.Quantity * line.UnitPrice, 2, MidpointRounding.AwayFromZero);
 
@@ -321,6 +345,41 @@ public class PurchaseOrderService(PitbullDbContext db, ILogger<PurchaseOrderServ
             logger.LogError(ex, "Failed to delete purchase order {PurchaseOrderId}", id);
             return Result.Failure("Failed to delete purchase order", "DATABASE_ERROR");
         }
+    }
+
+    /// <summary>
+    /// Bounds match EF purchase_orders column max lengths / money sanity limits.
+    /// </summary>
+    internal static string? ValidatePurchaseOrderFields(
+        string? description,
+        string? currencyCode,
+        string? taxExemptReason,
+        decimal? exchangeRate)
+    {
+        if (description is { Length: > 1000 }) return "Description cannot exceed 1000 characters";
+        if (taxExemptReason is { Length: > 500 }) return "TaxExemptReason cannot exceed 500 characters";
+        if (currencyCode is not null)
+        {
+            var code = currencyCode.Trim();
+            if (code.Length is not 0 and not 3)
+                return "CurrencyCode must be a 3-letter ISO code";
+        }
+        if (exchangeRate is <= 0 or > 1_000_000m)
+            return "ExchangeRate must be greater than 0 and at most 1,000,000";
+        return null;
+    }
+
+    private static string? ValidateLine(CreatePurchaseOrderLineCommand line)
+    {
+        if (string.IsNullOrWhiteSpace(line.Description) || line.Quantity <= 0 || line.UnitPrice < 0)
+            return "Line description, quantity, and unit price are required";
+        if (line.Description.Length > 1000)
+            return "Line description cannot exceed 1000 characters";
+        if (line.Quantity > MaxLineQuantity)
+            return $"Line quantity cannot exceed {MaxLineQuantity:N0}";
+        if (line.UnitPrice > MaxUnitPrice)
+            return "Line unit price is too large";
+        return null;
     }
 
     private static bool IsUniqueViolation(DbUpdateException ex)

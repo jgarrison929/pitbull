@@ -988,7 +988,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 09:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080109`
+**Branch:** `chore/app-hardening-hourly-2026080109` → **merged #494**
 
 ### CI status (step 1)
 - **main green** after #492/#493; Push success on `a14d47c9`. No failed main runs to fix.
@@ -1007,4 +1007,25 @@ Findings discovered (unique): 256
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 - Role E2E can flake on Docker Hub postgres pull timeouts.
 - Savorboard.CAP.InMemoryMessageQueue still 10.0.0 (no matching 10.0.1 on NuGet previously).
+
+## Hourly appendix — 2026-08-01 10:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080110`
+
+### CI status (step 1)
+- **main green** after #494 (`f6245126`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **employees:** Align Create/Update FluentValidation max lengths with EF (20/50/50/255/1000); wire validators into EmployeeService; list pageSize clamp 100 + search cap (service + ListEmployeesHandler).
+- **purchase orders:** Header/line field bounds; max 500 lines; qty/price caps; search cap.
+- **WIP reports:** list pageSize clamp 100.
+- Unit tests updated/added for employee validators, list clamp, PO description bounds.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
 

@@ -57,10 +57,10 @@ public sealed class CreateEmployeeValidatorTests
     [Fact]
     public void Validate_WithEmployeeNumberTooLong_ShouldHaveError()
     {
-        var command = CreateValidCommand(employeeNumber: new string('A', 51));
+        var command = CreateValidCommand(employeeNumber: new string('A', 21));
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.EmployeeNumber)
-            .WithErrorMessage("Employee number cannot exceed 50 characters");
+            .WithErrorMessage("Employee number cannot exceed 20 characters");
     }
 
     [Fact]
@@ -75,10 +75,10 @@ public sealed class CreateEmployeeValidatorTests
     [Fact]
     public void Validate_WithFirstNameTooLong_ShouldHaveError()
     {
-        var command = CreateValidCommand(firstName: new string('A', 101));
+        var command = CreateValidCommand(firstName: new string('A', 51));
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.FirstName)
-            .WithErrorMessage("First name cannot exceed 100 characters");
+            .WithErrorMessage("First name cannot exceed 50 characters");
     }
 
     [Fact]
@@ -93,10 +93,10 @@ public sealed class CreateEmployeeValidatorTests
     [Fact]
     public void Validate_WithLastNameTooLong_ShouldHaveError()
     {
-        var command = CreateValidCommand(lastName: new string('A', 101));
+        var command = CreateValidCommand(lastName: new string('A', 51));
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.LastName)
-            .WithErrorMessage("Last name cannot exceed 100 characters");
+            .WithErrorMessage("Last name cannot exceed 50 characters");
     }
 
     [Fact]
@@ -122,7 +122,7 @@ public sealed class CreateEmployeeValidatorTests
         var command = CreateValidCommand(email: new string('a', 250) + "@test.com");
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.Email)
-            .WithErrorMessage("Email cannot exceed 256 characters");
+            .WithErrorMessage("Email cannot exceed 255 characters");
     }
 
     [Fact]
@@ -188,10 +188,10 @@ public sealed class CreateEmployeeValidatorTests
     [Fact]
     public void Validate_WithNotesTooLong_ShouldHaveError()
     {
-        var command = CreateValidCommand(notes: new string('A', 2001));
+        var command = CreateValidCommand(notes: new string('A', 1001));
         var result = _validator.TestValidate(command);
         result.ShouldHaveValidationErrorFor(x => x.Notes)
-            .WithErrorMessage("Notes cannot exceed 2000 characters");
+            .WithErrorMessage("Notes cannot exceed 1000 characters");
     }
 
     [Fact]
