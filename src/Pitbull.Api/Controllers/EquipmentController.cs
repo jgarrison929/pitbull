@@ -120,8 +120,10 @@ public class EquipmentController(IEquipmentService equipmentService) : Controlle
             return BadRequest(new { error = "Description cannot exceed 2000 characters", code = "VALIDATION_ERROR" });
         if (request.SerialNumber is { Length: > 100 } || request.LicensePlate is { Length: > 50 })
             return BadRequest(new { error = "SerialNumber max 100 / LicensePlate max 50 characters", code = "VALIDATION_ERROR" });
-        if (request.HourlyRate is < 0 or > 1_000_000m || request.BillingRate is < 0 or > 1_000_000m)
-            return BadRequest(new { error = "Rates must be between 0 and 1,000,000", code = "VALIDATION_ERROR" });
+        if (request.HourlyRate < 0 || request.BillingRate is < 0)
+            return BadRequest(new { error = "HourlyRate and BillingRate cannot be negative", code = "VALIDATION_ERROR" });
+        if (request.HourlyRate > 1_000_000m || request.BillingRate is > 1_000_000m)
+            return BadRequest(new { error = "Rates cannot exceed 1,000,000", code = "VALIDATION_ERROR" });
 
         var command = new CreateEquipmentCommand(
             Code: request.Code,
