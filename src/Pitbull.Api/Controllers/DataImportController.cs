@@ -74,6 +74,7 @@ public class DataImportController(
     [ProducesResponseType(typeof(IReadOnlyList<ImportBatchHistoryDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetImportHistory([FromQuery] int take = 100, CancellationToken cancellationToken = default)
     {
+        take = Math.Clamp(take, 1, 200);
         var history = await dataImportService.GetHistoryAsync(take, cancellationToken);
         return Ok(history);
     }
@@ -142,6 +143,18 @@ public class DataImportController(
 
     private async Task<IActionResult> PreviewImport(string type, IFormFile file, CancellationToken cancellationToken)
     {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "File is required", code = "VALIDATION_ERROR" });
+        // Import previews should stay small (CSV/XLSX); reject multi-MB abuse.
+        if (file.Length > 10 * 1024 * 1024)
+            return BadRequest(new { error = "Import file cannot exceed 10 MB", code = "VALIDATION_ERROR" });
+        var safeName = Path.GetFileName(file.FileName ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(safeName) || safeName.Length > 255)
+            return BadRequest(new { error = "File name is invalid", code = "VALIDATION_ERROR" });
+        var ext = Path.GetExtension(safeName);
+        if (ext is not (".csv" or ".xlsx" or ".xls" or ".txt"))
+            return BadRequest(new { error = "Only CSV or Excel import files are allowed", code = "VALIDATION_ERROR" });
+
         try
         {
             var result = await dataImportService.PreviewAsync(type, file, cancellationToken);

@@ -49,6 +49,8 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/jobs",
         // Monitoring recon surface (Admin role); deny demo explorers entirely.
         "/api/monitoring",
+        // Financial PDF downloads (GET exfil path) — browse HTML reports still via UI elsewhere.
+        "/api/reports/pdf",
     ];
 
     /// <summary>

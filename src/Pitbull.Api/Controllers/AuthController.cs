@@ -1227,9 +1227,12 @@ public class AuthController(
             ValidIssuer = configuration["Jwt:Issuer"],
             ValidAudience = configuration["Jwt:Audience"],
             ValidateIssuerSigningKey = true,
+            RequireSignedTokens = true,
+            // Refresh must accept expired access tokens; still require a signed HMAC token.
             ValidAlgorithms = new[] { SecurityAlgorithms.HmacSha256 },
             IssuerSigningKey = key,
-            ValidateLifetime = false // Allow expired tokens
+            ValidateLifetime = false, // Allow expired tokens for refresh only
+            ClockSkew = TimeSpan.FromMinutes(1),
         };
 
         try
