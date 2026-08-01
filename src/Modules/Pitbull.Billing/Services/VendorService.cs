@@ -10,6 +10,9 @@ namespace Pitbull.Billing.Services;
 
 public class VendorService(PitbullDbContext db, ILogger<VendorService> logger) : IVendorService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+
     public async Task<Result<ListVendorsResult>> GetVendorsAsync(ListVendorsQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<Vendor> dbQuery = db.Set<Vendor>().AsNoTracking();
@@ -19,7 +22,10 @@ public class VendorService(PitbullDbContext db, ILogger<VendorService> logger) :
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            string searchTerm = query.SearchTerm.Trim().ToLower();
+            string searchTerm = query.SearchTerm.Trim();
+            if (searchTerm.Length > MaxSearchLength)
+                searchTerm = searchTerm[..MaxSearchLength];
+            searchTerm = searchTerm.ToLower();
             dbQuery = dbQuery.Where(v =>
                 v.Name.ToLower().Contains(searchTerm) ||
                 v.Code.ToLower().Contains(searchTerm) ||
@@ -30,7 +36,7 @@ public class VendorService(PitbullDbContext db, ILogger<VendorService> logger) :
 
         int totalCount = await dbQuery.CountAsync(cancellationToken);
         int page = query.Page < 1 ? 1 : query.Page;
-        int pageSize = query.PageSize < 1 ? 25 : query.PageSize;
+        int pageSize = query.PageSize < 1 ? 25 : Math.Min(query.PageSize, MaxPageSize);
 
         List<Vendor> items = await dbQuery
             .OrderBy(v => v.Name)
@@ -63,6 +69,12 @@ public class VendorService(PitbullDbContext db, ILogger<VendorService> logger) :
     {
         if (string.IsNullOrWhiteSpace(command.Name) || string.IsNullOrWhiteSpace(command.Code))
             return Result.Failure<VendorDto>("Name and Code are required", "VALIDATION_ERROR");
+
+        if (ValidateVendorFields(
+                command.Name, command.Code, command.TaxId, command.ContactName, command.ContactEmail,
+                command.Phone, command.Address, command.City, command.State, command.Zip,
+                command.MinorityWbeStatus, command.TradeClassification, command.PaymentTerms) is { } createErr)
+            return Result.Failure<VendorDto>(createErr, "VALIDATION_ERROR");
 
         bool duplicate = await db.Set<Vendor>()
             .AnyAsync(v => v.Code == command.Code, cancellationToken);
@@ -109,6 +121,12 @@ public class VendorService(PitbullDbContext db, ILogger<VendorService> logger) :
         Vendor? vendor = await db.Set<Vendor>().FirstOrDefaultAsync(v => v.Id == command.VendorId, cancellationToken);
         if (vendor is null)
             return Result.Failure<VendorDto>("Vendor not found", "NOT_FOUND");
+
+        if (ValidateVendorFields(
+                command.Name, command.Code, command.TaxId, command.ContactName, command.ContactEmail,
+                command.Phone, command.Address, command.City, command.State, command.Zip,
+                command.MinorityWbeStatus, command.TradeClassification, command.PaymentTerms) is { } updateErr)
+            return Result.Failure<VendorDto>(updateErr, "VALIDATION_ERROR");
 
         if (!string.IsNullOrWhiteSpace(command.Code) && !string.Equals(vendor.Code, command.Code, StringComparison.OrdinalIgnoreCase))
         {
@@ -184,6 +202,40 @@ public class VendorService(PitbullDbContext db, ILogger<VendorService> logger) :
             logger.LogError(ex, "Failed to delete vendor {VendorId}", id);
             return Result.Failure("Failed to delete vendor", "DATABASE_ERROR");
         }
+    }
+
+    /// <summary>
+    /// Bounds match EF <see cref="Vendor"/> column max lengths (reject before SaveChanges).
+    /// </summary>
+    internal static string? ValidateVendorFields(
+        string? name,
+        string? code,
+        string? taxId,
+        string? contactName,
+        string? contactEmail,
+        string? phone,
+        string? address,
+        string? city,
+        string? state,
+        string? zip,
+        string? minorityWbeStatus,
+        string? tradeClassification,
+        string? paymentTerms)
+    {
+        if (name is { Length: > 200 }) return "Name cannot exceed 200 characters";
+        if (code is { Length: > 50 }) return "Code cannot exceed 50 characters";
+        if (taxId is { Length: > 50 }) return "TaxId cannot exceed 50 characters";
+        if (contactName is { Length: > 200 }) return "ContactName cannot exceed 200 characters";
+        if (contactEmail is { Length: > 255 }) return "ContactEmail cannot exceed 255 characters";
+        if (phone is { Length: > 50 }) return "Phone cannot exceed 50 characters";
+        if (address is { Length: > 500 }) return "Address cannot exceed 500 characters";
+        if (city is { Length: > 100 }) return "City cannot exceed 100 characters";
+        if (state is { Length: > 50 }) return "State cannot exceed 50 characters";
+        if (zip is { Length: > 20 }) return "Zip cannot exceed 20 characters";
+        if (minorityWbeStatus is { Length: > 100 }) return "MinorityWbeStatus cannot exceed 100 characters";
+        if (tradeClassification is { Length: > 200 }) return "TradeClassification cannot exceed 200 characters";
+        if (paymentTerms is { Length: > 50 }) return "PaymentTerms cannot exceed 50 characters";
+        return null;
     }
 
     private static VendorDto MapToDto(Vendor vendor)

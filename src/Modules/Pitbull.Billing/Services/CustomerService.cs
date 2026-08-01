@@ -10,6 +10,10 @@ namespace Pitbull.Billing.Services;
 
 public class CustomerService(PitbullDbContext db, ILogger<CustomerService> logger) : ICustomerService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+    private const decimal MaxCreditLimit = 1_000_000_000m;
+
     public async Task<Result<ListCustomersResult>> GetCustomersAsync(ListCustomersQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<Customer> dbQuery = db.Set<Customer>().AsNoTracking();
@@ -19,7 +23,10 @@ public class CustomerService(PitbullDbContext db, ILogger<CustomerService> logge
 
         if (!string.IsNullOrWhiteSpace(query.SearchTerm))
         {
-            string searchTerm = query.SearchTerm.Trim().ToLower();
+            string searchTerm = query.SearchTerm.Trim();
+            if (searchTerm.Length > MaxSearchLength)
+                searchTerm = searchTerm[..MaxSearchLength];
+            searchTerm = searchTerm.ToLower();
             dbQuery = dbQuery.Where(c =>
                 c.Name.ToLower().Contains(searchTerm) ||
                 c.Code.ToLower().Contains(searchTerm) ||
@@ -29,7 +36,7 @@ public class CustomerService(PitbullDbContext db, ILogger<CustomerService> logge
 
         int totalCount = await dbQuery.CountAsync(cancellationToken);
         int page = query.Page < 1 ? 1 : query.Page;
-        int pageSize = query.PageSize < 1 ? 25 : query.PageSize;
+        int pageSize = query.PageSize < 1 ? 25 : Math.Min(query.PageSize, MaxPageSize);
 
         List<Customer> items = await dbQuery
             .OrderBy(c => c.Name)
@@ -62,6 +69,12 @@ public class CustomerService(PitbullDbContext db, ILogger<CustomerService> logge
     {
         if (string.IsNullOrWhiteSpace(command.Name) || string.IsNullOrWhiteSpace(command.Code))
             return Result.Failure<CustomerDto>("Name and Code are required", "VALIDATION_ERROR");
+
+        if (ValidateCustomerFields(
+                command.Name, command.Code, command.ContactName, command.ContactEmail,
+                command.Phone, command.Address, command.City, command.State, command.Zip,
+                command.PaymentTerms, command.CreditLimit) is { } createErr)
+            return Result.Failure<CustomerDto>(createErr, "VALIDATION_ERROR");
 
         bool duplicate = await db.Set<Customer>()
             .AnyAsync(c => c.Code == command.Code, cancellationToken);
@@ -104,6 +117,12 @@ public class CustomerService(PitbullDbContext db, ILogger<CustomerService> logge
         Customer? customer = await db.Set<Customer>().FirstOrDefaultAsync(c => c.Id == command.CustomerId, cancellationToken);
         if (customer is null)
             return Result.Failure<CustomerDto>("Customer not found", "NOT_FOUND");
+
+        if (ValidateCustomerFields(
+                command.Name, command.Code, command.ContactName, command.ContactEmail,
+                command.Phone, command.Address, command.City, command.State, command.Zip,
+                command.PaymentTerms, command.CreditLimit) is { } updateErr)
+            return Result.Failure<CustomerDto>(updateErr, "VALIDATION_ERROR");
 
         if (!string.IsNullOrWhiteSpace(command.Code) && !string.Equals(customer.Code, command.Code, StringComparison.OrdinalIgnoreCase))
         {
@@ -171,6 +190,37 @@ public class CustomerService(PitbullDbContext db, ILogger<CustomerService> logge
             logger.LogError(ex, "Failed to delete customer {CustomerId}", id);
             return Result.Failure("Failed to delete customer", "DATABASE_ERROR");
         }
+    }
+
+    /// <summary>
+    /// Bounds match EF <see cref="Customer"/> column max lengths (reject before SaveChanges).
+    /// </summary>
+    internal static string? ValidateCustomerFields(
+        string? name,
+        string? code,
+        string? contactName,
+        string? contactEmail,
+        string? phone,
+        string? address,
+        string? city,
+        string? state,
+        string? zip,
+        string? paymentTerms,
+        decimal? creditLimit)
+    {
+        if (name is { Length: > 200 }) return "Name cannot exceed 200 characters";
+        if (code is { Length: > 50 }) return "Code cannot exceed 50 characters";
+        if (contactName is { Length: > 200 }) return "ContactName cannot exceed 200 characters";
+        if (contactEmail is { Length: > 255 }) return "ContactEmail cannot exceed 255 characters";
+        if (phone is { Length: > 50 }) return "Phone cannot exceed 50 characters";
+        if (address is { Length: > 500 }) return "Address cannot exceed 500 characters";
+        if (city is { Length: > 100 }) return "City cannot exceed 100 characters";
+        if (state is { Length: > 50 }) return "State cannot exceed 50 characters";
+        if (zip is { Length: > 20 }) return "Zip cannot exceed 20 characters";
+        if (paymentTerms is { Length: > 50 }) return "PaymentTerms cannot exceed 50 characters";
+        if (creditLimit is < 0) return "CreditLimit cannot be negative";
+        if (creditLimit is > MaxCreditLimit) return "CreditLimit cannot exceed 1,000,000,000";
+        return null;
     }
 
     private static CustomerDto MapToDto(Customer customer)

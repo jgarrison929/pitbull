@@ -986,3 +986,25 @@ Findings discovered (unique): 256
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 - Role E2E can flake on Docker Hub postgres pull timeouts.
 
+## Hourly appendix — 2026-08-01 09:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080109`
+
+### CI status (step 1)
+- **main green** after #492/#493; Push success on `a14d47c9`. No failed main runs to fix.
+- #493 main CI in progress/queued at start of hour (docs-only).
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only — same set).
+
+### Shipped this hour
+- **vendors:** Create/update field length bounds (EF max lengths); list pageSize clamp 100; search term cap 200.
+- **customers:** Same field bounds + CreditLimit ≥ 0 and ≤ 1e9; list pageSize/search clamps.
+- Unit tests for oversized name, negative credit limit, pageSize clamp.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+- Savorboard.CAP.InMemoryMessageQueue still 10.0.0 (no matching 10.0.1 on NuGet previously).
+
