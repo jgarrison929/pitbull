@@ -58,6 +58,9 @@ public class VendorPortalController(
     [EnableRateLimiting("portal")]
     public async Task<IActionResult> ValidateToken(string token, CancellationToken ct)
     {
+        if (!IsPlausiblePortalToken(token))
+            return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
+
         var result = await portalService.ValidateTokenAsync(token, ct);
         if (!result.IsSuccess)
         {
@@ -72,6 +75,9 @@ public class VendorPortalController(
     [EnableRateLimiting("portal")]
     public async Task<IActionResult> GetLienWaivers(string token, CancellationToken ct)
     {
+        if (!IsPlausiblePortalToken(token))
+            return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
+
         var result = await portalService.GetLienWaiversAsync(token, ct);
         if (!result.IsSuccess)
         {
@@ -86,6 +92,9 @@ public class VendorPortalController(
     [EnableRateLimiting("portal")]
     public async Task<IActionResult> SubmitLienWaiver(string token, [FromBody] SubmitLienWaiverDto dto, CancellationToken ct)
     {
+        if (!IsPlausiblePortalToken(token))
+            return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
+
         var result = await portalService.SubmitLienWaiverAsync(token, dto, ct);
         if (!result.IsSuccess)
         {
@@ -104,6 +113,9 @@ public class VendorPortalController(
     [EnableRateLimiting("portal")]
     public async Task<IActionResult> GetPaymentHistory(string token, CancellationToken ct)
     {
+        if (!IsPlausiblePortalToken(token))
+            return Unauthorized(new { error = PortalAuthError, code = PortalAuthErrorCode });
+
         var result = await portalService.GetPaymentHistoryAsync(token, ct);
         if (!result.IsSuccess)
         {
@@ -112,6 +124,13 @@ public class VendorPortalController(
         }
         return Ok(result.Value);
     }
+
+    /// <summary>
+    /// Portal tokens are URL-safe base64 (~43+ chars). Reject empty/tiny/huge strings before DB work.
+    /// </summary>
+    private static bool IsPlausiblePortalToken(string? token) =>
+        !string.IsNullOrWhiteSpace(token) &&
+        token.Length is >= 20 and <= 256;
 }
 
 public record GenerateTokenRequest(Guid VendorId, Guid ProjectId, int ExpirationDays = 90);

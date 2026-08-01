@@ -208,6 +208,9 @@ public class InvitationController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetInvitationByToken(string token, CancellationToken ct)
     {
+        if (!IsPlausibleInvitationToken(token))
+            return this.NotFoundError("Invitation not found");
+
         var invitation = await invitationService.GetInvitationByTokenAsync(token, ct);
         if (invitation is null)
             return this.NotFoundError("Invitation not found");
@@ -226,6 +229,9 @@ public class InvitationController(
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> AcceptInvitation(string token, [FromBody] AcceptInvitationRequest request, CancellationToken ct)
     {
+        if (!IsPlausibleInvitationToken(token))
+            return this.NotFoundError("Invitation not found");
+
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
             return this.BadRequestError("First name and last name are required");
 
@@ -263,6 +269,13 @@ public class InvitationController(
             ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
         return Guid.TryParse(id, out var guid) ? guid : null;
     }
+
+    /// <summary>
+    /// Cheap pre-check before hashing / DB lookup: reject empty, tiny, or huge token strings.
+    /// </summary>
+    private static bool IsPlausibleInvitationToken(string? token) =>
+        !string.IsNullOrWhiteSpace(token) &&
+        token.Length is >= 20 and <= 256;
 }
 
 // Request DTOs

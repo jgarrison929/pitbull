@@ -10,6 +10,15 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // TRACE/TRACK can be used for cross-site tracing / cache poisoning probes.
+        if (HttpMethods.IsTrace(context.Request.Method) ||
+            string.Equals(context.Request.Method, "TRACK", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;
+            context.Response.Headers.Append("Allow", "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS");
+            return;
+        }
+
         // X-Content-Type-Options: Prevents MIME sniffing attacks
         context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
 
@@ -37,6 +46,9 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
 
         // Adobe/Flash legacy cross-domain policy file requests.
         context.Response.Headers.Append("X-Permitted-Cross-Domain-Policies", "none");
+
+        // Legacy IE: do not open downloads in the browser zone from the response.
+        context.Response.Headers.Append("X-Download-Options", "noopen");
 
         // Never cache API responses (JWTs, PII, financial DTOs must not land in shared caches).
         context.Response.Headers.Append("Cache-Control", "no-store, no-cache, must-revalidate");

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Api.Extensions;
 using Pitbull.Api.Services;
 
@@ -65,6 +66,8 @@ public class DiagnosticsController(IDiagnosticsService diagnosticsService) : Con
     /// </summary>
     [HttpPost("errors")]
     [AllowAnonymous]
+    // Platform rate limiter (per-IP) in addition to the in-memory 10/min guard below.
+    [EnableRateLimiting("register")]
     public async Task<IActionResult> ReportError([FromBody] PublicDiagnosticErrorRequest request)
     {
         // Rate limiting: 10 requests per minute per IP

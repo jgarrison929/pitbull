@@ -628,7 +628,7 @@ public class AuthController(
     /// </summary>
     [HttpPost("logout")]
     [Microsoft.AspNetCore.Authorization.Authorize]
-    [EnableRateLimiting("api")]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Logout()
     {
