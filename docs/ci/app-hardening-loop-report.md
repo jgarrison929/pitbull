@@ -1215,7 +1215,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 19:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080119`
+**Branch:** `chore/app-hardening-hourly-2026080119` → **merged #504**
 
 ### CI status (step 1)
 - **main green** after #503 (`67aaeae5`) — CI + Push success. No failures to fix.
@@ -1230,6 +1230,28 @@ Findings discovered (unique): 256
 - **API keys list:** service-level page/pageSize clamp.
 - **onboarding checklist:** item name required max 50.
 - Unit tests for payroll review bounds + API key list clamp.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 20:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080120`
+
+### CI status (step 1)
+- **main green** after #504 (`c52814d8`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **feedback create:** EF-aligned field max lengths (page 1000, role 100, category 50, message 4000, email 256, screenshot 2000, browser 500); required page/category/message; type enum check.
+- **feedback bulk update:** max 100 IDs; status enum check.
+- **vendor portal:** submit amount max 1e9; description max 500; waiver type enum; list Take(100); reject empty/oversized raw tokens.
+- **notification prefs:** bulk update max 50 items.
+- Unit tests for feedback bounds + vendor portal amount/description/token.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

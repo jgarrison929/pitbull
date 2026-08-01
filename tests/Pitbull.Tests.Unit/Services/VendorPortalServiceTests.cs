@@ -428,6 +428,51 @@ public class VendorPortalServiceTests : IDisposable
         result.ErrorCode.Should().Be("INVALID_TOKEN");
     }
 
+    [Fact]
+    public async Task SubmitLienWaiverAsync_AmountOverMax_ReturnsFailure()
+    {
+        var generated = await _service.GenerateTokenAsync(TestVendorId, TestProjectId, 90);
+
+        var dto = new SubmitLienWaiverDto(
+            WaiverType: LienWaiverType.Conditional,
+            Amount: 1_000_000_000.01m,
+            ThroughDate: new DateOnly(2026, 1, 31),
+            Description: null);
+
+        var result = await _service.SubmitLienWaiverAsync(generated.Value!.Token, dto);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("1,000,000,000");
+    }
+
+    [Fact]
+    public async Task SubmitLienWaiverAsync_OversizedDescription_ReturnsFailure()
+    {
+        var generated = await _service.GenerateTokenAsync(TestVendorId, TestProjectId, 90);
+
+        var dto = new SubmitLienWaiverDto(
+            WaiverType: LienWaiverType.Conditional,
+            Amount: 100m,
+            ThroughDate: new DateOnly(2026, 1, 31),
+            Description: new string('d', 501));
+
+        var result = await _service.SubmitLienWaiverAsync(generated.Value!.Token, dto);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("500");
+    }
+
+    [Fact]
+    public async Task ValidateTokenAsync_EmptyToken_ReturnsInvalid()
+    {
+        var result = await _service.ValidateTokenAsync("   ");
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_TOKEN");
+    }
+
     #endregion
 
     #region GetPaymentHistoryAsync
