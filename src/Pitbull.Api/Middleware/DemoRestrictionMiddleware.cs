@@ -42,6 +42,9 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/hangfire",
         // CAP bus dashboard is Development-only; block demo principals if ever enabled.
         "/cap",
+        // Seed mutates tenant data heavily (Dev-only controller, but block demo tenants too).
+        "/api/seed",
+        "/api/seeddata",
     ];
 
     /// <summary>

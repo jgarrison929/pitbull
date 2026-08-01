@@ -77,7 +77,7 @@ public sealed class RegisterRequestValidatorTests
         var request = CreateValidRequest(password: "Ab1");
         var result = _validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Password)
-            .WithErrorMessage("Password must be at least 6 characters");
+            .WithErrorMessage("Password must be at least 8 characters");
     }
 
     [Fact]

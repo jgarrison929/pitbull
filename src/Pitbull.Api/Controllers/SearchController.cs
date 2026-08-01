@@ -35,6 +35,9 @@ public class SearchController(PitbullDbContext db) : ControllerBase
             return Ok(new SearchResponse([], 0));
 
         var term = q.Trim();
+        // Cap search term length to limit query cost / abuse (ILIKE patterns).
+        if (term.Length > 100)
+            term = term[..100];
         var results = new List<SearchResultItem>();
 
         // Run searches sequentially — DbContext is not thread-safe
