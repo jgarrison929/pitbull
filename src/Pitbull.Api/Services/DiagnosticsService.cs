@@ -51,14 +51,16 @@ public class DiagnosticsService(PitbullDbContext db) : IDiagnosticsService
             query = query.Where(e => e.Timestamp <= filter.Until.Value);
 
         var totalCount = await query.CountAsync(ct);
+        var page = filter.Page < 1 ? 1 : filter.Page;
+        var pageSize = filter.PageSize < 1 ? 50 : Math.Min(filter.PageSize, 100);
 
         var items = await query
             .OrderByDescending(e => e.Timestamp)
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(ct);
 
-        return new DiagnosticErrorListResult(items, totalCount, filter.Page, filter.PageSize);
+        return new DiagnosticErrorListResult(items, totalCount, page, pageSize);
     }
 
     public async Task<DiagnosticError?> GetByIdAsync(Guid id, CancellationToken ct = default)

@@ -46,12 +46,19 @@ public sealed class FeedbackService(
         return ToDto(feedback);
     }
 
+    private const int MaxListTake = 500;
+
     public async Task<IReadOnlyList<FeedbackDto>> ListAsync(FeedbackListQuery query, CancellationToken cancellationToken = default)
     {
         var set = db.Set<Entities.Feedback>().AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(query.Category))
-            set = set.Where(x => x.Category == query.Category);
+        {
+            var category = query.Category.Trim();
+            if (category.Length > 100)
+                category = category[..100];
+            set = set.Where(x => x.Category == category);
+        }
 
         if (query.Status.HasValue)
             set = set.Where(x => x.Status == query.Status.Value);
@@ -67,6 +74,7 @@ public sealed class FeedbackService(
 
         return await set
             .OrderByDescending(x => x.CreatedAt)
+            .Take(MaxListTake)
             .Select(x => new FeedbackDto(
                 x.Id,
                 x.Page,

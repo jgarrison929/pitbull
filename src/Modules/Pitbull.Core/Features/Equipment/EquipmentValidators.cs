@@ -22,10 +22,12 @@ public class CreateEquipmentValidator : AbstractValidator<CreateEquipmentCommand
             .IsInEnum().WithMessage("Invalid equipment type");
 
         RuleFor(x => x.HourlyRate)
-            .GreaterThanOrEqualTo(0).WithMessage("Hourly rate cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("Hourly rate cannot be negative")
+            .LessThanOrEqualTo(1_000_000m).WithMessage("Hourly rate cannot exceed 1,000,000");
 
         RuleFor(x => x.BillingRate)
             .GreaterThanOrEqualTo(0).WithMessage("Billing rate cannot be negative")
+            .LessThanOrEqualTo(1_000_000m).WithMessage("Billing rate cannot exceed 1,000,000")
             .When(x => x.BillingRate.HasValue);
 
         RuleFor(x => x.SerialNumber)
@@ -63,10 +65,12 @@ public class UpdateEquipmentValidator : AbstractValidator<UpdateEquipmentCommand
 
         RuleFor(x => x.HourlyRate)
             .GreaterThanOrEqualTo(0).WithMessage("Hourly rate cannot be negative")
+            .LessThanOrEqualTo(1_000_000m).WithMessage("Hourly rate cannot exceed 1,000,000")
             .When(x => x.HourlyRate.HasValue);
 
         RuleFor(x => x.BillingRate)
             .GreaterThanOrEqualTo(0).WithMessage("Billing rate cannot be negative")
+            .LessThanOrEqualTo(1_000_000m).WithMessage("Billing rate cannot exceed 1,000,000")
             .When(x => x.BillingRate.HasValue);
 
         RuleFor(x => x.SerialNumber)

@@ -208,11 +208,15 @@ public abstract class PmServiceBase
         query = query.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(listQuery.Search) && typeof(T).GetProperty("Name") != null)
         {
-            var s = listQuery.Search.ToLowerInvariant();
+            var s = listQuery.Search.Trim();
+            if (s.Length > 200)
+                s = s[..200];
+            s = s.ToLowerInvariant();
             query = query.Where(e => EF.Property<string>(e, "Name").ToLower().Contains(s));
         }
 
         var total = await query.CountAsync(ct);
+        // PmListQuery : PaginationQuery already clamps Page/PageSize (1–100).
         var items = await query.OrderByDescending(x => x.CreatedAt)
             .Skip((listQuery.Page - 1) * listQuery.PageSize)
             .Take(listQuery.PageSize)
@@ -1844,13 +1848,17 @@ public class PunchListService : PmServiceBase, IPunchListService
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var s = query.Search.ToLowerInvariant();
+            var s = query.Search.Trim();
+            if (s.Length > 200)
+                s = s[..200];
+            s = s.ToLowerInvariant();
             baseQuery = baseQuery.Where(e => e.Description.ToLower().Contains(s) || e.Location.ToLower().Contains(s));
         }
 
         var total = await baseQuery.CountAsync(cancellationToken);
 
         // Sort by priority descending (Urgent=3 > High=2 > Normal=1 > Low=0), then by CreatedAt descending
+        // PmListQuery : PaginationQuery already clamps Page/PageSize (1–100).
         var items = await baseQuery
             .OrderByDescending(p => p.Priority)
             .ThenByDescending(p => p.CreatedAt)
