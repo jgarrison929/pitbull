@@ -1031,7 +1031,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 11:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080111`
+**Branch:** `chore/app-hardening-hourly-2026080111` → **merged #496**
 
 ### CI status (step 1)
 - **main green** after #495 (`03f690c7`) — CI + Push success. No failures to fix.
@@ -1045,6 +1045,30 @@ Findings discovered (unique): 256
 - **vendor invoices:** InvoiceNumber/TaxExemptReason bounds; money/exchange caps; search cap; currency normalize.
 - **time entries:** List + by-project pageSize clamp 100.
 - Unit tests for lien waiver description/reject reason and vendor invoice number length.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 12:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080112`
+
+### CI status (step 1)
+- **main green** after #496 (`7f2577b1`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only: #463 node 25, #447 Resend, #446 QuestPDF, #443 Mapster 10, #438 eslint 10, #436 @types/node 26, #434 TS 7, #431 jest-dom 7).
+
+### Shipped this hour
+- **contracts service:** Wire FluentValidation on create/update for subcontracts, change orders, owner COs, payment applications (validators existed but were not called).
+- **lists:** pageSize clamp 100 + search cap 200 on subcontracts, COs, owner COs, payment apps, RFIs.
+- **money/days:** CO/owner CO amount |max| 1e9; subcontract original value max 1e9; pay-app work/stored/approved max 1e9; days extension max 3650.
+- **owner CO:** New create/update FluentValidators (EF field lengths).
+- **RFI validators:** BallInCourt/CreatedBy/SpecSection lengths; cost impact + delay days bounds; drawing ref count/item length.
+- **PM upsert:** Truncate Name/Title/Description/Data strings to EF-aligned max lengths in PmUpsertFieldMapper.
+- Unit tests for owner CO validator, CO amount/days caps, RFI optional field bounds.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

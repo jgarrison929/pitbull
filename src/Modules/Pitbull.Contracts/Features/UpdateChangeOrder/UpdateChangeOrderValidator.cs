@@ -1,4 +1,5 @@
 using FluentValidation;
+using Pitbull.Contracts.Features.CreateChangeOrder;
 
 namespace Pitbull.Contracts.Features.UpdateChangeOrder;
 
@@ -21,12 +22,20 @@ public class UpdateChangeOrderValidator : AbstractValidator<UpdateChangeOrderCom
             .NotEmpty().WithMessage("Description is required")
             .MaximumLength(4000).WithMessage("Description cannot exceed 4000 characters");
 
+        RuleFor(x => x.Amount)
+            .Must(a => Math.Abs(a) <= CreateChangeOrderValidator.MaxAmount)
+            .WithMessage("Amount absolute value cannot exceed 1,000,000,000");
+
         RuleFor(x => x.DaysExtension)
             .GreaterThanOrEqualTo(0).WithMessage("Days extension cannot be negative")
+            .LessThanOrEqualTo(CreateChangeOrderValidator.MaxDaysExtension)
+            .WithMessage($"Days extension cannot exceed {CreateChangeOrderValidator.MaxDaysExtension}")
             .When(x => x.DaysExtension.HasValue);
 
         RuleFor(x => x.ScheduleImpactDays)
             .GreaterThanOrEqualTo(0).WithMessage("Days extension cannot be negative")
+            .LessThanOrEqualTo(CreateChangeOrderValidator.MaxDaysExtension)
+            .WithMessage($"Schedule impact days cannot exceed {CreateChangeOrderValidator.MaxDaysExtension}")
             .When(x => x.ScheduleImpactDays.HasValue);
 
         RuleFor(x => x.Status)
@@ -42,6 +51,8 @@ public class UpdateChangeOrderValidator : AbstractValidator<UpdateChangeOrderCom
 
         RuleFor(x => x.CostImpact)
             .GreaterThanOrEqualTo(0).WithMessage("Cost impact cannot be negative")
+            .LessThanOrEqualTo(CreateChangeOrderValidator.MaxAmount)
+            .WithMessage("Cost impact cannot exceed 1,000,000,000")
             .When(x => x.CostImpact.HasValue);
     }
 }

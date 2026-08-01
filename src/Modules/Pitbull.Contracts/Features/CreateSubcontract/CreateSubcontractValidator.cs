@@ -22,7 +22,8 @@ public class CreateSubcontractValidator : AbstractValidator<CreateSubcontractCom
             .MaximumLength(4000).WithMessage("Scope of work cannot exceed 4000 characters");
 
         RuleFor(x => x.OriginalValue)
-            .GreaterThan(0).WithMessage("Original value must be greater than zero");
+            .GreaterThan(0).WithMessage("Original value must be greater than zero")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Original value cannot exceed 1,000,000,000");
 
         RuleFor(x => x.RetainagePercent)
             .InclusiveBetween(0, 100).WithMessage("Retainage percent must be between 0 and 100");

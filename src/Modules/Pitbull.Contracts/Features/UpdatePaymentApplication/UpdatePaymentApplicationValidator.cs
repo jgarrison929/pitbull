@@ -10,16 +10,19 @@ public class UpdatePaymentApplicationValidator : AbstractValidator<UpdatePayment
             .NotEmpty().WithMessage("Payment application ID is required");
 
         RuleFor(x => x.WorkCompletedThisPeriod)
-            .GreaterThanOrEqualTo(0).WithMessage("Work completed cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("Work completed cannot be negative")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Work completed cannot exceed 1,000,000,000");
 
         RuleFor(x => x.StoredMaterials)
-            .GreaterThanOrEqualTo(0).WithMessage("Stored materials cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("Stored materials cannot be negative")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Stored materials cannot exceed 1,000,000,000");
 
         RuleFor(x => x.Status)
             .IsInEnum().WithMessage("Invalid payment application status");
 
         RuleFor(x => x.ApprovedAmount)
             .GreaterThanOrEqualTo(0).WithMessage("Approved amount cannot be negative")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Approved amount cannot exceed 1,000,000,000")
             .When(x => x.ApprovedAmount.HasValue);
 
         RuleFor(x => x.ApprovedBy)

@@ -185,4 +185,37 @@ public sealed class CreateRfiValidatorTests
         var result = _validator.TestValidate(command);
         result.ShouldNotHaveAnyValidationErrors();
     }
+
+    [Fact]
+    public void Validate_BallInCourtNameExceedsMaxLength_ShouldHaveError()
+    {
+        var command = CreateValidCommand(ballInCourtName: new string('a', 201));
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.BallInCourtName);
+    }
+
+    [Fact]
+    public void Validate_SpecSectionExceedsMaxLength_ShouldHaveError()
+    {
+        var command = CreateValidCommand() with { SpecSection = new string('s', 201) };
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.SpecSection);
+    }
+
+    [Fact]
+    public void Validate_EstimatedCostImpactOverMax_ShouldHaveError()
+    {
+        var command = CreateValidCommand() with { EstimatedCostImpact = 1_000_000_000.01m };
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.EstimatedCostImpact);
+    }
+
+    [Fact]
+    public void Validate_TooManyDrawingReferences_ShouldHaveError()
+    {
+        var refs = Enumerable.Range(0, 51).Select(i => $"D-{i}").ToList();
+        var command = CreateValidCommand() with { DrawingReferences = refs };
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.DrawingReferences);
+    }
 }

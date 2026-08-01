@@ -9,6 +9,12 @@ namespace Pitbull.ProjectManagement.Domain;
 /// </summary>
 public static class PmUpsertFieldMapper
 {
+    // Align with common EF HasMaxLength on PM entities (Name/Title/Description).
+    private const int MaxNameLength = 300;
+    private const int MaxTitleLength = 300;
+    private const int MaxDescriptionLength = 4000;
+    private const int MaxDataStringLength = 4000;
+
     private static readonly HashSet<string> ProtectedFields = new(StringComparer.OrdinalIgnoreCase)
     {
         "Id", "TenantId", "CompanyId", "IsDeleted", "DeletedAt", "DeletedBy", "CreatedAt", "CreatedBy", "Status"
@@ -17,13 +23,13 @@ public static class PmUpsertFieldMapper
     public static void MapNonStatusScalars(object entity, PmUpsertRequest request)
     {
         if (!string.IsNullOrWhiteSpace(request.Name))
-            SetIfExists(entity, "Name", request.Name);
+            SetIfExists(entity, "Name", Truncate(request.Name, MaxNameLength));
 
         if (!string.IsNullOrWhiteSpace(request.Title))
-            SetIfExists(entity, "Title", request.Title);
+            SetIfExists(entity, "Title", Truncate(request.Title, MaxTitleLength));
 
         if (!string.IsNullOrWhiteSpace(request.Description))
-            SetIfExists(entity, "Description", request.Description);
+            SetIfExists(entity, "Description", Truncate(request.Description, MaxDescriptionLength));
 
         if (request.ReferenceId.HasValue)
         {
@@ -59,7 +65,10 @@ public static class PmUpsertFieldMapper
 
             try
             {
-                var converted = ConvertToPropertyType(kvp.Value, Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType);
+                var targetType = Nullable.GetUnderlyingType(p.PropertyType) ?? p.PropertyType;
+                var converted = ConvertToPropertyType(kvp.Value, targetType);
+                if (converted is string s)
+                    converted = Truncate(s, MaxDataStringLength);
                 p.SetValue(entity, converted);
             }
             catch
@@ -68,6 +77,9 @@ public static class PmUpsertFieldMapper
             }
         }
     }
+
+    private static string Truncate(string value, int maxLength)
+        => value.Length <= maxLength ? value : value[..maxLength];
 
     private static void SetIfExists(object entity, string propertyName, object value)
     {
@@ -85,7 +97,7 @@ public static class PmUpsertFieldMapper
             {
                 _ when targetType == typeof(Guid) => jsonElement.GetGuid(),
                 _ when targetType == typeof(Guid?) => jsonElement.ValueKind == JsonValueKind.Null ? null! : jsonElement.GetGuid(),
-                _ when targetType == typeof(string) => jsonElement.GetString() ?? string.Empty,
+                _ when targetType == typeof(string) => Truncate(jsonElement.GetString() ?? string.Empty, MaxDataStringLength),
                 _ when targetType == typeof(int) => jsonElement.GetInt32(),
                 _ when targetType == typeof(long) => jsonElement.GetInt64(),
                 _ when targetType == typeof(decimal) => jsonElement.GetDecimal(),
