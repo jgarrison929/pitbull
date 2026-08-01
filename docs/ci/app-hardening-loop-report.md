@@ -853,7 +853,8 @@ Findings discovered (unique): 256
 - **cors:** Production preflight max-age 10m.
 - **http:** Reject CONNECT (405) with TRACE/TRACK.
 - **apidocs:** SwaggerAuth default `ApiDocs:Enabled=false` when config missing (fail closed).
-- **demo:** Write-block vendor-invoices, billing apps/periods, payment apps, lien-waivers, retention, owner contracts/COs, pay-periods, customers, vendors.
+- **demo:** Write-block vendor-invoices, billing-periods, lien-waivers, retention, owner-change-orders, customers, vendors (kept smoke-critical pay apps / owner-contracts / billing-apps / pay-periods writable).
+- **ci:** `workflow-api-smoke.ps1` Invoke-Api reads HttpResponseMessage body on PS7 (was masking 403s).
 - **auth:** Password max 100 on change/reset; forgot-password email length bound.
 - **changelog:** Clamp anonymous `limit` to 50; version filter max 64 chars.
 - **tests:** CONNECT 405 + expanded demo financial writes.

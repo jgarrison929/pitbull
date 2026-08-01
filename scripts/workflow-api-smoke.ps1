@@ -75,12 +75,34 @@ function Invoke-Api {
         return @{ StatusCode = [int]$resp.StatusCode; Content = $resp.Content }
     }
     catch {
-        if ($_.Exception.Response) {
-            $reader = [System.IO.StreamReader]::new($_.Exception.Response.GetResponseStream())
-            $content = $reader.ReadToEnd()
-            return @{ StatusCode = [int]$_.Exception.Response.StatusCode; Content = $content }
+        # PowerShell 7+ uses HttpResponseMessage; Windows PowerShell uses HttpWebResponse.
+        $response = $_.Exception.Response
+        if ($null -eq $response -and $_.ErrorDetails) {
+            return @{ StatusCode = 0; Content = [string]$_.ErrorDetails.Message }
         }
-        throw
+        if ($null -eq $response) { throw }
+
+        $statusCode = 0
+        $content = ""
+        try {
+            if ($response -is [System.Net.Http.HttpResponseMessage]) {
+                $statusCode = [int]$response.StatusCode
+                $content = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+            }
+            elseif ($response.GetType().GetMethod("GetResponseStream")) {
+                $statusCode = [int]$response.StatusCode
+                $reader = [System.IO.StreamReader]::new($response.GetResponseStream())
+                $content = $reader.ReadToEnd()
+            }
+            else {
+                $statusCode = [int]$response.StatusCode
+                $content = [string]$_.Exception.Message
+            }
+        }
+        catch {
+            $content = [string]$_.Exception.Message
+        }
+        return @{ StatusCode = $statusCode; Content = $content }
     }
 }
 
