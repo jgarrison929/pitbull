@@ -27,7 +27,7 @@ public class FilesControllerTests
     [Theory]
     [InlineData(-100, 1)]
     [InlineData(0, 1)]
-    [InlineData(5000, 1440)]
+    [InlineData(5000, 60)]
     public async Task GetPresignedUrl_ClampsExpiryMinutes(int requestedMinutes, int expectedMinutes)
     {
         var fileId = Guid.NewGuid();
@@ -45,7 +45,7 @@ public class FilesControllerTests
     }
 
     [Fact]
-    public async Task GetPresignedUrl_NullExpiry_DefaultsTo60()
+    public async Task GetPresignedUrl_NullExpiry_DefaultsTo15()
     {
         var fileId = Guid.NewGuid();
         TimeSpan? capturedExpiry = null;
@@ -57,6 +57,6 @@ public class FilesControllerTests
 
         await _controller.GetPresignedUrl(fileId, expiresInMinutes: null);
 
-        capturedExpiry!.Value.TotalMinutes.Should().Be(60);
+        capturedExpiry!.Value.TotalMinutes.Should().Be(15);
     }
 }
