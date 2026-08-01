@@ -27,7 +27,8 @@ public sealed class WorkflowApprovalService(
             return Result.Failure<WorkflowDefinitionDto>("No active company", "NO_COMPANY");
 
         var validation = ValidateDefinition(
-            command.EntityType, command.TriggerStatus, command.ApprovedStatus, command.RejectedStatus, command.Steps);
+            command.EntityType, command.TriggerStatus, command.ApprovedStatus, command.RejectedStatus, command.Steps,
+            command.Name, command.Description, command.AmountThreshold, command.Priority);
         if (validation is not null)
             return Result.Failure<WorkflowDefinitionDto>(validation, "VALIDATION_ERROR");
 
@@ -77,7 +78,8 @@ public sealed class WorkflowApprovalService(
             return Result.Failure<WorkflowDefinitionDto>("Workflow definition not found", "NOT_FOUND");
 
         var validation = ValidateDefinition(
-            definition.EntityType, definition.TriggerStatus, definition.ApprovedStatus, definition.RejectedStatus, command.Steps);
+            definition.EntityType, definition.TriggerStatus, definition.ApprovedStatus, definition.RejectedStatus, command.Steps,
+            command.Name, command.Description, command.AmountThreshold, command.Priority);
         if (validation is not null)
             return Result.Failure<WorkflowDefinitionDto>(validation, "VALIDATION_ERROR");
 
@@ -624,13 +626,37 @@ public sealed class WorkflowApprovalService(
             await ResolveEntityTitleAsync(action.EntityType, action.EntityId, ct));
     }
 
+    private const int MaxWorkflowSteps = 50;
+    private const decimal MaxAmountThreshold = 1_000_000_000m;
+
     private static string? ValidateDefinition(
         string entityType,
         string triggerStatus,
         string approvedStatus,
         string rejectedStatus,
-        IReadOnlyList<CreateWorkflowApprovalStepCommand> steps)
+        IReadOnlyList<CreateWorkflowApprovalStepCommand> steps,
+        string? name = null,
+        string? description = null,
+        decimal? amountThreshold = null,
+        int? priority = null)
     {
+        if (string.IsNullOrWhiteSpace(entityType) || entityType.Length > 100)
+            return "Entity type is required and cannot exceed 100 characters";
+        if (string.IsNullOrWhiteSpace(triggerStatus) || triggerStatus.Length > 50)
+            return "Trigger status is required and cannot exceed 50 characters";
+        if (string.IsNullOrWhiteSpace(approvedStatus) || approvedStatus.Length > 50)
+            return "Approved status is required and cannot exceed 50 characters";
+        if (string.IsNullOrWhiteSpace(rejectedStatus) || rejectedStatus.Length > 50)
+            return "Rejected status is required and cannot exceed 50 characters";
+        if (name is not null && (string.IsNullOrWhiteSpace(name) || name.Length > 200))
+            return "Name is required and cannot exceed 200 characters";
+        if (description is { Length: > 2000 })
+            return "Description cannot exceed 2000 characters";
+        if (amountThreshold is < 0 or > MaxAmountThreshold)
+            return "Amount threshold must be between 0 and 1,000,000,000";
+        if (priority is < 0 or > 1000)
+            return "Priority must be between 0 and 1000";
+
         var stepValidation = ValidateSteps(steps);
         if (stepValidation is not null)
             return stepValidation;
@@ -642,6 +668,13 @@ public sealed class WorkflowApprovalService(
 
         foreach (var step in steps)
         {
+            if (string.IsNullOrWhiteSpace(step.Name) || step.Name.Length > 200)
+                return $"Step {step.StepOrder} name is required and cannot exceed 200 characters";
+            if (step.ApproverRole is { Length: > 100 })
+                return $"Step {step.StepOrder} approver role cannot exceed 100 characters";
+            if (step.ApproverRelationship is { Length: > 100 })
+                return $"Step {step.StepOrder} approver relationship cannot exceed 100 characters";
+
             var approverValidation = step.ApproverType switch
             {
                 ApproverType.User when !step.ApproverUserId.HasValue =>
@@ -664,6 +697,9 @@ public sealed class WorkflowApprovalService(
     {
         if (steps.Count == 0)
             return "At least one approval step is required";
+
+        if (steps.Count > MaxWorkflowSteps)
+            return $"Cannot have more than {MaxWorkflowSteps} approval steps";
 
         if (steps.Any(s => s.StepOrder < 1))
             return "Step order must be 1 or greater";
