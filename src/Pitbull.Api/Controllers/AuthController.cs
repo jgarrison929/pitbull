@@ -378,7 +378,8 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(demoOptions.Value.UserPassword))
             return this.BadRequestError("Demo environment is not fully configured");
 
-        if (string.IsNullOrWhiteSpace(request.Role) ||
+        // Bound free-text role key before dictionary lookup (DoS / noise).
+        if (string.IsNullOrWhiteSpace(request.Role) || request.Role.Length > 64 ||
             !DemoRolePersonas.TryGetValue(request.Role.Trim().ToLowerInvariant(), out var persona))
         {
             return this.BadRequestError(
@@ -739,13 +740,19 @@ public class AuthController(
         if (!demoOptions.Value.Enabled)
             return this.NotFoundError("Demo registration is not available");
 
-        // Validate inputs
+        // Validate inputs (align length bounds with register/login validators).
         if (string.IsNullOrWhiteSpace(request.FirstName) || string.IsNullOrWhiteSpace(request.LastName))
             return this.BadRequestError("First name and last name are required");
+        if (request.FirstName.Length > 100 || request.LastName.Length > 100)
+            return this.BadRequestError("Name cannot exceed 100 characters");
         if (string.IsNullOrWhiteSpace(request.Email))
             return this.BadRequestError("Email is required");
+        if (request.Email.Trim().Length > 256)
+            return this.BadRequestError("Email cannot exceed 256 characters");
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
+        if (request.Password.Length > 100)
+            return this.BadRequestError("Password cannot exceed 100 characters");
         if (!request.Password.Any(char.IsUpper))
             return this.BadRequestError("Password must contain at least one uppercase letter");
         if (!request.Password.Any(char.IsLower))

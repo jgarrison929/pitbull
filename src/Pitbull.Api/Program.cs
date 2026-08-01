@@ -436,6 +436,9 @@ builder.Services.AddAuthentication(options =>
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+            // Reject tokens without exp / nbf when present expectations apply.
+            RequireExpirationTime = true,
+            RequireSignedTokens = true,
             // Reject "none" / asymmetric algorithm confusion; we only mint HMAC-SHA256.
             ValidAlgorithms = new[] { Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256 },
             // Default clock skew is 5 minutes; keep a small window for clock drift without long token afterlife.
@@ -591,6 +594,13 @@ builder.Services.AddRequestTimeouts(options =>
     options.AddPolicy("seed", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
     {
         Timeout = TimeSpan.FromMinutes(2),
+        TimeoutStatusCode = 408
+    });
+
+    // PDF generation can exceed the default 30s for large reports.
+    options.AddPolicy("pdf", new Microsoft.AspNetCore.Http.Timeouts.RequestTimeoutPolicy
+    {
+        Timeout = TimeSpan.FromSeconds(90),
         TimeoutStatusCode = 408
     });
 });

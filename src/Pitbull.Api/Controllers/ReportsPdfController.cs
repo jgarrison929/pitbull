@@ -9,6 +9,7 @@ namespace Pitbull.Api.Controllers;
 [Route("api/reports/pdf")]
 [Authorize]
 [EnableRateLimiting("api")]
+[Microsoft.AspNetCore.Http.Timeouts.RequestTimeout("pdf")]
 [Produces("application/pdf")]
 [Tags("Reports PDF")]
 public class ReportsPdfController(IPdfReportService pdfReportService, ILogger<ReportsPdfController> logger) : ControllerBase

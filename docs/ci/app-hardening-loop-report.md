@@ -912,3 +912,27 @@ Findings discovered (unique): 256
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 - Role E2E can flake on Docker Hub postgres pull timeouts.
 
+
+## Hourly appendix — 2026-08-01 06:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080106`
+
+### CI status (step 1)
+- **main green** — #489 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **jwt:** RequireExpirationTime + RequireSignedTokens on bearer validation.
+- **auth/demo:** Role key max 64; demo-register name/email/password length bounds.
+- **notifications:** Title/message/relatedEntityType length caps (match EF).
+- **secrets:** Key/value/displayName/description size bounds; category filter validation.
+- **pdf:** RequestTimeout policy 90s for `/api/reports/pdf`.
+- **web:** X-Robots-Tag + X-Download-Options headers.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
