@@ -46,7 +46,7 @@ public sealed class ChangelogService(IWebHostEnvironment env, ILogger<ChangelogS
         }
 
         if (limit is > 0)
-            query = query.Take(limit.Value);
+            query = query.Take(Math.Min(limit.Value, 50));
 
         return new ChangelogResponse(
             AppVersion: appVersion,

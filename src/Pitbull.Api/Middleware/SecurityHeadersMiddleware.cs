@@ -11,7 +11,9 @@ public class SecurityHeadersMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext context)
     {
         // TRACE/TRACK can be used for cross-site tracing / cache poisoning probes.
+        // CONNECT is for HTTP proxies and is not used by this API.
         if (HttpMethods.IsTrace(context.Request.Method) ||
+            HttpMethods.IsConnect(context.Request.Method) ||
             string.Equals(context.Request.Method, "TRACK", StringComparison.OrdinalIgnoreCase))
         {
             context.Response.StatusCode = StatusCodes.Status405MethodNotAllowed;

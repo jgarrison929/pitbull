@@ -68,6 +68,18 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/accounting-periods",
         "/api/tax-jurisdictions",
         "/api/purchase-orders",
+        // AR/AP / pay apps / retention: browse OK, no mutations on shared demo tenant.
+        "/api/vendor-invoices",
+        "/api/billing-applications",
+        "/api/billing-periods",
+        "/api/paymentapplications",
+        "/api/lien-waivers",
+        "/api/retention",
+        "/api/owner-contracts",
+        "/api/owner-change-orders",
+        "/api/pay-periods",
+        "/api/customers",
+        "/api/vendors",
     ];
 
     /// <summary>

@@ -151,6 +151,24 @@ public class SecurityHeadersMiddlewareTests
     }
 
     [Fact]
+    public async Task Rejects_CONNECT_with_405()
+    {
+        var nextCalled = false;
+        var middleware = new SecurityHeadersMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "CONNECT";
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status405MethodNotAllowed, context.Response.StatusCode);
+        Assert.False(nextCalled);
+    }
+
+    [Fact]
     public async Task Adds_CrossOriginOpenerPolicy_same_origin()
     {
         var middleware = new SecurityHeadersMiddleware(_ => Task.CompletedTask);

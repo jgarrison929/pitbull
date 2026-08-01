@@ -590,6 +590,10 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
             return this.BadRequestError("Current password and new password are required");
 
+        // Cap password length (align login/register validators) — hashing multi-KB strings is a DoS vector.
+        if (request.CurrentPassword.Length > 100 || request.NewPassword.Length > 100)
+            return this.BadRequestError("Password cannot exceed 100 characters");
+
         if (request.NewPassword.Length < 8)
             return this.BadRequestError("New password must be at least 8 characters");
 
@@ -1075,10 +1079,15 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(request.Email))
             return Ok(new { message = successMessage });
 
+        // Bound untrusted input (same as login/register); still return 200 to avoid enumeration.
+        var email = request.Email.Trim();
+        if (email.Length > 256)
+            return Ok(new { message = successMessage });
+
         // Always generate a token to equalize CPU work regardless of email validity
         var (plaintext, hash) = PasswordResetToken.GenerateToken();
 
-        var user = await userManager.FindByEmailAsync(request.Email.Trim());
+        var user = await userManager.FindByEmailAsync(email);
         // Demo / shared-persona accounts: do not issue reset tokens or emails (same as change-password).
         // Still return 200 so response shape does not enumerate demo vs non-demo accounts.
         if (user is null || IsDemoAccount(user))
@@ -1129,6 +1138,9 @@ public class AuthController(
     {
         if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
             return this.BadRequestError("Token and new password are required");
+
+        if (request.NewPassword.Length > 100)
+            return this.BadRequestError("Password cannot exceed 100 characters");
 
         if (request.NewPassword.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
