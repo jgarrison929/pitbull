@@ -5,6 +5,7 @@ using Pitbull.Billing.Features;
 using Pitbull.Contracts.Features.CreateSubcontract;
 using Pitbull.Core.Data;
 using Pitbull.Core.MultiTenancy;
+using Pitbull.Notifications.Features;
 using Pitbull.ProjectManagement.Features;
 using Pitbull.Projects.Features.CreateProject;
 using Pitbull.RFIs.Features.CreateRfi;
@@ -35,6 +36,7 @@ public static class TestDbContextFactory
         PitbullDbContext.RegisterModuleAssembly(typeof(CreateAiModuleCommand).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(BillingModuleMarker).Assembly);
         PitbullDbContext.RegisterModuleAssembly(typeof(SystemAdminModuleMarker).Assembly);
+        PitbullDbContext.RegisterModuleAssembly(typeof(NotificationsModuleMarker).Assembly);
     }
 
     public static PitbullDbContext Create(Guid? tenantId = null, string? dbName = null, Guid? companyId = null)

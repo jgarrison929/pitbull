@@ -88,11 +88,14 @@ public class ProjectService : IProjectService
         // Apply filtering logic (from ListProjectsHandler)
         if (!string.IsNullOrWhiteSpace(listQuery.Search))
         {
-            var searchTerm = listQuery.Search.ToLower();
+            var searchTerm = listQuery.Search.Trim();
+            if (searchTerm.Length > 200)
+                searchTerm = searchTerm[..200];
+            searchTerm = searchTerm.ToLower();
             dbQuery = dbQuery.Where(p =>
-                p.Name.ToLower().Contains(searchTerm.ToLower()) ||
+                p.Name.ToLower().Contains(searchTerm) ||
                 p.Number.ToLower().Contains(searchTerm) ||
-                (p.ClientName != null && p.ClientName.ToLower().Contains(searchTerm.ToLower())));
+                (p.ClientName != null && p.ClientName.ToLower().Contains(searchTerm)));
         }
 
         if (listQuery.Status.HasValue)
@@ -137,7 +140,9 @@ public class ProjectService : IProjectService
         if (listQuery.BudgetAlert)
             laborByProject = await GetLaborSpentByProjectAsync(projectIds, cancellationToken);
 
-        var threshold = listQuery.BudgetAlertPercent <= 0 ? 75 : listQuery.BudgetAlertPercent;
+        var threshold = listQuery.BudgetAlertPercent <= 0
+            ? 75
+            : Math.Clamp(listQuery.BudgetAlertPercent, 1, 100);
         var enriched = new List<(Project Project, decimal Billed, decimal Unbilled, decimal Labor, decimal LaborPct)>();
 
         foreach (var p in all)
@@ -704,6 +709,7 @@ public class ProjectService : IProjectService
 
     public async Task<Result<List<PhaseDto>>> GetProjectPhasesAsync(Guid projectId, int pageSize = 100, CancellationToken cancellationToken = default)
     {
+        pageSize = Math.Clamp(pageSize, 1, 500);
         var project = await _db.Set<Project>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);

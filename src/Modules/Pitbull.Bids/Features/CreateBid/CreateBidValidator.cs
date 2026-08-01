@@ -21,7 +21,8 @@ public class CreateBidValidator : AbstractValidator<CreateBidCommand>
             .WithMessage("New bids must be Draft or Submitted (service forces Draft); other statuses use update transitions");
 
         RuleFor(x => x.EstimatedValue)
-            .GreaterThanOrEqualTo(0).WithMessage("Estimated value cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("Estimated value cannot be negative")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Estimated value cannot exceed 1,000,000,000");
 
         // Optional fields with validation
         RuleFor(x => x.Description)
@@ -47,6 +48,10 @@ public class CreateBidValidator : AbstractValidator<CreateBidCommand>
             .When(x => x.BidDate.HasValue)
             .WithMessage("Bid date cannot be more than a year in the future");
 
+        RuleFor(x => x.Items)
+            .Must(items => items is null || items.Count <= 500)
+            .WithMessage("Bid cannot have more than 500 line items");
+
         // Bid items validation
         RuleForEach(x => x.Items).ChildRules(item =>
         {
@@ -58,10 +63,12 @@ public class CreateBidValidator : AbstractValidator<CreateBidCommand>
                 .IsInEnum().WithMessage("Invalid bid item category");
 
             item.RuleFor(i => i.Quantity)
-                .GreaterThan(0).WithMessage("Quantity must be greater than 0");
+                .GreaterThan(0).WithMessage("Quantity must be greater than 0")
+                .LessThanOrEqualTo(1_000_000m).WithMessage("Quantity cannot exceed 1,000,000");
 
             item.RuleFor(i => i.UnitCost)
-                .GreaterThanOrEqualTo(0).WithMessage("Unit cost cannot be negative");
+                .GreaterThanOrEqualTo(0).WithMessage("Unit cost cannot be negative")
+                .LessThanOrEqualTo(1_000_000_000m).WithMessage("Unit cost cannot exceed 1,000,000,000");
         }).When(x => x.Items != null && x.Items.Count != 0);
     }
 }

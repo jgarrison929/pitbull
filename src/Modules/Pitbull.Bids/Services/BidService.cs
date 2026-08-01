@@ -58,9 +58,12 @@ public class BidService : IBidService
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var searchTerm = query.Search.ToLower();
+            var searchTerm = query.Search.Trim();
+            if (searchTerm.Length > 200)
+                searchTerm = searchTerm[..200];
+            searchTerm = searchTerm.ToLower();
             dbQuery = dbQuery.Where(b =>
-                b.Name.ToLower().Contains(searchTerm.ToLower()) ||
+                b.Name.ToLower().Contains(searchTerm) ||
                 b.Number.ToLower().Contains(searchTerm));
         }
 

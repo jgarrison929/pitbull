@@ -9,6 +9,9 @@ namespace Pitbull.Billing.Services;
 
 public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractService> logger) : IOwnerContractService
 {
+    private const decimal MaxMoney = 1_000_000_000m;
+    private const int MaxPaymentTermsDays = 365;
+
     private readonly ILogger<OwnerContractService> _logger = logger;
 
     // ── Owner Contracts ──
@@ -46,14 +49,30 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
     {
         if (string.IsNullOrWhiteSpace(cmd.ContractNumber))
             return Result.Failure<OwnerContractDto>("Contract number is required", "VALIDATION_ERROR");
+        if (cmd.ContractNumber.Trim().Length > 100)
+            return Result.Failure<OwnerContractDto>("Contract number cannot exceed 100 characters", "VALIDATION_ERROR");
         if (string.IsNullOrWhiteSpace(cmd.ProjectName))
             return Result.Failure<OwnerContractDto>("Project name is required", "VALIDATION_ERROR");
+        if (cmd.ProjectName.Trim().Length > 500)
+            return Result.Failure<OwnerContractDto>("Project name cannot exceed 500 characters", "VALIDATION_ERROR");
+        if (cmd.OwnerName is { Length: > 500 })
+            return Result.Failure<OwnerContractDto>("Owner name cannot exceed 500 characters", "VALIDATION_ERROR");
+        if (cmd.OwnerAddress is { Length: > 1000 })
+            return Result.Failure<OwnerContractDto>("Owner address cannot exceed 1000 characters", "VALIDATION_ERROR");
+        if (cmd.ArchitectName is { Length: > 500 })
+            return Result.Failure<OwnerContractDto>("Architect name cannot exceed 500 characters", "VALIDATION_ERROR");
+        if (cmd.ArchitectProjectNumber is { Length: > 100 })
+            return Result.Failure<OwnerContractDto>("Architect project number cannot exceed 100 characters", "VALIDATION_ERROR");
         if (cmd.OriginalContractSum <= 0)
             return Result.Failure<OwnerContractDto>("Original contract sum must be greater than zero", "VALIDATION_ERROR");
+        if (cmd.OriginalContractSum > MaxMoney)
+            return Result.Failure<OwnerContractDto>("Original contract sum cannot exceed 1,000,000,000", "VALIDATION_ERROR");
         if (cmd.DefaultRetainagePercent < 0 || cmd.DefaultRetainagePercent > 100)
             return Result.Failure<OwnerContractDto>("Retainage percent must be between 0 and 100", "VALIDATION_ERROR");
         if (cmd.RetainagePercentMaterials < 0 || cmd.RetainagePercentMaterials > 100)
             return Result.Failure<OwnerContractDto>("Materials retainage percent must be between 0 and 100", "VALIDATION_ERROR");
+        if (cmd.PaymentTermsDays < 0 || cmd.PaymentTermsDays > MaxPaymentTermsDays)
+            return Result.Failure<OwnerContractDto>($"Payment terms days must be between 0 and {MaxPaymentTermsDays}", "VALIDATION_ERROR");
 
         bool duplicate = await db.Set<OwnerContract>()
             .AnyAsync(c => c.ContractNumber == cmd.ContractNumber.Trim(), ct);
@@ -92,16 +111,44 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
         {
             if (string.IsNullOrWhiteSpace(cmd.ContractNumber))
                 return Result.Failure<OwnerContractDto>("Contract number cannot be empty", "VALIDATION_ERROR");
+            if (cmd.ContractNumber.Trim().Length > 100)
+                return Result.Failure<OwnerContractDto>("Contract number cannot exceed 100 characters", "VALIDATION_ERROR");
             bool dup = await db.Set<OwnerContract>().AnyAsync(c => c.ContractNumber == cmd.ContractNumber.Trim() && c.Id != cmd.ContractId, ct);
             if (dup) return Result.Failure<OwnerContractDto>($"Contract number '{cmd.ContractNumber.Trim()}' already exists", "DUPLICATE");
             contract.ContractNumber = cmd.ContractNumber.Trim();
         }
-        if (cmd.ProjectName is not null) contract.ProjectName = cmd.ProjectName.Trim();
-        if (cmd.OwnerName is not null) contract.OwnerName = cmd.OwnerName.Trim();
-        if (cmd.OwnerAddress is not null) contract.OwnerAddress = cmd.OwnerAddress.Trim();
-        if (cmd.ArchitectName is not null) contract.ArchitectName = cmd.ArchitectName.Trim();
+        if (cmd.ProjectName is not null)
+        {
+            if (string.IsNullOrWhiteSpace(cmd.ProjectName))
+                return Result.Failure<OwnerContractDto>("Project name cannot be empty", "VALIDATION_ERROR");
+            if (cmd.ProjectName.Trim().Length > 500)
+                return Result.Failure<OwnerContractDto>("Project name cannot exceed 500 characters", "VALIDATION_ERROR");
+            contract.ProjectName = cmd.ProjectName.Trim();
+        }
+        if (cmd.OwnerName is not null)
+        {
+            if (cmd.OwnerName.Length > 500)
+                return Result.Failure<OwnerContractDto>("Owner name cannot exceed 500 characters", "VALIDATION_ERROR");
+            contract.OwnerName = cmd.OwnerName.Trim();
+        }
+        if (cmd.OwnerAddress is not null)
+        {
+            if (cmd.OwnerAddress.Length > 1000)
+                return Result.Failure<OwnerContractDto>("Owner address cannot exceed 1000 characters", "VALIDATION_ERROR");
+            contract.OwnerAddress = cmd.OwnerAddress.Trim();
+        }
+        if (cmd.ArchitectName is not null)
+        {
+            if (cmd.ArchitectName.Length > 500)
+                return Result.Failure<OwnerContractDto>("Architect name cannot exceed 500 characters", "VALIDATION_ERROR");
+            contract.ArchitectName = cmd.ArchitectName.Trim();
+        }
         if (cmd.OriginalContractSum.HasValue)
         {
+            if (cmd.OriginalContractSum.Value <= 0)
+                return Result.Failure<OwnerContractDto>("Original contract sum must be greater than zero", "VALIDATION_ERROR");
+            if (cmd.OriginalContractSum.Value > MaxMoney)
+                return Result.Failure<OwnerContractDto>("Original contract sum cannot exceed 1,000,000,000", "VALIDATION_ERROR");
             contract.OriginalContractSum = cmd.OriginalContractSum.Value;
             contract.ContractSumToDate = cmd.OriginalContractSum.Value + contract.ApprovedChangeOrderAmount;
         }
@@ -118,7 +165,12 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
             contract.RetainagePercentMaterials = cmd.RetainagePercentMaterials.Value;
         }
         if (cmd.ContractDate.HasValue) contract.ContractDate = cmd.ContractDate.Value;
-        if (cmd.PaymentTermsDays.HasValue) contract.PaymentTermsDays = cmd.PaymentTermsDays.Value;
+        if (cmd.PaymentTermsDays.HasValue)
+        {
+            if (cmd.PaymentTermsDays.Value < 0 || cmd.PaymentTermsDays.Value > MaxPaymentTermsDays)
+                return Result.Failure<OwnerContractDto>($"Payment terms days must be between 0 and {MaxPaymentTermsDays}", "VALIDATION_ERROR");
+            contract.PaymentTermsDays = cmd.PaymentTermsDays.Value;
+        }
 
         await db.SaveChangesAsync(ct);
         return Result.Success(MapContractToDto(contract));
@@ -152,6 +204,11 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
 
     public async Task<Result<OwnerSOVDto>> CreateSOVAsync(CreateOwnerSOVCommand cmd, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(cmd.Name))
+            return Result.Failure<OwnerSOVDto>("SOV name is required", "VALIDATION_ERROR");
+        if (cmd.Name.Trim().Length > 200)
+            return Result.Failure<OwnerSOVDto>("SOV name cannot exceed 200 characters", "VALIDATION_ERROR");
+
         var contract = await db.Set<OwnerContract>().AsNoTracking().FirstOrDefaultAsync(c => c.Id == cmd.OwnerContractId, ct);
         if (contract is null) return Result.Failure<OwnerSOVDto>("Owner contract not found", "NOT_FOUND");
 
@@ -162,7 +219,7 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
         {
             ProjectId = contract.ProjectId,
             OwnerContractId = cmd.OwnerContractId,
-            Name = cmd.Name,
+            Name = cmd.Name.Trim(),
             OriginalContractAmount = contract.OriginalContractSum,
             ApprovedChangeOrderAmount = contract.ApprovedChangeOrderAmount,
             RevisedContractAmount = contract.ContractSumToDate,
@@ -202,8 +259,15 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
         if (sov is null) return Result.Failure<OwnerSOVLineItemDto>("Schedule of Values not found", "NOT_FOUND");
         if (sov.Status != OwnerSOVStatus.Draft) return Result.Failure<OwnerSOVLineItemDto>("Line items can only be added to Draft SOV", "INVALID_STATUS");
         if (string.IsNullOrWhiteSpace(cmd.ItemNumber)) return Result.Failure<OwnerSOVLineItemDto>("Item number is required", "VALIDATION_ERROR");
+        if (cmd.ItemNumber.Trim().Length > 50) return Result.Failure<OwnerSOVLineItemDto>("Item number cannot exceed 50 characters", "VALIDATION_ERROR");
         if (string.IsNullOrWhiteSpace(cmd.Description)) return Result.Failure<OwnerSOVLineItemDto>("Description is required", "VALIDATION_ERROR");
+        if (cmd.Description.Trim().Length > 500) return Result.Failure<OwnerSOVLineItemDto>("Description cannot exceed 500 characters", "VALIDATION_ERROR");
         if (cmd.ScheduledValue < 0) return Result.Failure<OwnerSOVLineItemDto>("Scheduled value cannot be negative", "VALIDATION_ERROR");
+        if (cmd.ScheduledValue > MaxMoney) return Result.Failure<OwnerSOVLineItemDto>("Scheduled value cannot exceed 1,000,000,000", "VALIDATION_ERROR");
+        if (cmd.RetainagePercent is < 0 or > 100)
+            return Result.Failure<OwnerSOVLineItemDto>("Retainage percent must be between 0 and 100", "VALIDATION_ERROR");
+        if (cmd.Notes is { Length: > 1000 })
+            return Result.Failure<OwnerSOVLineItemDto>("Notes cannot exceed 1000 characters", "VALIDATION_ERROR");
 
         int nextSort = cmd.SortOrder > 0 ? cmd.SortOrder :
             (await db.Set<OwnerSOVLineItem>().Where(l => l.OwnerScheduleOfValuesId == sov.Id).MaxAsync(l => (int?)l.SortOrder, ct) ?? 0) + 1;
@@ -218,7 +282,7 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
             ScheduledValue = cmd.ScheduledValue,
             RetainagePercent = cmd.RetainagePercent,
             CostCodeId = cmd.CostCodeId,
-            Notes = cmd.Notes
+            Notes = cmd.Notes?.Trim()
         };
 
         db.Set<OwnerSOVLineItem>().Add(line);
@@ -237,16 +301,44 @@ public class OwnerContractService(PitbullDbContext db, ILogger<OwnerContractServ
         if (sov is null || sov.Status != OwnerSOVStatus.Draft)
             return Result.Failure<OwnerSOVLineItemDto>("Line items can only be modified on Draft SOV", "INVALID_STATUS");
 
-        if (cmd.ItemNumber is not null) line.ItemNumber = cmd.ItemNumber.Trim();
-        if (cmd.Description is not null) line.Description = cmd.Description.Trim();
+        if (cmd.ItemNumber is not null)
+        {
+            if (string.IsNullOrWhiteSpace(cmd.ItemNumber))
+                return Result.Failure<OwnerSOVLineItemDto>("Item number cannot be empty", "VALIDATION_ERROR");
+            if (cmd.ItemNumber.Trim().Length > 50)
+                return Result.Failure<OwnerSOVLineItemDto>("Item number cannot exceed 50 characters", "VALIDATION_ERROR");
+            line.ItemNumber = cmd.ItemNumber.Trim();
+        }
+        if (cmd.Description is not null)
+        {
+            if (string.IsNullOrWhiteSpace(cmd.Description))
+                return Result.Failure<OwnerSOVLineItemDto>("Description cannot be empty", "VALIDATION_ERROR");
+            if (cmd.Description.Trim().Length > 500)
+                return Result.Failure<OwnerSOVLineItemDto>("Description cannot exceed 500 characters", "VALIDATION_ERROR");
+            line.Description = cmd.Description.Trim();
+        }
         if (cmd.ScheduledValue.HasValue)
         {
+            if (cmd.ScheduledValue.Value < 0)
+                return Result.Failure<OwnerSOVLineItemDto>("Scheduled value cannot be negative", "VALIDATION_ERROR");
+            if (cmd.ScheduledValue.Value > MaxMoney)
+                return Result.Failure<OwnerSOVLineItemDto>("Scheduled value cannot exceed 1,000,000,000", "VALIDATION_ERROR");
             line.OriginalValue = cmd.ScheduledValue.Value;
             line.ScheduledValue = cmd.ScheduledValue.Value;
         }
         if (cmd.SortOrder.HasValue) line.SortOrder = cmd.SortOrder.Value;
-        if (cmd.RetainagePercent.HasValue) line.RetainagePercent = cmd.RetainagePercent.Value;
-        if (cmd.Notes is not null) line.Notes = cmd.Notes;
+        if (cmd.RetainagePercent.HasValue)
+        {
+            if (cmd.RetainagePercent.Value is < 0 or > 100)
+                return Result.Failure<OwnerSOVLineItemDto>("Retainage percent must be between 0 and 100", "VALIDATION_ERROR");
+            line.RetainagePercent = cmd.RetainagePercent.Value;
+        }
+        if (cmd.Notes is not null)
+        {
+            if (cmd.Notes.Length > 1000)
+                return Result.Failure<OwnerSOVLineItemDto>("Notes cannot exceed 1000 characters", "VALIDATION_ERROR");
+            line.Notes = cmd.Notes;
+        }
 
         sov.TotalScheduledValue = await db.Set<OwnerSOVLineItem>()
             .Where(l => l.OwnerScheduleOfValuesId == sov.Id).SumAsync(l => l.ScheduledValue, ct);
