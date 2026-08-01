@@ -151,12 +151,26 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/api/integrations/export", "POST")]
     [InlineData("/api/import/employees", "POST")]
     [InlineData("/api/migration/projects", "POST")]
+    [InlineData("/api/journal-entries", "POST")]
+    [InlineData("/api/chart-of-accounts", "PUT")]
+    [InlineData("/api/accounting-periods", "POST")]
+    [InlineData("/api/tax-jurisdictions", "POST")]
+    [InlineData("/api/purchase-orders", "POST")]
     public async Task DemoUser_CannotMutate_FinancialPaths(string path, string method)
     {
         var context = CreateDemoContext(path, method);
         var (statusCode, nextCalled) = await InvokeAsync(context);
         Assert.False(nextCalled);
         Assert.Equal(403, statusCode);
+    }
+
+    [Fact]
+    public async Task DemoUser_CanRead_JournalEntries()
+    {
+        var context = CreateDemoContext("/api/journal-entries", "GET");
+        var (statusCode, nextCalled) = await InvokeAsync(context);
+        Assert.True(nextCalled);
+        Assert.NotEqual(403, statusCode);
     }
 
     [Fact]

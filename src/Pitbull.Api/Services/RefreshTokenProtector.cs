@@ -12,8 +12,19 @@ public static class RefreshTokenProtector
     public const int DefaultRefreshExpirationDays = 7;
     public const int DefaultAccessExpirationMinutes = 60;
 
+    /// <summary>
+    /// Generated tokens are Base64 of 64 random bytes (~88 chars). Bounds reject
+    /// empty/tiny and multi-KB junk before hashing.
+    /// </summary>
+    public const int MinPlaintextLength = 40;
+    public const int MaxPlaintextLength = 200;
+
     public static string GeneratePlaintext() =>
         Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+
+    public static bool IsPlausiblePlaintext(string? plaintext) =>
+        !string.IsNullOrEmpty(plaintext)
+        && plaintext.Length is >= MinPlaintextLength and <= MaxPlaintextLength;
 
     public static string Hash(string plaintext)
     {
@@ -27,10 +38,11 @@ public static class RefreshTokenProtector
     /// </summary>
     public static bool Matches(string? storedHash, string? providedPlaintext)
     {
-        if (string.IsNullOrEmpty(storedHash) || string.IsNullOrEmpty(providedPlaintext))
+        if (string.IsNullOrEmpty(storedHash) || !IsPlausiblePlaintext(providedPlaintext))
             return false;
 
-        var providedHash = Hash(providedPlaintext);
+        // IsPlausiblePlaintext guarantees non-null/non-empty within length bounds.
+        var providedHash = Hash(providedPlaintext!);
         var storedBytes = Encoding.UTF8.GetBytes(storedHash);
         var providedBytes = Encoding.UTF8.GetBytes(providedHash);
         return storedBytes.Length == providedBytes.Length

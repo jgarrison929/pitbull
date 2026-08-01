@@ -38,6 +38,25 @@ public class RefreshTokenProtectorTests
     }
 
     [Fact]
+    public void IsPlausiblePlaintext_rejects_empty_short_and_huge()
+    {
+        Assert.False(RefreshTokenProtector.IsPlausiblePlaintext(null));
+        Assert.False(RefreshTokenProtector.IsPlausiblePlaintext(""));
+        Assert.False(RefreshTokenProtector.IsPlausiblePlaintext("short"));
+        Assert.False(RefreshTokenProtector.IsPlausiblePlaintext(new string('a', 201)));
+        Assert.True(RefreshTokenProtector.IsPlausiblePlaintext(RefreshTokenProtector.GeneratePlaintext()));
+    }
+
+    [Fact]
+    public void Matches_rejects_implausible_length_without_throwing()
+    {
+        var plain = RefreshTokenProtector.GeneratePlaintext();
+        var hash = RefreshTokenProtector.Hash(plain);
+        Assert.False(RefreshTokenProtector.Matches(hash, "x"));
+        Assert.False(RefreshTokenProtector.Matches(hash, new string('a', 10_000)));
+    }
+
+    [Fact]
     public void GetRefreshExpirationDays_reads_config_and_caps()
     {
         var cfg = new ConfigurationBuilder()

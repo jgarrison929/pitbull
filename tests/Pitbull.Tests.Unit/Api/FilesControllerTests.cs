@@ -59,4 +59,30 @@ public class FilesControllerTests
 
         capturedExpiry!.Value.TotalMinutes.Should().Be(15);
     }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("Project", true)]
+    [InlineData("daily-report", true)]
+    [InlineData("Rfi.Response", true)]
+    [InlineData("bad type!", false)]
+    [InlineData("has space", false)]
+    public void TryNormalizeRelatedEntityType_validates_shape(string? input, bool expectedOk)
+    {
+        var ok = FilesController.TryNormalizeRelatedEntityType(input, out var normalized, out var error);
+        ok.Should().Be(expectedOk);
+        if (expectedOk && !string.IsNullOrWhiteSpace(input))
+            normalized.Should().Be(input.Trim());
+        if (!expectedOk)
+            error.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public void TryNormalizeRelatedEntityType_rejects_overlong()
+    {
+        var ok = FilesController.TryNormalizeRelatedEntityType(new string('a', 101), out _, out var error);
+        ok.Should().BeFalse();
+        error.Should().Contain("100");
+    }
 }

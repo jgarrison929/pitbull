@@ -516,6 +516,11 @@ public class AuthController(
         if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.RefreshToken))
             return this.UnauthorizedError("Token and refresh token are required");
 
+        // Reject absurdly large tokens before JWT parse / hash work (DoS / log noise).
+        // Access JWT: typically < 4 KB; refresh: Base64 of 64 bytes (~88 chars).
+        if (request.Token.Length > 8192 || !RefreshTokenProtector.IsPlausiblePlaintext(request.RefreshToken))
+            return this.UnauthorizedError("Invalid or expired refresh token");
+
         // Extract user identity from the expired access token
         var principal = GetPrincipalFromExpiredToken(request.Token);
         if (principal is null)
@@ -645,6 +650,10 @@ public class AuthController(
                 await userManager.UpdateAsync(user);
             }
         }
+
+        // Hint browsers / intermediate caches to drop client storage tied to this origin.
+        // Harmless if ignored; helps SPA logout when cookies/local storage held JWT material.
+        Response.Headers["Clear-Site-Data"] = "\"cookies\", \"storage\"";
 
         return Ok(new { message = "Logged out successfully" });
     }
@@ -1123,6 +1132,10 @@ public class AuthController(
 
         if (request.NewPassword.Length < 8)
             return this.BadRequestError("Password must be at least 8 characters");
+
+        // Password reset tokens are Base64 of 32 bytes (~44 chars). Reject obvious junk early.
+        if (request.Token.Length is < 20 or > 256)
+            return this.BadRequestError("Invalid or expired reset token");
 
         var hash = PasswordResetToken.HashToken(request.Token);
 

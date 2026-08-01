@@ -563,6 +563,8 @@ builder.Services.AddControllers(options =>
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        // Bound nested JSON depth to reduce stack / memory pressure from malicious payloads.
+        options.JsonSerializerOptions.MaxDepth = 32;
     });
 builder.Services.AddEndpointsApiExplorer();
 

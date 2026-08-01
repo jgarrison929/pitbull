@@ -812,3 +812,28 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-08-01 02:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080102`
+
+### CI status (step 1)
+- **main green** — #485 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only: node 25, Resend 0.8, QuestPDF, Mapster 10, eslint 10, types/node 26, TS 7, jest-dom 7).
+
+### Shipped this hour
+- **tokens:** Refresh + password-reset length pre-checks; `RefreshTokenProtector.IsPlausiblePlaintext` (40–200).
+- **auth:** Logout sets `Clear-Site-Data: "cookies", "storage"`.
+- **demo:** Write-block journal-entries, chart-of-accounts, accounting-periods, tax-jurisdictions, purchase-orders.
+- **files:** `relatedEntityType` / `entityType` identifier shape + max 100 chars.
+- **feedback:** Field length caps; ScreenshotUrl must be http(s) or relative.
+- **json:** `JsonSerializerOptions.MaxDepth = 32`.
+- **web:** JWT cookie >8KB ignored; `X-DNS-Prefetch-Control: off`.
+- **tests:** refresh protector, demo financial writes, relatedEntityType.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+

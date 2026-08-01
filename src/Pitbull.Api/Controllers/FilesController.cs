@@ -34,6 +34,9 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
         if (file.Length == 0)
             return BadRequest(new { error = "File is empty" });
 
+        if (!TryNormalizeRelatedEntityType(relatedEntityType, out var safeEntityType, out var entityTypeError))
+            return BadRequest(new { error = entityTypeError, code = "VALIDATION_ERROR" });
+
         var validation = fileValidationService.ValidateFile(file.FileName, file.ContentType, file.Length);
         if (!validation.IsSuccess)
             return BadRequest(new { error = validation.Error, code = validation.ErrorCode });
@@ -45,7 +48,7 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
             file.Length,
             stream,
             userId.Value,
-            relatedEntityType,
+            safeEntityType,
             relatedEntityId
         );
 
@@ -73,6 +76,9 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
         if (files.Count > 20)
             return BadRequest(new { error = "Maximum 20 files per upload", code = "VALIDATION_ERROR" });
 
+        if (!TryNormalizeRelatedEntityType(relatedEntityType, out var safeEntityType, out var entityTypeError))
+            return BadRequest(new { error = entityTypeError, code = "VALIDATION_ERROR" });
+
         var results = new List<FileAttachmentDto>();
 
         foreach (var file in files)
@@ -90,7 +96,7 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
                 file.Length,
                 stream,
                 userId.Value,
-                relatedEntityType,
+                safeEntityType,
                 relatedEntityId
             );
 
@@ -145,11 +151,48 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
         [FromQuery] string entityType,
         [FromQuery] Guid entityId)
     {
-        var result = await fileStorageService.GetByEntityAsync(entityType, entityId);
+        if (!TryNormalizeRelatedEntityType(entityType, out var safeEntityType, out var entityTypeError)
+            || string.IsNullOrEmpty(safeEntityType))
+            return BadRequest(new { error = entityTypeError ?? "entityType is required", code = "VALIDATION_ERROR" });
+
+        var result = await fileStorageService.GetByEntityAsync(safeEntityType, entityId);
         if (!result.IsSuccess)
             return BadRequest(new { error = result.Error });
 
         return Ok(result.Value);
+    }
+
+    /// <summary>
+    /// relatedEntityType is stored with max 100 chars; allow only safe identifier shapes
+    /// (letters, digits, underscore, hyphen, period) to avoid free-text pollution.
+    /// </summary>
+    internal static bool TryNormalizeRelatedEntityType(
+        string? relatedEntityType,
+        out string? normalized,
+        out string? error)
+    {
+        normalized = null;
+        error = null;
+        if (string.IsNullOrWhiteSpace(relatedEntityType))
+            return true;
+
+        var trimmed = relatedEntityType.Trim();
+        if (trimmed.Length > 100)
+        {
+            error = "relatedEntityType cannot exceed 100 characters";
+            return false;
+        }
+
+        foreach (var c in trimmed)
+        {
+            if (char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.')
+                continue;
+            error = "relatedEntityType may only contain letters, digits, underscore, hyphen, or period";
+            return false;
+        }
+
+        normalized = trimmed;
+        return true;
     }
 
     [HttpGet("{id:guid}/presigned-url")]
