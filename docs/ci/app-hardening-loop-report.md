@@ -1168,7 +1168,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 17:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080117`
+**Branch:** `chore/app-hardening-hourly-2026080117` → **merged #502**
 
 ### CI status (step 1)
 - **main green** after #501 (`201a4336`) — CI + Push success. No failures to fix.
@@ -1183,6 +1183,30 @@ Findings discovered (unique): 256
 - **project assignments:** notes max 500; assignment role enum check.
 - **PM lists:** search term cap 200 (shared ListAsync + punch list).
 - Unit tests for equipment list clamp and rate max.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 18:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080118`
+
+### CI status (step 1)
+- **main green** after #502 (`7cf7e2a9`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only: node 25, Resend, QuestPDF, Mapster 10, eslint 10, TS 7, @types/node 26, jest-dom 7).
+
+### Shipped this hour
+- **admin roles:** create/update name max 100; description max 500; trim.
+- **report settings:** daily OT/DT 0–24h; weekly OT 0–168h; HolidaysJson max 8k; branding max 200; logo URL max 2000.
+- **contract settings:** AIA architect/owner name max 200.
+- **project settings:** DefaultNumberingFormat max 100.
+- **pay periods list:** service-level page/pageSize clamp (1–100).
+- **AI usage:** query range clamp 366 days; log truncates provider/model/feature; non-negative tokens/cost/duration.
+- Unit tests for report/settings bounds, pay period list clamp, AI usage clamp/truncate.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

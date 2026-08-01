@@ -160,6 +160,44 @@ public sealed class AiUsageServiceTests
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
 
+    [Fact]
+    public void ClampRange_SwapsInvertedAndCapsSpanTo366Days()
+    {
+        var from = new DateOnly(2020, 1, 1);
+        var to = new DateOnly(2025, 12, 31);
+
+        var (clampedFrom, clampedTo) = AiUsageService.ClampRange(to, from); // inverted
+
+        clampedFrom.Should().Be(from);
+        clampedTo.Should().Be(from.AddDays(365)); // 366-day inclusive span
+        (clampedTo.DayNumber - clampedFrom.DayNumber + 1).Should().Be(366);
+    }
+
+    [Fact]
+    public async Task LogUsage_TruncatesLongProviderAndFeature()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = new AiUsageService(db, new TestTenantContext(TestDbContextFactory.TestTenantId));
+
+        await service.LogUsageAsync(
+            userId: Guid.NewGuid(),
+            provider: new string('p', 150),
+            model: new string('m', 250),
+            tokensIn: -5,
+            tokensOut: 10,
+            estimatedCost: -1m,
+            feature: new string('f', 300),
+            durationMs: -10);
+
+        var record = await db.Set<AiUsageRecord>().SingleAsync();
+        record.Provider.Length.Should().Be(100);
+        record.Model.Length.Should().Be(200);
+        record.Feature!.Length.Should().Be(200);
+        record.TokensIn.Should().Be(0);
+        record.EstimatedCost.Should().Be(0m);
+        record.DurationMs.Should().Be(0);
+    }
+
     private static async Task SeedUsageAsync(
         PitbullDbContext db,
         Guid userId,

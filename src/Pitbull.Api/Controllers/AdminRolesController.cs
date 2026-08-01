@@ -19,6 +19,10 @@ namespace Pitbull.Api.Controllers;
 [Tags("Admin - Roles")]
 public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<AdminRolesController> logger) : ControllerBase
 {
+    // Local role name (before tenant prefix). Full Identity name is "{tenantId}:{name}" ≤ 256.
+    private const int MaxRoleNameLength = 100;
+    private const int MaxDescriptionLength = 500;
+
     /// <summary>
     /// List all roles for the tenant
     /// </summary>
@@ -50,10 +54,17 @@ public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<Admi
         if (string.IsNullOrWhiteSpace(request.Name))
             return BadRequest(new { error = "Role name is required", code = "VALIDATION_ERROR" });
 
+        var name = request.Name.Trim();
+        if (name.Length > MaxRoleNameLength)
+            return BadRequest(new { error = $"Role name cannot exceed {MaxRoleNameLength} characters", code = "VALIDATION_ERROR" });
+
+        if (request.Description is { Length: > MaxDescriptionLength })
+            return BadRequest(new { error = $"Description cannot exceed {MaxDescriptionLength} characters", code = "VALIDATION_ERROR" });
+
         var tenantClaim = User.FindFirst("tenant_id")?.Value;
         var tenantId = Guid.TryParse(tenantClaim, out var tid) ? tid : Guid.Empty;
 
-        var fullRoleName = $"{tenantId}:{request.Name}";
+        var fullRoleName = $"{tenantId}:{name}";
 
         var existing = await roleManager.FindByNameAsync(fullRoleName);
         if (existing != null)
@@ -65,7 +76,7 @@ public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<Admi
             Name = fullRoleName,
             NormalizedName = fullRoleName.ToUpperInvariant(),
             TenantId = tenantId,
-            Description = request.Description,
+            Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
             IsSystemRole = false
         };
 
@@ -100,7 +111,10 @@ public class AdminRolesController(RoleManager<AppRole> roleManager, ILogger<Admi
         if (role.IsSystemRole)
             return BadRequest(new { error = "Cannot modify system roles", code = "SYSTEM_ROLE" });
 
-        role.Description = request.Description;
+        if (request.Description is { Length: > MaxDescriptionLength })
+            return BadRequest(new { error = $"Description cannot exceed {MaxDescriptionLength} characters", code = "VALIDATION_ERROR" });
+
+        role.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
         var result = await roleManager.UpdateAsync(role);
 
         if (!result.Succeeded)

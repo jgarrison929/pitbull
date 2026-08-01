@@ -13,6 +13,8 @@ namespace Pitbull.TimeTracking.Services;
 /// </summary>
 public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext, ICompanyContext companyContext) : IPayPeriodService
 {
+    private const int MaxPageSize = 100;
+
     public (DateOnly StartDate, DateOnly EndDate) CalculatePeriodBoundaries(DateOnly date, PayPeriodConfiguration config)
     {
         return config.Type switch
@@ -105,6 +107,10 @@ public class PayPeriodService(PitbullDbContext db, ITenantContext tenantContext,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
+        // Defense in depth (global ClampPageSizeFilter also applies on HTTP).
+        page = Math.Clamp(page, 1, 10_000);
+        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
         var query = db.Set<PayPeriod>().AsNoTracking().AsQueryable();
 
         if (status.HasValue)
