@@ -64,5 +64,37 @@ public class CreateProjectValidator : AbstractValidator<CreateProjectCommand>
             .GreaterThan(x => x.StartDate)
             .When(x => x.StartDate.HasValue && x.EstimatedCompletionDate.HasValue)
             .WithMessage("Estimated completion date must be after start date");
+
+        RuleFor(x => x.Phases)
+            .Must(phases => phases is null || phases.Count <= 200)
+            .WithMessage("Project cannot have more than 200 phases on create");
+
+        RuleForEach(x => x.Phases).ChildRules(phase =>
+        {
+            phase.RuleFor(p => p.Name)
+                .NotEmpty().WithMessage("Phase name is required")
+                .MaximumLength(200).WithMessage("Phase name cannot exceed 200 characters");
+            phase.RuleFor(p => p.CostCode)
+                .NotEmpty().WithMessage("Phase cost code is required")
+                .MaximumLength(50).WithMessage("Phase cost code cannot exceed 50 characters");
+            phase.RuleFor(p => p.BudgetAmount)
+                .GreaterThanOrEqualTo(0).WithMessage("Phase budget cannot be negative")
+                .LessThanOrEqualTo(1_000_000_000m).WithMessage("Phase budget cannot exceed 1,000,000,000");
+        }).When(x => x.Phases is { Count: > 0 });
+
+        RuleFor(x => x.TeamMembers)
+            .Must(team => team is null || team.Count <= 200)
+            .WithMessage("Project cannot have more than 200 team members on create");
+
+        RuleForEach(x => x.TeamMembers).ChildRules(member =>
+        {
+            member.RuleFor(m => m.EmployeeId)
+                .NotEmpty().WithMessage("Team member employee ID is required");
+            member.RuleFor(m => m.Role)
+                .MaximumLength(100).WithMessage("Team member role cannot exceed 100 characters")
+                .When(m => !string.IsNullOrEmpty(m.Role));
+            member.RuleFor(m => m.AssignmentRole)
+                .IsInEnum().WithMessage("Invalid assignment role");
+        }).When(x => x.TeamMembers is { Count: > 0 });
     }
 }

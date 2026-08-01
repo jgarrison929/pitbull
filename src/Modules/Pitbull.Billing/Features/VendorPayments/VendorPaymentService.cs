@@ -14,6 +14,10 @@ public class VendorPaymentService(
     IJournalEntryService journalEntryService,
     ILogger<VendorPaymentService> logger) : IVendorPaymentService
 {
+    private const decimal MaxMoney = 1_000_000_000m;
+    private const int MaxApplications = 500;
+    private const int MaxSearchLength = 200;
+
     public async Task<Result<ListVendorPaymentsResult>> GetVendorPaymentsAsync(ListVendorPaymentsQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<VendorPayment> dbQuery = db.Set<VendorPayment>()
@@ -40,7 +44,10 @@ public class VendorPaymentService(
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            string term = query.Search.Trim().ToLower();
+            string term = query.Search.Trim();
+            if (term.Length > MaxSearchLength)
+                term = term[..MaxSearchLength];
+            term = term.ToLower();
             dbQuery = dbQuery.Where(p =>
                 p.PaymentNumber.ToLower().Contains(term) ||
                 (p.ReferenceNumber != null && p.ReferenceNumber.ToLower().Contains(term)) ||
@@ -91,6 +98,14 @@ public class VendorPaymentService(
 
         if (command.Applications is null || command.Applications.Count == 0)
             return Result.Failure<VendorPaymentDto>("At least one invoice application is required", "VALIDATION_ERROR");
+        if (command.Applications.Count > MaxApplications)
+            return Result.Failure<VendorPaymentDto>($"Cannot apply more than {MaxApplications} invoices per payment", "VALIDATION_ERROR");
+        if (command.ReferenceNumber is { Length: > 100 })
+            return Result.Failure<VendorPaymentDto>("Reference number cannot exceed 100 characters", "VALIDATION_ERROR");
+        if (command.Memo is { Length: > 1000 })
+            return Result.Failure<VendorPaymentDto>("Memo cannot exceed 1000 characters", "VALIDATION_ERROR");
+        if (!Enum.IsDefined(command.PaymentMethod))
+            return Result.Failure<VendorPaymentDto>("Invalid payment method", "VALIDATION_ERROR");
 
         // Validate all invoice applications
         var invoiceIds = command.Applications.Select(a => a.VendorInvoiceId).Distinct().ToList();
@@ -103,6 +118,8 @@ public class VendorPaymentService(
         {
             if (app.AppliedAmount <= 0)
                 return Result.Failure<VendorPaymentDto>("Applied amount must be positive", "VALIDATION_ERROR");
+            if (app.AppliedAmount > MaxMoney)
+                return Result.Failure<VendorPaymentDto>("Applied amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
             var invoice = invoices.FirstOrDefault(i => i.Id == app.VendorInvoiceId);
             if (invoice is null)
@@ -123,6 +140,8 @@ public class VendorPaymentService(
         }
 
         decimal totalAmount = command.Applications.Sum(a => a.AppliedAmount);
+        if (totalAmount > MaxMoney)
+            return Result.Failure<VendorPaymentDto>("Total payment amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
         string paymentNumber = await GeneratePaymentNumberAsync(command.PaymentDate.Year, cancellationToken);
 
@@ -180,10 +199,18 @@ public class VendorPaymentService(
             payment.PaymentDate = command.PaymentDate.Value;
 
         if (command.PaymentMethod.HasValue)
+        {
+            if (!Enum.IsDefined(command.PaymentMethod.Value))
+                return Result.Failure<VendorPaymentDto>("Invalid payment method", "VALIDATION_ERROR");
             payment.PaymentMethod = command.PaymentMethod.Value;
+        }
 
         if (command.ReferenceNumber is not null)
+        {
+            if (command.ReferenceNumber.Length > 100)
+                return Result.Failure<VendorPaymentDto>("Reference number cannot exceed 100 characters", "VALIDATION_ERROR");
             payment.ReferenceNumber = command.ReferenceNumber.Trim();
+        }
 
         if (command.ClearBankAccountId)
             payment.BankAccountId = null;
@@ -191,12 +218,18 @@ public class VendorPaymentService(
             payment.BankAccountId = command.BankAccountId.Value;
 
         if (command.Memo is not null)
+        {
+            if (command.Memo.Length > 1000)
+                return Result.Failure<VendorPaymentDto>("Memo cannot exceed 1000 characters", "VALIDATION_ERROR");
             payment.Memo = command.Memo.Trim();
+        }
 
         if (command.Applications is not null)
         {
             if (command.Applications.Count == 0)
                 return Result.Failure<VendorPaymentDto>("At least one invoice application is required", "VALIDATION_ERROR");
+            if (command.Applications.Count > MaxApplications)
+                return Result.Failure<VendorPaymentDto>($"Cannot apply more than {MaxApplications} invoices per payment", "VALIDATION_ERROR");
 
             // Validate applications
             var invoiceIds = command.Applications.Select(a => a.VendorInvoiceId).Distinct().ToList();
@@ -209,6 +242,8 @@ public class VendorPaymentService(
             {
                 if (app.AppliedAmount <= 0)
                     return Result.Failure<VendorPaymentDto>("Applied amount must be positive", "VALIDATION_ERROR");
+                if (app.AppliedAmount > MaxMoney)
+                    return Result.Failure<VendorPaymentDto>("Applied amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
                 var invoice = invoices.FirstOrDefault(i => i.Id == app.VendorInvoiceId);
                 if (invoice is null)
@@ -223,6 +258,10 @@ public class VendorPaymentService(
                         $"Applied amount ({app.AppliedAmount:N2}) exceeds remaining balance ({remaining:N2}) for invoice {invoice.InvoiceNumber}",
                         "OVERPAYMENT");
             }
+
+            decimal totalAmount = command.Applications.Sum(a => a.AppliedAmount);
+            if (totalAmount > MaxMoney)
+                return Result.Failure<VendorPaymentDto>("Total payment amount cannot exceed 1,000,000,000", "VALIDATION_ERROR");
 
             // Replace applications
             db.Set<VendorPaymentApplication>().RemoveRange(payment.Applications);

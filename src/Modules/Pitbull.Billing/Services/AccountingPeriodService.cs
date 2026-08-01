@@ -55,6 +55,12 @@ public class AccountingPeriodService(PitbullDbContext db, ILogger<AccountingPeri
     {
         if (string.IsNullOrWhiteSpace(command.PeriodName))
             return Result.Failure<AccountingPeriodDto>("Period name is required", "VALIDATION_ERROR");
+        if (command.PeriodName.Trim().Length > 100)
+            return Result.Failure<AccountingPeriodDto>("Period name cannot exceed 100 characters", "VALIDATION_ERROR");
+        if (command.PeriodNumber is < 1 or > 13)
+            return Result.Failure<AccountingPeriodDto>("Period number must be between 1 and 13", "VALIDATION_ERROR");
+        if (command.FiscalYear is < 2000 or > 2100)
+            return Result.Failure<AccountingPeriodDto>("Fiscal year must be between 2000 and 2100", "VALIDATION_ERROR");
 
         if (command.EndDate < command.StartDate)
             return Result.Failure<AccountingPeriodDto>("End date must be on or after start date", "VALIDATION_ERROR");
@@ -157,6 +163,8 @@ public class AccountingPeriodService(PitbullDbContext db, ILogger<AccountingPeri
     {
         if (string.IsNullOrWhiteSpace(reason))
             return Result.Failure<AccountingPeriodDto>("Reason is required to reopen a period", "VALIDATION_ERROR");
+        if (reason.Trim().Length > 500)
+            return Result.Failure<AccountingPeriodDto>("Reopen reason cannot exceed 500 characters", "VALIDATION_ERROR");
 
         AccountingPeriod? period = await db.Set<AccountingPeriod>().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         if (period is null)

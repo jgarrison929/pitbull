@@ -42,10 +42,14 @@ public class BillingPeriodService(PitbullDbContext db, ILogger<BillingPeriodServ
     {
         if (string.IsNullOrWhiteSpace(cmd.Name))
             return Result.Failure<BillingPeriodDto>("Period name is required", "VALIDATION_ERROR");
+        if (cmd.Name.Trim().Length > 200)
+            return Result.Failure<BillingPeriodDto>("Period name cannot exceed 200 characters", "VALIDATION_ERROR");
         if (cmd.PeriodEnd <= cmd.PeriodStart)
             return Result.Failure<BillingPeriodDto>("Period end must be after period start", "VALIDATION_ERROR");
         if (cmd.BillingDeadlineDay < 1 || cmd.BillingDeadlineDay > 31)
             return Result.Failure<BillingPeriodDto>("Billing deadline day must be between 1 and 31", "VALIDATION_ERROR");
+        if (cmd.Notes is { Length: > 1000 })
+            return Result.Failure<BillingPeriodDto>("Notes cannot exceed 1000 characters", "VALIDATION_ERROR");
 
         bool overlap = await db.Set<BillingPeriod>().AnyAsync(
             p => p.PeriodStart <= cmd.PeriodEnd && p.PeriodEnd >= cmd.PeriodStart, ct);
@@ -58,7 +62,7 @@ public class BillingPeriodService(PitbullDbContext db, ILogger<BillingPeriodServ
             PeriodStart = cmd.PeriodStart,
             PeriodEnd = cmd.PeriodEnd,
             BillingDeadlineDay = cmd.BillingDeadlineDay,
-            Notes = cmd.Notes
+            Notes = cmd.Notes?.Trim()
         };
 
         db.Set<BillingPeriod>().Add(period);
@@ -75,6 +79,8 @@ public class BillingPeriodService(PitbullDbContext db, ILogger<BillingPeriodServ
         {
             if (string.IsNullOrWhiteSpace(cmd.Name))
                 return Result.Failure<BillingPeriodDto>("Period name cannot be empty", "VALIDATION_ERROR");
+            if (cmd.Name.Trim().Length > 200)
+                return Result.Failure<BillingPeriodDto>("Period name cannot exceed 200 characters", "VALIDATION_ERROR");
             period.Name = cmd.Name.Trim();
         }
         if (cmd.BillingDeadlineDay.HasValue)
@@ -84,7 +90,12 @@ public class BillingPeriodService(PitbullDbContext db, ILogger<BillingPeriodServ
             period.BillingDeadlineDay = cmd.BillingDeadlineDay.Value;
         }
         if (cmd.Status.HasValue) period.Status = cmd.Status.Value;
-        if (cmd.Notes is not null) period.Notes = cmd.Notes;
+        if (cmd.Notes is not null)
+        {
+            if (cmd.Notes.Length > 1000)
+                return Result.Failure<BillingPeriodDto>("Notes cannot exceed 1000 characters", "VALIDATION_ERROR");
+            period.Notes = cmd.Notes;
+        }
 
         await db.SaveChangesAsync(ct);
         return Result.Success(MapToDto(period));
