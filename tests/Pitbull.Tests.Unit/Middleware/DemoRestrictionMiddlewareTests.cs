@@ -150,6 +150,7 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/api/vendor-payments", "PUT")]
     [InlineData("/api/integrations/export", "POST")]
     [InlineData("/api/import/employees", "POST")]
+    [InlineData("/api/migration/projects", "POST")]
     public async Task DemoUser_CannotMutate_FinancialPaths(string path, string method)
     {
         var context = CreateDemoContext(path, method);

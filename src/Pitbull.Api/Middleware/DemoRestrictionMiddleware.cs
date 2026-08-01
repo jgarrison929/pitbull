@@ -60,6 +60,8 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/integrations/export",
         // Bulk import can mutate tenant ledgers and employee rosters (GET history still allowed).
         "/api/import",
+        // Migration accelerator can bulk-write ERP imports (GET project status still allowed).
+        "/api/migration",
     ];
 
     /// <summary>

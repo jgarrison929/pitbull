@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Pitbull.Documents.Services;
 
 namespace Pitbull.Tests.Unit.Services;
@@ -239,6 +239,36 @@ public class FileValidationServiceTests
         var result = _sut.ValidateFile("archive.backup.zip", "application/zip", 1024);
 
         result.IsSuccess.Should().BeTrue();
+    }
+
+    #endregion
+
+    #region Scriptable / path hardening
+
+    [Theory]
+    [InlineData("logo.svg", "image/svg+xml")]
+    [InlineData("page.html", "text/html")]
+    [InlineData("page.htm", "text/html")]
+    public void ValidateFile_ScriptableTypes_ReturnsFailure(string fileName, string contentType)
+    {
+        var result = _sut.ValidateFile(fileName, contentType, 1024);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_FILE");
+    }
+
+    [Fact]
+    public void ValidateFile_SvgContentType_EvenWithPngName_ReturnsFailure()
+    {
+        var result = _sut.ValidateFile("logo.png", "image/svg+xml", 1024);
+        result.IsSuccess.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ValidateFile_PathTraversalName_ReturnsFailure()
+    {
+        var result = _sut.ValidateFile("../secret.pdf", "application/pdf", 1024);
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("INVALID_FILE");
     }
 
     #endregion
