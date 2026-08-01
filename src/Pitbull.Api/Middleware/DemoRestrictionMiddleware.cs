@@ -68,6 +68,15 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         "/api/accounting-periods",
         "/api/tax-jurisdictions",
         "/api/purchase-orders",
+        // Extra AR/AP surfaces safe to write-block without breaking demo workflow smoke
+        // (smoke mutates paymentapplications, owner-contracts, billing-applications, pay-periods).
+        "/api/vendor-invoices",
+        "/api/billing-periods",
+        "/api/lien-waivers",
+        "/api/retention",
+        "/api/owner-change-orders",
+        "/api/customers",
+        "/api/vendors",
     ];
 
     /// <summary>

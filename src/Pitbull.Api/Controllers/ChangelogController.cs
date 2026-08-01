@@ -27,6 +27,14 @@ public class ChangelogController(IChangelogService changelogService) : Controlle
         [FromQuery] bool current = false,
         [FromQuery] int? limit = null)
     {
+        // Cap filter inputs on this anonymous endpoint (DoS / noise).
+        if (version is { Length: > 64 })
+            version = version[..64];
+        if (limit is < 1)
+            limit = null;
+        else if (limit is > 50)
+            limit = 50;
+
         var result = changelogService.GetChangelog(version, current, limit);
         return Ok(result);
     }

@@ -156,6 +156,13 @@ public class DemoRestrictionMiddlewareTests
     [InlineData("/api/accounting-periods", "POST")]
     [InlineData("/api/tax-jurisdictions", "POST")]
     [InlineData("/api/purchase-orders", "POST")]
+    [InlineData("/api/vendor-invoices", "POST")]
+    [InlineData("/api/billing-periods", "POST")]
+    [InlineData("/api/lien-waivers", "POST")]
+    [InlineData("/api/retention", "POST")]
+    [InlineData("/api/owner-change-orders", "POST")]
+    [InlineData("/api/customers", "POST")]
+    [InlineData("/api/vendors", "PUT")]
     public async Task DemoUser_CannotMutate_FinancialPaths(string path, string method)
     {
         var context = CreateDemoContext(path, method);

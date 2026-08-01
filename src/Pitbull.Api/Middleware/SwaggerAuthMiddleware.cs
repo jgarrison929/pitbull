@@ -24,8 +24,8 @@ public class SwaggerAuthMiddleware(RequestDelegate next, IConfiguration configur
             return;
         }
 
-        // Check if API docs are enabled at all
-        var enabled = configuration.GetValue("ApiDocs:Enabled", true);
+        // Check if API docs are enabled at all (default false — fail closed if config missing).
+        var enabled = configuration.GetValue("ApiDocs:Enabled", false);
         if (!enabled)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;

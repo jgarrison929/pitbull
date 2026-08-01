@@ -485,6 +485,10 @@ builder.Services.Configure<KestrelServerOptions>(options =>
     options.Limits.MaxRequestLineSize = 8 * 1024;
     options.Limits.MaxRequestHeadersTotalSize = 32 * 1024;
     options.Limits.MaxRequestHeaderCount = 100;
+    // Slowloris-style header trickle: fail clients that never finish the request line/headers.
+    options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(30);
+    // Bound idle keep-alive so abandoned connections release sockets sooner.
+    options.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(2);
 });
 
 // CAP event bus â€” PostgreSQL outbox + Redis Streams transport (in-memory fallback for local dev)
@@ -649,7 +653,9 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(corsOrigins.Length > 0 ? corsOrigins : new[] { "https://invalid.invalid" })
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .AllowCredentials());
+              .AllowCredentials()
+              // Cache preflight briefly so browsers re-validate origins frequently.
+              .SetPreflightMaxAge(TimeSpan.FromMinutes(10)));
 });
 
 // Rate limiting
