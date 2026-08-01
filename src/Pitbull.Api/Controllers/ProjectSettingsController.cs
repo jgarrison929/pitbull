@@ -68,8 +68,13 @@ public class ProjectSettingsController(
         if (string.IsNullOrWhiteSpace(request.DefaultNumberingFormat))
             return BadRequest(new { error = "DefaultNumberingFormat is required" });
 
+        const int maxNumberingFormatLength = 100;
+        var numberingFormat = request.DefaultNumberingFormat.Trim();
+        if (numberingFormat.Length > maxNumberingFormatLength)
+            return BadRequest(new { error = $"DefaultNumberingFormat cannot exceed {maxNumberingFormatLength} characters" });
+
         var settings = company.ProjectSettings;
-        settings.DefaultNumberingFormat = request.DefaultNumberingFormat;
+        settings.DefaultNumberingFormat = numberingFormat;
         settings.RequireBudgetBeforeActivation = request.RequireBudgetBeforeActivation;
         settings.AutoCreatePhases = request.AutoCreatePhases;
         settings.DefaultRetentionPercent = request.DefaultRetentionPercent;

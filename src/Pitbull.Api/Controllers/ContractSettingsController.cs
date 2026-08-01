@@ -69,12 +69,18 @@ public class ContractSettingsController(
         if (!validWorkflows.Contains(request.ApprovalWorkflowType))
             return BadRequest(new { error = $"ApprovalWorkflowType must be one of: {string.Join(", ", validWorkflows)}" });
 
+        const int maxAiaNameLength = 200;
+        if (request.AiaArchitectName is { Length: > maxAiaNameLength })
+            return BadRequest(new { error = $"AiaArchitectName cannot exceed {maxAiaNameLength} characters" });
+        if (request.AiaOwnerName is { Length: > maxAiaNameLength })
+            return BadRequest(new { error = $"AiaOwnerName cannot exceed {maxAiaNameLength} characters" });
+
         var settings = company.ContractSettings;
         settings.DefaultRetainagePercent = request.DefaultRetainagePercent;
         settings.RequireSignedSubcontractBeforePayApp = request.RequireSignedSubcontractBeforePayApp;
         settings.ApprovalWorkflowType = request.ApprovalWorkflowType;
-        settings.AiaArchitectName = request.AiaArchitectName;
-        settings.AiaOwnerName = request.AiaOwnerName;
+        settings.AiaArchitectName = request.AiaArchitectName?.Trim() ?? string.Empty;
+        settings.AiaOwnerName = request.AiaOwnerName?.Trim() ?? string.Empty;
 
         await db.SaveChangesAsync();
 

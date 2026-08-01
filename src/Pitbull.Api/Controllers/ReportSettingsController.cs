@@ -26,6 +26,12 @@ public class ReportSettingsController(
     private static readonly string[] ValidDayRules = ["regular", "overtime", "doubletime"];
     private static readonly string[] ValidHolidayRules = ["overtime", "doubletime"];
 
+    private const int MaxHolidaysJsonLength = 8000;
+    private const int MaxBrandingNameLength = 200;
+    private const int MaxLogoUrlLength = 2000;
+    private const decimal MaxDailyHours = 24m;
+    private const decimal MaxWeeklyHours = 168m;
+
     /// <summary>
     /// Get report settings for the active company
     /// </summary>
@@ -81,6 +87,24 @@ public class ReportSettingsController(
         if (!ValidHolidayRules.Contains(request.HolidayRule))
             return BadRequest(new { error = $"HolidayRule must be one of: {string.Join(", ", ValidHolidayRules)}" });
 
+        if (request.DailyOvertimeThreshold < 0 || request.DailyOvertimeThreshold > MaxDailyHours)
+            return BadRequest(new { error = $"DailyOvertimeThreshold must be between 0 and {MaxDailyHours}" });
+
+        if (request.DailyDoubletimeThreshold < 0 || request.DailyDoubletimeThreshold > MaxDailyHours)
+            return BadRequest(new { error = $"DailyDoubletimeThreshold must be between 0 and {MaxDailyHours}" });
+
+        if (request.WeeklyOvertimeThreshold < 0 || request.WeeklyOvertimeThreshold > MaxWeeklyHours)
+            return BadRequest(new { error = $"WeeklyOvertimeThreshold must be between 0 and {MaxWeeklyHours}" });
+
+        if (request.HolidaysJson is { Length: > MaxHolidaysJsonLength })
+            return BadRequest(new { error = $"HolidaysJson cannot exceed {MaxHolidaysJsonLength} characters" });
+
+        if (request.ReportBrandingName is { Length: > MaxBrandingNameLength })
+            return BadRequest(new { error = $"ReportBrandingName cannot exceed {MaxBrandingNameLength} characters" });
+
+        if (request.ReportLogoUrl is { Length: > MaxLogoUrlLength })
+            return BadRequest(new { error = $"ReportLogoUrl cannot exceed {MaxLogoUrlLength} characters" });
+
         var settings = company.ReportSettings;
         settings.OvertimeRules = request.OvertimeRules;
         settings.OvertimeEnabled = request.OvertimeEnabled;
@@ -90,9 +114,9 @@ public class ReportSettingsController(
         settings.SaturdayRule = request.SaturdayRule;
         settings.SundayRule = request.SundayRule;
         settings.HolidayRule = request.HolidayRule;
-        settings.HolidaysJson = request.HolidaysJson;
-        settings.ReportBrandingName = request.ReportBrandingName;
-        settings.ReportLogoUrl = request.ReportLogoUrl;
+        settings.HolidaysJson = string.IsNullOrWhiteSpace(request.HolidaysJson) ? "[]" : request.HolidaysJson;
+        settings.ReportBrandingName = request.ReportBrandingName?.Trim() ?? string.Empty;
+        settings.ReportLogoUrl = request.ReportLogoUrl?.Trim() ?? string.Empty;
         settings.FiscalYearStartMonth = request.FiscalYearStartMonth;
 
         await db.SaveChangesAsync();
