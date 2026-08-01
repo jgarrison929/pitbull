@@ -9,8 +9,12 @@ public class FileValidationService : IFileValidationService
     private static readonly HashSet<string> BlockedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".exe", ".bat", ".cmd", ".ps1", ".dll", ".com", ".scr", ".msi",
-        ".vbs", ".js", ".wsf", ".hta", ".cpl", ".inf", ".reg", ".pif",
-        ".sh", ".bash",
+        ".vbs", ".js", ".jse", ".wsf", ".wsh", ".ws", ".hta", ".cpl", ".inf", ".reg", ".pif",
+        ".sh", ".bash", ".py", ".rb", ".pl", ".cgi",
+        // Server-side / package installers
+        ".php", ".asp", ".aspx", ".jsp", ".jar", ".war", ".apk", ".app", ".dmg",
+        // Windows shortcut / disk image abuse
+        ".lnk", ".url", ".scf", ".iso", ".img",
         // Scriptable / active content when opened or served inline
         ".svg", ".html", ".htm", ".xhtml", ".shtml",
     };
@@ -78,6 +82,10 @@ public class FileValidationService : IFileValidationService
         // Check content type
         if (string.IsNullOrWhiteSpace(contentType))
             return Result.Failure("Content type is required", "INVALID_FILE");
+
+        // Bound free-text Content-Type before further processing (header abuse / log noise).
+        if (contentType.Length > 200)
+            return Result.Failure("Content type is invalid", "INVALID_FILE");
 
         var normalizedContentType = contentType.Trim().ToLowerInvariant();
         // Strip parameters: "image/png; charset=binary"

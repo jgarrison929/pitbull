@@ -90,6 +90,10 @@ public class JobsController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult GetStatus(string jobId)
     {
+        // Hangfire job IDs are short numeric/GUID-like strings; reject junk before storage lookup.
+        if (string.IsNullOrWhiteSpace(jobId) || jobId.Length > 100)
+            return NotFound(new { error = "Job not found", code = "NOT_FOUND" });
+
         using var connection = jobStorage.GetConnection();
 
         var jobData = connection.GetJobData(jobId);

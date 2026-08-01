@@ -45,6 +45,10 @@ public sealed class DemoRestrictionMiddleware(RequestDelegate next)
         // Seed mutates tenant data heavily (Dev-only controller, but block demo tenants too).
         "/api/seed",
         "/api/seeddata",
+        // Platform job enqueue/status (SystemAdmin policy) — keep out of shared demo.
+        "/api/jobs",
+        // Monitoring recon surface (Admin role); deny demo explorers entirely.
+        "/api/monitoring",
     ];
 
     /// <summary>
