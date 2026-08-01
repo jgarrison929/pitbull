@@ -129,6 +129,25 @@ public class SecurityHeadersMiddlewareTests
         Assert.True(headers.ContainsKey("Cross-Origin-Opener-Policy"));
         Assert.True(headers.ContainsKey("X-Permitted-Cross-Domain-Policies"));
         Assert.Equal("none", headers["X-Permitted-Cross-Domain-Policies"].ToString());
+        Assert.Equal("noopen", headers["X-Download-Options"].ToString());
+    }
+
+    [Fact]
+    public async Task Rejects_TRACE_with_405()
+    {
+        var nextCalled = false;
+        var middleware = new SecurityHeadersMiddleware(_ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        });
+
+        var context = new DefaultHttpContext();
+        context.Request.Method = "TRACE";
+        await middleware.InvokeAsync(context);
+
+        Assert.Equal(StatusCodes.Status405MethodNotAllowed, context.Response.StatusCode);
+        Assert.False(nextCalled);
     }
 
     [Fact]

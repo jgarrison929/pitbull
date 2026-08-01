@@ -129,7 +129,14 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
                 : BadRequest(new { error = result.Error, code = result.ErrorCode });
 
         var download = result.Value!;
-        return File(download.Content, download.ContentType, download.FileName);
+        // Path.GetFileName strips any residual path segments; quotes break Content-Disposition.
+        var safeFileName = Path.GetFileName(download.FileName)
+            .Replace("\"", string.Empty, StringComparison.Ordinal)
+            .Replace("\r", string.Empty, StringComparison.Ordinal)
+            .Replace("\n", string.Empty, StringComparison.Ordinal);
+        if (string.IsNullOrWhiteSpace(safeFileName))
+            safeFileName = "download";
+        return File(download.Content, download.ContentType, safeFileName);
     }
 
     [HttpGet]
@@ -150,7 +157,8 @@ public class FilesController(IFileStorageService fileStorageService, IFileValida
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPresignedUrl(Guid id, [FromQuery] int? expiresInMinutes = null)
     {
-        var minutes = Math.Clamp(expiresInMinutes ?? 60, 1, 1440);
+        // Cap at 60 minutes — long-lived presigned URLs widen the leak window if a URL is shared.
+        var minutes = Math.Clamp(expiresInMinutes ?? 15, 1, 60);
         var expiresIn = TimeSpan.FromMinutes(minutes);
         var result = await fileStorageService.GetPresignedUrlAsync(id, expiresIn);
         if (!result.IsSuccess)

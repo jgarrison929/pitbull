@@ -790,3 +790,25 @@ Findings discovered (unique): 256
 - Major Dependabot PRs need human judgment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 
+
+## Hourly appendix — 2026-08-01 01:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080101`
+
+### CI status (step 1)
+- **main green** — #484 CI + Push success; no new main failures.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **http:** Reject TRACE/TRACK with 405; `X-Download-Options: noopen`.
+- **files:** Sanitize download filename for Content-Disposition; presigned URL max **60 min** (default 15).
+- **tokens:** Plausible-length pre-check for invitation + vendor portal tokens.
+- **rate-limit:** Diagnostics anonymous POST uses `register` limiter; logout uses `auth`.
+- **tests:** TRACE 405 + download-options header.
+
+### Residual high items
+- Major Dependabot PRs need human judgment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+
