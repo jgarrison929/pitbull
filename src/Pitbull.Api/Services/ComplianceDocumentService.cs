@@ -83,18 +83,19 @@ public class ComplianceDocumentService(PitbullDbContext db) : IComplianceDocumen
         ValidateEntityType(request.EntityType);
         ValidateDocumentType(request.DocumentType);
         ValidateStatus(request.Status);
+        ValidateFieldLengths(request.DocumentNumber, request.FileUrl, request.Notes);
 
         var document = new ComplianceDocument
         {
-            EntityType = request.EntityType,
+            EntityType = request.EntityType.Trim(),
             EntityId = request.EntityId,
-            DocumentType = request.DocumentType,
-            DocumentNumber = request.DocumentNumber,
+            DocumentType = request.DocumentType.Trim(),
+            DocumentNumber = request.DocumentNumber.Trim(),
             IssuedDate = request.IssuedDate,
             ExpirationDate = request.ExpirationDate,
             Status = ResolveStatus(request.Status, request.ExpirationDate),
-            FileUrl = request.FileUrl,
-            Notes = request.Notes
+            FileUrl = request.FileUrl?.Trim(),
+            Notes = request.Notes?.Trim()
         };
 
         db.Set<ComplianceDocument>().Add(document);
@@ -134,8 +135,15 @@ public class ComplianceDocumentService(PitbullDbContext db) : IComplianceDocumen
 
         if (!string.IsNullOrWhiteSpace(request.DocumentNumber))
         {
-            document.DocumentNumber = request.DocumentNumber;
+            if (request.DocumentNumber.Trim().Length > 100)
+                throw new ArgumentException("Document number cannot exceed 100 characters");
+            document.DocumentNumber = request.DocumentNumber.Trim();
         }
+
+        if (request.FileUrl is { Length: > 500 })
+            throw new ArgumentException("File URL cannot exceed 500 characters");
+        if (request.Notes is { Length: > 2000 })
+            throw new ArgumentException("Notes cannot exceed 2000 characters");
 
         if (request.IssuedDate.HasValue)
             document.IssuedDate = request.IssuedDate;
@@ -157,10 +165,9 @@ public class ComplianceDocumentService(PitbullDbContext db) : IComplianceDocumen
         }
 
         if (request.FileUrl is not null)
-            document.FileUrl = request.FileUrl;
-
+            document.FileUrl = string.IsNullOrWhiteSpace(request.FileUrl) ? null : request.FileUrl.Trim();
         if (request.Notes is not null)
-            document.Notes = request.Notes;
+            document.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
 
         await db.SaveChangesAsync(cancellationToken);
 
@@ -202,6 +209,7 @@ public class ComplianceDocumentService(PitbullDbContext db) : IComplianceDocumen
         int days,
         CancellationToken cancellationToken = default)
     {
+        days = Math.Clamp(days, 1, 3650);
         var today = DateTime.UtcNow.Date;
         var threshold = today.AddDays(days);
 
@@ -381,6 +389,18 @@ public class ComplianceDocumentService(PitbullDbContext db) : IComplianceDocumen
 
         if (!ComplianceDocumentConstants.ValidStatuses.Contains(status))
             throw new ArgumentException($"Invalid status '{status}'.", nameof(status));
+    }
+
+    private static void ValidateFieldLengths(string documentNumber, string? fileUrl, string? notes)
+    {
+        if (string.IsNullOrWhiteSpace(documentNumber))
+            throw new ArgumentException("Document number is required.", nameof(documentNumber));
+        if (documentNumber.Trim().Length > 100)
+            throw new ArgumentException("Document number cannot exceed 100 characters.", nameof(documentNumber));
+        if (fileUrl is { Length: > 500 })
+            throw new ArgumentException("File URL cannot exceed 500 characters.", nameof(fileUrl));
+        if (notes is { Length: > 2000 })
+            throw new ArgumentException("Notes cannot exceed 2000 characters.", nameof(notes));
     }
 
     private async Task<IReadOnlyDictionary<Guid, string>> ResolveEntityNamesAsync(

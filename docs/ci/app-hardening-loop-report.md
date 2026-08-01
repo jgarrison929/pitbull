@@ -1099,7 +1099,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 14:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080114`
+**Branch:** `chore/app-hardening-hourly-2026080114` → **merged #499**
 
 ### CI status (step 1)
 - **main green** after #498 (`c2749a6c`) — CI + Push success. No failures to fix.
@@ -1115,6 +1115,29 @@ Findings discovered (unique): 256
 - **tax jurisdictions:** name/code/geo lengths; rates 0–100%; category rate count max 50.
 - **bank accounts:** field lengths (name/bank/last4/routing); opening balance |max| 1e9; search cap.
 - Unit tests for retention + chart bounds/page clamp.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 15:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080115`
+
+### CI status (step 1)
+- **main green** after #499 (`6682e18b`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **accounting periods:** name max 100; period 1–13; fiscal year 2000–2100; reopen reason max 500.
+- **billing periods:** name max 200; notes max 1000.
+- **vendor payments:** applied/total amount max 1e9; apps max 500; ref/memo EF lengths; search cap.
+- **compliance docs:** document number/file URL/notes EF bounds; expiring-days clamp 1–3650.
+- **projects create:** phase name/cost code/budget bounds; phase/team member count caps.
+- Unit tests for accounting/billing period bounds.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.
