@@ -19,8 +19,16 @@ public class SecretVaultController(ISecretVaultService secretVaultService) : Con
     public async Task<IActionResult> List([FromQuery] string? category = null)
     {
         SecretCategory? filter = null;
-        if (!string.IsNullOrWhiteSpace(category) && Enum.TryParse<SecretCategory>(category, true, out var parsed))
-            filter = parsed;
+        // Bound free-text filter; invalid/overlong → no match (empty list path via null filter only when empty).
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            if (category.Length > 50)
+                return BadRequest(new { error = "Category filter is invalid", code = "VALIDATION_ERROR" });
+            if (Enum.TryParse<SecretCategory>(category, true, out var parsed))
+                filter = parsed;
+            else
+                return BadRequest(new { error = "Invalid category", code = "VALIDATION_ERROR" });
+        }
 
         var result = await secretVaultService.ListAsync(filter);
         return Ok(result.Value);

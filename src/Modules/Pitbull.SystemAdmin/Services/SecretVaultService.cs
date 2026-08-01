@@ -46,19 +46,30 @@ public class SecretVaultService(PitbullDbContext db) : ISecretVaultService
         if (string.IsNullOrWhiteSpace(command.Value))
             return Result.Failure<SecretVaultDto>("Secret value is required", "VALIDATION_ERROR");
 
+        // Bound free-text / secret payload sizes before encrypt/persist.
+        var key = command.Key.Trim();
+        if (key.Length > 200)
+            return Result.Failure<SecretVaultDto>("Secret key cannot exceed 200 characters", "VALIDATION_ERROR");
+        if (command.Value.Length > 32_768)
+            return Result.Failure<SecretVaultDto>("Secret value cannot exceed 32 KB", "VALIDATION_ERROR");
+        if (command.DisplayName is { Length: > 200 })
+            return Result.Failure<SecretVaultDto>("Display name cannot exceed 200 characters", "VALIDATION_ERROR");
+        if (command.Description is { Length: > 1000 })
+            return Result.Failure<SecretVaultDto>("Description cannot exceed 1000 characters", "VALIDATION_ERROR");
+
         if (!Enum.TryParse<SecretCategory>(command.Category, true, out var category))
             return Result.Failure<SecretVaultDto>("Invalid category", "VALIDATION_ERROR");
 
         var exists = await db.Set<SecretVault>()
-            .AnyAsync(s => s.Key == command.Key.Trim() && !s.IsDeleted, ct);
+            .AnyAsync(s => s.Key == key && !s.IsDeleted, ct);
 
         if (exists)
             return Result.Failure<SecretVaultDto>("A secret with this key already exists", "DUPLICATE_KEY");
 
         var entity = new SecretVault
         {
-            Key = command.Key.Trim(),
-            DisplayName = command.DisplayName?.Trim() ?? command.Key.Trim(),
+            Key = key,
+            DisplayName = command.DisplayName?.Trim() ?? key,
             EncryptedValue = command.Value,
             KeyFingerprint = ComputeFingerprint(command.Value),
             Category = category,
@@ -81,10 +92,21 @@ public class SecretVaultService(PitbullDbContext db) : ISecretVaultService
             return Result.Failure<SecretVaultDto>("Secret not found", "NOT_FOUND");
 
         if (command.DisplayName is not null)
+        {
+            if (command.DisplayName.Length > 200)
+                return Result.Failure<SecretVaultDto>("Display name cannot exceed 200 characters", "VALIDATION_ERROR");
             entity.DisplayName = command.DisplayName.Trim();
+        }
 
         if (command.Description is not null)
+        {
+            if (command.Description.Length > 1000)
+                return Result.Failure<SecretVaultDto>("Description cannot exceed 1000 characters", "VALIDATION_ERROR");
             entity.Description = command.Description;
+        }
+
+        if (command.Value is { Length: > 32_768 })
+            return Result.Failure<SecretVaultDto>("Secret value cannot exceed 32 KB", "VALIDATION_ERROR");
 
         if (command.Category is not null)
         {
