@@ -39,11 +39,17 @@ public class AdminUsersController(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100)
     {
+        page = page < 1 ? 1 : page;
+        pageSize = pageSize < 1 ? 25 : Math.Min(pageSize, 100);
+
         var query = db.Users.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var searchLower = search.ToLower();
+            var searchLower = search.Trim();
+            if (searchLower.Length > 200)
+                searchLower = searchLower[..200];
+            searchLower = searchLower.ToLower();
             query = query.Where(u =>
                 u.Email!.ToLower().Contains(searchLower) ||
                 u.FirstName!.ToLower().Contains(searchLower) ||

@@ -1123,7 +1123,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 15:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080115`
+**Branch:** `chore/app-hardening-hourly-2026080115` → **merged #500**
 
 ### CI status (step 1)
 - **main green** after #499 (`6682e18b`) — CI + Push success. No failures to fix.
@@ -1138,6 +1138,28 @@ Findings discovered (unique): 256
 - **compliance docs:** document number/file URL/notes EF bounds; expiring-days clamp 1–3650.
 - **projects create:** phase name/cost code/budget bounds; phase/team member count caps.
 - Unit tests for accounting/billing period bounds.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 16:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080116`
+
+### CI status (step 1)
+- **main green** after #500 (`5c2bc389`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **tenant settings:** EF field lengths on upsert; fiscal month 1–12; currency normalize.
+- **admin users list:** pageSize clamp 100; search cap 200.
+- **data entry AI:** parse text max 4000; entity type max 100.
+- **workflow definitions:** name/description/status/entity lengths; steps max 50; step name/role lengths; amount threshold max 1e9; priority 0–1000.
+- Unit tests for tenant settings bounds.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

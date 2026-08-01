@@ -14,11 +14,16 @@ namespace Pitbull.Api.Controllers;
 [Tags("AI")]
 public class DataEntryController(IDataEntryService service, ILogger<DataEntryController> logger) : ControllerBase
 {
+    private const int MaxParseTextLength = 4000;
+    private const int MaxEntityTypeLength = 100;
+
     [HttpPost("parse")]
     public async Task<IActionResult> Parse([FromBody] DataEntryParseRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Text))
             return BadRequest(new { error = "Text is required." });
+        if (request.Text.Length > MaxParseTextLength)
+            return BadRequest(new { error = $"Text cannot exceed {MaxParseTextLength} characters." });
 
         var result = await service.ParseAsync(request.Text, cancellationToken);
         return Ok(result);
@@ -29,6 +34,8 @@ public class DataEntryController(IDataEntryService service, ILogger<DataEntryCon
     {
         if (string.IsNullOrWhiteSpace(request.EntityType))
             return BadRequest(new { error = "EntityType is required." });
+        if (request.EntityType.Length > MaxEntityTypeLength)
+            return BadRequest(new { error = $"EntityType cannot exceed {MaxEntityTypeLength} characters." });
 
         try
         {
