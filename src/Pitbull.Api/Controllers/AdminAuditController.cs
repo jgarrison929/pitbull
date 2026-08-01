@@ -40,6 +40,10 @@ public class AdminAuditController(PitbullDbContext db) : ControllerBase
         [FromQuery] string sortBy = "timestamp",
         [FromQuery] string sortDir = "desc")
     {
+        const int maxSearchLength = 200;
+        const int maxResourceTypeLength = 100;
+        const int maxSortByLength = 50;
+
         var query = db.Set<AuditLog>().AsNoTracking().AsQueryable();
 
         if (userId.HasValue)
@@ -47,39 +51,57 @@ public class AdminAuditController(PitbullDbContext db) : ControllerBase
         if (!string.IsNullOrEmpty(action) && Enum.TryParse<AuditAction>(action, true, out var parsedAction))
             query = query.Where(a => a.Action == parsedAction);
         if (!string.IsNullOrEmpty(resourceType))
-            query = query.Where(a => a.ResourceType == resourceType);
+        {
+            var rt = resourceType.Length > maxResourceTypeLength
+                ? resourceType[..maxResourceTypeLength]
+                : resourceType;
+            query = query.Where(a => a.ResourceType == rt);
+        }
         if (from.HasValue)
             query = query.Where(a => a.Timestamp >= from.Value.Date);
         if (to.HasValue)
             query = query.Where(a => a.Timestamp < to.Value.Date.AddDays(1));
+        // Cap unbounded historical scans when both ends provided with multi-year span.
+        if (from.HasValue && to.HasValue && (to.Value.Date - from.Value.Date).TotalDays > 366)
+            query = query.Where(a => a.Timestamp < from.Value.Date.AddDays(366));
         if (success.HasValue)
             query = query.Where(a => a.Success == success);
         if (!string.IsNullOrEmpty(search))
+        {
+            var term = search.Length > maxSearchLength ? search[..maxSearchLength] : search;
             query = query.Where(a =>
-                (a.Description != null && a.Description.Contains(search)) ||
-                (a.UserEmail != null && a.UserEmail.Contains(search)) ||
-                (a.UserName != null && a.UserName.Contains(search)) ||
-                (a.ResourceId != null && a.ResourceId.Contains(search)));
+                (a.Description != null && a.Description.Contains(term)) ||
+                (a.UserEmail != null && a.UserEmail.Contains(term)) ||
+                (a.UserName != null && a.UserName.Contains(term)) ||
+                (a.ResourceId != null && a.ResourceId.Contains(term)));
+        }
 
         var totalCount = await query.CountAsync();
 
-        // Sorting
-        query = sortBy.ToLowerInvariant() switch
+        // Sorting — only allowlisted keys; oversized sortBy falls through to timestamp.
+        var sortKey = string.IsNullOrEmpty(sortBy)
+            ? "timestamp"
+            : sortBy.Length > maxSortByLength
+                ? sortBy[..maxSortByLength]
+                : sortBy;
+        var ascending = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        query = sortKey.ToLowerInvariant() switch
         {
-            "user" => sortDir == "asc"
+            "user" => ascending
                 ? query.OrderBy(a => a.UserName)
                 : query.OrderByDescending(a => a.UserName),
-            "action" => sortDir == "asc"
+            "action" => ascending
                 ? query.OrderBy(a => a.Action)
                 : query.OrderByDescending(a => a.Action),
-            "resourcetype" => sortDir == "asc"
+            "resourcetype" => ascending
                 ? query.OrderBy(a => a.ResourceType)
                 : query.OrderByDescending(a => a.ResourceType),
-            _ => sortDir == "asc"
+            _ => ascending
                 ? query.OrderBy(a => a.Timestamp)
                 : query.OrderByDescending(a => a.Timestamp),
         };
 
+        page = Math.Clamp(page, 1, 10_000);
         pageSize = Math.Clamp(pageSize, 1, 100);
         var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
