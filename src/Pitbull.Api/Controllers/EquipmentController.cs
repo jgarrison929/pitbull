@@ -112,6 +112,17 @@ public class EquipmentController(IEquipmentService equipmentService) : Controlle
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateEquipmentRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { error = "Code and Name are required", code = "VALIDATION_ERROR" });
+        if (request.Code.Length > 50 || request.Name.Length > 200)
+            return BadRequest(new { error = "Code max 50 / Name max 200 characters", code = "VALIDATION_ERROR" });
+        if (request.Description is { Length: > 2000 })
+            return BadRequest(new { error = "Description cannot exceed 2000 characters", code = "VALIDATION_ERROR" });
+        if (request.SerialNumber is { Length: > 100 } || request.LicensePlate is { Length: > 50 })
+            return BadRequest(new { error = "SerialNumber max 100 / LicensePlate max 50 characters", code = "VALIDATION_ERROR" });
+        if (request.HourlyRate is < 0 or > 1_000_000m || request.BillingRate is < 0 or > 1_000_000m)
+            return BadRequest(new { error = "Rates must be between 0 and 1,000,000", code = "VALIDATION_ERROR" });
+
         var command = new CreateEquipmentCommand(
             Code: request.Code,
             Name: request.Name,

@@ -24,6 +24,9 @@ public class AdminApiKeysController(IApiKeyService apiKeyService) : ControllerBa
     [ProducesResponseType(typeof(ApiKeyListResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int pageSize = 50)
     {
+        // Defense in depth (global ClampPageSizeFilter also applies).
+        page = Math.Clamp(page, 1, 10_000);
+        pageSize = Math.Clamp(pageSize, 1, 100);
         var result = await apiKeyService.ListKeysAsync(page, pageSize);
         return Ok(result.Value);
     }

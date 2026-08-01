@@ -45,6 +45,13 @@ public class ExceptionMiddleware(
                     var safePath = RequestResponseLoggingMiddleware.SanitizeRequestPathForLogging(context.Request.Path.Value);
                     var safeQuery = RequestResponseLoggingMiddleware.SanitizeQueryString(context.Request.QueryString.ToString());
 
+                    // Bound diagnostic payload sizes (exception ToString can be multi-MB with large Data).
+                    var exceptionText = ex.ToString();
+                    var message = ex.Message.Length > 4000 ? ex.Message[..4000] : ex.Message;
+                    var stack = exceptionText.Length > 16_000 ? exceptionText[..16_000] : exceptionText;
+                    var userAgent = context.Request.Headers.UserAgent.ToString();
+                    if (userAgent.Length > 500) userAgent = userAgent[..500];
+
                     await diagnosticsService.CreateAsync(new CreateDiagnosticErrorRequest
                     {
                         Source = "backend",
@@ -53,15 +60,15 @@ public class ExceptionMiddleware(
                         RequestMethod = context.Request.Method,
                         RequestPath = safePath,
                         QueryString = safeQuery,
-                        Message = ex.Message,
+                        Message = message,
                         ExceptionType = ex.GetType().FullName,
-                        StackTrace = ex.ToString(),
+                        StackTrace = stack,
                         TenantId = tenantId,
                         UserId = context.User?.FindFirst("sub")?.Value,
                         UserEmail = context.User?.FindFirst("email")?.Value,
                         CorrelationId = correlationId,
                         TraceId = traceId,
-                        UserAgent = context.Request.Headers.UserAgent.ToString(),
+                        UserAgent = userAgent,
                         IpAddress = context.Connection.RemoteIpAddress?.ToString()
                     });
                 }

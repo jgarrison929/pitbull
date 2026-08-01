@@ -29,6 +29,17 @@ public class ApiKeyService(PitbullDbContext db) : IApiKeyService
         if (string.IsNullOrWhiteSpace(command.Name))
             return Result.Failure<ApiKeyCreatedDto>("API key name is required", "VALIDATION_ERROR");
 
+        var name = command.Name.Trim();
+        if (name.Length > 200)
+            return Result.Failure<ApiKeyCreatedDto>("API key name cannot exceed 200 characters", "VALIDATION_ERROR");
+        if (command.Description is { Length: > 1000 })
+            return Result.Failure<ApiKeyCreatedDto>("Description cannot exceed 1000 characters", "VALIDATION_ERROR");
+        if (command.Scopes is { Length: > 500 })
+            return Result.Failure<ApiKeyCreatedDto>("Scopes cannot exceed 500 characters", "VALIDATION_ERROR");
+        // Cap lifetime so never-expiring keys are intentional (null) and not multi-decade typos.
+        if (command.ExpiresInDays is < 1 or > 3650)
+            return Result.Failure<ApiKeyCreatedDto>("ExpiresInDays must be between 1 and 3650, or omitted", "VALIDATION_ERROR");
+
         // Generate a secure random key
         var plainTextKey = GenerateApiKey();
         var keyHash = HashKey(plainTextKey);
@@ -36,7 +47,7 @@ public class ApiKeyService(PitbullDbContext db) : IApiKeyService
 
         var apiKey = new ApiKey
         {
-            Name = command.Name.Trim(),
+            Name = name,
             KeyHash = keyHash,
             KeyPrefix = keyPrefix,
             Description = command.Description,

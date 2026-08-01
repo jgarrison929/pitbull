@@ -260,14 +260,22 @@ public class AdminCompaniesController(
         if (string.IsNullOrWhiteSpace(request.Code) || string.IsNullOrWhiteSpace(request.Name))
             return BadRequest(new { error = "Code and Name are required" });
 
+        if (ValidateCompanyFields(
+                request.Code, request.Name, request.ShortName, request.TaxId, request.Address,
+                request.City, request.State, request.ZipCode, request.Phone, request.Website,
+                request.Email, request.Currency, request.Timezone, request.DateFormat,
+                request.FiscalYearStartMonth, logoUrl: null, primaryColor: null) is { } createErr)
+            return BadRequest(new { error = createErr, code = "VALIDATION_ERROR" });
+
         // Check for duplicate code within tenant
-        var exists = await db.Companies.AnyAsync(c => c.Code == request.Code);
+        var code = request.Code.Trim();
+        var exists = await db.Companies.AnyAsync(c => c.Code == code);
         if (exists)
-            return Conflict(new { error = $"A company with code '{request.Code}' already exists" });
+            return Conflict(new { error = $"A company with code '{code}' already exists" });
 
         var company = new Company
         {
-            Code = request.Code.Trim(),
+            Code = code,
             Name = request.Name.Trim(),
             ShortName = request.ShortName?.Trim(),
             TaxId = request.TaxId?.Trim(),
@@ -311,6 +319,13 @@ public class AdminCompaniesController(
         var company = await db.Companies.FindAsync(id);
         if (company is null)
             return NotFound(new { error = "Company not found" });
+
+        if (ValidateCompanyFields(
+                request.Code, request.Name, request.ShortName, request.TaxId, request.Address,
+                request.City, request.State, request.ZipCode, request.Phone, request.Website,
+                request.Email, request.Currency, request.Timezone, request.DateFormat,
+                request.FiscalYearStartMonth, request.LogoUrl, request.PrimaryColor) is { } updateErr)
+            return BadRequest(new { error = updateErr, code = "VALIDATION_ERROR" });
 
         if (!string.IsNullOrWhiteSpace(request.Code)) company.Code = request.Code.Trim();
         if (!string.IsNullOrWhiteSpace(request.Name)) company.Name = request.Name.Trim();
@@ -434,6 +449,48 @@ public class AdminCompaniesController(
         await db.SaveChangesAsync();
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Bound free-text company fields (create/update). Null optional fields skip max-length checks.
+    /// </summary>
+    internal static string? ValidateCompanyFields(
+        string? code,
+        string? name,
+        string? shortName,
+        string? taxId,
+        string? address,
+        string? city,
+        string? state,
+        string? zipCode,
+        string? phone,
+        string? website,
+        string? email,
+        string? currency,
+        string? timezone,
+        string? dateFormat,
+        int? fiscalYearStartMonth,
+        string? logoUrl,
+        string? primaryColor)
+    {
+        if (code is { Length: > 50 }) return "Code cannot exceed 50 characters";
+        if (name is { Length: > 200 }) return "Name cannot exceed 200 characters";
+        if (shortName is { Length: > 100 }) return "ShortName cannot exceed 100 characters";
+        if (taxId is { Length: > 50 }) return "TaxId cannot exceed 50 characters";
+        if (address is { Length: > 500 }) return "Address cannot exceed 500 characters";
+        if (city is { Length: > 100 }) return "City cannot exceed 100 characters";
+        if (state is { Length: > 50 }) return "State cannot exceed 50 characters";
+        if (zipCode is { Length: > 20 }) return "ZipCode cannot exceed 20 characters";
+        if (phone is { Length: > 50 }) return "Phone cannot exceed 50 characters";
+        if (website is { Length: > 200 }) return "Website cannot exceed 200 characters";
+        if (email is { Length: > 254 }) return "Email cannot exceed 254 characters";
+        if (currency is { Length: > 10 }) return "Currency cannot exceed 10 characters";
+        if (timezone is { Length: > 100 }) return "Timezone cannot exceed 100 characters";
+        if (dateFormat is { Length: > 50 }) return "DateFormat cannot exceed 50 characters";
+        if (logoUrl is { Length: > 2000 }) return "LogoUrl cannot exceed 2000 characters";
+        if (primaryColor is { Length: > 20 }) return "PrimaryColor cannot exceed 20 characters";
+        if (fiscalYearStartMonth is < 1 or > 12) return "FiscalYearStartMonth must be 1-12";
+        return null;
     }
 }
 
