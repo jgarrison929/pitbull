@@ -18,6 +18,9 @@ namespace Pitbull.RFIs.Services;
 
 public class RfiService : IRfiService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+
     private readonly PitbullDbContext _db;
     private readonly IValidator<CreateRfiCommand> _createValidator;
     private readonly IValidator<UpdateRfiCommand> _updateValidator;
@@ -64,6 +67,9 @@ public class RfiService : IRfiService
         if (!await _projectAccessService.HasProjectAccessAsync(query.ProjectId, GetCurrentUser(), cancellationToken))
             return Result.Failure<PagedResult<RfiDto>>("Not authorized to access this project", "FORBIDDEN");
 
+        var page = query.Page < 1 ? 1 : query.Page;
+        var pageSize = query.PageSize < 1 ? 20 : Math.Min(query.PageSize, MaxPageSize);
+
         var dbQuery = _db.Set<Rfi>()
             .Where(r => !r.IsDeleted)
             .AsNoTracking();
@@ -78,9 +84,12 @@ public class RfiService : IRfiService
         // Search functionality
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var searchTerm = query.Search.ToLower();
+            var searchTerm = query.Search.Trim();
+            if (searchTerm.Length > MaxSearchLength)
+                searchTerm = searchTerm[..MaxSearchLength];
+            searchTerm = searchTerm.ToLower();
             dbQuery = dbQuery.Where(r =>
-                r.Subject.ToLower().Contains(searchTerm.ToLower()) ||
+                r.Subject.ToLower().Contains(searchTerm) ||
                 r.Question.ToLower().Contains(searchTerm));
         }
 
@@ -88,12 +97,12 @@ public class RfiService : IRfiService
 
         var rfis = await dbQuery
             .OrderByDescending(r => r.CreatedAt)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToArrayAsync(cancellationToken);
 
         var dtos = rfis.Select(MapToDto).ToArray();
-        var result = new PagedResult<RfiDto>(dtos, totalCount, query.Page, query.PageSize);
+        var result = new PagedResult<RfiDto>(dtos, totalCount, page, pageSize);
         return Result.Success(result);
     }
 

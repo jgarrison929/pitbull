@@ -117,6 +117,30 @@ public sealed class CreateChangeOrderValidatorTests
     }
 
     [Fact]
+    public void Validate_WithAmountOverMax_ShouldHaveError()
+    {
+        var command = CreateValidCommand(amount: 1_000_000_000.01m);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.Amount);
+    }
+
+    [Fact]
+    public void Validate_WithNegativeAmountOverMax_ShouldHaveError()
+    {
+        var command = CreateValidCommand(amount: -1_000_000_000.01m);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.Amount);
+    }
+
+    [Fact]
+    public void Validate_WithDaysExtensionOverMax_ShouldHaveError()
+    {
+        var command = CreateValidCommand(daysExtension: 3651);
+        var result = _validator.TestValidate(command);
+        result.ShouldHaveValidationErrorFor(x => x.DaysExtension);
+    }
+
+    [Fact]
     public void Validate_WithNegativeDaysExtension_ShouldHaveError()
     {
         var command = CreateValidCommand(daysExtension: -5);

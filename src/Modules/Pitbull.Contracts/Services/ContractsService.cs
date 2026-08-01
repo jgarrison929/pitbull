@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Pitbull.Contracts.Domain;
 using Pitbull.Contracts.Features.CreateChangeOrder;
@@ -23,8 +24,60 @@ namespace Pitbull.Contracts.Services;
 public class ContractsService(
     PitbullDbContext db,
     IWorkflowTransitionService? workflowTransitions = null,
-    IWorkflowApprovalService? workflowApprovals = null) : IContractsService
+    IWorkflowApprovalService? workflowApprovals = null,
+    IValidator<CreateSubcontractCommand>? createSubcontractValidator = null,
+    IValidator<UpdateSubcontractCommand>? updateSubcontractValidator = null,
+    IValidator<CreateChangeOrderCommand>? createChangeOrderValidator = null,
+    IValidator<UpdateChangeOrderCommand>? updateChangeOrderValidator = null,
+    IValidator<CreateOwnerChangeOrderCommand>? createOwnerChangeOrderValidator = null,
+    IValidator<UpdateOwnerChangeOrderCommand>? updateOwnerChangeOrderValidator = null,
+    IValidator<CreatePaymentApplicationCommand>? createPaymentApplicationValidator = null,
+    IValidator<UpdatePaymentApplicationCommand>? updatePaymentApplicationValidator = null) : IContractsService
 {
+    private const int MaxPageSize = 100;
+    private const int MaxSearchLength = 200;
+
+    private readonly IValidator<CreateSubcontractCommand> _createSubcontractValidator =
+        createSubcontractValidator ?? new CreateSubcontractValidator();
+    private readonly IValidator<UpdateSubcontractCommand> _updateSubcontractValidator =
+        updateSubcontractValidator ?? new UpdateSubcontractValidator();
+    private readonly IValidator<CreateChangeOrderCommand> _createChangeOrderValidator =
+        createChangeOrderValidator ?? new CreateChangeOrderValidator();
+    private readonly IValidator<UpdateChangeOrderCommand> _updateChangeOrderValidator =
+        updateChangeOrderValidator ?? new UpdateChangeOrderValidator();
+    private readonly IValidator<CreateOwnerChangeOrderCommand> _createOwnerChangeOrderValidator =
+        createOwnerChangeOrderValidator ?? new CreateOwnerChangeOrderValidator();
+    private readonly IValidator<UpdateOwnerChangeOrderCommand> _updateOwnerChangeOrderValidator =
+        updateOwnerChangeOrderValidator ?? new UpdateOwnerChangeOrderValidator();
+    private readonly IValidator<CreatePaymentApplicationCommand> _createPaymentApplicationValidator =
+        createPaymentApplicationValidator ?? new CreatePaymentApplicationValidator();
+    private readonly IValidator<UpdatePaymentApplicationCommand> _updatePaymentApplicationValidator =
+        updatePaymentApplicationValidator ?? new UpdatePaymentApplicationValidator();
+
+    private static (int page, int pageSize) ClampPage(int page, int pageSize)
+    {
+        var p = page < 1 ? 1 : page;
+        var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
+        return (p, ps);
+    }
+
+    private static string? ClampSearch(string? search)
+    {
+        if (string.IsNullOrWhiteSpace(search))
+            return null;
+        var s = search.Trim();
+        return s.Length > MaxSearchLength ? s[..MaxSearchLength] : s;
+    }
+
+    private static async Task<Result?> ValidationFailureAsync<T>(IValidator<T> validator, T command, CancellationToken cancellationToken)
+    {
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (validationResult.IsValid)
+            return null;
+        var errors = string.Join(", ", validationResult.Errors.Select(e => e.ErrorMessage));
+        return Result.Failure(errors, "VALIDATION_ERROR");
+    }
+
     // Subcontracts
     public async Task<Result<SubcontractDto>> GetSubcontractAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -40,6 +93,7 @@ public class ContractsService(
 
     public async Task<Result<PagedResult<SubcontractDto>>> ListSubcontractsAsync(ListSubcontractsQuery query, CancellationToken cancellationToken = default)
     {
+        var (page, pageSize) = ClampPage(query.Page, query.PageSize);
         var dbQuery = db.Set<Subcontract>().AsNoTracking().Where(s => !s.IsDeleted);
 
         // Filter by project
@@ -51,36 +105,40 @@ public class ContractsService(
             dbQuery = dbQuery.Where(s => s.Status == query.Status.Value);
 
         // Search by subcontractor name or number
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        var search = ClampSearch(query.Search);
+        if (search is not null)
         {
-            var search = query.Search.ToLower();
+            var term = search.ToLower();
             dbQuery = dbQuery.Where(s =>
-                s.SubcontractorName.ToLower().Contains(search.ToLower()) ||
-                s.SubcontractNumber.ToLower().Contains(search));
+                s.SubcontractorName.ToLower().Contains(term) ||
+                s.SubcontractNumber.ToLower().Contains(term));
         }
 
         var totalCount = await dbQuery.CountAsync(cancellationToken);
 
         var items = await dbQuery
             .OrderByDescending(s => s.CreatedAt)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(s => MapSubcontractToDto(s))
             .ToListAsync(cancellationToken);
 
         return Result.Success(new PagedResult<SubcontractDto>(
-            items, totalCount, query.Page, query.PageSize));
+            items, totalCount, page, pageSize));
     }
 
     public async Task<Result<SubcontractDto>> CreateSubcontractAsync(CreateSubcontractCommand command, CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_createSubcontractValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<SubcontractDto>(validation.Error!, validation.ErrorCode!);
+
         // Validate project exists (prevents FK constraint violation)
         var projectExists = await db.Database
             .SqlQueryRaw<int>("SELECT 1 AS \"Value\" FROM projects WHERE \"Id\" = {0} AND \"IsDeleted\" = false LIMIT 1", command.ProjectId)
             .AnyAsync(cancellationToken);
         if (!projectExists)
             return Result.Failure<SubcontractDto>("Project not found", "NOT_FOUND");
-
         // Check for duplicate subcontract number within same project
         var exists = await db.Set<Subcontract>()
             .AnyAsync(s => s.ProjectId == command.ProjectId
@@ -122,6 +180,10 @@ public class ContractsService(
 
     public async Task<Result<SubcontractDto>> UpdateSubcontractAsync(UpdateSubcontractCommand command, CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_updateSubcontractValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<SubcontractDto>(validation.Error!, validation.ErrorCode!);
+
         var subcontract = await db.Set<Subcontract>()
             .FirstOrDefaultAsync(s => s.Id == command.Id, cancellationToken);
 
@@ -186,6 +248,7 @@ public class ContractsService(
 
     public async Task<Result<PagedResult<ChangeOrderDto>>> ListChangeOrdersAsync(ListChangeOrdersQuery query, CancellationToken cancellationToken = default)
     {
+        var (page, pageSize) = ClampPage(query.Page, query.PageSize);
         var dbQuery = db.Set<ChangeOrder>().Where(co => !co.IsDeleted).AsQueryable();
 
         // Filter by project (join through Subcontract since ChangeOrder has no direct ProjectId)
@@ -206,35 +269,39 @@ public class ContractsService(
             dbQuery = dbQuery.Where(co => co.Status == query.Status.Value);
 
         // Search by title or CO number
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        var search = ClampSearch(query.Search);
+        if (search is not null)
         {
-            var search = query.Search.ToLower();
+            var term = search.ToLower();
             dbQuery = dbQuery.Where(co =>
-                co.Title.ToLower().Contains(search.ToLower()) ||
-                co.ChangeOrderNumber.ToLower().Contains(search.ToLower()));
+                co.Title.ToLower().Contains(term) ||
+                co.ChangeOrderNumber.ToLower().Contains(term));
         }
 
         var totalCount = await dbQuery.CountAsync(cancellationToken);
 
         var items = await dbQuery
             .OrderByDescending(co => co.CreatedAt)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(co => MapChangeOrderToDto(co))
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedResult<ChangeOrderDto>(items, totalCount, query.Page, query.PageSize));
+            new PagedResult<ChangeOrderDto>(items, totalCount, page, pageSize));
     }
 
     public async Task<Result<ChangeOrderDto>> CreateChangeOrderAsync(CreateChangeOrderCommand command, CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_createChangeOrderValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<ChangeOrderDto>(validation.Error!, validation.ErrorCode!);
+
         var subcontract = await db.Set<Subcontract>()
             .FirstOrDefaultAsync(s => s.Id == command.SubcontractId, cancellationToken);
 
         if (subcontract is null)
             return Result.Failure<ChangeOrderDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
-
         // Check for duplicate CO number on this subcontract
         var duplicateExists = await db.Set<ChangeOrder>()
             .AnyAsync(co => co.SubcontractId == command.SubcontractId
@@ -281,12 +348,15 @@ public class ContractsService(
 
     public async Task<Result<ChangeOrderDto>> UpdateChangeOrderAsync(UpdateChangeOrderCommand command, CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_updateChangeOrderValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<ChangeOrderDto>(validation.Error!, validation.ErrorCode!);
+
         var changeOrder = await db.Set<ChangeOrder>()
             .FirstOrDefaultAsync(co => co.Id == command.Id, cancellationToken);
 
         if (changeOrder is null)
             return Result.Failure<ChangeOrderDto>("Change order not found", "NOT_FOUND");
-
         // Check for duplicate CO number if changed
         if (changeOrder.ChangeOrderNumber != command.Number)
         {
@@ -455,6 +525,7 @@ public class ContractsService(
         ListOwnerChangeOrdersQuery query,
         CancellationToken cancellationToken = default)
     {
+        var (page, pageSize) = ClampPage(query.Page, query.PageSize);
         var dbQuery = db.Set<OwnerChangeOrder>().Where(co => !co.IsDeleted).AsQueryable();
 
         if (query.ProjectId.HasValue)
@@ -463,37 +534,41 @@ public class ContractsService(
         if (query.Status.HasValue)
             dbQuery = dbQuery.Where(co => co.Status == query.Status.Value);
 
-        if (!string.IsNullOrWhiteSpace(query.Search))
+        var search = ClampSearch(query.Search);
+        if (search is not null)
         {
-            var search = query.Search.ToLower();
+            var term = search.ToLower();
             dbQuery = dbQuery.Where(co =>
-                co.Title.ToLower().Contains(search.ToLower()) ||
-                co.ChangeOrderNumber.ToLower().Contains(search.ToLower()));
+                co.Title.ToLower().Contains(term) ||
+                co.ChangeOrderNumber.ToLower().Contains(term));
         }
 
         var totalCount = await dbQuery.CountAsync(cancellationToken);
 
         var items = await dbQuery
             .OrderByDescending(co => co.CreatedAt)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(co => MapOwnerChangeOrderToDto(co))
             .ToListAsync(cancellationToken);
 
         return Result.Success(
-            new PagedResult<OwnerChangeOrderDto>(items, totalCount, query.Page, query.PageSize));
+            new PagedResult<OwnerChangeOrderDto>(items, totalCount, page, pageSize));
     }
 
     public async Task<Result<OwnerChangeOrderDto>> CreateOwnerChangeOrderAsync(
         CreateOwnerChangeOrderCommand command,
         CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_createOwnerChangeOrderValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<OwnerChangeOrderDto>(validation.Error!, validation.ErrorCode!);
+
         var projectExists = await db.Database
             .SqlQueryRaw<int>("SELECT 1 AS \"Value\" FROM projects WHERE \"Id\" = {0} AND \"IsDeleted\" = false LIMIT 1", command.ProjectId)
             .AnyAsync(cancellationToken);
         if (!projectExists)
             return Result.Failure<OwnerChangeOrderDto>("Project not found", "NOT_FOUND");
-
         if (command.OwnerContractId.HasValue)
         {
             var contractExists = await db.Set<OwnerContract>()
@@ -549,12 +624,15 @@ public class ContractsService(
         UpdateOwnerChangeOrderCommand command,
         CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_updateOwnerChangeOrderValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<OwnerChangeOrderDto>(validation.Error!, validation.ErrorCode!);
+
         var changeOrder = await db.Set<OwnerChangeOrder>()
             .FirstOrDefaultAsync(co => co.Id == command.Id, cancellationToken);
 
         if (changeOrder is null)
             return Result.Failure<OwnerChangeOrderDto>("Owner change order not found", "NOT_FOUND");
-
         if (changeOrder.ChangeOrderNumber != command.Number)
         {
             var duplicateExists = await db.Set<OwnerChangeOrder>()
@@ -650,6 +728,7 @@ public class ContractsService(
 
     public async Task<Result<PagedResult<PaymentApplicationDto>>> ListPaymentApplicationsAsync(ListPaymentApplicationsQuery query, CancellationToken cancellationToken = default)
     {
+        var (page, pageSize) = ClampPage(query.Page, query.PageSize);
         var dbQuery = db.Set<PaymentApplication>().Where(pa => !pa.IsDeleted).AsQueryable();
 
         if (query.SubcontractId.HasValue)
@@ -662,25 +741,28 @@ public class ContractsService(
 
         var items = await dbQuery
             .OrderByDescending(pa => pa.ApplicationNumber)
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken);
 
         var dtos = items.Select(MapPaymentApplicationToDto).ToList();
 
         return Result.Success(
-            new PagedResult<PaymentApplicationDto>(dtos, totalCount, query.Page, query.PageSize));
+            new PagedResult<PaymentApplicationDto>(dtos, totalCount, page, pageSize));
     }
 
     public async Task<Result<PaymentApplicationDto>> CreatePaymentApplicationAsync(CreatePaymentApplicationCommand command, CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_createPaymentApplicationValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<PaymentApplicationDto>(validation.Error!, validation.ErrorCode!);
+
         // Get subcontract
         var subcontract = await db.Set<Subcontract>()
             .FirstOrDefaultAsync(s => s.Id == command.SubcontractId, cancellationToken);
 
         if (subcontract is null)
             return Result.Failure<PaymentApplicationDto>("Subcontract not found", "SUBCONTRACT_NOT_FOUND");
-
         // Validate retainage bounds (0-50%)
         if (subcontract.RetainagePercent < 0 || subcontract.RetainagePercent > 50)
             return Result.Failure<PaymentApplicationDto>(
@@ -753,6 +835,10 @@ public class ContractsService(
 
     public async Task<Result<PaymentApplicationDto>> UpdatePaymentApplicationAsync(UpdatePaymentApplicationCommand command, CancellationToken cancellationToken = default)
     {
+        var validation = await ValidationFailureAsync(_updatePaymentApplicationValidator, command, cancellationToken);
+        if (validation is not null)
+            return Result.Failure<PaymentApplicationDto>(validation.Error!, validation.ErrorCode!);
+
         var payApp = await db.Set<PaymentApplication>()
             .FirstOrDefaultAsync(pa => pa.Id == command.Id, cancellationToken);
 

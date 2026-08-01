@@ -1,16 +1,13 @@
 using FluentValidation;
 
-namespace Pitbull.Contracts.Features.CreateChangeOrder;
+namespace Pitbull.Contracts.Features.OwnerChangeOrders;
 
-public class CreateChangeOrderValidator : AbstractValidator<CreateChangeOrderCommand>
+public class UpdateOwnerChangeOrderValidator : AbstractValidator<UpdateOwnerChangeOrderCommand>
 {
-    public const decimal MaxAmount = 1_000_000_000m;
-    public const int MaxDaysExtension = 3650;
-
-    public CreateChangeOrderValidator()
+    public UpdateOwnerChangeOrderValidator()
     {
-        RuleFor(x => x.SubcontractId)
-            .NotEmpty().WithMessage("Subcontract ID is required");
+        RuleFor(x => x.Id)
+            .NotEmpty().WithMessage("Change order ID is required");
 
         RuleFor(x => x.ChangeOrderNumber)
             .NotEmpty().WithMessage("Change order number is required")
@@ -28,20 +25,24 @@ public class CreateChangeOrderValidator : AbstractValidator<CreateChangeOrderCom
             .MaximumLength(500).WithMessage("Reason cannot exceed 500 characters")
             .When(x => !string.IsNullOrEmpty(x.Reason));
 
-        // Amount can be positive or negative (additions or deductions); cap absolute magnitude.
         RuleFor(x => x.Amount)
-            .Must(a => Math.Abs(a) <= MaxAmount)
+            .Must(a => Math.Abs(a) <= CreateOwnerChangeOrderValidator.MaxAmount)
             .WithMessage("Amount absolute value cannot exceed 1,000,000,000");
 
         RuleFor(x => x.DaysExtension)
             .GreaterThanOrEqualTo(0).WithMessage("Days extension cannot be negative")
-            .LessThanOrEqualTo(MaxDaysExtension).WithMessage($"Days extension cannot exceed {MaxDaysExtension}")
+            .LessThanOrEqualTo(CreateOwnerChangeOrderValidator.MaxDaysExtension)
+            .WithMessage($"Days extension cannot exceed {CreateOwnerChangeOrderValidator.MaxDaysExtension}")
             .When(x => x.DaysExtension.HasValue);
 
         RuleFor(x => x.ScheduleImpactDays)
-            .GreaterThanOrEqualTo(0).WithMessage("Days extension cannot be negative")
-            .LessThanOrEqualTo(MaxDaysExtension).WithMessage($"Schedule impact days cannot exceed {MaxDaysExtension}")
+            .GreaterThanOrEqualTo(0).WithMessage("Schedule impact days cannot be negative")
+            .LessThanOrEqualTo(CreateOwnerChangeOrderValidator.MaxDaysExtension)
+            .WithMessage($"Schedule impact days cannot exceed {CreateOwnerChangeOrderValidator.MaxDaysExtension}")
             .When(x => x.ScheduleImpactDays.HasValue);
+
+        RuleFor(x => x.Status)
+            .IsInEnum().WithMessage("Invalid change order status");
 
         RuleFor(x => x.ReferenceNumber)
             .MaximumLength(100).WithMessage("Reference number cannot exceed 100 characters")
@@ -53,7 +54,8 @@ public class CreateChangeOrderValidator : AbstractValidator<CreateChangeOrderCom
 
         RuleFor(x => x.CostImpact)
             .GreaterThanOrEqualTo(0).WithMessage("Cost impact cannot be negative")
-            .LessThanOrEqualTo(MaxAmount).WithMessage("Cost impact cannot exceed 1,000,000,000")
+            .LessThanOrEqualTo(CreateOwnerChangeOrderValidator.MaxAmount)
+            .WithMessage("Cost impact cannot exceed 1,000,000,000")
             .When(x => x.CostImpact.HasValue);
     }
 }

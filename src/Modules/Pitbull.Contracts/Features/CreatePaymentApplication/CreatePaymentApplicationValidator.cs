@@ -17,10 +17,12 @@ public class CreatePaymentApplicationValidator : AbstractValidator<CreatePayment
             .GreaterThan(x => x.PeriodStart).WithMessage("Period end must be after period start");
 
         RuleFor(x => x.WorkCompletedThisPeriod)
-            .GreaterThanOrEqualTo(0).WithMessage("Work completed cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("Work completed cannot be negative")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Work completed cannot exceed 1,000,000,000");
 
         RuleFor(x => x.StoredMaterials)
-            .GreaterThanOrEqualTo(0).WithMessage("Stored materials cannot be negative");
+            .GreaterThanOrEqualTo(0).WithMessage("Stored materials cannot be negative")
+            .LessThanOrEqualTo(1_000_000_000m).WithMessage("Stored materials cannot exceed 1,000,000,000");
 
         RuleFor(x => x.InvoiceNumber)
             .MaximumLength(100).WithMessage("Invoice number cannot exceed 100 characters")
