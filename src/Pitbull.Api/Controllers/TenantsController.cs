@@ -53,16 +53,27 @@ public class TenantsController(PitbullDbContext db, ITenantContext tenantContext
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Create([FromBody] CreateTenantRequest request)
     {
-        var slug = request.Name.ToLowerInvariant()
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { error = "Name is required", code = "VALIDATION_ERROR" });
+        var name = request.Name.Trim();
+        if (name.Length is < 2 or > 200)
+            return BadRequest(new { error = "Name must be between 2 and 200 characters", code = "VALIDATION_ERROR" });
+
+        var slug = name.ToLowerInvariant()
             .Replace(" ", "-")
             .Replace("'", "");
+        // Collapse unsafe slug characters so free-text names cannot produce path-like slugs.
+        slug = System.Text.RegularExpressions.Regex.Replace(slug, @"[^a-z0-9\-]+", "-");
+        slug = slug.Trim('-');
+        if (string.IsNullOrEmpty(slug) || slug.Length > 200)
+            return BadRequest(new { error = "Name produces an invalid tenant slug", code = "VALIDATION_ERROR" });
 
         if (await db.Tenants.AnyAsync(t => t.Slug == slug))
             return Conflict(new { error = "A tenant with this name already exists" });
 
         var tenant = new Tenant
         {
-            Name = request.Name,
+            Name = name,
             Slug = slug,
             Plan = TenantPlan.Standard
         };

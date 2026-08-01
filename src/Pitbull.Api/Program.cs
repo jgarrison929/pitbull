@@ -479,6 +479,16 @@ builder.Services.Configure<IISServerOptions>(options =>
 {
     options.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
 });
+// Multipart form bounds (imports/uploads) — defense in depth beyond request body size limits.
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = sizeLimitOptions.DocumentUploadMaxSize;
+    options.ValueLengthLimit = 1024 * 1024; // 1 MB per form field
+    options.MultipartHeadersLengthLimit = 16 * 1024;
+    options.MemoryBufferThreshold = 64 * 1024;
+    options.KeyLengthLimit = 256;
+    options.ValueCountLimit = 256;
+});
 builder.Services.Configure<KestrelServerOptions>(options =>
 {
     options.Limits.MaxRequestBodySize = sizeLimitOptions.GlobalMaxSize;
