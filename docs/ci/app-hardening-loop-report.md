@@ -963,24 +963,26 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 08:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080108`
+**Branch:** `chore/app-hardening-hourly-2026080108` → **merged #492** (`bf0a2d5c`)
 
 ### CI status (step 1)
-- **main green** — #491 CI + Push success; no new main failures.
+- **main green** before ship — #491 CI + Push success.
+- PR #492 first CI failed: `EquipmentEndpointsTests.Create_equipment_with_negative_hourly_rate_returns_400` expected message containing `"negative"`; controller said `"Rates must be between 0 and 1,000,000"`. Fixed to `"HourlyRate and BillingRate cannot be negative"` (`fe78b476`).
+- Re-run **green** (dotnet unit+integration, frontend, owner-signup, mobile-field, L4 role smoke, CodeQL). Merged.
 
 ### Dependabot (step 2)
-- No safe patch/minor merges (majors only).
+- No safe patch/minor merges (majors only: #463 node 25, #447 Resend, #446 QuestPDF, #443 Mapster 10, #438 eslint 10, #436 @types/node 26, #434 TS 7, #431 jest-dom 7).
 
-### Shipped this hour
+### Shipped this hour (#492)
 - **companies:** Create/update free-text field length + fiscal month 1–12 validation.
 - **apikeys:** Name/description/scopes/expiry bounds; list page clamp.
-- **equipment:** Create field length + rate bounds.
+- **equipment:** Create field length + rate bounds (negative-rate message aligned with integration assert).
 - **diagnostics:** Cap exception message/stack/user-agent before DB write.
 - **onboarding:** Tour stepId allowlist + max 100 chars.
 - **web:** Permissions-Policy interest-cohort/browsing-topics off.
 
 ### Residual high items
-- Major Dependabot PRs need human judgment.
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
 - rbac_*/roles without FORCE RLS (pre-tenant by design).
 - Role E2E can flake on Docker Hub postgres pull timeouts.
 
