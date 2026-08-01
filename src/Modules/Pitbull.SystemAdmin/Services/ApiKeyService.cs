@@ -10,6 +10,10 @@ public class ApiKeyService(PitbullDbContext db) : IApiKeyService
 {
     public async Task<Result<ApiKeyListResult>> ListKeysAsync(int page = 1, int pageSize = 50, CancellationToken ct = default)
     {
+        // Defense in depth (controller + global ClampPageSizeFilter also clamp).
+        page = Math.Clamp(page, 1, 10_000);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var query = db.Set<ApiKey>().AsNoTracking().Where(k => !k.IsDeleted);
 
         var totalCount = await query.CountAsync(ct);

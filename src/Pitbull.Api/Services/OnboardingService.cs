@@ -46,11 +46,14 @@ public class OnboardingService(
 
     public async Task<OnboardingChecklistDto> UpdateChecklistItemAsync(Guid userId, Guid companyId, string itemName, bool completed, CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(itemName) || itemName.Length > 50)
+            throw new ArgumentException("Checklist item name is required and cannot exceed 50 characters", nameof(itemName));
+
         var checklist = await db.Set<OnboardingChecklist>()
             .FirstOrDefaultAsync(c => c.UserId == userId && c.CompanyId == companyId, ct)
             ?? throw new InvalidOperationException("Checklist not found");
 
-        switch (itemName.ToLowerInvariant())
+        switch (itemName.Trim().ToLowerInvariant())
         {
             case "company_profile": checklist.CompanyProfileCompleted = completed; break;
             case "contractor_type": checklist.ContractorTypeSelected = completed; break;

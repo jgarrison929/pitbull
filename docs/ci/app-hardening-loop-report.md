@@ -1191,7 +1191,7 @@ Findings discovered (unique): 256
 
 ## Hourly appendix — 2026-08-01 18:xx UTC
 
-**Branch:** `chore/app-hardening-hourly-2026080118`
+**Branch:** `chore/app-hardening-hourly-2026080118` → **merged #503**
 
 ### CI status (step 1)
 - **main green** after #502 (`7cf7e2a9`) — CI + Push success. No failures to fix.
@@ -1207,6 +1207,29 @@ Findings discovered (unique): 256
 - **pay periods list:** service-level page/pageSize clamp (1–100).
 - **AI usage:** query range clamp 366 days; log truncates provider/model/feature; non-negative tokens/cost/duration.
 - Unit tests for report/settings bounds, pay period list clamp, AI usage clamp/truncate.
+
+### Residual high items
+- Major Dependabot PRs need human judgment / dedicated CI alignment.
+- rbac_*/roles without FORCE RLS (pre-tenant by design).
+- Role E2E can flake on Docker Hub postgres pull timeouts.
+
+## Hourly appendix — 2026-08-01 19:xx UTC
+
+**Branch:** `chore/app-hardening-hourly-2026080119`
+
+### CI status (step 1)
+- **main green** after #503 (`67aaeae5`) — CI + Push success. No failures to fix.
+
+### Dependabot (step 2)
+- No safe patch/minor merges (majors only).
+
+### Shipped this hour
+- **payroll reviews:** ReviewerUserId required max 256; comments max 2000 on submit/approve/reject/escalate.
+- **admin audit list:** search cap 200; resourceType cap 100; date span cap 366d; page clamp; sortDir case-insensitive.
+- **project phases list:** pageSize max 100 (was 500).
+- **API keys list:** service-level page/pageSize clamp.
+- **onboarding checklist:** item name required max 50.
+- Unit tests for payroll review bounds + API key list clamp.
 
 ### Residual high items
 - Major Dependabot PRs need human judgment / dedicated CI alignment.

@@ -9,6 +9,9 @@ namespace Pitbull.Billing.Services;
 
 public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewService> logger) : IPayrollReviewService
 {
+    private const int MaxReviewerUserIdLength = 256;
+    private const int MaxCommentsLength = 2000;
+
     public async Task<Result<ListPayrollRunReviewsResult>> ListAsync(ListPayrollRunReviewsQuery query, CancellationToken cancellationToken = default)
     {
         IQueryable<PayrollRunReview> dbQuery = db.Set<PayrollRunReview>()
@@ -62,6 +65,10 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
 
     public async Task<Result<PayrollRunReviewDto>> SubmitAsync(SubmitPayrollRunForReviewCommand command, CancellationToken cancellationToken = default)
     {
+        var fieldError = ValidateReviewerAndComments(command.ReviewerUserId, command.Comments);
+        if (fieldError is not null)
+            return Result.Failure<PayrollRunReviewDto>(fieldError, "VALIDATION_ERROR");
+
         PayrollRun? run = await db.Set<PayrollRun>()
             .FirstOrDefaultAsync(x => x.Id == command.PayrollRunId, cancellationToken);
 
@@ -78,7 +85,7 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
             PayrollRunId = command.PayrollRunId,
             ReviewerUserId = command.ReviewerUserId.Trim(),
             Status = PayrollReviewStatus.Submitted,
-            Comments = command.Comments,
+            Comments = NormalizeComments(command.Comments),
             SubmittedAt = DateTime.UtcNow
         };
 
@@ -100,6 +107,10 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
 
     public async Task<Result<PayrollRunReviewDto>> ApproveAsync(ApprovePayrollRunReviewCommand command, CancellationToken cancellationToken = default)
     {
+        var fieldError = ValidateReviewerAndComments(command.ReviewerUserId, command.Comments);
+        if (fieldError is not null)
+            return Result.Failure<PayrollRunReviewDto>(fieldError, "VALIDATION_ERROR");
+
         PayrollRunReview? review = await db.Set<PayrollRunReview>()
             .Include(x => x.PayrollRun)
             .FirstOrDefaultAsync(x => x.Id == command.ReviewId, cancellationToken);
@@ -111,7 +122,7 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
             return Result.Failure<PayrollRunReviewDto>("Review is not in a reviewable state", "INVALID_STATUS");
 
         review.Status = PayrollReviewStatus.Approved;
-        review.Comments = command.Comments;
+        review.Comments = NormalizeComments(command.Comments);
         review.ReviewedAt = DateTime.UtcNow;
         review.ReviewerUserId = command.ReviewerUserId.Trim();
 
@@ -131,6 +142,10 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
 
     public async Task<Result<PayrollRunReviewDto>> RejectAsync(RejectPayrollRunReviewCommand command, CancellationToken cancellationToken = default)
     {
+        var fieldError = ValidateReviewerAndComments(command.ReviewerUserId, command.Comments);
+        if (fieldError is not null)
+            return Result.Failure<PayrollRunReviewDto>(fieldError, "VALIDATION_ERROR");
+
         PayrollRunReview? review = await db.Set<PayrollRunReview>()
             .Include(x => x.PayrollRun)
             .FirstOrDefaultAsync(x => x.Id == command.ReviewId, cancellationToken);
@@ -142,7 +157,7 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
             return Result.Failure<PayrollRunReviewDto>("Review is not in a reviewable state", "INVALID_STATUS");
 
         review.Status = PayrollReviewStatus.Rejected;
-        review.Comments = command.Comments;
+        review.Comments = NormalizeComments(command.Comments);
         review.ReviewedAt = DateTime.UtcNow;
         review.ReviewerUserId = command.ReviewerUserId.Trim();
 
@@ -162,6 +177,10 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
 
     public async Task<Result<PayrollRunReviewDto>> EscalateAsync(EscalatePayrollRunReviewCommand command, CancellationToken cancellationToken = default)
     {
+        var fieldError = ValidateReviewerAndComments(command.ReviewerUserId, command.Comments);
+        if (fieldError is not null)
+            return Result.Failure<PayrollRunReviewDto>(fieldError, "VALIDATION_ERROR");
+
         PayrollRunReview? review = await db.Set<PayrollRunReview>()
             .Include(x => x.PayrollRun)
             .FirstOrDefaultAsync(x => x.Id == command.ReviewId, cancellationToken);
@@ -173,7 +192,7 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
             return Result.Failure<PayrollRunReviewDto>("Review is not in a reviewable state", "INVALID_STATUS");
 
         review.Status = PayrollReviewStatus.Escalated;
-        review.Comments = command.Comments;
+        review.Comments = NormalizeComments(command.Comments);
         review.EscalatedAt = DateTime.UtcNow;
         review.ReviewerUserId = command.ReviewerUserId.Trim();
 
@@ -190,6 +209,20 @@ public class PayrollReviewService(PitbullDbContext db, ILogger<PayrollReviewServ
             return Result.Failure<PayrollRunReviewDto>("Failed to escalate payroll review", "DATABASE_ERROR");
         }
     }
+
+    private static string? ValidateReviewerAndComments(string reviewerUserId, string? comments)
+    {
+        if (string.IsNullOrWhiteSpace(reviewerUserId))
+            return "ReviewerUserId is required";
+        if (reviewerUserId.Trim().Length > MaxReviewerUserIdLength)
+            return $"ReviewerUserId cannot exceed {MaxReviewerUserIdLength} characters";
+        if (comments is { Length: > MaxCommentsLength })
+            return $"Comments cannot exceed {MaxCommentsLength} characters";
+        return null;
+    }
+
+    private static string? NormalizeComments(string? comments)
+        => string.IsNullOrWhiteSpace(comments) ? null : comments.Trim();
 
     private static bool CanReview(PayrollReviewStatus status)
     {

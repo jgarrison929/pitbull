@@ -709,7 +709,8 @@ public class ProjectService : IProjectService
 
     public async Task<Result<List<PhaseDto>>> GetProjectPhasesAsync(Guid projectId, int pageSize = 100, CancellationToken cancellationToken = default)
     {
-        pageSize = Math.Clamp(pageSize, 1, 500);
+        // Align with global ClampPageSizeFilter (max 100) for direct service callers too.
+        pageSize = Math.Clamp(pageSize, 1, 100);
         var project = await _db.Set<Project>()
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted, cancellationToken);

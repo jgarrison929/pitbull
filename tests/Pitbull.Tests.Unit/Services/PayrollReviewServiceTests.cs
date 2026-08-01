@@ -70,6 +70,64 @@ public sealed class PayrollReviewServiceTests
     }
 
     [Fact]
+    public async Task Submit_RejectsOversizedComments()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var run = await SeedPayrollRun(db, PayrollRunStatus.Submitted);
+
+        var command = new SubmitPayrollRunForReviewCommand(
+            PayrollRunId: run.Id,
+            ReviewerUserId: "reviewer@test.com",
+            Comments: new string('c', 2001));
+
+        var result = await service.SubmitAsync(command);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("2000");
+    }
+
+    [Fact]
+    public async Task Submit_RejectsEmptyReviewerUserId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var run = await SeedPayrollRun(db, PayrollRunStatus.Submitted);
+
+        var command = new SubmitPayrollRunForReviewCommand(
+            PayrollRunId: run.Id,
+            ReviewerUserId: "   ",
+            Comments: null);
+
+        var result = await service.SubmitAsync(command);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("ReviewerUserId");
+    }
+
+    [Fact]
+    public async Task Approve_RejectsOversizedReviewerUserId()
+    {
+        using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+        var run = await SeedPayrollRun(db, PayrollRunStatus.Submitted);
+        var review = await SeedReview(db, run.Id, PayrollReviewStatus.Submitted);
+
+        var command = new ApprovePayrollRunReviewCommand(
+            ReviewId: review.Id,
+            ReviewerUserId: new string('r', 257),
+            Comments: "ok");
+
+        var result = await service.ApproveAsync(command);
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("VALIDATION_ERROR");
+        result.Error.Should().Contain("256");
+    }
+
+    [Fact]
     public async Task Approve_SubmittedReview_SetsApprovedAndUpdatesRun()
     {
         using var db = TestDbContextFactory.Create();
