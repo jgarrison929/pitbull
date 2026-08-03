@@ -31,9 +31,9 @@
       },
       "DotNetCore.CAP": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "kXORtuyxTgwkSFellIMKQ55NJjlPqVlVWIWeDqqMiJSgWOQh81MACOg0u4lmAz71fugQoOKC/DzOffK3PMwmtA=="
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "AY1PbSDa0IR4c2YdoRd3tCh5TfvdjziX1anKm0igUmhvqbVBJLX5bVhSEbbITcEV5dHiM8+rWc7Ss96DHFzuIg=="
       },
       "DotNetCore.CAP.Dashboard": {
         "type": "Direct",
@@ -47,13 +47,13 @@
       },
       "DotNetCore.CAP.PostgreSql": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "wsmkNHX7MIlPepvq1Z6PBWxgz4tnmkTdQF0p6WstCypvB7SijVGT60z8WqUj7XPj+sOJFkeGubyx8hwewsSZ7A==",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "NO7juwxqoTmfIlj8dqcMoPztPadpMQMXxt6Mvuq3vXMHwFJ6o/OvfS5INMoMfDuRgfRjA3//wE2hSyNvS1WPiA==",
         "dependencies": {
-          "DotNetCore.CAP": "10.0.1",
+          "DotNetCore.CAP": "10.0.2",
           "Microsoft.EntityFrameworkCore.Relational": "10.0.0",
-          "Npgsql": "9.0.4"
+          "Npgsql": "10.0.2"
         }
       },
       "DotNetCore.CAP.RedisStreams": {
