@@ -31,18 +31,18 @@
       },
       "DotNetCore.CAP": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "kXORtuyxTgwkSFellIMKQ55NJjlPqVlVWIWeDqqMiJSgWOQh81MACOg0u4lmAz71fugQoOKC/DzOffK3PMwmtA=="
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "AY1PbSDa0IR4c2YdoRd3tCh5TfvdjziX1anKm0igUmhvqbVBJLX5bVhSEbbITcEV5dHiM8+rWc7Ss96DHFzuIg=="
       },
       "DotNetCore.CAP.Dashboard": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "bS/gNkQWjEU9yjWhtzeuDu3rlIk6V5RT/T+yz7RzeZ3nKaXxeH00fa0vYiisKwVkr6qA6bEE4CtIp9sn8h/yag==",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "/pgQGu37I2N6lJPFE0874MFXNmZraFWVMaUtZkhKYuDgTDx0+tA05PBZ6nu83gMEhuZJKthkduiVxN/t0XAm6w==",
         "dependencies": {
-          "Consul": "1.7.14.9",
-          "DotNetCore.CAP": "10.0.1"
+          "Consul": "1.8.0",
+          "DotNetCore.CAP": "10.0.2"
         }
       },
       "DotNetCore.CAP.PostgreSql": {
@@ -289,8 +289,8 @@
       },
       "Consul": {
         "type": "Transitive",
-        "resolved": "1.7.14.9",
-        "contentHash": "PZD63GVWmIb5KcJL5NP5KZVAMREKBTL5mj9ra4Nm2vZeVjPlTkbFfLHxinEIB7BRzjyh/5V3P5RjrfJI52nocw==",
+        "resolved": "1.8.0",
+        "contentHash": "flKNz6Swyt+pYBJ5dekN1X6PJYUaeNAaNC0dAWhudTd0t2vR34G0QXmr5KyApI7OP1rGMwY3xx133Dc9IvOS6Q==",
         "dependencies": {
           "Newtonsoft.Json": "13.0.1"
         }
