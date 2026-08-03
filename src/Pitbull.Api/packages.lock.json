@@ -31,9 +31,9 @@
       },
       "DotNetCore.CAP": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "kXORtuyxTgwkSFellIMKQ55NJjlPqVlVWIWeDqqMiJSgWOQh81MACOg0u4lmAz71fugQoOKC/DzOffK3PMwmtA=="
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "AY1PbSDa0IR4c2YdoRd3tCh5TfvdjziX1anKm0igUmhvqbVBJLX5bVhSEbbITcEV5dHiM8+rWc7Ss96DHFzuIg=="
       },
       "DotNetCore.CAP.Dashboard": {
         "type": "Direct",
@@ -58,12 +58,12 @@
       },
       "DotNetCore.CAP.RedisStreams": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "Qry6q2DrBXoywakN5TlKl/BXFJSduuUvxv1/IJ+R5PLIHffxwth6cLn47hetqJ0YeJxArHk5ARGJGeqI1gYeew==",
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "K0KdlzdGvlknZWUMOj6wsWzKm0RY8+Qns/neBv7x3ABh7l5j6eAQBdhSthl/Xb5Qgn/8iCBUkJ/JTrnYhlTKSw==",
         "dependencies": {
-          "DotNetCore.CAP": "10.0.1",
-          "StackExchange.Redis": "2.9.32"
+          "DotNetCore.CAP": "10.0.2",
+          "StackExchange.Redis": "2.12.14"
         }
       },
       "FluentValidation.DependencyInjectionExtensions": {
@@ -590,10 +590,11 @@
       },
       "StackExchange.Redis": {
         "type": "Transitive",
-        "resolved": "2.9.32",
-        "contentHash": "j5Rjbf7gWz5izrn0UWQy9RlQY4cQDPkwJfVqATnVsOa/+zzJrps12LOgacMsDl/Vit2f01cDiDkG/Rst8v2iGw==",
+        "resolved": "2.12.14",
+        "contentHash": "QiAQg40OP4Owem6/PjIbjEKq2+uIeQYeZ1TCMUnx/QvKugOPxOfC96wjlnBjWHi4Wq9pv9+fDlXGT06XkRZ6Ig==",
         "dependencies": {
-          "Pipelines.Sockets.Unofficial": "2.2.8"
+          "Pipelines.Sockets.Unofficial": "2.2.8",
+          "System.IO.Hashing": "10.0.2"
         }
       },
       "System.CodeDom": {
@@ -648,6 +649,11 @@
           "System.Composition.Hosting": "9.0.0",
           "System.Composition.Runtime": "9.0.0"
         }
+      },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "10.0.2",
+        "contentHash": "AKJknIFi9O3+rGExxTry188JPvUoZAPcCtS2qdqyFhIzsxQ1Ap94BeGDG0VzVEHakhmRxmJtVih6TsHoghIt/g=="
       },
       "System.Security.Cryptography.Pkcs": {
         "type": "Transitive",
