@@ -7,7 +7,7 @@
 **Epic:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../../roadmap/pm-nextgen-3.4-to-4.0.md)  
 **Program:** [`docs/340-pm-arc/`](../../340-pm-arc/)  
 **Research:** [`docs/roadmap/pm-mobile-workflows-and-complaints-2026.md`](../../roadmap/pm-mobile-workflows-and-complaints-2026.md)  
-**CI notes (at checkpoint):** `docs/ci/pm-3.5-rfi-submittal-notes.md` (create at 3.5.0)
+**CI notes (checkpoint):** [`docs/ci/pm-3.5-rfi-submittal-notes.md`](../../ci/pm-3.5-rfi-submittal-notes.md)
 
 ---
 
@@ -112,8 +112,8 @@ Empty list = honest empty (“No RFIs” / “No submittals”). **Never** “al
 | **3.4.6** | Phone-first **Submittal list UI** | `projects/[id]/submittals/page.tsx`, `lib/submittal-mobile-list.ts` | - [x] Loading/empty/error honesty<br>- [x] Type + status + due-ish fields only on phone<br>- [x] No “% register complete” tile | Vitest `submittal-mobile-list` |
 | **3.4.7** | Phone-first **Submittal detail** + workflow glance | `submittal-workflow-glance.ts`, submittals dialog stepper | - [x] Workflow history glance (real events only)<br>- [x] No invented “register complete %” | Vitest `submittal-workflow-glance` |
 | **3.4.8** | Help Center: mobile RFI + Submittal cards/FAQ | `help/page.tsx`, `lib/help-pm-rfi-submittal.ts` | - [x] Routes match real pages<br>- [x] No offline claims beyond truth | Vitest help-pm-rfi-submittal |
-| **3.4.9** | **Buffer:** residual honesty + DTO/helper tests only | tests | - [x] No new feature scope<br>- [x] Tests cover shipped slim mappers | vitest residual green
-| **3.5.0** | **Checkpoint** � band complete | `docs/ci/pm-3.5-rfi-submittal-notes.md` | - [x] CI notes<br>- [x] Spec Status Shipped through 3.5.0<br>- [x] Preflight green | CI notes + preflight
+| **3.4.9** | **Buffer:** residual honesty + DTO/helper tests only | tests | - [x] No new feature scope<br>- [x] Tests cover shipped slim mappers | vitest residual green |
+| **3.5.0** | **Checkpoint — band complete (Shipped)** | `docs/ci/pm-3.5-rfi-submittal-notes.md` | - [x] CI notes<br>- [x] Spec Status Shipped through 3.5.0<br>- [x] Preflight green | CI notes + preflight |
 
 ### Out-of-scope for this band (do not sprawl)
 
@@ -162,20 +162,20 @@ Empty list = honest empty (“No RFIs” / “No submittals”). **Never** “al
 - Counts only when server returns real filtered totals.  
 - Demo users cannot DELETE; middleware unchanged.  
 
-## Deploy safety (band DoD)
+## Deploy safety (band DoD) — complete (shipped archive)
 
-Every stamp:
+Every stamp (met for 3.4.1–3.5.0):
 
-- [ ] Version stamp set (VERSION + package.json + API csproj + Docker ARGs + CHANGELOG)  
-- [ ] Preflight green before push  
-- [ ] Residual stamps do not add unrelated domains  
-- [ ] After checkpoint: health URL smoke (`docs/ci/pm-arc-deploy-safety.md`)
+- [x] Version stamp set (VERSION + package.json + API csproj + Docker ARGs + CHANGELOG)  
+- [x] Preflight green before push  
+- [x] Residual stamps do not add unrelated domains  
+- [x] After checkpoint: health URL smoke (`docs/ci/pm-arc-deploy-safety.md`)
 
-## Band DoD (3.5.0)
+## Band DoD (3.5.0) — complete (shipped archive)
 
-- [ ] All rows 3.4.1–3.5.0 shipped or deferred in writing here  
-- [ ] Mobile RFI list + detail usable on phone  
-- [ ] Mobile Submittal list + detail usable on phone  
-- [ ] Slim APIs in place or documented fallback  
-- [ ] Help + CI notes  
-- [ ] Spec status **Shipped through 3.5.0**  
+- [x] All rows 3.4.1–3.5.0 shipped or deferred in writing here  
+- [x] Mobile RFI list + detail usable on phone  
+- [x] Mobile Submittal list + detail usable on phone  
+- [x] Slim APIs in place or documented fallback  
+- [x] Help + CI notes  
+- [x] Spec status **Shipped through 3.5.0**  

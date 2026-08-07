@@ -14,8 +14,9 @@
 | **3.4.5** | **Shipped** — `/rfis/[id]` phone detail; ConfirmDialog before status PUT; attachments openable in view; `evaluateRfiStatusTransition` tests |
 | **3.4.6** | **Shipped** — phone submittal list via slim API + type; honest empty; no % register tile |
 | **3.4.7** | **Shipped** — workflow glance helper + phone vertical stepper in submittal edit |
-| 3.4.8–3.4.9 | See band table (help, buffer) |
-| 3.5.0 | Checkpoint — fill persona evidence when shipped |
+| **3.4.8** | **Shipped** — Help Center mobile RFI + Submittal cards/FAQ (`help-pm-rfi-submittal`); routes match real pages |
+| **3.4.9** | **Shipped** — buffer residual honesty + DTO/helper tests only (no new feature scope) |
+| **3.5.0** | **Shipped** — band checkpoint; CI notes + Status Shipped through 3.5.0; persona smoke paths documented below (manual path evidence may remain thin) |
 
 ## Mobile list DTO contract (3.4.1) — checkable summary
 

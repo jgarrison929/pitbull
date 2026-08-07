@@ -37,6 +37,11 @@ public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUse
 {
     private static readonly string[] ValidLayouts = ["default", "pm", "controller", "field", "executive", "estimator", "contracts"];
 
+    private const int MaxWidgets = 50;
+    private const int MaxWidgetIdLength = 100;
+    private const int MaxWidgetTypeLength = 100;
+    private const int MaxGrid = 100;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -145,6 +150,8 @@ public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUse
 
     public async Task<DashboardPreferenceDto> SaveWidgetConfigurationAsync(Guid userId, List<WidgetDto> widgets, CancellationToken ct = default)
     {
+        ValidateWidgets(widgets);
+
         var pref = await db.DashboardPreferences
             .FirstOrDefaultAsync(p => p.UserId == userId, ct);
 
@@ -199,6 +206,26 @@ public class DashboardPreferencesService(PitbullDbContext db, UserManager<AppUse
         var roles = await userManager.GetRolesAsync(user);
         var profile = RoleProfileResolver.Detect(user.Title, roles);
         return RoleProfileResolver.ToDashboardLayout(profile);
+    }
+
+    private static void ValidateWidgets(List<WidgetDto> widgets)
+    {
+        if (widgets.Count > MaxWidgets)
+            throw new ArgumentException($"Cannot save more than {MaxWidgets} widgets");
+
+        foreach (var w in widgets)
+        {
+            if (string.IsNullOrWhiteSpace(w.Id) || w.Id.Length > MaxWidgetIdLength)
+                throw new ArgumentException($"Widget Id is required and cannot exceed {MaxWidgetIdLength} characters");
+            if (string.IsNullOrWhiteSpace(w.Type) || w.Type.Length > MaxWidgetTypeLength)
+                throw new ArgumentException($"Widget Type is required and cannot exceed {MaxWidgetTypeLength} characters");
+            if (w.Row is < 0 or > MaxGrid || w.Col is < 0 or > MaxGrid)
+                throw new ArgumentException($"Widget Row/Col must be between 0 and {MaxGrid}");
+            if (w.Width is < 1 or > MaxGrid || w.Height is < 1 or > MaxGrid)
+                throw new ArgumentException($"Widget Width/Height must be between 1 and {MaxGrid}");
+            if (w.Config is { Count: > 50 })
+                throw new ArgumentException("Widget Config cannot exceed 50 keys");
+        }
     }
 
     private static string? SerializeWidgets(List<WidgetDto>? widgets)

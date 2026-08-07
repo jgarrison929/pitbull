@@ -180,10 +180,14 @@ public sealed record ChangelogRelease(
     string? Date,
     IReadOnlyDictionary<string, IReadOnlyList<string>> Sections);
 
+/// <param name="TotalCount">Total releases matching filters before offset/limit (for progressive load).</param>
 public sealed record ChangelogResponse(
     string? AppVersion,
     string? SourcePath,
-    IReadOnlyList<ChangelogReleaseDto> Releases);
+    IReadOnlyList<ChangelogReleaseDto> Releases,
+    int TotalCount = 0,
+    int Offset = 0,
+    int? Limit = null);
 
 public sealed record ChangelogReleaseDto(
     string Version,
