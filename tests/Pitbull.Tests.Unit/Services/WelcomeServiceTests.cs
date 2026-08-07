@@ -1,9 +1,69 @@
+using FluentAssertions;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using Pitbull.Api.Services;
+using Pitbull.Core.Data;
+using Pitbull.Core.Domain;
+using Pitbull.Core.MultiTenancy;
 
 namespace Pitbull.Tests.Unit.Services;
 
 public class WelcomeServiceTests
 {
+    [Fact]
+    public async Task MarkStepSeenAsync_RejectsOversizedStepId()
+    {
+        using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        db.Users.Add(new AppUser
+        {
+            Id = userId,
+            TenantId = Guid.NewGuid(),
+            UserName = "tour@test.local",
+            Email = "tour@test.local",
+            FirstName = "T",
+            LastName = "U"
+        });
+        await db.SaveChangesAsync();
+
+        var store = new Mock<IUserStore<AppUser>>();
+        var userManager = new Mock<UserManager<AppUser>>(
+            store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
+        var service = new WelcomeService(db, userManager.Object, NullLogger<WelcomeService>.Instance);
+
+        var act = async () => await service.MarkStepSeenAsync(userId, new string('s', 101));
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*100*");
+    }
+
+    [Fact]
+    public async Task MarkStepSeenAsync_RejectsEmptyStepId()
+    {
+        using var db = CreateDb();
+        var userId = Guid.NewGuid();
+        var store = new Mock<IUserStore<AppUser>>();
+        var userManager = new Mock<UserManager<AppUser>>(
+            store.Object, null!, null!, null!, null!, null!, null!, null!, null!);
+        var service = new WelcomeService(db, userManager.Object, NullLogger<WelcomeService>.Instance);
+
+        var act = async () => await service.MarkStepSeenAsync(userId, "  ");
+
+        await act.Should().ThrowAsync<ArgumentException>();
+    }
+
+    private static PitbullDbContext CreateDb()
+    {
+        var tenantId = Guid.NewGuid();
+        var options = new DbContextOptionsBuilder<PitbullDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+        var tenant = new TenantContext { TenantId = tenantId, TenantName = "T" };
+        var company = new CompanyContext();
+        return new PitbullDbContext(options, tenant, company);
+    }
+
     [Theory]
     [InlineData("Chief Executive Officer", "Executive")]
     [InlineData("Chief Operating Officer", "Executive")]

@@ -194,6 +194,44 @@ public class DashboardPreferencesServiceTests : IDisposable
         retrieved.Widgets[1].Width.Should().Be(4);
     }
 
+    [Fact]
+    public async Task SaveWidgetConfigurationAsync_RejectsMoreThan50Widgets()
+    {
+        var widgets = Enumerable.Range(0, 51)
+            .Select(i => new WidgetDto($"w{i}", "kpi-cards", 0, 0, 1, 1, true))
+            .ToList();
+
+        var act = () => _service.SaveWidgetConfigurationAsync(TestUserId, widgets);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*50*");
+    }
+
+    [Fact]
+    public async Task SaveWidgetConfigurationAsync_RejectsInvalidGridSize()
+    {
+        var widgets = new List<WidgetDto>
+        {
+            new("w1", "kpi-cards", -1, 0, 4, 1, true)
+        };
+
+        var act = () => _service.SaveWidgetConfigurationAsync(TestUserId, widgets);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*Row/Col*");
+    }
+
+    [Fact]
+    public async Task SaveWidgetConfigurationAsync_RejectsOversizedWidgetId()
+    {
+        var widgets = new List<WidgetDto>
+        {
+            new(new string('x', 101), "kpi-cards", 0, 0, 4, 1, true)
+        };
+
+        var act = () => _service.SaveWidgetConfigurationAsync(TestUserId, widgets);
+
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*Id*");
+    }
+
     #endregion
 
     #region ResetToDefaultAsync

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatReleasePublished } from "./changelog";
+import { changelogHasMore, formatReleasePublished, type ChangelogResponse } from "./changelog";
 
 describe("formatReleasePublished", () => {
   it("returns null for empty", () => {
@@ -20,5 +20,70 @@ describe("formatReleasePublished", () => {
     expect(s).toBeTruthy();
     expect(s).toMatch(/2026/);
     expect(s).toMatch(/\d{1,2}:\d{2}/);
+  });
+});
+
+describe("changelogHasMore", () => {
+  const base = (partial: Partial<ChangelogResponse>): ChangelogResponse => ({
+    appVersion: "3.7.7",
+    sourcePath: "CHANGELOG.md",
+    releases: Array.from({ length: partial.releases?.length ?? 0 }, (_, i) => ({
+      version: `1.0.${i}`,
+      date: null,
+      added: [],
+      changed: [],
+      fixed: [],
+      security: [],
+      removed: [],
+      deprecated: [],
+    })),
+    totalCount: 0,
+    offset: 0,
+    limit: null,
+    ...partial,
+  });
+
+  it("is true when more releases remain after this page", () => {
+    expect(
+      changelogHasMore(
+        base({
+          releases: Array.from({ length: 12 }, () => ({
+            version: "x",
+            date: null,
+            added: [],
+            changed: [],
+            fixed: [],
+            security: [],
+            removed: [],
+            deprecated: [],
+          })),
+          offset: 0,
+          totalCount: 100,
+          limit: 12,
+        })
+      )
+    ).toBe(true);
+  });
+
+  it("is false on the last page", () => {
+    expect(
+      changelogHasMore(
+        base({
+          releases: Array.from({ length: 4 }, () => ({
+            version: "x",
+            date: null,
+            added: [],
+            changed: [],
+            fixed: [],
+            security: [],
+            removed: [],
+            deprecated: [],
+          })),
+          offset: 96,
+          totalCount: 100,
+          limit: 12,
+        })
+      )
+    ).toBe(false);
   });
 });

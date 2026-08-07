@@ -39,7 +39,7 @@ When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator / Contract
 
 | Task | Read first |
 |------|------------|
-| Any version ship | `docs/260712/VERSION-WORKFLOW.md` + matching block in `goal-prompts.md` |
+| Any version ship | `docs/340-pm-arc/VERSION-WORKFLOW.md` + matching block in `docs/340-pm-arc/goal-prompts.md` (historical 3.0 only: `docs/260712/`) |
 | Mobile / field UX | Spec for band + `docs/mobile3.md` + `docs/ROLE-EXPERIENCE.md` |
 | Digital twin | `docs/pitbull-digital-twin-spec.md` + `docs/specs/digital-twin-phase2-implementation.md` |
 | Workflow / approvals | `docs/WORKFLOW-EVALUATION-MATRIX.md` + band spec |
@@ -51,7 +51,9 @@ When `Demo:Enabled=true`: CEO / CFO / PM / Superintendent / Estimator / Contract
 
 Per `CONTRIBUTING.md`: update `VERSION`, web `package.json`, API csproj Version props, Docker ARGs together. Stamp CHANGELOG headers with ISO date+time.
 
-**This program (to 3.0.0):** product ends **`2.22.2`**; runway **`2.22.3`→`2.24.2`**; major **`2.24.2`→`3.0.0`**. One bump per PR. Never skip. See `VERSION-WORKFLOW.md`.
+**Live (PM next-gen):** one bump per PR; never skip; next free after product **`3.7.7`** is **`3.7.8`**. See `docs/340-pm-arc/VERSION-WORKFLOW.md`.
+
+**Historical (3.0.0 program — complete archive):** product ended **`2.22.2`**; runway **`2.22.3`→`2.24.2`**; major **`2.24.2`→`3.0.0`**. Do not use as live next stamps — see `docs/260712/VERSION-WORKFLOW.md` only when reading that archive.
 
 ## Session workflow (canonical — do not re-derive in chat)
 
@@ -62,7 +64,7 @@ Per `CONTRIBUTING.md`: update `VERSION`, web `package.json`, API csproj Version 
 | [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](docs/roadmap/pm-nextgen-3.4-to-4.0.md) | Epic: domains, inventory, ladder, Railway gates |
 | [`docs/340-pm-arc/VERSION-WORKFLOW.md`](docs/340-pm-arc/VERSION-WORKFLOW.md) | Version rules for this arc |
 | [`docs/340-pm-arc/goal-prompts.md`](docs/340-pm-arc/goal-prompts.md) | Copy-paste `/goal` prompts |
-| [`docs/specs/product-bands/band-3.5-pm-rfi-submittal-mobile.md`](docs/specs/product-bands/band-3.5-pm-rfi-submittal-mobile.md) | First band (next stamp **3.4.1**) |
+| [`docs/specs/product-bands/band-3.8-pm-cpm-practices.md`](docs/specs/product-bands/band-3.8-pm-cpm-practices.md) | Active band (**partial**); product **`3.7.7`** → next free **`3.7.8`** |
 | [`docs/ci/pm-arc-deploy-safety.md`](docs/ci/pm-arc-deploy-safety.md) | Preflight + stamp + health gates |
 
 ### Historical: 3.0.0 program (complete — do not reopen)

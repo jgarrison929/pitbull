@@ -220,4 +220,47 @@ public class ChangelogParserTests
          + body.Releases[0].Changed.Count
          + body.Releases[0].Fixed.Count).Should().BeGreaterThan(0);
     }
+
+    [Fact]
+    public void ChangelogService_GetChangelog_OffsetAndLimit_PaginatesWithTotalCount()
+    {
+        var env = new Mock<IWebHostEnvironment>();
+        env.Setup(e => e.ContentRootPath).Returns(AppContext.BaseDirectory);
+
+        var service = new ChangelogService(env.Object, NullLogger<ChangelogService>.Instance);
+
+        var first = service.GetChangelog(limit: 3, offset: 0, excludeUnreleased: true);
+        first.Releases.Should().HaveCount(3);
+        first.TotalCount.Should().BeGreaterThan(3);
+        first.Offset.Should().Be(0);
+        first.Limit.Should().Be(3);
+        first.Releases.Should().OnlyContain(r =>
+            !string.Equals(r.Version, "Unreleased", StringComparison.OrdinalIgnoreCase));
+
+        var second = service.GetChangelog(limit: 3, offset: 3, excludeUnreleased: true);
+        second.Releases.Should().HaveCount(3);
+        second.TotalCount.Should().Be(first.TotalCount);
+        second.Offset.Should().Be(3);
+        second.Releases.Select(r => r.Version)
+            .Should().NotIntersectWith(first.Releases.Select(r => r.Version));
+    }
+
+    [Fact]
+    public void ChangelogController_Get_CapsLimitAndOffset()
+    {
+        var env = new Mock<IWebHostEnvironment>();
+        env.Setup(e => e.ContentRootPath).Returns(AppContext.BaseDirectory);
+
+        var service = new ChangelogService(env.Object, NullLogger<ChangelogService>.Instance);
+        var controller = new ChangelogController(service);
+
+        var result = controller.Get(limit: 999, offset: -5, excludeUnreleased: true);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var body = ok.Value.Should().BeOfType<ChangelogResponse>().Subject;
+        body.Limit.Should().Be(ChangelogService.MaxPageSize);
+        body.Offset.Should().Be(0);
+        body.Releases.Count.Should().BeLessThanOrEqualTo(ChangelogService.MaxPageSize);
+        body.TotalCount.Should().BeGreaterThan(0);
+    }
 }

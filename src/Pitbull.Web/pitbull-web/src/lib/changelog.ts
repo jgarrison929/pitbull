@@ -15,7 +15,14 @@ export type ChangelogResponse = {
   appVersion: string | null;
   sourcePath: string | null;
   releases: ChangelogRelease[];
+  /** Total matching releases before offset/limit (for progressive load). */
+  totalCount: number;
+  offset: number;
+  limit: number | null;
 };
+
+/** Default page size for in-app changelog history. */
+export const CHANGELOG_PAGE_SIZE = 12;
 
 /** ASP.NET serializes record props as camelCase by default. */
 function normalizeRelease(raw: Record<string, unknown>): ChangelogRelease {
@@ -35,15 +42,28 @@ function normalizeRelease(raw: Record<string, unknown>): ChangelogRelease {
   };
 }
 
+function num(raw: unknown, fallback = 0): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = Number(raw);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
+}
+
 export async function fetchChangelog(params?: {
   current?: boolean;
   version?: string;
   limit?: number;
+  offset?: number;
+  excludeUnreleased?: boolean;
 }): Promise<ChangelogResponse> {
   const qs = new URLSearchParams();
   if (params?.current) qs.set("current", "true");
   if (params?.version) qs.set("version", params.version);
   if (params?.limit != null) qs.set("limit", String(params.limit));
+  if (params?.offset != null && params.offset > 0) qs.set("offset", String(params.offset));
+  if (params?.excludeUnreleased) qs.set("excludeUnreleased", "true");
 
   const url = `${API_BASE_URL}/api/changelog${qs.toString() ? `?${qs}` : ""}`;
   const res = await fetch(url);
@@ -52,11 +72,28 @@ export async function fetchChangelog(params?: {
   }
   const data = (await res.json()) as Record<string, unknown>;
   const releasesRaw = (data.releases ?? data.Releases ?? []) as Record<string, unknown>[];
+  const releases = releasesRaw.map(normalizeRelease);
+  const totalCount = num(data.totalCount ?? data.TotalCount, releases.length);
+  const offset = num(data.offset ?? data.Offset, params?.offset ?? 0);
+  const limitRaw = data.limit ?? data.Limit;
+  const limit =
+    limitRaw == null
+      ? (params?.limit ?? null)
+      : num(limitRaw, params?.limit ?? 0) || null;
+
   return {
     appVersion: (data.appVersion ?? data.AppVersion ?? null) as string | null,
     sourcePath: (data.sourcePath ?? data.SourcePath ?? null) as string | null,
-    releases: releasesRaw.map(normalizeRelease),
+    releases,
+    totalCount,
+    offset,
+    limit,
   };
+}
+
+/** Whether another page exists after this response. */
+export function changelogHasMore(res: ChangelogResponse): boolean {
+  return res.offset + res.releases.length < res.totalCount;
 }
 
 export function releaseHasNotes(r: ChangelogRelease): boolean {

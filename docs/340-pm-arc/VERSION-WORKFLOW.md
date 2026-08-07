@@ -34,4 +34,14 @@ This file **extends** root CONTRIBUTING + historical `docs/260712/VERSION-WORKFL
 
 ## Next stamp
 
-After `3.7.5`: **`3.7.6`** — CPM recalculate action honesty (band 3.8 remainder; stop was intentional at 3.7.5 for prior goal).
+**Current product:** `3.7.7` (root `VERSION`).  
+**Next free stamp:** **`3.7.8`** — band 3.8 remainder (recalc honesty + phone UI, consolidated; see remapped table in `band-3.8-pm-cpm-practices.md`).
+
+### Spent / diverted (never reclaim for CPM)
+
+| Stamp | What actually shipped (CHANGELOG) |
+|-------|-----------------------------------|
+| `3.7.6` | Dependency audit (NuGet/npm) — **not** CPM recalc |
+| `3.7.7` | WIP BilledToDate multi-app fix — **not** CPM phone UI |
+
+Original band rows that named those numbers for CPM are remapped onto free **`3.7.8`–`3.8.0` only**.

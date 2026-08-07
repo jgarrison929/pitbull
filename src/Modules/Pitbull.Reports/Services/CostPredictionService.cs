@@ -54,6 +54,7 @@ public sealed class CostPredictionService(
             .AsNoTracking()
             .Where(cp => cp.ProjectId == projectId && cp.CompanyId == companyContext.CompanyId)
             .OrderByDescending(cp => cp.CreatedAt)
+            .Take(100)
             .ToListAsync(ct);
 
         return predictions.Select(p => MapToDto(p, projectName)).ToList();

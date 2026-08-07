@@ -4,12 +4,19 @@ namespace Pitbull.Api.Services;
 
 public interface IChangelogService
 {
-    ChangelogResponse GetChangelog(string? versionFilter = null, bool currentOnly = false, int? limit = null);
+    ChangelogResponse GetChangelog(
+        string? versionFilter = null,
+        bool currentOnly = false,
+        int? limit = null,
+        int offset = 0,
+        bool excludeUnreleased = false);
     string GetAppVersion();
 }
 
 public sealed class ChangelogService(IWebHostEnvironment env, ILogger<ChangelogService> logger) : IChangelogService
 {
+    public const int MaxPageSize = 50;
+
     private readonly object _lock = new();
     private IReadOnlyList<ChangelogRelease>? _cached;
     private string? _sourcePath;
@@ -25,7 +32,12 @@ public sealed class ChangelogService(IWebHostEnvironment env, ILogger<ChangelogS
         return plusIndex > 0 ? version[..plusIndex] : version;
     }
 
-    public ChangelogResponse GetChangelog(string? versionFilter = null, bool currentOnly = false, int? limit = null)
+    public ChangelogResponse GetChangelog(
+        string? versionFilter = null,
+        bool currentOnly = false,
+        int? limit = null,
+        int offset = 0,
+        bool excludeUnreleased = false)
     {
         var releases = LoadReleases();
         var appVersion = GetAppVersion();
@@ -41,17 +53,41 @@ public sealed class ChangelogService(IWebHostEnvironment env, ILogger<ChangelogS
         }
         else if (!string.IsNullOrWhiteSpace(versionFilter))
         {
-            var match = ChangelogParser.FindRelease(releases, versionFilter);
+            // Cap filter length to avoid pathological string compares / allocations.
+            var filter = versionFilter.Trim();
+            if (filter.Length > 50)
+                filter = filter[..50];
+            var match = ChangelogParser.FindRelease(releases, filter);
             query = match is null ? [] : [match];
         }
+        else if (excludeUnreleased)
+        {
+            query = query.Where(r =>
+                !string.Equals(r.Version, "Unreleased", StringComparison.OrdinalIgnoreCase));
+        }
 
+        // Materialize filtered set so TotalCount is accurate before Skip/Take.
+        var filtered = query as IList<ChangelogRelease> ?? query.ToList();
+        var totalCount = filtered.Count;
+
+        var safeOffset = Math.Max(0, offset);
+        if (safeOffset > 0)
+            filtered = filtered.Skip(safeOffset).ToList();
+
+        int? appliedLimit = null;
         if (limit is > 0)
-            query = query.Take(Math.Min(limit.Value, 50));
+        {
+            appliedLimit = Math.Min(limit.Value, MaxPageSize);
+            filtered = filtered.Take(appliedLimit.Value).ToList();
+        }
 
         return new ChangelogResponse(
             AppVersion: appVersion,
             SourcePath: _sourcePath is null ? null : Path.GetFileName(_sourcePath),
-            Releases: query.Select(ChangelogMapping.ToDto).ToList());
+            Releases: filtered.Select(ChangelogMapping.ToDto).ToList(),
+            TotalCount: totalCount,
+            Offset: safeOffset,
+            Limit: appliedLimit);
     }
 
     private IReadOnlyList<ChangelogRelease> LoadReleases()

@@ -24,6 +24,9 @@ public class WelcomeService(
     UserManager<AppUser> userManager,
     ILogger<WelcomeService> logger) : IWelcomeService
 {
+    private const int MaxStepIdLength = 100;
+    private const int MaxSeenSteps = 100;
+
     public async Task<WelcomeTourDto> GetTourAsync(Guid userId, CancellationToken ct = default)
     {
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
@@ -52,12 +55,19 @@ public class WelcomeService(
 
     public async Task MarkStepSeenAsync(Guid userId, string stepId, CancellationToken ct = default)
     {
-        var seenSteps = await GetSeenStepsAsync(userId, ct);
-        if (seenSteps.Contains(stepId)) return;
+        if (string.IsNullOrWhiteSpace(stepId) || stepId.Length > MaxStepIdLength)
+            throw new ArgumentException($"Step id is required and cannot exceed {MaxStepIdLength} characters", nameof(stepId));
 
-        seenSteps.Add(stepId);
+        var normalized = stepId.Trim();
+        var seenSteps = await GetSeenStepsAsync(userId, ct);
+        if (seenSteps.Contains(normalized)) return;
+
+        if (seenSteps.Count >= MaxSeenSteps)
+            throw new InvalidOperationException($"Cannot record more than {MaxSeenSteps} tour steps");
+
+        seenSteps.Add(normalized);
         await SaveSeenStepsAsync(userId, seenSteps, ct);
-        logger.LogDebug("User {UserId} completed tour step {StepId}", userId, LogSafe.Text(stepId));
+        logger.LogDebug("User {UserId} completed tour step {StepId}", userId, LogSafe.Text(normalized));
     }
 
     public async Task CompleteTourAsync(Guid userId, CancellationToken ct = default)
@@ -216,7 +226,12 @@ public class WelcomeService(
             .FirstOrDefaultAsync(c => c.UserId == userId && c.ClaimType == "tour_seen_steps", ct);
 
         if (claim?.ClaimValue is null) return [];
-        return claim.ClaimValue.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+        return claim.ClaimValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => s.Length > 0 && s.Length <= MaxStepIdLength)
+            .Take(MaxSeenSteps)
+            .ToList();
     }
 
     private async Task SaveSeenStepsAsync(Guid userId, List<string> seenSteps, CancellationToken ct)
@@ -224,7 +239,11 @@ public class WelcomeService(
         var claim = await db.UserClaims
             .FirstOrDefaultAsync(c => c.UserId == userId && c.ClaimType == "tour_seen_steps", ct);
 
-        var value = string.Join(",", seenSteps);
+        var safe = seenSteps
+            .Where(s => !string.IsNullOrWhiteSpace(s) && s.Length <= MaxStepIdLength)
+            .Take(MaxSeenSteps)
+            .ToList();
+        var value = string.Join(",", safe);
 
         if (claim is null)
         {
