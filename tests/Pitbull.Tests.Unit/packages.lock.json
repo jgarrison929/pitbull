@@ -72,9 +72,9 @@
       },
       "PostHog": {
         "type": "Direct",
-        "requested": "[2.12.1, )",
-        "resolved": "2.12.1",
-        "contentHash": "KIpMvdDRvRGcrcsGNK14eVfKKQpQcaKH7oKQEF3V97djQfK6a0debn6nKnj7efEkxQV6XhtKudmBwmhXz8e9Hw==",
+        "requested": "[2.13.1, )",
+        "resolved": "2.13.1",
+        "contentHash": "c9hIoC5kwW+JldsMt2ElaNCQi0Pmsrg7lsgwc7UQmC2IlVcsv1Nb5T3WJVQRZ0cIb4My5lnEQU8MSUIAEymFkg==",
         "dependencies": {
           "Microsoft.Extensions.Caching.Memory": "8.0.1",
           "Microsoft.Extensions.Http": "8.0.1",
@@ -955,7 +955,7 @@
           "Pitbull.Storage": "[1.0.0, )",
           "Pitbull.SystemAdmin": "[1.0.0, )",
           "Pitbull.TimeTracking": "[1.0.0, )",
-          "PostHog": "[2.12.1, )",
+          "PostHog": "[2.13.1, )",
           "PostHog.AspNetCore": "[2.8.1, )",
           "QuestPDF": "[2026.2.1, )",
           "Resend": "[0.2.1, )",
