@@ -22,14 +22,14 @@ Historical **3.0.0** Arc A–E is complete (`docs/260712/`). Do not reopen 2.x n
 | **3.5** RFI + Submittal mobile | `3.4.1` → `3.5.0` | [band-3.5-pm-rfi-submittal-mobile.md](./band-3.5-pm-rfi-submittal-mobile.md) | **Shipped** |
 | **3.6** CO + Contracts mobile | `3.5.1` → `3.6.0` | [band-3.6-pm-co-contracts-mobile.md](./band-3.6-pm-co-contracts-mobile.md) | **Shipped** |
 | **3.7** Schedule Gantt + Kanban | `3.6.1` → `3.7.0` | [band-3.7-pm-schedule-gantt-kanban.md](./band-3.7-pm-schedule-gantt-kanban.md) | **Shipped** |
-| **3.8** CPM practices | `3.7.1` → `3.8.0` | [band-3.8-pm-cpm-practices.md](./band-3.8-pm-cpm-practices.md) | **Partial** (through `3.7.5`; remapped remainder `3.7.8`–`3.8.0`) |
+| **3.8** CPM practices | `3.7.1` → `3.8.0` | [band-3.8-pm-cpm-practices.md](./band-3.8-pm-cpm-practices.md) | **Partial** (through `3.7.5`; remapped remainder `3.7.9`–`3.8.0`) |
 | **3.9** Safety + Compliance | `3.8.1` → `3.9.0` | [band-3.9-pm-safety-compliance.md](./band-3.9-pm-safety-compliance.md) | Pending stub |
 | **3.10** Vendors + Procurement + Materials | `3.9.1` → `3.10.0` | [band-3.10-pm-vendors-procurement-materials.md](./band-3.10-pm-vendors-procurement-materials.md) | Pending stub |
 | **3.11** Pay apps + Quotes | `3.10.1` → `3.11.0` | [band-3.11-pm-sub-payapps-quotes.md](./band-3.11-pm-sub-payapps-quotes.md) | Pending stub |
 | **3.12** PM hub polish | `3.11.1` → `3.12.0` | [band-3.12-pm-hub-polish.md](./band-3.12-pm-hub-polish.md) | Pending stub |
 | Runway + **4.0.0** | `3.12.1` → `3.12.9` → `4.0.0` | [band-3.12-runway-and-4.0.0.md](./band-3.12-runway-and-4.0.0.md) | Pending stub |
 
-**Product VERSION:** `3.7.7`. **Next free stamp:** `3.7.8` (band 3.8 remainder — do not reclaim diverted `3.7.6` dep-audit or `3.7.7` WIP BilledToDate).
+**Product VERSION:** `3.7.8`. **Next free stamp:** `3.7.9` (band 3.8 remainder — do not reclaim diverted `3.7.6` dep-audit, `3.7.7` WIP BilledToDate, or `3.7.8` Dependabot wave).
 
 ## Shipped post-3.0 bands (prior)
 

@@ -138,7 +138,7 @@ Branch `chore/app-hardening-hourly-2026080121` (uncommitted at plan time) includ
 
 ## 4. Dependabot / upgrade workstream
 
-Inventory date: **2026-08-06**. Config: `.github/dependabot.yml` (weekly; nuget + npm web + npm e2e + docker + GHA).
+Inventory date: **2026-08-20**. Config: `.github/dependabot.yml` (weekly; nuget + npm web + npm e2e + docker + GHA). Safe wave shipped in **`3.7.8`**. Held majors ignored in dependabot.yml.
 
 ### 4.1 Open Dependabot PRs (triage)
 
@@ -162,9 +162,9 @@ Also known policy: **Microsoft.OpenApi ≥3** ignored in dependabot.yml (ASP.NET
 
 | Wave | Scope | Gate |
 |------|--------|------|
-| **W0** | Close/supersede conflicting CAP Dependabot PRs; ship **one** aligned CAP package set from `main` | `dotnet restore` zero NU1605; unit + integration green |
-| **W1** | Safe NuGet patch/minors only (non-major, non-OpenApi-3) | Same as W0 |
-| **W2** | **Next.js 16.3** (+ peer react if required) — see §5 | `npm ci`, lint, `next build`, smoke e2e subset |
+| **W0** | Close/supersede conflicting CAP Dependabot PRs; ship **one** aligned CAP package set from `main` | **Shipped `3.7.8`** — CAP 10.0.2 set |
+| **W1** | Safe NuGet patch/minors only (non-major, non-OpenApi-3) | **Shipped `3.7.8`** — PostHog, AWSSDK.S3, Testcontainers |
+| **W2** | **Next.js 16.3** (+ peer react if required) — see §5 | **Shipped `3.7.8`** — next + eslint-config-next 16.3.1 |
 | **W3** | TypeScript 7 **only if** W2 green and Next docs path is clear | `next build` typecheck; vitest |
 | **W4** | eslint 10 | Dedicated lint migration PR |
 | **W5** | Mapster 10 / QuestPDF / Resend | One major per PR; product smoke for email/PDF/mapping |

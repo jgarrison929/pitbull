@@ -1,6 +1,6 @@
 # Epic: Next-gen Project Management module (3.4.0 → 4.0.0)
 
-**Status:** In progress — current product **`3.7.7`**; next free stamp **`3.7.8`** (band 3.8 remainder)  
+**Status:** In progress — current product **`3.7.8`**; next free stamp **`3.7.9`** (band 3.8 remainder)  
 **Product start:** `3.4.0` (shipped checkpoint)  
 **Product end:** `4.0.0` (major stamp after runway)  
 **Primary UX mandate:** **Mobile-friendly** upgrades for every domain below — phone = capture + glance + filtered drill; PWA-first; no client-side portfolio/ledger aggregation; truth over polish.
@@ -170,14 +170,14 @@ See also `docs/ci/pm-arc-deploy-safety.md` and `deploy/RAILWAY-*.md`.
 
 **Stamp count (approx):** 10×7 bands + 9 runway + 1 major ≈ **80** PRs. Ruthless scope control: mobile-first **harden**, not rewrite every desktop form.
 
-### Band progress (at product `3.7.7`)
+### Band progress (at product `3.7.8`)
 
 | Spec file | Status |
 |-----------|--------|
 | `band-3.5-pm-rfi-submittal-mobile.md` | **Shipped** (`3.4.1` → `3.5.0`) |
 | `band-3.6-pm-co-contracts-mobile.md` | **Shipped** (`3.5.1` → `3.6.0`) |
 | `band-3.7-pm-schedule-gantt-kanban.md` | **Shipped** (`3.6.1` → `3.7.0`) |
-| `band-3.8-pm-cpm-practices.md` | **Partial** — CPM rows `3.7.1`–`3.7.5` shipped; stamps `3.7.6`/`3.7.7` diverted (dep-audit / WIP BilledToDate); free remaining **`3.7.8`–`3.8.0`** |
+| `band-3.8-pm-cpm-practices.md` | **Partial** — CPM rows `3.7.1`–`3.7.5` shipped; stamps `3.7.6`/`3.7.7`/`3.7.8` diverted (dep-audit / WIP / Dependabot); free remaining **`3.7.9`–`3.8.0`** |
 | `band-3.9-pm-safety-compliance.md` | Pending stub |
 | `band-3.10-pm-vendors-procurement-materials.md` | Pending stub |
 | `band-3.11-pm-sub-payapps-quotes.md` | Pending stub |
@@ -185,7 +185,7 @@ See also `docs/ci/pm-arc-deploy-safety.md` and `deploy/RAILWAY-*.md`.
 | `band-3.12-runway-and-4.0.0.md` | Pending stub (runway + major) |
 
 **Active band:** [`band-3.8-pm-cpm-practices.md`](../specs/product-bands/band-3.8-pm-cpm-practices.md)  
-**Next free stamp:** **`3.7.8`** (do not reclaim `3.7.6` / `3.7.7`).
+**Next free stamp:** **`3.7.9`** (do not reclaim `3.7.6` / `3.7.7` / `3.7.8`).
 
 ---
 
