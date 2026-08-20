@@ -14,6 +14,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Contract Administrator demo persona** — Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
 - **PM next-gen arc program docs** — epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
 
+## [3.7.8] - 2026-08-20T06:35:09-07:00
+
+### Changed
+
+- **Dependabot wave (W0–W2)** — one aligned CAP set **10.0.1 → 10.0.2** (`CAP` / `PostgreSql` / `RedisStreams` / `Dashboard`); PostHog **2.12.1 → 2.13.1**; AWSSDK.S3 **4.0.101.6 → 4.0.102**; Testcontainers **4.13.0 → 4.14.0**. npm: Next + eslint-config-next **16.2.11 → 16.3.1**, lucide-react **1.28.0 → 1.33.0**, posthog-js **1.409.5 → 1.418.5**, `@testing-library/user-event` **14.6.1 → 14.6.3**. Docker: `dotnet/sdk` and `dotnet/aspnet` **10.0** digest refresh. Held majors: Node 22 (not 25), TypeScript 6, ESLint 9, Mapster 7, jest-dom 6, Resend 0.2, QuestPDF 2026.2, `@types/node` 25, Microsoft.OpenApi 2.x.
+
+### Security
+
+- npm overrides: **js-yaml 4.3.1** (quadratic `!!omap`), **nanoid 3.3.18** (GHSA-2v37-7h3g-55p8), **dompurify 3.4.14** (GHSA-55q2-fjhq-7xh7; previous pin 3.4.12 was still in range). NuGet: **SSH.NET 2026.0.0** (GHSA-q939-rpr3-3284, transitive via Testcontainers).
+
 ## [3.7.7] - 2026-07-25T23:04:05-07:00
 
 ### Fixed

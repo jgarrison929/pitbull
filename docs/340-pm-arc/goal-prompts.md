@@ -1,9 +1,9 @@
 # Goal prompts — PM next-gen arc
 
-> **Current product:** root `VERSION` = **`3.7.7`**.  
-> **Next free stamp:** **`3.7.8`** (band 3.8 remainder — remapped CPM; see [`band-3.8-pm-cpm-practices.md`](../specs/product-bands/band-3.8-pm-cpm-practices.md)).  
+> **Current product:** root `VERSION` = **`3.7.8`**.  
+> **Next free stamp:** **`3.7.9`** (band 3.8 remainder — remapped CPM; see [`band-3.8-pm-cpm-practices.md`](../specs/product-bands/band-3.8-pm-cpm-practices.md)).  
 > **Do not copy-paste** historical goals for `3.4.x`–`3.7.5` as “next” — those stamps are **shipped archive**.  
-> Stamps **`3.7.6`** (dep-audit) and **`3.7.7`** (WIP BilledToDate) are **spent / diverted** — never reclaim for CPM.
+> Stamps **`3.7.6`** (dep-audit), **`3.7.7`** (WIP BilledToDate), and **`3.7.8`** (Dependabot wave) are **spent / diverted** — never reclaim for CPM.
 
 Epic: [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md)  
 Active band: [`band-3.8-pm-cpm-practices.md`](../specs/product-bands/band-3.8-pm-cpm-practices.md)  
@@ -15,22 +15,16 @@ Copy-paste one `/goal` per PR. Always: full version stamp set + preflight before
 
 ## Live next goals (after remap)
 
-### Goal → 3.7.8
-
-```
-/goal Ship Pitbull 3.7.8: band 3.8 remainder — recalculate critical path action honesty + last-run timestamp AND phone UI for recalc + last run (consolidated; 3.7.6/3.7.7 diverted). Follow docs/specs/product-bands/band-3.8-pm-cpm-practices.md row 3.7.8. Bump 3.7.7→3.7.8 + CHANGELOG. Preflight -FullWeb -DotNet. Do not reclaim 3.7.6/3.7.7.
-```
-
 ### Goal → 3.7.9
 
 ```
-/goal Ship Pitbull 3.7.9: band 3.8 — Help Center CPM for supers/PMs + buffer residual (consolidated). Follow band-3.8 row 3.7.9. Bump 3.7.8→3.7.9. Preflight green.
+/goal Ship Pitbull 3.7.9: band 3.8 remainder — recalculate critical path action honesty + last-run timestamp AND phone UI for recalc + last run (consolidated; 3.7.6/3.7.7/3.7.8 diverted). Follow docs/specs/product-bands/band-3.8-pm-cpm-practices.md row 3.7.9. Bump 3.7.8→3.7.9 + CHANGELOG. Preflight -FullWeb -DotNet. Do not reclaim 3.7.6–3.7.8.
 ```
 
 ### Goal → 3.8.0
 
 ```
-/goal Ship Pitbull 3.8.0: band 3.8 checkpoint — CI notes docs/ci/pm-3.8-cpm-notes.md; mark band Shipped through 3.8.0. Bump 3.7.9→3.8.0. Preflight + health check notes.
+/goal Ship Pitbull 3.8.0: band 3.8 checkpoint — Help Center CPM for supers/PMs + CI notes docs/ci/pm-3.8-cpm-notes.md; mark band Shipped through 3.8.0. Follow band-3.8 row 3.8.0. Bump 3.7.9→3.8.0. Preflight + health check notes.
 ```
 
 ---
@@ -113,7 +107,8 @@ Shipped. See `band-3.8-pm-cpm-practices.md` rows 3.7.1–3.7.5.
 
 - **3.7.6** — dependency audit (CHANGELOG)  
 - **3.7.7** — WIP BilledToDate multi-app fix (CHANGELOG)  
+- **3.7.8** — Dependabot wave (CHANGELOG)  
 
-Remaining CPM: live goals **3.7.8 → 3.8.0** at top of this file.
+Remaining CPM: live goals **3.7.9 → 3.8.0** at top of this file.
 
 Later bands (3.9+): expand stub → add prompts before first stamp of that band.

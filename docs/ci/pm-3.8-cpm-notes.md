@@ -1,8 +1,8 @@
 # CI notes — Band 3.8 CPM practices
 
-**Status:** Partial through **3.7.5** (CPM rows); **3.7.6** / **3.7.7** diverted (dep-audit / WIP BilledToDate); free remaining **3.7.8–3.8.0**  
+**Status:** Partial through **3.7.5** (CPM rows); **3.7.6** / **3.7.7** / **3.7.8** diverted (dep-audit / WIP BilledToDate / Dependabot); free remaining **3.7.9–3.8.0**  
 **Spec:** `docs/specs/product-bands/band-3.8-pm-cpm-practices.md`  
-**Product VERSION:** `3.7.7` → next free **`3.7.8`** (do not reclaim 3.7.6 / 3.7.7)
+**Product VERSION:** `3.7.8` → next free **`3.7.9`** (do not reclaim 3.7.6 / 3.7.7 / 3.7.8)
 
 ## Shipped through 3.7.5
 
@@ -20,13 +20,13 @@
 |-------|------------------------|
 | 3.7.6 | Dependency audit (CHANGELOG) |
 | 3.7.7 | WIP BilledToDate multi-app fix (CHANGELOG) |
+| 3.7.8 | Dependabot wave (CHANGELOG) |
 
 ## Remaining (free stamps only)
 
 | Stamp | Intent |
 |-------|--------|
-| **3.7.8** | Recalculate critical path confirm UI + last-run honesty **and** phone UI (consolidated from diverted 3.7.6/3.7.7 CPM intents) |
-| **3.7.9** | Help CPM polish + buffer residual |
-| **3.8.0** | Checkpoint + this CI notes file |
+| **3.7.9** | Recalculate critical path confirm UI + last-run honesty **and** phone UI (consolidated from diverted 3.7.6–3.7.8 CPM intents) |
+| **3.8.0** | Help CPM polish + checkpoint + this CI notes file |
 
-Next free: **3.7.8**.
+Next free: **3.7.9**.

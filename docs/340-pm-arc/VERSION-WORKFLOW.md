@@ -34,8 +34,8 @@ This file **extends** root CONTRIBUTING + historical `docs/260712/VERSION-WORKFL
 
 ## Next stamp
 
-**Current product:** `3.7.7` (root `VERSION`).  
-**Next free stamp:** **`3.7.8`** — band 3.8 remainder (recalc honesty + phone UI, consolidated; see remapped table in `band-3.8-pm-cpm-practices.md`).
+**Current product:** `3.7.8` (root `VERSION`).  
+**Next free stamp:** **`3.7.9`** — band 3.8 remainder (recalc honesty + phone UI, consolidated; see remapped table in `band-3.8-pm-cpm-practices.md`).
 
 ### Spent / diverted (never reclaim for CPM)
 
@@ -43,5 +43,6 @@ This file **extends** root CONTRIBUTING + historical `docs/260712/VERSION-WORKFL
 |-------|-----------------------------------|
 | `3.7.6` | Dependency audit (NuGet/npm) — **not** CPM recalc |
 | `3.7.7` | WIP BilledToDate multi-app fix — **not** CPM phone UI |
+| `3.7.8` | Dependabot wave (CAP set + npm 16.3 + security overrides) — **not** CPM |
 
-Original band rows that named those numbers for CPM are remapped onto free **`3.7.8`–`3.8.0` only**.
+Original band rows that named those numbers for CPM are remapped onto free **`3.7.9`–`3.8.0` only**.

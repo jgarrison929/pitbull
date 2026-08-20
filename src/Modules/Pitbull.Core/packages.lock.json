@@ -4,9 +4,9 @@
     "net10.0": {
       "DotNetCore.CAP": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "kXORtuyxTgwkSFellIMKQ55NJjlPqVlVWIWeDqqMiJSgWOQh81MACOg0u4lmAz71fugQoOKC/DzOffK3PMwmtA=="
+        "requested": "[10.0.2, )",
+        "resolved": "10.0.2",
+        "contentHash": "AY1PbSDa0IR4c2YdoRd3tCh5TfvdjziX1anKm0igUmhvqbVBJLX5bVhSEbbITcEV5dHiM8+rWc7Ss96DHFzuIg=="
       },
       "FluentValidation": {
         "type": "Direct",

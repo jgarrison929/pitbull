@@ -6,8 +6,8 @@
 
 # --- Stage 1: Build ---
 # Pin by digest for supply-chain integrity (tag kept for human readability).
-# Digest resolved 2026-07-31 from mcr.microsoft.com multi-arch index for sdk:10.0.
-FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:ed034a8bf0b24ded0cbbac07e17825d8e9ebfe21e308191d0f7421eaf5ad4664 AS build
+# Digest resolved 2026-08-10 from mcr.microsoft.com multi-arch index for sdk:10.0.
+FROM mcr.microsoft.com/dotnet/sdk:10.0@sha256:72dd743782f2ae7e5476fd64f6a460045e3998dc862218b80e6944cba79a01b0 AS build
 WORKDIR /app
 
 # Copy root-level config files
@@ -42,7 +42,7 @@ COPY tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj tests/Pitb
 RUN dotnet restore Pitbull.sln --locked-mode
 
 # Build args for version info (keep in sync with root VERSION / package.json / csproj)
-ARG VERSION=3.7.7
+ARG VERSION=3.7.8
 ARG COMMIT_HASH=unknown
 
 # Copy all source files
@@ -58,14 +58,14 @@ RUN dotnet publish src/Pitbull.Api/Pitbull.Api.csproj \
     -p:InformationalVersion=${VERSION}+${COMMIT_HASH}
 
 # --- Stage 2: Runtime ---
-# Digest resolved 2026-07-31 from mcr.microsoft.com multi-arch index for aspnet:10.0.
-FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:1fa23fc4872d95fd71c2833ebe65d7e84a43b2d51a31d119516852f13d9505a7 AS runtime
+# Digest resolved 2026-08-10 from mcr.microsoft.com multi-arch index for aspnet:10.0.
+FROM mcr.microsoft.com/dotnet/aspnet:10.0@sha256:f1126d438ccc359f51cc6d4701a8deae513856cf10f5fe645d29ea6403dcac6b AS runtime
 WORKDIR /app
 
 COPY --from=build /out .
 COPY --from=build /changelog/CHANGELOG.md ./CHANGELOG.md
 
-ARG VERSION=3.7.7
+ARG VERSION=3.7.8
 ARG COMMIT_HASH=unknown
 ARG BUILD_DATE=""
 ENV ASPNETCORE_ENVIRONMENT=Production

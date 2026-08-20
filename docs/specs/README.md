@@ -1,7 +1,7 @@
 # Product specs (`docs/specs/`)
 
 **Status:** Living template (agent-ready bar for product specs)  
-**Active product arc:** PM next-gen **3.4 → 4.0.0** — product **`3.7.7`** → next free **`3.7.8`** — [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md) · [`docs/340-pm-arc/`](../340-pm-arc/)  
+**Active product arc:** PM next-gen **3.4 → 4.0.0** — product **`3.7.8`** → next free **`3.7.9`** — [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md) · [`docs/340-pm-arc/`](../340-pm-arc/)  
 **Historical 3.0 workload:** [`docs/260712/spec-workload.md`](../260712/spec-workload.md)  
 **Version rules (PM arc):** [`docs/340-pm-arc/VERSION-WORKFLOW.md`](../340-pm-arc/VERSION-WORKFLOW.md) · historical [`docs/260712/VERSION-WORKFLOW.md`](../260712/VERSION-WORKFLOW.md)
 

@@ -14,6 +14,11 @@ updates:
     ignore:
       - dependency-name: "Microsoft.OpenApi"
         versions: [">=3.0.0"]
+      # Majors held until dedicated PRs (docs/roadmap/docs-stance-and-quality-cleanup-plan.md §4).
+      - dependency-name: "Mapster"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Resend"
+        update-types: ["version-update:semver-major"]
     groups:
       microsoft:
         patterns:
@@ -31,6 +36,16 @@ updates:
     labels: ["dependencies", "frontend"]
     commit-message:
       prefix: "deps"
+    ignore:
+      # Held majors — pair with Next/runtime decisions, not blind Dependabot PRs.
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@testing-library/jest-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/e2e"
@@ -61,6 +76,10 @@ updates:
     labels: ["dependencies", "docker"]
     commit-message:
       prefix: "deps"
+    ignore:
+      # Stay on Node 22 LTS for production images until an explicit runtime decision.
+      - dependency-name: "node"
+        versions: [">=23"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

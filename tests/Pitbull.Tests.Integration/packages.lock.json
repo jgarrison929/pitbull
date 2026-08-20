@@ -41,6 +41,16 @@
         "resolved": "7.0.0",
         "contentHash": "AyWlducZGOnmlEVz4PaL3Qv8wcY3ClPZS9CrlDnSVahGd/E9tTEgSFiC8yoV/F6o6P6IYm8xnHFa/vmWT8tfcw=="
       },
+      "SSH.NET": {
+        "type": "Direct",
+        "requested": "[2026.0.0, )",
+        "resolved": "2026.0.0",
+        "contentHash": "Yu9dirPq8l3oaat0+OQ7K0nUf5MmYltpia5UGqsApTG4zTPvBC1cxbNnC3NERij26dUST0A3Ef1QdHSn5ArbWQ==",
+        "dependencies": {
+          "BouncyCastle.Cryptography": "2.7.0",
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.3"
+        }
+      },
       "System.IdentityModel.Tokens.Jwt": {
         "type": "Direct",
         "requested": "[8.22.0, )",
@@ -62,24 +72,24 @@
       },
       "Testcontainers": {
         "type": "Direct",
-        "requested": "[4.13.0, )",
-        "resolved": "4.13.0",
-        "contentHash": "j8vi9jPBNSwaraGGx8w+2gtZyWrlbKxdhiGMS3nektg+KiwjFWx9ghCjs57EoQfvI+IAbzti0oQJupQChwgMog==",
+        "requested": "[4.14.0, )",
+        "resolved": "4.14.0",
+        "contentHash": "ojuBi91xcMsR6vnFuNsQDWU9tlZlrtmqy95VPNWVVnh24GiwFL/WMnVmb6bRv8LqovtnKPJN9cpmH1k02Z4ZoA==",
         "dependencies": {
           "Docker.DotNet.Enhanced": "4.3.3",
           "Docker.DotNet.Enhanced.X509": "4.3.3",
           "Microsoft.Extensions.Logging.Abstractions": "8.0.3",
-          "SSH.NET": "2025.1.0",
+          "SSH.NET": "2026.0.0",
           "SharpZipLib": "1.4.2"
         }
       },
       "Testcontainers.PostgreSql": {
         "type": "Direct",
-        "requested": "[4.13.0, )",
-        "resolved": "4.13.0",
-        "contentHash": "2ow4AE8drI9iA9Fr4ycAPusXPB1lJfQyyNONSMLE/XqLpm8VuNAh3pK38fOjkOWtTrnD03s4hAIdl4036Ik69A==",
+        "requested": "[4.14.0, )",
+        "resolved": "4.14.0",
+        "contentHash": "OPHWR9oCW89yuNxJjUo8Xtwrk0bcOdzFOE2Ryo01GAf/3WEzD+0j0gmdKSxx5kBprCdlbXurBJyaV7nSLPyWKQ==",
         "dependencies": {
-          "Testcontainers": "4.13.0"
+          "Testcontainers": "4.14.0"
         }
       },
       "xunit": {
@@ -140,21 +150,21 @@
       },
       "AWSSDK.S3": {
         "type": "Transitive",
-        "resolved": "4.0.101.6",
-        "contentHash": "LsVXGc3lyJuUJe+EbGubkFeR0cVmtmj4YdMChqsqSIsjZtCMzPg2BXR7cJqcrIBGoHab3q3RS6K8T9QD2tbhhQ==",
+        "resolved": "4.0.102",
+        "contentHash": "+5ToRNfpNnu1/oEbb1P+4AnHpknda1+eybYkhT6viFC4v772ZONeFYGR1pHgm7Zum0nvLDpSEJl/4y+wggpIpg==",
         "dependencies": {
           "AWSSDK.Core": "[4.0.100.9, 5.0.0)"
         }
       },
       "BouncyCastle.Cryptography": {
         "type": "Transitive",
-        "resolved": "2.6.2",
-        "contentHash": "7oWOcvnntmMKNzDLsdxAYqApt+AjpRpP2CShjMfIa3umZ42UQMvH0tl1qAliYPNYO6vTdcGMqnRrCPmsfzTI1w=="
+        "resolved": "2.7.0",
+        "contentHash": "U+12df8UEWHgBi04YVf/Lgi2dy3SItlIYvHjjEVa/BngCQIzDCDRBk50DDByCfDvSbe5pRNFr3b7UrVK2kMcLw=="
       },
       "Consul": {
         "type": "Transitive",
-        "resolved": "1.7.14.9",
-        "contentHash": "PZD63GVWmIb5KcJL5NP5KZVAMREKBTL5mj9ra4Nm2vZeVjPlTkbFfLHxinEIB7BRzjyh/5V3P5RjrfJI52nocw==",
+        "resolved": "1.8.0",
+        "contentHash": "flKNz6Swyt+pYBJ5dekN1X6PJYUaeNAaNC0dAWhudTd0t2vR34G0QXmr5KyApI7OP1rGMwY3xx133Dc9IvOS6Q==",
         "dependencies": {
           "Newtonsoft.Json": "13.0.1"
         }
@@ -232,8 +242,8 @@
       },
       "DotNetCore.CAP": {
         "type": "Transitive",
-        "resolved": "10.0.1",
-        "contentHash": "kXORtuyxTgwkSFellIMKQ55NJjlPqVlVWIWeDqqMiJSgWOQh81MACOg0u4lmAz71fugQoOKC/DzOffK3PMwmtA==",
+        "resolved": "10.0.2",
+        "contentHash": "AY1PbSDa0IR4c2YdoRd3tCh5TfvdjziX1anKm0igUmhvqbVBJLX5bVhSEbbITcEV5dHiM8+rWc7Ss96DHFzuIg==",
         "dependencies": {
           "Microsoft.Extensions.Hosting.Abstractions": "10.0.0",
           "Microsoft.Extensions.Logging.Abstractions": "10.0.0",
@@ -242,30 +252,30 @@
       },
       "DotNetCore.CAP.Dashboard": {
         "type": "Transitive",
-        "resolved": "10.0.1",
-        "contentHash": "bS/gNkQWjEU9yjWhtzeuDu3rlIk6V5RT/T+yz7RzeZ3nKaXxeH00fa0vYiisKwVkr6qA6bEE4CtIp9sn8h/yag==",
+        "resolved": "10.0.2",
+        "contentHash": "/pgQGu37I2N6lJPFE0874MFXNmZraFWVMaUtZkhKYuDgTDx0+tA05PBZ6nu83gMEhuZJKthkduiVxN/t0XAm6w==",
         "dependencies": {
-          "Consul": "1.7.14.9",
-          "DotNetCore.CAP": "10.0.1"
+          "Consul": "1.8.0",
+          "DotNetCore.CAP": "10.0.2"
         }
       },
       "DotNetCore.CAP.PostgreSql": {
         "type": "Transitive",
-        "resolved": "10.0.1",
-        "contentHash": "wsmkNHX7MIlPepvq1Z6PBWxgz4tnmkTdQF0p6WstCypvB7SijVGT60z8WqUj7XPj+sOJFkeGubyx8hwewsSZ7A==",
+        "resolved": "10.0.2",
+        "contentHash": "NO7juwxqoTmfIlj8dqcMoPztPadpMQMXxt6Mvuq3vXMHwFJ6o/OvfS5INMoMfDuRgfRjA3//wE2hSyNvS1WPiA==",
         "dependencies": {
-          "DotNetCore.CAP": "10.0.1",
+          "DotNetCore.CAP": "10.0.2",
           "Microsoft.EntityFrameworkCore.Relational": "10.0.0",
-          "Npgsql": "9.0.4"
+          "Npgsql": "10.0.2"
         }
       },
       "DotNetCore.CAP.RedisStreams": {
         "type": "Transitive",
-        "resolved": "10.0.1",
-        "contentHash": "Qry6q2DrBXoywakN5TlKl/BXFJSduuUvxv1/IJ+R5PLIHffxwth6cLn47hetqJ0YeJxArHk5ARGJGeqI1gYeew==",
+        "resolved": "10.0.2",
+        "contentHash": "K0KdlzdGvlknZWUMOj6wsWzKm0RY8+Qns/neBv7x3ABh7l5j6eAQBdhSthl/Xb5Qgn/8iCBUkJ/JTrnYhlTKSw==",
         "dependencies": {
-          "DotNetCore.CAP": "10.0.1",
-          "StackExchange.Redis": "2.9.32"
+          "DotNetCore.CAP": "10.0.2",
+          "StackExchange.Redis": "2.12.14"
         }
       },
       "FluentValidation": {
@@ -939,8 +949,8 @@
       },
       "PostHog": {
         "type": "Transitive",
-        "resolved": "2.12.1",
-        "contentHash": "KIpMvdDRvRGcrcsGNK14eVfKKQpQcaKH7oKQEF3V97djQfK6a0debn6nKnj7efEkxQV6XhtKudmBwmhXz8e9Hw==",
+        "resolved": "2.13.1",
+        "contentHash": "c9hIoC5kwW+JldsMt2ElaNCQi0Pmsrg7lsgwc7UQmC2IlVcsv1Nb5T3WJVQRZ0cIb4My5lnEQU8MSUIAEymFkg==",
         "dependencies": {
           "Microsoft.Extensions.Caching.Memory": "8.0.1",
           "Microsoft.Extensions.Http": "8.0.1",
@@ -1070,28 +1080,25 @@
         "resolved": "1.4.2",
         "contentHash": "yjj+3zgz8zgXpiiC3ZdF/iyTBbz2fFvMxZFEBPUcwZjIvXOf37Ylm+K58hqMfIBt5JgU/Z2uoUS67JmTLe973A=="
       },
-      "SSH.NET": {
-        "type": "Transitive",
-        "resolved": "2025.1.0",
-        "contentHash": "jrnbtf0ItVaXAe6jE8X/kSLa6uC+0C+7W1vepcnRQB/rD88qy4IxG7Lf1FIbWmkoc4iVXv0pKrz+Wc6J4ngmHw==",
-        "dependencies": {
-          "BouncyCastle.Cryptography": "2.6.2",
-          "Microsoft.Extensions.Logging.Abstractions": "8.0.3"
-        }
-      },
       "StackExchange.Redis": {
         "type": "Transitive",
-        "resolved": "2.9.32",
-        "contentHash": "j5Rjbf7gWz5izrn0UWQy9RlQY4cQDPkwJfVqATnVsOa/+zzJrps12LOgacMsDl/Vit2f01cDiDkG/Rst8v2iGw==",
+        "resolved": "2.12.14",
+        "contentHash": "QiAQg40OP4Owem6/PjIbjEKq2+uIeQYeZ1TCMUnx/QvKugOPxOfC96wjlnBjWHi4Wq9pv9+fDlXGT06XkRZ6Ig==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "8.0.0",
-          "Pipelines.Sockets.Unofficial": "2.2.8"
+          "Pipelines.Sockets.Unofficial": "2.2.8",
+          "System.IO.Hashing": "10.0.2"
         }
       },
       "System.Diagnostics.EventLog": {
         "type": "Transitive",
         "resolved": "10.0.10",
         "contentHash": "OvGz3PrzuAI/Sj7LTcXcCe3FClRI1IyRMZjNONcZtFh+Ww7nAtSh4kh08r8KVe/xxkXJPjR0Y1jF7H+N42d4xQ=="
+      },
+      "System.IO.Hashing": {
+        "type": "Transitive",
+        "resolved": "10.0.2",
+        "contentHash": "AKJknIFi9O3+rGExxTry188JPvUoZAPcCtS2qdqyFhIzsxQ1Ap94BeGDG0VzVEHakhmRxmJtVih6TsHoghIt/g=="
       },
       "System.Security.Cryptography.Pkcs": {
         "type": "Transitive",
@@ -1154,10 +1161,10 @@
           "AspNetCore.HealthChecks.NpgSql": "[9.0.0, )",
           "AspNetCore.HealthChecks.Redis": "[9.0.0, )",
           "AspNetCore.HealthChecks.UI.Client": "[9.0.0, )",
-          "DotNetCore.CAP": "[10.0.1, )",
-          "DotNetCore.CAP.Dashboard": "[10.0.1, )",
-          "DotNetCore.CAP.PostgreSql": "[10.0.1, )",
-          "DotNetCore.CAP.RedisStreams": "[10.0.1, )",
+          "DotNetCore.CAP": "[10.0.2, )",
+          "DotNetCore.CAP.Dashboard": "[10.0.2, )",
+          "DotNetCore.CAP.PostgreSql": "[10.0.2, )",
+          "DotNetCore.CAP.RedisStreams": "[10.0.2, )",
           "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
           "Hangfire.AspNetCore": "[1.8.24, )",
           "Hangfire.Core": "[1.8.24, )",
@@ -1186,7 +1193,7 @@
           "Pitbull.Storage": "[1.0.0, )",
           "Pitbull.SystemAdmin": "[1.0.0, )",
           "Pitbull.TimeTracking": "[1.0.0, )",
-          "PostHog": "[2.12.1, )",
+          "PostHog": "[2.13.1, )",
           "PostHog.AspNetCore": "[2.8.1, )",
           "QuestPDF": "[2026.2.1, )",
           "Resend": "[0.2.1, )",
@@ -1225,7 +1232,7 @@
       "pitbull.core": {
         "type": "Project",
         "dependencies": {
-          "DotNetCore.CAP": "[10.0.1, )",
+          "DotNetCore.CAP": "[10.0.2, )",
           "FluentValidation": "[12.1.1, )",
           "FluentValidation.DependencyInjectionExtensions": "[12.1.1, )",
           "Mapster": "[7.4.0, )",
@@ -1312,7 +1319,7 @@
       "pitbull.storage": {
         "type": "Project",
         "dependencies": {
-          "AWSSDK.S3": "[4.0.101.6, )",
+          "AWSSDK.S3": "[4.0.102, )",
           "Microsoft.OpenApi": "[2.11.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
