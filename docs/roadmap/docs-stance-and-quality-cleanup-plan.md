@@ -138,7 +138,7 @@ Branch `chore/app-hardening-hourly-2026080121` (uncommitted at plan time) includ
 
 ## 4. Dependabot / upgrade workstream
 
-Inventory date: **2026-08-20**. Config: `.github/dependabot.yml` (weekly; nuget + npm web + npm e2e + docker + GHA). Safe wave shipped in **`3.7.8`**. Held majors ignored in dependabot.yml.
+Inventory date: **2026-08-20**. Config: `.github/dependabot.yml` (weekly; nuget + npm web + npm e2e + docker + GHA). Safe wave shipped in **`3.7.8`**. Held majors ignored in dependabot.yml — **every ignore has an issue**, tracker [#522](https://github.com/jgarrison929/pitbull/issues/522), review by **2026-09-20**.
 
 ### 4.1 Open Dependabot PRs (triage)
 
@@ -147,16 +147,19 @@ Inventory date: **2026-08-20**. Config: `.github/dependabot.yml` (weekly; nuget 
 | [#507](https://github.com/jgarrison929/pitbull/pull/507) | CAP + Dashboard | NuGet minor/set | **Coordinate CAP set** — do not merge one CAP PR alone. CI (2026-08-06): **.NET Build & Test FAIL** |
 | [#508](https://github.com/jgarrison929/pitbull/pull/508) | CAP + PostgreSql | NuGet set | Same; CI: **.NET Build & Test FAIL** |
 | [#509](https://github.com/jgarrison929/pitbull/pull/509) | CAP + RedisStreams | NuGet set | Same; CI: **.NET Build & Test FAIL**. Align full CAP set in one human PR |
-| [#434](https://github.com/jgarrison929/pitbull/pull/434) | TypeScript 6→7 | Major | CI: **Frontend FAIL** — pair with Next 16.3, not blind merge |
-| [#463](https://github.com/jgarrison929/pitbull/pull/463) | node Docker **22→25** alpine | Major runtime | **Hold** — stay on Node 22 LTS line for production images until explicit decision |
-| [#447](https://github.com/jgarrison929/pitbull/pull/447) | Resend 0.2.1→0.8.0 | Major | **Hold** — API churn; dedicated PR + email send tests |
-| [#446](https://github.com/jgarrison929/pitbull/pull/446) | QuestPDF 2026.2→2026.7 | Major | **Hold** — PDF golden/smoke first |
-| [#443](https://github.com/jgarrison929/pitbull/pull/443) | Mapster 7→10 | Major | **Hold** — mapping compile surface; needs full solution build |
-| [#438](https://github.com/jgarrison929/pitbull/pull/438) | eslint 9→10 | Major tooling | **Hold** — FE build historically red; flat-config migration |
-| [#436](https://github.com/jgarrison929/pitbull/pull/436) | @types/node 25→26 | Types major | **Hold** until Node runtime decision |
-| [#431](https://github.com/jgarrison929/pitbull/pull/431) | jest-dom 6→7 | Major test | **Hold** — vitest compatibility pass |
+| Closed PR | Change | Issue | Review by |
+|-----------|--------|-------|-----------|
+| [#443](https://github.com/jgarrison929/pitbull/pull/443) | Mapster 7→10 | [#523](https://github.com/jgarrison929/pitbull/issues/523) | 2026-09-20 |
+| [#447](https://github.com/jgarrison929/pitbull/pull/447) | Resend 0.2→0.8 | [#524](https://github.com/jgarrison929/pitbull/issues/524) | 2026-09-20 |
+| [#446](https://github.com/jgarrison929/pitbull/pull/446) | QuestPDF 2026.2→2026.7 | [#525](https://github.com/jgarrison929/pitbull/issues/525) | 2026-09-20 |
+| [#438](https://github.com/jgarrison929/pitbull/pull/438) | eslint 9→10 | [#526](https://github.com/jgarrison929/pitbull/issues/526) | 2026-09-20 |
+| [#434](https://github.com/jgarrison929/pitbull/pull/434) | TypeScript 6→7 | [#527](https://github.com/jgarrison929/pitbull/issues/527) | 2026-09-20 |
+| [#431](https://github.com/jgarrison929/pitbull/pull/431) | jest-dom 6→7 | [#528](https://github.com/jgarrison929/pitbull/issues/528) | 2026-09-20 |
+| [#436](https://github.com/jgarrison929/pitbull/pull/436) | @types/node 25→26 | [#529](https://github.com/jgarrison929/pitbull/issues/529) | 2026-09-20 |
+| [#463](https://github.com/jgarrison929/pitbull/pull/463) | Node Docker 22→25 | [#530](https://github.com/jgarrison929/pitbull/issues/530) | 2026-09-20 |
+| (yaml, pre-existing) | Microsoft.OpenApi ≥3 | [#531](https://github.com/jgarrison929/pitbull/issues/531) | 2026-09-20 |
 
-Also known policy: **Microsoft.OpenApi ≥3** ignored in dependabot.yml (ASP.NET Core 10 generator break). Do not fight that ignore until upstream supports 3.x.
+Tracker: [#522](https://github.com/jgarrison929/pitbull/issues/522). **Do not add a Dependabot ignore without an issue + review date.**
 
 ### 4.2 Upgrade waves (ordered)
 
@@ -172,9 +175,10 @@ Also known policy: **Microsoft.OpenApi ≥3** ignored in dependabot.yml (ASP.NET
 
 ### 4.3 Acceptance for deps
 
-- [ ] No half-upgraded CAP set on `main`  
-- [ ] Docker Node major not merged without decision record in this doc or CHANGELOG  
-- [ ] Majors that fail CI stay open or closed with comment linking this plan  
+- [x] No half-upgraded CAP set on `main` (`3.7.8`)
+- [ ] Docker Node major not merged without decision record (#530)
+- [x] Majors that fail CI closed with issues (#522 children), not silent ignores
+- [ ] Each ignore reviewed by **2026-09-20** (upgrade or new date)
 - [ ] After merges: update Unreleased or stamp per CONTRIBUTING if versioned release  
 
 ---
