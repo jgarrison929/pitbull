@@ -37,15 +37,15 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@next/eslint-plugin-next": "^16.3.3",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.3",
+    "@testing-library/user-event": "^14.6.6",
     "@types/node": "^26.4.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@next/eslint-plugin-next": "^16.3.3",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.68.0",
     "@typescript/typescript6": "^6.0.2",
