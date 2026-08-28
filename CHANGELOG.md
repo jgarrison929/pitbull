@@ -14,6 +14,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Contract Administrator demo persona** — Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
 - **PM next-gen arc program docs** — epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
 
+## [3.7.9] - 2026-08-28T07:24:25-07:00
+
+### Removed
+
+- **QuestPDF** — Community/source-available license is not MIT-compatible for this product. PDF reports (WIP schedule, project cost, retention, WH-347, aged AR, submittal log, punch list) now emit real `%PDF` bytes from an in-repo MIT table writer using the 14 standard PDF fonts (no extra PDF SDK).
+
+### Changed
+
+- **Dependabot majors shipped** — Mapster **7.4.0 → 10.0.12**; Resend **0.2.1 → 0.15.0**; ESLint **9 → 10.9.1** (flat config; lint process remaps `typescript` to `@typescript/typescript6` because TS 7.0 has no JS compiler API; `eslint-plugin-react` does not peer ESLint 10 so Next core-web-vitals is composed without it); TypeScript **6 → 7.0.2**; `@testing-library/jest-dom` **6 → 7.0.1**; `@types/node` **25 → 26.4.0**; xunit.runner.visualstudio **3.1.5 → 4.0.0**. NuGet patches: Microsoft.AspNetCore.* / EF **10.0.10 → 10.0.11**, Microsoft.OpenApi **2.11.0 → 2.12.2**, Scalar.AspNetCore **2.16.17 → 2.17.2**, AWSSDK.S3 **4.0.102 → 4.0.102.4**, PostHog **2.13.1 → 2.15.1** / PostHog.AspNetCore **2.8.1 → 2.9.2**, Hangfire **1.8.24 → 1.8.25**, Test SDK **18.8.1 → 18.9.0**. npm: Next **16.3.3**, sonner **2.0.8**, vitest **4.1.11**, posthog-js **1.422.3**, lucide-react **1.35.0**, `@vitejs/plugin-react` **6.1.1**.
+- **Node Docker / CI** — web image **22-alpine → 24-alpine** (Active LTS digest `sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf`); CI `NODE_VERSION` **22 → 24**. Node 25 Current was pulled and not adopted.
+- **Dependabot** — all `ignore:` blocks removed from `.github/dependabot.yml` (Mapster, Resend, QuestPDF, eslint, typescript, jest-dom, `@types/node`, Node `>=23`, Microsoft.OpenApi `>=3`).
+- **Microsoft.OpenApi 3.x** — attempted 3.10.2 with AspNetCore.OpenApi 10.0.11; XmlCommentGenerator still assigns read-only `IOpenApiMediaType.Example` (CS0200). Shipped latest 2.12.2 (package constraint is `>=2.7.5 && <3.0.0`). No ignore.
+
 ## [3.7.8] - 2026-08-20T06:35:09-07:00
 
 ### Changed

@@ -6,15 +6,15 @@
 
 # --- Stage 1: Dependencies ---
 # Pin by digest for supply-chain integrity (tag kept for human readability).
-# Digest resolved 2026-07-31 from Docker Hub multi-arch index for node:22-alpine.
-FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS deps
+# Digest resolved 2026-08-28 from Docker Hub multi-arch index for node:24-alpine (Active LTS).
+FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS deps
 WORKDIR /app
 
 COPY src/Pitbull.Web/pitbull-web/package.json src/Pitbull.Web/pitbull-web/package-lock.json* ./
 RUN npm ci --production=false
 
 # --- Stage 2: Build ---
-FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS build
+FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS build
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -22,7 +22,7 @@ COPY src/Pitbull.Web/pitbull-web/ .
 
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_DISABLE_REGISTRATION=false
-ARG NEXT_PUBLIC_APP_VERSION=3.7.8
+ARG NEXT_PUBLIC_APP_VERSION=3.7.9
 ARG NEXT_PUBLIC_POSTHOG_KEY
 ARG NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ARG COMMIT_HASH=unknown
@@ -36,7 +36,7 @@ ENV NEXT_PUBLIC_COMMIT_HASH=${COMMIT_HASH}
 RUN npm run build
 
 # --- Stage 3: Runtime ---
-FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS runtime
+FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production

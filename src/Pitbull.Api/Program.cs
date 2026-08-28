@@ -35,7 +35,6 @@ using Pitbull.Api.Data;
 using Pitbull.Api.Services;
 using Pitbull.Core.Messaging;
 using PostHog;
-using QuestPDF.Infrastructure;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Pitbull.Api.Jobs;
@@ -58,9 +57,6 @@ if (!string.IsNullOrWhiteSpace(databaseUrl) &&
         ["ConnectionStrings:PitbullDb"] = RailwayDatabaseUrl.Normalize(databaseUrl)
     });
 }
-
-// QuestPDF community license
-QuestPDF.Settings.License = LicenseType.Community;
 
 // In-memory error store powers the admin health dashboard "recent errors" panel.
 var inMemoryErrorStore = new InMemoryErrorLogStore();

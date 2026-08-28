@@ -22,7 +22,7 @@ Thanks for your interest in contributing to Pitbull! This guide will get you up 
 | Tool | Version | Purpose |
 |------|---------|---------|
 | .NET SDK | 10.0+ | Backend API |
-| Node.js | 22+ | Frontend build |
+| Node.js | 24+ (Active LTS) | Frontend build |
 | PostgreSQL | 17+ | Database |
 | Git | Latest | Version control |
 | GitHub CLI (`gh`) | Latest | PR workflow |

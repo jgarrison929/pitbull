@@ -1,11 +1,11 @@
 # Spec: Product band 3.8 — CPM practices honesty
 
-**Status:** Partial — shipped **`3.7.1`–`3.7.5`**; free remaining **`3.7.9`–`3.8.0`** (see stamp remap)  
-**Version band:** `3.7.1` → `3.8.0` (10 stamps; three diverted)  
+**Status:** Partial — shipped **`3.7.1`–`3.7.5`**; free remaining **`3.8.0`** (see stamp remap)  
+**Version band:** `3.7.1` → `3.8.0` (10 stamps; four diverted)  
 **Theme:** Critical path, float, data-date, baseline variance — labeled and mobile-glanceable  
 **Epic:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../../roadmap/pm-nextgen-3.4-to-4.0.md)  
 **CI notes (at checkpoint):** `docs/ci/pm-3.8-cpm-notes.md`  
-**Product VERSION (docs stance):** `3.7.8` → next free **`3.7.9`**
+**Product VERSION (docs stance):** `3.7.9` → next free **`3.8.0`**
 
 ## Problem
 
@@ -23,12 +23,12 @@ Server has float, `IsCritical`, critical-path recalculate, baselines; UX does no
 | **3.7.6** | ~~Recalculate critical path action honesty~~ | — | — | **Diverted** — dependency audit (CHANGELOG); **do not reclaim** |
 | **3.7.7** | ~~Phone UI for recalc + last run~~ | — | — | **Diverted** — WIP BilledToDate fix (CHANGELOG); **do not reclaim** |
 | **3.7.8** | ~~Recalculate + phone UI (consolidated)~~ | — | — | **Diverted** — Dependabot wave (CHANGELOG); **do not reclaim** |
-| **3.7.9** | Recalculate critical path action honesty + last-run timestamp **and** phone UI for recalc + last run (consolidated from diverted 3.7.6–3.7.8 intents) | Confirm-to-run; no silent auto; confirm dialog | unit | **Next free** |
-| **3.8.0** | Help CPM for supers/PMs + checkpoint + CI notes (consolidated) | Real routes; no new domain; band Shipped | help + unit + preflight | Remaining |
+| **3.7.9** | ~~Recalculate + phone UI (consolidated)~~ | — | — | **Diverted** — QuestPDF removal + Dependabot majors (CHANGELOG); **do not reclaim** |
+| **3.8.0** | Recalculate critical path action honesty + last-run timestamp **and** phone UI for recalc + last run **and** Help CPM for supers/PMs + checkpoint (consolidated from diverted 3.7.6–3.7.9 intents) | Confirm-to-run; no silent auto; real help routes; band Shipped | help + unit + preflight | **Next free** |
 
 ### Stamp remap note
 
-Product published **`3.7.6`** (dep-audit), **`3.7.7`** (WIP BilledToDate), and **`3.7.8`** (Dependabot wave) outside band 3.8 CPM scope. Remaining CPM intents that originally sat on those numbers move only onto free stamps **`3.7.9`–`3.8.0`** (consolidated). Never reuse spent stamps.
+Product published **`3.7.6`** (dep-audit), **`3.7.7`** (WIP BilledToDate), **`3.7.8`** (Dependabot wave), and **`3.7.9`** (QuestPDF removal + remaining majors) outside band 3.8 CPM scope. Remaining CPM intents that originally sat on those numbers move only onto free stamp **`3.8.0`** (consolidated). Never reuse spent stamps.
 
 ## Mobile complaint drivers (research)
 
@@ -48,4 +48,4 @@ Product published **`3.7.6`** (dep-audit), **`3.7.7`** (WIP BilledToDate), and *
 
 ## Goal for this program arc stop
 
-Shipped CPM through **`3.7.5`**. Finish band on **`3.7.9` → `3.8.0`** only (remapped table above).
+Shipped CPM through **`3.7.5`**. Finish band on **`3.8.0`** only (remapped table above).

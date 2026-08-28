@@ -138,7 +138,7 @@ Branch `chore/app-hardening-hourly-2026080121` (uncommitted at plan time) includ
 
 ## 4. Dependabot / upgrade workstream
 
-Inventory date: **2026-08-20**. Config: `.github/dependabot.yml` (weekly; nuget + npm web + npm e2e + docker + GHA). Safe wave shipped in **`3.7.8`**. Held majors ignored in dependabot.yml — **every ignore has an issue**, tracker [#522](https://github.com/jgarrison929/pitbull/issues/522), review by **2026-09-20**.
+Inventory date: **2026-08-28**. Config: `.github/dependabot.yml` (weekly; nuget + npm web + npm e2e + docker + GHA). Safe wave shipped in **`3.7.8`**. Remaining majors + QuestPDF removal shipped in **`3.7.9`**. **No Dependabot `ignore:` blocks remain.**
 
 ### 4.1 Open Dependabot PRs (triage)
 
@@ -168,15 +168,15 @@ Tracker: [#522](https://github.com/jgarrison929/pitbull/issues/522). **Do not ad
 | **W0** | Close/supersede conflicting CAP Dependabot PRs; ship **one** aligned CAP package set from `main` | **Shipped `3.7.8`** — CAP 10.0.2 set |
 | **W1** | Safe NuGet patch/minors only (non-major, non-OpenApi-3) | **Shipped `3.7.8`** — PostHog, AWSSDK.S3, Testcontainers |
 | **W2** | **Next.js 16.3** (+ peer react if required) — see §5 | **Shipped `3.7.8`** — next + eslint-config-next 16.3.1 |
-| **W3** | TypeScript 7 **only if** W2 green and Next docs path is clear | `next build` typecheck; vitest |
-| **W4** | eslint 10 | Dedicated lint migration PR |
-| **W5** | Mapster 10 / QuestPDF / Resend | One major per PR; product smoke for email/PDF/mapping |
-| **W6** | Node 25 Docker / @types/node 26 | Explicit runtime decision; prefer LTS |
+| **W3** | TypeScript 7 **only if** W2 green and Next docs path is clear | **Shipped `3.7.9`** — typescript 7.0.2; lint remaps TS 6 API |
+| **W4** | eslint 10 | **Shipped `3.7.9`** — ESLint 10.9.1 |
+| **W5** | Mapster 10 / QuestPDF / Resend | **Shipped `3.7.9`** — Mapster 10.0.12; QuestPDF **removed**; Resend 0.15.0 |
+| **W6** | Node 25 Docker / @types/node 26 | **Shipped `3.7.9`** — Node **24** Active LTS (not 25 Current); `@types/node` 26 |
 
 ### 4.3 Acceptance for deps
 
 - [x] No half-upgraded CAP set on `main` (`3.7.8`)
-- [ ] Docker Node major not merged without decision record (#530)
+- [x] Docker Node major decided and shipped (`3.7.9`: Node 24 Active LTS; #530)
 - [x] Majors that fail CI closed with issues (#522 children), not silent ignores
 - [ ] Each ignore reviewed by **2026-09-20** (upgrade or new date)
 - [ ] After merges: update Unreleased or stamp per CONTRIBUTING if versioned release  

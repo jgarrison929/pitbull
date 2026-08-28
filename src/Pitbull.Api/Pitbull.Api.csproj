@@ -7,10 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Version>3.7.8</Version>
-    <AssemblyVersion>3.7.8.0</AssemblyVersion>
-    <FileVersion>3.7.8.0</FileVersion>
-    <InformationalVersion>3.7.8</InformationalVersion>
+    <Version>3.7.9</Version>
+    <AssemblyVersion>3.7.9.0</AssemblyVersion>
+    <FileVersion>3.7.9.0</FileVersion>
+    <InformationalVersion>3.7.9</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -31,26 +31,25 @@
     <PackageReference Include="DotNetCore.CAP" Version="10.0.2" />
     <PackageReference Include="DotNetCore.CAP.PostgreSql" Version="10.0.2" />
     <PackageReference Include="DotNetCore.CAP.RedisStreams" Version="10.0.2" />
-    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.24" />
-    <PackageReference Include="Hangfire.Core" Version="1.8.24" />
+    <PackageReference Include="Hangfire.AspNetCore" Version="1.8.25" />
+    <PackageReference Include="Hangfire.Core" Version="1.8.25" />
     <PackageReference Include="Hangfire.PostgreSql" Version="1.21.1" />
     <PackageReference Include="Savorboard.CAP.InMemoryMessageQueue" Version="10.0.0" />
     <PackageReference Include="DotNetCore.CAP.Dashboard" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.11" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.11">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.IdentityModel.Protocols" Version="8.22.0" />
     <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.22.0" />
-    <PackageReference Include="PostHog" Version="2.13.1" />
-    <PackageReference Include="PostHog.AspNetCore" Version="2.8.1" />
-    <PackageReference Include="QuestPDF" Version="2026.2.1" />
-    <PackageReference Include="Resend" Version="0.2.1" />
-    <PackageReference Include="Scalar.AspNetCore" Version="2.16.17" />
+    <PackageReference Include="PostHog" Version="2.15.1" />
+    <PackageReference Include="PostHog.AspNetCore" Version="2.9.2" />
+    <PackageReference Include="Resend" Version="0.15.0" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.17.2" />
     <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
   </ItemGroup>
