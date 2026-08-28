@@ -4,9 +4,9 @@
     "net10.0": {
       "Microsoft.OpenApi": {
         "type": "Direct",
-        "requested": "[2.12.2, )",
-        "resolved": "2.12.2",
-        "contentHash": "ZkT7qiJe0Kj0+DTZOZo+xrDy1kNmdsWFQVPIQLNx9ZJ0T9cB2LG7r+Bi60so8/+yg1nkS7QCPadrzsTG4VPKrA=="
+        "requested": "[3.10.2, )",
+        "resolved": "3.10.2",
+        "contentHash": "qzg4a3WmgQm28Azaporbnsu+KHA+vq5sgpQQFLiJgB06Rra2S+kzGAU7pzUB8/UIwZJCSCY2JEE/M5e0hQ2K8w=="
       },
       "System.Security.Cryptography.Xml": {
         "type": "Direct",
@@ -371,7 +371,7 @@
       "pitbull.contracts": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.12.2, )",
+          "Microsoft.OpenApi": "[3.10.2, )",
           "Pitbull.Core": "[1.0.0, )"
         }
       },
@@ -386,14 +386,14 @@
           "Microsoft.AspNetCore.DataProtection.EntityFrameworkCore": "[10.0.11, )",
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.11, )",
           "Microsoft.EntityFrameworkCore": "[10.0.11, )",
-          "Microsoft.OpenApi": "[2.12.2, )",
+          "Microsoft.OpenApi": "[3.10.2, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )"
         }
       },
       "pitbull.projectmanagement": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.12.2, )",
+          "Microsoft.OpenApi": "[3.10.2, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )",
@@ -404,7 +404,7 @@
       "pitbull.projects": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.12.2, )",
+          "Microsoft.OpenApi": "[3.10.2, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.RFIs": "[1.0.0, )"
@@ -413,7 +413,7 @@
       "pitbull.rfis": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.12.2, )",
+          "Microsoft.OpenApi": "[3.10.2, )",
           "Pitbull.Contracts": "[1.0.0, )",
           "Pitbull.Core": "[1.0.0, )"
         }
@@ -421,7 +421,7 @@
       "pitbull.timetracking": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.OpenApi": "[2.12.2, )",
+          "Microsoft.OpenApi": "[3.10.2, )",
           "Pitbull.Core": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )"
         }
