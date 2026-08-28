@@ -6,13 +6,12 @@
   <!-- Pin vulnerable transitive dependencies to patched versions -->
   <ItemGroup>
     <!-- NU1903: 10.0.9 GHSA advisories — pin patched 10.0.10 (PrivateAssets: avoid NU1510 prune noise) -->
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10">
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.11">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <!-- GHSA-v5pm-xwqc-g5wc: Microsoft.OpenApi &lt;= 2.7.4 / &lt;= 3.5.3 stack-overflow on circular refs.
-         Stay on 2.x: Microsoft.OpenApi 3.x makes IOpenApiMediaType.Example read-only and breaks
-         Microsoft.AspNetCore.OpenApi 10.0.x XmlCommentGenerator (CS0200). Do not bump to 3.x until ASP.NET Core OpenAPI supports it. -->
-    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <!-- Latest 2.x. Microsoft.AspNetCore.OpenApi 10.0.11 constrains OpenApi to >=2.7.5 && <3.0.0.
+         3.x still fails XmlCommentGenerator (CS0200 IOpenApiMediaType.Example). Evidence: openapi3-fail.log. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
   </ItemGroup>
 </Project>

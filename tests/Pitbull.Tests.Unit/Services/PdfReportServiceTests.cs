@@ -1,3 +1,4 @@
+using System.Text;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Pitbull.Api.Services;
@@ -32,6 +33,20 @@ public class PdfReportServiceTests
         };
 
         return new PdfReportService(db, tenantContext, companyContext, NullLogger<PdfReportService>.Instance);
+    }
+
+    /// <summary>
+    /// Drives the shipped generator: non-empty bytes whose first four bytes are the PDF magic.
+    /// </summary>
+    private static void AssertPdf(byte[] bytes, string? mustContain = null)
+    {
+        bytes.Should().NotBeNull();
+        bytes.Length.Should().BeGreaterThan(100);
+        Encoding.ASCII.GetString(bytes.AsSpan(0, 4)).Should().Be("%PDF");
+        var ascii = Encoding.ASCII.GetString(bytes);
+        ascii.Should().Contain("%%EOF");
+        if (!string.IsNullOrEmpty(mustContain))
+            ascii.Should().Contain(mustContain);
     }
 
     [Fact]
@@ -69,8 +84,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateWipSchedulePdfAsync();
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes, "WIP Schedule");
     }
 
     [Fact]
@@ -136,8 +150,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateProjectCostSummaryPdfAsync(ProjectId);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes, "Project Cost Summary");
     }
 
     [Fact]
@@ -163,8 +176,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateRetentionSummaryPdfAsync();
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes, "Retention Summary");
     }
 
     [Fact]
@@ -235,8 +247,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateWh347PdfAsync(payrollRun.Id);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes, "WH-347");
     }
 
     [Fact]
@@ -272,8 +283,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateWh347PdfAsync(payrollRun.Id);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes);
     }
 
     [Fact]
@@ -384,8 +394,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateWh347PdfAsync(payrollRun.Id);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes);
     }
 
     [Fact]
@@ -452,8 +461,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateAgedArPdfAsync();
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes, "Aged Receivables");
     }
 
     [Fact]
@@ -463,8 +471,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateAgedArPdfAsync();
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes);
     }
 
     [Fact]
@@ -474,8 +481,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateWipSchedulePdfAsync();
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes);
     }
 
     [Fact]
@@ -527,8 +533,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateSubmittalLogPdfAsync(ProjectId);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes, "Submittal Log");
     }
 
     [Fact]
@@ -540,8 +545,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GenerateSubmittalLogPdfAsync(ProjectId);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes);
     }
 
     [Fact]
@@ -587,8 +591,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GeneratePunchListPdfAsync(ProjectId);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes, "Punch List");
     }
 
     [Fact]
@@ -600,8 +603,7 @@ public class PdfReportServiceTests
         var service = CreateService(db);
         var bytes = await service.GeneratePunchListPdfAsync(ProjectId);
 
-        bytes.Should().NotBeNull();
-        bytes.Length.Should().BeGreaterThan(100);
+        AssertPdf(bytes);
     }
 
     // ── Not-found tests (blocker #1) ──

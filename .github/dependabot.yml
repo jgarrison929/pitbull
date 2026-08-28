@@ -9,18 +9,6 @@ updates:
     labels: ["dependencies"]
     commit-message:
       prefix: "deps"
-    # Microsoft.OpenApi 3.x breaks ASP.NET Core 10 OpenAPI source generators (CS0200 on Example).
-    # Keep 2.7.5 pin in Directory.Build.props until Microsoft.AspNetCore.OpenApi supports 3.x.
-    ignore:
-      # Review by 2026-09-20 — tracker #522. Remove ignore when the linked issue ships.
-      - dependency-name: "Microsoft.OpenApi"
-        versions: [">=3.0.0"] # #531 ASP.NET Core 10 generator break
-      - dependency-name: "Mapster"
-        update-types: ["version-update:semver-major"] # #523
-      - dependency-name: "Resend"
-        update-types: ["version-update:semver-major"] # #524
-      - dependency-name: "QuestPDF"
-        versions: [">=2026.3.0"] # #525 PDF golden/smoke first
     groups:
       microsoft:
         patterns:
@@ -38,16 +26,6 @@ updates:
     labels: ["dependencies", "frontend"]
     commit-message:
       prefix: "deps"
-    ignore:
-      # Review by 2026-09-20 — tracker #522. Remove ignore when the linked issue ships.
-      - dependency-name: "eslint"
-        update-types: ["version-update:semver-major"] # #526
-      - dependency-name: "typescript"
-        update-types: ["version-update:semver-major"] # #527
-      - dependency-name: "@testing-library/jest-dom"
-        update-types: ["version-update:semver-major"] # #528
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"] # #529
 
   - package-ecosystem: "npm"
     directory: "/e2e"
@@ -78,10 +56,6 @@ updates:
     labels: ["dependencies", "docker"]
     commit-message:
       prefix: "deps"
-    ignore:
-      # Review by 2026-09-20 — #530 (tracker #522). Stay on Node 22 LTS until that decision.
-      - dependency-name: "node"
-        versions: [">=23"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

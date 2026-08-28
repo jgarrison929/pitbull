@@ -13,7 +13,7 @@ permissions:
 
 env:
   DOTNET_VERSION: '10.0.x'
-  NODE_VERSION: '22'
+  NODE_VERSION: '24'
   # Lucky Penny community license - suppresses MediatR license warnings in CI tests.
   # Repo secret: Settings -> Secrets -> MEDIATR_LICENSE_KEY (JWT from luckypennysoftware.com/community)
   MEDIATR_LICENSE_KEY: ${{ secrets.MEDIATR_LICENSE_KEY }}

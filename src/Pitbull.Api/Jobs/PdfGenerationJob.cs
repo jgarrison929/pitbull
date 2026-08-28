@@ -31,7 +31,7 @@ public sealed class PdfGenerationParams
 }
 
 /// <summary>
-/// Background job that generates PDF reports via QuestPDF.
+/// Background job that generates PDF reports via the in-repo MIT table writer.
 /// Idempotent: regenerating the same report simply overwrites the previous result.
 /// </summary>
 public sealed class PdfGenerationJob : BackgroundJobBase
