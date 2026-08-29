@@ -14,6 +14,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Contract Administrator demo persona** — Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
 - **PM next-gen arc program docs** — epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
 
+## [3.8.0] - 2026-08-28T18:27:10-07:00
+
+### Fixed
+
+- **Railway pitbull-web Docker `npm ci`** — Node 24 / npm 11 treats typescript@7 vs `@typescript-eslint/*` 8 (`peer typescript <6.1.0`) as a hard `ERESOLVE`. Web image now copies `.npmrc` (`legacy-peer-deps=true`) and runs `npm ci --legacy-peer-deps`. API 3.7.9 was already SUCCESS; web deploys of 3.7.9 failed at the deps stage.
+
 ## [3.7.9] - 2026-08-28T07:24:25-07:00
 
 ### Removed

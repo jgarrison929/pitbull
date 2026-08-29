@@ -34,8 +34,8 @@ This file **extends** root CONTRIBUTING + historical `docs/260712/VERSION-WORKFL
 
 ## Next stamp
 
-**Current product:** `3.7.9` (root `VERSION`).  
-**Next free stamp:** **`3.8.0`** — band 3.8 remainder (recalc honesty + phone UI + help checkpoint, consolidated; see remapped table in `band-3.8-pm-cpm-practices.md`).
+**Current product:** `3.8.0` (root `VERSION`).  
+**Next free stamp:** **`3.8.1`** — remaining band 3.8 CPM (recalc honesty + phone UI + help checkpoint, consolidated; see remapped table in `band-3.8-pm-cpm-practices.md`).
 
 ### Spent / diverted (never reclaim for CPM)
 
@@ -45,5 +45,6 @@ This file **extends** root CONTRIBUTING + historical `docs/260712/VERSION-WORKFL
 | `3.7.7` | WIP BilledToDate multi-app fix — **not** CPM phone UI |
 | `3.7.8` | Dependabot wave (CAP set + npm 16.3 + security overrides) — **not** CPM |
 | `3.7.9` | QuestPDF removal + remaining Dependabot majors — **not** CPM |
+| `3.8.0` | Railway web Docker `npm ci` peer-deps fix — **not** CPM |
 
-Original band rows that named those numbers for CPM are remapped onto free **`3.8.0` only**.
+Original band rows that named those numbers for CPM are remapped onto free **`3.8.1`**.

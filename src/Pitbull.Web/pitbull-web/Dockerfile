@@ -10,8 +10,9 @@
 FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS deps
 WORKDIR /app
 
-COPY src/Pitbull.Web/pitbull-web/package.json src/Pitbull.Web/pitbull-web/package-lock.json* ./
-RUN npm ci --production=false
+COPY src/Pitbull.Web/pitbull-web/package.json src/Pitbull.Web/pitbull-web/package-lock.json* src/Pitbull.Web/pitbull-web/.npmrc ./
+# npm 11 (Node 24) fails ERESOLVE on typescript@7 vs typescript-eslint@8 peers without this.
+RUN npm ci --legacy-peer-deps
 
 # --- Stage 2: Build ---
 FROM node:24-alpine@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS build
@@ -22,7 +23,7 @@ COPY src/Pitbull.Web/pitbull-web/ .
 
 ARG NEXT_PUBLIC_API_BASE_URL
 ARG NEXT_PUBLIC_DISABLE_REGISTRATION=false
-ARG NEXT_PUBLIC_APP_VERSION=3.7.9
+ARG NEXT_PUBLIC_APP_VERSION=3.8.0
 ARG NEXT_PUBLIC_POSTHOG_KEY
 ARG NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com
 ARG COMMIT_HASH=unknown
