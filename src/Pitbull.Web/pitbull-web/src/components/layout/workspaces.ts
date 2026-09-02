@@ -202,6 +202,9 @@ const peopleItems: NavItem[] = [
   { label: "Certified Payroll", href: "/payroll/certified", icon: "📄", requiredPermission: "Payroll.View" },
   { label: "Payroll Reviews", href: "/payroll/reviews", icon: "✅", requiredPermission: "Payroll.Process" },
   { label: "Wage Determinations", href: "/payroll/wage-determinations", icon: "📚", requiredPermission: "Payroll.View" },
+  { label: "Work Classifications", href: "/payroll/classifications", icon: "🏷️", requiredPermission: "Payroll.View" },
+  { label: "Union Agreements", href: "/payroll/agreements", icon: "🤝", requiredPermission: "Payroll.View" },
+  { label: "Wage Packages", href: "/payroll/packages", icon: "📦", requiredPermission: "Payroll.View" },
   { label: "Payroll Exports", href: "/payroll/exports", icon: "📤", requiredPermission: "Payroll.View" },
   // Fleet
   { label: "Equipment", href: "/equipment", icon: "🚜", requiredPermission: "Equipment.View" },

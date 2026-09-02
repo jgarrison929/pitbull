@@ -58,11 +58,13 @@ public static class PermissionConstants
     public const string AccountingViewWIP = "Accounting.ViewWIP";
     public const string AccountingManageBankAccounts = "Accounting.ManageBankAccounts";
 
-    // -- Payroll (4) --
+    // -- Payroll (6) --
     public const string PayrollView = "Payroll.View";
     public const string PayrollProcess = "Payroll.Process";
     public const string PayrollCertifiedReport = "Payroll.CertifiedReport";
     public const string PayrollViewRates = "Payroll.ViewRates";
+    public const string PayrollManageRates = "Payroll.ManageRates";
+    public const string PayrollManageAgreements = "Payroll.ManageAgreements";
 
     // -- Project Management (8) --
     public const string PMRFIs = "PM.RFIs";
@@ -136,7 +138,7 @@ public static class PermissionConstants
         // Accounting
         AccountingViewGL, AccountingPostJournals, AccountingManagePeriods, AccountingViewWIP, AccountingManageBankAccounts,
         // Payroll
-        PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates,
+        PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates, PayrollManageRates, PayrollManageAgreements,
         // PM
         PMRFIs, PMSubmittals, PMDailyReports, PMSchedule, PMPunchList, PMMeetings,
         SpatialView, SpatialManage,
@@ -229,6 +231,8 @@ public static class PermissionConstants
                 (PayrollProcess, "Process payroll runs"),
                 (PayrollCertifiedReport, "Generate certified payroll reports"),
                 (PayrollViewRates, "View pay rates"),
+                (PayrollManageRates, "Manage wage packages and classifications"),
+                (PayrollManageAgreements, "Manage union agreements"),
             },
             ["PM"] = new[]
             {
@@ -351,7 +355,7 @@ public static class PermissionConstants
             {
                 // Full financial access
                 "Billing.", "AP.", "AR.", "Accounting.",
-                PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates,
+                PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates, PayrollManageRates, PayrollManageAgreements,
                 // Read access to operational data
                 ProjectsView, ContractsView, TimeTrackingView, TimeTrackingViewRates,
                 EmployeesView, EmployeesViewSensitive,

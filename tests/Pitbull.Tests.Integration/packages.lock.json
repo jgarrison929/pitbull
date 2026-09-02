@@ -1181,6 +1181,7 @@
           "Pitbull.Email": "[1.0.0, )",
           "Pitbull.Messaging": "[1.0.0, )",
           "Pitbull.Notifications": "[1.0.0, )",
+          "Pitbull.Payroll": "[1.0.0, )",
           "Pitbull.Portal": "[1.0.0, )",
           "Pitbull.ProjectManagement": "[1.0.0, )",
           "Pitbull.Projects": "[1.0.0, )",
@@ -1265,6 +1266,14 @@
         "dependencies": {
           "Microsoft.OpenApi": "[2.12.2, )",
           "Pitbull.Core": "[1.0.0, )"
+        }
+      },
+      "pitbull.payroll": {
+        "type": "Project",
+        "dependencies": {
+          "Microsoft.OpenApi": "[2.12.2, )",
+          "Pitbull.Core": "[1.0.0, )",
+          "Pitbull.TimeTracking": "[1.0.0, )"
         }
       },
       "pitbull.portal": {

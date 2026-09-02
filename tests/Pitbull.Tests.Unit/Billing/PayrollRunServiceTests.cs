@@ -1,8 +1,9 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-using Pitbull.Billing.Features.PayrollRuns;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.PayrollRuns;
+using Pitbull.Payroll.Domain;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
@@ -28,7 +29,7 @@ public class PayrollRunServiceTests : IDisposable
             .Options;
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
-        _service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance);
+        _service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), new PrevailingWageValidationService(_db));
     }
 
     public void Dispose()
@@ -112,7 +113,8 @@ public class PayrollRunServiceTests : IDisposable
     }
 
     private async Task SeedApprovedTimeEntry(Guid employeeId, DateOnly date,
-        decimal regularHours = 8m, decimal overtimeHours = 0m, decimal doubletimeHours = 0m)
+        decimal regularHours = 8m, decimal overtimeHours = 0m, decimal doubletimeHours = 0m,
+        Guid? workClassificationId = null, string? shiftCode = null)
     {
         TimeEntry entry = new()
         {
@@ -128,10 +130,94 @@ public class PayrollRunServiceTests : IDisposable
             DoubletimeHours = doubletimeHours,
             Status = TimeEntryStatus.Approved,
             ApprovedAt = DateTime.UtcNow,
-            ApprovedById = Guid.NewGuid()
+            ApprovedById = Guid.NewGuid(),
+            WorkClassificationId = workClassificationId,
+            ShiftCode = shiftCode
         };
         _db.Set<TimeEntry>().Add(entry);
         await _db.SaveChangesAsync();
+    }
+
+    private async Task<(Employee Employee, WorkClassification Classification, UnionAgreement Agreement)> SeedUnionAffiliation(
+        decimal baseRate,
+        decimal? packageRate,
+        Guid? classificationId = null)
+    {
+        Employee emp = await SeedEmployee(baseRate);
+        WorkClassification classification = new()
+        {
+            Id = classificationId ?? Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            Code = "LABR",
+            Name = "Laborer",
+            IsActive = true,
+            Craft = "Laborer"
+        };
+        UnionAgreement agreement = new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            UnionName = "LIUNA",
+            LocalNumber = "210",
+            Name = "Laborers CBA 2026",
+            EffectiveDate = new DateOnly(2026, 1, 1),
+            Status = UnionAgreementStatus.Active
+        };
+        _db.Set<WorkClassification>().Add(classification);
+        _db.Set<UnionAgreement>().Add(agreement);
+
+        if (packageRate.HasValue)
+        {
+            PayComponent st = new()
+            {
+                Id = Guid.NewGuid(),
+                TenantId = TestTenantId,
+                CompanyId = TestCompanyId,
+                Code = "ST",
+                Name = "Straight Time",
+                Kind = PayComponentKind.Earning,
+                OverlayPack = "union"
+            };
+            WagePackage package = new()
+            {
+                Id = Guid.NewGuid(),
+                TenantId = TestTenantId,
+                CompanyId = TestCompanyId,
+                UnionAgreementId = agreement.Id,
+                WorkClassificationId = classification.Id,
+                ScaleCode = "Journeyman",
+                EffectiveDate = new DateOnly(2026, 1, 1)
+            };
+            package.Rates.Add(new WagePackageRate
+            {
+                Id = Guid.NewGuid(),
+                TenantId = TestTenantId,
+                CompanyId = TestCompanyId,
+                WagePackageId = package.Id,
+                PayComponentId = st.Id,
+                PayComponent = st,
+                HourlyRate = packageRate.Value,
+                Amount = packageRate.Value,
+                Unit = WageRateUnit.PerHour
+            });
+            _db.Set<PayComponent>().Add(st);
+            _db.Set<WagePackage>().Add(package);
+        }
+
+        _db.Set<EmployeeUnionAffiliation>().Add(new EmployeeUnionAffiliation
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TestTenantId,
+            EmployeeId = emp.Id,
+            UnionAgreementId = agreement.Id,
+            WorkClassificationId = classification.Id,
+            ScaleCode = "Journeyman",
+            EffectiveDate = new DateOnly(2026, 1, 1)
+        });
+        await _db.SaveChangesAsync();
+        return (emp, classification, agreement);
     }
 
     private async Task<PayrollRun> SeedPayrollRun(Guid payPeriodId, PayrollRunStatus status = PayrollRunStatus.Draft)
@@ -723,4 +809,40 @@ public class PayrollRunServiceTests : IDisposable
         result.IsSuccess.Should().BeTrue();
         result.Value!.Status.Should().Be(PayrollRunStatus.Processing);
     }
+    [Fact]
+    public async Task GeneratePayrollRun_UnionPackageMatch_UsesPackageRateNotBaseHourlyRate()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        (Employee emp, WorkClassification classification, UnionAgreement _) =
+            await SeedUnionAffiliation(baseRate: 50m, packageRate: 85m);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m,
+            workClassificationId: classification.Id);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        PayrollRunLineDto line = result.Value!.Lines[0];
+        line.RegularHours.Should().Be(8m);
+        line.RegularPay.Should().Be(680m);
+        line.RateSource.Should().Be(RateSource.UnionPackage);
+        line.WorkClassificationId.Should().Be(classification.Id);
+    }
+
+    [Fact]
+    public async Task GeneratePayrollRun_UnionAffiliationWithoutPackage_ReturnsUnionRateNotFound()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        (Employee emp, WorkClassification classification, UnionAgreement _) =
+            await SeedUnionAffiliation(baseRate: 50m, packageRate: null);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m,
+            workClassificationId: classification.Id);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("UNION_RATE_NOT_FOUND");
+    }
+
 }

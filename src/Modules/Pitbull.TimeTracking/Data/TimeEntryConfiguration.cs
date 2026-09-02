@@ -64,6 +64,9 @@ public class TimeEntryConfiguration : IEntityTypeConfiguration<TimeEntry>
             .HasPrecision(8, 2)
             .HasComment("GPS accuracy in meters at time of capture");
 
+        builder.Property(te => te.ShiftCode)
+            .HasMaxLength(50);
+
         // Indexes for common queries
         builder.HasIndex(te => new { te.Date, te.EmployeeId })
             .HasDatabaseName("IX_time_entries_date_employee");

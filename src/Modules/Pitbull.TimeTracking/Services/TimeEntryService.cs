@@ -734,6 +734,11 @@ public class TimeEntryService : ITimeEntryService
                 "Cannot log time to a completed or closed project",
                 "PROJECT_INACTIVE");
 
+        if (project.CertifiedPayroll && !command.WorkClassificationId.HasValue)
+            return Result.Failure<TimeEntryDto>(
+                "Work classification is required on certified-payroll projects",
+                "MISSING_WORK_CLASSIFICATION");
+
         // Validate employee is assigned to this project
         var hasAssignment = await _db.Set<ProjectAssignment>()
             .AnyAsync(pa => pa.EmployeeId == command.EmployeeId
@@ -840,6 +845,8 @@ public class TimeEntryService : ITimeEntryService
             Longitude = command.Longitude,
             GpsAccuracy = command.GpsAccuracy,
             GpsCapturedAt = command.GpsCapturedAt,
+            WorkClassificationId = command.WorkClassificationId,
+            ShiftCode = command.ShiftCode,
         };
 
         _db.Set<TimeEntry>().Add(timeEntry);
@@ -1278,6 +1285,12 @@ public class TimeEntryService : ITimeEntryService
             if (command.Description != null)
                 timeEntry.Description = command.Description;
 
+            if (command.WorkClassificationId.HasValue)
+                timeEntry.WorkClassificationId = command.WorkClassificationId;
+
+            if (command.ShiftCode is not null)
+                timeEntry.ShiftCode = command.ShiftCode;
+
             // Phase update - validate belongs to project
             if (command.PhaseId.HasValue)
             {
@@ -1489,6 +1502,8 @@ public class TimeEntryService : ITimeEntryService
             existingEntry.Longitude = item.Longitude;
             existingEntry.GpsAccuracy = item.GpsAccuracy;
             existingEntry.GpsCapturedAt = item.GpsCapturedAt;
+            existingEntry.WorkClassificationId = item.WorkClassificationId;
+            existingEntry.ShiftCode = item.ShiftCode;
             existingEntry.Employee = employee;
 
             return Result.Success(new BatchTimeEntryUpsert(existingEntry, IsNew: false));
@@ -1511,6 +1526,8 @@ public class TimeEntryService : ITimeEntryService
             Longitude = item.Longitude,
             GpsAccuracy = item.GpsAccuracy,
             GpsCapturedAt = item.GpsCapturedAt,
+            WorkClassificationId = item.WorkClassificationId,
+            ShiftCode = item.ShiftCode,
             Employee = employee
         };
 

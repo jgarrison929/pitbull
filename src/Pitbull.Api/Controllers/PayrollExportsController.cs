@@ -2,8 +2,8 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Pitbull.Billing.Features.PayrollExports;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.PayrollExports;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Domain;
 
 namespace Pitbull.Api.Controllers;

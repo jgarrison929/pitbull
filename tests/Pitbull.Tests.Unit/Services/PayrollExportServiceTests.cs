@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using Pitbull.Billing.Features.PayrollExports;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.PayrollExports;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Domain;
 using Pitbull.Tests.Unit.Helpers;
 using Pitbull.TimeTracking.Domain;

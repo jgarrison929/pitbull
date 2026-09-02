@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Pitbull.Api.Controllers;
-using Pitbull.Billing.Features.PayrollExports;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.PayrollExports;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Domain;
 

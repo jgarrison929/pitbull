@@ -14,6 +14,7 @@ public static class ProjectMapper
         p.ClientName, p.ClientContact, p.ClientEmail, p.ClientPhone,
         p.StartDate, p.EstimatedCompletionDate, p.ActualCompletionDate,
         p.ContractAmount, p.ProjectManagerId, p.SuperintendentId,
-        p.SourceBidId, p.CreatedAt
+        p.SourceBidId, p.CreatedAt,
+        CertifiedPayroll: p.CertifiedPayroll
     );
 }

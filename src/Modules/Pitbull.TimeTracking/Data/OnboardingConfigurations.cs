@@ -104,6 +104,7 @@ public class EmployeeUnionAffiliationConfiguration : IEntityTypeConfiguration<Em
         builder.Property(x => x.ClassificationName).HasMaxLength(200);
         builder.Property(x => x.Jurisdiction).HasMaxLength(100);
         builder.Property(x => x.Notes).HasMaxLength(2000);
+        builder.Property(x => x.ScaleCode).HasMaxLength(50);
 
         builder.HasIndex(x => x.EmployeeId);
 
