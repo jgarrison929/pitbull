@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Pitbull.Payroll.Features.PayrollRuns;
@@ -16,7 +17,8 @@ namespace Pitbull.Api.Controllers;
 [Tags("Payroll Runs")]
 public class PayrollRunsController(
     IPayrollRunService payrollRunService,
-    IPrevailingWageValidationService prevailingWageValidationService) : ControllerBase
+    IPrevailingWageValidationService prevailingWageValidationService,
+    IPayrollGlPostingService payrollGlPostingService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(ListPayrollRunsResult), StatusCodes.Status200OK)]
@@ -113,6 +115,24 @@ public class PayrollRunsController(
             new ValidatePayrollRunPrevailingWageQuery(id),
             cancellationToken);
 
+        if (!result.IsSuccess)
+            return result.ErrorCode == "NOT_FOUND"
+                ? NotFound(new { error = result.Error, code = result.ErrorCode })
+                : BadRequest(new { error = result.Error, code = result.ErrorCode });
+
+        return Ok(result.Value);
+    }
+
+    [HttpPost("{id:guid}/post")]
+    [Authorize(Policy = "Payroll.PostGL")]
+    [ProducesResponseType(typeof(PayrollGlPostResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> PostToGl(Guid id, CancellationToken cancellationToken)
+    {
+        string? userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+        Guid? postedBy = Guid.TryParse(userId, out Guid parsed) ? parsed : null;
+
+        var result = await payrollGlPostingService.PostToGlAsync(id, postedBy, cancellationToken);
         if (!result.IsSuccess)
             return result.ErrorCode == "NOT_FOUND"
                 ? NotFound(new { error = result.Error, code = result.ErrorCode })

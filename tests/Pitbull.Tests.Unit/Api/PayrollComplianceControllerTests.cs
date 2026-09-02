@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +41,7 @@ public class PayrollComplianceControllerTests : IDisposable
         IPayrollRunService payrollRunService = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), pwValidation, new CheckPayrollTaxEngine(Options.Create(new PayrollTaxOptions())));
         ICertifiedPayrollService certifiedPayrollService = new CertifiedPayrollService(_db, NullLogger<CertifiedPayrollService>.Instance);
 
-        _payrollRunsController = new PayrollRunsController(payrollRunService, pwValidation)
+        _payrollRunsController = new PayrollRunsController(payrollRunService, pwValidation, new PayrollGlPostingService(_db, NullLogger<PayrollGlPostingService>.Instance))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };

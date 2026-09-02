@@ -1,12 +1,12 @@
-using System.Text;
+﻿using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pitbull.Payroll.Features.PayrollExports;
 using Pitbull.Core.CQRS;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
+using Pitbull.Payroll.Domain;
 using Pitbull.TimeTracking.Domain;
-using Pitbull.TimeTracking.Entities;
 
 namespace Pitbull.Payroll.Services;
 
@@ -60,30 +60,26 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
     {
         PayrollRun? run = await db.Set<PayrollRun>()
             .Include(x => x.Lines)
+            .Include(x => x.PaySlips)
+            .ThenInclude(s => s.Lines)
             .FirstOrDefaultAsync(x => x.Id == command.PayrollRunId, cancellationToken);
 
         if (run is null)
             return Result.Failure<PayrollExportDto>("Payroll run not found", "NOT_FOUND");
 
-        if (run.Status != PayrollRunStatus.Approved)
+        if (run.Status is not (PayrollRunStatus.Approved or PayrollRunStatus.Posted))
             return Result.Failure<PayrollExportDto>("Only approved payroll runs can be exported", "INVALID_STATUS");
 
-        PayPeriod? payPeriod = await db.Set<PayPeriod>()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == run.PayPeriodId, cancellationToken);
-
-        if (payPeriod is null)
-            return Result.Failure<PayrollExportDto>("Pay period not found for payroll run", "PAY_PERIOD_NOT_FOUND");
-
-        List<TimeEntry> entries = await db.Set<TimeEntry>()
-            .AsNoTracking()
-            .Where(x => x.Status == TimeEntryStatus.Approved)
-            .Where(x => x.Date >= payPeriod.StartDate && x.Date <= payPeriod.EndDate)
-            .ToListAsync(cancellationToken);
+        if (run.PaySlips.Count == 0 || run.PaySlips.All(s => s.Lines.Count == 0))
+        {
+            return Result.Failure<PayrollExportDto>(
+                "Cannot export: payroll run has no job-costed pay slip lines. Generate the run after P3 so project and cost code stay on the line.",
+                "NO_PAY_SLIP_LINES");
+        }
 
         Dictionary<Guid, Employee> employeesById = await db.Set<Employee>()
             .AsNoTracking()
-            .Where(x => run.Lines.Select(y => y.EmployeeId).Contains(x.Id))
+            .Where(x => run.PaySlips.Select(y => y.EmployeeId).Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, cancellationToken);
 
         PayrollExport export = new()
@@ -95,98 +91,69 @@ public class PayrollExportService(PitbullDbContext db, ILogger<PayrollExportServ
             FilePath = $"exports/payroll/{Guid.NewGuid():N}.csv"
         };
 
-        List<SkippedEmployeeDto> skippedEmployees = [];
-
-        foreach (PayrollRunLine line in run.Lines)
+        foreach (PaySlip slip in run.PaySlips)
         {
-            Employee employee = employeesById.GetValueOrDefault(line.EmployeeId) ?? new Employee
+            Employee employee = employeesById.GetValueOrDefault(slip.EmployeeId) ?? new Employee
             {
-                Id = line.EmployeeId,
-                EmployeeNumber = $"EMP-{line.EmployeeId.ToString()[..8]}",
+                Id = slip.EmployeeId,
+                EmployeeNumber = $"EMP-{slip.EmployeeId.ToString()[..8]}",
                 FirstName = "Unknown",
                 LastName = "Employee",
                 BaseHourlyRate = 0m
             };
 
-            List<TimeEntry> employeeEntries = entries.Where(x => x.EmployeeId == line.EmployeeId).ToList();
-            if (employeeEntries.Count == 0)
+            var jobGroups = slip.Lines
+                .Where(l => l.Kind == PayComponentKind.Earning)
+                .GroupBy(l => (l.ProjectId, l.CostCodeId, l.WorkClassificationId));
+
+            decimal slipGross = slip.Lines.Where(l => l.Kind == PayComponentKind.Earning).Sum(l => l.Amount);
+            decimal slipDeductions = slip.TotalDeductions + slip.TotalTaxes;
+            if (slipDeductions == 0m && slip.Gross > slip.Net)
+                slipDeductions = slip.Gross - slip.Net;
+
+            foreach (var job in jobGroups)
             {
-                // Log IDs only — avoid PII / log-forging via employee names.
-                logger.LogWarning(
-                    "Payroll run line for employee {EmployeeId} has no approved time entries — cannot export",
-                    line.EmployeeId);
-                skippedEmployees.Add(new SkippedEmployeeDto(
-                    line.EmployeeId, employee.FullName, "No approved time entries for pay period"));
-                continue;
-            }
+                decimal stHours = job.Where(l => l.ComponentCode == "ST").Sum(l => l.Hours);
+                decimal otHours = job.Where(l => l.ComponentCode == "OT").Sum(l => l.Hours);
+                decimal dtHours = job.Where(l => l.ComponentCode == "DT").Sum(l => l.Hours);
+                decimal gross = job.Sum(l => l.Amount);
+                decimal rate = stHours > 0m
+                    ? job.Where(l => l.ComponentCode == "ST").Select(l => l.Rate).FirstOrDefault()
+                    : job.Select(l => l.Rate).FirstOrDefault();
+                decimal deductions = slipGross <= 0m
+                    ? 0m
+                    : decimal.Round(slipDeductions * (gross / slipGross), 2, MidpointRounding.AwayFromZero);
 
-            decimal totalEntryHours = employeeEntries.Sum(x => x.RegularHours + x.OvertimeHours + x.DoubletimeHours);
-            decimal deductions = decimal.Round(line.GrossPay * 0.20m, 2, MidpointRounding.AwayFromZero);
-            decimal netPay = line.GrossPay - deductions;
-
-            // Largest-remainder method: allocate gross and deductions per entry,
-            // then distribute rounding remainders so lines sum exactly to totals.
-            var allocations = new (decimal gross, decimal ded)[employeeEntries.Count];
-            decimal allocatedGross = 0m, allocatedDed = 0m;
-
-            for (int i = 0; i < employeeEntries.Count; i++)
-            {
-                decimal entryHours = employeeEntries[i].RegularHours + employeeEntries[i].OvertimeHours + employeeEntries[i].DoubletimeHours;
-                decimal ratio = totalEntryHours <= 0 ? 0m : entryHours / totalEntryHours;
-                allocations[i] = (
-                    decimal.Round(line.GrossPay * ratio, 2, MidpointRounding.AwayFromZero),
-                    decimal.Round(deductions * ratio, 2, MidpointRounding.AwayFromZero));
-                allocatedGross += allocations[i].gross;
-                allocatedDed += allocations[i].ded;
-            }
-
-            // Push rounding remainder onto the last entry
-            if (employeeEntries.Count > 0)
-            {
-                int last = employeeEntries.Count - 1;
-                allocations[last].gross += line.GrossPay - allocatedGross;
-                allocations[last].ded += deductions - allocatedDed;
-            }
-
-            for (int i = 0; i < employeeEntries.Count; i++)
-            {
-                var entry = employeeEntries[i];
                 export.Lines.Add(new PayrollExportLine
                 {
                     EmployeeId = employee.Id,
                     EmployeeName = employee.FullName,
                     MaskedSsn = MaskSsn(employee.EmployeeNumber),
-                    StraightTimeHours = entry.RegularHours,
-                    OvertimeHours = entry.OvertimeHours,
-                    DoubletimeHours = entry.DoubletimeHours,
-                    HourlyRate = employee.BaseHourlyRate,
-                    GrossPay = allocations[i].gross,
-                    Deductions = allocations[i].ded,
-                    NetPay = allocations[i].gross - allocations[i].ded,
-                    ProjectId = entry.ProjectId,
-                    CostCodeId = entry.CostCodeId,
-                    WorkClassificationId = null
+                    StraightTimeHours = stHours,
+                    OvertimeHours = otHours,
+                    DoubletimeHours = dtHours,
+                    HourlyRate = rate,
+                    GrossPay = gross,
+                    Deductions = deductions,
+                    NetPay = gross - deductions,
+                    ProjectId = job.Key.ProjectId,
+                    CostCodeId = job.Key.CostCodeId,
+                    WorkClassificationId = job.Key.WorkClassificationId
                 });
             }
         }
 
-        // Fail fast if any employees could not be allocated — do not mark run as Exported
-        if (skippedEmployees.Count > 0)
+        if (export.Lines.Count == 0)
         {
-            string names = string.Join(", ", skippedEmployees.Select(s => s.EmployeeName));
-            // API error may include names for the operator; logs use IDs only (no PII / CR-LF risk).
-            logger.LogError(
-                "Payroll export aborted: {Count} employee(s) have no approved time entries: {EmployeeIds}",
-                skippedEmployees.Count,
-                string.Join(", ", skippedEmployees.Select(s => s.EmployeeId.ToString())));
+            logger.LogError("Payroll export aborted: run {PayrollRunId} has pay slips but no earning lines", command.PayrollRunId);
             return Result.Failure<PayrollExportDto>(
-                $"Cannot export: {skippedEmployees.Count} employee(s) have no approved time entries ({names}). " +
-                "Resolve missing time entries before exporting.",
-                "MISSING_ALLOCATIONS");
+                "Cannot export: pay slips have no earning lines with project and cost code.",
+                "NO_PAY_SLIP_LINES");
         }
 
         db.Set<PayrollExport>().Add(export);
-        run.Status = PayrollRunStatus.Exported;
+        if (run.Status != PayrollRunStatus.Posted)
+            run.Status = PayrollRunStatus.Exported;
 
         try
         {

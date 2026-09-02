@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
@@ -853,7 +853,7 @@ public class TimeEntryService : ITimeEntryService
 
         await _db.SaveChangesAsync(cancellationToken);
 
-        // Geofence validation — warning only, does not block entry creation
+        // Geofence validation â€” warning only, does not block entry creation
         string? geofenceWarning = null;
         if (command.Latitude.HasValue && command.Longitude.HasValue
             && project.Latitude.HasValue && project.Longitude.HasValue
@@ -1583,7 +1583,7 @@ public class TimeEntryService : ITimeEntryService
                     "UNAUTHORIZED");
             }
 
-            // SEC-002: Enforce project-scope — approver must have Manager/Supervisor
+            // SEC-002: Enforce project-scope â€” approver must have Manager/Supervisor
             // assignment on the entry's project (same check as bulk ReviewTimeEntriesAsync).
             var hasProjectAccess = await _db.Set<ProjectAssignment>()
                 .AnyAsync(pa => pa.EmployeeId == command.ApproverId.Value &&
@@ -1681,7 +1681,7 @@ public class TimeEntryService : ITimeEntryService
             (TimeEntryStatus.Rejected, TimeEntryStatus.Draft) => true,
             (TimeEntryStatus.Rejected, TimeEntryStatus.Submitted) => true,
 
-            // Approved entries are final — no backward transitions allowed
+            // Approved entries are final â€” no backward transitions allowed
 
             // Same status is a no-op, allow it
             var (f, t) when f == t => true,
@@ -1731,7 +1731,8 @@ public class TimeEntryService : ITimeEntryService
             BaseWageCost = costResult.BaseWageCost,
             BurdenCost = costResult.BurdenCost,
             TotalCost = costResult.TotalCost,
-            BurdenRateApplied = costResult.BurdenRateApplied
+            BurdenRateApplied = costResult.BurdenRateApplied,
+            IsProxy = costResult.IsProxy
         };
     }
 

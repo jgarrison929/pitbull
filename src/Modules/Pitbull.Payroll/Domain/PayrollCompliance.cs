@@ -11,8 +11,10 @@ public class PayrollRun : BaseEntity, ICompanyScoped, ITenantScoped
     public decimal TotalNet { get; set; }
     public int EmployeeCount { get; set; }
     public Guid? TaxTableVersionId { get; set; }
+    public Guid? GlJournalEntryId { get; set; }
 
     public List<PayrollRunLine> Lines { get; set; } = [];
+    public List<PaySlip> PaySlips { get; set; } = [];
 }
 
 public class PayrollRunLine : BaseEntity, ICompanyScoped, ITenantScoped
@@ -32,6 +34,49 @@ public class PayrollRunLine : BaseEntity, ICompanyScoped, ITenantScoped
     public decimal GrossPay { get; set; }
     public Guid? WorkClassificationId { get; set; }
     public RateSource RateSource { get; set; } = RateSource.FallbackBaseRate;
+}
+
+
+public class PaySlip : BaseEntity, ICompanyScoped, ITenantScoped
+{
+    public Guid CompanyId { get; set; }
+
+    public Guid PayrollRunId { get; set; }
+    public PayrollRun PayrollRun { get; set; } = null!;
+
+    public Guid EmployeeId { get; set; }
+    public decimal RegularHours { get; set; }
+    public decimal OvertimeHours { get; set; }
+    public decimal DoubletimeHours { get; set; }
+    public decimal Gross { get; set; }
+    public decimal TotalDeductions { get; set; }
+    public decimal TotalTaxes { get; set; }
+    public decimal Net { get; set; }
+    public decimal EmployerCost { get; set; }
+    public RateSource RateSource { get; set; } = RateSource.FallbackBaseRate;
+
+    public List<PaySlipLine> Lines { get; set; } = [];
+}
+
+public class PaySlipLine : BaseEntity, ICompanyScoped, ITenantScoped
+{
+    public Guid CompanyId { get; set; }
+
+    public Guid PaySlipId { get; set; }
+    public PaySlip PaySlip { get; set; } = null!;
+
+    public Guid? TimeEntryId { get; set; }
+    public Guid ProjectId { get; set; }
+    public Guid CostCodeId { get; set; }
+    public Guid? WorkClassificationId { get; set; }
+    public Guid? PayComponentId { get; set; }
+    public string ComponentCode { get; set; } = string.Empty;
+    public Pitbull.Payroll.Domain.PayComponentKind Kind { get; set; } = Pitbull.Payroll.Domain.PayComponentKind.Earning;
+    public decimal Hours { get; set; }
+    public decimal Rate { get; set; }
+    public decimal Amount { get; set; }
+    public Guid? WagePackageId { get; set; }
+    public Guid? WageDeterminationRateId { get; set; }
 }
 
 public class CertifiedPayrollReport : BaseEntity, ICompanyScoped, ITenantScoped
@@ -88,7 +133,8 @@ public enum PayrollRunStatus
     Submitted = 3,
     UnderReview = 4,
     Approved = 5,
-    Exported = 6
+    Exported = 6,
+    Posted = 7
 }
 
 public enum CertifiedPayrollStatus

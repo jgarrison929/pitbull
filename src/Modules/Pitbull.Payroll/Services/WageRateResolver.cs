@@ -134,6 +134,16 @@ public class WageRateResolver(PitbullDbContext db) : IWageRateResolver
 
         (decimal ot, decimal dt) = await LoadMultipliersAsync(agreementId, workDate, cancellationToken);
 
+        List<EmployerComponentRate> employer = matched.Rates
+            .Where(r => !r.IsDeleted && r.PayComponent is not null)
+            .Where(r => r.PayComponent!.Kind == PayComponentKind.EmployerContribution)
+            .Select(r => new EmployerComponentRate(
+                r.PayComponentId,
+                r.PayComponent!.Code,
+                r.Unit == WageRateUnit.PerHour && r.HourlyRate > 0 ? r.HourlyRate : r.Amount))
+            .Where(r => r.HourlyRate > 0)
+            .ToList();
+
         return Result.Success(new WageRateResult(
             RegularRate: regular,
             OvertimeMultiplier: ot,
@@ -141,7 +151,9 @@ public class WageRateResolver(PitbullDbContext db) : IWageRateResolver
             RateSource: RateSource.UnionPackage,
             WorkClassificationId: classificationId,
             WagePackageId: matched.Id,
-            OverlayPack: UnionPackName));
+            OverlayPack: UnionPackName,
+            EmployerHourlyBurden: employer.Sum(x => x.HourlyRate),
+            EmployerComponents: employer));
     }
 
     private async Task<(decimal Ot, decimal Dt)> LoadMultipliersAsync(

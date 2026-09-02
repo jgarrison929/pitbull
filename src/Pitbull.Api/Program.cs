@@ -192,7 +192,9 @@ builder.Services.AddScoped<Pitbull.Api.Services.IDataExportService, Pitbull.Api.
 builder.Services.AddScoped<Pitbull.Api.Services.IIntegrationExportService, Pitbull.Api.Services.IntegrationExportService>();
 
 // TimeTracking singleton services (don't require DI scope)
-builder.Services.AddSingleton<Pitbull.TimeTracking.Services.ILaborCostCalculator, Pitbull.TimeTracking.Services.LaborCostCalculator>();
+builder.Services.AddScoped<Pitbull.TimeTracking.Services.ILaborCostCalculator>(sp =>
+    new Pitbull.TimeTracking.Services.LaborCostCalculator(
+        sp.GetService<Pitbull.TimeTracking.Services.ILaborCostRateSource>()));
 builder.Services.AddSingleton<Pitbull.TimeTracking.Services.IGeofenceService, Pitbull.TimeTracking.Services.GeofenceService>();
 
 // TimeTracking scoped services (require DbContext)

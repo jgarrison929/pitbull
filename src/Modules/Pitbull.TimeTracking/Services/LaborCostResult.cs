@@ -1,4 +1,4 @@
-namespace Pitbull.TimeTracking.Services;
+﻿namespace Pitbull.TimeTracking.Services;
 
 /// <summary>
 /// Result of a labor cost calculation for a time entry.
@@ -7,7 +7,7 @@ namespace Pitbull.TimeTracking.Services;
 public record LaborCostResult
 {
     /// <summary>
-    /// Base wage cost (hours × rate, before burden)
+    /// Base wage cost (hours Ã— rate, before burden)
     /// </summary>
     public decimal BaseWageCost { get; init; }
 
@@ -30,6 +30,11 @@ public record LaborCostResult
     /// The burden rate used for this calculation (e.g., 0.35 = 35%)
     /// </summary>
     public decimal BurdenRateApplied { get; init; }
+
+    /// <summary>
+    /// True when the 35% proxy was used. False for posted slips or employer-component burden.
+    /// </summary>
+    public bool IsProxy { get; init; } = true;
 }
 
 /// <summary>
@@ -43,7 +48,7 @@ public record HoursCostBreakdown
     public decimal RegularHours { get; init; }
 
     /// <summary>
-    /// Cost of regular hours (hours × base rate)
+    /// Cost of regular hours (hours Ã— base rate)
     /// </summary>
     public decimal RegularCost { get; init; }
 
@@ -53,7 +58,7 @@ public record HoursCostBreakdown
     public decimal OvertimeHours { get; init; }
 
     /// <summary>
-    /// Cost of overtime hours (hours × base rate × 1.5)
+    /// Cost of overtime hours (hours Ã— base rate Ã— 1.5)
     /// </summary>
     public decimal OvertimeCost { get; init; }
 
@@ -63,7 +68,7 @@ public record HoursCostBreakdown
     public decimal DoubletimeHours { get; init; }
 
     /// <summary>
-    /// Cost of doubletime hours (hours × base rate × 2.0)
+    /// Cost of doubletime hours (hours Ã— base rate Ã— 2.0)
     /// </summary>
     public decimal DoubletimeCost { get; init; }
 }

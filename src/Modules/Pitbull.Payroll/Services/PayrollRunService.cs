@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pitbull.Payroll.Features.PayrollRuns;
 using Pitbull.Payroll.Features.PrevailingWageValidation;
@@ -181,10 +181,29 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
                 return Result.Failure<PayrollRunDto>(resolved.Error ?? "Failed to resolve wage rate", resolved.ErrorCode);
 
             WageRateResult rate = resolved.Value!;
-            decimal regularPay = decimal.Round(regularHours * rate.RegularRate, 2, MidpointRounding.AwayFromZero);
-            decimal overtimePay = decimal.Round(overtimeHours * rate.RegularRate * rate.OvertimeMultiplier, 2, MidpointRounding.AwayFromZero);
-            decimal doubletimePay = decimal.Round(doubletimeHours * rate.RegularRate * rate.DoubletimeMultiplier, 2, MidpointRounding.AwayFromZero);
-            decimal grossPay = regularPay + overtimePay + doubletimePay;
+
+            PaySlip slip = new()
+            {
+                EmployeeId = group.Key,
+                RegularHours = regularHours,
+                OvertimeHours = overtimeHours,
+                DoubletimeHours = doubletimeHours,
+                RateSource = rate.RateSource
+            };
+
+            Result? slipError = await AddJobCostedLinesAsync(
+                slip, entries, regularHours, overtimeHours, doubletimeHours, cancellationToken);
+            if (slipError is not null)
+                return Result.Failure<PayrollRunDto>(slipError.Error ?? "Failed to price pay slip lines", slipError.ErrorCode);
+
+            slip.Gross = slip.Lines.Where(l => l.Kind == Pitbull.Payroll.Domain.PayComponentKind.Earning).Sum(l => l.Amount);
+            slip.EmployerCost = slip.Lines.Where(l => l.Kind == Pitbull.Payroll.Domain.PayComponentKind.EmployerContribution).Sum(l => l.Amount);
+            slip.Net = slip.Gross;
+            run.PaySlips.Add(slip);
+
+            decimal regularPay = slip.Lines.Where(l => l.ComponentCode == "ST").Sum(l => l.Amount);
+            decimal overtimePay = slip.Lines.Where(l => l.ComponentCode == "OT").Sum(l => l.Amount);
+            decimal doubletimePay = slip.Lines.Where(l => l.ComponentCode == "DT").Sum(l => l.Amount);
 
             run.Lines.Add(new PayrollRunLine
             {
@@ -195,7 +214,7 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
                 RegularPay = regularPay,
                 OvertimePay = overtimePay,
                 DoubletimePay = doubletimePay,
-                GrossPay = grossPay,
+                GrossPay = slip.Gross,
                 WorkClassificationId = rate.WorkClassificationId,
                 RateSource = rate.RateSource
             });
@@ -351,7 +370,7 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         if (run is null)
             return Result.Failure<PayrollRunDto>("Payroll run not found", "NOT_FOUND");
 
-        if (run.Status != PayrollRunStatus.Approved)
+        if (run.Status is not (PayrollRunStatus.Approved or PayrollRunStatus.Posted))
             return Result.Failure<PayrollRunDto>("Only approved payroll runs can be exported", "INVALID_STATUS");
 
         run.Status = PayrollRunStatus.Exported;
@@ -376,8 +395,8 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         if (run is null)
             return Result.Failure("Payroll run not found", "NOT_FOUND");
 
-        if (run.Status is PayrollRunStatus.Approved or PayrollRunStatus.Exported)
-            return Result.Failure("Approved or exported payroll runs cannot be deleted", "INVALID_STATUS");
+        if (run.Status is PayrollRunStatus.Approved or PayrollRunStatus.Exported or PayrollRunStatus.Posted)
+            return Result.Failure("Approved, exported, or posted payroll runs cannot be deleted", "INVALID_STATUS");
 
         db.Set<PayrollRun>().Remove(run);
 
@@ -497,8 +516,66 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         else
             run.TotalNet = run.TotalGross - tax.Components.Sum(x => x.Amount);
 
+        ApplyTaxComponentsToSlips(run, tax);
         return Result.Success();
     }
+
+    private static void ApplyTaxComponentsToSlips(PayrollRun run, PayrollTaxCalculationResult tax)
+    {
+        foreach (PaySlip slip in run.PaySlips)
+        {
+            List<PayrollTaxComponent> employeeComponents = tax.Components
+                .Where(c => c.EmployeeId == slip.EmployeeId)
+                .ToList();
+
+            decimal taxes = employeeComponents
+                .Where(c => IsEmployeeTaxCode(c.ComponentCode))
+                .Sum(c => c.Amount);
+            decimal employerTaxes = employeeComponents
+                .Where(c => IsEmployerTaxCode(c.ComponentCode))
+                .Sum(c => c.Amount);
+
+            PaySlipLine? firstEarning = slip.Lines.FirstOrDefault(l => l.Kind == Pitbull.Payroll.Domain.PayComponentKind.Earning);
+            Guid projectId = firstEarning?.ProjectId ?? Guid.Empty;
+            Guid costCodeId = firstEarning?.CostCodeId ?? Guid.Empty;
+            Guid? classId = firstEarning?.WorkClassificationId;
+            Guid? timeEntryId = firstEarning?.TimeEntryId;
+
+            foreach (PayrollTaxComponent component in employeeComponents)
+            {
+                bool employer = IsEmployerTaxCode(component.ComponentCode);
+                slip.Lines.Add(new PaySlipLine
+                {
+                    TimeEntryId = timeEntryId,
+                    ProjectId = projectId,
+                    CostCodeId = costCodeId,
+                    WorkClassificationId = classId,
+                    ComponentCode = component.ComponentCode,
+                    Kind = employer
+                        ? Pitbull.Payroll.Domain.PayComponentKind.EmployerContribution
+                        : Pitbull.Payroll.Domain.PayComponentKind.Deduction,
+                    Hours = 0m,
+                    Rate = 0m,
+                    Amount = component.Amount
+                });
+            }
+
+            slip.TotalTaxes = taxes;
+            slip.EmployerCost += employerTaxes;
+            if (tax.NetByEmployee.TryGetValue(slip.EmployeeId, out decimal net))
+                slip.Net = net;
+            else
+                slip.Net = slip.Gross - taxes;
+        }
+    }
+
+    private static bool IsEmployerTaxCode(string code)
+        => code.EndsWith("_ER", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(code, "FUTA", StringComparison.OrdinalIgnoreCase)
+           || string.Equals(code, "SUTA", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsEmployeeTaxCode(string code)
+        => !IsEmployerTaxCode(code);
 
     private async Task<Result<WageRateResult>> ResolveEmployeeRateAsync(
         List<TimeEntry> entries,
@@ -553,6 +630,143 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         return CompanyOvertimePolicy.Resolve(company);
     }
 
+
+    private async Task<Result?> AddJobCostedLinesAsync(
+        PaySlip slip,
+        List<TimeEntry> entries,
+        decimal regularHours,
+        decimal overtimeHours,
+        decimal doubletimeHours,
+        CancellationToken cancellationToken)
+    {
+        List<(TimeEntry Entry, decimal Regular, decimal Overtime, decimal Doubletime)> allocated =
+            AllocateClassifiedHours(entries, regularHours, overtimeHours, doubletimeHours);
+
+        foreach ((TimeEntry entry, decimal stHours, decimal otHours, decimal dtHours) in allocated)
+        {
+            Result<WageRateResult> resolved = await wageRateResolver.ResolveAsync(
+                new WageRateRequest(
+                    EmployeeId: entry.EmployeeId,
+                    ProjectId: entry.ProjectId,
+                    WorkDate: entry.Date,
+                    WorkClassificationId: entry.WorkClassificationId,
+                    ShiftCode: entry.ShiftCode,
+                    ZoneCode: null),
+                cancellationToken);
+
+            if (!resolved.IsSuccess)
+                return Result.Failure(resolved.Error ?? "Failed to resolve wage rate", resolved.ErrorCode);
+
+            WageRateResult rate = resolved.Value!;
+            if (stHours > 0m)
+            {
+                decimal amount = decimal.Round(stHours * rate.RegularRate, 2, MidpointRounding.AwayFromZero);
+                slip.Lines.Add(CreateSlipLine(entry, rate, "ST", Pitbull.Payroll.Domain.PayComponentKind.Earning, stHours, rate.RegularRate, amount));
+            }
+
+            if (otHours > 0m)
+            {
+                decimal otRate = rate.RegularRate * rate.OvertimeMultiplier;
+                decimal amount = decimal.Round(otHours * otRate, 2, MidpointRounding.AwayFromZero);
+                slip.Lines.Add(CreateSlipLine(entry, rate, "OT", Pitbull.Payroll.Domain.PayComponentKind.Earning, otHours, otRate, amount));
+            }
+
+            if (dtHours > 0m)
+            {
+                decimal dtRate = rate.RegularRate * rate.DoubletimeMultiplier;
+                decimal amount = decimal.Round(dtHours * dtRate, 2, MidpointRounding.AwayFromZero);
+                slip.Lines.Add(CreateSlipLine(entry, rate, "DT", Pitbull.Payroll.Domain.PayComponentKind.Earning, dtHours, dtRate, amount));
+            }
+
+            decimal hours = stHours + otHours + dtHours;
+            if (hours > 0m && rate.EmployerComponents is { Count: > 0 })
+            {
+                foreach (EmployerComponentRate er in rate.EmployerComponents)
+                {
+                    decimal amount = decimal.Round(hours * er.HourlyRate, 2, MidpointRounding.AwayFromZero);
+                    if (amount == 0m)
+                        continue;
+                    slip.Lines.Add(CreateSlipLine(
+                        entry,
+                        rate,
+                        er.ComponentCode,
+                        Pitbull.Payroll.Domain.PayComponentKind.EmployerContribution,
+                        hours,
+                        er.HourlyRate,
+                        amount,
+                        er.PayComponentId));
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static PaySlipLine CreateSlipLine(
+        TimeEntry entry,
+        WageRateResult rate,
+        string componentCode,
+        Pitbull.Payroll.Domain.PayComponentKind kind,
+        decimal hours,
+        decimal lineRate,
+        decimal amount,
+        Guid? payComponentId = null)
+    {
+        return new PaySlipLine
+        {
+            TimeEntryId = entry.Id,
+            ProjectId = entry.ProjectId,
+            CostCodeId = entry.CostCodeId,
+            WorkClassificationId = rate.WorkClassificationId ?? entry.WorkClassificationId,
+            PayComponentId = payComponentId,
+            ComponentCode = componentCode,
+            Kind = kind,
+            Hours = hours,
+            Rate = lineRate,
+            Amount = amount,
+            WagePackageId = rate.WagePackageId
+        };
+    }
+
+    private static List<(TimeEntry Entry, decimal Regular, decimal Overtime, decimal Doubletime)> AllocateClassifiedHours(
+        List<TimeEntry> entries,
+        decimal regularHours,
+        decimal overtimeHours,
+        decimal doubletimeHours)
+    {
+        decimal totalHours = entries.Sum(e => e.TotalHours);
+        if (entries.Count == 0)
+            return [];
+
+        if (totalHours <= 0m)
+            return entries.Select(e => (e, 0m, 0m, 0m)).ToList();
+
+        var result = new List<(TimeEntry, decimal, decimal, decimal)>(entries.Count);
+        decimal allocatedSt = 0m, allocatedOt = 0m, allocatedDt = 0m;
+
+        for (int i = 0; i < entries.Count; i++)
+        {
+            TimeEntry entry = entries[i];
+            decimal ratio = entry.TotalHours / totalHours;
+            decimal st = decimal.Round(regularHours * ratio, 2, MidpointRounding.AwayFromZero);
+            decimal ot = decimal.Round(overtimeHours * ratio, 2, MidpointRounding.AwayFromZero);
+            decimal dt = decimal.Round(doubletimeHours * ratio, 2, MidpointRounding.AwayFromZero);
+            allocatedSt += st;
+            allocatedOt += ot;
+            allocatedDt += dt;
+            result.Add((entry, st, ot, dt));
+        }
+
+        int last = result.Count - 1;
+        (TimeEntry lastEntry, decimal lastSt, decimal lastOt, decimal lastDt) = result[last];
+        result[last] = (
+            lastEntry,
+            lastSt + (regularHours - allocatedSt),
+            lastOt + (overtimeHours - allocatedOt),
+            lastDt + (doubletimeHours - allocatedDt));
+
+        return result;
+    }
     private static bool IsValidPayrollStatusTransition(PayrollRunStatus from, PayrollRunStatus to)
     {
         if (from == to) return true;
@@ -563,6 +777,9 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
             (PayrollRunStatus.Submitted, PayrollRunStatus.UnderReview) => true,
             (PayrollRunStatus.UnderReview, PayrollRunStatus.Approved) => true,
             (PayrollRunStatus.Approved, PayrollRunStatus.Exported) => true,
+            (PayrollRunStatus.Approved, PayrollRunStatus.Posted) => true,
+            (PayrollRunStatus.Exported, PayrollRunStatus.Posted) => true,
+            (PayrollRunStatus.Posted, PayrollRunStatus.Exported) => true,
             _ => false
         };
     }

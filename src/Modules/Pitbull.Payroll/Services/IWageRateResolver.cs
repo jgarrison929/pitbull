@@ -12,6 +12,11 @@ public sealed record WageRateRequest(
     string? ShiftCode,
     string? ZoneCode);
 
+public sealed record EmployerComponentRate(
+    Guid PayComponentId,
+    string ComponentCode,
+    decimal HourlyRate);
+
 public sealed record WageRateResult(
     decimal RegularRate,
     decimal OvertimeMultiplier,
@@ -19,7 +24,9 @@ public sealed record WageRateResult(
     RateSource RateSource,
     Guid? WorkClassificationId,
     Guid? WagePackageId,
-    string OverlayPack);
+    string OverlayPack,
+    decimal EmployerHourlyBurden = 0m,
+    IReadOnlyList<EmployerComponentRate>? EmployerComponents = null);
 
 public interface IWageRateResolver
 {

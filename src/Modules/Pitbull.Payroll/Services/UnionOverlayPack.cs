@@ -12,6 +12,7 @@ public static class UnionOverlayPack
     public static IServiceCollection AddUnionOverlayPack(this IServiceCollection services)
     {
         services.AddScoped<IWageRateResolver, WageRateResolver>();
+        services.AddScoped<Pitbull.TimeTracking.Services.ILaborCostRateSource, PayrollLaborCostRateSource>();
         return services;
     }
 }

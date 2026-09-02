@@ -21,6 +21,14 @@ public class PayrollRunConfiguration : IEntityTypeConfiguration<PayrollRun>
             .HasForeignKey(x => x.PayrollRunId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasMany(x => x.PaySlips)
+            .WithOne(x => x.PayrollRun)
+            .HasForeignKey(x => x.PayrollRunId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.GlJournalEntryId })
+            .HasDatabaseName("IX_payroll_runs_tenant_company_gl_journal");
+
         builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.PayPeriodId })
             .HasDatabaseName("IX_payroll_runs_tenant_company_period");
 
@@ -363,6 +371,69 @@ public class FringeBenefitAllocationConfiguration : IEntityTypeConfiguration<Fri
 
         builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.PayrollRunLineId })
             .HasDatabaseName("IX_fringe_benefit_allocations_tenant_company_run_line");
+
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+    }
+}
+
+public class PaySlipConfiguration : IEntityTypeConfiguration<PaySlip>
+{
+    public void Configure(EntityTypeBuilder<PaySlip> builder)
+    {
+        builder.ToTable("pay_slips");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.RegularHours).HasPrecision(10, 2);
+        builder.Property(x => x.OvertimeHours).HasPrecision(10, 2);
+        builder.Property(x => x.DoubletimeHours).HasPrecision(10, 2);
+        builder.Property(x => x.Gross).HasPrecision(18, 2);
+        builder.Property(x => x.TotalDeductions).HasPrecision(18, 2);
+        builder.Property(x => x.TotalTaxes).HasPrecision(18, 2);
+        builder.Property(x => x.Net).HasPrecision(18, 2);
+        builder.Property(x => x.EmployerCost).HasPrecision(18, 2);
+        builder.Property(x => x.RateSource).HasConversion<string>().HasMaxLength(40);
+
+        builder.HasMany(x => x.Lines)
+            .WithOne(x => x.PaySlip)
+            .HasForeignKey(x => x.PaySlipId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.PayrollRunId, x.EmployeeId })
+            .HasDatabaseName("IX_pay_slips_tenant_company_run_employee");
+
+        builder.Property<uint>("xmin")
+            .HasColumnType("xid")
+            .ValueGeneratedOnAddOrUpdate()
+            .IsConcurrencyToken();
+    }
+}
+
+public class PaySlipLineConfiguration : IEntityTypeConfiguration<PaySlipLine>
+{
+    public void Configure(EntityTypeBuilder<PaySlipLine> builder)
+    {
+        builder.ToTable("pay_slip_lines");
+
+        builder.HasKey(x => x.Id);
+
+        builder.Property(x => x.ComponentCode).IsRequired().HasMaxLength(40);
+        builder.Property(x => x.Kind).HasConversion<string>().HasMaxLength(40);
+        builder.Property(x => x.Hours).HasPrecision(10, 2);
+        builder.Property(x => x.Rate).HasPrecision(18, 4);
+        builder.Property(x => x.Amount).HasPrecision(18, 2);
+
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.PaySlipId })
+            .HasDatabaseName("IX_pay_slip_lines_tenant_company_slip");
+
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.ProjectId, x.CostCodeId })
+            .HasDatabaseName("IX_pay_slip_lines_tenant_company_job");
+
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.TimeEntryId })
+            .HasDatabaseName("IX_pay_slip_lines_tenant_company_time_entry");
 
         builder.Property<uint>("xmin")
             .HasColumnType("xid")

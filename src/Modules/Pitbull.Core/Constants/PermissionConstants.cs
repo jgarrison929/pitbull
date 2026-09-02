@@ -1,4 +1,4 @@
-namespace Pitbull.Core.Constants;
+﻿namespace Pitbull.Core.Constants;
 
 /// <summary>
 /// Single source of truth for all RBAC permission strings.
@@ -58,13 +58,14 @@ public static class PermissionConstants
     public const string AccountingViewWIP = "Accounting.ViewWIP";
     public const string AccountingManageBankAccounts = "Accounting.ManageBankAccounts";
 
-    // -- Payroll (6) --
+    // -- Payroll (7) --
     public const string PayrollView = "Payroll.View";
     public const string PayrollProcess = "Payroll.Process";
     public const string PayrollCertifiedReport = "Payroll.CertifiedReport";
     public const string PayrollViewRates = "Payroll.ViewRates";
     public const string PayrollManageRates = "Payroll.ManageRates";
     public const string PayrollManageAgreements = "Payroll.ManageAgreements";
+    public const string PayrollPostGL = "Payroll.PostGL";
 
     // -- Project Management (8) --
     public const string PMRFIs = "PM.RFIs";
@@ -112,12 +113,12 @@ public static class PermissionConstants
     public const string AISettings = "AI.Settings";
 
     /// <summary>
-    /// Wildcard permission — matches everything. Used for Admin role.
+    /// Wildcard permission â€” matches everything. Used for Admin role.
     /// </summary>
     public const string Wildcard = "*";
 
     /// <summary>
-    /// All 64 permissions in the system (excludes wildcard).
+    /// All 65 permissions in the system (excludes wildcard).
     /// </summary>
     public static readonly IReadOnlyList<string> All = new[]
     {
@@ -138,7 +139,7 @@ public static class PermissionConstants
         // Accounting
         AccountingViewGL, AccountingPostJournals, AccountingManagePeriods, AccountingViewWIP, AccountingManageBankAccounts,
         // Payroll
-        PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates, PayrollManageRates, PayrollManageAgreements,
+        PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates, PayrollManageRates, PayrollManageAgreements, PayrollPostGL,
         // PM
         PMRFIs, PMSubmittals, PMDailyReports, PMSchedule, PMPunchList, PMMeetings,
         SpatialView, SpatialManage,
@@ -233,6 +234,7 @@ public static class PermissionConstants
                 (PayrollViewRates, "View pay rates"),
                 (PayrollManageRates, "Manage wage packages and classifications"),
                 (PayrollManageAgreements, "Manage union agreements"),
+                (PayrollPostGL, "Post payroll run to general ledger"),
             },
             ["PM"] = new[]
             {
@@ -355,7 +357,7 @@ public static class PermissionConstants
             {
                 // Full financial access
                 "Billing.", "AP.", "AR.", "Accounting.",
-                PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates, PayrollManageRates, PayrollManageAgreements,
+                PayrollView, PayrollProcess, PayrollCertifiedReport, PayrollViewRates, PayrollManageRates, PayrollManageAgreements, PayrollPostGL,
                 // Read access to operational data
                 ProjectsView, ContractsView, TimeTrackingView, TimeTrackingViewRates,
                 EmployeesView, EmployeesViewSensitive,
