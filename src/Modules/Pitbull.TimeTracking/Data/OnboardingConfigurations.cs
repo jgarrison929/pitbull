@@ -43,6 +43,8 @@ public class EmployeeTaxComplianceConfiguration : IEntityTypeConfiguration<Emplo
 
         builder.Property(x => x.W4FilingStatus).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.W4AdditionalWithholding).HasPrecision(10, 2);
+        builder.Property(x => x.ResidenceState).HasMaxLength(50);
+        builder.Property(x => x.ResidenceLocality).HasMaxLength(100);
         builder.Property(x => x.I9Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.I9VerifiedBy).HasMaxLength(200);
         builder.Property(x => x.SsnLastFour).HasColumnType("text"); // Encrypted field

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Pitbull.Api.Controllers;
 using Pitbull.Api.Services;
 using Pitbull.Payroll.Features.CertifiedPayroll;
@@ -37,7 +38,7 @@ public class PayrollComplianceControllerTests : IDisposable
         _db = new PitbullDbContext(options, tenantContext, companyContext);
 
         IPrevailingWageValidationService pwValidation = new PrevailingWageValidationService(_db);
-        IPayrollRunService payrollRunService = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), pwValidation);
+        IPayrollRunService payrollRunService = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), pwValidation, new CheckPayrollTaxEngine(Options.Create(new PayrollTaxOptions())));
         ICertifiedPayrollService certifiedPayrollService = new CertifiedPayrollService(_db, NullLogger<CertifiedPayrollService>.Instance);
 
         _payrollRunsController = new PayrollRunsController(payrollRunService, pwValidation)

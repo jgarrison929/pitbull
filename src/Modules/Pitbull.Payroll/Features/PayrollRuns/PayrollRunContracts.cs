@@ -14,7 +14,9 @@ public record PayrollRunDto(
     int EmployeeCount,
     IReadOnlyList<PayrollRunLineDto> Lines,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    bool NetIsProxy = true,
+    Guid? TaxTableVersionId = null
 );
 
 public record PayrollRunLineDto(

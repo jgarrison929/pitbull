@@ -1249,6 +1249,12 @@ public class TimeEntryService : ITimeEntryService
         if (!string.IsNullOrWhiteSpace(updateLockValidation))
             return Result.Failure<TimeEntryDto>(updateLockValidation, "PAY_PERIOD_LOCKED");
 
+        var effectiveClassificationId = command.WorkClassificationId ?? timeEntry.WorkClassificationId;
+        if (timeEntry.Project.CertifiedPayroll && !effectiveClassificationId.HasValue)
+            return Result.Failure<TimeEntryDto>(
+                "Work classification is required on certified-payroll projects",
+                "MISSING_WORK_CLASSIFICATION");
+
         // Handle status transition if requested
         var oldTimeEntryStatus = timeEntry.Status;
         if (command.NewStatus.HasValue)
@@ -1393,6 +1399,11 @@ public class TimeEntryService : ITimeEntryService
         if (!isDraft && (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Closed))
             return Result.Failure<BatchTimeEntryUpsert>(
                 "Cannot log time to a completed or closed project", "PROJECT_INACTIVE");
+
+        if (project.CertifiedPayroll && !item.WorkClassificationId.HasValue)
+            return Result.Failure<BatchTimeEntryUpsert>(
+                "Work classification is required on certified-payroll projects",
+                "MISSING_WORK_CLASSIFICATION");
 
         // Validate employee is assigned to this project
         var hasAssignment = await _db.Set<ProjectAssignment>()

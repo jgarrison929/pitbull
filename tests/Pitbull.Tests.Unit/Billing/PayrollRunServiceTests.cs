@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Pitbull.Payroll.Features.PayrollRuns;
 using Pitbull.Payroll.Domain;
 using Pitbull.Payroll.Services;
@@ -9,6 +10,7 @@ using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Entities;
+using Pitbull.Projects.Domain;
 
 namespace Pitbull.Tests.Unit.Billing;
 
@@ -29,7 +31,7 @@ public class PayrollRunServiceTests : IDisposable
             .Options;
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
-        _service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), new PrevailingWageValidationService(_db));
+        _service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), new PrevailingWageValidationService(_db), new CheckPayrollTaxEngine(Options.Create(new PayrollTaxOptions())));
     }
 
     public void Dispose()
@@ -114,7 +116,7 @@ public class PayrollRunServiceTests : IDisposable
 
     private async Task SeedApprovedTimeEntry(Guid employeeId, DateOnly date,
         decimal regularHours = 8m, decimal overtimeHours = 0m, decimal doubletimeHours = 0m,
-        Guid? workClassificationId = null, string? shiftCode = null)
+        Guid? workClassificationId = null, string? shiftCode = null, Guid? projectId = null)
     {
         TimeEntry entry = new()
         {
@@ -122,7 +124,7 @@ public class PayrollRunServiceTests : IDisposable
             TenantId = TestTenantId,
             CompanyId = TestCompanyId,
             EmployeeId = employeeId,
-            ProjectId = Guid.NewGuid(),
+            ProjectId = projectId ?? Guid.NewGuid(),
             CostCodeId = Guid.NewGuid(),
             Date = date,
             RegularHours = regularHours,
@@ -309,6 +311,50 @@ public class PayrollRunServiceTests : IDisposable
         result.Value.Lines[0].OvertimeHours.Should().Be(2m);
         result.Value.Lines[0].RegularPay.Should().Be(400m);      // 8 * 50
         result.Value.Lines[0].OvertimePay.Should().Be(150m);      // 2 * 50 * 1.5
+    }
+
+    [Fact]
+    public async Task GeneratePayrollRun_WithoutTaxVendor_LabelsNetAsProxy()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        Employee emp = await SeedEmployee(50m);
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m);
+
+        var result = await _service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.TotalNet.Should().Be(result.Value.TotalGross);
+        result.Value.NetIsProxy.Should().BeTrue();
+        result.Value.TaxTableVersionId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GeneratePayrollRun_VendorSelectedWithoutCredentials_FailsClosed()
+    {
+        PayPeriod period = await SeedLockedPayPeriod();
+        Employee emp = await SeedEmployee(50m);
+        Project project = new()
+        {
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            Name = "Hwy Overlay",
+            Number = "P-TAX-1",
+            Status = ProjectStatus.Active,
+            State = "CA"
+        };
+        _db.Set<Project>().Add(project);
+        await _db.SaveChangesAsync();
+        await SeedApprovedTimeEntry(emp.Id, new DateOnly(2026, 2, 3), regularHours: 8m, projectId: project.Id);
+
+        var engine = new CheckPayrollTaxEngine(Options.Create(new PayrollTaxOptions { Vendor = "check" }));
+        var service = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), new PrevailingWageValidationService(_db), engine);
+
+        var result = await service.GeneratePayrollRunAsync(
+            new GeneratePayrollRunCommand(DateOnly.FromDateTime(DateTime.UtcNow), period.Id));
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("TAX_VENDOR_NOT_CONFIGURED");
     }
 
     [Fact]

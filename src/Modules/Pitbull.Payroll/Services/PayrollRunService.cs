@@ -11,7 +11,7 @@ using Pitbull.TimeTracking.Entities;
 
 namespace Pitbull.Payroll.Services;
 
-public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> logger, IWageRateResolver wageRateResolver, IPrevailingWageValidationService prevailingWageValidationService) : IPayrollRunService
+public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> logger, IWageRateResolver wageRateResolver, IPrevailingWageValidationService prevailingWageValidationService, IPayrollTaxEngine taxEngine) : IPayrollRunService
 {
     public async Task<Result<ListPayrollRunsResult>> GetPayrollRunsAsync(ListPayrollRunsQuery query, CancellationToken cancellationToken = default)
     {
@@ -202,8 +202,11 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
         }
 
         run.TotalGross = run.Lines.Sum(x => x.GrossPay);
-        run.TotalNet = run.TotalGross;
         run.EmployeeCount = run.Lines.Count;
+
+        Result taxPack = await ApplyTaxPackAsync(run, approvedEntries, cancellationToken);
+        if (!taxPack.IsSuccess)
+            return Result.Failure<PayrollRunDto>(taxPack.Error ?? "Tax calculation failed", taxPack.ErrorCode);
 
         db.Set<PayrollRun>().Add(run);
 
@@ -414,9 +417,88 @@ public class PayrollRunService(PitbullDbContext db, ILogger<PayrollRunService> l
                 WorkClassificationId: x.WorkClassificationId,
                 RateSource: x.RateSource)).ToList(),
             CreatedAt: run.CreatedAt,
-            UpdatedAt: run.UpdatedAt);
+            UpdatedAt: run.UpdatedAt,
+            NetIsProxy: run.TaxTableVersionId is null,
+            TaxTableVersionId: run.TaxTableVersionId);
     }
 
+
+    private async Task<Result> ApplyTaxPackAsync(
+        PayrollRun run,
+        List<TimeEntry> entries,
+        CancellationToken cancellationToken)
+    {
+        // Overlay pack decides tax. This method must not branch on USA / jurisdiction math.
+        if (!taxEngine.IsConfigured)
+        {
+            run.TotalNet = run.TotalGross;
+            return Result.Success();
+        }
+
+        List<Guid> projectIds = entries.Select(x => x.ProjectId).Distinct().ToList();
+        List<Project> projects = await db.Set<Project>()
+            .AsNoTracking()
+            .Where(x => projectIds.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        if (entries.Exists(entry =>
+            {
+                Project? project = projects.FirstOrDefault(x => x.Id == entry.ProjectId);
+                return project is null || string.IsNullOrWhiteSpace(project.State);
+            }))
+        {
+            return Result.Failure("Work-state (Project.State) is required before tax can be calculated", "WORK_STATE_REQUIRED");
+        }
+
+        List<Guid> employeeIds = run.Lines.Select(x => x.EmployeeId).Distinct().ToList();
+        List<EmployeeTaxCompliance> taxRecords = await db.Set<EmployeeTaxCompliance>()
+            .AsNoTracking()
+            .Where(x => employeeIds.Contains(x.EmployeeId))
+            .ToListAsync(cancellationToken);
+
+        List<EmployeeWageSlice> wages = [];
+        foreach (PayrollRunLine line in run.Lines)
+        {
+            List<TimeEntry> employeeEntries = entries.Where(x => x.EmployeeId == line.EmployeeId).ToList();
+            string? workState = employeeEntries
+                .Select(x => projects.FirstOrDefault(p => p.Id == x.ProjectId)?.State)
+                .FirstOrDefault(s => !string.IsNullOrWhiteSpace(s));
+
+            wages.Add(new EmployeeWageSlice(
+                line.EmployeeId,
+                line.GrossPay,
+                workState,
+                employeeEntries.FirstOrDefault()?.ProjectId));
+        }
+
+        List<EmployeeTaxProfile> profiles = employeeIds.Select(id =>
+        {
+            EmployeeTaxCompliance? tax = taxRecords.FirstOrDefault(x => x.EmployeeId == id);
+            return new EmployeeTaxProfile(
+                id,
+                tax?.W4FilingStatus ?? W4FilingStatus.Single,
+                tax?.W4AdditionalWithholding ?? 0m,
+                tax?.W4Exempt ?? false,
+                tax?.ResidenceState,
+                tax?.ResidenceLocality);
+        }).ToList();
+
+        Result<PayrollTaxCalculationResult> calc = await taxEngine.CalculateAsync(
+            new PayrollTaxCalculationRequest(run.Id, run.RunDate, wages, profiles, run.TaxTableVersionId),
+            cancellationToken);
+
+        if (!calc.IsSuccess)
+            return Result.Failure(calc.Error ?? "Tax calculation failed", calc.ErrorCode);
+
+        PayrollTaxCalculationResult tax = calc.Value!;
+        run.TaxTableVersionId = tax.TaxTableVersionId;
+        if (tax.NetByEmployee.Count > 0)
+            run.TotalNet = tax.NetByEmployee.Values.Sum();
+        else
+            run.TotalNet = run.TotalGross - tax.Components.Sum(x => x.Amount);
+
+        return Result.Success();
+    }
 
     private async Task<Result<WageRateResult>> ResolveEmployeeRateAsync(
         List<TimeEntry> entries,

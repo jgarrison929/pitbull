@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Pitbull.Core.Domain;
+using Pitbull.Payroll.Domain;
 
 namespace Pitbull.Core.Data;
 
@@ -25,6 +26,14 @@ public class PayrollRunConfiguration : IEntityTypeConfiguration<PayrollRun>
 
         builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.RunDate })
             .HasDatabaseName("IX_payroll_runs_tenant_company_run_date");
+
+        builder.HasIndex(x => new { x.TenantId, x.CompanyId, x.TaxTableVersionId })
+            .HasDatabaseName("IX_payroll_runs_tenant_company_tax_table_version");
+
+        builder.HasOne<TaxTableVersion>()
+            .WithMany()
+            .HasForeignKey(x => x.TaxTableVersionId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.Property<uint>("xmin")
             .HasColumnType("xid")

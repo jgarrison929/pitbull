@@ -10,6 +10,7 @@ public class PayrollRun : BaseEntity, ICompanyScoped, ITenantScoped
     public decimal TotalGross { get; set; }
     public decimal TotalNet { get; set; }
     public int EmployeeCount { get; set; }
+    public Guid? TaxTableVersionId { get; set; }
 
     public List<PayrollRunLine> Lines { get; set; } = [];
 }

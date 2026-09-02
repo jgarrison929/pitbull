@@ -161,6 +161,9 @@ builder.Services.AddPitbullModuleServices<CreateAiModuleCommand>(); // AI module
 builder.Services.AddPitbullModuleServices<BillingModuleMarker>(); // Billing module
 builder.Services.AddPitbullModuleServices<PayrollModuleMarker>(); // Payroll module
 builder.Services.AddUnionOverlayPack();
+builder.Services.Configure<PayrollTaxOptions>(
+    builder.Configuration.GetSection(PayrollTaxOptions.SectionName));
+builder.Services.AddUsTaxOverlayPack();
 
 // AI module registration (providers + HttpClients)
 builder.Services.AddPitbullAiModule(builder.Configuration);
