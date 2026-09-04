@@ -49,6 +49,7 @@ Pitbull already has substantial PM and adjacent modules (schedule, RFIs, submitt
 | **Change orders** | CO list/detail/status capture mobile (owner + subcontract COs as existing APIs allow) |
 | **Subcontractor management** | **Pay apps**, **estimates/quotes** (Bids module), **procurement** (POs/invoices) — mobile surfaces; modules stay put |
 | **Material tracking** | Deliveries / stored materials / job-site material honesty; link PO + daily report deliveries |
+| **Job costing (mobile)** | **4.0.0 must-win OBJECTIVE:** combined `GET .../job-cost/glance` (budget/actual/variance per cost code, server); PM/field tabs; no client `pageSize=500` join; no `/api/mobile/*`; dual budgets/actuals = desktop only. SoT stays ProjectManagement `IJobCostService`. Spec: [`band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) |
 
 ### Explicit non-goals (arc-wide)
 
@@ -57,7 +58,8 @@ Pitbull already has substantial PM and adjacent modules (schedule, RFIs, submitt
 - Invented portfolio health / subcontractor scores / fake % complete  
 - Reopening Arc A–E (`2.12`→`3.0`) or reclaiming 2.x numbers  
 - Relocating Billing → ProjectManagement modules without an explicit later decision  
-- Full desktop Gantt feature parity on a 390px screen  
+- Full desktop Gantt feature parity on a 390px screen
+- Client `pageSize=500` job-cost aggregation on phone (use server `?view=mobile` DTOs)  
 - Dual-writing vendors or pay apps into a new module  
 
 ---
@@ -257,4 +259,5 @@ Ladder: 3.4.1 → … → 3.12.9 runway → 4.0.0 major.
 One PR = one VERSION stamp. Never skip.
 No feature dump on residual/runway stamps.
 Billing/Contracts/Bids remain module SoT for money/vendor/quote data.
+Job-cost mobile (4.0 must-win) = combined GET .../job-cost/glance on ProjectJobCostController (IJobCostService) - see band-4.0.0-acceptance-must-win-field.md.
 ```

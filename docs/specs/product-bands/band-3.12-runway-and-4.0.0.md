@@ -1,15 +1,15 @@
-# Spec: Runway + major 4.0.0 — PM next-gen close
+# Spec: Runway + major 4.0.0 - PM next-gen close
 
-**Status:** Pending (stub — expand when band 3.12.0 ships)  
+**Status:** Pending (stub - expand when band 3.12.0 ships)  
 **Version band:** `3.12.1` → `3.12.9` (runway) then **`4.0.0`** (major)  
-**Theme:** Verification, deploy/CI honesty, major stamp — **no new domain features**  
+**Theme:** Verification, deploy/CI honesty, major stamp - **no new domain features**  
 **Epic:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../../roadmap/pm-nextgen-3.4-to-4.0.md)  
 
 ## Runway rules
 
 | Version | Allowed work |
 |---------|----------------|
-| 3.12.1–3.12.9 | Preflight/Railway fixes, copy honesty, SW cache bumps, flaky test fixes, docs accuracy |
+| 3.12.1-3.12.9 | Preflight/Railway fixes, copy honesty, SW cache bumps, flaky test fixes, docs accuracy |
 | **4.0.0** | Major stamp only after runway DoD; CHANGELOG narrative; mark epic Status complete for product bar |
 
 ## Runway DoD before 4.0.0
@@ -22,13 +22,16 @@
 
 ## Non-goals
 
-- Starting financial GL mobile as part of 4.0.0  
+- Starting financial **GL / CoA / journal** mobile as part of 4.0.0 (still cut - not the same as job-cost glance)  
 - Native app  
 - Reopening 2.x  
 
+> **Not stale on GL.** Stale relative to today's lock was treating **4.0.0** as a blind major with **no** must-win product bar. **Job-cost mobile glance** (`GET .../job-cost/glance`) **is REQUIRED** for major - see [`band-4.0.0-acceptance-must-win-field.md`](./band-4.0.0-acceptance-must-win-field.md). Do not confuse GL mobile (cut) with job-cost glance (OBJECTIVE).
+
+
 ## Research gate before major
 
-Re-read [`pm-mobile-workflows-and-complaints-2026.md`](../../roadmap/pm-mobile-workflows-and-complaints-2026.md): every OBJECTIVE domain should have a mobile surface **or** explicit deferred note — no silent orphans.
+Re-read [`pm-mobile-workflows-and-complaints-2026.md`](../../roadmap/pm-mobile-workflows-and-complaints-2026.md): every OBJECTIVE domain should have a mobile surface **or** explicit deferred note - no silent orphans.
 
 ## Domains covered by prior bands (checklist for major)
 
@@ -44,4 +47,20 @@ Re-read [`pm-mobile-workflows-and-complaints-2026.md`](../../roadmap/pm-mobile-w
 - [ ] Procurement (3.10)  
 - [ ] Material tracking (3.10)  
 - [ ] Pay Apps (3.11)  
-- [ ] Estimates/Quotes (3.11)  
+- [ ] Estimates/Quotes (3.11)
+
+## 4.0.0 acceptance bar (locked Keep/Cut)
+
+Major **`4.0.0`** is **not** a blind stamp. Acceptance bar:
+
+[`band-4.0.0-acceptance-must-win-field.md`](./band-4.0.0-acceptance-must-win-field.md)
+
+- Keep/Cut locked by core room (job costing + PM mobile-first north star).  
+- Named OBJECTIVE: mobile job costing via server `?view=mobile` - no client `pageSize=500` aggregation.  
+- Runway stamps (`3.12.1`-`3.12.9`) stay **verification/deploy/CI only**; OBJECTIVE remediation uses **3.12 hub** free stamps (see acceptance band JC-* plan), not runway feature dump.
+
+### Extra runway DoD items
+
+- [ ] OBJECTIVE mobile job-cost glance Done (or explicit deferred note with reason - default is **required**)  
+- [ ] Keep-SoT checklist in acceptance band satisfied or deferred honestly  
+- [ ] Cut list still cut (Gantt edit, portfolio rollups, invented KPIs, Twin/AI theater, payroll sell gate)  
