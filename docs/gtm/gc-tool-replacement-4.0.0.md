@@ -2,7 +2,7 @@
 
 **Status:** Working GTM claim boundary (Product-GTM)  
 **Date:** 2026-09-04  
-**Claim law:** [`docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) Keep / Cut / OBJECTIVE. Do **not** sell surfaces outside Keep or unshipped ladder bands without an explicit deferred note.  
+**Claim law:** [`docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) Keep / Cut / OBJECTIVE (Spec-Writer confirmed aligned to Solutions-Lead). Do **not** sell surfaces outside Keep or unshipped ladder bands without an explicit deferred note.  
 **Personas:** [`e2e/fixtures/ROLE-PERSONA-MAP.md`](../../e2e/fixtures/ROLE-PERSONA-MAP.md) + [`docs/ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md) (prefer these over README Explore-as-role copy drift).  
 **Rule:** If Qa-Gate cannot assert it and API RLS cannot enforce it, it is not real.
 
@@ -14,7 +14,11 @@
 
 **Single-platform job costing + PM mobile-first.**
 
-**OBJECTIVE (must-win for major `4.0.0`):** Mobile job costing via server `?view=mobile` on **existing** job-cost routes (`budgets` / `actuals` / cost-codes) on **PM + field** tabs — **no** client `pageSize=500` join/aggregation. Contract is on `ProjectJobCostController` only (no `/api/mobile/job-cost`).
+**OBJECTIVE (must-win for major `4.0.0`):** Mobile job costing via **combined**  
+`GET /api/projects/{projectId}/job-cost/glance`  
+on the existing `ProjectJobCostController` family, surfaced on **PM + field** tabs — **no** client `pageSize=500` join/aggregation, **no** `/api/mobile/job-cost` resource family.
+
+**Desktop-only (not the phone sell bar):** dual slim lists such as `budgets?view=mobile` + `actuals?view=mobile` may exist for desk workflows — they are **not** the 4.0.0 phone must-win claim.
 
 ---
 
@@ -67,9 +71,9 @@ Password: see ROLE-PERSONA-MAP (do not reprint in collateral).
 
 | GC pile | Pitbull surface | Persona | Claim wording (only after OBJECTIVE Done) |
 |---------|-----------------|---------|-------------------------------------------|
-| **Job cost / WIP Excel (#8)** | Server `budgets?view=mobile` + `actuals?view=mobile`; Job Cost on **PM + field** mobile tabs; no client mega-fetch join | PM, Field | “Job cost glance on phone from real budgets/actuals — variance computed on the server.” |
+| **Job cost / WIP Excel (#8)** | `GET /api/projects/{projectId}/job-cost/glance` on **PM + field** mobile tabs; server-computed variance; no client mega-fetch join | PM, Field | “Job cost glance on phone from real budgets/actuals — variance computed on the server.” |
 
-Until JC-* stamps ship, say we are **closing** the Excel job-cost gap — do **not** say “done.”
+Until glance stamps ship, say we are **closing** the Excel job-cost gap — do **not** say “done,” and do **not** sell dual slim lists as the phone bar.
 
 ### B2. Keep surfaces (can claim when shipped / held)
 
@@ -96,27 +100,28 @@ Claim only if the Keep-SoT checklist item is shipped **or** an explicit deferred
 
 **Lead:** mid-market commercial GC (Summit Commercial Builders archetype) on **job cost on the same platform as PM/field paper** + Keep mobile loop (RFI/CO/schedule glance).
 
-**Demo sequence:** Field Eng / PM Job Cost glance (OBJECTIVE) → PM RFI/CO/schedule phone loop → CA pay-app/compliance glance when shipped — one story, ROLE-PERSONA-MAP logins only.
+**Demo sequence:** Field Eng / PM Job Cost **glance** (OBJECTIVE) → PM RFI/CO/schedule phone loop → CA pay-app/compliance glance when shipped — one story, ROLE-PERSONA-MAP logins only.
 
 ---
 
 ## C. Cut — must NOT claim through 4.0.0
 
-| # | GC pile / fantasy | Why cut (acceptance band) |
-|---|-------------------|---------------------------|
+| # | GC pile / fantasy | Why cut (acceptance band / SA) |
+|---|-------------------|--------------------------------|
 | 1 | Desktop-parity Gantt **edit** on phone | Explicit Cut |
 | 2 | Phone portfolio / multi-project cost ledger | Explicit Cut — no client rollup |
 | 3 | Invented KPIs / “job health” / fake % complete | Explicit Cut |
 | 4 | Digital Twin / AI theater as sell gates | Explicit Cut |
 | 5 | Payroll / certified payroll as sell gate | Explicit Cut (after core) |
 | 6 | Native iOS/Android shell | Explicit Cut — PWA-first |
-| 7 | Client `pageSize=500` job-cost join | Anti-pattern; replaced by `?view=mobile` |
-| 8 | New `/api/mobile/job-cost` family | Solutions-Lead NACK — escalate to Chief if proposed |
-| 9 | GL / CoA / journal mobile | Out of 4.0 |
-| 10 | Full Bluebeam / calibrated markup | Non-goal |
-| 11 | Bank cash / treasury | ROLE-EXPERIENCE: AR−AP net ≠ cash |
-| 12 | WhatsApp/Teams or Dropbox wholesale | We reduce chase texts; we don’t replace chat/DMS |
-| 13 | Claiming bands 3.9–3.12 shipped before they are | Honesty |
+| 7 | Client `pageSize=500` job-cost join | Anti-pattern; replaced by combined glance |
+| 8 | Dual slim `budgets`+`actuals` mobile lists as the **phone** sell bar | Desktop-only — phone must-win is `/job-cost/glance` |
+| 9 | New `/api/mobile/job-cost` family | Solutions-Lead NACK — escalate to Chief if proposed |
+| 10 | GL / CoA / journal mobile | Out of 4.0 |
+| 11 | Full Bluebeam / calibrated markup | Non-goal |
+| 12 | Bank cash / treasury | ROLE-EXPERIENCE: AR−AP net ≠ cash |
+| 13 | WhatsApp/Teams or Dropbox wholesale | We reduce chase texts; we don’t replace chat/DMS |
+| 14 | Claiming bands 3.9–3.12 shipped before they are | Honesty |
 
 ---
 
@@ -125,12 +130,12 @@ Claim only if the Keep-SoT checklist item is shipped **or** an explicit deferred
 People-visible 4.0.0 demo must prove:
 
 1. **PM** (`pm@demo.local`) and **field** (`field-eng@demo.local`) open Job Cost from mobile chrome in few taps.  
-2. Slim paginated glance: cost code, budget, actual, variance — ~390px — from server mobile DTOs.  
+2. Combined **`/job-cost/glance`** (~390px): cost code, budget, actual, variance from the SA-locked glance contract — **not** dual slim list UIs.  
 3. No `pageSize=500` triple fetch / client join on that path.  
 4. Honest empty — never “on budget / healthy.”  
 5. Keep-SoT checklist in the acceptance band green **or** explicit deferred notes.
 
-Escalate to Chief if Solutions-Lead blocks server `?view=mobile` job-cost or AP-honest cost sources needed to stop lying in WIP (architecture vs sellability tie).
+Escalate to Chief if Solutions-Lead blocks combined glance or AP-honest cost sources needed to stop lying in WIP (architecture vs sellability tie).
 
 ---
 
@@ -138,7 +143,7 @@ Escalate to Chief if Solutions-Lead blocks server `?view=mobile` job-cost or AP-
 
 | Doc | Role |
 |-----|------|
-| [`band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) | Keep/Cut/OBJECTIVE law |
+| [`band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) | Keep/Cut/OBJECTIVE law (Spec-Writer; land on remote if still local-only) |
 | [`pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md) | PM ladder |
 | [`financial-math-wip-arc.md`](../roadmap/financial-math-wip-arc.md) | WIP/job-cost math honesty |
 | [`DEMO-COMPANY-PROFILES.md`](../DEMO-COMPANY-PROFILES.md) | Demo archetypes |
