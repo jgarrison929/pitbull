@@ -2,7 +2,7 @@
 
 **Status:** Working GTM claim boundary (Product-GTM)  
 **Date:** 2026-09-04  
-**Claim law:** [`docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) Keep / Cut / OBJECTIVE (Spec-Writer confirmed aligned to Solutions-Lead). Do **not** sell surfaces outside Keep or unshipped ladder bands without an explicit deferred note.  
+**Claim law:** [`docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) Keep / Cut / OBJECTIVE (Spec-Writer confirmed SA match: combined `/job-cost/glance`). **Merge gate:** do not merge this PR until that band file exists on a GitHub branch (currently missing on `main` and this branch) — until then the link is aspirational. Do **not** sell surfaces outside Keep or unshipped ladder bands without an explicit deferred note.  
 **Personas:** [`e2e/fixtures/ROLE-PERSONA-MAP.md`](../../e2e/fixtures/ROLE-PERSONA-MAP.md) + [`docs/ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md) (prefer these over README Explore-as-role copy drift).  
 **Rule:** If Qa-Gate cannot assert it and API RLS cannot enforce it, it is not real.
 
@@ -71,7 +71,7 @@ Password: see ROLE-PERSONA-MAP (do not reprint in collateral).
 
 | GC pile | Pitbull surface | Persona | Claim wording (only after OBJECTIVE Done) |
 |---------|-----------------|---------|-------------------------------------------|
-| **Job cost / WIP Excel (#8)** | `GET /api/projects/{projectId}/job-cost/glance` on **PM + field** mobile tabs; server-computed variance; no client mega-fetch join | PM, Field | “Job cost glance on phone from real budgets/actuals — variance computed on the server.” |
+| **Job cost / WIP Excel (#8)** | `GET /api/projects/{projectId}/job-cost/glance` on **PM + field** mobile tabs; server-computed variance; no client mega-fetch join | PM, Field | “Job cost glance on phone — budget, actual, and variance from one server glance DTO.” |
 
 Until glance stamps ship, say we are **closing** the Excel job-cost gap — do **not** say “done,” and do **not** sell dual slim lists as the phone bar.
 
@@ -130,7 +130,7 @@ Claim only if the Keep-SoT checklist item is shipped **or** an explicit deferred
 People-visible 4.0.0 demo must prove:
 
 1. **PM** (`pm@demo.local`) and **field** (`field-eng@demo.local`) open Job Cost from mobile chrome in few taps.  
-2. Combined **`/job-cost/glance`** (~390px): cost code, budget, actual, variance from the SA-locked glance contract — **not** dual slim list UIs.  
+2. Combined **`GET /api/projects/{projectId}/job-cost/glance`** (~390px): cost code, budget, actual, variance on **one** glance DTO — **not** dual `budgets?view=mobile` + `actuals?view=mobile` UIs.  
 3. No `pageSize=500` triple fetch / client join on that path.  
 4. Honest empty — never “on budget / healthy.”  
 5. Keep-SoT checklist in the acceptance band green **or** explicit deferred notes.
