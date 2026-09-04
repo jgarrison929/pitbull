@@ -2,7 +2,7 @@
 
 **Status:** Working GTM claim boundary (Product-GTM)  
 **Date:** 2026-09-04  
-**Claim law:** [`docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) Keep / Cut / OBJECTIVE (Spec-Writer confirmed SA match: combined `/job-cost/glance`). **Merge gate:** do not merge this PR until that band file exists on a GitHub branch (currently missing on `main` and this branch) — until then the link is aspirational. Do **not** sell surfaces outside Keep or unshipped ladder bands without an explicit deferred note.  
+**Claim law:** [`docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) Keep / Cut / OBJECTIVE (Spec-Writer confirmed SA match: combined `/job-cost/glance`). Band file is on GitHub branch [`docs/4.0.0-acceptance-must-win-field`](https://github.com/jgarrison929/pitbull/blob/docs/4.0.0-acceptance-must-win-field/docs/specs/product-bands/band-4.0.0-acceptance-must-win-field.md) (PR #554) — merge **554 before 553** so the path resolves on `main`. Do **not** sell surfaces outside Keep or unshipped ladder bands without an explicit deferred note.  
 **Personas:** [`e2e/fixtures/ROLE-PERSONA-MAP.md`](../../e2e/fixtures/ROLE-PERSONA-MAP.md) + [`docs/ROLE-EXPERIENCE.md`](../ROLE-EXPERIENCE.md) (prefer these over README Explore-as-role copy drift).  
 **Rule:** If Qa-Gate cannot assert it and API RLS cannot enforce it, it is not real.
 
@@ -143,7 +143,7 @@ Escalate to Chief if Solutions-Lead blocks combined glance or AP-honest cost sou
 
 | Doc | Role |
 |-----|------|
-| [`band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) | Keep/Cut/OBJECTIVE law (Spec-Writer; land on remote if still local-only) |
+| [`band-4.0.0-acceptance-must-win-field.md`](../specs/product-bands/band-4.0.0-acceptance-must-win-field.md) | Keep/Cut/OBJECTIVE law (Spec-Writer; on PR #554 branch until merged) |
 | [`pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md) | PM ladder |
 | [`financial-math-wip-arc.md`](../roadmap/financial-math-wip-arc.md) | WIP/job-cost math honesty |
 | [`DEMO-COMPANY-PROFILES.md`](../DEMO-COMPANY-PROFILES.md) | Demo archetypes |
