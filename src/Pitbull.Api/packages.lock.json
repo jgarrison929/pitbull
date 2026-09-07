@@ -185,9 +185,9 @@
       },
       "PostHog": {
         "type": "Direct",
-        "requested": "[2.15.1, )",
-        "resolved": "2.15.1",
-        "contentHash": "DXjBljd+SVchBH/x1EWBbPuX03mP9zcmk8ITWJwnuOnVt4xPpVdH+Tx5Wd6InUa5CthNABBY8b8gqfk742+t6A=="
+        "requested": "[2.15.5, )",
+        "resolved": "2.15.5",
+        "contentHash": "R3v4Cg7gPwwEsVeC+6vE1XyTk238MXYtVpX79nw12q//sgRu5CJOHYosdcWusIy1QXNDWof7SuNT2eq8gqRYOw=="
       },
       "PostHog.AspNetCore": {
         "type": "Direct",
