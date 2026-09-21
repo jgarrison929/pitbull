@@ -72,13 +72,13 @@
       },
       "PostHog": {
         "type": "Direct",
-        "requested": "[2.15.1, )",
-        "resolved": "2.15.1",
-        "contentHash": "DXjBljd+SVchBH/x1EWBbPuX03mP9zcmk8ITWJwnuOnVt4xPpVdH+Tx5Wd6InUa5CthNABBY8b8gqfk742+t6A==",
+        "requested": "[2.15.7, )",
+        "resolved": "2.15.7",
+        "contentHash": "P7uKEaCr++4EWWc2YdvhKajYyjZoCVXXF6FGZAw0AdEha6oxO+q7f5ARPvysjPKYDey/nNnuXh12mQlmVU0DuA==",
         "dependencies": {
-          "Microsoft.Extensions.Caching.Memory": "8.0.1",
-          "Microsoft.Extensions.Http": "8.0.1",
-          "Microsoft.Extensions.Logging": "8.0.1"
+          "Microsoft.Extensions.Caching.Memory": "10.0.11",
+          "Microsoft.Extensions.Http": "10.0.11",
+          "Microsoft.Extensions.Logging": "10.0.11"
         }
       },
       "Resend": {
@@ -542,15 +542,15 @@
       },
       "Microsoft.Extensions.Http": {
         "type": "Transitive",
-        "resolved": "8.0.1",
-        "contentHash": "kDYeKJUzh0qeg/AI+nSr3ffthmXYQTEb0nS9qRC7YhSbbuN4M4NPbaB77AJwtkTnCV9XZ7qYj3dkZaNcyl73EA==",
+        "resolved": "10.0.11",
+        "contentHash": "ujx8RvcKzkxPFBguwgiygbwWVHVK0P7HFlNJ6I0JBRb28tzwe42jixBoA+dGmqG9IHepPVcm04vv2IDnU93ekA==",
         "dependencies": {
-          "Microsoft.Extensions.Configuration.Abstractions": "8.0.0",
-          "Microsoft.Extensions.DependencyInjection.Abstractions": "8.0.2",
-          "Microsoft.Extensions.Diagnostics": "8.0.1",
-          "Microsoft.Extensions.Logging": "8.0.1",
-          "Microsoft.Extensions.Logging.Abstractions": "8.0.2",
-          "Microsoft.Extensions.Options": "8.0.2"
+          "Microsoft.Extensions.Configuration.Abstractions": "10.0.11",
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Diagnostics": "10.0.11",
+          "Microsoft.Extensions.Logging": "10.0.11",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Options": "10.0.11"
         }
       },
       "Microsoft.Extensions.Identity.Core": {
@@ -957,7 +957,7 @@
           "Pitbull.Storage": "[1.0.0, )",
           "Pitbull.SystemAdmin": "[1.0.0, )",
           "Pitbull.TimeTracking": "[1.0.0, )",
-          "PostHog": "[2.15.1, )",
+          "PostHog": "[2.15.7, )",
           "PostHog.AspNetCore": "[2.9.2, )",
           "Resend": "[0.15.0, )",
           "Savorboard.CAP.InMemoryMessageQueue": "[10.0.0, )",
