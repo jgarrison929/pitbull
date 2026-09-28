@@ -17,6 +17,8 @@ public class EmployeeTaxCompliance : BaseEntity
     public W4FilingStatus W4FilingStatus { get; set; } = W4FilingStatus.Single;
     public decimal W4AdditionalWithholding { get; set; }
     public bool W4Exempt { get; set; }
+    public string? ResidenceState { get; set; }
+    public string? ResidenceLocality { get; set; }
 
     // I-9 Employment Eligibility
     public I9Status I9Status { get; set; } = I9Status.NotStarted;

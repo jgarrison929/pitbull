@@ -29,6 +29,8 @@ interface PayrollRunDto {
   totalGross: number;
   totalNet: number;
   employeeCount: number;
+  /** True when Net is gross-as-proxy (no tax table version / vendor tax not applied). */
+  netIsProxy?: boolean;
   lines: PayrollRunLineDto[];
 }
 
@@ -144,8 +146,20 @@ export default function PayrollRunDetailPage() {
                 <p className="text-xl font-semibold">${run.totalGross.toFixed(2)}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Net</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Net</p>
+                  {run.netIsProxy ? (
+                    <Badge variant="outline" title="Net equals gross until a tax table version is applied; no invented tax rates.">
+                      Proxy
+                    </Badge>
+                  ) : null}
+                </div>
                 <p className="text-xl font-semibold">${run.totalNet.toFixed(2)}</p>
+                {run.netIsProxy ? (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Proxy net (gross until tax tables apply)
+                  </p>
+                ) : null}
               </div>
               <div className="sm:col-span-3">
                 <div className="flex items-center gap-2">

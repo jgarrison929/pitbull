@@ -67,6 +67,12 @@ const FALLBACK_DEMO_ROLES: DemoRole[] = [
     description: "Main contracts, sub pay apps, insurance & compliance",
     email: "contract-admin@demo.local",
   },
+  {
+    key: "payroll",
+    label: "Payroll",
+    description: "Payroll processing — runs, certified payroll, wage rates",
+    email: "mgr-payroll@demo.local",
+  },
 ];
 
 const ROLE_ICONS: Record<string, ReactNode> = {

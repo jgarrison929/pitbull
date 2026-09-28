@@ -274,6 +274,7 @@ public class ProjectService : IProjectService
             ProjectManagerId = request.ProjectManagerId,
             SuperintendentId = request.SuperintendentId,
             SourceBidId = request.SourceBidId,
+            CertifiedPayroll = request.CertifiedPayroll,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -470,6 +471,8 @@ public class ProjectService : IProjectService
         project.ContractAmount = command.ContractAmount;
         project.ProjectManagerId = command.ProjectManagerId;
         project.SuperintendentId = command.SuperintendentId;
+        if (command.CertifiedPayroll.HasValue)
+            project.CertifiedPayroll = command.CertifiedPayroll.Value;
 
         try
         {
@@ -785,7 +788,8 @@ public class ProjectService : IProjectService
             billedToDate,
             unbilledAmount,
             laborSpent,
-            laborPercentOfContract
+            laborPercentOfContract,
+            project.CertifiedPayroll
         );
     }
 }

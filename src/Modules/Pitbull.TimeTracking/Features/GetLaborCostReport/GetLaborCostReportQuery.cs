@@ -1,4 +1,4 @@
-using Pitbull.Core.CQRS;
+﻿using Pitbull.Core.CQRS;
 using Pitbull.TimeTracking.Services;
 
 namespace Pitbull.TimeTracking.Features.GetLaborCostReport;
@@ -68,6 +68,7 @@ public record LaborCostSummary
     public decimal BurdenCost { get; init; }
     public decimal TotalCost { get; init; }
     public decimal BurdenRateApplied { get; init; }
+    public bool IsProxy { get; init; } = true;
 }
 
 /// <summary>
