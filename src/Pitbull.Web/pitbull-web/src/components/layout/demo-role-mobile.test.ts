@@ -48,6 +48,12 @@ const DEMO_PERSONAS = [
       "/reports/compliance",
     ],
   },
+  {
+    key: "payroll",
+    profile: "hr",
+    homeLayout: "people",
+    mustReach: ["/", "/payroll/runs", "/employees", "/time-tracking"],
+  },
 ] as const;
 
 describe("demo role mobile bottom-nav matrix", () => {

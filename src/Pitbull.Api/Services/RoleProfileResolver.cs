@@ -36,8 +36,10 @@ public static class RoleProfileResolver
             "IT Manager", "IT Director", "IT Administrator", "IT Admin", "VP of IT", "Director of IT"))
             return TourProfile.ItAdmin;
 
-        if (MatchesAny(t, "HR", "Human Resources", "People Officer", "People Manager", "HR Coordinator", "HR Director"))
+        if (MatchesAny(t, "HR", "Human Resources", "People Officer", "People Manager", "HR Coordinator", "HR Director",
+            "Payroll Manager", "Payroll Clerk", "Payroll Specialist", "Payroll"))
             return TourProfile.Hr;
+
 
         if (MatchesAny(t, "Estimator", "Estimating", "Chief Estimator", "Takeoff"))
             return TourProfile.Estimator;
@@ -45,7 +47,7 @@ public static class RoleProfileResolver
         if (MatchesAny(t, "CFO", "Controller", "Accounting", "Financial Officer", "Financial", "VP of Accounting", "VP Controller"))
             return TourProfile.Cfo;
 
-        if (MatchesAny(t, "AP Clerk", "AR Clerk", "Payroll Clerk", "Accounts Payable", "Accounts Receivable", "Staff Accountant"))
+        if (MatchesAny(t, "AP Clerk", "AR Clerk", "Accounts Payable", "Accounts Receivable", "Staff Accountant"))
             return TourProfile.Clerk;
 
         if (MatchesAny(t, "Field Engineer", "Field Superintendent", "Foreman", "Commissioning"))

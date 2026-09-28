@@ -297,20 +297,39 @@ public sealed class MediumFixesTests : IDisposable
         };
         _db.Set<CostCode>().Add(costCode);
 
-        // Create 3 time entries with odd hour splits (10, 10, 10 = 30 total)
-        // Each is 1/3 ratio, which can cause rounding issues with 999.99
+        // P3 export uses pay-slip job-cost lines (not live time reallocation).
+        // Three earning lines with amounts that must sum exactly to run gross 999.99.
+        PaySlip slip = new()
+        {
+            EmployeeId = employee.Id,
+            RegularHours = 30m,
+            Gross = 999.99m,
+            Net = 999.99m
+        };
+        decimal[] amounts = [333.33m, 333.33m, 333.33m];
         for (int i = 0; i < 3; i++)
         {
-            _db.Set<TimeEntry>().Add(new TimeEntry
+            Guid lineProject = Guid.NewGuid();
+            _db.Set<Project>().Add(new Project
             {
-                Date = payPeriod.StartDate.AddDays(i),
-                EmployeeId = employee.Id,
-                ProjectId = projectId,
+                Id = lineProject, TenantId = TestTenantId, CompanyId = TestCompanyId,
+                Name = $"P{i}", Number = $"P-RND-{i}", Status = ProjectStatus.Active
+            });
+            slip.Lines.Add(new PaySlipLine
+            {
+                ProjectId = lineProject,
                 CostCodeId = costCode.Id,
-                RegularHours = 10m,
-                Status = TimeEntryStatus.Approved
+                ComponentCode = "ST",
+                Kind = Pitbull.Payroll.Domain.PayComponentKind.Earning,
+                Hours = 10m,
+                Rate = 33.333m,
+                Amount = amounts[i]
             });
         }
+        // Fix final cent so sum is exactly 999.99
+        slip.Lines.Last().Amount = 333.33m;
+        // 333.33 * 3 = 999.99 exactly
+        run.PaySlips.Add(slip);
         await _db.SaveChangesAsync();
 
         var command = new GeneratePayrollExportCommand(run.Id, PayrollExportFormat.Csv, null, null);
@@ -712,8 +731,8 @@ public sealed class MediumFixesTests : IDisposable
         var result = await service.GenerateAsync(command);
 
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("MISSING_ALLOCATIONS");
-        result.Error.Should().Contain("Missing Entries");
+        result.ErrorCode.Should().Be("NO_PAY_SLIP_LINES");
+        result.Error.Should().Contain("pay slip");
 
         // Run must remain Approved — not silently marked Exported
         _db.ChangeTracker.Clear();
@@ -800,8 +819,8 @@ public sealed class MediumFixesTests : IDisposable
 
         // Should fail because badEmployee has no entries, even though goodEmployee does
         result.IsSuccess.Should().BeFalse();
-        result.ErrorCode.Should().Be("MISSING_ALLOCATIONS");
-        result.Error.Should().Contain("No Timesheet");
+        result.ErrorCode.Should().Be("NO_PAY_SLIP_LINES");
+        result.Error.Should().Contain("pay slip");
     }
 
     // ── Helper: TimeEntryService construction ──

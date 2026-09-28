@@ -473,8 +473,15 @@ public class AuthController(
             "Main contracts, sub pay apps, insurance & project compliance â€” negotiate and administer agreements",
             "contract-admin@demo.local", RoleSeeder.Roles.Manager),
         ["ca"] = new("ca", "Contract Admin",
-            "Main contracts, sub pay apps, insurance & project compliance â€” negotiate and administer agreements",
+            "Main contracts, sub pay apps, insurance & project compliance — negotiate and administer agreements",
             "contract-admin@demo.local", RoleSeeder.Roles.Manager),
+        // Payroll — title "Payroll Manager" ? role_profile=hr; RBAC PayrollSpecialist (Payroll.Process)
+        ["payroll"] = new("payroll", "Payroll",
+            "Payroll processing — runs, certified payroll, wage rates, time approval",
+            "mgr-payroll@demo.local", RoleSeeder.Roles.Manager),
+        ["payrollspecialist"] = new("payrollspecialist", "Payroll",
+            "Payroll processing — runs, certified payroll, wage rates, time approval",
+            "mgr-payroll@demo.local", RoleSeeder.Roles.Manager),
     };
 
     private sealed record DemoRolePersona(

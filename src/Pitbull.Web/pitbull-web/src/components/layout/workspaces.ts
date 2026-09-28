@@ -407,17 +407,17 @@ const FIELD_DEFAULTS: RoleDefaults = {
 const HR_DEFAULTS: RoleDefaults = {
   defaultWorkspace: "people",
   workspaces: ["my-work", "people"],
-  favorites: ["/", "/employees", "/time-tracking"],
+  favorites: ["/", "/payroll/runs", "/employees", "/time-tracking"],
   quickActions: [
+    { label: "Process Payroll", href: "/payroll/runs", icon: "🧮" },
     { label: "Employees", href: "/employees", icon: "👷" },
-    { label: "New Employee", href: "/employees/new", icon: "👷" },
-    { label: "Compliance", href: "/admin/compliance", icon: "✅" },
+    { label: "Time Tracking", href: "/time-tracking", icon: "⏱️" },
   ],
   mobileTabs: [
     { label: "Home", href: "/", icon: "🏠", matchPaths: ["/"] },
+    { label: "Payroll", href: "/payroll/runs", icon: "🧮", matchPaths: ["/payroll"] },
     { label: "Employees", href: "/employees", icon: "👷", matchPaths: ["/employees"] },
     { label: "Time", href: "/time-tracking", icon: "⏱️", matchPaths: ["/time-tracking"] },
-    { label: "Compliance", href: "/admin/compliance", icon: "✅", matchPaths: ["/admin/compliance"] },
   ],
 };
 
