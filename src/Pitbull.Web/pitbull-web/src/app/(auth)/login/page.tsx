@@ -70,7 +70,7 @@ const FALLBACK_DEMO_ROLES: DemoRole[] = [
   {
     key: "payroll",
     label: "Payroll",
-    description: "Payroll processing — runs, certified payroll, wage rates",
+    description: "Payroll processing â€” runs, certified payroll, wage rates",
     email: "mgr-payroll@demo.local",
   },
 ];
