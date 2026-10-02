@@ -25,7 +25,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "lucide-react": "^1.35.0",
-    "next": "^16.3.3",
+    "next": "^16.3.8",
     "next-themes": "^0.4.6",
     "posthog-js": "^1.422.3",
     "radix-ui": "^1.6.4",
@@ -37,7 +37,7 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@next/eslint-plugin-next": "^16.3.3",
+    "@next/eslint-plugin-next": "^16.3.6",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^7.0.1",
@@ -51,7 +51,7 @@
     "@typescript/typescript6": "^6.0.2",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^10.9.1",
-    "eslint-config-next": "^16.3.3",
+    "eslint-config-next": "^16.3.6",
     "eslint-plugin-react-hooks": "^7.0.0",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^30.0.1",
@@ -65,7 +65,7 @@
       "postcss": "8.5.23"
     },
     "postcss": "8.5.23",
-    "sharp": "0.35.3",
+    "sharp": "0.35.4",
     "dompurify": "3.4.14",
     "minimatch": "10.2.5",
     "js-yaml": "4.3.1",
