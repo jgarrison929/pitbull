@@ -6,7 +6,7 @@
   <!-- Pin vulnerable transitive dependencies to patched versions -->
   <ItemGroup>
     <!-- NU1903: 10.0.9 GHSA advisories — pin patched 10.0.10 (PrivateAssets: avoid NU1510 prune noise) -->
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.11">
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.12">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
