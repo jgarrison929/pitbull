@@ -30,7 +30,7 @@
     "posthog-js": "^1.422.3",
     "radix-ui": "^1.6.4",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
+    "react-dom": "^19.3.0",
     "react-is": "^19.2.8",
     "recharts": "^3.10.0",
     "sonner": "^2.0.8",
