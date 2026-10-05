@@ -15,8 +15,8 @@
 
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
     <PackageReference Include="Respawn" Version="7.0.0" />
-    <PackageReference Include="Testcontainers" Version="4.14.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.14.0" />
+    <PackageReference Include="Testcontainers" Version="4.15.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <!-- GHSA-q939-rpr3-3284: Testcontainers 4.14 still pulls SSH.NET 2025.1.0; pin patched 2026.0.0 -->
     <PackageReference Include="SSH.NET" Version="2026.0.0" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
