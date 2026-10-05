@@ -42,20 +42,30 @@ COPY tests/Pitbull.Tests.Integration/Pitbull.Tests.Integration.csproj tests/Pitb
 RUN dotnet restore Pitbull.sln --locked-mode
 
 # Build args for version info (keep in sync with root VERSION / package.json / csproj)
+# Railway injects RAILWAY_GIT_COMMIT_SHA only when declared as ARG in the stage that needs it.
+# COMMIT_HASH defaults to that SHA so docker-compose can still override with --build-arg COMMIT_HASH=...
 ARG VERSION=3.8.1
-ARG COMMIT_HASH=unknown
+ARG RAILWAY_GIT_COMMIT_SHA=unknown
+ARG COMMIT_HASH=$RAILWAY_GIT_COMMIT_SHA
+ARG BUILD_DATE=
 
 # Copy all source files
 COPY src/ src/
 COPY CHANGELOG.md /changelog/CHANGELOG.md
 
-# Publish
-RUN dotnet publish src/Pitbull.Api/Pitbull.Api.csproj \
-    -c Release \
-    -o /out \
-    --no-restore \
-    -p:Version=${VERSION} \
-    -p:InformationalVersion=${VERSION}+${COMMIT_HASH}
+# Resolve empty BUILD_DATE at image build time; bake commit into assembly metadata.
+RUN set -eu; \
+    DATE="${BUILD_DATE:-}"; \
+    if [ -z "$DATE" ]; then DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; fi; \
+    printf '%s' "$DATE" > /tmp/pitbull_build_date; \
+    printf '%s' "$COMMIT_HASH" > /tmp/pitbull_commit_hash; \
+    dotnet publish src/Pitbull.Api/Pitbull.Api.csproj \
+      -c Release \
+      -o /out \
+      --no-restore \
+      -p:Version="${VERSION}" \
+      -p:InformationalVersion="${VERSION}+${COMMIT_HASH}" \
+      -p:SourceRevisionId="${COMMIT_HASH}"
 
 # --- Stage 2: Runtime ---
 # Digest resolved 2026-08-10 from mcr.microsoft.com multi-arch index for aspnet:10.0.
@@ -65,14 +75,18 @@ WORKDIR /app
 COPY --from=build /out .
 COPY --from=build /changelog/CHANGELOG.md ./CHANGELOG.md
 
-ARG VERSION=3.8.1
-ARG COMMIT_HASH=unknown
-ARG BUILD_DATE=""
+# Bake commit/build date resolved in the build stage into process env via entrypoint.
+COPY --from=build /tmp/pitbull_commit_hash /app/.commit_hash
+COPY --from=build /tmp/pitbull_build_date /app/.build_date
+RUN printf '%s\n' '#!/bin/sh' \
+      'export COMMIT_HASH="$(cat /app/.commit_hash)"' \
+      'export BUILD_DATE="$(cat /app/.build_date)"' \
+      'exec dotnet Pitbull.Api.dll' > /app/entrypoint.sh \
+    && chmod +x /app/entrypoint.sh
+
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
-ENV BUILD_DATE=${BUILD_DATE}
-ENV COMMIT_HASH=${COMMIT_HASH}
 
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "Pitbull.Api.dll"]
+ENTRYPOINT ["/app/entrypoint.sh"]
