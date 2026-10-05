@@ -44,7 +44,7 @@ RUN dotnet restore Pitbull.sln --locked-mode
 # Build args for version info (keep in sync with root VERSION / package.json / csproj)
 # Railway injects RAILWAY_GIT_COMMIT_SHA only when declared as ARG in the stage that needs it.
 # COMMIT_HASH defaults to that SHA so docker-compose can still override with --build-arg COMMIT_HASH=...
-ARG VERSION=3.8.1
+ARG VERSION=3.8.2
 ARG RAILWAY_GIT_COMMIT_SHA=unknown
 ARG COMMIT_HASH=$RAILWAY_GIT_COMMIT_SHA
 ARG BUILD_DATE=
