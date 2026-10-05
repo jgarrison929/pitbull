@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [3.8.2] - 2026-10-05
+
 ### Fixed
 
 - **/api/version commit and build date on Railway** - API (and web About) Dockerfiles declare `ARG RAILWAY_GIT_COMMIT_SHA` so Railway can inject the git SHA at build time; `COMMIT_HASH` defaults to that value (compose can still override). Empty `BUILD_DATE` is filled at image build with UTC ISO-8601. Version endpoint treats empty/`unknown` env values as missing and falls back to Railway runtime SHA or InformationalVersion.
