@@ -1,0 +1,200 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to promote (e.g. v3.8.0)'
+        required: true
+        type: string
+      force_rollback:
+        description: 'Allow non-fast-forward update of production (rollback only)'
+        required: false
+        type: boolean
+        default: false
+
+# Minimal permissions: push production branch + create GitHub Release.
+permissions:
+  contents: write
+
+concurrency:
+  group: release-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote tag to production
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve tag
+        id: tag
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          case "$TAG" in
+            v*) ;;
+            *)
+              echo "::error::Tag must start with v (got: $TAG)"
+              exit 1
+              ;;
+          esac
+          VERSION="${TAG#v}"
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-].+)?$'; then
+            echo "::error::Tag version must look like X.Y.Z (got: $VERSION)"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved tag=$TAG version=$VERSION"
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: refs/tags/${{ steps.tag.outputs.tag }}
+
+      - name: Validate tag matches VERSION
+        run: |
+          set -euo pipefail
+          FILE_VERSION="$(tr -d '[:space:]' < VERSION)"
+          EXPECTED="${{ steps.tag.outputs.version }}"
+          if [ "$FILE_VERSION" != "$EXPECTED" ]; then
+            echo "::error::Tag version ($EXPECTED) does not match root VERSION ($FILE_VERSION)"
+            exit 1
+          fi
+          echo "VERSION match: $FILE_VERSION"
+
+      - name: Verify tagged commit is on main
+        id: commit
+        run: |
+          set -euo pipefail
+          git fetch origin main --quiet
+          SHA="$(git rev-parse HEAD)"
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::Tagged commit $SHA is not an ancestor of origin/main"
+            exit 1
+          fi
+          echo "Commit $SHA is on main (ancestor of origin/main)"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Verify CI succeeded for commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.commit.outputs.sha }}"
+          # Prefer workflow runs for CI on this commit (same SHA as main push).
+          RUNS_JSON="$(gh run list --repo "${{ github.repository }}" --commit "$SHA" --workflow CI --limit 20 --json conclusion,status,databaseId,displayTitle,event)"
+          echo "CI runs for $SHA:"
+          echo "$RUNS_JSON" | jq -r '.[] | "\(.databaseId) \(.status) \(.conclusion // "-") \(.event) \(.displayTitle)"'
+
+          SUCCESS_COUNT="$(echo "$RUNS_JSON" | jq '[.[] | select(.status=="completed" and .conclusion=="success")] | length')"
+          FAILED_COUNT="$(echo "$RUNS_JSON" | jq '[.[] | select(.status=="completed" and .conclusion != null and .conclusion != "success" and .conclusion != "skipped" and .conclusion != "cancelled")] | length')"
+          IN_PROGRESS="$(echo "$RUNS_JSON" | jq '[.[] | select(.status=="in_progress" or .status=="queued" or .status=="pending" or .status=="waiting")] | length')"
+
+          if [ "$IN_PROGRESS" -gt 0 ]; then
+            echo "::error::CI still running for $SHA; wait for completion"
+            exit 1
+          fi
+          if [ "$FAILED_COUNT" -gt 0 ]; then
+            echo "::error::CI has non-success conclusion(s) for $SHA"
+            exit 1
+          fi
+          if [ "$SUCCESS_COUNT" -lt 1 ]; then
+            echo "::error::No successful CI workflow run found for $SHA"
+            exit 1
+          fi
+          echo "CI verified: $SUCCESS_COUNT successful run(s)"
+
+      - name: Fast-forward production branch to tag
+        env:
+          FORCE_ROLLBACK: ${{ inputs.force_rollback == true }}
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.commit.outputs.sha }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          git fetch origin production --quiet 2>/dev/null || true
+
+          if [ "$FORCE_ROLLBACK" = "true" ]; then
+            echo "force_rollback=true: updating production with --force-with-lease to $SHA ($TAG)"
+            git push --force-with-lease origin "$SHA:refs/heads/production"
+          else
+            echo "Fast-forwarding production to $SHA ($TAG)"
+            # Fails if not a fast-forward (protects against accidental history rewrite).
+            git push origin "$SHA:refs/heads/production"
+          fi
+          echo "production branch now at $SHA"
+
+      - name: Extract CHANGELOG notes
+        id: notes
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.tag.outputs.version }}"
+          NOTES_FILE="$(mktemp)"
+          # Extract section under ## [VERSION] until next ## [ or EOF.
+          awk -v ver="$VERSION" '
+            BEGIN { printing=0 }
+            /^## \[/ {
+              if (printing) { exit }
+              # Match ## [VERSION] with optional date suffix
+              pat = "^## \\[" ver "\\]"
+              if ($0 ~ pat) { printing=1; next }
+            }
+            printing { print }
+          ' CHANGELOG.md > "$NOTES_FILE"
+
+          # Trim leading/trailing blank lines
+          if [ -s "$NOTES_FILE" ]; then
+            # Drop empty leading lines
+            sed -i '/./,$!d' "$NOTES_FILE"
+            # Ensure file is non-empty after trim
+            if [ -s "$NOTES_FILE" ]; then
+              echo "Using CHANGELOG section for [$VERSION]"
+              echo "has_notes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "CHANGELOG section empty; will use generated notes"
+              echo "has_notes=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "No CHANGELOG section for [$VERSION]; will use generated notes"
+            echo "has_notes=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "notes_file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HAS_NOTES: ${{ steps.notes.outputs.has_notes }}
+          NOTES_FILE: ${{ steps.notes.outputs.notes_file }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.tag.outputs.tag }}"
+          VERSION="${{ steps.tag.outputs.version }}"
+
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; leaving notes unchanged"
+            exit 0
+          fi
+
+          if [ "$HAS_NOTES" = "true" ]; then
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "$VERSION" \
+              --notes-file "$NOTES_FILE" \
+              --verify-tag
+          else
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "$VERSION" \
+              --generate-notes \
+              --verify-tag
+          fi
+          echo "Created GitHub Release $TAG"

@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Tag-gated production deploy** - Railway staging tracks `main`; production tracks a `production` branch promoted by `.github/workflows/release.yml` on `vX.Y.Z` tags (VERSION + CI gates, GitHub Release notes from CHANGELOG). Docs: `deploy/RAILWAY-SETUP.md`, `CONTRIBUTING.md`.
 - **PM arc research note** — CM/CPM workflows + ranked 2024–2026 mobile/field complaints mapped to bands 3.5–4.0 (`docs/roadmap/pm-mobile-workflows-and-complaints-2026.md`); epic + band 3.5 + stubs updated (docs only).
 - **Contract Administrator demo persona** — Explore-as-role `contractadmin` / `ca` (`contract-admin@demo.local`); day job = main/owner contracts, subcontracts, sub pay apps, insurance & project compliance (negotiate/administer). Title-first `role_profile=contractAdministrator`, **contracts** dashboard + briefing (owner contracts, subs, pay apps, COs, expiring/expired compliance docs), mobile nav Subs / Pay Apps / Compliance.
 - **PM next-gen arc program docs** — epic `docs/roadmap/pm-nextgen-3.4-to-4.0.md`, program `docs/340-pm-arc/`, band 3.5 agent-ready + domain stubs through 4.0.0, deploy safety notes (docs only; no VERSION stamp).
