@@ -17,7 +17,7 @@ function Emit-Check {
 }
 
 if ($DryRun) {
-    Emit-Check 'dry-run' $true 'Would check docker running, localhost:5432, http://localhost:5081/health/live, and http://localhost:3000; no processes or containers would be started or stopped.'
+    Emit-Check 'dry-run' $true 'Would check docker running, localhost:5432, http://localhost:5081/health/live, http://localhost:3000, and (informational) /api/version; no processes or containers would be started or stopped.'
     exit 0
 }
 
@@ -30,7 +30,7 @@ try {
     } else {
         $dockerOutput = (& docker info 2>&1 | Out-String).Trim()
         if ($LASTEXITCODE -ne 0) {
-            Emit-Check 'docker' $false 'Docker is not responding: ' + $dockerOutput
+            Emit-Check 'docker' $false ('Docker is not responding: ' + $dockerOutput)
             $allOk = $false
         } else {
             Emit-Check 'docker' $true 'Docker is responding'
@@ -68,6 +68,14 @@ try {
 } catch {
     Emit-Check 'web-3000' $false $_.Exception.Message
     $allOk = $false
+}
+
+# Informational only: which build is the API on 5081? (never fails the doctor)
+try {
+    $ver = Invoke-WebRequest -Uri 'http://localhost:5081/api/version' -UseBasicParsing -TimeoutSec 5
+    Emit-Check 'api-version-info' $true ('http://localhost:5081/api/version -> ' + $ver.Content)
+} catch {
+    Emit-Check 'api-version-info' $true ('version unavailable: ' + $_.Exception.Message)
 }
 
 if (-not $allOk) { exit 1 }

@@ -1,33 +1,26 @@
-﻿# Projects / workspace
+# Projects / workspace
 
 ## User POV
 
-I enter the Pitbull web UI as a known role, navigate to the visible projects/workspace area, and confirm that the project context and available actions make sense for that role. I record what is visible instead of assuming every role has the same workspace.
+I enter the Pitbull web UI as a known role, open Projects, pick a project from the list, and confirm the project dashboard shows real context (number, status, budget, dates, client) and the project tabs. I record what is visible instead of assuming every role has the same workspace.
 
-## Sub-features
+## How it works (source-verified 2026-10-07, origin/main)
 
-- Reaching the projects/workspace surface from the authenticated starting point.
-- Confirming the visible project/workspace context.
-- Checking that available navigation and actions stay within the signed-in role's scope.
-- Capturing a stable, user-visible result as evidence.
+- Web: `/projects` (list with search/status filter and "+ New Project"), `/projects/{id}` (dashboard), and project tabs under `/projects/{id}/...` (daily-reports, rfis, submittals, schedule, job-cost, documents, punch-list, site-walk, twin, and more) in `src/Pitbull.Web/pitbull-web/src/app/(dashboard)/projects/`.
+- API: `GET /api/projects`, `GET /api/projects/{id}`, `GET /api/projects/{id}/stats`, `.../rfi-cost-summary`, `.../today-on-site`, `.../ai-summary` (`src/Pitbull.Api/Controllers/ProjectsController.cs`). Mutations: `POST /api/projects`, `PUT/DELETE /api/projects/{id}`, `POST /api/projects/{id}/activate`.
+- The web client sends `X-Company-Id` for the active company (`src/Pitbull.Web/pitbull-web/src/lib/api.ts`).
 
-## How to get to it
+## Live recipe (read-only)
 
-1. Run `C:\pitbull-private\.cursor\skills\verify-pitbull\doctor.ps1` first.
-2. Use the local web UI at `http://localhost:3000` after the API is healthy at `http://localhost:5081/health/live`.
-3. Authenticate only through the enabled demo flow with a known email and `PitbullDemo2026!`; use `ceo@demo.local` or `pm@demo.local` unless the app exposes another role.
-4. Explore the current navigation to find projects/workspace. Do not invent a route or deep link.
-
-## Driving with control helpers / Playwright
-
-- Inspect `e2e\` for the existing project/workspace test and helper conventions before driving.
-- Use the repository's `scripts\run-role-e2e.ps1` as the role-aware entry point, with only arguments documented by that script.
-- Locate controls by accessible name/role or existing helpers; assert visible project/workspace state rather than implementation details.
-- Save screenshots under `.cursor\skills\verify-pitbull\evidence\` and name them with role and feature when practical.
+1. `doctor.ps1`.
+2. API: `POST /api/auth/demo-role-login {"role":"pm"}` -> `GET /api/projects?page=1&pageSize=50` -> `GET /api/projects/{id}` and `/stats`.
+3. UI: sign in as `pm@demo.local` through the `/login` email form, open `/projects`, and take a project `href` from the rendered list (`a[href^="/projects/"]`). Open it and assert the project name, number, status, and budget in `main`.
 
 ## Gotchas
 
-- Project visibility may differ by role; absence of a project is not automatically a defect.
-- Do not create, edit, archive, or delete workspace data unless an existing test explicitly requires it and the run has clear ownership.
-- Shared Docker/Postgres means a second driver can make the observed workspace misleading. Use separate ports/profiles or refuse the run.
-- A loaded shell is not a passed workspace check; record the actual user-visible project context.
+- **Company scope:** header-less API calls do not send `X-Company-Id`, so an ID taken from `GET /api/projects` may belong to a company that isn't active in the browser. The UI then shows "Failed to load project dashboard" with 404s on `/api/projects/{id}`, `/stats`, and `/rfi-cost-summary`. Navigate from the UI list instead of deep-linking API IDs.
+- Live 2026-10-07: PM saw 8 projects via header-less API (CEO saw 18). The UI list shows the active company's projects.
+- The project dashboard also calls `GET /api/projects/{id}/rfis` (403 for PM on some projects) and `GET /api/cost-predictions/project/{id}` (404 when no prediction exists). Treat these as noise unless the feature under test depends on them.
+- Overlays such as tours can intercept clicks on list links. Use the link's `href` with `page.goto` when a click times out.
+- Do not create, edit, archive, or delete projects in a smoke check. `role-workflows.spec.ts` L2 creates projects.
+- A loaded shell is not a pass. Record the visible project context.

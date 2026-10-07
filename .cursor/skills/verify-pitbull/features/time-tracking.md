@@ -1,33 +1,24 @@
-﻿# Time tracking
+# Time tracking
 
 ## User POV
 
-I open the time-tracking area as the selected role, understand what period/project context is shown, and verify the visible state without accidentally changing someone else's time data.
+I open time tracking as a supervisor/PM, see my crew-entry surface, and open the PM time review queue with real submitted entries, without changing anyone's time.
 
-## Sub-features
+## How it works (source-verified 2026-10-07, origin/main)
 
-- Reaching time tracking from the role's current navigation.
-- Inspecting the visible period, project, and entry state.
-- Verifying any role-appropriate controls that are already exposed.
-- Saving evidence of the observed state and reporting unclear or blocked flows.
+- Web routes (`src/Pitbull.Web/pitbull-web/src/app/(dashboard)/time-tracking/`): `/time-tracking`, `/time-tracking/crew-entry`, `/time-tracking/approval` ("PM Time Review"), `/time-tracking/approval/mobile`, `/time-tracking/mobile` (field entry), `/time-tracking/new`, `/time-tracking/audit`, `/time-tracking/print`.
+- API (`src/Pitbull.Api/Controllers/TimeEntriesController.cs`): `GET /api/time-entries` (filters `projectId`, `employeeId`, `startDate`, `endDate`, `status`, `foremanId`, paging), `GET /api/time-entries/{id}`, `GET /api/time-entries/review-queue`, `GET /api/time-entries/by-project/{projectId}`, `GET /api/time-entries/cost-report`, `GET /api/time-entries/yesterday-crew`, `GET /api/time-entries/export/vista`, `GET /api/time-entries/audit-trail`.
+- Mutations: `POST /api/time-entries`, `PUT /{id}`, `POST /{id}/approve`, `POST /{id}/reject`, `POST /review`, `POST /batch`, and `POST /submit`.
 
-## How to get to it
+## Live recipe (read-only)
 
-1. Start with `C:\pitbull-private\.cursor\skills\verify-pitbull\doctor.ps1`.
-2. Use `http://localhost:3000` and verify the unauthenticated API health URL `http://localhost:5081/health/live` before browser work.
-3. If startup is explicitly authorized, use `docker compose up -d`, `dotnet run --project src/Pitbull.Api`, and `npm run dev` from `src/Pitbull.Web/pitbull-web` exactly as documented in the skill.
-4. Log in only with Demo enabled, a known demo email, and `PitbullDemo2026!`; navigate to time tracking through the current UI rather than guessing a route.
-
-## Driving with control helpers / Playwright
-
-- Check `e2e\` and the existing `scripts\run-role-e2e.ps1` flow for time-tracking coverage before writing or running anything new.
-- Use control helpers, labels, and roles; avoid arbitrary sleeps and avoid brittle coordinate clicks.
-- Prefer read-only inspection for a smoke check. If a mutation is required by an existing test, make ownership and cleanup explicit.
-- Keep screenshots in `.cursor\skills\verify-pitbull\evidence\`.
+1. `doctor.ps1`.
+2. API as PM (`demo-role-login {"role":"pm"}`): `GET /api/time-entries?page=1&pageSize=25` and `GET /api/time-entries/review-queue`.
+3. UI as `pm@demo.local`: open `/time-tracking`. Live 2026-10-07 it redirected to `/time-tracking/crew-entry` ("Crew Time Entry", with "Add Employees First" when no crew is assigned). Then open `/time-tracking/approval` and assert "PM Time Review" with queue counts (live: 11 submitted entries, 6 projects, 70.0 hours).
 
 ## Gotchas
 
-- Time values can be user- and project-scoped; never infer a defect from a different role's expected view.
-- Do not submit, edit, or delete time unless the test explicitly calls for it.
-- If the shared database/session state is unclear, refuse to drive and report `BLOCKED` rather than trying to reset data.
-- Cleanup never means killing a bare process name; only stop resources this run started and identified.
+- `/time-tracking` is a role-dependent redirect. Don't treat landing on `crew-entry` as a failure.
+- Time is user- and project-scoped. A different role sees a different queue.
+- Do not approve, reject, submit, or batch-edit time in a smoke check. `role-workflows.spec.ts` L3 submits and approves time.
+- If shared DB/session state is unclear, report `BLOCKED` instead of resetting data. Stop only what this run started.
