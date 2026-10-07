@@ -4962,7 +4962,7 @@ public class SeedDataService(PitbullDbContext db, IWebHostEnvironment env, IConf
                 ProjectId = project.Id,
                 JurisdictionType = WageJurisdictionType.State,
                 DeterminationNumber = $"CA2026{detNum:D4}",
-                SourceAgency = "California DIR — Division of Labor Standards Enforcement",
+                SourceAgency = "SEED (demo rates - not official CA DIR)",
                 EffectiveDate = new DateOnly(2025, 7, 1),
                 ExpirationDate = new DateOnly(2026, 6, 30),
                 Status = WageDeterminationStatus.Active,

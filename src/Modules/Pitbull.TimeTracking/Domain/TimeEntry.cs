@@ -129,6 +129,17 @@ public class TimeEntry : BaseEntity, ICompanyScoped
     /// </summary>
     public DateTime? GpsCapturedAt { get; set; }
 
+    /// <summary>
+    /// Craft/class for union and certified payroll rate lookup.
+    /// Required when the employee has an active union affiliation covering this date.
+    /// </summary>
+    public Guid? WorkClassificationId { get; set; }
+
+    /// <summary>
+    /// Optional shift key (1st / 2nd / 3rd). Defaults to 1st when null.
+    /// </summary>
+    public string? ShiftCode { get; set; }
+
     // Navigation properties
     public Employee? SubmittedBy { get; set; }
     public Employee Employee { get; set; } = null!;

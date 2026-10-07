@@ -27,6 +27,10 @@ public class EmployeeUnionAffiliation : BaseEntity
     public DateOnly? EndDate { get; set; }
     public string? Notes { get; set; }
 
+    public Guid? UnionAgreementId { get; set; }
+    public Guid? WorkClassificationId { get; set; }
+    public string? ScaleCode { get; set; }
+
     // Navigation
     public Employee? Employee { get; set; }
 }

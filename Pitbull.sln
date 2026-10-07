@@ -39,6 +39,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.TimeTracking", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.ProjectManagement", "src\Modules\Pitbull.ProjectManagement\Pitbull.ProjectManagement.csproj", "{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Modules", "Modules", "{CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pitbull.Payroll", "src\Modules\Pitbull.Payroll\Pitbull.Payroll.csproj", "{FB743080-C341-4FE0-A9FD-DBBC2937427C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -241,6 +245,18 @@ Global
 		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|x64.Build.0 = Release|Any CPU
 		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|x86.ActiveCfg = Release|Any CPU
 		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D}.Release|x86.Build.0 = Release|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Debug|x64.Build.0 = Debug|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Debug|x86.Build.0 = Debug|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Release|x64.ActiveCfg = Release|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Release|x64.Build.0 = Release|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Release|x86.ActiveCfg = Release|Any CPU
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -263,5 +279,6 @@ Global
 		{6ED705DC-F262-43EE-9126-566324DB1584} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 		{2EF18BF1-6664-44CA-8F34-3933B47354B3} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
 		{A7DA4A2F-02E9-4509-B3C9-5F492F6A888D} = {EC447DCF-ABFA-6E24-52A5-D7FD48A5C558}
+		{FB743080-C341-4FE0-A9FD-DBBC2937427C} = {CA253913-39DE-BFD0-C9A3-4B7EC6FBDF17}
 	EndGlobalSection
 EndGlobal

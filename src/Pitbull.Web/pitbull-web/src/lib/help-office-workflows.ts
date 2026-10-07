@@ -79,7 +79,7 @@ export const officeFaqItems: { question: string; answer: string }[] = [
   {
     question: "How do I explore as a different persona?",
     answer:
-      "When Demo is enabled, use Explore as a role (or POST /api/auth/demo-role-login) with keys ceo, cfo, pm, superintendent/foreman, or estimator. Demo users are read-restricted for admin mutations.",
+      "When Demo is enabled, use Explore as a role (or POST /api/auth/demo-role-login) with keys ceo, cfo, pm, superintendent/foreman, estimator, contractadmin, or payroll. Demo users are read-restricted for admin mutations.",
   },
   {
     question: "Do home KPI cards invent executive totals?",

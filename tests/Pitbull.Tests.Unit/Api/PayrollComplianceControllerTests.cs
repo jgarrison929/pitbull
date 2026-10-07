@@ -1,17 +1,19 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Pitbull.Api.Controllers;
 using Pitbull.Api.Services;
-using Pitbull.Billing.Features.CertifiedPayroll;
-using Pitbull.Billing.Features.PayrollRuns;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.CertifiedPayroll;
+using Pitbull.Payroll.Features.PayrollRuns;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.MultiTenancy;
 using Pitbull.TimeTracking.Domain;
 using Pitbull.TimeTracking.Entities;
+using Pitbull.Projects.Domain;
 
 namespace Pitbull.Tests.Unit.Api;
 
@@ -35,10 +37,11 @@ public class PayrollComplianceControllerTests : IDisposable
 
         _db = new PitbullDbContext(options, tenantContext, companyContext);
 
-        IPayrollRunService payrollRunService = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance);
+        IPrevailingWageValidationService pwValidation = new PrevailingWageValidationService(_db);
+        IPayrollRunService payrollRunService = new PayrollRunService(_db, NullLogger<PayrollRunService>.Instance, new WageRateResolver(_db), pwValidation, new CheckPayrollTaxEngine(Options.Create(new PayrollTaxOptions())));
         ICertifiedPayrollService certifiedPayrollService = new CertifiedPayrollService(_db, NullLogger<CertifiedPayrollService>.Instance);
 
-        _payrollRunsController = new PayrollRunsController(payrollRunService)
+        _payrollRunsController = new PayrollRunsController(payrollRunService, pwValidation, new PayrollGlPostingService(_db, NullLogger<PayrollGlPostingService>.Instance))
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
         };
@@ -94,6 +97,8 @@ public class PayrollComplianceControllerTests : IDisposable
 
         PayPeriod payPeriod = await SeedPayPeriodAsync();
         await SeedEmployeeAsync(employeeId, 50m);
+        await SeedCertifiedProjectAsync(projectId);
+        await SeedCertifiedProjectAsync(otherProjectId, certified: false);
 
         await SeedApprovedTimeEntryAsync(employeeId, projectId, payPeriod.StartDate.AddDays(1), regularHours: 8m, overtimeHours: 1m, doubletimeHours: 0m);
         await SeedApprovedTimeEntryAsync(employeeId, otherProjectId, payPeriod.StartDate.AddDays(2), regularHours: 6m, overtimeHours: 0m, doubletimeHours: 0m);
@@ -188,6 +193,23 @@ public class PayrollComplianceControllerTests : IDisposable
         };
 
         _db.Set<TimeEntry>().Add(entry);
+        await _db.SaveChangesAsync();
+    }
+
+    private async Task SeedCertifiedProjectAsync(Guid projectId, bool certified = true)
+    {
+        _db.Set<Project>().Add(new Project
+        {
+            Id = projectId,
+            TenantId = TestTenantId,
+            CompanyId = TestCompanyId,
+            Name = "Certified Test Project",
+            Number = $"PRJ-{projectId.ToString()[..8]}",
+            CertifiedPayroll = certified,
+            Status = ProjectStatus.Active,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test"
+        });
         await _db.SaveChangesAsync();
     }
 }

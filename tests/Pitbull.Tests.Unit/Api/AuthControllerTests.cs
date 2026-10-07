@@ -497,6 +497,8 @@ public class AuthControllerTests
     [InlineData("foreman", "superintendent@demo.local")]
     [InlineData("contractadmin", "contract-admin@demo.local")]
     [InlineData("ca", "contract-admin@demo.local")]
+    [InlineData("payroll", "mgr-payroll@demo.local")]
+    [InlineData("payrollspecialist", "mgr-payroll@demo.local")]
     public async Task DemoRoleLogin_WhenDemoEnabled_ReturnsTokenForPersona(string roleKey, string email)
     {
         using var db = TestDbContextFactory.Create();
@@ -599,7 +601,7 @@ public class AuthControllerTests
     }
 
     [Fact]
-    public void ListDemoRoles_WhenDemoEnabled_ReturnsSixPersonas()
+    public void ListDemoRoles_WhenDemoEnabled_ReturnsSevenPersonas()
     {
         using var db = TestDbContextFactory.Create();
         var userManager = CreateMockUserManager();
@@ -609,12 +611,13 @@ public class AuthControllerTests
 
         result.Should().BeOfType<OkObjectResult>();
         var roles = ((OkObjectResult)result).Value.Should().BeAssignableTo<IReadOnlyList<DemoRoleInfo>>().Subject;
-        // UI catalog is unique by email (foreman / ca are login aliases only, not extra buttons)
-        roles.Should().HaveCount(6);
+        // UI catalog is unique by email (foreman / ca / payrollspecialist are login aliases only)
+        roles.Should().HaveCount(7);
         roles.Select(r => r.Key).Should().BeEquivalentTo(
-            ["ceo", "cfo", "pm", "estimator", "superintendent", "contractadmin"]);
+            ["ceo", "cfo", "pm", "estimator", "superintendent", "contractadmin", "payroll"]);
         roles.Should().Contain(r => r.Key == "superintendent" && r.Email == "superintendent@demo.local");
         roles.Should().Contain(r => r.Key == "contractadmin" && r.Email == "contract-admin@demo.local");
+        roles.Should().Contain(r => r.Key == "payroll" && r.Email == "mgr-payroll@demo.local");
     }
 
     [Fact]

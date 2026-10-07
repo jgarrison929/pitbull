@@ -24,6 +24,7 @@ COPY src/Modules/Pitbull.Contracts/Pitbull.Contracts.csproj src/Modules/Pitbull.
 COPY src/Modules/Pitbull.Documents/Pitbull.Documents.csproj src/Modules/Pitbull.Documents/packages.lock.json src/Modules/Pitbull.Documents/
 COPY src/Modules/Pitbull.Portal/Pitbull.Portal.csproj src/Modules/Pitbull.Portal/packages.lock.json src/Modules/Pitbull.Portal/
 COPY src/Modules/Pitbull.Billing/Pitbull.Billing.csproj src/Modules/Pitbull.Billing/packages.lock.json src/Modules/Pitbull.Billing/
+COPY src/Modules/Pitbull.Payroll/Pitbull.Payroll.csproj src/Modules/Pitbull.Payroll/packages.lock.json src/Modules/Pitbull.Payroll/
 COPY src/Modules/Pitbull.TimeTracking/Pitbull.TimeTracking.csproj src/Modules/Pitbull.TimeTracking/packages.lock.json src/Modules/Pitbull.TimeTracking/
 COPY src/Modules/Pitbull.ProjectManagement/Pitbull.ProjectManagement.csproj src/Modules/Pitbull.ProjectManagement/packages.lock.json src/Modules/Pitbull.ProjectManagement/
 COPY src/Modules/Pitbull.AI/Pitbull.AI.csproj src/Modules/Pitbull.AI/packages.lock.json src/Modules/Pitbull.AI/

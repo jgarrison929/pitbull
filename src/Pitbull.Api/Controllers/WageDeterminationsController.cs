@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Pitbull.Billing.Features.WageDeterminations;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.WageDeterminations;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Domain;
 
 namespace Pitbull.Api.Controllers;

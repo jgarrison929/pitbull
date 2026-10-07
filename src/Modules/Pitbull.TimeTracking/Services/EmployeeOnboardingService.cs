@@ -319,7 +319,10 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
             Jurisdiction = request.Jurisdiction,
             EffectiveDate = request.EffectiveDate,
             EndDate = request.EndDate,
-            Notes = request.Notes
+            Notes = request.Notes,
+            UnionAgreementId = request.UnionAgreementId,
+            WorkClassificationId = request.WorkClassificationId,
+            ScaleCode = request.ScaleCode
         };
 
         db.Set<EmployeeUnionAffiliation>().Add(affiliation);
@@ -380,5 +383,8 @@ public class EmployeeOnboardingService(PitbullDbContext db) : IEmployeeOnboardin
         Craft: u.Craft, ApprenticeLevel: u.ApprenticeLevel,
         ClassificationCode: u.ClassificationCode, ClassificationName: u.ClassificationName,
         Jurisdiction: u.Jurisdiction, EffectiveDate: u.EffectiveDate, EndDate: u.EndDate,
-        Notes: u.Notes);
+        Notes: u.Notes,
+        UnionAgreementId: u.UnionAgreementId,
+        WorkClassificationId: u.WorkClassificationId,
+        ScaleCode: u.ScaleCode);
 }

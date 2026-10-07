@@ -56,7 +56,7 @@ Pitbull is a **modular monolith** built on .NET 10 and Next.js 16. It uses CQRS 
 
 Each module is a separate .NET project under `src/Modules/`. 
 
-**Current implementation (verified mid-2026 / v2.3+):** 14 modules, ~99 controllers, EF Core **10**, Hangfire jobs, CAP messaging. Direct `I*Service` injection in controllers. `AddPitbullModule<T>` + `AddPitbullModuleServices<T>` for registration. **No MediatR in controllers.** Role-native home UX: `RoleProfileResolver` + `GET /api/dashboard/role-summary` + KPI drill-through contracts (`roleKpiDrillHref` / `ROLE_KPI_DRILL_CONTRACTS` — see `docs/ROLE-EXPERIENCE.md`). Project management soft-delete for tasks, daily reports, job-cost budgets, submittals, meetings, narratives, communications, and monthly projections (status-guarded where needed). In-app release notes: `GET /api/changelog` from root `CHANGELOG.md` (version headers carry **published date+time**). Live Railway docs: `deploy/RAILWAY-SETUP.md`.
+**Current implementation (verified mid-2026 / v2.3+):** 15 modules, ~99 controllers, EF Core **10**, Hangfire jobs, CAP messaging. Direct `I*Service` injection in controllers. `AddPitbullModule<T>` + `AddPitbullModuleServices<T>` for registration. **No MediatR in controllers.** Role-native home UX: `RoleProfileResolver` + `GET /api/dashboard/role-summary` + KPI drill-through contracts (`roleKpiDrillHref` / `ROLE_KPI_DRILL_CONTRACTS` — see `docs/ROLE-EXPERIENCE.md`). Project management soft-delete for tasks, daily reports, job-cost budgets, submittals, meetings, narratives, communications, and monthly projections (status-guarded where needed). In-app release notes: `GET /api/changelog` from root `CHANGELOG.md` (version headers carry **published date+time**). Live Railway docs: `deploy/RAILWAY-SETUP.md`.
 
 > **Note:** Files under `docs/architecture/` are **frozen Alpha design notes** (Feb 2026). They are not the living architecture. See [`docs/architecture/README.md`](architecture/README.md). Prefer this file + module source for current truth.
 
@@ -71,6 +71,7 @@ Each module is a separate .NET project under `src/Modules/`.
 | **TimeTracking** | TimeEntry, crew timecards, pay periods, payroll workflow, employees |
 | **ProjectManagement** | Schedule, RFIs, submittals, daily reports, punch lists, meetings, tasks; **Jobsite Twin** zones-first spatial graph (`SpatialGraph`/`SpatialNode`), overlays, plan links (`SpatialPlanLink`). **Next-gen mobile PM arc:** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](roadmap/pm-nextgen-3.4-to-4.0.md) |
 | **Billing** | Vendors, customers, payment apps (AIA G702/G703), GL/journal, WIP, AP/AR, retention, lien waivers, POs/invoices, bank rec (money SoT for PM arc vendor/pay-app surfaces) |
+| **Payroll** | Payroll runs, union wage packages, work classifications, certified payroll, wage determinations, exports |
 | **Reports** | Labor cost, profitability, exports (PDF/CSV), financial statements (trial balance etc.) |
 | **AI** | Provider abstraction (Anthropic + OpenAI), orchestrator, usage tracking, extraction handlers (invoice, delivery ticket) |
 | **SystemAdmin** | Users/roles/RBAC, API keys, secrets vault, settings, health |

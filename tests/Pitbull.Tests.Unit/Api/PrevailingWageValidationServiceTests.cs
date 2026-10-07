@@ -1,7 +1,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Pitbull.Billing.Features.PrevailingWageValidation;
-using Pitbull.Billing.Services;
+using Pitbull.Payroll.Features.PrevailingWageValidation;
+using Pitbull.Payroll.Services;
 using Pitbull.Core.Data;
 using Pitbull.Core.Domain;
 using Pitbull.Core.MultiTenancy;
@@ -184,6 +184,52 @@ public class PrevailingWageValidationServiceTests
         result.Value.IsCompliant.Should().BeTrue();
     }
 
+    
+    [Fact]
+    public async Task ValidatePayrollRun_UsesRunLineRate_NotEmployeeBaseHourlyRate()
+    {
+        await using PitbullDbContext db = CreateDb();
+        // Paid rate on the line is compliant; BaseHourlyRate is intentionally low.
+        SeedData seed = await SeedScenarioAsync(db, employeeRate: 60m, requiredRate: 57m);
+        Employee employee = await db.Set<Employee>().FirstAsync(e => e.Id == seed.EmployeeId);
+        employee.BaseHourlyRate = 10m;
+        await db.SaveChangesAsync();
+
+        PrevailingWageValidationService service = new(db);
+        var result = await service.ValidatePayrollRunAsync(new ValidatePayrollRunPrevailingWageQuery(seed.RunId));
+
+        result.Value!.IsCompliant.Should().BeTrue();
+        result.Value.Violations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidatePayrollRun_UsesLineWorkClassification_NotFirstActiveHeuristic()
+    {
+        await using PitbullDbContext db = CreateDb();
+        SeedData seed = await SeedScenarioAsync(db, employeeRate: 45m, requiredRate: 57m);
+
+        // Add another active classification that would have been "first" by code order
+        WorkClassification decoy = new()
+        {
+            Id = Guid.NewGuid(),
+            TenantId = TenantId,
+            CompanyId = CompanyId,
+            Code = "AAAA",
+            Name = "Decoy First",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "test"
+        };
+        db.Set<WorkClassification>().Add(decoy);
+        await db.SaveChangesAsync();
+
+        PrevailingWageValidationService service = new(db);
+        var result = await service.ValidatePayrollRunAsync(new ValidatePayrollRunPrevailingWageQuery(seed.RunId));
+
+        result.Value!.Violations.Should().ContainSingle();
+        result.Value.Violations[0].WorkClassificationId.Should().Be(seed.ClassificationId);
+    }
+
     private static PitbullDbContext CreateDb()
     {
         TenantContext tenantContext = new() { TenantId = TenantId, TenantName = "test" };
@@ -239,7 +285,9 @@ public class PrevailingWageValidationServiceTests
                 TenantId = TenantId,
                 CompanyId = CompanyId,
                 EmployeeId = employeeId,
+                WorkClassificationId = classificationId,
                 RegularHours = 8m,
+                RegularPay = employeeRate * 8m,
                 GrossPay = employeeRate * 8m,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = "test"

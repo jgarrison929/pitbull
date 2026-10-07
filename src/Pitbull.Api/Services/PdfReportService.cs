@@ -234,20 +234,10 @@ public sealed class PdfReportService(
         if (run is null)
             throw new KeyNotFoundException("Payroll run not found");
 
-        var lines = await db.Set<PayrollRunLine>()
-            .AsNoTracking()
-            .Where(x => x.PayrollRunId == payrollRunId)
-            .ToListAsync(cancellationToken);
-
-        var employeeIds = lines.Select(l => l.EmployeeId).Distinct().ToList();
-        var employeeMap = await db.Set<Employee>()
-            .AsNoTracking()
-            .Where(x => employeeIds.Contains(x.Id))
-            .ToDictionaryAsync(x => x.Id, cancellationToken);
-
         var certifiedReport = await db.Set<CertifiedPayrollReport>()
             .AsNoTracking()
-            .Where(x => x.PayrollRunId == payrollRunId)
+            .Include(x => x.Lines)
+            .Where(x => x.PayrollRunId == payrollRunId && !x.IsDeleted)
             .OrderByDescending(x => x.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -270,26 +260,165 @@ public sealed class PdfReportService(
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == run.PayPeriodId, cancellationToken);
 
-        // Query time entries for daily hour breakdown
-        var timeEntries = new List<TimeEntry>();
-        if (payPeriod is not null)
+        List<Wh347DetailRow> wh347Rows;
+        List<Guid> employeeIds;
+
+        if (certifiedReport?.Lines is { Count: > 0 })
         {
-            timeEntries = await db.Set<TimeEntry>()
+            employeeIds = certifiedReport.Lines.Select(l => l.EmployeeId).Distinct().ToList();
+            var employeeMap = await db.Set<Employee>()
                 .AsNoTracking()
-                .Where(x => employeeIds.Contains(x.EmployeeId))
-                .Where(x => x.Date >= payPeriod.StartDate && x.Date <= payPeriod.EndDate)
+                .Where(x => employeeIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+            var classificationIds = certifiedReport.Lines
+                .Where(l => l.WorkClassificationId.HasValue)
+                .Select(l => l.WorkClassificationId!.Value)
+                .Distinct()
+                .ToList();
+            var classificationMap = await db.Set<WorkClassification>()
+                .AsNoTracking()
+                .Where(x => classificationIds.Contains(x.Id) && !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+            var timeEntries = new List<TimeEntry>();
+            if (payPeriod is not null)
+            {
+                timeEntries = await db.Set<TimeEntry>()
+                    .AsNoTracking()
+                    .Where(x => employeeIds.Contains(x.EmployeeId))
+                    .Where(x => x.Date >= payPeriod.StartDate && x.Date <= payPeriod.EndDate)
+                    .Where(x => certifiedReport.ProjectId == x.ProjectId)
+                    .ToListAsync(cancellationToken);
+            }
+
+            var dailyHoursLookup = timeEntries
+                .GroupBy(x => x.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.GroupBy(te => te.Date.DayOfWeek)
+                          .ToDictionary(dg => dg.Key, dg => dg.Sum(te => te.RegularHours + te.OvertimeHours + te.DoubletimeHours)));
+
+            wh347Rows = certifiedReport.Lines
+                .Where(l => !l.IsDeleted)
+                .Select(line =>
+                {
+                    employeeMap.TryGetValue(line.EmployeeId, out var employee);
+                    string classificationLabel = "Unclassified";
+                    if (line.WorkClassificationId.HasValue &&
+                        classificationMap.TryGetValue(line.WorkClassificationId.Value, out var wc))
+                    {
+                        classificationLabel = string.IsNullOrWhiteSpace(wc.Code)
+                            ? wc.Name
+                            : $"{wc.Code} - {wc.Name}";
+                    }
+
+                    dailyHoursLookup.TryGetValue(line.EmployeeId, out var dailyHours);
+                    dailyHours ??= new Dictionary<DayOfWeek, decimal>();
+
+                    // Tax columns intentionally not calculated until P2 tax pack.
+                    return new Wh347DetailRow(
+                        EmployeeName: employee?.FullName ?? line.EmployeeId.ToString(),
+                        EmployeeNumber: employee?.EmployeeNumber ?? "",
+                        Classification: classificationLabel,
+                        StraightTimeHours: line.RegularHours,
+                        OvertimeHours: line.OvertimeHours + line.DoubletimeHours,
+                        Rate: line.RegularRate,
+                        GrossPay: line.GrossPay,
+                        Fica: null,
+                        Withholding: null,
+                        OtherDeductions: line.Deductions,
+                        NetPay: line.NetPay,
+                        MonHours: dailyHours.GetValueOrDefault(DayOfWeek.Monday),
+                        TueHours: dailyHours.GetValueOrDefault(DayOfWeek.Tuesday),
+                        WedHours: dailyHours.GetValueOrDefault(DayOfWeek.Wednesday),
+                        ThuHours: dailyHours.GetValueOrDefault(DayOfWeek.Thursday),
+                        FriHours: dailyHours.GetValueOrDefault(DayOfWeek.Friday),
+                        SatHours: dailyHours.GetValueOrDefault(DayOfWeek.Saturday),
+                        SunHours: dailyHours.GetValueOrDefault(DayOfWeek.Sunday));
+                })
+                .OrderBy(x => x.EmployeeName)
+                .ToList();
+        }
+        else
+        {
+            // Fallback when no persisted certified lines yet: hours/rates from run lines, taxes blank.
+            var lines = await db.Set<PayrollRunLine>()
+                .AsNoTracking()
+                .Where(x => x.PayrollRunId == payrollRunId)
                 .ToListAsync(cancellationToken);
+
+            employeeIds = lines.Select(l => l.EmployeeId).Distinct().ToList();
+            var employeeMap = await db.Set<Employee>()
+                .AsNoTracking()
+                .Where(x => employeeIds.Contains(x.Id))
+                .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+            var classificationIds = lines
+                .Where(l => l.WorkClassificationId.HasValue)
+                .Select(l => l.WorkClassificationId!.Value)
+                .Distinct()
+                .ToList();
+            var classificationMap = await db.Set<WorkClassification>()
+                .AsNoTracking()
+                .Where(x => classificationIds.Contains(x.Id) && !x.IsDeleted)
+                .ToDictionaryAsync(x => x.Id, cancellationToken);
+
+            var timeEntries = new List<TimeEntry>();
+            if (payPeriod is not null)
+            {
+                timeEntries = await db.Set<TimeEntry>()
+                    .AsNoTracking()
+                    .Where(x => employeeIds.Contains(x.EmployeeId))
+                    .Where(x => x.Date >= payPeriod.StartDate && x.Date <= payPeriod.EndDate)
+                    .ToListAsync(cancellationToken);
+            }
+
+            var dailyHoursLookup = timeEntries
+                .GroupBy(x => x.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.GroupBy(te => te.Date.DayOfWeek)
+                          .ToDictionary(dg => dg.Key, dg => dg.Sum(te => te.RegularHours + te.OvertimeHours + te.DoubletimeHours)));
+
+            wh347Rows = lines.Select(line =>
+            {
+                employeeMap.TryGetValue(line.EmployeeId, out var employee);
+                string classificationLabel = "Unclassified";
+                if (line.WorkClassificationId.HasValue &&
+                    classificationMap.TryGetValue(line.WorkClassificationId.Value, out var wc))
+                {
+                    classificationLabel = string.IsNullOrWhiteSpace(wc.Code)
+                        ? wc.Name
+                        : $"{wc.Code} - {wc.Name}";
+                }
+
+                var hourlyRate = line.RegularHours > 0 ? line.RegularPay / line.RegularHours : 0m;
+                dailyHoursLookup.TryGetValue(line.EmployeeId, out var dailyHours);
+                dailyHours ??= new Dictionary<DayOfWeek, decimal>();
+
+                return new Wh347DetailRow(
+                    EmployeeName: employee?.FullName ?? line.EmployeeId.ToString(),
+                    EmployeeNumber: employee?.EmployeeNumber ?? "",
+                    Classification: classificationLabel,
+                    StraightTimeHours: line.RegularHours,
+                    OvertimeHours: line.OvertimeHours + line.DoubletimeHours,
+                    Rate: hourlyRate,
+                    GrossPay: line.GrossPay,
+                    Fica: null,
+                    Withholding: null,
+                    OtherDeductions: 0m,
+                    NetPay: line.GrossPay,
+                    MonHours: dailyHours.GetValueOrDefault(DayOfWeek.Monday),
+                    TueHours: dailyHours.GetValueOrDefault(DayOfWeek.Tuesday),
+                    WedHours: dailyHours.GetValueOrDefault(DayOfWeek.Wednesday),
+                    ThuHours: dailyHours.GetValueOrDefault(DayOfWeek.Thursday),
+                    FriHours: dailyHours.GetValueOrDefault(DayOfWeek.Friday),
+                    SatHours: dailyHours.GetValueOrDefault(DayOfWeek.Saturday),
+                    SunHours: dailyHours.GetValueOrDefault(DayOfWeek.Sunday));
+            }).OrderBy(x => x.EmployeeName).ToList();
         }
 
-        // Build daily hours lookup: EmployeeId -> DayOfWeek -> total hours
-        var dailyHoursLookup = timeEntries
-            .GroupBy(x => x.EmployeeId)
-            .ToDictionary(
-                g => g.Key,
-                g => g.GroupBy(te => te.Date.DayOfWeek)
-                      .ToDictionary(dg => dg.Key, dg => dg.Sum(te => te.RegularHours + te.OvertimeHours + te.DoubletimeHours)));
-
-        // Get company info
         var companyName = GetCompanyName();
         var company = await db.Set<Company>()
             .AsNoTracking()
@@ -299,40 +428,6 @@ public sealed class PdfReportService(
         var companyAddress = company is not null
             ? string.Join(", ", new[] { company.Address, company.City, company.State, company.ZipCode }.Where(s => !string.IsNullOrWhiteSpace(s)))
             : "";
-
-        var wh347Rows = lines.Select(line =>
-        {
-            employeeMap.TryGetValue(line.EmployeeId, out var employee);
-            var hourlyRate = line.RegularHours > 0 ? line.RegularPay / line.RegularHours : employee?.BaseHourlyRate ?? 0m;
-            var fica = Math.Round(line.GrossPay * 0.0765m, 2, MidpointRounding.AwayFromZero);
-            var withholding = Math.Round(line.GrossPay * 0.12m, 2, MidpointRounding.AwayFromZero);
-            var otherDeductions = 0m;
-            var totalDeductions = fica + withholding + otherDeductions;
-            var netPay = line.GrossPay - totalDeductions;
-
-            dailyHoursLookup.TryGetValue(line.EmployeeId, out var dailyHours);
-            dailyHours ??= new Dictionary<DayOfWeek, decimal>();
-
-            return new Wh347DetailRow(
-                EmployeeName: employee?.FullName ?? line.EmployeeId.ToString(),
-                EmployeeNumber: employee?.EmployeeNumber ?? "",
-                Classification: employee?.Title ?? employee?.Classification.ToString() ?? "Worker",
-                StraightTimeHours: line.RegularHours,
-                OvertimeHours: line.OvertimeHours + line.DoubletimeHours,
-                Rate: hourlyRate,
-                GrossPay: line.GrossPay,
-                Fica: fica,
-                Withholding: withholding,
-                OtherDeductions: otherDeductions,
-                NetPay: netPay,
-                MonHours: dailyHours.GetValueOrDefault(DayOfWeek.Monday),
-                TueHours: dailyHours.GetValueOrDefault(DayOfWeek.Tuesday),
-                WedHours: dailyHours.GetValueOrDefault(DayOfWeek.Wednesday),
-                ThuHours: dailyHours.GetValueOrDefault(DayOfWeek.Thursday),
-                FriHours: dailyHours.GetValueOrDefault(DayOfWeek.Friday),
-                SatHours: dailyHours.GetValueOrDefault(DayOfWeek.Saturday),
-                SunHours: dailyHours.GetValueOrDefault(DayOfWeek.Sunday));
-        }).OrderBy(x => x.EmployeeName).ToList();
 
         var weekEndingStr = weekEnding?.ToString("MM/dd/yyyy") ?? "N/A";
         var periodStart = payPeriod?.StartDate;
@@ -612,8 +707,8 @@ public sealed class PdfReportService(
         decimal OvertimeHours,
         decimal Rate,
         decimal GrossPay,
-        decimal Fica,
-        decimal Withholding,
+        decimal? Fica,
+        decimal? Withholding,
         decimal OtherDeductions,
         decimal NetPay,
         decimal MonHours,
