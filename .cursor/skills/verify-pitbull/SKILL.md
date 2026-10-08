@@ -28,7 +28,7 @@ cd src/Pitbull.Web/pitbull-web
 npm run dev                             # Web: http://localhost:3000 (Next.js dev)
 ```
 
-- Health: unauthenticated `http://localhost:5081/health/live` (also `/health` and `/health/ready`). The web's connection-status widget sends `HEAD /api/health` to the web origin, which 404s. That is noise, not a failure.
+- Health: unauthenticated `http://localhost:5081/health/live` (also `/health` and `/health/ready`). The web's connection-status widget sends `HEAD /api/health` to the web origin, which 404s. That is noise, not a failure. Signed out, `/sw.js` and `/manifest.json` also get `307` to `/login` because the middleware matcher in `src/Pitbull.Web/pitbull-web/src/middleware.ts` only exempts `_next` assets, `favicon.ico`, and images. So every fresh context that opens `/login` logs the console error "The script resource is behind a redirect, which is disallowed." from `ServiceWorkerRegister`. That is noise too (with a token, `/sw.js` returns 200).
 - Build identity: `GET http://localhost:5081/api/version` returns `version`, `buildDate`, and `commitHash`. A long-running API may be built from a different branch than the current checkout, so always record it. On main since #596, the release Docker image bakes in the commit and build date.
 - Demo password `PitbullDemo2026!`. Role login is `POST /api/auth/demo-role-login {"role":"<key>"}`, which works only when Demo is enabled. Keys and emails are in [`features/login-explore-as-role.md`](features/login-explore-as-role.md).
 

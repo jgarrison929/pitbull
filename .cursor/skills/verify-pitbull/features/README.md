@@ -1,6 +1,6 @@
 # Pitbull verification feature index
 
-Each playbook is a user-POV smoke guide with source citations (re-verified against `origin/main` 3.8.2 on 2026-10-07) and a read-only live recipe. `drive-one.ps1` runs all six recipes, or one with `-Feature <name>`.
+Each playbook is a user-POV smoke guide with source citations (re-verified against `origin/main` 3.8.2 on 2026-10-08) and a read-only live recipe. `drive-one.ps1` runs all six recipes, or one with `-Feature <name>`.
 
 | Feature | Playbook | Primary question |
 |---|---|---|
