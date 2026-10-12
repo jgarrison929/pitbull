@@ -17,6 +17,7 @@
 | `deployment/` | Older Railway notes — **live setup is `deploy/` at repo root** |
 | `security/` | Access control, RLS, incident response |
 | `specs/` | Product specs |
+| `gtm/` | Sellability / GC-tool displacement map (Product-GTM) |
 
 ## Lifecycle
 
