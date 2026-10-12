@@ -28,8 +28,9 @@ Historical **3.0.0** Arc A–E is complete (`docs/260712/`). Do not reopen 2.x n
 | **3.11** Pay apps + Quotes | `3.10.1` → `3.11.0` | [band-3.11-pm-sub-payapps-quotes.md](./band-3.11-pm-sub-payapps-quotes.md) | Pending stub |
 | **3.12** PM hub polish | `3.11.1` → `3.12.0` | [band-3.12-pm-hub-polish.md](./band-3.12-pm-hub-polish.md) | Pending stub |
 | Runway + **4.0.0** | `3.12.1` → `3.12.9` → `4.0.0` | [band-3.12-runway-and-4.0.0.md](./band-3.12-runway-and-4.0.0.md) | Pending stub |
+| **4.0.0 acceptance** (must-win field) | Major bar (OBJECTIVE on 3.12 hub stamps) | [band-4.0.0-acceptance-must-win-field.md](./band-4.0.0-acceptance-must-win-field.md) | **Pending** |
 
-**Product VERSION:** `3.7.8`. **Next free stamp:** `3.7.9` (band 3.8 remainder — do not reclaim diverted `3.7.6` dep-audit, `3.7.7` WIP BilledToDate, or `3.7.8` Dependabot wave).
+**Product VERSION:** `3.8.0`. **Next free stamp:** `3.8.1` (band 3.8 remapped remainder — do not reclaim diverted `3.7.6`–`3.8.0`).
 
 ## Shipped post-3.0 bands (prior)
 

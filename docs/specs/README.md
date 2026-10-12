@@ -82,3 +82,5 @@ See [`product-bands/README.md`](./product-bands/README.md).
 **PM next-gen (live ladder):** [`docs/roadmap/pm-nextgen-3.4-to-4.0.md`](../roadmap/pm-nextgen-3.4-to-4.0.md) + [`product-bands/README.md`](./product-bands/README.md) — active band [`product-bands/band-3.8-pm-cpm-practices.md`](./product-bands/band-3.8-pm-cpm-practices.md) (product **`3.8.0`** → next free **`3.8.1`**; bands 3.5–3.7 shipped archive).
 
 Older theme parking lot: [`docs/roadmap/post-3.0-product-bands.md`](../roadmap/post-3.0-product-bands.md).
+
+**4.0.0 acceptance (must-win field):** [product-bands/band-4.0.0-acceptance-must-win-field.md](./product-bands/band-4.0.0-acceptance-must-win-field.md) — Keep/Cut lock + mobile job-cost OBJECTIVE for major.
