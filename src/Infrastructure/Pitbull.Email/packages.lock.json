@@ -8,13 +8,19 @@
         "resolved": "2.12.2",
         "contentHash": "ZkT7qiJe0Kj0+DTZOZo+xrDy1kNmdsWFQVPIQLNx9ZJ0T9cB2LG7r+Bi60so8/+yg1nkS7QCPadrzsTG4VPKrA=="
       },
+      "System.Security.Cryptography.Pkcs": {
+        "type": "Direct",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "a+EovgC1fBnwdlQ6cn3j4JFBfKqiFaFvoAhjisOoSvazLAcIznaBzPQP0oYnvccmeXfqUH1KebVZOxSeH6rMaw=="
+      },
       "System.Security.Cryptography.Xml": {
         "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "TokfVsaU2fmcwvsU6ihLCkseVfwhLX6Tmbl3qh3nOBIqHSX4yqFllpslA+PuHERH/ENu3kwqo4deZiyT0Wvh3Q==",
+        "requested": "[10.0.13, )",
+        "resolved": "10.0.13",
+        "contentHash": "v6/GHhLaHkuN/ISgbKzBeyC7TP7S6Qm/dVyKA+p0ay9nlJyLif+spozjAGclY/FRIv2TC+KNQCo7dSNmupvWtQ==",
         "dependencies": {
-          "System.Security.Cryptography.Pkcs": "10.0.11"
+          "System.Security.Cryptography.Pkcs": "10.0.13"
         }
       },
       "DotNetCore.CAP": {
@@ -362,11 +368,6 @@
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.4, 11.0.0)",
           "Npgsql": "10.0.3"
         }
-      },
-      "System.Security.Cryptography.Pkcs": {
-        "type": "Transitive",
-        "resolved": "10.0.11",
-        "contentHash": "8IV+rI3xN/Mkq9MsSX7VZTv9T9Wt+tyhHLwBX9VNZBk8m8kknEs1JeTSjI2x9M2L/fSja+c2WSE5n5Yy0GXdoQ=="
       },
       "pitbull.core": {
         "type": "Project",
